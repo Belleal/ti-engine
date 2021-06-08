@@ -22,7 +22,6 @@ let exceptionCodeEnum = tools.enum( {
     /** Security & Administration related exceptions - codes under 2xx */
     E_SEC_INVALID_SESSION_KEY: [ 200, "invalid session key", "Invalid session key provided." ],
     E_SEC_INVALID_EXPIRED_SESSION: [ 201, "invalid or expired session", "Invalid or expired session encountered." ],
-    E_SEC_UNAUTHORIZED_DEVELOPER_ACCESS: [ 202, "unauthorized developer access", "Attempt to call developer only service without proper authorization." ],
     /** Cross-Application Communication exceptions - codes under 3xx */
     E_COM_GENERAL_ERROR: [ 300, "general communication error", "General error during cross-application communication." ],
     E_COM_UNRECOGNIZED_API_URL: [ 301, "unrecognized api url", "Attempt to access unrecognized or invalid API URL." ],

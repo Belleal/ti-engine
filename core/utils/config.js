@@ -3,8 +3,26 @@
  */
 
 const _ = require( "lodash" );
-const fs = require( "fs-extra" );
 const tools = require( "#tools" );
+
+/**
+ * @typedef {string} EnvironmentVariable
+ */
+
+/**
+ * @typedef {NodeJS.Process} Environment
+ * @property {ProcessEnv} env
+ * @property {EnvironmentVariable} env.TI_GCLOUD_API_KEY
+ * @property {EnvironmentVariable} env.TI_GCLOUD_ENABLED
+ * @property {EnvironmentVariable} env.TI_GCLOUD_PROJECT_ID
+ * @property {EnvironmentVariable} env.TI_INSTANCE_CLASS
+ * @property {EnvironmentVariable} env.TI_INSTANCE_ID
+ * @property {EnvironmentVariable} env.TI_INSTANCE_NAME
+ * @property {EnvironmentVariable} env.TI_LOG_CONSOLE_ENABLED
+ * @property {EnvironmentVariable} env.TI_LOG_MIN_LEVEL
+ * @property {EnvironmentVariable} env.TI_LOG_USED_JSON
+ * @property {EnvironmentVariable} env.TI_OPERATION_MODE
+ */
 
 /**
  * @typedef {string} CronString

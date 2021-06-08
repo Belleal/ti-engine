@@ -8,12 +8,9 @@ const logger = require( "#logger" );
 const exceptions = require( "#exceptions" );
 const cache = require( "#cache" );
 
-// reference values:
-const healthCheckTimeout = 3;
-
 /**
  * Abstract class used to define a Service Instance behavior.
- * NOTE: Inherit this to create an a module that can be started as an application microservice instance.
+ * NOTE: Inherit this to create an a module that can be started as a microservice instance.
  *
  * @class ServiceInstance
  * @abstract
@@ -27,7 +24,12 @@ class ServiceInstance {
     /**
      * @constructor
      */
-    constructor() { }
+    constructor() {
+        // make sure this abstract class cannot be instantiated:
+        if ( new.target === ServiceInstance ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_CLASS_INIT );
+        }
+    }
 
     /* Public interface */
 
@@ -138,15 +140,6 @@ class ServiceInstance {
      */
     #postStart() {
         return new Promise( ( resolve, reject ) => {
-            // TODO: move this to the InstanceEntry class instead and make it possible to reuse instance IDs of previously killed instances
-            // startup was successful; add the current instance to the list of running ones in the memory cache:
-            // cache.hashSetFields( "titanium:instances:" + process.env.TI_INSTANCE_ID, [ {
-            //     name: "instance-start",
-            //     value: process.env.TITANIUM_INSTANCE_START
-            // } ] ).catch( ( error ) => {
-            //     logger.log( "Error while trying to add data variables for current instance in cache!", logger.logSeverity.ERROR, error );
-            // } );
-
             // schedule regular health check:
             this.#reportHealthyJob = schedule.scheduleJob( config.getSetting( config.setting.SERVICE_HEALTH_CHECK_INTERVAL ), () => {
                 this.#reportHealthy();
@@ -201,7 +194,7 @@ class ServiceInstance {
      * @private
      */
     #reportHealthy() {
-        cache.setValue( this.#serviceHealthCheck, "healthy", healthCheckTimeout ).catch( ( error ) => {
+        cache.setValue( this.#serviceHealthCheck, "healthy", config.getSetting( config.setting.SERVICE_HEALTH_CHECK_TIMEOUT ) ).catch( ( error ) => {
             logger.log( `Error while trying to report for health check from '${ process.env.TI_INSTANCE_ID }'!`, logger.logSeverity.WARNING, error );
         } );
     }

@@ -97,7 +97,7 @@ class Auditing {
         let reporter = process.env.TI_INSTANCE_ID;
 
         return {
-            _id: logDate + "-" + logTime + "-" + thread + "-" + reporter + "-" + logger.getSeverityName( severity ) + "-" + tools.getUUID(),
+            _id: `${ logDate }-${ logTime }-${ thread }-${ reporter }-${ logger.getSeverityName( severity ) }-${ tools.getUUID() }`,
             severity: severity,
             thread: thread,
             reporter: reporter,
@@ -126,7 +126,7 @@ class Auditing {
         } else {
             console.log( Auditing.#formatConsoleMessage( logEntry ) );
             if ( !_.isEmpty( logEntry.data ) ) {
-                console.log( "   » " + Auditing.#formatConsoleData( logEntry ) );
+                console.log( `   » ${ Auditing.#formatConsoleData( logEntry ) }` );
             }
         }
     }
@@ -141,7 +141,7 @@ class Auditing {
      */
     static #formatConsoleMessage( logEntry ) {
         let logDate = new Date( logEntry.timestamp );
-        return tools.getUTCDateString( logDate ) + ", " + tools.getUTCTimeString( logDate, true ) + " (UTC): " + logEntry.reporter + " - " + logger.getSeverityName( logEntry.severity ) + " - " + logEntry.message;
+        return `${ tools.getUTCDateString( logDate ) }, ${ tools.getUTCTimeString( logDate, true ) } (UTC): ${ logEntry.reporter } - ${ logger.getSeverityName( logEntry.severity ) } - ${ logEntry.message }`;
     }
 
     /**
