@@ -1,0 +1,19 @@
+{
+  "auditing": {
+    "logConsoleEnabled": true,
+    "logMinLevel": 0,
+    "logUsesJSON": false
+  },
+  "gcloudIntegration": {
+    "apiKey": "",
+    "loggingEnabled": false,
+    "logName": "ti-engine",
+    "projectID": ""
+  },
+  "serviceConfig": {
+    "healthCheckAddress": "ti:services:registry:health:",
+    "healthCheckInterval": "*/1 * * * * *",
+    "healthCheckTimeout": 3
+  },
+  "operationMode": "production"
+}

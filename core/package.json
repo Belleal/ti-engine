@@ -1,0 +1,31 @@
+{
+  "name": "@ti-engine/core",
+  "version": "1.0.0",
+  "description": "",
+  "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
+  "license": "ISC",
+  "exports": {
+    "./service-instance": "./components/service-instance.js"
+  },
+  "imports": {
+    "#auditing": "./components/auditing.js",
+    "#cache": "./utils/cache.js",
+    "#config": "./utils/config.js",
+    "#exceptions": "./utils/exceptions.js",
+    "#gcloud-integration": "./integrations/gcloud-integration.js",
+    "#logger": "./utils/logger.js",
+    "#redis-integration": "./integrations/redis-integration.js",
+    "#settings": "./settings.json",
+    "#tools": "./utils/tools.js"
+  },
+  "dependencies": {
+    "@google-cloud/error-reporting": "^2.0.2",
+    "fs-extra": "^10.0.0",
+    "lodash": "^4.17.21",
+    "node-schedule": "^2.0.0",
+    "ioredis": "^4.27.4"
+  },
+  "engines": {
+    "node": ">=14.17.0"
+  }
+}

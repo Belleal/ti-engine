@@ -1,0 +1,18 @@
+{
+  "name": "ti-engine",
+  "version": "1.0.0",
+  "description": "",
+  "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
+  "license": "ISC",
+  "main": "start-instance.js",
+  "scripts": {
+    "start": "node start-instance.js"
+  },
+  "dependencies": {
+    "dotenv": "^10.0.0",
+    "lodash": "^4.17.21"
+  },
+  "engines": {
+    "node": ">=14.17.0"
+  }
+}
