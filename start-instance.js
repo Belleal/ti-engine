@@ -1,6 +1,6 @@
-/**
- * The application entry point for any type of service instance.
- * This should be used when initializing new application process regardless if locally or in the cloud.
+/*
+ * SPDX-FileCopyrightText: © 2021 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * SPDX-License-Identifier: ICU
  */
 
 "use strict";
@@ -74,7 +74,7 @@ try {
 
     /** @type ServiceInstance */
     const serviceConstructor = require( process.cwd() + "/" + process.env.TI_INSTANCE_CLASS );
-    const mainInstance = new serviceConstructor();
+    const mainInstance = new serviceConstructor( process.env.TI_INSTANCE_NAME );
 
     /** @override */
     shutDownInstance = ( code ) => {
@@ -86,7 +86,7 @@ try {
         } );
     };
 
-    if ( mainInstance.isInstanceEntry ) {
+    if ( mainInstance.isServiceInstance ) {
         mainInstance.start().catch( ( error ) => {
             logger.log( `Error detected during instance '${ process.env.TI_INSTANCE_ID }' startup!`, logger.logSeverity.ALERT, error );
             setImmediate( () => process.exit( 1 ) );

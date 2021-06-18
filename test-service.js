@@ -1,11 +1,17 @@
+/*
+ * SPDX-FileCopyrightText: © 2021 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * SPDX-License-Identifier: ICU
+ */
+
 const ServiceInstance = require( process.cwd() + "/core/components/service-instance" );
 
 class ServiceConsumer extends ServiceInstance {
     /**
      * @constructor
+     * @param {string} serviceDomainName The service domain name for this service instance.
      */
-    constructor() {
-        super();
+    constructor( serviceDomainName ) {
+        super( serviceDomainName );
     }
 
     /**

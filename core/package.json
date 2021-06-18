@@ -5,7 +5,8 @@
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "ISC",
   "exports": {
-    "./service-instance": "./components/service-instance.js"
+    "./service-instance": "./components/service-instance.js",
+    "./tools": "./utils/tools.js"
   },
   "imports": {
     "#auditing": "./components/auditing.js",

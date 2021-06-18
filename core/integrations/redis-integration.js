@@ -1,5 +1,6 @@
-/**
- * A set of objects and functions related to utilization of the platform preferred memory cache (Redis).
+/*
+ * SPDX-FileCopyrightText: © 2021 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * SPDX-License-Identifier: ICU
  */
 
 const ioredis = require( "ioredis" );

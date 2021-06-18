@@ -1,5 +1,6 @@
-/**
- * A set of objects and functions related to reading and accessing the system configurations.
+/*
+ * SPDX-FileCopyrightText: © 2021 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * SPDX-License-Identifier: ICU
  */
 
 const _ = require( "lodash" );
@@ -51,6 +52,7 @@ const tools = require( "#tools" );
 
 /**
  * @typedef {Object} SettingsServiceConfig
+ * @property {number} executionTimeout
  * @property {string} healthCheckAddress
  * @property {CronString} healthCheckInterval
  * @property {number} healthCheckTimeout
@@ -69,6 +71,7 @@ let settingsEnum = tools.enum( {
     AUDITING_LOG_USES_JSON: [ "auditing.logUsesJSON", "logUsesJSON", "" ],
     GCLOUD_API_KEY: [ "gcloudIntegration.apiKey", "apiKey", "" ],
     GCLOUD_PROJECT_ID: [ "gcloudIntegration.projectID", "projectID", "" ],
+    SERVICE_EXECUTION_TIMEOUT: [ "serviceConfig.executionTimeout", "executionTimeout", "" ],
     SERVICE_HEALTH_CHECK_ADDRESS: [ "serviceConfig.healthCheckAddress", "healthCheckAddress", "" ],
     SERVICE_HEALTH_CHECK_INTERVAL: [ "serviceConfig.healthCheckInterval", "healthCheckInterval", "" ],
     SERVICE_HEALTH_CHECK_TIMEOUT: [ "serviceConfig.healthCheckTimeout", "healthCheckTimeout", "" ],

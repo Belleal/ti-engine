@@ -1,8 +1,10 @@
-/**
- * An abstract class module defining the Instance Entry behavior.
+/*
+ * SPDX-FileCopyrightText: © 2021 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * SPDX-License-Identifier: ICU
  */
 
 const schedule = require( "node-schedule" );
+const tools = require( "#tools" );
 const config = require( "#config" );
 const logger = require( "#logger" );
 const exceptions = require( "#exceptions" );
@@ -18,29 +20,56 @@ const cache = require( "#cache" );
  */
 class ServiceInstance {
 
+    static #instanceID = process.env.TI_INSTANCE_ID || tools.getUUID();
+    static #serviceDomainName;
     #serviceHealthCheck = undefined;
     #reportHealthyJob = undefined;
 
     /**
      * @constructor
+     * @param {string} serviceDomainName The service domain name for this service instance.
      */
-    constructor() {
+    constructor( serviceDomainName ) {
         // make sure this abstract class cannot be instantiated:
         if ( new.target === ServiceInstance ) {
             throw exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_CLASS_INIT );
         }
+
+        ServiceInstance.#serviceDomainName = serviceDomainName;
     }
 
     /* Public interface */
 
     /**
-     * Property to indicate that this and every child class is a Instance Entry.
+     * Property returning the current service instance ID.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    static get instanceID() {
+        return ServiceInstance.#instanceID;
+    }
+
+    /**
+     * Property returning the current service domain name.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    static get serviceDomainName() {
+        return ServiceInstance.#serviceDomainName;
+    }
+
+    /**
+     * Property to indicate that this and every child class is a Service Instance.
      *
      * @property
      * @returns {boolean}
      * @public
      */
-    get isInstanceEntry() {
+    get isServiceInstance() {
         return true;
     }
 
@@ -53,15 +82,19 @@ class ServiceInstance {
      */
     start() {
         return new Promise( ( resolve, reject ) => {
-            this.#preStart().then( () => {
-                return this.onStart();
-            } ).then( () => {
-                return this.#postStart();
-            } ).then( () => {
-                resolve();
-            } ).catch( ( error ) => {
-                reject( exceptions.raise( error ) );
-            } );
+            if ( !ServiceInstance.#serviceDomainName ) {
+                reject( exceptions.raise( exceptions.exceptionCode.E_INVALID_SERVICE_DOMAIN_NAME ) );
+            } else {
+                this.#preStart().then( () => {
+                    return this.onStart();
+                } ).then( () => {
+                    return this.#postStart();
+                } ).then( () => {
+                    resolve();
+                } ).catch( ( error ) => {
+                    reject( exceptions.raise( error ) );
+                } );
+            }
         } );
     }
 

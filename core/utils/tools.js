@@ -1,5 +1,6 @@
-/**
- * A compilation of utility functions and generators that are unrelated to specific system or business logic.
+/*
+ * SPDX-FileCopyrightText: © 2021 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * SPDX-License-Identifier: ICU
  */
 
 const _ = require( "lodash" );

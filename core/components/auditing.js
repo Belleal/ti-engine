@@ -1,5 +1,6 @@
-/**
- * A class module defining and providing access to the Auditing System.
+/*
+ * SPDX-FileCopyrightText: © 2021 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * SPDX-License-Identifier: ICU
  */
 
 const _ = require( "lodash" );
@@ -50,7 +51,7 @@ class Auditing {
      * @param {string} message The primary log message.
      * @param {TiLogSeverity} [severity=DEFAULT] The log severity level. If the current log filtering setting is higher than this then the log entry will be ignored.
      * @param {string} [thread='main'] The logging thread to which the log entry belongs.
-     * @param {Object|Error} [data={}] Optional JSON data containing details of the log entry.
+     * @param {Object} [data={}] Optional JSON data containing details of the log entry.
      * @public
      */
     log( message, severity = logger.logSeverity.DEFAULT, thread = "main", data = {} ) {
@@ -59,7 +60,7 @@ class Auditing {
             if ( severity >= config.getSetting( config.setting.AUDITING_LOG_MIN_LEVEL ) ) {
                 // obscure any passwords that might have landed in the data object;
                 // also make sure to convert a potential Error object to a JSON:
-                let copyOfData = ( data instanceof Error ) ? tools.errorToJSON( data ) : _.cloneDeep( data );
+                let copyOfData = _.cloneDeep( data );
                 let logEntry = Auditing.#createLogEntry( severity, thread, message, copyOfData );
 
                 // make sure there is a console available:

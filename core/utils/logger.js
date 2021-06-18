@@ -1,8 +1,10 @@
-/**
- * A set of objects and functions related to logging.
+/*
+ * SPDX-FileCopyrightText: © 2021 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * SPDX-License-Identifier: ICU
  */
 
 const tools = require( "#tools" );
+const exceptions = require( "#exceptions" );
 
 /**
  * Enum for specifying the log entry severity. This is based on the Google Stackdriver severity levels.
@@ -45,12 +47,22 @@ module.exports.getSeverityName = ( severity ) => {
  * @method
  * @param {string} message The primary log message.
  * @param {TiLogSeverity} [level=DEFAULT] The log severity level. If the current log filtering setting is higher than this then the log entry will be ignored.
- * @param {Object|Error} [data={}] Optional JSON data containing details of the log entry.
+ * @param {Object|Error|Exception} [data={}] Optional JSON data containing details of the log entry.
  * @param {string} [thread='main'] The logging thread to which the log entry belongs.
  * @public
  */
 module.exports.log = ( message, level = logSeverityEnum.DEFAULT, data = {}, thread = "main" ) => {
     /** @type {Auditing} */
     const auditing = require( "#auditing" );
+
+    if ( data instanceof Error ) {
+        data = tools.errorToJSON( data );
+    } else if ( exceptions.isException( data ) ) {
+        data = {
+            id: data.id,
+            description: data.description
+        };
+    }
+
     auditing.log( message, level, thread, data );
 };

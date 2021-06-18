@@ -11,6 +11,7 @@
     "projectID": ""
   },
   "serviceConfig": {
+    "executionTimeout": 180000,
     "healthCheckAddress": "ti:services:registry:health:",
     "healthCheckInterval": "*/1 * * * * *",
     "healthCheckTimeout": 3

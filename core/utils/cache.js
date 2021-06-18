@@ -1,5 +1,6 @@
-/**
- * A class module defining and providing access to the default Cache component.
+/*
+ * SPDX-FileCopyrightText: © 2021 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * SPDX-License-Identifier: ICU
  */
 
 const _ = require( "lodash" );

@@ -1,5 +1,6 @@
-/**
- * A set of functions related to GCloud integrated services.
+/*
+ * SPDX-FileCopyrightText: © 2021 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * SPDX-License-Identifier: ICU
  */
 
 const config = require( "#config" );
