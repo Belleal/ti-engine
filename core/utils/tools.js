@@ -8,11 +8,15 @@ const fs = require( "fs-extra" );
 const crypto = require( "crypto" );
 
 /**
+ * @typedef {Object} TiEnumValue
+ * @property {number|string} value
+ * @property {string} name
+ * @property {string} description
+ */
+
+/**
  * @typedef {Object} TiEnum
- * @property {Object} properties
- * @property {number|string} properties.value
- * @property {string} properties.name
- * @property {string} properties.description
+ * @property {Object.<number|string,TiEnumValue>} properties
  */
 
 /**
@@ -57,6 +61,20 @@ module.exports.enum = ( seed ) => {
 
     Object.freeze( seed );
     return seed;
+};
+
+/**
+ * Used to get the name of an {@link TiEnum} value if such exists.
+ *
+ * @method
+ * @param {TiEnum} enumList
+ * @param {number|string} enumValue
+ * @param {string} [placeholder=undefined] If provided it will be returned when the enum value does not have a name defined.
+ * @returns {string|undefined}
+ * @public
+ */
+module.exports.getEnumName = ( enumList, enumValue, placeholder = undefined ) => {
+    return ( enumList.properties[ enumValue ] ) ? enumList.properties[ enumValue ].name : placeholder;
 };
 
 /**
@@ -396,3 +414,98 @@ module.exports.createCSVFile = ( data, filePath, fileName ) => {
         } );
     } );
 };
+
+/**
+ * Used to create retry policy for the execution of an operation.
+ *
+ * @class RetryPolicy
+ * @public
+ */
+class RetryPolicy {
+
+    #maxAttempts;
+    #onFailedAttempt;
+    #onRetry;
+
+    /**
+     * @constructor
+     */
+    constructor( maxAttempts ) {
+        this.#maxAttempts = maxAttempts;
+    }
+
+    /* Public interface */
+
+    /**
+     * Used to start execution of the provided operation.
+     *
+     * @method
+     * @param {Object} context The context in which the operation will be executed (i.e. this reference).
+     * @param {function} operation Operation to be executed; has to return a Promise.
+     * @param {Array} params The arguments to be provided to the operation upon execution.
+     * @returns {Promise}
+     * @public
+     */
+    execute( context, operation, params ) {
+        return this.#retry( context, operation, params, 1, undefined );
+    }
+
+    /**
+     * Used to register a method that will be automatically called on a failed execution attempt.
+     *
+     * @method
+     * @param {function( Error )} action The execution error will be provided as an argument.
+     * @public
+     */
+    onFailedAttempt( action ) {
+        if ( typeof ( action ) === "function" ) {
+            this.#onFailedAttempt = action;
+        }
+    }
+
+    /**
+     * Used to register a method that will be automatically called on each execution retry (after the initial one).
+     *
+     * @method
+     * @param {function( number )} action The current attempt number will be provided as an argument.
+     * @public
+     */
+    onRetry( action ) {
+        if ( typeof ( action ) === "function" ) {
+            this.#onRetry = action;
+        }
+    }
+
+    /* Private interface */
+
+    /**
+     * Will retry the execution of operation up to max attempts.
+     *
+     * @method
+     * @param {Object} context
+     * @param {function} operation
+     * @param {Array} params
+     * @param {number} attempt
+     * @param {Error} error
+     * @returns {Promise}
+     * @private
+     */
+    #retry( context, operation, params, attempt, error ) {
+        if ( attempt > this.#maxAttempts ) {
+            return Promise.reject( error );
+        } else {
+            if ( attempt > 1 && this.#onRetry ) {
+                this.#onRetry( attempt );
+            }
+            return operation.apply( context, params ).catch( error => {
+                if ( this.#onFailedAttempt ) {
+                    this.#onFailedAttempt( error );
+                }
+                return this.#retry( context, operation, params, ( attempt - 1 ), error );
+            } );
+        }
+    }
+
+}
+
+module.exports.RetryPolicy = RetryPolicy;

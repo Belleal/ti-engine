@@ -20,10 +20,10 @@ const cache = require( "#cache" );
  */
 class ServiceInstance {
 
-    static #instanceID = process.env.TI_INSTANCE_ID || tools.getUUID();
+    static #instanceID;
     static #serviceDomainName;
-    #serviceHealthCheck = undefined;
-    #reportHealthyJob = undefined;
+    #serviceHealthCheck;
+    #reportHealthyJob;
 
     /**
      * @constructor
@@ -32,9 +32,10 @@ class ServiceInstance {
     constructor( serviceDomainName ) {
         // make sure this abstract class cannot be instantiated:
         if ( new.target === ServiceInstance ) {
-            throw exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_CLASS_INIT );
+            throw exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
         }
 
+        ServiceInstance.#instanceID = process.env.TI_INSTANCE_ID || tools.getUUID();
         ServiceInstance.#serviceDomainName = serviceDomainName;
     }
 
@@ -101,6 +102,7 @@ class ServiceInstance {
     /**
      * Executes custom logic on instance start.
      * NOTE: Override this to add specific functionality.
+     * NOTE: This method will be invoked automatically.
      *
      * @method
      * @returns {Promise}
@@ -135,6 +137,7 @@ class ServiceInstance {
     /**
      * Executes custom logic on instance stop.
      * NOTE: Override this to add specific functionality.
+     * NOTE: This method will be invoked automatically.
      *
      * @method
      * @returns {Promise}
@@ -157,8 +160,7 @@ class ServiceInstance {
      */
     #preStart() {
         return new Promise( ( resolve, reject ) => {
-            this.#serviceHealthCheck = config.getSetting( config.setting.SERVICE_HEALTH_CHECK_ADDRESS ) + process.env.TI_INSTANCE_NAME + ":" + process.env.TI_INSTANCE_ID;
-
+            this.#serviceHealthCheck = config.getSetting( config.setting.SERVICE_HEALTH_CHECK_ADDRESS ) + process.env.TI_INSTANCE_NAME + ":" + ServiceInstance.instanceID;
             resolve();
         } );
     }
@@ -178,7 +180,7 @@ class ServiceInstance {
                 this.#reportHealthy();
             } );
 
-            logger.log( `Instance '${ process.env.TI_INSTANCE_ID }' started successfully.`, logger.logSeverity.NOTICE, {
+            logger.log( `Instance '${ ServiceInstance.instanceID }' started successfully.`, logger.logSeverity.NOTICE, {
                 nodeVersion: process.version
             } );
 
@@ -214,7 +216,7 @@ class ServiceInstance {
      */
     #postStop() {
         return new Promise( ( resolve, reject ) => {
-            logger.log( `Instance '${ process.env.TI_INSTANCE_ID }' shut down successfully.`, logger.logSeverity.NOTICE );
+            logger.log( `Instance '${ ServiceInstance.instanceID }' shut down successfully.`, logger.logSeverity.NOTICE );
 
             resolve();
         } );
@@ -227,8 +229,9 @@ class ServiceInstance {
      * @private
      */
     #reportHealthy() {
-        cache.setValue( this.#serviceHealthCheck, "healthy", config.getSetting( config.setting.SERVICE_HEALTH_CHECK_TIMEOUT ) ).catch( ( error ) => {
-            logger.log( `Error while trying to report for health check from '${ process.env.TI_INSTANCE_ID }'!`, logger.logSeverity.WARNING, error );
+        let timestamp = new Date();
+        cache.setValue( this.#serviceHealthCheck, timestamp.toISOString(), config.getSetting( config.setting.SERVICE_HEALTH_CHECK_TIMEOUT ) ).catch( ( error ) => {
+            logger.log( `Error while trying to report for health check from '${ ServiceInstance.instanceID }'!`, logger.logSeverity.WARNING, error );
         } );
     }
 

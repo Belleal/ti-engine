@@ -10,11 +10,21 @@
     "logName": "ti-engine",
     "projectID": ""
   },
+  "messageExchange": {
+    "authKey": null,
+    "messageQueuePrefix": "ti:messages:",
+    "messageStore": "ti:messages:store",
+    "redisDB": 0,
+    "redisHost": "127.0.0.1",
+    "redisPort": 6379,
+    "traceLogEnabled": true
+  },
   "serviceConfig": {
     "executionTimeout": 180000,
     "healthCheckAddress": "ti:services:registry:health:",
     "healthCheckInterval": "*/1 * * * * *",
-    "healthCheckTimeout": 3
+    "healthCheckTimeout": 3,
+    "serviceRegistryAddress": "ti:services:registry:catalog:"
   },
   "operationMode": "production"
 }

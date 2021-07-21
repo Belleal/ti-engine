@@ -12,8 +12,7 @@ const exceptions = require( "#exceptions" );
  * Enum for listing all used Redis cache commands.
  *
  * @readonly
- * @extends TiEnum
- * @enum {number}
+ * @enum {string}
  */
 let cacheCommandsEnum = tools.enum( {
     ADD_TO_SET: [ "sadd", "add to set", "https://redis.io/commands/sadd" ],
@@ -24,6 +23,7 @@ let cacheCommandsEnum = tools.enum( {
     HASH_GET_ALL: [ "hgetall", "hash get all", "https://redis.io/commands/hgetall" ],
     HASH_SET: [ "hset", "", "https://redis.io/commands/hset" ],
     HASH_SET_MANY: [ "hmset", "", "https://redis.io/commands/hmset" ],
+    IS_SET_MEMBER: [ "sismember", "", "https://redis.io/commands/sismember" ],
     KEYS: [ "keys", "", "https://redis.io/commands/keys" ],
     LIST_PUSH: [ "lpush", "list push", "https://redis.io/commands/lpush" ],
     LIST_POP_TAIL_BLOCKING: [ "brpop", "list pop tail blocking", "https://redis.io/commands/brpop" ],
@@ -34,7 +34,7 @@ let cacheCommandsEnum = tools.enum( {
 } );
 
 /**
- * @typedef {TiEnum} MemoryCacheCommand
+ * @typedef {string} TiRedisCommand
  */
 module.exports.cacheCommands = cacheCommandsEnum;
 
@@ -47,7 +47,7 @@ module.exports.cacheCommands = cacheCommandsEnum;
 class RedisClient {
 
     #clientIdentifier = "default";
-    #retryInterval = 1000;
+    #retryMaxInterval = 1000;
     #retryMaxAttempts = undefined;
     #redisClient = undefined;
 
@@ -64,6 +64,22 @@ class RedisClient {
     constructor( identifier, host, port, authKey, defaultDB, autoRetryUnfulfilled, maxRetries ) {
         this.#clientIdentifier = identifier || this.#clientIdentifier;
 
+        let retryStrategy = ( attempt ) => {
+            let result = Math.min( attempt * 50, this.#retryMaxInterval );
+
+            if ( this.#retryMaxAttempts != null && attempt > this.#retryMaxAttempts ) {
+                logger.log( "In Redis retry strategy: reached max attempts for command retry. Aborting...", logger.logSeverity.WARNING, { attempts: attempt } );
+                result = exceptions.raise( exceptions.exceptionCode.E_COM_RETRY_ATTEMPTS_EXCEEDED );
+            }
+
+            return result;
+        };
+
+        let reconnectOnError = ( error ) => {
+            logger.log( `In Redis reconnect on error strategy: ${ error.message }`, logger.logSeverity.ERROR, error );
+            return !!error.message.includes( "READONLY" );
+        };
+
         let options = {
             port: port,
             host: host,
@@ -71,7 +87,8 @@ class RedisClient {
             db: defaultDB,
             autoResendUnfulfilledCommands: autoRetryUnfulfilled,
             maxRetriesPerRequest: maxRetries,
-            retryStrategy: this.#retryStrategy
+            retryStrategy: retryStrategy,
+            reconnectOnError: reconnectOnError
         };
 
         /** @type Redis */
@@ -192,30 +209,10 @@ class RedisClient {
         } );
     }
 
-    /* Private interface */
-
-    /**
-     * Used to define the retry strategy of Redis commands to the server.
-     *
-     * @method
-     * @param {number} attempts
-     * @returns {number|Exception}
-     * @private
-     */
-    #retryStrategy( attempts ) {
-        let result = Math.min( attempts * 50, this.#retryInterval );
-
-        if ( this.#retryMaxAttempts != null && attempts > this.#retryMaxAttempts ) {
-            logger.log( "In Redis retry strategy: reached max attempts for command retry.", logger.logSeverity.WARNING, { attempts: attempts } );
-            result = exceptions.raise( exceptions.exceptionCode.E_COM_RETRY_ATTEMPTS_EXCEEDED );
-        }
-
-        return result;
-    }
 }
 
 /**
- * Create and return new Redis client.
+ * Create and return a new Redis client.
  *
  * @method
  * @param {string} identifier
@@ -229,5 +226,5 @@ class RedisClient {
  * @public
  */
 module.exports.createRedisClient = ( identifier, host, port = 6379, authKey = undefined, defaultDB = 0, autoRetryUnfulfilled = true, maxRetries = 20 ) => {
-    return new RedisClient( identifier, host, port, authKey, defaultDB, autoRetryUnfulfilled, maxRetries );
+    return Object.freeze( new RedisClient( identifier, host, port, authKey, defaultDB, autoRetryUnfulfilled, maxRetries ) );
 };

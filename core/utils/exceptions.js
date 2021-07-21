@@ -10,7 +10,6 @@ const tools = require( "#tools" );
  * Enum for listing all system-recognized exceptions.
  *
  * @readonly
- * @extends TiEnum
  * @enum {number}
  */
 let exceptionCodeEnum = tools.enum( {
@@ -26,8 +25,9 @@ let exceptionCodeEnum = tools.enum( {
     E_SEC_INVALID_EXPIRED_SESSION: [ 201, "invalid or expired session", "Invalid or expired session encountered." ],
     /** Cross-Application Communication exceptions - codes under 3xx */
     E_COM_GENERAL_ERROR: [ 300, "general communication error", "General error during cross-application communication." ],
-    E_COM_SERVICE_INSTANCE_UNAVAILABLE: [ 301, "service instance unavailable", "The service instance is currently unavailable." ],
+    E_COM_MESSAGE_SENDER_UNAVAILABLE: [ 301, "message sender unavailable", "The message sender instance is currently unavailable." ],
     E_COM_SERVICE_EXEC_TIMEOUT: [ 302, "service exec timeout", "The execution of a service could not complete within the allowed timeout." ],
+    E_COM_SERVICE_NOT_REGISTERED: [ 303, "service not registered", "The specified service is not found in the service registry." ],
     // E_COM_UNRECOGNIZED_API_URL: [ 301, "unrecognized api url", "Attempt to access unrecognized or invalid API URL." ],
     // E_COM_MISSING_REQUIRED_ARGUMENTS: [ 302, "missing required arguments", "Attempt to execute operation without all required arguments." ],
     // E_COM_UNRECOGNIZED_RESPONSE_STRUCTURE: [ 303, "unrecognized response structure", "The received response has unrecognized structure and cannot be parsed or examined." ],
@@ -41,7 +41,7 @@ let exceptionCodeEnum = tools.enum( {
 } );
 
 /**
- * @typedef {TiEnum} ExceptionCode
+ * @typedef {number} TiExceptionCode
  */
 module.exports.exceptionCode = exceptionCodeEnum;
 
@@ -63,7 +63,7 @@ class Exception {
     /**
      * @constructor
      * @param {string} id The unique ID to be assigned to this exception.
-     * @param {ExceptionCode} exceptionCode An unique exception identifier. If this is not recognized, the default error code will be used instead.
+     * @param {TiExceptionCode} exceptionCode An unique exception identifier. If this is not recognized, the default error code will be used instead.
      * @param {Object} [data] Any additional data to insert into the exception.
      */
     constructor( id, exceptionCode, data ) {
@@ -94,7 +94,7 @@ class Exception {
      * Identifier code of the exception type.
      *
      * @method
-     * @return {ExceptionCode}
+     * @return {TiExceptionCode}
      * @public
      */
     get code() {
@@ -189,7 +189,7 @@ class Exception {
  * Used to raise an exception from the provided source.
  *
  * @method
- * @param {Error|ExceptionCode|Exception} source Could be a standard JS Error, an ExceptionCode, or another Exception (in which case it will be raised further).
+ * @param {Error|TiExceptionCode|Exception} source Could be a standard JS Error, an ExceptionCode, or another Exception (in which case it will be raised further).
  * @param {Object} [data] Additional JSON data that can accompany the exception. If more data is added on subsequent Raise calls, it will be merged with the existing one.
  * @param {string} [exceptionID] Should be used only in cases when we have a recognizable exception ID beforehand. Should not be entered otherwise!
  * @returns {Exception}

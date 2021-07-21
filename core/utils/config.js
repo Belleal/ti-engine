@@ -33,6 +33,7 @@ const tools = require( "#tools" );
  * @typedef {Object} SettingsMain
  * @property {SettingsAuditing} auditing
  * @property {SettingsGcloudIntegration} gcloudIntegration
+ * @property {SettingsMessageExchange} messageExchange
  * @property {SettingsServiceConfig} serviceConfig
  * @property {string} operationMode
  */
@@ -51,19 +52,30 @@ const tools = require( "#tools" );
  */
 
 /**
+ * @typedef {Object} SettingsMessageExchange
+ * @property {string} authKey
+ * @property {string} messageQueuePrefix
+ * @property {string} messageStore
+ * @property {number} redisDB
+ * @property {string} redisHost
+ * @property {number} redisPort
+ * @property {boolean} traceLogEnabled
+ */
+
+/**
  * @typedef {Object} SettingsServiceConfig
  * @property {number} executionTimeout
  * @property {string} healthCheckAddress
  * @property {CronString} healthCheckInterval
  * @property {number} healthCheckTimeout
+ * @property {string} serviceRegistryAddress
  */
 
 /**
  * Enum for listing all system settings.
  *
  * @readonly
- * @extends TiEnum
- * @enum {number}
+ * @enum {string} Keys of this ENUM are strings.
  */
 let settingsEnum = tools.enum( {
     AUDITING_LOG_CONSOLE_ENABLED: [ "auditing.logConsoleEnabled", "logConsoleEnabled", "" ],
@@ -71,15 +83,23 @@ let settingsEnum = tools.enum( {
     AUDITING_LOG_USES_JSON: [ "auditing.logUsesJSON", "logUsesJSON", "" ],
     GCLOUD_API_KEY: [ "gcloudIntegration.apiKey", "apiKey", "" ],
     GCLOUD_PROJECT_ID: [ "gcloudIntegration.projectID", "projectID", "" ],
+    MESSAGE_EXCHANGE_AUTH_KEY: [ "messageExchange.authKey", "authKey", "" ],
+    MESSAGE_EXCHANGE_QUEUE_PREFIX: [ "messageExchange.messageQueuePrefix", "messageQueuePrefix", "" ],
+    MESSAGE_EXCHANGE_STORE: [ "messageExchange.messageStore", "messageStore", "" ],
+    MESSAGE_EXCHANGE_REDIS_DB: [ "messageExchange.redisDB", "redisDB", "" ],
+    MESSAGE_EXCHANGE_REDIS_HOST: [ "messageExchange.redisHost", "redisHost", "" ],
+    MESSAGE_EXCHANGE_REDIS_PORT: [ "messageExchange.redisPort", "redisPort", "" ],
+    MESSAGE_EXCHANGE_TRACE_LOG_ENABLED: [ "messageExchange.traceLogEnabled", "traceLogEnabled", "" ],
     SERVICE_EXECUTION_TIMEOUT: [ "serviceConfig.executionTimeout", "executionTimeout", "" ],
     SERVICE_HEALTH_CHECK_ADDRESS: [ "serviceConfig.healthCheckAddress", "healthCheckAddress", "" ],
     SERVICE_HEALTH_CHECK_INTERVAL: [ "serviceConfig.healthCheckInterval", "healthCheckInterval", "" ],
     SERVICE_HEALTH_CHECK_TIMEOUT: [ "serviceConfig.healthCheckTimeout", "healthCheckTimeout", "" ],
+    SERVICE_REGISTRY_ADDRESS: [ "serviceConfig.serviceRegistryAddress", "serviceRegistryAddress", "" ],
     OPERATION_MODE: [ "operationMode", "operationMode", "" ]
 } );
 
 /**
- * @typedef {TiEnum} Setting
+ * @typedef {string} TiSetting
  */
 module.exports.setting = settingsEnum;
 
@@ -108,12 +128,11 @@ Object.freeze( settings );
  * A standard getter method for fetching a setting.
  *
  * @method
- * @param {string|Setting} setting Specifies either a dot-separated JSON path of the setting, or is a Setting from the settings enum.
+ * @param {string|TiSetting} setting Specifies either a dot-separated JSON path of the setting, or is a Setting from the settings enum.
  * @param {*} [defaultValue] The default value to be returned if the setting is not found in the current configuration.
  * @returns {*}
  * @public
  */
 module.exports.getSetting = ( setting, defaultValue ) => {
-    let path = ( _.isString( setting ) ) ? setting : setting.properties.value;
-    return _.get( settings, path, defaultValue );
+    return _.get( settings, setting, defaultValue );
 };

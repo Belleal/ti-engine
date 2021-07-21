@@ -45,7 +45,8 @@ class CommonMemoryCache {
         return new Promise( ( resolve, reject ) => {
             let commandKeys = [ redis.cacheCommands.KEYS, pattern ];
             this.#redisClient.executeCommands( [ commandKeys ] ).then( ( results ) => {
-                resolve( results[ 0 ] );
+                results = results[ 0 ];
+                resolve( ( results && results.length > 1 ) ? results[ 1 ] : [] );
             } ).catch( ( error ) => {
                 reject( error );
             } );
@@ -127,7 +128,8 @@ class CommonMemoryCache {
         return new Promise( ( resolve, reject ) => {
             let commandGetValue = [ redis.cacheCommands.GET_VALUE, key ];
             this.#redisClient.executeCommands( [ commandGetValue ] ).then( ( results ) => {
-                resolve( ( results && results.length > 0 && _.isString( results[ 0 ] ) ) ? tools.parseJSON( results[ 0 ] ) : null );
+                results = results[ 0 ];
+                resolve( ( results && results.length > 1 && _.isString( results[ 1 ] ) ) ? tools.parseJSON( results[ 1 ] ) : undefined );
             } ).catch( ( error ) => {
                 reject( error );
             } );
@@ -152,7 +154,7 @@ class CommonMemoryCache {
             this.#redisClient.executeCommands( commands ).then( ( rawResults ) => {
                 let results = {};
                 _.forEach( rawResults, ( result, idx ) => {
-                    results[ keys[ idx ] ] = ( results && results.length > 0 && _.isString( results[ 0 ] ) ) ? tools.parseJSON( results[ 0 ] ) : null;
+                    results[ keys[ idx ] ] = ( results && results.length > 1 && _.isString( results[ 1 ] ) ) ? tools.parseJSON( results[ 1 ] ) : null;
                 } );
                 resolve( results );
             } ).catch( ( error ) => {
@@ -173,7 +175,8 @@ class CommonMemoryCache {
         return new Promise( ( resolve, reject ) => {
             let commandDeleteValue = [ redis.cacheCommands.DELETE_VALUE, key ];
             this.#redisClient.executeCommands( [ commandDeleteValue ] ).then( ( results ) => {
-                resolve( ( results && results.length > 0 ) ? results[ 0 ] : false );
+                results = results[ 0 ];
+                resolve( ( results && results.length > 1 ) ? results[ 1 ] : undefined );
             } ).catch( ( error ) => {
                 reject( error );
             } );
@@ -198,7 +201,8 @@ class CommonMemoryCache {
                 }
             } );
             this.#redisClient.executeCommands( [ commandPushValues ] ).then( ( results ) => {
-                resolve( results[ 0 ] );
+                results = results[ 0 ];
+                resolve( ( results && results.length > 1 ) ? results[ 1 ] : undefined );
             } ).catch( ( error ) => {
                 reject( error );
             } );
@@ -250,6 +254,28 @@ class CommonMemoryCache {
     }
 
     /**
+     * Used to check if the provided value is member of the specified set.
+     *
+     * @method
+     * @param {string} setName
+     * @param {string} value
+     * @returns {Promise<boolean>}
+     * @public
+     */
+    isSetMember( setName, value ) {
+        return new Promise( ( resolve, reject ) => {
+            let commandIsSetMember = [ redis.cacheCommands.IS_SET_MEMBER, setName, value ];
+            this.#redisClient.executeCommands( [ commandIsSetMember ] ).then( ( results ) => {
+                results = results[ 0 ];
+                let result = !!( results && results.length > 1 && results[ 1 ] === 1 );
+                resolve( result );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
      * Used to get all elements of a set.
      *
      * @method
@@ -261,10 +287,8 @@ class CommonMemoryCache {
         return new Promise( ( resolve, reject ) => {
             let commandMembersOfSet = [ redis.cacheCommands.GET_ALL_FROM_SET, key ];
             this.#redisClient.executeCommands( [ commandMembersOfSet ] ).then( ( results ) => {
-                let parsedResults = ( results && results.length > 0 && results[ 0 ] ) ? results[ 0 ] : [];
-                _.forEach( parsedResults, ( item, idx ) => {
-                    parsedResults[ idx ] = tools.parseJSON( item );
-                } );
+                results = results[ 0 ];
+                let parsedResults = ( results && results.length > 1 && results[ 1 ] ) ? results[ 1 ] : [];
                 resolve( parsedResults );
             } ).catch( ( error ) => {
                 reject( error );
@@ -284,10 +308,8 @@ class CommonMemoryCache {
         return new Promise( ( resolve, reject ) => {
             let commandUnionOfSets = _.concat( [ redis.cacheCommands.UNION_OF_SETS ], keys );
             this.#redisClient.executeCommands( [ commandUnionOfSets ] ).then( ( results ) => {
-                let parsedResults = ( results && results.length > 0 && results[ 0 ] ) ? results[ 0 ] : [];
-                _.forEach( parsedResults, ( item, idx ) => {
-                    parsedResults[ idx ] = tools.parseJSON( item );
-                } );
+                results = results[ 0 ];
+                let parsedResults = ( results && results.length > 1 && results[ 1 ] ) ? results[ 1 ] : [];
                 resolve( parsedResults );
             } ).catch( ( error ) => {
                 reject( error );
@@ -332,7 +354,7 @@ class CommonMemoryCache {
             let commandHashSetFields = [ redis.cacheCommands.HASH_SET_MANY, key ];
             _.forEach( fields, ( field ) => {
                 commandHashSetFields.push( field.name );
-                commandHashSetFields.push( tools.stringifyJSON( field.value ) );
+                commandHashSetFields.push( _.isObjectLike( field.value ) ? tools.stringifyJSON( field.value ) : field.value );
             } );
             this.#redisClient.executeCommands( [ commandHashSetFields ] ).then( () => {
                 resolve();
@@ -355,7 +377,8 @@ class CommonMemoryCache {
         return new Promise( ( resolve, reject ) => {
             let commandHashGetField = [ redis.cacheCommands.HASH_GET, key, field ];
             this.#redisClient.executeCommands( [ commandHashGetField ] ).then( ( results ) => {
-                resolve( ( results && results.length > 0 && _.isString( results[ 0 ] ) ) ? tools.parseJSON( results[ 0 ] ) : null );
+                results = results[ 0 ];
+                resolve( ( results && results.length > 1 && _.isString( results[ 1 ] ) ) ? tools.parseJSON( results[ 1 ] ) : null );
             } ).catch( ( error ) => {
                 reject( error );
             } );

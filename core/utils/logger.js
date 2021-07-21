@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: ICU
  */
 
+const _ = require( "lodash" );
 const tools = require( "#tools" );
 const exceptions = require( "#exceptions" );
 
@@ -10,7 +11,6 @@ const exceptions = require( "#exceptions" );
  * Enum for specifying the log entry severity. This is based on the Google Stackdriver severity levels.
  *
  * @readonly
- * @extends TiEnum
  * @enum {number}
  */
 let logSeverityEnum = tools.enum( {
@@ -26,7 +26,7 @@ let logSeverityEnum = tools.enum( {
 } );
 
 /**
- * @typedef {TiEnum} TiLogSeverity
+ * @typedef {number} TiLogSeverity
  */
 module.exports.logSeverity = logSeverityEnum;
 
@@ -38,7 +38,7 @@ module.exports.logSeverity = logSeverityEnum;
  * @returns {string}
  */
 module.exports.getSeverityName = ( severity ) => {
-    return ( logSeverityEnum.properties[ severity ] ) ? logSeverityEnum.properties[ severity ].name : "unknown";
+    return tools.getEnumName( logSeverityEnum, severity, "unknown" );
 };
 
 /**
@@ -60,7 +60,8 @@ module.exports.log = ( message, level = logSeverityEnum.DEFAULT, data = {}, thre
     } else if ( exceptions.isException( data ) ) {
         data = {
             id: data.id,
-            description: data.description
+            description: data.description,
+            details: !_.isEmpty( data.data ) ? data.data : undefined
         };
     }
 

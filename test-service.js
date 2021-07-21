@@ -3,9 +3,18 @@
  * SPDX-License-Identifier: ICU
  */
 
-const ServiceInstance = require( process.cwd() + "/core/components/service-instance" );
+const ServiceConsumer = require( process.cwd() + "/core/components/service-consumer" );
+const exceptions = require( process.cwd() + "/core/utils/exceptions" );
+const cache = require( process.cwd() + "/core/utils/cache" );
 
-class ServiceConsumer extends ServiceInstance {
+/**
+ * A test microservice.
+ *
+ * @class TestService
+ * @public
+ */
+class TestService extends ServiceConsumer {
+
     /**
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
@@ -24,11 +33,22 @@ class ServiceConsumer extends ServiceInstance {
      */
     onStart() {
         return new Promise( ( resolve, reject ) => {
-            console.log( "Inside overridden Start" );
-            resolve();
+            super.onStart().then( () => {
+                return this.callService( {
+                    serviceAlias: "service1",
+                    serviceDomainName: "testProvider"
+                }, {}, {
+                    authToken: "auth"
+                } );
+            } ).then( ( result ) => {
+                console.log( result );
+                resolve();
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
         } );
     }
 
 }
 
-module.exports = ServiceConsumer;
+module.exports = TestService;
