@@ -36,13 +36,13 @@ class MessageMemoryCache {
      *
      * @method
      * @param {Message} message The message to send.
-     * @param {string} route The route to destination for the message as recognized by the {@link MessageExchange} implementation.
-     * @returns {Promise<number>} Will return the destination message queue length after adding the current message to it.
+     * @param {string} queue The destination queue for the message as recognized by the {@link MessageExchange} implementation.
+     * @returns {Promise<number>} Will return the destination queue length after adding the current message to it.
      * @public
      */
-    sendMessage( message, route ) {
+    sendMessage( message, queue ) {
         return new Promise( ( resolve, reject ) => {
-            let command = [ redis.cacheCommands.LIST_PUSH, route, tools.stringifyJSON( message ) ];
+            let command = [ redis.cacheCommands.LIST_PUSH, queue, tools.stringifyJSON( message ) ];
             this.#redisClient.executeCommands( [ command ] ).then( ( results ) => {
                 results = results[ 0 ];
                 resolve( ( results && results.length > 1 ) ? results[ 1 ] : undefined );
@@ -67,6 +67,36 @@ class MessageMemoryCache {
             let command = [ redis.cacheCommands.HASH_SET, storeLocation, storeID, tools.stringifyJSON( payload ) ];
             this.#redisClient.executeCommands( [ command ] ).then( () => {
                 resolve( storeID );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to receive a message from the specified queue.
+     *
+     * @method
+     * @param {string} receiveQueue
+     * @param {string} processingQueue
+     * @returns {Promise<Message>}
+     * @public
+     */
+    receiveMessage( receiveQueue, processingQueue ) {
+        return new Promise( ( resolve, reject ) => {
+            let command;
+            let commandArguments = [ receiveQueue ];
+            if ( processingQueue ) {
+                command = redis.cacheCommands.LIST_POP_TAIL_PUSH_HEAD_BLOCKING;
+                commandArguments.push( processingQueue );
+            } else {
+                command = redis.cacheCommands.LIST_POP_TAIL_BLOCKING;
+            }
+            commandArguments.push( 0 );
+
+            this.#redisClient.blockingCommand( command, commandArguments ).then( ( results ) => {
+                results = results[ 0 ];
+                resolve( ( results && results.length > 1 ) ? tools.parseJSON( results[ 1 ] ) : undefined );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );

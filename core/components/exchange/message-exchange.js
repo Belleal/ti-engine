@@ -42,6 +42,8 @@ const exceptions = require( "#exceptions" );
  */
 class MessageExchange extends MessageObserver {
 
+    #instanceID;
+    #serviceDomainName;
     #disruptedConnections;
     #configuredOutbound = false;
     #configuredInbound = false;
@@ -56,8 +58,10 @@ class MessageExchange extends MessageObserver {
 
     /**
      * @constructor
+     * @param {string} instanceID The unique identifier of the microservice instance using the message exchange.
+     * @param {string} serviceDomainName The domain name of the microservice using the message exchange.
      */
-    constructor() {
+    constructor( instanceID, serviceDomainName ) {
         super();
 
         // make sure this abstract class cannot be instantiated:
@@ -65,8 +69,28 @@ class MessageExchange extends MessageObserver {
             throw exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
         }
 
+        this.#instanceID = instanceID;
+        this.#serviceDomainName = serviceDomainName;
         this.#disruptedConnections = [];
     }
+
+    /**
+     * Property returning the configured service instance ID.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get instanceID() { return this.#instanceID; }
+
+    /**
+     * Property returning the configured service domain name.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get serviceDomainName() { return this.#serviceDomainName; }
 
     /**
      * Returns the currently configured {@link MessageSender} for outbound message requests.
@@ -75,9 +99,7 @@ class MessageExchange extends MessageObserver {
      * @returns {MessageSender}
      * @public
      */
-    get messageRequestsOut() {
-        return this.#messageRequestsOut;
-    }
+    get messageRequestsOut() { return this.#messageRequestsOut; }
 
     /**
      * Returns the currently configured {@link MessageSender} for outbound message responses.
@@ -86,9 +108,7 @@ class MessageExchange extends MessageObserver {
      * @returns {MessageSender}
      * @public
      */
-    get messageResponsesOut() {
-        return this.#messageResponsesOut;
-    }
+    get messageResponsesOut() { return this.#messageResponsesOut; }
 
     /**
      * Returns the currently configured {@link MessageReceiver} for inbound message requests.
@@ -97,9 +117,7 @@ class MessageExchange extends MessageObserver {
      * @returns {MessageReceiver}
      * @public
      */
-    get messageRequestsIn() {
-        return this.#messageRequestsIn;
-    }
+    get messageRequestsIn() { return this.#messageRequestsIn; }
 
     /**
      * Returns the currently configured {@link MessageReceiver} for inbound message responses.
@@ -108,9 +126,7 @@ class MessageExchange extends MessageObserver {
      * @returns {MessageReceiver}
      * @public
      */
-    get messageResponsesIn() {
-        return this.#messageResponsesIn;
-    }
+    get messageResponsesIn() { return this.#messageResponsesIn; }
 
     /**
      * Returns a flag indicating if the message exchange is configured for outbound communication.
@@ -119,9 +135,7 @@ class MessageExchange extends MessageObserver {
      * @returns {boolean}
      * @public
      */
-    get configuredOutbound() {
-        return this.#configuredOutbound;
-    }
+    get configuredOutbound() { return this.#configuredOutbound; }
 
     /**
      * Returns a flag indicating if the message exchange is configured for inbound communication.
@@ -130,9 +144,7 @@ class MessageExchange extends MessageObserver {
      * @returns {boolean}
      * @public
      */
-    get configuredInbound() {
-        return this.#configuredInbound;
-    }
+    get configuredInbound() { return this.#configuredInbound; }
 
     /**
      * Should be used to enable all communication channels for messaging.

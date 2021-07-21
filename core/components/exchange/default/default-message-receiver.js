@@ -4,8 +4,8 @@
  */
 
 const MessageReceiver = require( "#message-receiver" );
-const exceptions = require( "#exceptions" );
 const memoryCache = require( "#message-memory-cache" );
+const logger = require( "#logger" );
 
 /**
  * The default {@link MessageReceiver} behavior for the Ti Engine using Redis for message exchange.
@@ -20,9 +20,11 @@ class DefaultMessageReceiver extends MessageReceiver {
     /**
      * @constructor
      * @param {string} identifier An identifier for this message handler. Should be unique in the context of the message exchange.
+     * @param {string} receiveQueue The queue from which the messages will be received.
+     * @param {string} [processingQueue=undefined] The queue in which the messages will be put for processing (if necessary).
      */
-    constructor( identifier ) {
-        super( identifier );
+    constructor( identifier, receiveQueue, processingQueue = undefined ) {
+        super( identifier, receiveQueue, processingQueue );
     }
 
     /**
@@ -37,6 +39,7 @@ class DefaultMessageReceiver extends MessageReceiver {
         return new Promise( ( resolve, reject ) => {
             this.#memoryCache = memoryCache.create();
             this.isAvailable = true;
+            this.receive();
             resolve();
         } );
     }
@@ -54,6 +57,22 @@ class DefaultMessageReceiver extends MessageReceiver {
             this.isAvailable = false;
             this.#memoryCache = null;
             resolve();
+        } );
+    }
+
+    /**
+     * Used to receive messages.
+     *
+     * @method
+     * @public
+     */
+    receive() {
+        this.#memoryCache.receiveMessage( this.receiveQueue, this.processingQueue ).then( ( message ) => {
+            this.onMessage( message );
+            this.receive();
+        } ).catch( ( error ) => {
+            logger.log( `Error while trying to receive the next pending message from memory cache!`, logger.logSeverity.ERROR, error );
+            this.receive();
         } );
     }
 

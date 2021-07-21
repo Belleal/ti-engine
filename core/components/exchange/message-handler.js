@@ -116,6 +116,19 @@ class MessageHandler {
         this.#messageObservers.push( messageObserver );
     }
 
+    /**
+     * An event-triggered method that will notify any observers about a new message for handling.
+     *
+     * @method
+     * @param {Message} message
+     * @public
+     */
+    onMessage( message ) {
+        _.forEach( this.#messageObservers, ( messageObserver ) => {
+            messageObserver.onMessage( this.#connectionIdentifier, message );
+        } );
+    }
+
     /* Private interface */
 
     /**
@@ -141,12 +154,6 @@ class MessageHandler {
         this.#isAvailable = false;
         _.forEach( this.#connectionObservers, ( messageObserver ) => {
             messageObserver.onConnectionDisrupted( this.#connectionIdentifier );
-        } );
-    }
-
-    #onMessage( message ) {
-        _.forEach( this.#messageObservers, ( messageObserver ) => {
-            messageObserver.onMessage( this.#connectionIdentifier, message );
         } );
     }
 

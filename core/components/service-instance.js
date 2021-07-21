@@ -48,9 +48,7 @@ class ServiceInstance {
      * @returns {string}
      * @public
      */
-    static get instanceID() {
-        return ServiceInstance.#instanceID;
-    }
+    static get instanceID() { return ServiceInstance.#instanceID; }
 
     /**
      * Property returning the current service domain name.
@@ -59,20 +57,16 @@ class ServiceInstance {
      * @returns {string}
      * @public
      */
-    static get serviceDomainName() {
-        return ServiceInstance.#serviceDomainName;
-    }
+    static get serviceDomainName() { return ServiceInstance.#serviceDomainName; }
 
     /**
-     * Property to indicate that this and every child class is a Service Instance.
+     * Property to indicate that this and every child class is a {@link ServiceInstance}.
      *
      * @property
      * @returns {boolean}
      * @public
      */
-    get isServiceInstance() {
-        return true;
-    }
+    get isServiceInstance() { return true; }
 
     /**
      * Initializes the instance.

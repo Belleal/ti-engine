@@ -15,18 +15,44 @@ const exceptions = require( "#exceptions" );
  */
 class MessageReceiver extends MessageHandler {
 
+    #receiveQueue;
+    #processingQueue;
+
     /**
      * @constructor
      * @param {string} identifier An identifier for this message handler. Should be unique in the context of the message exchange.
+     * @param {string} receiveQueue The queue from which the messages will be received.
+     * @param {string} [processingQueue=undefined] The queue in which the messages will be put for processing (if necessary).
      */
-    constructor( identifier ) {
+    constructor( identifier, receiveQueue, processingQueue = undefined ) {
         super( identifier );
 
         // make sure this abstract class cannot be instantiated:
         if ( new.target === MessageReceiver ) {
             throw exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
         }
+
+        this.#receiveQueue = receiveQueue;
+        this.#processingQueue = processingQueue;
     }
+
+    /**
+     * Property returning the configured receive queue.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get receiveQueue() { return this.#receiveQueue; }
+
+    /**
+     * Property returning the configured processing queue (if any).
+     *
+     * @property
+     * @returns {string|undefined}
+     * @public
+     */
+    get processingQueue() { return this.#processingQueue; }
 
 }
 

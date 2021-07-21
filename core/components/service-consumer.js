@@ -50,7 +50,7 @@ class ServiceConsumer extends ServiceInstance {
      */
     onStart() {
         return new Promise( ( resolve, reject ) => {
-            messageDispatcher.initialize( new DefaultMessageExchange( ServiceInstance.serviceDomainName ), false, true ).then( () => {
+            messageDispatcher.initialize( new DefaultMessageExchange( ServiceInstance.instanceID, ServiceInstance.serviceDomainName ), false, true ).then( () => {
                 resolve();
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
