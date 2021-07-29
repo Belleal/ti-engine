@@ -1,6 +1,7 @@
 {
   "auditing": {
     "logConsoleEnabled": true,
+    "logDetails": false,
     "logMinLevel": 0,
     "logUsesJSON": false
   },

@@ -80,10 +80,10 @@ class MessageDispatcher {
      *
      * @method
      * @param {Message} message The message to send. This can also be a subclass of {@link Message}.
-     * @returns {Promise}
+     * @returns {Promise<string>}
      * @public
      */
-    sendMessageRequest( message ) {
+    sendRequest( message ) {
         return new Promise( ( resolve, reject ) => {
             // make sure to increment the task sequence before proceeding further:
             //message.sequence = ( message.sequence == null) ? 0 : message.sequence + 1;
@@ -100,7 +100,7 @@ class MessageDispatcher {
 
             retry.execute( this.#messageExchange, this.#messageExchange.sendMessageRequest, [ message ] ).then( () => {
                 messageTracer.recordTraceEntry( message, messageTracer.messageType.MESSAGE_REQUEST, messageTracer.dispatchEvent.DELIVERED, messageTracer.messageState.PENDING );
-                resolve();
+                resolve( message.messageID );
             } ).catch( ( error ) => {
                 messageTracer.recordTraceEntry( message, messageTracer.messageType.MESSAGE_REQUEST, messageTracer.dispatchEvent.FAILED, messageTracer.messageState.PENDING );
                 reject( exceptions.raise( error ) );
@@ -108,7 +108,7 @@ class MessageDispatcher {
         } );
     }
 
-    sendMessageResponse( message ) {
+    sendResponse( message ) {
         return new Promise( ( resolve, reject ) => {
             // update the instance ID so we can track which instance processed this request:
             //message.destination.instanceID = ServiceInstance.instanceID;
@@ -133,10 +133,24 @@ class MessageDispatcher {
         } );
     }
 
+    /**
+     * Used to add an additional {@link MessageObserver} to the connection for the incoming message requests.
+     *
+     * @method
+     * @param {MessageObserver} messageObserver
+     * @public
+     */
     addMessageObserverRequestsIn( messageObserver ) {
         this.#messageExchange.addMessageObserverRequestsIn( messageObserver );
     }
 
+    /**
+     * Used to add an additional {@link MessageObserver} to the connection for the incoming message responses.
+     *
+     * @method
+     * @param {MessageObserver} messageObserver
+     * @public
+     */
     addMessageObserverResponsesIn( messageObserver ) {
         this.#messageExchange.addMessageObserverResponsesIn( messageObserver );
     }

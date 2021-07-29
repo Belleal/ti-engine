@@ -10,6 +10,7 @@ const exceptions = require( "#exceptions" );
  * An abstract class that defines a basic message sender behavior.
  *
  * @class MessageSender
+ * @extends MessageHandler
  * @abstract
  * @public
  */
@@ -29,6 +30,32 @@ class MessageSender extends MessageHandler {
     }
 
     /* Public interface */
+
+    /**
+     * Used to initialize and enable the communication capabilities of the handler.
+     * NOTE: Override this to add functionality.
+     *
+     * @method
+     * @returns {Promise}
+     * @abstract
+     * @public
+     */
+    enable() {
+        return super.enable();
+    }
+
+    /**
+     * Used to shutdown and disable the communication behavior of the handler.
+     * NOTE: Override this to add functionality.
+     *
+     * @method
+     * @returns {Promise}
+     * @abstract
+     * @public
+     */
+    disable() {
+        return super.disable();
+    }
 
     /**
      * Used to send a {@link Message} via this message handler.

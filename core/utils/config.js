@@ -41,6 +41,7 @@ const tools = require( "#tools" );
 /**
  * @typedef {Object} SettingsAuditing
  * @property {boolean} logConsoleEnabled
+ * @property {boolean} logDetails
  * @property {TiLogSeverity} logMinLevel
  * @property {boolean} logUsesJSON
  */
@@ -79,6 +80,7 @@ const tools = require( "#tools" );
  */
 let settingsEnum = tools.enum( {
     AUDITING_LOG_CONSOLE_ENABLED: [ "auditing.logConsoleEnabled", "logConsoleEnabled", "" ],
+    AUDITING_LOG_DETAILS: [ "auditing.logDetails", "logDetails", "" ],
     AUDITING_LOG_MIN_LEVEL: [ "auditing.logMinLevel", "logMinLevel", "" ],
     AUDITING_LOG_USES_JSON: [ "auditing.logUsesJSON", "logUsesJSON", "" ],
     GCLOUD_API_KEY: [ "gcloudIntegration.apiKey", "apiKey", "" ],

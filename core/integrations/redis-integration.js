@@ -3,10 +3,12 @@
  * SPDX-License-Identifier: ICU
  */
 
+const ConnectionObserver = require( "#connection-observer" );
 const ioredis = require( "ioredis" );
 const tools = require( "#tools" );
 const logger = require( "#logger" );
 const exceptions = require( "#exceptions" );
+const _ = require( "lodash" );
 
 /**
  * Enum for listing all used Redis cache commands.
@@ -50,6 +52,7 @@ class RedisClient {
     #retryMaxInterval = 1000;
     #retryMaxAttempts = undefined;
     #redisClient = undefined;
+    #connectionObservers = [];
 
     /**
      * @constructor
@@ -104,9 +107,19 @@ class RedisClient {
                 role: this.#redisClient.serverInfo.role,
                 connected_slaves: this.#redisClient.serverInfo.connected_slaves
             } );
+
+            // notify all connection observers about this event:
+            _.forEach( this.#connectionObservers, ( connectionObservers ) => {
+                connectionObservers.onConnectionRecovered( this.#clientIdentifier );
+            } );
         } );
         this.#redisClient.on( "error", ( error ) => {
             logger.log( `Error received in Redis client '${ this.identifier }'.`, logger.logSeverity.ERROR, error );
+
+            // notify all connection observers about this event:
+            _.forEach( this.#connectionObservers, ( connectionObservers ) => {
+                connectionObservers.onConnectionDisrupted( this.#clientIdentifier );
+            } );
         } );
         this.#redisClient.on( "reconnecting", ( info ) => {
             if ( info.attempt > 1 ) {
@@ -118,12 +131,29 @@ class RedisClient {
     /* Public interface */
 
     /**
-     * @method
+     * Used to return the Redis client identifier.
+     *
+     * @property
      * @return {string}
      * @public
      */
     get identifier() {
         return this.#clientIdentifier;
+    }
+
+    /**
+     * Used to register a new {@link ConnectionObserver} for events related to the Redis connection state.
+     *
+     * @method
+     * @param {ConnectionObserver} connectionObserver The {@link ConnectionObserver} that will be notified of any changes.
+     * @public
+     */
+    addConnectionObserver( connectionObserver ) {
+        if ( connectionObserver instanceof ConnectionObserver ) {
+            this.#connectionObservers.push( connectionObserver );
+        } else {
+            logger.log( `Attempting to add '${ connectionObserver.constructor.name }' as connection observer but it's not a child-class of 'ConnectionObserver'!`, logger.logSeverity.WARNING );
+        }
     }
 
     /**
@@ -150,7 +180,7 @@ class RedisClient {
      *
      * @method
      * @param {string} command
-     * @param {string[]} commandArguments
+     * @param {Array} commandArguments
      * @return {Promise<*>}
      * @public
      */

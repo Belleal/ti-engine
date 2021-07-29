@@ -18,6 +18,7 @@ let exceptionCodeEnum = tools.enum( {
     E_ABSTRACT_CLASS_INIT: [ 1, "abstract class init", "Attempt to construct an abstract class detected." ],
     E_ABSTRACT_METHOD_CALL: [ 2, "abstract method call", "Attempt to call an abstract method detected." ],
     E_INVALID_SERVICE_DOMAIN_NAME: [ 3, "invalid service domain name", "Invalid or no service domain name provided at microservice startup." ],
+    E_SYSTEM_CACHE_UNAVAILABLE: [ 4, "system cache unavailable", "The system cache required for proper engine operation is unavailable." ],
     /** General exceptions - codes under 1xx */
     E_GEN_JS_INTERNAL_ERROR: [ 100, "js internal error", "Error thrown by internal JS source." ],
     /** Security & Administration related exceptions - codes under 2xx */

@@ -59,6 +59,8 @@ const messageDispatcher = require( "#message-dispatcher" );
  */
 class ServiceCaller extends MessageObserver {
 
+    #serviceCallTasks = {};
+
     /**
      * @constructor
      */
@@ -84,14 +86,20 @@ class ServiceCaller extends MessageObserver {
             this.#findServiceInRegistry( serviceAddress ).then( () => {
                 return this.#prepareServiceCall( serviceAddress, serviceParams, serviceExecContext );
             } ).then( ( serviceCall ) => {
-                return messageDispatcher.sendMessageRequest( serviceCall );
-            } ).then( ( result ) => {
-                if ( !result ) {
-                    result = {
-                        isSuccessful: true
-                    };
-                }
-                resolve( result );
+                return messageDispatcher.sendRequest( serviceCall );
+            } ).then( ( messageID ) => {
+                this.#addTaskHandler( messageID, ( serviceCall ) => {
+                    this.#completeServiceCall( serviceCall ).then( ( serviceCall ) => {
+                        let serviceCallResult = serviceCall.result || {
+                            isSuccessful: true
+                        };
+                        serviceCallResult.payload = serviceCall.payload || {};
+
+                        resolve( serviceCallResult );
+                    } ).catch( ( error ) => {
+                        reject( exceptions.raise( error ) );
+                    } );
+                } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
@@ -114,7 +122,7 @@ class ServiceCaller extends MessageObserver {
     }
 
     /**
-     * Will be invoked when a message is received.
+     * Once the proper message is received this method will trigger the completion of the pending {@link ServiceCall} execution started in {@link #executeServiceCall}.
      *
      * @method
      * @param {string} identifier The identifier of the observed connection.
@@ -123,7 +131,13 @@ class ServiceCaller extends MessageObserver {
      * @public
      */
     onMessage( identifier, message ) {
-
+        let execution = this.#getTaskHandler( message.messageID );
+        if ( typeof ( execution ) === "function" ) {
+            execution( message );
+            this.#removeTaskHandler( message.messageID );
+        } else {
+            logger.log( `Received message with ID '${ message.messageID }' in ServiceCaller that has no registered handler. This is probably a software bug!`, logger.logSeverity.WARNING );
+        }
     }
 
     /* Private interface */
@@ -200,23 +214,58 @@ class ServiceCaller extends MessageObserver {
     }
 
     /**
-     * Used to complete a {@link ServiceCall} and executeAsync its handler.
+     * Used to complete the provided {@link ServiceCall} object by setting all required properties to their correct values.
      *
-     * @param serviceCall The {@link ServiceCall} object to complete.
+     * @method
+     * @param {ServiceCall} serviceCall
+     * @returns {Promise<ServiceCall>}
+     * @private
      */
     #completeServiceCall( serviceCall ) {
-        // String taskID = serviceCall.getServiceCallID() + "." + serviceCall.getLastTaskSeq();
-        //     serviceCall.setLastTaskSeq(serviceCall.getLastTaskSeq() - 1);
-        //     serviceCall.setFinishedOn(Tools.getUnixTimestamp());
-        //     serviceCall.setCompleted(true);
-        //     CompletableFuture<ServiceCallResult> taskHandler = getTaskHandler(taskID);
-        //     if (taskHandler != null) {
-        //     taskHandler.complete(serviceCall.getResult());
-        //     removeTaskHandler(taskID);
-        // } else {
-        //     Logger.log("No handler found for a service call task with ID '" + taskID + "'.", Logger.Severity.ERROR, Logger.Threads.ESB,
-        //         serviceCall);
-        // }
+        return new Promise( ( resolve, reject ) => {
+            serviceCall.finishedOn = Date.now();
+            serviceCall.executionTime = serviceCall.finishedOn - serviceCall.createdOn;
+            serviceCall.isCompleted = true;
+
+            resolve( serviceCall );
+        } );
+    }
+
+    /**
+     * Used to add a new task handler to the list of current tasks.
+     *
+     * @method
+     * @param {string} taskID
+     * @param {function( ServiceCall )} taskHandler
+     * @private
+     */
+    #addTaskHandler( taskID, taskHandler ) {
+        this.#serviceCallTasks[ taskID ] = taskHandler;
+    }
+
+    /**
+     * Used to fetch a task handler from the list of current tasks.
+     *
+     * @method
+     * @param {string} taskID
+     * @returns {function( ServiceCall )}
+     * @private
+     */
+    #getTaskHandler( taskID ) {
+        return this.#serviceCallTasks[ taskID ];
+    }
+
+    /**
+     * Used to remove a task handler from the list of current tasks.
+     *
+     * @method
+     * @param {string} taskID
+     * @private
+     */
+    #removeTaskHandler( taskID ) {
+        if ( this.#serviceCallTasks[ taskID ] ) {
+            delete this.#serviceCallTasks[ taskID ];
+        }
     }
 
 }

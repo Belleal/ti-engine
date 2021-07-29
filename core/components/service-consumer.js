@@ -32,8 +32,6 @@ class ServiceConsumer extends ServiceInstance {
         if ( new.target === ServiceConsumer ) {
             throw exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
         }
-
-        this.#serviceCaller = new ServiceCaller();
     }
 
     /* Public interface */
@@ -50,7 +48,10 @@ class ServiceConsumer extends ServiceInstance {
      */
     onStart() {
         return new Promise( ( resolve, reject ) => {
-            messageDispatcher.initialize( new DefaultMessageExchange( ServiceInstance.instanceID, ServiceInstance.serviceDomainName ), false, true ).then( () => {
+            this.#serviceCaller = new ServiceCaller();
+
+            messageDispatcher.initialize( new DefaultMessageExchange( ServiceInstance.instanceID, ServiceInstance.serviceDomainName ), true, true ).then( () => {
+                messageDispatcher.addMessageObserverResponsesIn( this.#serviceCaller );
                 resolve();
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );

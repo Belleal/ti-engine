@@ -20,16 +20,28 @@ class MessageMemoryCache {
 
     /**
      * @constructor
+     * @param {string} identifier The connection identifier for the Redis connection.
      */
-    constructor() {
+    constructor( identifier ) {
         let host = config.getSetting( config.setting.MESSAGE_EXCHANGE_REDIS_HOST );
         let port = config.getSetting( config.setting.MESSAGE_EXCHANGE_REDIS_PORT );
         let db = config.getSetting( config.setting.MESSAGE_EXCHANGE_REDIS_DB );
         let authKey = config.getSetting( config.setting.MESSAGE_EXCHANGE_AUTH_KEY );
-        this.#redisClient = redis.createRedisClient( "message-exchange", host, port, authKey, db );
+        this.#redisClient = redis.createRedisClient( identifier, host, port, authKey, db );
     }
 
     /* Public interface */
+
+    /**
+     * Used to register a new {@link ConnectionObserver} for events related to the Redis connection state.
+     *
+     * @method
+     * @param {ConnectionObserver} connectionObserver The {@link ConnectionObserver} that will be notified of any changes.
+     * @public
+     */
+    addConnectionObserver( connectionObserver ) {
+        this.#redisClient.addConnectionObserver( connectionObserver );
+    }
 
     /**
      * Used to send a message to the specified route.
@@ -94,9 +106,30 @@ class MessageMemoryCache {
             }
             commandArguments.push( 0 );
 
-            this.#redisClient.blockingCommand( command, commandArguments ).then( ( results ) => {
+            this.#redisClient.blockingCommand( command, commandArguments ).then( ( result ) => {
+                resolve( tools.parseJSON( result ) );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to retrieve a message payload by its store ID.
+     *
+     * @method
+     * @param {Message} message
+     * @param {string} storeLocation
+     * @returns {Promise<Message>} Will return the message with its payload populated if such is found.
+     * @public
+     */
+    retrieveMessagePayload( message, storeLocation ) {
+        return new Promise( ( resolve, reject ) => {
+            let command = [ redis.cacheCommands.HASH_GET, storeLocation, message.payload ];
+            this.#redisClient.executeCommands( [ command ] ).then( ( results ) => {
                 results = results[ 0 ];
-                resolve( ( results && results.length > 1 ) ? tools.parseJSON( results[ 1 ] ) : undefined );
+                message.payload = ( results && results.length > 1 ) ? tools.parseJSON( results[ 1 ] ) : undefined;
+                resolve( message );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
@@ -109,9 +142,10 @@ class MessageMemoryCache {
  * Used to create a new message memory cache.
  *
  * @method
+ * @param {string} identifier The connection identifier for the Redis connection.
  * @returns {MessageMemoryCache}
  * @public
  */
-module.exports.create = () => {
-    return Object.freeze( new MessageMemoryCache() );
+module.exports.create = ( identifier ) => {
+    return Object.freeze( new MessageMemoryCache( identifier ) );
 };

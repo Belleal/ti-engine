@@ -6,6 +6,7 @@
 const MessageObserver = require( "#message-observer" );
 const _ = require( "lodash" );
 const exceptions = require( "#exceptions" );
+const messageTracer = require( "#message-tracer" );
 
 /**
  * @typedef {Object} MessageDestination
@@ -42,6 +43,10 @@ const exceptions = require( "#exceptions" );
  */
 class MessageExchange extends MessageObserver {
 
+    static #connectionNameRequestsOut = "connection-msg-requests-out";
+    static #connectionNameRequestsIn = "connection-msg-requests-in";
+    static #connectionNameResponsesOut = "connection-msg-responses-out";
+    static #connectionNameResponsesIn = "connection-msg-responses-in";
     #instanceID;
     #serviceDomainName;
     #disruptedConnections;
@@ -73,6 +78,107 @@ class MessageExchange extends MessageObserver {
         this.#serviceDomainName = serviceDomainName;
         this.#disruptedConnections = [];
     }
+
+    /* Public interface */
+
+    /**
+     * Property returning the configured connection name for the outgoing message requests.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    static get connectionNameRequestsOut() { return this.#connectionNameRequestsOut; }
+
+    /**
+     * Used to set the connection name for the outgoing message requests.
+     *
+     * @property
+     * @param {string} value
+     * @public
+     */
+    static set connectionNameRequestsOut( value ) { this.#connectionNameRequestsOut = value; }
+
+    /**
+     * Property returning the configured connection name for the incoming message requests.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    static get connectionNameRequestsIn() { return this.#connectionNameRequestsIn; }
+
+    /**
+     * Used to set the connection name for the incoming message requests.
+     *
+     * @property
+     * @param {string} value
+     * @public
+     */
+    static set connectionNameRequestsIn( value ) { this.#connectionNameRequestsIn = value; }
+
+    /**
+     * Property returning the configured connection name for the outgoing message responses.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    static get connectionNameResponsesOut() { return this.#connectionNameResponsesOut; }
+
+    /**
+     * Used to set the connection name for the outgoing message responses.
+     *
+     * @property
+     * @param {string} value
+     * @public
+     */
+    static set connectionNameResponsesOut( value ) { this.#connectionNameResponsesOut = value; }
+
+    /**
+     * Property returning the configured connection name for the incoming message responses.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    static get connectionNameResponsesIn() { return this.#connectionNameResponsesIn; }
+
+    /**
+     * Used to set the connection name for the incoming message responses.
+     *
+     * @property
+     * @param {string} value
+     * @public
+     */
+    static set connectionNameResponsesIn( value ) { this.#connectionNameResponsesIn = value; }
+
+    /**
+     * Property returning the identifier of the pending messages queue.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    static get pendingQueue() { return "pending:"; }
+
+    /**
+     * Property returning the identifier of the processing messages queue.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    static get processingQueue() { return "processing:"; }
+
+    /**
+     * Property returning the identifier of the processed messages queue.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    static get processedQueue() { return "processed:"; }
 
     /**
      * Property returning the configured service instance ID.
@@ -204,10 +310,24 @@ class MessageExchange extends MessageObserver {
         this.#configuredOutbound = true;
     }
 
+    /**
+     * Used to add an additional {@link MessageObserver} to the connection for the incoming message requests.
+     *
+     * @method
+     * @param {MessageObserver} messageObserver
+     * @public
+     */
     addMessageObserverRequestsIn( messageObserver ) {
         this.#messageRequestsIn.addMessageObserver( messageObserver );
     }
 
+    /**
+     * Used to add an additional {@link MessageObserver} to the connection for the incoming message responses.
+     *
+     * @method
+     * @param {MessageObserver} messageObserver
+     * @public
+     */
     addMessageObserverResponsesIn( messageObserver ) {
         this.#messageResponsesIn.addMessageObserver( messageObserver );
     }
@@ -235,6 +355,25 @@ class MessageExchange extends MessageObserver {
      */
     onConnectionRecovered( identifier ) {
         _.pull( this.#disruptedConnections, identifier );
+    }
+
+    /**
+     * Used only for the purposes of the message tracer.
+     *
+     * @method
+     * @param {string} identifier The identifier of the observed connection.
+     * @param {Message} message The message for processing.
+     * @override
+     * @public
+     */
+    onMessage( identifier, message ) {
+        message.destination.instanceID = this.#instanceID;
+
+        if ( MessageExchange.connectionNameRequestsIn === identifier ) {
+            messageTracer.recordTraceEntry( message, messageTracer.messageType.MESSAGE_REQUEST, messageTracer.dispatchEvent.RECEIVED, messageTracer.messageState.PENDING );
+        } else if ( MessageExchange.connectionNameResponsesIn === identifier ) {
+            messageTracer.recordTraceEntry( message, messageTracer.messageType.MESSAGE_RESPONSE, messageTracer.dispatchEvent.RECEIVED, messageTracer.messageState.PROCESSED );
+        }
     }
 
     /**

@@ -14,6 +14,7 @@
     "#auditing": "./components/auditing.js",
     "#cache": "./utils/cache.js",
     "#config": "./utils/config.js",
+    "#connection-observer": "./components/connection-observer.js",
     "#default-message-exchange": "./components/exchange/default/default-message-exchange.js",
     "#default-message-receiver": "./components/exchange/default/default-message-receiver.js",
     "#default-message-sender": "./components/exchange/default/default-message-sender.js",

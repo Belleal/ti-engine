@@ -60,7 +60,7 @@ class Auditing {
             if ( severity >= config.getSetting( config.setting.AUDITING_LOG_MIN_LEVEL ) ) {
                 // obscure any passwords that might have landed in the data object;
                 // also make sure to convert a potential Error object to a JSON:
-                let copyOfData = _.cloneDeep( data );
+                let copyOfData = ( config.getSetting( config.setting.AUDITING_LOG_DETAILS ) === true ) ? _.cloneDeep( data ) : undefined;
                 let logEntry = Auditing.#createLogEntry( severity, thread, message, copyOfData );
 
                 // make sure there is a console available:

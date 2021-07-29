@@ -3,35 +3,66 @@
  * SPDX-License-Identifier: ICU
  */
 
+const ConnectionObserver = require( "#connection-observer" );
 const _ = require( "lodash" );
 const tools = require( "#tools" );
 const redis = require( "#redis-integration" );
+const exceptions = require( "#exceptions" );
 
 /**
  * Used to create and/or return a Common Memory Cache singleton instance.
  *
  * @class CommonMemoryCache
+ * @extends ConnectionObserver
  * @singleton
  * @public
  */
-class CommonMemoryCache {
+class CommonMemoryCache extends ConnectionObserver {
 
     static #instance = null;
     #redisClient = null;
+    #isOperational = false;
 
     /**
      * @constructor
      * @return {CommonMemoryCache}
      */
     constructor() {
+        super();
+
         if ( !CommonMemoryCache.#instance ) {
             this.#redisClient = redis.createRedisClient( "system", "127.0.0.1" );
+            this.#redisClient.addConnectionObserver( this );
             CommonMemoryCache.#instance = this;
         }
         return CommonMemoryCache.#instance;
     }
 
     /* Public interface */
+
+    /**
+     * Needs to be invoked by the connection handler when the connection is disrupted.
+     *
+     * @method
+     * @param {string} identifier The identifier of the observed connection.
+     * @override
+     * @public
+     */
+    onConnectionDisrupted( identifier ) {
+        this.#isOperational = false;
+    }
+
+    /**
+     * Needs to be invoked by the connection handler when the connection is recovered.
+     *
+     * @method
+     * @param {string} identifier The identifier of the observed connection.
+     * @override
+     * @public
+     */
+    onConnectionRecovered( identifier ) {
+        this.#isOperational = true;
+    }
 
     /**
      * Used to search for keys by given pattern.
@@ -43,13 +74,17 @@ class CommonMemoryCache {
      */
     matchKeys( pattern ) {
         return new Promise( ( resolve, reject ) => {
-            let commandKeys = [ redis.cacheCommands.KEYS, pattern ];
-            this.#redisClient.executeCommands( [ commandKeys ] ).then( ( results ) => {
-                results = results[ 0 ];
-                resolve( ( results && results.length > 1 ) ? results[ 1 ] : [] );
-            } ).catch( ( error ) => {
-                reject( error );
-            } );
+            if ( this.#isOperational === true ) {
+                let commandKeys = [ redis.cacheCommands.KEYS, pattern ];
+                this.#redisClient.executeCommands( [ commandKeys ] ).then( ( results ) => {
+                    results = results[ 0 ];
+                    resolve( ( results && results.length > 1 ) ? results[ 1 ] : [] );
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
         } );
     }
 
@@ -65,19 +100,23 @@ class CommonMemoryCache {
      */
     setValue( key, value, expiration ) {
         return new Promise( ( resolve, reject ) => {
-            if ( value ) {
-                let commandSetValue = [ redis.cacheCommands.SET_VALUE, key, tools.stringifyJSON( value ) ];
-                if ( expiration ) {
-                    commandSetValue.push( "EX" );
-                    commandSetValue.push( expiration );
-                }
-                this.#redisClient.executeCommands( [ commandSetValue ] ).then( () => {
+            if ( this.#isOperational === true ) {
+                if ( value ) {
+                    let commandSetValue = [ redis.cacheCommands.SET_VALUE, key, tools.stringifyJSON( value ) ];
+                    if ( expiration ) {
+                        commandSetValue.push( "EX" );
+                        commandSetValue.push( expiration );
+                    }
+                    this.#redisClient.executeCommands( [ commandSetValue ] ).then( () => {
+                        resolve( value );
+                    } ).catch( ( error ) => {
+                        reject( error );
+                    } );
+                } else {
                     resolve( value );
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
+                }
             } else {
-                resolve( value );
+                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }
@@ -94,24 +133,28 @@ class CommonMemoryCache {
      */
     setValues( keyValues, prefix, expiration ) {
         return new Promise( ( resolve, reject ) => {
-            if ( keyValues ) {
-                let commands = [];
-                _.forEach( keyValues, ( value, key ) => {
-                    let commandSetValue = [ redis.cacheCommands.SET_VALUE, ( ( prefix ) ? prefix : "" ) + key, tools.stringifyJSON( value ) ];
-                    if ( expiration ) {
-                        commandSetValue.push( "EX" );
-                        commandSetValue.push( expiration );
-                    }
-                    commands.push( commandSetValue );
-                } );
+            if ( this.#isOperational === true ) {
+                if ( keyValues ) {
+                    let commands = [];
+                    _.forEach( keyValues, ( value, key ) => {
+                        let commandSetValue = [ redis.cacheCommands.SET_VALUE, ( ( prefix ) ? prefix : "" ) + key, tools.stringifyJSON( value ) ];
+                        if ( expiration ) {
+                            commandSetValue.push( "EX" );
+                            commandSetValue.push( expiration );
+                        }
+                        commands.push( commandSetValue );
+                    } );
 
-                this.#redisClient.executeCommands( commands ).then( () => {
+                    this.#redisClient.executeCommands( commands ).then( () => {
+                        resolve( keyValues );
+                    } ).catch( ( error ) => {
+                        reject( error );
+                    } );
+                } else {
                     resolve( keyValues );
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
+                }
             } else {
-                resolve( keyValues );
+                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }
@@ -126,13 +169,17 @@ class CommonMemoryCache {
      */
     getValue( key ) {
         return new Promise( ( resolve, reject ) => {
-            let commandGetValue = [ redis.cacheCommands.GET_VALUE, key ];
-            this.#redisClient.executeCommands( [ commandGetValue ] ).then( ( results ) => {
-                results = results[ 0 ];
-                resolve( ( results && results.length > 1 && _.isString( results[ 1 ] ) ) ? tools.parseJSON( results[ 1 ] ) : undefined );
-            } ).catch( ( error ) => {
-                reject( error );
-            } );
+            if ( this.#isOperational === true ) {
+                let commandGetValue = [ redis.cacheCommands.GET_VALUE, key ];
+                this.#redisClient.executeCommands( [ commandGetValue ] ).then( ( results ) => {
+                    results = results[ 0 ];
+                    resolve( ( results && results.length > 1 && _.isString( results[ 1 ] ) ) ? tools.parseJSON( results[ 1 ] ) : undefined );
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
         } );
     }
 
@@ -147,19 +194,23 @@ class CommonMemoryCache {
      */
     getValues( keys, prefix ) {
         return new Promise( ( resolve, reject ) => {
-            let commands = [];
-            _.forEach( keys, ( key ) => {
-                commands.push( [ redis.cacheCommands.GET_VALUE, ( ( prefix ) ? prefix : "" ) + key ] );
-            } );
-            this.#redisClient.executeCommands( commands ).then( ( rawResults ) => {
-                let results = {};
-                _.forEach( rawResults, ( result, idx ) => {
-                    results[ keys[ idx ] ] = ( results && results.length > 1 && _.isString( results[ 1 ] ) ) ? tools.parseJSON( results[ 1 ] ) : null;
+            if ( this.#isOperational === true ) {
+                let commands = [];
+                _.forEach( keys, ( key ) => {
+                    commands.push( [ redis.cacheCommands.GET_VALUE, ( ( prefix ) ? prefix : "" ) + key ] );
                 } );
-                resolve( results );
-            } ).catch( ( error ) => {
-                reject( error );
-            } );
+                this.#redisClient.executeCommands( commands ).then( ( rawResults ) => {
+                    let results = {};
+                    _.forEach( rawResults, ( result, idx ) => {
+                        results[ keys[ idx ] ] = ( results && results.length > 1 && _.isString( results[ 1 ] ) ) ? tools.parseJSON( results[ 1 ] ) : null;
+                    } );
+                    resolve( results );
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
         } );
     }
 
@@ -173,13 +224,17 @@ class CommonMemoryCache {
      */
     deleteValue( key ) {
         return new Promise( ( resolve, reject ) => {
-            let commandDeleteValue = [ redis.cacheCommands.DELETE_VALUE, key ];
-            this.#redisClient.executeCommands( [ commandDeleteValue ] ).then( ( results ) => {
-                results = results[ 0 ];
-                resolve( ( results && results.length > 1 ) ? results[ 1 ] : undefined );
-            } ).catch( ( error ) => {
-                reject( error );
-            } );
+            if ( this.#isOperational === true ) {
+                let commandDeleteValue = [ redis.cacheCommands.DELETE_VALUE, key ];
+                this.#redisClient.executeCommands( [ commandDeleteValue ] ).then( ( results ) => {
+                    results = results[ 0 ];
+                    resolve( ( results && results.length > 1 ) ? results[ 1 ] : undefined );
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
         } );
     }
 
@@ -194,18 +249,22 @@ class CommonMemoryCache {
      */
     listPushValue( listName, values ) {
         return new Promise( ( resolve, reject ) => {
-            let commandPushValues = [ redis.cacheCommands.LIST_PUSH, listName ];
-            _.forEach( values, ( value ) => {
-                if ( value ) {
-                    commandPushValues.push( tools.stringifyJSON( value ) );
-                }
-            } );
-            this.#redisClient.executeCommands( [ commandPushValues ] ).then( ( results ) => {
-                results = results[ 0 ];
-                resolve( ( results && results.length > 1 ) ? results[ 1 ] : undefined );
-            } ).catch( ( error ) => {
-                reject( error );
-            } );
+            if ( this.#isOperational === true ) {
+                let commandPushValues = [ redis.cacheCommands.LIST_PUSH, listName ];
+                _.forEach( values, ( value ) => {
+                    if ( value ) {
+                        commandPushValues.push( tools.stringifyJSON( value ) );
+                    }
+                } );
+                this.#redisClient.executeCommands( [ commandPushValues ] ).then( ( results ) => {
+                    results = results[ 0 ];
+                    resolve( ( results && results.length > 1 ) ? results[ 1 ] : undefined );
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
         } );
     }
 
@@ -220,12 +279,16 @@ class CommonMemoryCache {
      */
     addToSet( key, value ) {
         return new Promise( ( resolve, reject ) => {
-            let commandAddToSet = [ redis.cacheCommands.ADD_TO_SET, key, tools.stringifyJSON( value ) ];
-            this.#redisClient.executeCommands( [ commandAddToSet ] ).then( () => {
-                resolve();
-            } ).catch( ( error ) => {
-                reject( error );
-            } );
+            if ( this.#isOperational === true ) {
+                let commandAddToSet = [ redis.cacheCommands.ADD_TO_SET, key, tools.stringifyJSON( value ) ];
+                this.#redisClient.executeCommands( [ commandAddToSet ] ).then( () => {
+                    resolve();
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
         } );
     }
 
@@ -241,15 +304,19 @@ class CommonMemoryCache {
      */
     addToSetMulti( keys, values ) {
         return new Promise( ( resolve, reject ) => {
-            let commands = [];
-            _.forEach( keys, ( key, idx ) => {
-                commands.push( [ redis.cacheCommands.ADD_TO_SET, key, tools.stringifyJSON( values[ idx ] ) ] );
-            } );
-            this.#redisClient.executeCommands( commands ).then( () => {
-                resolve();
-            } ).catch( ( error ) => {
-                reject( error );
-            } );
+            if ( this.#isOperational === true ) {
+                let commands = [];
+                _.forEach( keys, ( key, idx ) => {
+                    commands.push( [ redis.cacheCommands.ADD_TO_SET, key, tools.stringifyJSON( values[ idx ] ) ] );
+                } );
+                this.#redisClient.executeCommands( commands ).then( () => {
+                    resolve();
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
         } );
     }
 
@@ -264,14 +331,18 @@ class CommonMemoryCache {
      */
     isSetMember( setName, value ) {
         return new Promise( ( resolve, reject ) => {
-            let commandIsSetMember = [ redis.cacheCommands.IS_SET_MEMBER, setName, value ];
-            this.#redisClient.executeCommands( [ commandIsSetMember ] ).then( ( results ) => {
-                results = results[ 0 ];
-                let result = !!( results && results.length > 1 && results[ 1 ] === 1 );
-                resolve( result );
-            } ).catch( ( error ) => {
-                reject( error );
-            } );
+            if ( this.#isOperational === true ) {
+                let commandIsSetMember = [ redis.cacheCommands.IS_SET_MEMBER, setName, value ];
+                this.#redisClient.executeCommands( [ commandIsSetMember ] ).then( ( results ) => {
+                    results = results[ 0 ];
+                    let result = !!( results && results.length > 1 && results[ 1 ] === 1 );
+                    resolve( result );
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
         } );
     }
 
@@ -285,14 +356,18 @@ class CommonMemoryCache {
      */
     membersOfSet( key ) {
         return new Promise( ( resolve, reject ) => {
-            let commandMembersOfSet = [ redis.cacheCommands.GET_ALL_FROM_SET, key ];
-            this.#redisClient.executeCommands( [ commandMembersOfSet ] ).then( ( results ) => {
-                results = results[ 0 ];
-                let parsedResults = ( results && results.length > 1 && results[ 1 ] ) ? results[ 1 ] : [];
-                resolve( parsedResults );
-            } ).catch( ( error ) => {
-                reject( error );
-            } );
+            if ( this.#isOperational === true ) {
+                let commandMembersOfSet = [ redis.cacheCommands.GET_ALL_FROM_SET, key ];
+                this.#redisClient.executeCommands( [ commandMembersOfSet ] ).then( ( results ) => {
+                    results = results[ 0 ];
+                    let parsedResults = ( results && results.length > 1 && results[ 1 ] ) ? results[ 1 ] : [];
+                    resolve( parsedResults );
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
         } );
     }
 
@@ -306,14 +381,18 @@ class CommonMemoryCache {
      */
     unionOfSets( keys ) {
         return new Promise( ( resolve, reject ) => {
-            let commandUnionOfSets = _.concat( [ redis.cacheCommands.UNION_OF_SETS ], keys );
-            this.#redisClient.executeCommands( [ commandUnionOfSets ] ).then( ( results ) => {
-                results = results[ 0 ];
-                let parsedResults = ( results && results.length > 1 && results[ 1 ] ) ? results[ 1 ] : [];
-                resolve( parsedResults );
-            } ).catch( ( error ) => {
-                reject( error );
-            } );
+            if ( this.#isOperational === true ) {
+                let commandUnionOfSets = _.concat( [ redis.cacheCommands.UNION_OF_SETS ], keys );
+                this.#redisClient.executeCommands( [ commandUnionOfSets ] ).then( ( results ) => {
+                    results = results[ 0 ];
+                    let parsedResults = ( results && results.length > 1 && results[ 1 ] ) ? results[ 1 ] : [];
+                    resolve( parsedResults );
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
         } );
     }
 
@@ -329,12 +408,16 @@ class CommonMemoryCache {
      */
     hashSetField( key, name, value ) {
         return new Promise( ( resolve, reject ) => {
-            let commandHashSetField = [ redis.cacheCommands.HASH_SET_MANY, key, name, tools.stringifyJSON( value ) ];
-            this.#redisClient.executeCommands( [ commandHashSetField ] ).then( () => {
-                resolve();
-            } ).catch( ( error ) => {
-                reject( error );
-            } );
+            if ( this.#isOperational === true ) {
+                let commandHashSetField = [ redis.cacheCommands.HASH_SET_MANY, key, name, tools.stringifyJSON( value ) ];
+                this.#redisClient.executeCommands( [ commandHashSetField ] ).then( () => {
+                    resolve();
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
         } );
     }
 
@@ -351,16 +434,20 @@ class CommonMemoryCache {
      */
     hashSetFields( key, fields ) {
         return new Promise( ( resolve, reject ) => {
-            let commandHashSetFields = [ redis.cacheCommands.HASH_SET_MANY, key ];
-            _.forEach( fields, ( field ) => {
-                commandHashSetFields.push( field.name );
-                commandHashSetFields.push( _.isObjectLike( field.value ) ? tools.stringifyJSON( field.value ) : field.value );
-            } );
-            this.#redisClient.executeCommands( [ commandHashSetFields ] ).then( () => {
-                resolve();
-            } ).catch( ( error ) => {
-                reject( error );
-            } );
+            if ( this.#isOperational === true ) {
+                let commandHashSetFields = [ redis.cacheCommands.HASH_SET_MANY, key ];
+                _.forEach( fields, ( field ) => {
+                    commandHashSetFields.push( field.name );
+                    commandHashSetFields.push( _.isObjectLike( field.value ) ? tools.stringifyJSON( field.value ) : field.value );
+                } );
+                this.#redisClient.executeCommands( [ commandHashSetFields ] ).then( () => {
+                    resolve();
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
         } );
     }
 
@@ -375,13 +462,17 @@ class CommonMemoryCache {
      */
     hashGetField( key, field ) {
         return new Promise( ( resolve, reject ) => {
-            let commandHashGetField = [ redis.cacheCommands.HASH_GET, key, field ];
-            this.#redisClient.executeCommands( [ commandHashGetField ] ).then( ( results ) => {
-                results = results[ 0 ];
-                resolve( ( results && results.length > 1 && _.isString( results[ 1 ] ) ) ? tools.parseJSON( results[ 1 ] ) : null );
-            } ).catch( ( error ) => {
-                reject( error );
-            } );
+            if ( this.#isOperational === true ) {
+                let commandHashGetField = [ redis.cacheCommands.HASH_GET, key, field ];
+                this.#redisClient.executeCommands( [ commandHashGetField ] ).then( ( results ) => {
+                    results = results[ 0 ];
+                    resolve( ( results && results.length > 1 && _.isString( results[ 1 ] ) ) ? tools.parseJSON( results[ 1 ] ) : null );
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
         } );
     }
 }

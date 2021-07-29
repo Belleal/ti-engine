@@ -10,6 +10,7 @@ const exceptions = require( "#exceptions" );
  * An abstract class that defines a basic message receiver behavior.
  *
  * @class MessageReceiver
+ * @extends MessageHandler
  * @abstract
  * @public
  */
@@ -36,6 +37,8 @@ class MessageReceiver extends MessageHandler {
         this.#processingQueue = processingQueue;
     }
 
+    /* Public interface */
+
     /**
      * Property returning the configured receive queue.
      *
@@ -53,6 +56,32 @@ class MessageReceiver extends MessageHandler {
      * @public
      */
     get processingQueue() { return this.#processingQueue; }
+
+    /**
+     * Used to initialize and enable the communication capabilities of the handler.
+     * NOTE: Override this to add functionality.
+     *
+     * @method
+     * @returns {Promise}
+     * @abstract
+     * @public
+     */
+    enable() {
+        return super.enable();
+    }
+
+    /**
+     * Used to shutdown and disable the communication behavior of the handler.
+     * NOTE: Override this to add functionality.
+     *
+     * @method
+     * @returns {Promise}
+     * @abstract
+     * @public
+     */
+    disable() {
+        return super.disable();
+    }
 
 }
 
