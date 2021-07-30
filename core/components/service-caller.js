@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: ICU
  */
 
-const ServiceInstance = require( "#service-instance" );
 const MessageObserver = require( "#message-observer" );
 const tools = require( "#tools" );
 const exceptions = require( "#exceptions" );
@@ -55,6 +54,7 @@ const messageDispatcher = require( "#message-dispatcher" );
  * A class defining a service caller behavior.
  *
  * @class ServiceCaller
+ * @extends MessageObserver
  * @public
  */
 class ServiceCaller extends MessageObserver {
@@ -140,6 +140,30 @@ class ServiceCaller extends MessageObserver {
         }
     }
 
+    /**
+     * Needs to be invoked by the connection handler when the connection is disrupted.
+     *
+     * @method
+     * @param {string} identifier The identifier of the observed connection.
+     * @override
+     * @public
+     */
+    onConnectionDisrupted( identifier ) {
+        super.onConnectionDisrupted( identifier );
+    }
+
+    /**
+     * Needs to be invoked by the connection handler when the connection is recovered.
+     *
+     * @method
+     * @param {string} identifier The identifier of the observed connection.
+     * @override
+     * @public
+     */
+    onConnectionRecovered( identifier ) {
+        super.onConnectionRecovered( identifier );
+    }
+
     /* Private interface */
 
     /**
@@ -177,6 +201,8 @@ class ServiceCaller extends MessageObserver {
      */
     #prepareServiceCall( serviceAddress, serviceParams, serviceExecContext ) {
         return new Promise( ( resolve, reject ) => {
+            const ServiceInstance = require( "#service-instance" );
+
             // assemble the new service call:
             let chainID = ( serviceExecContext.previousServiceCall ) ? serviceExecContext.previousServiceCall.chainID : tools.getUUID();
             let chainLevel = ( serviceExecContext.previousServiceCall ) ? serviceExecContext.previousServiceCall.chainLevel + 1 : 0;

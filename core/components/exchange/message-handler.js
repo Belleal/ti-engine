@@ -4,7 +4,6 @@
  */
 
 const ConnectionObserver = require( "#connection-observer" );
-const MessageObserver = require( "#message-observer" );
 const _ = require( "lodash" );
 const exceptions = require( "#exceptions" );
 const logger = require( "#logger" );
@@ -103,6 +102,8 @@ class MessageHandler extends ConnectionObserver {
      * @public
      */
     addMessageObserver( messageObserver ) {
+        const MessageObserver = require( "#message-observer" );
+
         if ( messageObserver instanceof MessageObserver ) {
             this.#messageObservers.push( messageObserver );
         } else {
@@ -126,7 +127,7 @@ class MessageHandler extends ConnectionObserver {
     /**
      * An event-triggered method that will notify any observers about primary connection recovered state.
      * NOTE: You can override this to add custom functionality but make sure to also call the base method
-     * using: super.onConnectionRecovered( identifier );
+     * using: super.onConnectionRecovered( identifier )
      *
      * @method
      * @param {string} identifier The identifier of the observed connection.
@@ -145,7 +146,7 @@ class MessageHandler extends ConnectionObserver {
     /**
      * An event-triggered method that will notify any observers about primary connection disrupted state.
      * NOTE: You can override this to add custom functionality but make sure to also call the base method
-     * using: super.onConnectionDisrupted( identifier );
+     * using: super.onConnectionDisrupted( identifier )
      *
      * @method
      * @param {string} identifier The identifier of the observed connection.

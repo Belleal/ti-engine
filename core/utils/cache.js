@@ -5,6 +5,7 @@
 
 const ConnectionObserver = require( "#connection-observer" );
 const _ = require( "lodash" );
+const config = require( "#config" );
 const tools = require( "#tools" );
 const redis = require( "#redis-integration" );
 const exceptions = require( "#exceptions" );
@@ -31,7 +32,11 @@ class CommonMemoryCache extends ConnectionObserver {
         super();
 
         if ( !CommonMemoryCache.#instance ) {
-            this.#redisClient = redis.createRedisClient( "system", "127.0.0.1" );
+            let host = config.getSetting( config.setting.MEMORY_CACHE_REDIS_HOST );
+            let port = config.getSetting( config.setting.MEMORY_CACHE_REDIS_PORT );
+            let db = config.getSetting( config.setting.MEMORY_CACHE_REDIS_DB );
+            let authKey = config.getSetting( config.setting.MEMORY_CACHE_AUTH_KEY );
+            this.#redisClient = redis.createRedisClient( "system", host, port, authKey, db );
             this.#redisClient.addConnectionObserver( this );
             CommonMemoryCache.#instance = this;
         }

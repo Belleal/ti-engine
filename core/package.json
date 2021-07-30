@@ -7,6 +7,7 @@
   "exports": {
     "./service-consumer": "./components/service-consumer.js",
     "./service-instance": "./components/service-instance.js",
+    "./service-provider": "./components/service-provider.js",
     "./exceptions": "./utils/exceptions.js",
     "./tools": "./utils/tools.js"
   },
@@ -31,7 +32,10 @@
     "#message-tracer": "./components/exchange/message-tracer.js",
     "#redis-integration": "./integrations/redis-integration.js",
     "#service-caller": "./components/service-caller.js",
+    "#service-consumer": "./components/service-consumer.js",
+    "#service-executor": "./components/service-executor.js",
     "#service-instance": "./components/service-instance.js",
+    "#service-provider": "./components/service-provider.js",
     "#settings": "./settings.json",
     "#tools": "./utils/tools.js"
   },

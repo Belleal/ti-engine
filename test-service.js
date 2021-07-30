@@ -33,21 +33,29 @@ class TestService extends ServiceConsumer {
      */
     onStart() {
         return new Promise( ( resolve, reject ) => {
-            // super.onStart().then( () => {
-            //     return this.callService( {
-            //         serviceAlias: "service1",
-            //         serviceDomainName: "test-service"
-            //     }, {}, {
-            //         authToken: "auth"
-            //     } );
-            // } ).then( ( result ) => {
-            //     console.log( result );
-            //     resolve();
-            // } ).catch( ( error ) => {
-            //     reject( exceptions.raise( error ) );
-            // } );
-            resolve();
+            super.onStart().then( () => {
+                this.test();
+                resolve();
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
         } );
+    }
+
+    test() {
+        setTimeout( () => {
+            this.callService( {
+                serviceAlias: "service1",
+                serviceDomainName: "test-service"
+            }, {}, {
+                authToken: "auth"
+            } ).then( ( result ) => {
+                this.test();
+                console.log( result );
+            } ).catch( ( error ) => {
+                console.log( error );
+            } );
+        }, 2000 );
     }
 
 }

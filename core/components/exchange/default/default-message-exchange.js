@@ -4,8 +4,6 @@
  */
 
 const MessageExchange = require( "#message-exchange" );
-const DefaultMessageSender = require( "#default-message-sender" );
-const DefaultMessageReceiver = require( "#default-message-receiver" );
 const config = require( "#config" );
 const exceptions = require( "#exceptions" );
 
@@ -42,6 +40,9 @@ class DefaultMessageExchange extends MessageExchange {
      */
     enableMessaging( configureInbound, configureOutbound ) {
         return new Promise( ( resolve, reject ) => {
+            const DefaultMessageSender = require( "#default-message-sender" );
+            const DefaultMessageReceiver = require( "#default-message-receiver" );
+
             let handlersToEnable = [];
             if ( configureInbound ) {
                 let messageResponsesOut = new DefaultMessageSender( MessageExchange.connectionNameResponsesOut );

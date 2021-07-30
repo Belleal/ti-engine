@@ -11,13 +11,15 @@
     "logName": "ti-engine",
     "projectID": ""
   },
-  "messageExchange": {
+  "memoryCache": {
     "authKey": null,
-    "messageQueuePrefix": "ti:messages:",
-    "messageStore": "ti:messages:store",
     "redisDB": 0,
     "redisHost": "127.0.0.1",
-    "redisPort": 6379,
+    "redisPort": 6379
+  },
+  "messageExchange": {
+    "messageQueuePrefix": "ti:messages:",
+    "messageStore": "ti:messages:store",
     "traceLogEnabled": true
   },
   "serviceConfig": {

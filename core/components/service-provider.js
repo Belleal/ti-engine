@@ -3,26 +3,27 @@
  * SPDX-License-Identifier: ICU
  */
 
-const ServiceInstance = require( "#service-instance" );
+const ServiceConsumer = require( "#service-consumer" );
 const exceptions = require( "#exceptions" );
 const messageDispatcher = require( "#message-dispatcher" );
 
 /**
- * Abstract class used to define a Service Consumer behavior.
- * NOTE: Inherit this to create an a module that can be started as a microservice consumer instance.
- * NOTE: A service consumer is a microservice that can invoke named business services in the APIs of other
- * microservices using {@link ServiceCall} objects. The consumer does not need to know the specifics of
- * the business logic in these services but only the service address and the inbound parameters (if any).
- * The result of the execution will be returned to the consumer in a {@link ServiceCallResult} object.
+ * Abstract class used to define a Service Provider behavior.
+ * NOTE: Inherit this to create an a module that can be started as a microservice provider instance.
+ * NOTE: A service provider is a microservice that offers an API of named business services that can be invoked by other
+ * microservices using {@link ServiceCall} objects. The provider will take care of the actual execution of that service and
+ * therefore acts as a "black box". The only necessary items are the service address and optional inbound parameters to be
+ * used in that service's logic. The result of the service's execution will be bundled in an {@link ServiceCallResult}
+ * object and returned to the caller.
  *
- * @class ServiceConsumer
- * @extends ServiceInstance
+ * @class ServiceProvider
+ * @extends ServiceConsumer
  * @abstract
  * @public
  */
-class ServiceConsumer extends ServiceInstance {
+class ServiceProvider extends ServiceConsumer {
 
-    #serviceCaller;
+    #serviceExecutor;
 
     /**
      * @constructor
@@ -32,7 +33,7 @@ class ServiceConsumer extends ServiceInstance {
         super( serviceDomainName );
 
         // make sure this abstract class cannot be instantiated:
-        if ( new.target === ServiceConsumer ) {
+        if ( new.target === ServiceProvider ) {
             throw exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
         }
     }
@@ -40,7 +41,7 @@ class ServiceConsumer extends ServiceInstance {
     /* Public interface */
 
     /**
-     * Perform initialization tasks when the service consumer starts.
+     * Perform initialization tasks when the service provider starts.
      * NOTE: This method will be invoked automatically.
      * NOTE: If you need to add more onStart logic you can override this method but make sure to call it in the
      * overriding method using: super.onStart()
@@ -52,12 +53,12 @@ class ServiceConsumer extends ServiceInstance {
      */
     onStart() {
         return new Promise( ( resolve, reject ) => {
-            const ServiceCaller = require( "#service-caller" );
+            const ServiceExecutor = require( "#service-executor" );
 
-            this.#serviceCaller = new ServiceCaller();
+            this.#serviceExecutor = new ServiceExecutor();
 
             super.onStart().then( () => {
-                messageDispatcher.addMessageObserverResponsesIn( this.#serviceCaller );
+                messageDispatcher.addMessageObserverRequestsIn( this.#serviceExecutor );
                 resolve();
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -66,7 +67,7 @@ class ServiceConsumer extends ServiceInstance {
     }
 
     /**
-     * Perform shut down and cleanup tasks when the service consumer stops.
+     * Perform shut down and cleanup tasks when the service provider stops.
      * NOTE: This method will be invoked automatically.
      * NOTE: If you need to add more onStop logic you can override this method but make sure to call it in the
      * overriding method using: super.onStop()
@@ -86,20 +87,6 @@ class ServiceConsumer extends ServiceInstance {
         } );
     }
 
-    /**
-     * Used to invoke a business service.
-     *
-     * @method
-     * @param {ServiceAddress} serviceAddress
-     * @param {Object} serviceParams
-     * @param {ServiceExecContext} serviceExecContext
-     * @returns {Promise<ServiceCallResult>}
-     * @public
-     */
-    callService( serviceAddress, serviceParams, serviceExecContext ) {
-        return this.#serviceCaller.executeServiceCall( serviceAddress, serviceParams, serviceExecContext );
-    }
-
 }
 
-module.exports = ServiceConsumer;
+module.exports = ServiceProvider;

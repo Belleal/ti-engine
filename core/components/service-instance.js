@@ -9,10 +9,12 @@ const config = require( "#config" );
 const logger = require( "#logger" );
 const exceptions = require( "#exceptions" );
 const cache = require( "#cache" );
+const messageDispatcher = require( "#message-dispatcher" );
 
 /**
  * Abstract class used to define a Service Instance behavior.
  * NOTE: Inherit this to create an a module that can be started as a microservice instance.
+ * NOTE: This class does not
  *
  * @class ServiceInstance
  * @abstract
@@ -95,8 +97,9 @@ class ServiceInstance {
 
     /**
      * Executes custom logic on instance start.
-     * NOTE: Override this to add specific functionality.
      * NOTE: This method will be invoked automatically.
+     * NOTE: If you need to add more onStart logic you can override this method but make sure to call it in the
+     * overriding method using: super.onStart()
      *
      * @method
      * @returns {Promise}
@@ -104,7 +107,20 @@ class ServiceInstance {
      * @public
      */
     onStart() {
-        return Promise.resolve();
+        return new Promise( ( resolve, reject ) => {
+            const DefaultMessageExchange = require( "#default-message-exchange" );
+            const ServiceProvider = require( "#service-provider" );
+            const ServiceConsumer = require( "#service-consumer" );
+
+            let configureInbound = ( this instanceof ServiceProvider );
+            let configureOutbound = ( this instanceof ServiceConsumer );
+
+            messageDispatcher.initialize( new DefaultMessageExchange( ServiceInstance.instanceID, ServiceInstance.serviceDomainName ), configureInbound, configureOutbound ).then( () => {
+                resolve();
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
     }
 
     /**
@@ -130,8 +146,9 @@ class ServiceInstance {
 
     /**
      * Executes custom logic on instance stop.
-     * NOTE: Override this to add specific functionality.
      * NOTE: This method will be invoked automatically.
+     * NOTE: If you need to add more onStop logic you can override this method but make sure to call it in the
+     * overriding method using: super.onStop()
      *
      * @method
      * @returns {Promise}
@@ -139,7 +156,13 @@ class ServiceInstance {
      * @public
      */
     onStop() {
-        return Promise.resolve();
+        return new Promise( ( resolve, reject ) => {
+            messageDispatcher.shutDown().then( () => {
+                resolve();
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
     }
 
     /* Private interface */

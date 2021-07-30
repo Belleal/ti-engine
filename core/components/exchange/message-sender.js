@@ -70,7 +70,7 @@ class MessageSender extends MessageHandler {
         return new Promise( ( resolve, reject ) => {
             this.#preSend().then( () => {
                 return this.onSend( message, route );
-            } ).then( ( result ) => {
+            } ).then( () => {
                 return this.#postSend();
             } ).then( () => {
                 resolve();

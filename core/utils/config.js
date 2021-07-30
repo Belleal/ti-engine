@@ -33,6 +33,7 @@ const tools = require( "#tools" );
  * @typedef {Object} SettingsMain
  * @property {SettingsAuditing} auditing
  * @property {SettingsGcloudIntegration} gcloudIntegration
+ * @property {SettingsMemoryCache} memoryCache
  * @property {SettingsMessageExchange} messageExchange
  * @property {SettingsServiceConfig} serviceConfig
  * @property {string} operationMode
@@ -53,13 +54,17 @@ const tools = require( "#tools" );
  */
 
 /**
- * @typedef {Object} SettingsMessageExchange
+ * @typedef {Object} SettingsMemoryCache
  * @property {string} authKey
- * @property {string} messageQueuePrefix
- * @property {string} messageStore
  * @property {number} redisDB
  * @property {string} redisHost
  * @property {number} redisPort
+ */
+
+/**
+ * @typedef {Object} SettingsMessageExchange
+ * @property {string} messageQueuePrefix
+ * @property {string} messageStore
  * @property {boolean} traceLogEnabled
  */
 
@@ -85,12 +90,12 @@ let settingsEnum = tools.enum( {
     AUDITING_LOG_USES_JSON: [ "auditing.logUsesJSON", "logUsesJSON", "" ],
     GCLOUD_API_KEY: [ "gcloudIntegration.apiKey", "apiKey", "" ],
     GCLOUD_PROJECT_ID: [ "gcloudIntegration.projectID", "projectID", "" ],
-    MESSAGE_EXCHANGE_AUTH_KEY: [ "messageExchange.authKey", "authKey", "" ],
+    MEMORY_CACHE_AUTH_KEY: [ "memoryCache.authKey", "authKey", "" ],
+    MEMORY_CACHE_REDIS_DB: [ "memoryCache.redisDB", "redisDB", "" ],
+    MEMORY_CACHE_REDIS_HOST: [ "memoryCache.redisHost", "redisHost", "" ],
+    MEMORY_CACHE_REDIS_PORT: [ "memoryCache.redisPort", "redisPort", "" ],
     MESSAGE_EXCHANGE_QUEUE_PREFIX: [ "messageExchange.messageQueuePrefix", "messageQueuePrefix", "" ],
     MESSAGE_EXCHANGE_STORE: [ "messageExchange.messageStore", "messageStore", "" ],
-    MESSAGE_EXCHANGE_REDIS_DB: [ "messageExchange.redisDB", "redisDB", "" ],
-    MESSAGE_EXCHANGE_REDIS_HOST: [ "messageExchange.redisHost", "redisHost", "" ],
-    MESSAGE_EXCHANGE_REDIS_PORT: [ "messageExchange.redisPort", "redisPort", "" ],
     MESSAGE_EXCHANGE_TRACE_LOG_ENABLED: [ "messageExchange.traceLogEnabled", "traceLogEnabled", "" ],
     SERVICE_EXECUTION_TIMEOUT: [ "serviceConfig.executionTimeout", "executionTimeout", "" ],
     SERVICE_HEALTH_CHECK_ADDRESS: [ "serviceConfig.healthCheckAddress", "healthCheckAddress", "" ],

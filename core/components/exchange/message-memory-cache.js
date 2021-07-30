@@ -23,10 +23,10 @@ class MessageMemoryCache {
      * @param {string} identifier The connection identifier for the Redis connection.
      */
     constructor( identifier ) {
-        let host = config.getSetting( config.setting.MESSAGE_EXCHANGE_REDIS_HOST );
-        let port = config.getSetting( config.setting.MESSAGE_EXCHANGE_REDIS_PORT );
-        let db = config.getSetting( config.setting.MESSAGE_EXCHANGE_REDIS_DB );
-        let authKey = config.getSetting( config.setting.MESSAGE_EXCHANGE_AUTH_KEY );
+        let host = config.getSetting( config.setting.MEMORY_CACHE_REDIS_HOST );
+        let port = config.getSetting( config.setting.MEMORY_CACHE_REDIS_PORT );
+        let db = config.getSetting( config.setting.MEMORY_CACHE_REDIS_DB );
+        let authKey = config.getSetting( config.setting.MEMORY_CACHE_AUTH_KEY );
         this.#redisClient = redis.createRedisClient( identifier, host, port, authKey, db );
     }
 

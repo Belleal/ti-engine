@@ -41,7 +41,6 @@ class DefaultMessageReceiver extends MessageReceiver {
         return new Promise( ( resolve, reject ) => {
             this.#memoryCache = memoryCache.create( this.connectionIdentifier );
             this.#memoryCache.addConnectionObserver( this );
-            //this.isAvailable = true;
             this.receive();
             resolve();
         } );

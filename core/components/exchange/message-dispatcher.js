@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: ICU
  */
 
-const MessageExchange = require( "#message-exchange" );
 const tools = require( "#tools" );
 const exceptions = require( "#exceptions" );
 const logger = require( "#logger" );
@@ -153,33 +152,6 @@ class MessageDispatcher {
      */
     addMessageObserverResponsesIn( messageObserver ) {
         this.#messageExchange.addMessageObserverResponsesIn( messageObserver );
-    }
-
-    /**
-     * Used to initialize the dispatcher for {@link ServiceProvider} behavior.
-     * <p>
-     * NOTE: By default this is called by the {@link ServiceProvider} class upon starting.
-     *
-     * @param processServiceRequest A method that will be used to process incoming service requests.
-     */
-    addMessageRequestListener( processServiceRequest ) {
-        // messageExchange.setAsServiceProvider((ServiceCall serviceCall) -> {
-        //     MessageTracer.recordTraceEntry(serviceCall, MessageType.SERVICE_CALL_REQUEST, DispatchEvent.MSG_RECEIVED, MessageState.PENDING);
-        //     increaseServiceCallsCount();
-        //     processServiceRequest.accept(serviceCall);
-        // });
-    }
-
-    /**
-     * Used to initialize the dispatcher for {@link ServiceConsumer} behavior.
-     * <p>
-     * NOTE: By default this is called by the {@link ServiceConsumer} class upon starting.
-     */
-    configureServiceConsumer() {
-        // messageExchange.setAsServiceConsumer((ServiceCall serviceCall) -> {
-        //     completeServiceCall(serviceCall);
-        //     MessageTracer.recordTraceEntry(serviceCall, MessageType.SERVICE_CALL_RESPONSE, DispatchEvent.MSG_RECEIVED, MessageState.PROCESSED);
-        // });
     }
 
 }

@@ -38,6 +38,7 @@ const messageTracer = require( "#message-tracer" );
  * NOTE: This class and its children are designed to be used internally by the {@link MessageDispatcher} and its related classes.
  *
  * @class MessageExchange
+ * @extends MessageObserver
  * @abstract
  * @public
  */
