@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: ICU
  */
 
-const ServiceConsumer = require( process.cwd() + "/core/components/service-consumer" );
+const ServiceProvider = require( process.cwd() + "/core/components/service-provider" );
 const exceptions = require( process.cwd() + "/core/utils/exceptions" );
 const cache = require( process.cwd() + "/core/utils/cache" );
 
@@ -13,7 +13,7 @@ const cache = require( process.cwd() + "/core/utils/cache" );
  * @class TestService
  * @public
  */
-class TestService extends ServiceConsumer {
+class TestService extends ServiceProvider {
 
     /**
      * @constructor

@@ -107,6 +107,14 @@ class MessageDispatcher {
         } );
     }
 
+    /**
+     * Used to send a message response via the message exchange system.
+     *
+     * @method
+     * @param {Message} message The message to send. This can also be a subclass of {@link Message}.
+     * @returns {Promise}
+     * @public
+     */
     sendResponse( message ) {
         return new Promise( ( resolve, reject ) => {
             // update the instance ID so we can track which instance processed this request:

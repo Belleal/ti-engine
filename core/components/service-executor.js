@@ -5,6 +5,8 @@
 
 const MessageObserver = require( "#message-observer" );
 const exceptions = require( "#exceptions" );
+const logger = require( "#logger" );
+const messageDispatcher = require( "#message-dispatcher" );
 
 /**
  * A class defining a service executor behavior.
@@ -34,7 +36,11 @@ class ServiceExecutor extends MessageObserver {
      * @public
      */
     onMessage( identifier, message ) {
-
+        this.#processServiceCall( message ).then( ( serviceCall ) => {
+            return messageDispatcher.sendResponse( serviceCall );
+        } ).catch( ( error ) => {
+            logger.log( `Failed to send service call response after processing! Service call ID was: '${ message.messageID }'`, logger.logSeverity.ERROR, error );
+        } );
     }
 
     /**
@@ -59,6 +65,23 @@ class ServiceExecutor extends MessageObserver {
      */
     onConnectionRecovered( identifier ) {
         super.onConnectionRecovered( identifier );
+    }
+
+    /* Private interface */
+
+    /**
+     * Used to process the actual service call.
+     *
+     * @method
+     * @param {ServiceCall} serviceCall
+     * @returns {Promise<ServiceCall>}
+     * @private
+     */
+    #processServiceCall( serviceCall ) {
+        return new Promise( ( resolve, reject ) => {
+            // TODO: implementation pending here...
+            resolve( serviceCall );
+        } );
     }
 
 }

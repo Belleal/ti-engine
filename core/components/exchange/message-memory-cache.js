@@ -106,8 +106,12 @@ class MessageMemoryCache {
             }
             commandArguments.push( 0 );
 
-            this.#redisClient.blockingCommand( command, commandArguments ).then( ( result ) => {
-                resolve( tools.parseJSON( result ) );
+            this.#redisClient.blockingCommand( command, commandArguments ).then( ( results ) => {
+                // for some reason the result is in different format for both commands, so we need to be sure we get the message:
+                if ( results instanceof Array ) {
+                    results = ( results && results.length > 1 ) ? results[ 1 ] : undefined;
+                }
+                resolve( tools.parseJSON( results ) );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );

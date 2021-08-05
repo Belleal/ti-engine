@@ -76,7 +76,7 @@ class DefaultMessageReceiver extends MessageReceiver {
         } ).then( ( message ) => {
             this.onMessage( message );
         } ).catch( ( error ) => {
-            logger.log( `Error while trying to receive the next pending message from memory cache!`, logger.logSeverity.ERROR, error );
+            logger.log( `Error while trying to receive the next pending message from memory cache in receiver '${ this.connectionIdentifier }'! Resuming operation...`, logger.logSeverity.ERROR, error );
         } ).finally( () => {
             this.receive();
         } );
