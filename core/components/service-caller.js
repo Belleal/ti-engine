@@ -93,7 +93,7 @@ class ServiceCaller extends MessageObserver {
                         let serviceCallResult = serviceCall.result || {
                             isSuccessful: true
                         };
-                        serviceCallResult.payload = serviceCall.payload || {};
+                        serviceCallResult.payload = serviceCall.payload;
 
                         resolve( serviceCallResult );
                     } ).catch( ( error ) => {
@@ -225,12 +225,11 @@ class ServiceCaller extends MessageObserver {
                 finishedOn: undefined,
                 isCompleted: false,
                 messageID: tools.getUUID(),
-                payload: {},
+                payload: undefined,
                 predecessor: ( serviceExecContext.previousServiceCall ) ? serviceExecContext.previousServiceCall.messageID : undefined,
                 result: undefined,
                 serviceAddress: serviceAddress,
                 serviceParams: serviceParams,
-                sequence: 0,
                 source: source,
                 successors: undefined
             };

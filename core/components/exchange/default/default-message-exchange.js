@@ -47,8 +47,7 @@ class DefaultMessageExchange extends MessageExchange {
             if ( configureInbound ) {
                 let messageResponsesOut = new DefaultMessageSender( MessageExchange.connectionNameResponsesOut );
                 let receiveRequestsQueue = config.getSetting( config.setting.MESSAGE_EXCHANGE_QUEUE_PREFIX ) + MessageExchange.pendingQueue + this.serviceDomainName;
-                let processingQueue = config.getSetting( config.setting.MESSAGE_EXCHANGE_QUEUE_PREFIX ) + MessageExchange.processingQueue + this.serviceDomainName + ":" + this.instanceID;
-                let messageRequestsIn = new DefaultMessageReceiver( MessageExchange.connectionNameRequestsIn, receiveRequestsQueue, processingQueue );
+                let messageRequestsIn = new DefaultMessageReceiver( MessageExchange.connectionNameRequestsIn, receiveRequestsQueue );
                 messageRequestsIn.addMessageObserver( this );
                 this.configureInboundMessaging( messageRequestsIn, messageResponsesOut );
                 handlersToEnable.push( this.messageResponsesOut.enable() );
@@ -110,8 +109,8 @@ class DefaultMessageExchange extends MessageExchange {
      * @public
      */
     sendMessageRequest( message ) {
-        let route = config.getSetting( config.setting.MESSAGE_EXCHANGE_QUEUE_PREFIX ) + MessageExchange.pendingQueue + message.destination.route;
-        return this.messageRequestsOut.send( message, route );
+        let sendQueue = config.getSetting( config.setting.MESSAGE_EXCHANGE_QUEUE_PREFIX ) + MessageExchange.pendingQueue + message.destination.route;
+        return this.messageRequestsOut.send( message, sendQueue );
     }
 
     /**
@@ -124,8 +123,8 @@ class DefaultMessageExchange extends MessageExchange {
      * @public
      */
     sendMessageResponse( message ) {
-        let route = config.getSetting( config.setting.MESSAGE_EXCHANGE_QUEUE_PREFIX ) + MessageExchange.processedQueue + message.source.route + ":" + message.source.instanceID;
-        return this.messageResponsesOut.send( message, route );
+        let sendQueue = config.getSetting( config.setting.MESSAGE_EXCHANGE_QUEUE_PREFIX ) + MessageExchange.processedQueue + message.source.route + ":" + message.source.instanceID;
+        return this.messageResponsesOut.send( message, sendQueue );
     }
 
 }

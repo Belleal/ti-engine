@@ -313,7 +313,25 @@ module.exports.retrocycle = ( $ ) => {
  * @public
  */
 module.exports.stringifyJSON = ( value ) => {
-    return JSON.stringify( module.exports.decycle( value ) );
+    let transformed = module.exports.decycle( value );
+    return _.isObjectLike( transformed ) ? JSON.stringify( _.toPlainObject( transformed ) ) : value;
+};
+
+/**
+ * Use this to verify if the provided string can be parsed as a JSON.
+ *
+ * @method
+ * @param {string} string
+ * @returns {boolean}
+ * @public
+ */
+module.exports.isJsonString = ( string ) => {
+    try {
+        JSON.parse( string );
+    } catch ( error ) {
+        return false;
+    }
+    return true;
 };
 
 /**
@@ -326,7 +344,12 @@ module.exports.stringifyJSON = ( value ) => {
  * @public
  */
 module.exports.parseJSON = ( value ) => {
-    return module.exports.retrocycle( JSON.parse( value ) );
+    try {
+        let transformed = JSON.parse( value );
+        return module.exports.retrocycle( transformed );
+    } catch ( error ) {
+        return value;
+    }
 };
 
 /**

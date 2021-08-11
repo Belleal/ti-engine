@@ -75,13 +75,17 @@ class MessageMemoryCache {
      */
     storeMessagePayload( payload, storeLocation ) {
         return new Promise( ( resolve, reject ) => {
-            let storeID = tools.getUUID();
-            let command = [ redis.cacheCommands.HASH_SET, storeLocation, storeID, tools.stringifyJSON( payload ) ];
-            this.#redisClient.executeCommands( [ command ] ).then( () => {
-                resolve( storeID );
-            } ).catch( ( error ) => {
-                reject( exceptions.raise( error ) );
-            } );
+            if ( payload ) {
+                let storeID = tools.getUUID();
+                let command = [ redis.cacheCommands.HASH_SET, storeLocation, storeID, tools.stringifyJSON( payload ) ];
+                this.#redisClient.executeCommands( [ command ] ).then( () => {
+                    resolve( storeID );
+                } ).catch( ( error ) => {
+                    reject( exceptions.raise( error ) );
+                } );
+            } else {
+                resolve();
+            }
         } );
     }
 
@@ -89,28 +93,14 @@ class MessageMemoryCache {
      * Used to receive a message from the specified queue.
      *
      * @method
-     * @param {string} receiveQueue
-     * @param {string} processingQueue
+     * @param {string} queue
      * @returns {Promise<Message>}
      * @public
      */
-    receiveMessage( receiveQueue, processingQueue ) {
+    receiveMessage( queue ) {
         return new Promise( ( resolve, reject ) => {
-            let command;
-            let commandArguments = [ receiveQueue ];
-            if ( processingQueue ) {
-                command = redis.cacheCommands.LIST_POP_TAIL_PUSH_HEAD_BLOCKING;
-                commandArguments.push( processingQueue );
-            } else {
-                command = redis.cacheCommands.LIST_POP_TAIL_BLOCKING;
-            }
-            commandArguments.push( 0 );
-
-            this.#redisClient.blockingCommand( command, commandArguments ).then( ( results ) => {
-                // for some reason the result is in different format for both commands, so we need to be sure we get the message:
-                if ( results instanceof Array ) {
-                    results = ( results && results.length > 1 ) ? results[ 1 ] : undefined;
-                }
+            this.#redisClient.blockingCommand( redis.cacheCommands.LIST_POP_TAIL_BLOCKING, [ queue, 0 ] ).then( ( results ) => {
+                results = ( results && results.length > 1 ) ? results[ 1 ] : undefined;
                 resolve( tools.parseJSON( results ) );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -129,14 +119,19 @@ class MessageMemoryCache {
      */
     retrieveMessagePayload( message, storeLocation ) {
         return new Promise( ( resolve, reject ) => {
-            let command = [ redis.cacheCommands.HASH_GET, storeLocation, message.payload ];
-            this.#redisClient.executeCommands( [ command ] ).then( ( results ) => {
-                results = results[ 0 ];
-                message.payload = ( results && results.length > 1 ) ? tools.parseJSON( results[ 1 ] ) : undefined;
+            if ( message.payload ) {
+                let command1 = [ redis.cacheCommands.HASH_GET, storeLocation, message.payload ];
+                let command2 = [ redis.cacheCommands.HASH_REMOVE, storeLocation, message.payload ];
+                this.#redisClient.executeCommands( [ command1, command2 ] ).then( ( results ) => {
+                    results = results[ 0 ];
+                    message.payload = ( results && results.length > 1 ) ? tools.parseJSON( results[ 1 ] ) : undefined;
+                    resolve( message );
+                } ).catch( ( error ) => {
+                    reject( exceptions.raise( error ) );
+                } );
+            } else {
                 resolve( message );
-            } ).catch( ( error ) => {
-                reject( exceptions.raise( error ) );
-            } );
+            }
         } );
     }
 

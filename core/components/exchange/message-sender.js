@@ -62,14 +62,14 @@ class MessageSender extends MessageHandler {
      *
      * @method
      * @param {Message} message The message to send.
-     * @param {string} route The route to destination for the message as recognized by the {@link MessageExchange} implementation.
+     * @param {string} queue The route to destination (queue) for the message as recognized by the {@link MessageExchange} implementation.
      * @returns {Promise}
      * @public
      */
-    send( message, route ) {
+    send( message, queue ) {
         return new Promise( ( resolve, reject ) => {
             this.#preSend().then( () => {
-                return this.onSend( message, route );
+                return this.onSend( message, queue );
             } ).then( () => {
                 return this.#postSend();
             } ).then( () => {
@@ -82,16 +82,17 @@ class MessageSender extends MessageHandler {
 
     /**
      * Used to perform the actual sending of a message.
+     * NOTE: This method will be called automatically.
      * NOTE: Override this to add functionality.
      *
      * @method
      * @param {Message} message The message to send.
-     * @param {string} route The route to destination for the message as recognized by the {@link MessageExchange} implementation.
+     * @param {string} queue The route to destination (queue) for the message as recognized by the {@link MessageExchange} implementation.
      * @returns {Promise<*>}
      * @abstract
      * @public
      */
-    onSend( message, route ) {
+    onSend( message, queue ) {
         return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.onSend.name } ) );
     }
 

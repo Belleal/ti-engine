@@ -4,6 +4,7 @@
  */
 
 const MessageHandler = require( "#message-handler" );
+const logger = require( "#logger" );
 const exceptions = require( "#exceptions" );
 
 /**
@@ -17,15 +18,13 @@ const exceptions = require( "#exceptions" );
 class MessageReceiver extends MessageHandler {
 
     #receiveQueue;
-    #processingQueue;
 
     /**
      * @constructor
      * @param {string} identifier An identifier for this message handler. Should be unique in the context of the message exchange.
      * @param {string} receiveQueue The queue from which the messages will be received.
-     * @param {string} [processingQueue=undefined] The queue in which the messages will be put for processing (if necessary).
      */
-    constructor( identifier, receiveQueue, processingQueue = undefined ) {
+    constructor( identifier, receiveQueue ) {
         super( identifier );
 
         // make sure this abstract class cannot be instantiated:
@@ -34,7 +33,6 @@ class MessageReceiver extends MessageHandler {
         }
 
         this.#receiveQueue = receiveQueue;
-        this.#processingQueue = processingQueue;
     }
 
     /* Public interface */
@@ -47,15 +45,6 @@ class MessageReceiver extends MessageHandler {
      * @public
      */
     get receiveQueue() { return this.#receiveQueue; }
-
-    /**
-     * Property returning the configured processing queue (if any).
-     *
-     * @property
-     * @returns {string|undefined}
-     * @public
-     */
-    get processingQueue() { return this.#processingQueue; }
 
     /**
      * Used to initialize and enable the communication capabilities of the handler.
@@ -81,6 +70,37 @@ class MessageReceiver extends MessageHandler {
      */
     disable() {
         return super.disable();
+    }
+
+    /**
+     * Used to receive messages.
+     * NOTE: This method will start a recursion of subsequent receives that will continue even if an individual message fetch fails.
+     *
+     * @method
+     * @public
+     */
+    receive() {
+        this.onReceive().then( ( message ) => {
+            this.onMessage( message );
+        } ).catch( ( error ) => {
+            logger.log( `Error while trying to receive the next pending message from memory cache in receiver '${ this.connectionIdentifier }'! Resuming operation...`, logger.logSeverity.ERROR, error );
+        } ).finally( () => {
+            this.receive();
+        } );
+    }
+
+    /**
+     * Used to receive messages.
+     * NOTE: This method will be called automatically.
+     * NOTE: Override this to add functionality.
+     *
+     * @method
+     * @returns {Promise<Message>}
+     * @abstract
+     * @public
+     */
+    onReceive() {
+        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.onReceive.name } ) );
     }
 
 }

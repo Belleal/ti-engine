@@ -26,8 +26,7 @@ const messageTracer = require( "#message-tracer" );
  * @property {number} chainLevel The node level of this message in the message chain tree.
  * @property {MessageDestination} destination The destination of the message.
  * @property {string} messageID Unique message identifier.
- * @property {*} payload The message contents to be processed in destination.
- * @property {number} sequence A system property used to count the sequence of the message handler tasks. Counting starts from 0.
+ * @property {Object|string} payload The message contents to be processed in destination. Note that if this is not an Object, there is no guarantee that it will be delivered in the same format!
  * @property {MessageSource} source The source of the message.
  */
 
@@ -162,15 +161,6 @@ class MessageExchange extends MessageObserver {
      * @public
      */
     static get pendingQueue() { return "pending:"; }
-
-    /**
-     * Property returning the identifier of the processing messages queue.
-     *
-     * @property
-     * @returns {string}
-     * @public
-     */
-    static get processingQueue() { return "processing:"; }
 
     /**
      * Property returning the identifier of the processed messages queue.

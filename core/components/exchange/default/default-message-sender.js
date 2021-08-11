@@ -34,17 +34,17 @@ class DefaultMessageSender extends MessageSender {
      *
      * @method
      * @param {Message} message The message to send.
-     * @param {string} route The route to destination for the message as recognized by the {@link MessageExchange} implementation.
+     * @param {string} queue The route to destination (queue) for the message as recognized by the {@link MessageExchange} implementation.
      * @returns {Promise}
      * @override
      * @public
      */
-    onSend( message, route ) {
+    onSend( message, queue ) {
         return new Promise( ( resolve, reject ) => {
             this.#memoryCache.storeMessagePayload( message.payload, config.getSetting( config.setting.MESSAGE_EXCHANGE_STORE ) ).then( ( storeID ) => {
                 let lightweightMessage = _.cloneDeep( message );
                 lightweightMessage.payload = storeID;
-                return this.#memoryCache.sendMessage( lightweightMessage, route );
+                return this.#memoryCache.sendMessage( lightweightMessage, queue );
             } ).then( () => {
                 resolve();
             } ).catch( ( error ) => {

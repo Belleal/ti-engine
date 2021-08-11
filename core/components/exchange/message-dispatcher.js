@@ -84,9 +84,6 @@ class MessageDispatcher {
      */
     sendRequest( message ) {
         return new Promise( ( resolve, reject ) => {
-            // make sure to increment the task sequence before proceeding further:
-            //message.sequence = ( message.sequence == null) ? 0 : message.sequence + 1;
-
             let retry = new tools.RetryPolicy( 3 );
             retry.onFailedAttempt( ( error ) => {
                 logger.log( `Failed to send message request with chain ID: ${ message.chainID }`, logger.logSeverity.WARNING, error );
@@ -117,9 +114,6 @@ class MessageDispatcher {
      */
     sendResponse( message ) {
         return new Promise( ( resolve, reject ) => {
-            // update the instance ID so we can track which instance processed this request:
-            //message.destination.instanceID = ServiceInstance.instanceID;
-
             let retry = new tools.RetryPolicy( 3 );
             retry.onFailedAttempt( ( error ) => {
                 logger.log( `Failed to send message response with chain ID: ${ message.chainID }`, logger.logSeverity.WARNING, error );
