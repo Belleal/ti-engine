@@ -21,7 +21,6 @@ const messageDispatcher = require( "#message-dispatcher" );
 /**
  * @typedef {Object} ServiceExecContext
  * @property {string} authToken A valid authentication token that initialized the service call.
- * @property {string|undefined} chainID Shared unique ID between all pre- and post-processed service call and related operations (i.e. the message chain).
  * @property {ServiceCallPredecessor|undefined} previousServiceCall The previous service call in the execution chain (if such exists).
  */
 
@@ -37,17 +36,23 @@ const messageDispatcher = require( "#message-dispatcher" );
  * @property {string} authToken A valid authentication token that initialized the service call.
  * @property {number} createdOn A unix timestamp taken at creation time of the service call.
  * @property {number} executionTime The total execution time of this service call in milliseconds.
+ * @property {Object|undefined} exception If there was exception during the service call processing, it will be set here. Otherwise it will be 'undefined'.
  * @property {number|undefined} finishedOn A unix timestamp taken at finish time of the service call.
  * @property {boolean} isCompleted Flag to indicate if this service call has been completed.
- * @property {ServiceCallResult} result Will contain the results of the service call's execution regardless of the outcome.
+ * @property {boolean|undefined} isSuccessful A flag indicating if this service call can be considered successful or not. Will be 'undefined' until the service call is processed.
  * @property {string[]} successors The service call IDs of the successors in the service call tree.
  */
 
 /**
  * @typedef {Object} ServiceCallResult
- * @property {boolean} isSuccessful A flag indicating if this result is a success or not.
- * @property {Exception|undefined} exception If there was exception during the service call processing, it will be set here. Otherwise it will be 'null'.
+ * @property {Object|undefined} exception If there was exception during the service call processing, it will be set here. Otherwise it will be 'undefined'.
+ * @property {boolean} isSuccessful A flag indicating if this service call can be considered successful or not.
  * @property {Object|string|undefined} payload The payload containing the results from the service call processing. If string, it is ID of the payload in the memory cache instead.
+ */
+
+/**
+ * @callback TaskHandler
+ * @param {ServiceCall} serviceCall The service call for processing.
  */
 
 /**
@@ -90,10 +95,11 @@ class ServiceCaller extends MessageObserver {
             } ).then( ( messageID ) => {
                 this.#addTaskHandler( messageID, ( serviceCall ) => {
                     this.#completeServiceCall( serviceCall ).then( ( serviceCall ) => {
-                        let serviceCallResult = serviceCall.result || {
-                            isSuccessful: true
+                        let serviceCallResult = {
+                            exception: serviceCall.exception,
+                            isSuccessful: ( serviceCall.isSuccessful !== undefined ) ? serviceCall.isSuccessful : true,
+                            payload: serviceCall.payload
                         };
-                        serviceCallResult.payload = serviceCall.payload;
 
                         resolve( serviceCallResult );
                     } ).catch( ( error ) => {
@@ -222,12 +228,13 @@ class ServiceCaller extends MessageObserver {
                 createdOn: Date.now(),
                 destination: destination,
                 executionTime: 0,
+                exception: undefined,
                 finishedOn: undefined,
                 isCompleted: false,
+                isSuccessful: undefined,
                 messageID: tools.getUUID(),
                 payload: undefined,
                 predecessor: ( serviceExecContext.previousServiceCall ) ? serviceExecContext.previousServiceCall.messageID : undefined,
-                result: undefined,
                 serviceAddress: serviceAddress,
                 serviceParams: serviceParams,
                 source: source,
@@ -261,7 +268,7 @@ class ServiceCaller extends MessageObserver {
      *
      * @method
      * @param {string} taskID
-     * @param {function( ServiceCall )} taskHandler
+     * @param {TaskHandler} taskHandler
      * @private
      */
     #addTaskHandler( taskID, taskHandler ) {
@@ -273,7 +280,7 @@ class ServiceCaller extends MessageObserver {
      *
      * @method
      * @param {string} taskID
-     * @returns {function( ServiceCall )}
+     * @returns {TaskHandler}
      * @private
      */
     #getTaskHandler( taskID ) {

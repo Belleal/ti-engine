@@ -26,7 +26,8 @@ const messageTracer = require( "#message-tracer" );
  * @property {number} chainLevel The node level of this message in the message chain tree.
  * @property {MessageDestination} destination The destination of the message.
  * @property {string} messageID Unique message identifier.
- * @property {Object|string} payload The message contents to be processed in destination. Note that if this is not an Object, there is no guarantee that it will be delivered in the same format!
+ * @property {Object|string|undefined} payload The message contents to be processed in destination. If string, it is ID of the payload in the memory cache instead.
+ * Note that if this is not an Object or a string, there is no guarantee that it will be delivered in the same/proper format!
  * @property {MessageSource} source The source of the message.
  */
 

@@ -13,22 +13,25 @@ const tools = require( "#tools" );
  * @enum {number}
  */
 let exceptionCodeEnum = tools.enum( {
-    /** Framework or language base exceptions - codes under 0xx */
+    /** Framework or language base exceptions - codes under 0xxx */
     E_UNKNOWN_ERROR: [ 0, "unknown error", "Unidentified error encountered or unrecognized exception code provided." ],
     E_ABSTRACT_CLASS_INIT: [ 1, "abstract class init", "Attempt to construct an abstract class detected." ],
     E_ABSTRACT_METHOD_CALL: [ 2, "abstract method call", "Attempt to call an abstract method detected." ],
     E_INVALID_SERVICE_DOMAIN_NAME: [ 3, "invalid service domain name", "Invalid or no service domain name provided at microservice startup." ],
     E_SYSTEM_CACHE_UNAVAILABLE: [ 4, "system cache unavailable", "The system cache required for proper engine operation is unavailable." ],
-    /** General exceptions - codes under 1xx */
-    E_GEN_JS_INTERNAL_ERROR: [ 100, "js internal error", "Error thrown by internal JS source." ],
-    /** Security & Administration related exceptions - codes under 2xx */
-    E_SEC_INVALID_SESSION_KEY: [ 200, "invalid session key", "Invalid session key provided." ],
-    E_SEC_INVALID_EXPIRED_SESSION: [ 201, "invalid or expired session", "Invalid or expired session encountered." ],
-    /** Cross-Application Communication exceptions - codes under 3xx */
-    E_COM_GENERAL_ERROR: [ 300, "general communication error", "General error during cross-application communication." ],
-    E_COM_MESSAGE_SENDER_UNAVAILABLE: [ 301, "message sender unavailable", "The message sender instance is currently unavailable." ],
-    E_COM_SERVICE_EXEC_TIMEOUT: [ 302, "service exec timeout", "The execution of a service could not complete within the allowed timeout." ],
-    E_COM_SERVICE_NOT_REGISTERED: [ 303, "service not registered", "The specified service is not found in the service registry." ],
+    /** General exceptions - codes under 1xxx */
+    E_GEN_JS_INTERNAL_ERROR: [ 1000, "js internal error", "Error thrown by internal JS source." ],
+    /** Security & Administration related exceptions - codes under 2xxx */
+    E_SEC_INVALID_AUTH_TOKEN: [ 2000, "invalid auth token", "Invalid authorization token provided." ],
+    E_SEC_INVALID_EXPIRED_SESSION: [ 2001, "invalid or expired session", "Invalid or expired session encountered." ],
+    E_SEC_UNAUTHORIZED_ACCESS: [ 2002, "unauthorized access", "Attempt for unauthorized access detected." ],
+    /** Cross-Application Communication exceptions - codes under 3xxx */
+    E_COM_GENERAL_ERROR: [ 3000, "general communication error", "General error during cross-application communication." ],
+    E_COM_MESSAGE_SENDER_UNAVAILABLE: [ 3001, "message sender unavailable", "The message sender instance is currently unavailable." ],
+    E_COM_SERVICE_EXEC_TIMEOUT: [ 3002, "service exec timeout", "The execution of a service could not complete within the allowed timeout." ],
+    E_COM_SERVICE_NOT_REGISTERED: [ 3003, "service not registered", "The specified service is not found in the service registry." ],
+    E_COM_SERVICE_NOT_FOUND: [ 3004, "service not found", "The specified service is not found in the service definition interface." ],
+    E_COM_SERVICE_HANDLER_NOT_FOUND: [ 3005, "service handler not found", "No handler found in the interface for the specified service or service version." ],
     // E_COM_UNRECOGNIZED_API_URL: [ 301, "unrecognized api url", "Attempt to access unrecognized or invalid API URL." ],
     // E_COM_MISSING_REQUIRED_ARGUMENTS: [ 302, "missing required arguments", "Attempt to execute operation without all required arguments." ],
     // E_COM_UNRECOGNIZED_RESPONSE_STRUCTURE: [ 303, "unrecognized response structure", "The received response has unrecognized structure and cannot be parsed or examined." ],
@@ -38,7 +41,7 @@ let exceptionCodeEnum = tools.enum( {
     // E_COM_REQUEST_ERROR_RESPONSE: [ 307, "received error response", "The received response indicates error in the external system." ],
     // E_COM_CONNECTION_TIMEOUT: [ 308, "connection timeout", "Attempting to do communication request but request timeout." ],
     // E_COM_INVALID_API_MAPPING: [ 309, "invalid api mapping", "Attempt to access API URL without proper controller mapping." ],
-    E_COM_RETRY_ATTEMPTS_EXCEEDED: [ 310, "retry attempts exceeded", "Connection retry attempts exceeded the configured limit." ]
+    E_COM_RETRY_ATTEMPTS_EXCEEDED: [ 3010, "retry attempts exceeded", "Connection retry attempts exceeded the configured limit." ]
 } );
 
 /**

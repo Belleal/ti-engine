@@ -56,6 +56,7 @@ class ServiceProvider extends ServiceConsumer {
             const ServiceExecutor = require( "#service-executor" );
 
             this.#serviceExecutor = new ServiceExecutor();
+            this.#serviceExecutor.configureVerifyAccess( this.verifyAccess );
 
             super.onStart().then( () => {
                 messageDispatcher.addMessageObserverRequestsIn( this.#serviceExecutor );
@@ -85,6 +86,21 @@ class ServiceProvider extends ServiceConsumer {
                 reject( exceptions.raise( error ) );
             } );
         } );
+    }
+
+    /**
+     * Used to verify whether the service caller has authorization to access the service.
+     * NOTE: Override this to implement authorization check. By default this method simply returns.
+     *
+     * @method
+     * @param {string} authToken
+     * @param {ServiceAddress} serviceAddress
+     * @return {Promise}
+     * @virtual
+     * @public
+     */
+    verifyAccess( authToken, serviceAddress ) {
+        return Promise.resolve();
     }
 
 }

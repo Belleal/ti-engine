@@ -42,6 +42,24 @@ class TestService extends ServiceProvider {
         } );
     }
 
+    /**
+     * Used to verify whether the service caller has authorization to access the service.
+     *
+     * @method
+     * @param {string} authToken
+     * @param {ServiceAddress} serviceAddress
+     * @return {Promise}
+     * @override
+     * @public
+     */
+    verifyAccess( authToken, serviceAddress ) {
+        if ( authToken ) {
+            return Promise.resolve();
+        } else {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS ) );
+        }
+    }
+
     test() {
         setTimeout( () => {
             this.callService( {
