@@ -72,7 +72,7 @@ class MessageExchange extends MessageObserver {
 
         // make sure this abstract class cannot be instantiated:
         if ( new.target === MessageExchange ) {
-            throw exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
         }
 
         this.#instanceID = instanceID;
@@ -256,7 +256,7 @@ class MessageExchange extends MessageObserver {
      * @public
      */
     enableMessaging( configureInbound, configureOutbound ) {
-        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.enableMessaging.name } ) );
+        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.enableMessaging.name } ) );
     }
 
     /**
@@ -269,7 +269,7 @@ class MessageExchange extends MessageObserver {
      * @public
      */
     disableMessaging() {
-        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.disableMessaging.name } ) );
+        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.disableMessaging.name } ) );
     }
 
     /**
@@ -391,7 +391,7 @@ class MessageExchange extends MessageObserver {
      * @public
      */
     sendMessageRequest( message ) {
-        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.sendMessageRequest.name } ) );
+        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.sendMessageRequest.name } ) );
     }
 
     /**
@@ -405,7 +405,7 @@ class MessageExchange extends MessageObserver {
      * @public
      */
     sendMessageResponse( message ) {
-        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.sendMessageResponse.name } ) );
+        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.sendMessageResponse.name } ) );
     }
 
 }

@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: ICU
  */
 
-const _ = require( "lodash" );
-const fs = require( "fs" );
 const ServiceInstance = require( "@ti-engine/core/service-instance" );
 const tools = require( "@ti-engine/core/tools" );
+const _ = require( "lodash" );
+const fs = require( "fs" );
 
 class ServiceConsumer extends ServiceInstance {
     /**

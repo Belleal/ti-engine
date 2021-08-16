@@ -13,14 +13,14 @@ const tools = require( "#tools" );
  * @enum {number}
  */
 let exceptionCodeEnum = tools.enum( {
-    /** Framework or language base exceptions - codes under 0xxx */
     E_UNKNOWN_ERROR: [ 0, "unknown error", "Unidentified error encountered or unrecognized exception code provided." ],
-    E_ABSTRACT_CLASS_INIT: [ 1, "abstract class init", "Attempt to construct an abstract class detected." ],
-    E_ABSTRACT_METHOD_CALL: [ 2, "abstract method call", "Attempt to call an abstract method detected." ],
-    E_INVALID_SERVICE_DOMAIN_NAME: [ 3, "invalid service domain name", "Invalid or no service domain name provided at microservice startup." ],
-    E_SYSTEM_CACHE_UNAVAILABLE: [ 4, "system cache unavailable", "The system cache required for proper engine operation is unavailable." ],
     /** General exceptions - codes under 1xxx */
     E_GEN_JS_INTERNAL_ERROR: [ 1000, "js internal error", "Error thrown by internal JS source." ],
+    E_GEN_ABSTRACT_CLASS_INIT: [ 1001, "abstract class init", "Attempt to construct an abstract class detected." ],
+    E_GEN_ABSTRACT_METHOD_CALL: [ 1002, "abstract method call", "Attempt to call an abstract method detected." ],
+    E_GEN_INVALID_SERVICE_DOMAIN_NAME: [ 1003, "invalid service domain name", "Invalid or no service domain name provided at microservice startup." ],
+    E_GEN_SYSTEM_CACHE_UNAVAILABLE: [ 1004, "system cache unavailable", "The system cache required for proper engine operation is unavailable." ],
+    E_GEN_BAD_SERVICE_HANDLER: [ 1005, "bad service handler", "The provided service handler is not a proper function." ],
     /** Security & Administration related exceptions - codes under 2xxx */
     E_SEC_INVALID_AUTH_TOKEN: [ 2000, "invalid auth token", "Invalid authorization token provided." ],
     E_SEC_INVALID_EXPIRED_SESSION: [ 2001, "invalid or expired session", "Invalid or expired session encountered." ],

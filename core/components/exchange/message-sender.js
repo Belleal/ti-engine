@@ -25,7 +25,7 @@ class MessageSender extends MessageHandler {
 
         // make sure this abstract class cannot be instantiated:
         if ( new.target === MessageSender ) {
-            throw exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
         }
     }
 
@@ -93,7 +93,7 @@ class MessageSender extends MessageHandler {
      * @public
      */
     onSend( message, queue ) {
-        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.onSend.name } ) );
+        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.onSend.name } ) );
     }
 
     /* Private interface */

@@ -27,13 +27,14 @@ class ServiceConsumer extends ServiceInstance {
     /**
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
+     * @param {Object} [serviceConfig={}] The JSON configuration for this service.
      */
-    constructor( serviceDomainName ) {
-        super( serviceDomainName );
+    constructor( serviceDomainName, serviceConfig = {} ) {
+        super( serviceDomainName, serviceConfig );
 
         // make sure this abstract class cannot be instantiated:
         if ( new.target === ServiceConsumer ) {
-            throw exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
         }
     }
 

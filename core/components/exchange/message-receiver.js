@@ -29,7 +29,7 @@ class MessageReceiver extends MessageHandler {
 
         // make sure this abstract class cannot be instantiated:
         if ( new.target === MessageReceiver ) {
-            throw exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
         }
 
         this.#receiveQueue = receiveQueue;
@@ -100,7 +100,7 @@ class MessageReceiver extends MessageHandler {
      * @public
      */
     onReceive() {
-        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.onReceive.name } ) );
+        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.onReceive.name } ) );
     }
 
 }

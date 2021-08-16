@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: ICU
  */
 
+const _ = require( "lodash" );
 const schedule = require( "node-schedule" );
 const tools = require( "#tools" );
 const config = require( "#config" );
@@ -24,21 +25,24 @@ class ServiceInstance {
 
     static #instanceID;
     static #serviceDomainName;
+    #serviceConfig;
     #serviceHealthCheck;
     #reportHealthyJob;
 
     /**
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
+     * @param {Object} [serviceConfig={}] The JSON configuration for this service.
      */
-    constructor( serviceDomainName ) {
+    constructor( serviceDomainName, serviceConfig = {} ) {
         // make sure this abstract class cannot be instantiated:
         if ( new.target === ServiceInstance ) {
-            throw exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
         }
 
         ServiceInstance.#instanceID = process.env.TI_INSTANCE_ID || tools.getUUID();
         ServiceInstance.#serviceDomainName = serviceDomainName;
+        this.#serviceConfig = ( _.isObjectLike( serviceConfig ) ) ? serviceConfig : {};
     }
 
     /* Public interface */
@@ -71,6 +75,15 @@ class ServiceInstance {
     get isServiceInstance() { return true; }
 
     /**
+     * Property returning the service configuration JSON.
+     *
+     * @property
+     * @returns {Object}
+     * @public
+     */
+    get serviceConfig() { return this.#serviceConfig; }
+
+    /**
      * Initializes the instance.
      *
      * @method
@@ -80,7 +93,7 @@ class ServiceInstance {
     start() {
         return new Promise( ( resolve, reject ) => {
             if ( !ServiceInstance.#serviceDomainName ) {
-                reject( exceptions.raise( exceptions.exceptionCode.E_INVALID_SERVICE_DOMAIN_NAME ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_SERVICE_DOMAIN_NAME ) );
             } else {
                 this.#preStart().then( () => {
                     return this.onStart();

@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: ICU
  */
 
-const ServiceProvider = require( process.cwd() + "/core/components/service-provider" );
-const exceptions = require( process.cwd() + "/core/utils/exceptions" );
-const cache = require( process.cwd() + "/core/utils/cache" );
+const ServiceProvider = require( "@ti-engine/core/service-provider" );
+const exceptions = require( "@ti-engine/core/exceptions" );
 
 /**
  * A test microservice.
@@ -18,9 +17,10 @@ class TestService extends ServiceProvider {
     /**
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
+     * @param {Object} serviceConfig The JSON configuration for this service.
      */
-    constructor( serviceDomainName ) {
-        super( serviceDomainName );
+    constructor( serviceDomainName, serviceConfig ) {
+        super( serviceDomainName, serviceConfig );
     }
 
     /**

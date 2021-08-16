@@ -4,16 +4,19 @@
  */
 
 const MessageObserver = require( "#message-observer" );
+const ServiceInstance = require( "#service-instance" );
 const _ = require( "lodash" );
 const exceptions = require( "#exceptions" );
 const logger = require( "#logger" );
+const config = require( "#config" );
+const cache = require( "#cache" );
 const messageDispatcher = require( "#message-dispatcher" );
 
 /**
  * @typedef {Object} ServiceDefinition
- * @property {string} filePath File path to the JS file containing the service itself.
  * @property {string} serviceAlias Service alias.
- * @property {number} serviceVersion Service version.
+ * @property {string} serviceFile The JS file containing the service itself. This has to be exposed via package.json import structure!
+ * @property {number} [serviceVersion] Service version.
  */
 
 /**
@@ -25,6 +28,7 @@ const messageDispatcher = require( "#message-dispatcher" );
 
 /**
  * @callback ServiceHandler
+ * @param {ServiceDefinition} serviceDefinition The service definition as provided during the service registration.
  * @param {Object} serviceParams Set of named parameters provided to the called service.
  * @param {ServiceExecContext} serviceExecContext The context in which the service call is being executed.
  * @returns {Promise<Object|undefined>} Optional payload to be returned to the service caller.
@@ -52,6 +56,8 @@ class ServiceExecutor extends MessageObserver {
         this.#verifyAccess = () => {
             return Promise.resolve();
         };
+
+        cache.addConnectionObserver( this );
     }
 
     /* Public interface */
@@ -95,6 +101,13 @@ class ServiceExecutor extends MessageObserver {
      */
     onConnectionRecovered( identifier ) {
         super.onConnectionRecovered( identifier );
+
+        let serviceCatalog = config.getSetting( config.setting.SERVICE_REGISTRY_ADDRESS ) + ServiceInstance.serviceDomainName;
+        _.forOwn( this.#serviceInterface, ( versions, serviceAlias ) => {
+            cache.addToSet( serviceCatalog, serviceAlias ).catch( ( error ) => {
+                logger.log( `Record for service '${ serviceAlias }' could not be added to the service registry.`, logger.logSeverity.ERROR, error );
+            } );
+        } );
     }
 
     /**
@@ -110,6 +123,25 @@ class ServiceExecutor extends MessageObserver {
         } else {
             logger.log( `Attempting to setup service verification method that is not a function!`, logger.logSeverity.WARNING );
         }
+    }
+
+    /**
+     * Used to add a service handler to the service interface.
+     * NOTE: If the same version of the service handler already exists, it will be overridden!
+     *
+     * @method
+     * @param {ServiceHandler} serviceHandler
+     * @param {ServiceDefinition} serviceDefinition
+     * @public
+     */
+    addServiceHandler( serviceHandler, serviceDefinition ) {
+        if ( !this.#serviceInterface[ serviceDefinition.serviceAlias ] ) {
+            this.#serviceInterface[ serviceDefinition.serviceAlias ] = {};
+        }
+        if ( this.#serviceInterface[ serviceDefinition.serviceAlias ][ serviceDefinition.serviceVersion ] ) {
+            logger.log( `Service handler for '${ serviceDefinition.serviceAlias }' version '${ serviceDefinition.serviceVersion }' already existed and will be overridden.`, logger.logSeverity.WARNING );
+        }
+        this.#serviceInterface[ serviceDefinition.serviceAlias ][ serviceDefinition.serviceVersion ] = serviceHandler.bind( this, _.cloneDeep( serviceDefinition ) );
     }
 
     /* Private interface */
@@ -152,7 +184,7 @@ class ServiceExecutor extends MessageObserver {
             this.#verifyAccess( serviceCall.authToken, serviceCall.serviceAddress ).then( () => {
                 return this.#identifyService( serviceCall.serviceAddress );
             } ).then( ( serviceHandler ) => {
-                return this.#loadService( serviceHandler, serviceCall.serviceParams, ServiceExecutor.#assembleServiceExecContext( serviceCall ) );
+                return serviceHandler( serviceCall.serviceParams, ServiceExecutor.#assembleServiceExecContext( serviceCall ) );
             } ).then( ( payload ) => {
                 serviceCall.isSuccessful = true;
                 serviceCall.payload = payload;
@@ -190,23 +222,6 @@ class ServiceExecutor extends MessageObserver {
             } else {
                 reject( exceptions.raise( exceptions.exceptionCode.E_COM_SERVICE_NOT_FOUND ) );
             }
-        } );
-    }
-
-    /**
-     * Used to load ana execute the provided service handler.
-     *
-     * @method
-     * @param {ServiceHandler} serviceHandler
-     * @param {Object} serviceParams Set of named parameters provided to the called service.
-     * @param {ServiceExecContext} serviceExecContext The context in which the service call is being executed.
-     * @returns {Promise}
-     * @private
-     */
-    #loadService( serviceHandler, serviceParams, serviceExecContext ) {
-        return new Promise( ( resolve, reject ) => {
-            // TODO: Implement from here...
-            resolve();
         } );
     }
 

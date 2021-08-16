@@ -46,6 +46,15 @@ class CommonMemoryCache extends ConnectionObserver {
     /* Public interface */
 
     /**
+     * Property returning the operational state of the cache.
+     *
+     * @property
+     * @returns {boolean}
+     * @public
+     */
+    get isOperational() { return this.#isOperational; }
+
+    /**
      * Needs to be invoked by the connection handler when the connection is disrupted.
      *
      * @method
@@ -70,6 +79,17 @@ class CommonMemoryCache extends ConnectionObserver {
     }
 
     /**
+     * Used to register a new {@link ConnectionObserver} for events related to the underlying Redis connection state.
+     *
+     * @method
+     * @param {ConnectionObserver} connectionObserver The {@link ConnectionObserver} that will be notified of any changes.
+     * @public
+     */
+    addConnectionObserver( connectionObserver ) {
+        this.#redisClient.addConnectionObserver( connectionObserver );
+    }
+
+    /**
      * Used to search for keys by given pattern.
      *
      * @method
@@ -88,7 +108,7 @@ class CommonMemoryCache extends ConnectionObserver {
                     reject( error );
                 } );
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }
@@ -121,7 +141,7 @@ class CommonMemoryCache extends ConnectionObserver {
                     resolve( value );
                 }
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }
@@ -159,7 +179,7 @@ class CommonMemoryCache extends ConnectionObserver {
                     resolve( keyValues );
                 }
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }
@@ -183,7 +203,7 @@ class CommonMemoryCache extends ConnectionObserver {
                     reject( error );
                 } );
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }
@@ -214,7 +234,7 @@ class CommonMemoryCache extends ConnectionObserver {
                     reject( error );
                 } );
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }
@@ -238,7 +258,7 @@ class CommonMemoryCache extends ConnectionObserver {
                     reject( error );
                 } );
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }
@@ -268,7 +288,7 @@ class CommonMemoryCache extends ConnectionObserver {
                     reject( error );
                 } );
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }
@@ -292,7 +312,7 @@ class CommonMemoryCache extends ConnectionObserver {
                     reject( error );
                 } );
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }
@@ -320,7 +340,7 @@ class CommonMemoryCache extends ConnectionObserver {
                     reject( error );
                 } );
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }
@@ -346,7 +366,7 @@ class CommonMemoryCache extends ConnectionObserver {
                     reject( error );
                 } );
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }
@@ -371,7 +391,7 @@ class CommonMemoryCache extends ConnectionObserver {
                     reject( error );
                 } );
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }
@@ -396,7 +416,7 @@ class CommonMemoryCache extends ConnectionObserver {
                     reject( error );
                 } );
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }
@@ -421,7 +441,7 @@ class CommonMemoryCache extends ConnectionObserver {
                     reject( error );
                 } );
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }
@@ -451,7 +471,7 @@ class CommonMemoryCache extends ConnectionObserver {
                     reject( error );
                 } );
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }
@@ -476,7 +496,7 @@ class CommonMemoryCache extends ConnectionObserver {
                     reject( error );
                 } );
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SYSTEM_CACHE_UNAVAILABLE ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
     }

@@ -32,7 +32,7 @@ class MessageHandler extends ConnectionObserver {
 
         // make sure this abstract class cannot be instantiated:
         if ( new.target === MessageHandler ) {
-            throw exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
         }
 
         this.#connectionIdentifier = identifier;
@@ -78,7 +78,7 @@ class MessageHandler extends ConnectionObserver {
      * @public
      */
     enable() {
-        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.enable.name } ) );
+        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.enable.name } ) );
     }
 
     /**
@@ -91,7 +91,7 @@ class MessageHandler extends ConnectionObserver {
      * @public
      */
     disable() {
-        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.disable.name } ) );
+        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.disable.name } ) );
     }
 
     /**

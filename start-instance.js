@@ -9,6 +9,7 @@
 require( "dotenv" ).config();
 
 const _ = require( "lodash" );
+const fs = require( "fs-extra" );
 const tools = require( process.cwd() + "/core/utils/tools" );
 const logger = require( process.cwd() + "/core/utils/logger" );
 
@@ -74,7 +75,12 @@ try {
 
     /** @type ServiceInstance */
     const serviceConstructor = require( process.cwd() + "/" + process.env.TI_INSTANCE_CLASS );
-    const mainInstance = new serviceConstructor( process.env.TI_INSTANCE_NAME );
+    const serviceConfigPath = process.cwd() + "/" + process.env.TI_INSTANCE_CONFIG;
+    let serviceConfig = {};
+    if ( fs.existsSync( serviceConfigPath ) ) {
+        serviceConfig = require( process.cwd() + "/" + process.env.TI_INSTANCE_CONFIG );
+    }
+    const mainInstance = new serviceConstructor( process.env.TI_INSTANCE_NAME, serviceConfig );
 
     /** @override */
     shutDownInstance = ( code ) => {

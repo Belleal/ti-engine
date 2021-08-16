@@ -25,7 +25,7 @@ class MessageObserver extends ConnectionObserver {
 
         // make sure this abstract class cannot be instantiated:
         if ( new.target === MessageObserver ) {
-            throw exceptions.raise( exceptions.exceptionCode.E_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
         }
     }
 

@@ -17,6 +17,7 @@ const tools = require( "#tools" );
  * @property {EnvironmentVariable} env.TI_GCLOUD_ENABLED
  * @property {EnvironmentVariable} env.TI_GCLOUD_PROJECT_ID
  * @property {EnvironmentVariable} env.TI_INSTANCE_CLASS
+ * @property {EnvironmentVariable} env.TI_INSTANCE_CONFIG
  * @property {EnvironmentVariable} env.TI_INSTANCE_ID
  * @property {EnvironmentVariable} env.TI_INSTANCE_NAME
  * @property {EnvironmentVariable} env.TI_LOG_CONSOLE_ENABLED
