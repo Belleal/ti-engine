@@ -10,8 +10,8 @@ require( "dotenv" ).config();
 
 const _ = require( "lodash" );
 const fs = require( "fs-extra" );
-const tools = require( process.cwd() + "/core/utils/tools" );
-const logger = require( process.cwd() + "/core/utils/logger" );
+const tools = require( "#tools" );
+const logger = require( "#logger" );
 
 // configure the current instance variables before requiring any platform modules and store the necessary ones in memory cache:
 process.env.TI_INSTANCE_ID = "ti-" + tools.getUUID();
@@ -74,11 +74,11 @@ try {
     logger.log( `Starting new instance of type '${ process.env.TI_INSTANCE_NAME }' with instance ID '${ process.env.TI_INSTANCE_ID }'.`, logger.logSeverity.NOTICE );
 
     /** @type ServiceInstance */
-    const serviceConstructor = require( process.cwd() + "/" + process.env.TI_INSTANCE_CLASS );
-    const serviceConfigPath = process.cwd() + "/" + process.env.TI_INSTANCE_CONFIG;
+    const serviceConstructor = require( process.env.TI_INSTANCE_CLASS );
+    const serviceConfigPath = process.env.TI_INSTANCE_CONFIG;
     let serviceConfig = {};
     if ( fs.existsSync( serviceConfigPath ) ) {
-        serviceConfig = require( process.cwd() + "/" + process.env.TI_INSTANCE_CONFIG );
+        serviceConfig = require( process.env.TI_INSTANCE_CONFIG );
     }
     const mainInstance = new serviceConstructor( process.env.TI_INSTANCE_NAME, serviceConfig );
 

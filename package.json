@@ -4,9 +4,9 @@
   "description": "The ti-engine is an open source, free to use - both for personal and commercial projects - framework for the creation of microservice-based solutions using node.js.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "ISC",
-  "main": "start-instance.js",
+  "main": "core/start-instance.js",
   "scripts": {
-    "start": "node start-instance.js"
+    "start": "node core/start-instance.js"
   },
   "dependencies": {
     "dotenv": "^10.0.0",
