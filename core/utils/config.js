@@ -23,6 +23,10 @@ const tools = require( "#tools" );
  * @property {EnvironmentVariable} env.TI_LOG_CONSOLE_ENABLED
  * @property {EnvironmentVariable} env.TI_LOG_MIN_LEVEL
  * @property {EnvironmentVariable} env.TI_LOG_USED_JSON
+ * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_AUTH_KEY
+ * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_DB
+ * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_HOST
+ * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_PORT
  * @property {EnvironmentVariable} env.TI_OPERATION_MODE
  */
 
@@ -116,12 +120,18 @@ const settings = require( "#settings" );
 
 // override remaining settings with ENV variables (if provided):
 if ( settings.auditing ) {
-    settings.auditing.logMinLevel = ( process.env.TI_LOG_MIN_LEVEL !== undefined ) ? process.env.TI_LOG_CONSOLE_ENABLED : settings.auditing.logMinLevel;
+    settings.auditing.logMinLevel = ( process.env.TI_LOG_MIN_LEVEL !== undefined ) ? process.env.TI_LOG_MIN_LEVEL : settings.auditing.logMinLevel;
     settings.auditing.logConsoleEnabled = ( process.env.TI_LOG_CONSOLE_ENABLED !== undefined ) ? tools.toBool( process.env.TI_LOG_CONSOLE_ENABLED ) : settings.auditing.logConsoleEnabled;
     settings.auditing.logUsesJSON = ( process.env.TI_LOG_USED_JSON !== undefined ) ? tools.toBool( process.env.TI_LOG_USED_JSON ) : settings.auditing.logUsesJSON;
 }
+if ( settings.memoryCache ) {
+    settings.memoryCache.authKey = ( process.env.TI_MEMORY_CACHE_AUTH_KEY !== undefined ) ? process.env.TI_MEMORY_CACHE_AUTH_KEY : settings.memoryCache.authKey;
+    settings.memoryCache.redisDB = ( process.env.TI_MEMORY_CACHE_DB !== undefined ) ? process.env.TI_MEMORY_CACHE_DB : settings.memoryCache.redisDB;
+    settings.memoryCache.redisHost = ( process.env.TI_MEMORY_CACHE_HOST !== undefined ) ? process.env.TI_MEMORY_CACHE_HOST : settings.memoryCache.redisHost;
+    settings.memoryCache.redisPort = ( process.env.TI_MEMORY_CACHE_PORT !== undefined ) ? process.env.TI_MEMORY_CACHE_PORT : settings.memoryCache.redisPort;
+}
 
-// make sure GCloud is enabled:
+// make sure GCloud is enabled before trying to setup it:
 if ( process.env.TI_GCLOUD_ENABLED === true && settings.gcloudIntegration ) {
     settings.gcloudIntegration.apiKey = ( process.env.TI_GCLOUD_API_KEY !== undefined ) ? process.env.TI_GCLOUD_API_KEY : settings.gcloudIntegration.apiKey;
     settings.gcloudIntegration.projectID = ( process.env.TI_GCLOUD_PROJECT_ID !== undefined ) ? process.env.TI_GCLOUD_PROJECT_ID : settings.gcloudIntegration.projectID;
