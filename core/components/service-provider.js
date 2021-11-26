@@ -12,7 +12,9 @@ const messageDispatcher = require( "#message-dispatcher" );
 
 /**
  * Abstract class used to define a Service Provider behavior.
+ * <br/>
  * NOTE: Inherit this to create an a module that can be started as a microservice provider instance.
+ * <br/>
  * NOTE: A service provider is a microservice that offers an API of named business services that can be invoked by other
  * microservices using {@link ServiceCall} objects. The provider will take care of the actual execution of that service and
  * therefore acts as a "black box". The only necessary items are the service address and optional inbound parameters to be
@@ -46,7 +48,9 @@ class ServiceProvider extends ServiceConsumer {
 
     /**
      * Perform initialization tasks when the service provider starts.
+     * <br/>
      * NOTE: This method will be invoked automatically.
+     * <br/>
      * NOTE: If you need to add more onStart logic you can override this method but make sure to call it in the
      * overriding method using: super.onStart()
      *
@@ -76,7 +80,9 @@ class ServiceProvider extends ServiceConsumer {
 
     /**
      * Perform shut down and cleanup tasks when the service provider stops.
+     * <br/>
      * NOTE: This method will be invoked automatically.
+     * <br/>
      * NOTE: If you need to add more onStop logic you can override this method but make sure to call it in the
      * overriding method using: super.onStop()
      *
@@ -97,6 +103,7 @@ class ServiceProvider extends ServiceConsumer {
 
     /**
      * Used to verify whether the service caller has authorization to access the service.
+     * <br/>
      * NOTE: Override this to implement authorization check. By default this method simply returns.
      *
      * @method
@@ -112,8 +119,10 @@ class ServiceProvider extends ServiceConsumer {
 
     /**
      * Used to register a single service to the service provider's API. One service can have multiple versions accessible at the same time.
+     * <br/>
      * NOTE: This will actually bind the serviceDefinition as first parameter of the service handler function. When creating default service handlers,
      * keep in mind that your first param must always be the 'serviceDefinition' and the second one will be the general 'serviceParams' object.
+     * <br/>
      * NOTE: Additionally, if you intend to call another service inside the service handler, then you have to use normal function for the handler and not
      * an arrow function! Arrow functions cannot bind the scope of the parent class to themselves and you won't have access to it and its methods.
      *

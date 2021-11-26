@@ -319,6 +319,7 @@ class CommonMemoryCache extends ConnectionObserver {
 
     /**
      * Used to add multiple values to multiple sets in one transactional request.
+     * <br/>
      * NOTE: The two arrays of keys and values must have correct index relations (i.e. first pair on keys[0] and values[0] and so on)!
      *
      * @method

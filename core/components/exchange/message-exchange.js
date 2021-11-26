@@ -33,8 +33,10 @@ const messageTracer = require( "#message-tracer" );
 
 /**
  * An abstract class that defines a message exchange behavior.
+ * <br/>
  * NOTE: While this sets the basis frame for the message based communication between microservices, it has to be inherited and
  * extended with additional logic that is NOT implemented here. For a working example please see {@link DefaultMessageExchange} class.
+ * <br/>
  * NOTE: This class and its children are designed to be used internally by the {@link MessageDispatcher} and its related classes.
  *
  * @class MessageExchange
@@ -246,6 +248,7 @@ class MessageExchange extends MessageObserver {
 
     /**
      * Should be used to enable all communication channels for messaging.
+     * <br/>
      * NOTE: Override this to implement messaging initialization.
      *
      * @method
@@ -261,6 +264,7 @@ class MessageExchange extends MessageObserver {
 
     /**
      * Should be used to gracefully disable all communication channels for messaging.
+     * <br/>
      * NOTE: Override this to implement graceful messaging shut down.
      *
      * @method
@@ -338,6 +342,7 @@ class MessageExchange extends MessageObserver {
 
     /**
      * Used to mark the connection with the provided identifier as recovered.
+     * <br/>
      * NOTE: This will also result in enabling the message exchange if no connections are currently disrupted.
      *
      * @method

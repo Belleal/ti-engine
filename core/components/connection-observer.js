@@ -26,6 +26,7 @@ class ConnectionObserver {
 
     /**
      * Needs to be invoked by the connection handler when the connection is disrupted.
+     * <br/>
      * NOTE: Override this to add custom functionality.
      *
      * @method
@@ -37,6 +38,7 @@ class ConnectionObserver {
 
     /**
      * Needs to be invoked by the connection handler when the connection is recovered.
+     * <br/>
      * NOTE: Override this to add custom functionality.
      *
      * @method

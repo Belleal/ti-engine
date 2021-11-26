@@ -77,6 +77,7 @@ class ServiceCaller extends MessageObserver {
 
     /**
      * Used to call a service in the service ecosystem asynchronously.
+     * <br/>
      * NOTE: This method will timeout after specific preconfigured time, in which case it will resolve with {@link E_COM_SERVICE_EXEC_TIMEOUT} error.
      *
      * @method

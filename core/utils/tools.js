@@ -79,6 +79,7 @@ module.exports.getEnumName = ( enumList, enumValue, placeholder = undefined ) =>
 
 /**
  * Convert an Error to JSON object.
+ * <br/>
  * NOTE: If the value provided is not an error, then it will just be cloned.
  *
  * @method
@@ -154,6 +155,7 @@ module.exports.getUTCTimeString = ( date, useMilliseconds ) => {
 
 /**
  * Used to remove any circular dependencies from JSON objects.
+ * <br/>
  * NOTE: Original file from here - https://github.com/douglascrockford/JSON-js/blob/master/cycle.js
  *
  * Make a deep copy of an object or array, assuring that there is at most one instance of each object or array in the
@@ -241,6 +243,7 @@ module.exports.decycle = ( object, replacer ) => {
 
 /**
  * Used to restore any circular dependencies from JSON objects after using the 'decycle' method.
+ * <br/>
  * NOTE: Original file from here - https://github.com/douglascrockford/JSON-js/blob/master/cycle.js
  *
  * Restore an object that was reduced by decycle. Members whose values are objects of the form of {$ref: PATH} are

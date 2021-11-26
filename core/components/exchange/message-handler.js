@@ -10,6 +10,7 @@ const logger = require( "#logger" );
 
 /**
  * An abstract class that defines a basic message handler behavior.
+ * <br/>
  * NOTE: This class and its children are designed to be used internally by classes extending the {@link MessageObserver} class.
  *
  * @class MessageHandler
@@ -51,6 +52,7 @@ class MessageHandler extends ConnectionObserver {
 
     /**
      * Used to set the isAvailable flag.
+     * <br/>
      * NOTE: For use by implementing classes only!
      *
      * @property
@@ -70,6 +72,7 @@ class MessageHandler extends ConnectionObserver {
 
     /**
      * Used to initialize and enable the communication capabilities of the handler.
+     * <br/>
      * NOTE: Override this to add functionality.
      *
      * @method
@@ -83,6 +86,7 @@ class MessageHandler extends ConnectionObserver {
 
     /**
      * Used to shutdown and disable the communication behavior of the handler.
+     * <br/>
      * NOTE: Override this to add functionality.
      *
      * @method
@@ -126,6 +130,7 @@ class MessageHandler extends ConnectionObserver {
 
     /**
      * An event-triggered method that will notify any observers about primary connection recovered state.
+     * <br/>
      * NOTE: You can override this to add custom functionality but make sure to also call the base method
      * using: super.onConnectionRecovered( identifier )
      *
@@ -145,6 +150,7 @@ class MessageHandler extends ConnectionObserver {
 
     /**
      * An event-triggered method that will notify any observers about primary connection disrupted state.
+     * <br/>
      * NOTE: You can override this to add custom functionality but make sure to also call the base method
      * using: super.onConnectionDisrupted( identifier )
      *

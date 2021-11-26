@@ -33,6 +33,7 @@ class MessageSender extends MessageHandler {
 
     /**
      * Used to initialize and enable the communication capabilities of the handler.
+     * <br/>
      * NOTE: Override this to add functionality.
      *
      * @method
@@ -46,6 +47,7 @@ class MessageSender extends MessageHandler {
 
     /**
      * Used to shutdown and disable the communication behavior of the handler.
+     * <br/>
      * NOTE: Override this to add functionality.
      *
      * @method
@@ -82,7 +84,9 @@ class MessageSender extends MessageHandler {
 
     /**
      * Used to perform the actual sending of a message.
-     * NOTE: This method will be called automatically.
+     * <br/>
+     * NOTE: This method will be called automatically even if overridden.
+     * <br/>
      * NOTE: Override this to add functionality.
      *
      * @method

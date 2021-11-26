@@ -110,6 +110,7 @@ class Auditing {
 
     /**
      * Used to write the log entries to the system console (i.e. STD OUT and STD ERR).
+     * <br/>
      * NOTE: There was an issue in previous Node versions with console that can crash the application if the number of
      *    outputs exceeds several thousands per second. To be monitored and adjusted as necessary!
      *

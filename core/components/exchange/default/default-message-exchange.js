@@ -29,6 +29,7 @@ class DefaultMessageExchange extends MessageExchange {
 
     /**
      * Used to initialize the message exchange.
+     * <br/>
      * NOTE: This will create and prepare all necessary message handlers and then enable them simultaneously.
      *
      * @method

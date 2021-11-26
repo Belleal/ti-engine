@@ -30,6 +30,7 @@ class DefaultMessageSender extends MessageSender {
 
     /**
      * Used to perform the actual sending of a message.
+     * <br/>
      * NOTE: The default message exchange works with lightweight messages (i.e. will keep the payloads stored in Redis while exchanging).
      *
      * @method

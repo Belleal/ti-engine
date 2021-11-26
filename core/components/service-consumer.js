@@ -9,7 +9,9 @@ const messageDispatcher = require( "#message-dispatcher" );
 
 /**
  * Abstract class used to define a Service Consumer behavior.
+ * <br/>
  * NOTE: Inherit this to create an a module that can be started as a microservice consumer instance.
+ * <br/>
  * NOTE: A service consumer is a microservice that can invoke named business services in the APIs of other
  * microservices using {@link ServiceCall} objects. The consumer does not need to know the specifics of
  * the business logic in these services but only the service address and the inbound parameters (if any).
@@ -42,7 +44,9 @@ class ServiceConsumer extends ServiceInstance {
 
     /**
      * Perform initialization tasks when the service consumer starts.
+     * <br/>
      * NOTE: This method will be invoked automatically.
+     * <br/>
      * NOTE: If you need to add more onStart logic you can override this method but make sure to call it in the
      * overriding method using: super.onStart()
      *
@@ -68,7 +72,9 @@ class ServiceConsumer extends ServiceInstance {
 
     /**
      * Perform shut down and cleanup tasks when the service consumer stops.
+     * <br/>
      * NOTE: This method will be invoked automatically.
+     * <br/>
      * NOTE: If you need to add more onStop logic you can override this method but make sure to call it in the
      * overriding method using: super.onStop()
      *

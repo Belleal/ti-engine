@@ -110,6 +110,7 @@ let obscureSensitiveData = ( message ) => {
 
 /**
  * Used to create a trace entry for the provided {@link Message} and parameters.
+ * <br/>
  * NOTE: With the exception of failed message delivery, trace events are logged with severity level DEBUG.
  *
  * @method

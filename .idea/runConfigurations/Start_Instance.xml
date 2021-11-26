@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Start Instance" type="NodeJSConfigurationType" path-to-js-file="start-instance.js" working-dir="$PROJECT_DIR$">
+    <envs>
+      <env name="TI_INSTANCE_CLASS" value="test\test-service" />
+      <env name="TI_INSTANCE_NAME" value="test-service" />
+      <env name="TI_INSTANCE_CONFIG" value="test\test-service.json" />
+    </envs>
+    <method v="2" />
+  </configuration>
+</component>

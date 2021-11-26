@@ -8,6 +8,7 @@ const exceptions = require( "#exceptions" );
 
 /**
  * An abstract class that allows the child class to observe and take action on message events.
+ * <br/>
  * NOTE: This class inherits {@link ConnectionObserver} so it can also act in that capacity.
  *
  * @class MessageObserver
@@ -31,6 +32,7 @@ class MessageObserver extends ConnectionObserver {
 
     /**
      * Needs to be invoked by the message handler once a message enters its logic for processing.
+     * <br/>
      * NOTE: Override this to add custom functionality.
      *
      * @method
@@ -43,6 +45,7 @@ class MessageObserver extends ConnectionObserver {
 
     /**
      * Needs to be invoked by the connection handler when the connection is disrupted.
+     * <br/>
      * NOTE: Override this to add custom functionality.
      *
      * @method
@@ -56,6 +59,7 @@ class MessageObserver extends ConnectionObserver {
 
     /**
      * Needs to be invoked by the connection handler when the connection is recovered.
+     * <br/>
      * NOTE: Override this to add custom functionality.
      *
      * @method

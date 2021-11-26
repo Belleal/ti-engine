@@ -14,7 +14,9 @@ const messageDispatcher = require( "#message-dispatcher" );
 
 /**
  * Abstract class used to define a Service Instance behavior.
+ * <br/>
  * NOTE: Inherit this to create an a module that can be started as a microservice instance.
+ * <br/>
  * NOTE: This class does not
  *
  * @class ServiceInstance
@@ -110,7 +112,9 @@ class ServiceInstance {
 
     /**
      * Executes custom logic on instance start.
+     * <br/>
      * NOTE: This method will be invoked automatically.
+     * <br/>
      * NOTE: If you need to add more onStart logic you can override this method but make sure to call it in the
      * overriding method using: super.onStart()
      *
@@ -159,7 +163,9 @@ class ServiceInstance {
 
     /**
      * Executes custom logic on instance stop.
+     * <br/>
      * NOTE: This method will be invoked automatically.
+     * <br/>
      * NOTE: If you need to add more onStop logic you can override this method but make sure to call it in the
      * overriding method using: super.onStop()
      *
@@ -182,6 +188,7 @@ class ServiceInstance {
 
     /**
      * Used to run internal pre-start logic.
+     * <br/>
      * NOTE: This will be executed before any user's custom logic in {@link ServiceInstance.onStart}.
      *
      * @method
@@ -197,6 +204,7 @@ class ServiceInstance {
 
     /**
      * Used to run internal post-start logic.
+     * <br/>
      * NOTE: This will be executed only after the user's custom logic in {@link ServiceInstance.onStart} has been successfully executed.
      *
      * @method
@@ -220,6 +228,7 @@ class ServiceInstance {
 
     /**
      * Used to run internal pre-start logic.
+     * <br/>
      * NOTE: This will be executed before any user's custom logic in {@link ServiceInstance.onStop}.
      *
      * @method
@@ -238,6 +247,7 @@ class ServiceInstance {
 
     /**
      * Used to run internal post-stop logic.
+     * <br/>
      * NOTE: This will be executed only after the user's custom logic in {@link ServiceInstance.onStop} has been successfully executed.
      *
      * @method

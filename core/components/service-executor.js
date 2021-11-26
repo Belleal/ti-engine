@@ -127,6 +127,7 @@ class ServiceExecutor extends MessageObserver {
 
     /**
      * Used to add a service handler to the service interface.
+     * <br/>
      * NOTE: If the same version of the service handler already exists, it will be overridden!
      *
      * @method

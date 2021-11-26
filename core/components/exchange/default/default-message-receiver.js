@@ -64,6 +64,7 @@ class DefaultMessageReceiver extends MessageReceiver {
 
     /**
      * Used to receive messages.
+     * <br/>
      * NOTE: The default message exchange works with lightweight messages (i.e. will keep the payloads stored in Redis while exchanging).
      *
      * @method

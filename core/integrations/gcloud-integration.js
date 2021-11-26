@@ -18,6 +18,7 @@ module.exports.isEnabled = () => {
 
 /**
  * Will be used to gracefully shut down the instance.
+ * <br/>
  * NOTE: Will be overridden below after the instance creation.
  *
  * @method
