@@ -5,7 +5,6 @@
 
 const ServiceConsumer = require( "#service-consumer" );
 const _ = require( "lodash" );
-const fs = require( "fs-extra" );
 const exceptions = require( "#exceptions" );
 const logger = require( "#logger" );
 const messageDispatcher = require( "#message-dispatcher" );
@@ -137,16 +136,10 @@ class ServiceProvider extends ServiceConsumer {
             /** @type {ServiceHandlerMethod} */
             let serviceHandler = null;
             if ( serviceDefinition.serviceFile ) {
-                let filePath = process.cwd() + serviceDefinition.serviceFile + ( ( _.endsWith( serviceDefinition.serviceFile, ".js" ) ) ? "" : ".js" );
-                if ( fs.existsSync( filePath ) ) {
-                    // try to load the service handler dynamically from the file:
-                    try {
-                        serviceHandler = require( filePath ).service;
-                    } catch ( error ) {
-                        logger.log( `Specified service handler file '${ serviceDefinition.serviceFile }' could not be loaded!`, logger.logSeverity.ERROR, error );
-                    }
-                } else {
-                    logger.log( `Specified service handler file '${ serviceDefinition.serviceFile }' was not found in the specified location!`, logger.logSeverity.WARNING );
+                try {
+                    serviceHandler = require( serviceDefinition.serviceFile ).service;
+                } catch ( error ) {
+                    logger.log( `Specified service handler file '${ serviceDefinition.serviceFile }' could not be loaded!`, logger.logSeverity.ERROR, error );
                 }
             } else {
                 if ( typeof ( defaultServiceHandler ) === "function" ) {
