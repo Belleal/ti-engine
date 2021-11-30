@@ -1,19 +1,16 @@
 {
   "name": "@ti-engine/core",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "The ti-engine is an open source, free to use - both for personal and commercial projects - framework for the creation of microservice-based solutions using node.js.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "ISC",
-  "main": "./start-instance.js",
-  "scripts": {
-    "start": "node ./start-instance.js"
-  },
+  "main": "bin/start-instance.js",
   "exports": {
+    "./exceptions": "./utils/exceptions.js",
+    "./logger": "./utils/logger.js",
     "./service-consumer": "./components/service-consumer.js",
     "./service-instance": "./components/service-instance.js",
     "./service-provider": "./components/service-provider.js",
-    "./exceptions": "./utils/exceptions.js",
-    "./logger": "./utils/logger.js",
     "./tools": "./utils/tools.js"
   },
   "imports": {
@@ -41,7 +38,7 @@
     "#service-executor": "./components/service-executor.js",
     "#service-instance": "./components/service-instance.js",
     "#service-provider": "./components/service-provider.js",
-    "#settings": "./settings.json",
+    "#settings": "./bin/settings.json",
     "#tools": "./utils/tools.js"
   },
   "dependencies": {
