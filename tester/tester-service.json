@@ -1,0 +1,14 @@
+{
+  "services": [
+    {
+      "serviceAlias": "service1",
+      "serviceFile": "/tester/services/v1/service1.js",
+      "serviceVersion": 1
+    },
+    {
+      "serviceAlias": "service2",
+      "serviceFile": "/tester/services/v1/service2.js",
+      "serviceVersion": 1
+    }
+  ]
+}
