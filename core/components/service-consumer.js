@@ -94,7 +94,7 @@ class ServiceConsumer extends ServiceInstance {
     }
 
     /**
-     * Used to invoke a business service.
+     * Used to invoke a business service in any {@link ServiceInstance}.
      *
      * @method
      * @param {ServiceAddress} serviceAddress

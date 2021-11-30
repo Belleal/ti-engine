@@ -128,13 +128,13 @@ class ServiceProvider extends ServiceConsumer {
      *
      * @method
      * @param {ServiceDefinition} serviceDefinition Full service definition object.
-     * @param {ServiceHandler} [defaultServiceHandler=undefined] A default service handler in case there is one.
+     * @param {ServiceHandlerMethod} [defaultServiceHandler=undefined] A default service handler in case there is one.
      * @return {Promise}
      * @public
      */
     registerService( serviceDefinition, defaultServiceHandler = undefined ) {
         return new Promise( ( resolve, reject ) => {
-            /** @type {ServiceHandler} */
+            /** @type {ServiceHandlerMethod} */
             let serviceHandler = null;
             if ( serviceDefinition.serviceFile ) {
                 let filePath = process.cwd() + serviceDefinition.serviceFile + ( ( _.endsWith( serviceDefinition.serviceFile, ".js" ) ) ? "" : ".js" );
@@ -160,7 +160,7 @@ class ServiceProvider extends ServiceConsumer {
             if ( typeof ( serviceHandler ) === "function" ) {
                 // make sure we have a version and parent service provider specified:
                 serviceDefinition.serviceVersion = serviceDefinition.serviceVersion || 1;
-                this.#serviceExecutor.addServiceHandler( serviceHandler, serviceDefinition );
+                this.#serviceExecutor.addServiceHandler( serviceHandler, serviceDefinition, this );
                 resolve();
             } else {
                 reject( exceptions.raise( exceptions.exceptionCode.E_GEN_BAD_SERVICE_HANDLER ) );
@@ -173,7 +173,7 @@ class ServiceProvider extends ServiceConsumer {
      *
      * @method
      * @param {ServiceDefinition[]} serviceDefinitions
-     * @param {ServiceHandler} [defaultServiceHandler=undefined]
+     * @param {ServiceHandlerMethod} [defaultServiceHandler=undefined]
      * @return {Promise}
      * @public
      */

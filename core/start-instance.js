@@ -22,6 +22,7 @@ process.env.TI_INSTANCE_NAME = process.env.TI_INSTANCE_NAME || _.last( _.split( 
 
 /**
  * Will be used to gracefully shut down the instance.
+ * <br/>
  * NOTE: Will be overridden below after the instance creation.
  *
  * @method

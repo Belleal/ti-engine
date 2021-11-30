@@ -20,14 +20,14 @@ const messageDispatcher = require( "#message-dispatcher" );
  */
 
 /**
- * @callback VerifyAccess
+ * @callback VerifyAccessMethod
  * @param {string} authToken
  * @param {ServiceAddress} serviceAddress
  * @returns {Promise}
  */
 
 /**
- * @callback ServiceHandler
+ * @callback ServiceHandlerMethod
  * @param {ServiceDefinition} serviceDefinition The service definition as provided during the service registration.
  * @param {Object} serviceParams Set of named parameters provided to the called service.
  * @param {ServiceExecContext} serviceExecContext The context in which the service call is being executed.
@@ -44,7 +44,7 @@ const messageDispatcher = require( "#message-dispatcher" );
 class ServiceExecutor extends MessageObserver {
 
     #serviceInterface = {};
-    /** @type VerifyAccess */
+    /** @type VerifyAccessMethod */
     #verifyAccess;
 
     /**
@@ -114,7 +114,7 @@ class ServiceExecutor extends MessageObserver {
      * Used to setup the method for service access verification.
      *
      * @method
-     * @param {VerifyAccess} verifyAccess
+     * @param {VerifyAccessMethod} verifyAccess
      * @public
      */
     configureVerifyAccess( verifyAccess ) {
@@ -131,18 +131,19 @@ class ServiceExecutor extends MessageObserver {
      * NOTE: If the same version of the service handler already exists, it will be overridden!
      *
      * @method
-     * @param {ServiceHandler} serviceHandler
+     * @param {ServiceHandlerMethod} serviceHandler
      * @param {ServiceDefinition} serviceDefinition
+     * @param {ServiceInstance} serviceInstance This will be used as context to bind all business services.
      * @public
      */
-    addServiceHandler( serviceHandler, serviceDefinition ) {
+    addServiceHandler( serviceHandler, serviceDefinition, serviceInstance ) {
         if ( !this.#serviceInterface[ serviceDefinition.serviceAlias ] ) {
             this.#serviceInterface[ serviceDefinition.serviceAlias ] = {};
         }
         if ( this.#serviceInterface[ serviceDefinition.serviceAlias ][ serviceDefinition.serviceVersion ] ) {
             logger.log( `Service handler for '${ serviceDefinition.serviceAlias }' version '${ serviceDefinition.serviceVersion }' already existed and will be overridden.`, logger.logSeverity.WARNING );
         }
-        this.#serviceInterface[ serviceDefinition.serviceAlias ][ serviceDefinition.serviceVersion ] = serviceHandler.bind( this, _.cloneDeep( serviceDefinition ) );
+        this.#serviceInterface[ serviceDefinition.serviceAlias ][ serviceDefinition.serviceVersion ] = serviceHandler.bind( serviceInstance, _.cloneDeep( serviceDefinition ) );
     }
 
     /* Private interface */
@@ -203,7 +204,7 @@ class ServiceExecutor extends MessageObserver {
      *
      * @method
      * @param {ServiceAddress} serviceAddress
-     * @returns {Promise<ServiceHandler>}
+     * @returns {Promise<ServiceHandlerMethod>}
      * @private
      */
     #identifyService( serviceAddress ) {
