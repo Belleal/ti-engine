@@ -69,8 +69,9 @@ class Exception {
      * @param {string} id The unique ID to be assigned to this exception.
      * @param {TiExceptionCode} exceptionCode An unique exception identifier. If this is not recognized, the default error code will be used instead.
      * @param {Object} [data] Any additional data to insert into the exception.
+     * @param {string} [description] Description of the exception.
      */
-    constructor( id, exceptionCode, data ) {
+    constructor( id, exceptionCode, data, description ) {
         exceptionCode = ( exceptionCodeEnum.properties[ exceptionCode ] ) ? exceptionCode : module.exports.exceptionCode.E_UNKNOWN_ERROR;
 
         this.#id = id;
@@ -184,7 +185,8 @@ class Exception {
             code: this.code,
             httpCode: this.httpCode,
             label: this.label,
-            description: this.description
+            description: this.description,
+            data: this.data
         };
     }
 }
@@ -211,6 +213,8 @@ module.exports.raise = ( source, data, exceptionID ) => {
         exception = new Exception( exceptionID || tools.getUUID(), module.exports.exceptionCode.E_GEN_JS_INTERNAL_ERROR, {
             message: source
         } );
+    } else if ( _.isObjectLike( source ) ) {
+        exception = new Exception( exceptionID || ( source.id || tools.getUUID() ), source.code || module.exports.exceptionCode.E_GEN_JS_INTERNAL_ERROR, source.data, source.description );
     } else {
         exception = new Exception( exceptionID || tools.getUUID(), ( exceptionCodeEnum.properties[ source ] ) ? source : module.exports.exceptionCode.E_UNKNOWN_ERROR );
     }
