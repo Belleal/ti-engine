@@ -5,6 +5,7 @@
 
 const ServiceConsumer = require( "#service-consumer" );
 const _ = require( "lodash" );
+const path = require( "path" );
 const exceptions = require( "#exceptions" );
 const logger = require( "#logger" );
 const messageDispatcher = require( "#message-dispatcher" );
@@ -136,10 +137,11 @@ class ServiceProvider extends ServiceConsumer {
             /** @type {ServiceHandlerMethod} */
             let serviceHandler = null;
             if ( serviceDefinition.serviceFile ) {
+                let serviceFilePath = path.join( process.cwd(), serviceDefinition.serviceFile );
                 try {
-                    serviceHandler = require( serviceDefinition.serviceFile ).service;
+                    serviceHandler = require( serviceFilePath ).service;
                 } catch ( error ) {
-                    logger.log( `Specified service handler file '${ serviceDefinition.serviceFile }' could not be loaded!`, logger.logSeverity.ERROR, error );
+                    logger.log( `Specified service handler file '${ serviceFilePath }' could not be loaded!`, logger.logSeverity.ERROR, error );
                 }
             } else {
                 if ( typeof ( defaultServiceHandler ) === "function" ) {

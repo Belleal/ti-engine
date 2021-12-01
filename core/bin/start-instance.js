@@ -5,13 +5,13 @@
 
 "use strict";
 
-// load any ENV variables defined in a .env file:
-require( "dotenv" ).config();
-
 const _ = require( "lodash" );
-const fs = require( "fs-extra" );
+const path = require( "path" );
 const tools = require( "#tools" );
 const logger = require( "#logger" );
+
+// load any ENV variables defined in a .env file:
+require( "dotenv" ).config( { path: path.join( process.cwd(), ".env" ) } );
 
 // configure the current instance variables before requiring any platform modules and store the necessary ones in memory cache:
 process.env.TI_INSTANCE_ID = "ti-" + tools.getUUID();
@@ -75,11 +75,11 @@ try {
     logger.log( `Starting new instance of type '${ process.env.TI_INSTANCE_NAME }' with instance ID '${ process.env.TI_INSTANCE_ID }'.`, logger.logSeverity.NOTICE );
 
     /** @type ServiceInstance */
-    const serviceConstructor = require( process.env.TI_INSTANCE_CLASS );
+    const serviceConstructor = require( path.join( process.cwd(), process.env.TI_INSTANCE_CLASS ) );
     const serviceConfigPath = process.env.TI_INSTANCE_CONFIG;
     let serviceConfig = {};
-    if ( fs.existsSync( serviceConfigPath ) ) {
-        serviceConfig = require( process.env.TI_INSTANCE_CONFIG );
+    if ( serviceConfigPath ) {
+        serviceConfig = require( path.join( process.cwd(), process.env.TI_INSTANCE_CONFIG ) );
     }
     const mainInstance = new serviceConstructor( process.env.TI_INSTANCE_NAME, serviceConfig );
 

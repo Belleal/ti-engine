@@ -2,12 +2,12 @@
   "services": [
     {
       "serviceAlias": "service1",
-      "serviceFile": "@ti-engine/tester/services/v1/service1.js",
+      "serviceFile": "services/v1/service1.js",
       "serviceVersion": 1
     },
     {
       "serviceAlias": "service2",
-      "serviceFile": "@ti-engine/tester/services/v1/service2.js",
+      "serviceFile": "services/v1/service2.js",
       "serviceVersion": 1
     }
   ]
