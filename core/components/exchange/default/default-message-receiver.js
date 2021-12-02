@@ -23,10 +23,9 @@ class DefaultMessageReceiver extends MessageReceiver {
      * @constructor
      * @param {string} identifier An identifier for this message handler. Should be unique in the context of the message exchange.
      * @param {string} receiveQueue The queue from which the messages will be received.
-     * @param {string} [processingQueue=undefined] The queue in which the messages will be put for processing (if necessary).
      */
-    constructor( identifier, receiveQueue, processingQueue = undefined ) {
-        super( identifier, receiveQueue, processingQueue );
+    constructor( identifier, receiveQueue ) {
+        super( identifier, receiveQueue );
     }
 
     /**

@@ -35,7 +35,7 @@ module.exports.getUUID = () => {
  *
  * @method
  * @param {Object} seed
- * @returns {TiEnum}
+ * @returns {Object}
  * @public
  */
 module.exports.enum = ( seed ) => {
