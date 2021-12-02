@@ -107,7 +107,7 @@ Another important aspect for you to remember is that the message exchange is ent
 
 For now, take a look at the following diagram:
 
-![Message Exchange](./docs/diagram1.png)
+![Message Exchange](https://github.com/Belleal/ti-engine/blob/master/core/docs/diagram1.png)
 
 It shows the standard flow of a message exchange between one sender and _n_ identical message receivers. The sender splits each message to an _envelope_ and a _payload_, then stores the payload in the shared cache and enqueues the envelope in the requests (destination) queue. Receivers can subscribe to that queue in order to fetch enqueued messages and process their contents. During the fetch sequence a receiver assembles the full message by getting the payload from the storage. This process is depicted by the blue flow lines.
 
