@@ -109,14 +109,18 @@ For now, take a look at the following diagram:
 
 ![Message Exchange](https://github.com/Belleal/ti-engine/blob/master/core/docs/diagram1.png)
 
-It shows the standard flow of a message exchange between one sender and _n_ identical message receivers. The sender splits each message to an _envelope_ and a _payload_, then stores the payload in the shared cache and enqueues the envelope in the requests (destination) queue. Receivers can subscribe to that queue in order to fetch enqueued messages and process their contents. During the fetch sequence a receiver assembles the full message by getting the payload from the storage. This process is depicted by the blue flow lines.
+It shows the standard flow of a message exchange between one sender and _n_ identical message receivers. The sender splits each message into an _envelope_ and a _payload_, then stores the payload in the shared cache and enqueues the envelope in the requests (destination) queue. Receivers can subscribe to that queue in order to fetch enqueued messages and process their contents. During the fetch sequence a receiver assembles the full message by getting the payload from the storage. This process is depicted by the blue flow lines.
 
-After the processing is done the message payload is modified and the receiver sends the message back to the original sender using the same mechanism. It splits the message in envelope and payload, stores the payload in the storage and enqueues the envelope in the sender response (source) queue. The sender will then assemble the message back and process the contained results. This process is depicted by the red flow lines.
+After the processing is done the message payload is modified and the receiver sends the message back to the original sender using the same mechanism. It again splits the message into an envelope and a payload, stores the payload in the storage and enqueues the envelope in the sender response (source) queue. The sender will then assemble the message back and process the contained results. This process is depicted by the red flow lines.
 
 In this scenario the framework utilizes _Redis lists_ as queues for the message envelopes and _Redis hash_ as message payload storage. Other message brokers might utilize a slightly different approach, but they should still adhere to the same logical flow.
 
-### tier 2 - service interface
-Under development...
+### tier 2 - service domains
+This tier focuses on hosting and executing the _business logic_ of your application. It's comprised of _business services_ that process input data and return the result of the processing as output data. The business services are grouped in _service domains_, which are in turn hosted inside stateless _microservices_ also named _service instances_. There are two types of service instances in **ti-engine**:
+* Service consumers - these are service instances, that can call business services in any available service domain.
+* Service providers - these are service instances, that host and run a set of business services in a particular service domain. Every service provider is also a service consumer.
+
+The various service instances in a solution represent a network of interconnected service domains that contain the business logic of your application. All business services exchange data via _service calls_ using abstract _service addresses_. These service calls are transported from one address in the network to another via the underlying message exchange tier. This, however, is completely transparent to the service instances. In essence, tier 2 does not care about the actual data transportation method or protocol. You could in fact change completely the tier 1 approach without having to modify anything in your business logic and business flow.
 
 ### tier 3 - solution implementation
 Under development...
