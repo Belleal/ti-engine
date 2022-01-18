@@ -20,13 +20,16 @@ const tools = require( "#tools" );
  * @property {EnvironmentVariable} env.TI_INSTANCE_CONFIG
  * @property {EnvironmentVariable} env.TI_INSTANCE_ID
  * @property {EnvironmentVariable} env.TI_INSTANCE_NAME
- * @property {EnvironmentVariable} env.TI_LOG_CONSOLE_ENABLED
- * @property {EnvironmentVariable} env.TI_LOG_MIN_LEVEL
- * @property {EnvironmentVariable} env.TI_LOG_USED_JSON
+ * @property {EnvironmentVariable} env.TI_AUDITING_LOG_CONSOLE_ENABLED
+ * @property {EnvironmentVariable} env.TI_AUDITING_LOG_MIN_LEVEL
+ * @property {EnvironmentVariable} env.TI_AUDITING_LOG_USES_JSON
  * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_AUTH_KEY
- * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_DB
- * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_HOST
- * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_PORT
+ * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_REDIS_DB
+ * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_REDIS_HOST
+ * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_REDIS_PORT
+ * @property {EnvironmentVariable} env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED
+ * @property {EnvironmentVariable} env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY
+ * @property {EnvironmentVariable} env.TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED
  * @property {EnvironmentVariable} env.TI_OPERATION_MODE
  */
 
@@ -70,6 +73,8 @@ const tools = require( "#tools" );
  * @typedef {Object} SettingsMessageExchange
  * @property {string} messageQueuePrefix
  * @property {string} messageStore
+ * @property {boolean} securityHashEnabled
+ * @property {string} securityHashKey
  * @property {boolean} traceLogEnabled
  */
 
@@ -100,7 +105,9 @@ let settingsEnum = tools.enum( {
     MEMORY_CACHE_REDIS_HOST: [ "memoryCache.redisHost", "redisHost", "" ],
     MEMORY_CACHE_REDIS_PORT: [ "memoryCache.redisPort", "redisPort", "" ],
     MESSAGE_EXCHANGE_QUEUE_PREFIX: [ "messageExchange.messageQueuePrefix", "messageQueuePrefix", "" ],
-    MESSAGE_EXCHANGE_STORE: [ "messageExchange.messageStore", "messageStore", "" ],
+    MESSAGE_EXCHANGE_MESSAGE_STORE: [ "messageExchange.messageStore", "messageStore", "" ],
+    MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED: [ "messageExchange.securityHashEnabled", "securityHashEnabled", "" ],
+    MESSAGE_EXCHANGE_SECURITY_HASH_KEY: [ "messageExchange.securityHashKey", "securityHashKey", "" ],
     MESSAGE_EXCHANGE_TRACE_LOG_ENABLED: [ "messageExchange.traceLogEnabled", "traceLogEnabled", "" ],
     SERVICE_EXECUTION_TIMEOUT: [ "serviceConfig.executionTimeout", "executionTimeout", "" ],
     SERVICE_HEALTH_CHECK_ADDRESS: [ "serviceConfig.healthCheckAddress", "healthCheckAddress", "" ],
@@ -120,18 +127,23 @@ const settings = require( "#settings" );
 
 // override remaining settings with ENV variables (if provided):
 if ( settings.auditing ) {
-    settings.auditing.logMinLevel = ( process.env.TI_LOG_MIN_LEVEL !== undefined ) ? process.env.TI_LOG_MIN_LEVEL : settings.auditing.logMinLevel;
-    settings.auditing.logConsoleEnabled = ( process.env.TI_LOG_CONSOLE_ENABLED !== undefined ) ? tools.toBool( process.env.TI_LOG_CONSOLE_ENABLED ) : settings.auditing.logConsoleEnabled;
-    settings.auditing.logUsesJSON = ( process.env.TI_LOG_USED_JSON !== undefined ) ? tools.toBool( process.env.TI_LOG_USED_JSON ) : settings.auditing.logUsesJSON;
+    settings.auditing.logMinLevel = ( process.env.TI_AUDITING_LOG_MIN_LEVEL !== undefined ) ? process.env.TI_AUDITING_LOG_MIN_LEVEL : settings.auditing.logMinLevel;
+    settings.auditing.logConsoleEnabled = ( process.env.TI_AUDITING_LOG_CONSOLE_ENABLED !== undefined ) ? tools.toBool( process.env.TI_AUDITING_LOG_CONSOLE_ENABLED ) : settings.auditing.logConsoleEnabled;
+    settings.auditing.logUsesJSON = ( process.env.TI_AUDITING_LOG_USES_JSON !== undefined ) ? tools.toBool( process.env.TI_AUDITING_LOG_USES_JSON ) : settings.auditing.logUsesJSON;
 }
 if ( settings.memoryCache ) {
     settings.memoryCache.authKey = ( process.env.TI_MEMORY_CACHE_AUTH_KEY !== undefined ) ? process.env.TI_MEMORY_CACHE_AUTH_KEY : settings.memoryCache.authKey;
-    settings.memoryCache.redisDB = ( process.env.TI_MEMORY_CACHE_DB !== undefined ) ? process.env.TI_MEMORY_CACHE_DB : settings.memoryCache.redisDB;
-    settings.memoryCache.redisHost = ( process.env.TI_MEMORY_CACHE_HOST !== undefined ) ? process.env.TI_MEMORY_CACHE_HOST : settings.memoryCache.redisHost;
-    settings.memoryCache.redisPort = ( process.env.TI_MEMORY_CACHE_PORT !== undefined ) ? process.env.TI_MEMORY_CACHE_PORT : settings.memoryCache.redisPort;
+    settings.memoryCache.redisDB = ( process.env.TI_MEMORY_CACHE_REDIS_DB !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_DB : settings.memoryCache.redisDB;
+    settings.memoryCache.redisHost = ( process.env.TI_MEMORY_CACHE_REDIS_HOST !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_HOST : settings.memoryCache.redisHost;
+    settings.memoryCache.redisPort = ( process.env.TI_MEMORY_CACHE_REDIS_PORT !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_PORT : settings.memoryCache.redisPort;
+}
+if ( settings.messageExchange ) {
+    settings.messageExchange.securityHashEnabled = ( process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED !== undefined ) ? tools.toBool( process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED ) : settings.messageExchange.securityHashEnabled;
+    settings.messageExchange.securityHashKey = ( process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY !== undefined ) ? process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY : settings.messageExchange.securityHashKey;
+    settings.messageExchange.traceLogEnabled = ( process.env.TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED !== undefined ) ? tools.toBool( process.env.TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED ) : settings.messageExchange.traceLogEnabled;
 }
 
-// make sure GCloud is enabled before trying to setup it:
+// make sure GCloud is enabled before trying to set it up:
 if ( process.env.TI_GCLOUD_ENABLED === true && settings.gcloudIntegration ) {
     settings.gcloudIntegration.apiKey = ( process.env.TI_GCLOUD_API_KEY !== undefined ) ? process.env.TI_GCLOUD_API_KEY : settings.gcloudIntegration.apiKey;
     settings.gcloudIntegration.projectID = ( process.env.TI_GCLOUD_PROJECT_ID !== undefined ) ? process.env.TI_GCLOUD_PROJECT_ID : settings.gcloudIntegration.projectID;
