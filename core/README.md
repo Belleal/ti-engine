@@ -95,7 +95,7 @@ The architectural approach for the **ti-engine** is done in _tiers_ with lower t
 
 There are three general tiers in the **ti-engine**:
 1. message exchange
-2. service interface
+2. service domains
 3. solution implementation
 
 See the following sections for more information on each of them.
