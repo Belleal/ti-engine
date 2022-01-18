@@ -5,6 +5,7 @@
 
 const MessageHandler = require( "#message-handler" );
 const exceptions = require( "#exceptions" );
+const config = require( "#config" );
 
 /**
  * An abstract class that defines a basic message sender behavior.
@@ -70,7 +71,7 @@ class MessageSender extends MessageHandler {
      */
     send( message, queue ) {
         return new Promise( ( resolve, reject ) => {
-            this.#preSend().then( () => {
+            this.#preSend( message ).then( ( message ) => {
                 return this.onSend( message, queue );
             } ).then( () => {
                 return this.#postSend();
@@ -106,12 +107,17 @@ class MessageSender extends MessageHandler {
      * Used to do pre-send verifications and checks.
      *
      * @method
-     * @returns {Promise}
+     * @param {Message} message
+     * @returns {Promise<Message>}
      * @private
      */
-    #preSend() {
+    #preSend( message ) {
         if ( this.isAvailable === true ) {
-            return Promise.resolve();
+            if ( config.getSetting( config.setting.MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED ) === true ) {
+                message.hash = this.createMessageHash( message );
+            }
+
+            return Promise.resolve( message );
         } else {
             return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_COM_MESSAGE_SENDER_UNAVAILABLE ) );
         }

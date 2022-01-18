@@ -74,7 +74,7 @@ class DefaultMessageReceiver extends MessageReceiver {
     onReceive() {
         return new Promise( ( resolve, reject ) => {
             this.#memoryCache.receiveMessage( this.receiveQueue ).then( ( lightweightMessage ) => {
-                return this.#memoryCache.retrieveMessagePayload( lightweightMessage, config.getSetting( config.setting.MESSAGE_EXCHANGE_STORE ) );
+                return this.#memoryCache.retrieveMessagePayload( lightweightMessage, config.getSetting( config.setting.MESSAGE_EXCHANGE_MESSAGE_STORE ) );
             } ).then( ( message ) => {
                 resolve( message );
             } ).catch( ( error ) => {

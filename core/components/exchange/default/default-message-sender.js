@@ -42,7 +42,7 @@ class DefaultMessageSender extends MessageSender {
      */
     onSend( message, queue ) {
         return new Promise( ( resolve, reject ) => {
-            this.#memoryCache.storeMessagePayload( message.payload, config.getSetting( config.setting.MESSAGE_EXCHANGE_STORE ) ).then( ( storeID ) => {
+            this.#memoryCache.storeMessagePayload( message.payload, config.getSetting( config.setting.MESSAGE_EXCHANGE_MESSAGE_STORE ) ).then( ( storeID ) => {
                 let lightweightMessage = _.cloneDeep( message );
                 lightweightMessage.payload = storeID;
                 return this.#memoryCache.sendMessage( lightweightMessage, queue );

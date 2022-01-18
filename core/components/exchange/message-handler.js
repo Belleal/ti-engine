@@ -5,8 +5,11 @@
 
 const ConnectionObserver = require( "#connection-observer" );
 const _ = require( "lodash" );
+const blake2 = require( "blake2" );
 const exceptions = require( "#exceptions" );
 const logger = require( "#logger" );
+const tools = require( "#tools" );
+const config = require( "#config" );
 
 /**
  * An abstract class that defines a basic message handler behavior.
@@ -96,6 +99,21 @@ class MessageHandler extends ConnectionObserver {
      */
     disable() {
         return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.disable.name } ) );
+    }
+
+    /**
+     * Used to create a security hash from the message.
+     *
+     * @method
+     * @param {Message} message
+     * @returns {string}
+     * @public
+     */
+    createMessageHash( message ) {
+        let transformed = tools.decomposeJSON( tools.decycle( message ) );
+        let hash = blake2.createKeyedHash( "blake2b", Buffer.from( config.getSetting( config.setting.MESSAGE_EXCHANGE_SECURITY_HASH_KEY ) ) );
+        hash.update( Buffer.from( transformed ) );
+        return hash.digest( "hex" );
     }
 
     /**

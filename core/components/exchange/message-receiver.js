@@ -6,6 +6,7 @@
 const MessageHandler = require( "#message-handler" );
 const logger = require( "#logger" );
 const exceptions = require( "#exceptions" );
+const config = require( "#config" );
 
 /**
  * An abstract class that defines a basic message receiver behavior.
@@ -84,6 +85,8 @@ class MessageReceiver extends MessageHandler {
      */
     receive() {
         this.onReceive().then( ( message ) => {
+            return this.#postReceive( message );
+        } ).then( ( message ) => {
             this.onMessage( message );
         } ).catch( ( error ) => {
             logger.log( `Error while trying to receive the next pending message from memory cache in receiver '${ this.connectionIdentifier }'! Resuming operation...`, logger.logSeverity.ERROR, error );
@@ -106,6 +109,37 @@ class MessageReceiver extends MessageHandler {
      */
     onReceive() {
         return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.onReceive.name } ) );
+    }
+
+    /* Private interface */
+
+    /**
+     * Used to process the received message before providing it to any {@link MessageObserver}.
+     *
+     * @method
+     * @param {Message} message
+     * @returns {Promise<Message>}
+     * @private
+     */
+    #postReceive( message ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( config.getSetting( config.setting.MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED ) === true ) {
+                let receivedHash = message.hash;
+                delete message.hash;
+                let currentHash = this.createMessageHash( message );
+                if ( receivedHash && receivedHash === currentHash ) {
+                    resolve( message );
+                } else {
+                    reject( exceptions.raise( exceptions.exceptionCode.E_SEC_MESSAGE_TAMPERING_DETECTED, {
+                        messageID: message.messageID,
+                        receivedHash: receivedHash,
+                        currentHash: currentHash
+                    } ) );
+                }
+            } else {
+                resolve( message );
+            }
+        } );
     }
 
 }
