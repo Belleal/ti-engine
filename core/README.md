@@ -84,7 +84,7 @@ The tester module gets its starting configuration from an `.env` file included i
 TI_INSTANCE_CLASS=tester-service.js
 TI_INSTANCE_CONFIG=tester-service.json
 TI_INSTANCE_NAME=tester-service
-TI_LOG_MIN_LEVEL=200
+TI_AUDITING_LOG_MIN_LEVEL=200
 ```
 The first variable `TI_INSTANCE_CLASS` is mandatory for every microservice you create with the **ti-engine**. It needs to specify the path to the module that is your microservice. Remember, that this path has to be relative to the working directory in which you plan to execute the `node` command. This is especially important when you're configuring your microservices to work in containers. You can find the full list of available ENV variables and what they do below.
 

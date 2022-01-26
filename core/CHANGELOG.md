@@ -1,3 +1,6 @@
+##Version 1.0.12
+* build(npm): updated npm dependencies
+
 ##Version 1.0.11
 * feat(message exchange): implement message tampering and insertion protection
 * feat(config): provide option to turn on/off the message tampering and insertion protection
