@@ -49,7 +49,7 @@
     "ioredis": "^4.28.3"
   },
   "optionalDependencies": {
-    "@google-cloud/error-reporting": "^2.0.4"
+    "@google-cloud/error-reporting": "^3.0.2"
   },
   "repository": {
     "type": "git",
