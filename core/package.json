@@ -42,11 +42,12 @@
   },
   "dependencies": {
     "blake2": "^5.0.0",
-    "dotenv": "^16.0.3",
+    "dotenv": "^16.3.1",
     "fs-extra": "^11.1.1",
     "lodash": "^4.17.21",
     "node-schedule": "^2.1.1",
-    "ioredis": "^5.3.2"
+    "ioredis": "^5.3.2",
+    "zeromq": "^6.0.0-beta.17"
   },
   "optionalDependencies": {
     "@google-cloud/error-reporting": "^3.0.5"
