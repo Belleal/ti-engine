@@ -1,4 +1,4 @@
-# ti-engine Web Framework
+# ti-engine web framework
 Flexible framework for the creation of microservices with node.js.
 
 ## Information
