@@ -4,7 +4,7 @@
  */
 
 const ConnectionObserver = require( "#connection-observer" );
-const ioredis = require( "ioredis" );
+const Redis = require( "ioredis" );
 const tools = require( "#tools" );
 const logger = require( "#logger" );
 const exceptions = require( "#exceptions" );
@@ -49,7 +49,7 @@ module.exports.cacheCommands = cacheCommandsEnum;
  */
 class RedisClient {
 
-    #clientIdentifier = "default";
+    #clientIdentifier;
     #retryMaxInterval = 1000;
     #retryMaxAttempts = undefined;
     #redisClient = undefined;
@@ -61,12 +61,13 @@ class RedisClient {
      * @param {string} host
      * @param {number} port
      * @param {string} authKey
+     * @param {string} user
      * @param {number} defaultDB
      * @param {boolean} autoRetryUnfulfilled
      * @param {number} maxRetries
      */
-    constructor( identifier, host, port, authKey, defaultDB, autoRetryUnfulfilled, maxRetries ) {
-        this.#clientIdentifier = identifier || this.#clientIdentifier;
+    constructor( identifier, host, port, authKey, user, defaultDB, autoRetryUnfulfilled, maxRetries ) {
+        this.#clientIdentifier = identifier || "redis-client-" + tools.getUUID();
 
         let retryStrategy = ( attempt ) => {
             let result = Math.min( attempt * 50, this.#retryMaxInterval );
@@ -87,6 +88,7 @@ class RedisClient {
         let options = {
             port: port,
             host: host,
+            username: user,
             password: authKey,
             db: defaultDB,
             autoResendUnfulfilledCommands: autoRetryUnfulfilled,
@@ -96,18 +98,11 @@ class RedisClient {
         };
 
         /** @type Redis */
-        this.#redisClient = new ioredis( options );
+        this.#redisClient = new Redis( options );
 
         this.#redisClient.on( "ready", () => {
-            logger.log( `Connection to Redis server ${ host }:${ port } (re)established by client '${ this.identifier }' and is ready to be used.`, logger.logSeverity.INFO, {
-                redis_version: this.#redisClient.serverInfo.redis_version,
-                redis_mode: this.#redisClient.serverInfo.redis_mode,
-                os: this.#redisClient.serverInfo.os,
-                uptime_in_days: this.#redisClient.serverInfo.uptime_in_days,
-                connected_clients: this.#redisClient.serverInfo.connected_clients,
-                role: this.#redisClient.serverInfo.role,
-                connected_slaves: this.#redisClient.serverInfo.connected_slaves
-            } );
+            let serverInfo = this.#redisClient.serverInfo || {};
+            logger.log( `Connection to Redis server ${ host }:${ port } (re)established by client '${ this.identifier }' and is ready to be used.`, logger.logSeverity.INFO, serverInfo );
 
             // notify all connection observers about this event:
             _.forEach( this.#connectionObservers, ( connectionObservers ) => {
@@ -250,12 +245,13 @@ class RedisClient {
  * @param {string} host
  * @param {number} [port=6379]
  * @param {string} [authKey=undefined]
+ * @param {string} [user="default"]
  * @param {number} [defaultDB=0]
  * @param {boolean} [autoRetryUnfulfilled=true]
  * @param {number} [maxRetries=20]
  * @return {RedisClient}
  * @public
  */
-module.exports.createRedisClient = ( identifier, host, port = 6379, authKey = undefined, defaultDB = 0, autoRetryUnfulfilled = true, maxRetries = 20 ) => {
-    return Object.freeze( new RedisClient( identifier, host, port, authKey, defaultDB, autoRetryUnfulfilled, maxRetries ) );
+module.exports.createRedisClient = ( identifier, host, port = 6379, authKey = undefined, user = "default", defaultDB = 0, autoRetryUnfulfilled = true, maxRetries = 20 ) => {
+    return Object.freeze( new RedisClient( identifier, host, port, authKey, user, defaultDB, autoRetryUnfulfilled, maxRetries ) );
 };

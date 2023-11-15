@@ -1,7 +1,7 @@
 {
   "auditing": {
     "logConsoleEnabled": true,
-    "logDetails": false,
+    "logDetails": true,
     "logMinLevel": 0,
     "logUsesJSON": false
   },
@@ -15,7 +15,8 @@
     "authKey": null,
     "redisDB": 0,
     "redisHost": "127.0.0.1",
-    "redisPort": 6379
+    "redisPort": 6379,
+    "user": "default"
   },
   "messageExchange": {
     "messageQueuePrefix": "ti:messages:",

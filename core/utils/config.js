@@ -67,6 +67,7 @@ const tools = require( "#tools" );
  * @property {number} redisDB
  * @property {string} redisHost
  * @property {number} redisPort
+ * @property {string} user
  */
 
 /**
@@ -104,6 +105,7 @@ let settingsEnum = tools.enum( {
     MEMORY_CACHE_REDIS_DB: [ "memoryCache.redisDB", "redisDB", "" ],
     MEMORY_CACHE_REDIS_HOST: [ "memoryCache.redisHost", "redisHost", "" ],
     MEMORY_CACHE_REDIS_PORT: [ "memoryCache.redisPort", "redisPort", "" ],
+    MEMORY_CACHE_USER: [ "memoryCache.user", "user", "" ],
     MESSAGE_EXCHANGE_QUEUE_PREFIX: [ "messageExchange.messageQueuePrefix", "messageQueuePrefix", "" ],
     MESSAGE_EXCHANGE_MESSAGE_STORE: [ "messageExchange.messageStore", "messageStore", "" ],
     MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED: [ "messageExchange.securityHashEnabled", "securityHashEnabled", "" ],
@@ -136,6 +138,7 @@ if ( settings.memoryCache ) {
     settings.memoryCache.redisDB = ( process.env.TI_MEMORY_CACHE_REDIS_DB !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_DB : settings.memoryCache.redisDB;
     settings.memoryCache.redisHost = ( process.env.TI_MEMORY_CACHE_REDIS_HOST !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_HOST : settings.memoryCache.redisHost;
     settings.memoryCache.redisPort = ( process.env.TI_MEMORY_CACHE_REDIS_PORT !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_PORT : settings.memoryCache.redisPort;
+    settings.memoryCache.user = ( process.env.MEMORY_CACHE_USER !== undefined ) ? process.env.MEMORY_CACHE_USER : settings.memoryCache.user;
 }
 if ( settings.messageExchange ) {
     settings.messageExchange.securityHashEnabled = ( process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED !== undefined ) ? tools.toBool( process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED ) : settings.messageExchange.securityHashEnabled;

@@ -102,12 +102,18 @@ class ServiceExecutor extends MessageObserver {
     onConnectionRecovered( identifier ) {
         super.onConnectionRecovered( identifier );
 
-        let serviceCatalog = config.getSetting( config.setting.SERVICE_REGISTRY_ADDRESS ) + ServiceInstance.serviceDomainName;
-        _.forOwn( this.#serviceInterface, ( versions, serviceAlias ) => {
-            cache.addToSet( serviceCatalog, serviceAlias ).catch( ( error ) => {
-                logger.log( `Record for service '${ serviceAlias }' could not be added to the service registry.`, logger.logSeverity.ERROR, error );
-            } );
-        } );
+        if ( identifier !== cache.connectionIdentifier ) {
+            if ( cache.isOperational ) {
+                let serviceCatalog = config.getSetting( config.setting.SERVICE_REGISTRY_ADDRESS ) + ServiceInstance.serviceDomainName;
+                _.forOwn( this.#serviceInterface, ( versions, serviceAlias ) => {
+                    cache.addToSet( serviceCatalog, serviceAlias ).catch( ( error ) => {
+                        logger.log( `Record for service '${ serviceAlias }' could not be added to the service registry.`, logger.logSeverity.ERROR, error );
+                    } );
+                } );
+            } else {
+                //TODO: Retry service registration after 0.5 seconds.
+            }
+        }
     }
 
     /**

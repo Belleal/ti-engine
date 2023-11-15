@@ -269,10 +269,12 @@ class ServiceInstance {
      * @private
      */
     #reportHealthy() {
-        let timestamp = new Date();
-        cache.setValue( this.#serviceHealthCheck, timestamp.toISOString(), config.getSetting( config.setting.SERVICE_HEALTH_CHECK_TIMEOUT ) ).catch( ( error ) => {
-            logger.log( `Error while trying to report for health check from '${ ServiceInstance.instanceID }'!`, logger.logSeverity.WARNING, error );
-        } );
+        if ( cache.isOperational ) {
+            let timestamp = new Date();
+            cache.setValue( this.#serviceHealthCheck, timestamp.toISOString(), config.getSetting( config.setting.SERVICE_HEALTH_CHECK_TIMEOUT ) ).catch( ( error ) => {
+                logger.log( `Error while trying to report for health check from '${ ServiceInstance.instanceID }'!`, logger.logSeverity.WARNING, error );
+            } );
+        }
     }
 
 }

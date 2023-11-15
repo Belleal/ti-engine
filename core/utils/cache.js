@@ -23,6 +23,7 @@ class CommonMemoryCache extends ConnectionObserver {
     static #instance = null;
     #redisClient = null;
     #isOperational = false;
+    #connectionIdentifier = "system-cache";
 
     /**
      * @constructor
@@ -36,7 +37,8 @@ class CommonMemoryCache extends ConnectionObserver {
             let port = config.getSetting( config.setting.MEMORY_CACHE_REDIS_PORT );
             let db = config.getSetting( config.setting.MEMORY_CACHE_REDIS_DB );
             let authKey = config.getSetting( config.setting.MEMORY_CACHE_AUTH_KEY );
-            this.#redisClient = redis.createRedisClient( "system", host, port, authKey, db );
+            let user = config.getSetting( config.setting.MEMORY_CACHE_USER );
+            this.#redisClient = redis.createRedisClient( this.#connectionIdentifier, host, port, authKey, user, db );
             this.#redisClient.addConnectionObserver( this );
             CommonMemoryCache.#instance = this;
         }
@@ -55,6 +57,15 @@ class CommonMemoryCache extends ConnectionObserver {
     get isOperational() { return this.#isOperational; }
 
     /**
+     * Property returning the connection identifier of the cache service.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get connectionIdentifier() { return this.#connectionIdentifier; }
+
+    /**
      * Needs to be invoked by the connection handler when the connection is disrupted.
      *
      * @method
@@ -63,7 +74,9 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     onConnectionDisrupted( identifier ) {
-        this.#isOperational = false;
+        if ( identifier === this.#connectionIdentifier ) {
+            this.#isOperational = false;
+        }
     }
 
     /**
@@ -75,7 +88,9 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     onConnectionRecovered( identifier ) {
-        this.#isOperational = true;
+        if ( identifier === this.#connectionIdentifier ) {
+            this.#isOperational = true;
+        }
     }
 
     /**

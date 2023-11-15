@@ -27,7 +27,8 @@ class MessageMemoryCache {
         let port = config.getSetting( config.setting.MEMORY_CACHE_REDIS_PORT );
         let db = config.getSetting( config.setting.MEMORY_CACHE_REDIS_DB );
         let authKey = config.getSetting( config.setting.MEMORY_CACHE_AUTH_KEY );
-        this.#redisClient = redis.createRedisClient( identifier, host, port, authKey, db );
+        let user = config.getSetting( config.setting.MEMORY_CACHE_USER );
+        this.#redisClient = redis.createRedisClient( identifier, host, port, authKey, user, db );
     }
 
     /* Public interface */

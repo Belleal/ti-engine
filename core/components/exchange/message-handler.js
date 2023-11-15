@@ -158,7 +158,7 @@ class MessageHandler extends ConnectionObserver {
      * @private
      */
     onConnectionRecovered( identifier ) {
-        if ( this.#isAvailable === false ) {
+        if ( this.#isAvailable === false && identifier === this.#connectionIdentifier ) {
             this.#isAvailable = true;
             _.forEach( this.#messageObservers, ( messageObserver ) => {
                 messageObserver.onConnectionRecovered( this.#connectionIdentifier );
@@ -178,7 +178,7 @@ class MessageHandler extends ConnectionObserver {
      * @private
      */
     onConnectionDisrupted( identifier ) {
-        if ( this.#isAvailable === true ) {
+        if ( this.#isAvailable === true && identifier === this.#connectionIdentifier ) {
             this.#isAvailable = false;
             _.forEach( this.#messageObservers, ( messageObserver ) => {
                 messageObserver.onConnectionDisrupted( this.#connectionIdentifier );
