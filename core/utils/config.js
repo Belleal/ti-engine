@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2021 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * SPDX-FileCopyrightText: © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
  * SPDX-License-Identifier: ICU
  */
 
@@ -27,6 +27,7 @@ const tools = require( "#tools" );
  * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_REDIS_DB
  * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_REDIS_HOST
  * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_REDIS_PORT
+ * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_USER
  * @property {EnvironmentVariable} env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED
  * @property {EnvironmentVariable} env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY
  * @property {EnvironmentVariable} env.TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED
@@ -76,7 +77,9 @@ const tools = require( "#tools" );
  * @property {string} messageStore
  * @property {boolean} securityHashEnabled
  * @property {string} securityHashKey
+ * @property {number} traceExpirationTime
  * @property {boolean} traceLogEnabled
+ * @property {string} traceRepository
  */
 
 /**
@@ -110,7 +113,9 @@ let settingsEnum = tools.enum( {
     MESSAGE_EXCHANGE_MESSAGE_STORE: [ "messageExchange.messageStore", "messageStore", "" ],
     MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED: [ "messageExchange.securityHashEnabled", "securityHashEnabled", "" ],
     MESSAGE_EXCHANGE_SECURITY_HASH_KEY: [ "messageExchange.securityHashKey", "securityHashKey", "" ],
+    MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME: [ "messageExchange.traceExpirationTime", "traceExpirationTime", "" ],
     MESSAGE_EXCHANGE_TRACE_LOG_ENABLED: [ "messageExchange.traceLogEnabled", "traceLogEnabled", "" ],
+    MESSAGE_EXCHANGE_TRACE_REPOSITORY: [ "messageExchange.traceRepository", "traceRepository", "" ],
     SERVICE_EXECUTION_TIMEOUT: [ "serviceConfig.executionTimeout", "executionTimeout", "" ],
     SERVICE_HEALTH_CHECK_ADDRESS: [ "serviceConfig.healthCheckAddress", "healthCheckAddress", "" ],
     SERVICE_HEALTH_CHECK_INTERVAL: [ "serviceConfig.healthCheckInterval", "healthCheckInterval", "" ],
@@ -138,7 +143,7 @@ if ( settings.memoryCache ) {
     settings.memoryCache.redisDB = ( process.env.TI_MEMORY_CACHE_REDIS_DB !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_DB : settings.memoryCache.redisDB;
     settings.memoryCache.redisHost = ( process.env.TI_MEMORY_CACHE_REDIS_HOST !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_HOST : settings.memoryCache.redisHost;
     settings.memoryCache.redisPort = ( process.env.TI_MEMORY_CACHE_REDIS_PORT !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_PORT : settings.memoryCache.redisPort;
-    settings.memoryCache.user = ( process.env.MEMORY_CACHE_USER !== undefined ) ? process.env.MEMORY_CACHE_USER : settings.memoryCache.user;
+    settings.memoryCache.user = ( process.env.TI_MEMORY_CACHE_USER !== undefined ) ? process.env.TI_MEMORY_CACHE_USER : settings.memoryCache.user;
 }
 if ( settings.messageExchange ) {
     settings.messageExchange.securityHashEnabled = ( process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED !== undefined ) ? tools.toBool( process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED ) : settings.messageExchange.securityHashEnabled;

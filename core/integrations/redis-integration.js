@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2021 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * SPDX-FileCopyrightText: © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
  * SPDX-License-Identifier: ICU
  */
 
@@ -19,6 +19,7 @@ const _ = require( "lodash" );
 let cacheCommandsEnum = tools.enum( {
     ADD_TO_SET: [ "sadd", "add to set", "https://redis.io/commands/sadd" ],
     DELETE_VALUE: [ "del", "delete value", "https://redis.io/commands/del" ],
+    EXPIRE: [ "expire", "expire", "https://redis.io/commands/expire" ],
     GET_ALL_FROM_SET: [ "smembers", "get all set members", "https://redis.io/commands/smembers" ],
     GET_VALUE: [ "get", "get value", "https://redis.io/commands/get" ],
     HASH_GET: [ "hget", "hash get", "https://redis.io/commands/hget" ],
@@ -27,6 +28,9 @@ let cacheCommandsEnum = tools.enum( {
     HASH_SET: [ "hset", "", "https://redis.io/commands/hset" ],
     HASH_SET_MANY: [ "hmset", "", "https://redis.io/commands/hmset" ],
     IS_SET_MEMBER: [ "sismember", "", "https://redis.io/commands/sismember" ],
+    JSON_ARRAY_APPEND: [ "json.arrappend", "", "https://redis.io/commands/json.arrappend" ],
+    JSON_GET: [ "json.get", "", "https://redis.io/commands/json.get" ],
+    JSON_SET: [ "json.set", "", "https://redis.io/commands/json.set" ],
     KEYS: [ "keys", "", "https://redis.io/commands/keys" ],
     LIST_PUSH: [ "lpush", "list push", "https://redis.io/commands/lpush" ],
     LIST_POP_TAIL_BLOCKING: [ "brpop", "list pop tail blocking", "https://redis.io/commands/brpop" ],
@@ -37,9 +41,25 @@ let cacheCommandsEnum = tools.enum( {
 } );
 
 /**
+ * Enum for listing the Redis key override modes.
+ *
+ * @readonly
+ * @enum {string}
+ */
+let cacheOverrideModeEnum = tools.enum( {
+    DEFAULT: [ "", "default", "Standard Redis behaviour when setting new key." ],
+    NX: [ "nx", "nx", "Sets the key only if it does not already exist." ],
+    XX: [ "xx", "xx", "Sets the key only if it already exists." ]
+} );
+
+/**
  * @typedef {string} TiRedisCommand
  */
 module.exports.cacheCommands = cacheCommandsEnum;
+/**
+ * @typedef {string} TiRedisOverrideMode
+ */
+module.exports.cacheOverrideMode = cacheOverrideModeEnum;
 
 /**
  * Used to create a Redis Cache client.
@@ -53,6 +73,8 @@ class RedisClient {
     #retryMaxInterval = 1000;
     #retryMaxAttempts = undefined;
     #redisClient = undefined;
+    #serverInfo = {};
+    #serverFeatures = {};
     #connectionObservers = [];
 
     /**
@@ -101,12 +123,39 @@ class RedisClient {
         this.#redisClient = new Redis( options );
 
         this.#redisClient.on( "ready", () => {
-            let serverInfo = this.#redisClient.serverInfo || {};
-            logger.log( `Connection to Redis server ${ host }:${ port } (re)established by client '${ this.identifier }' and is ready to be used.`, logger.logSeverity.INFO, serverInfo );
+            logger.log( `Connection to Redis server ${ host }:${ port } (re)established by client '${ this.identifier }' and is ready to be used.`, logger.logSeverity.INFO );
 
             // notify all connection observers about this event:
             _.forEach( this.#connectionObservers, ( connectionObservers ) => {
                 connectionObservers.onConnectionRecovered( this.#clientIdentifier );
+            } );
+
+            // fetch the server information and store it:
+            this.#redisClient.info().then( ( result ) => {
+                this.#serverInfo = {};
+                if ( _.isString( result ) ) {
+                    let rawData = _.split( result, "\r\n" );
+                    _.forEach( rawData, ( entry ) => {
+                        let details = _.split( entry, ":" );
+                        if ( !_.startsWith( details[ 0 ], "#" ) && details[ 0 ] !== "" && details[ 0 ] ) {
+                            if ( _.isNaN( _.toNumber( details[ 1 ] ) ) ) {
+                                this.#serverInfo[ details[ 0 ] ] = details[ 1 ];
+                            } else {
+                                this.#serverInfo[ details[ 0 ] ] = _.toNumber( details[ 1 ] );
+                            }
+                        }
+                    } );
+                }
+                return this.#redisClient.module( "LIST" );
+            } ).then( ( result ) => {
+                this.#serverFeatures = {};
+                if ( _.isArray( result ) ) {
+                    _.forEach( result, ( entry ) => {
+                        this.#serverFeatures[ entry[ 1 ] ] = entry[ 3 ];
+                    } );
+                }
+            } ).catch( ( error ) => {
+                logger.log( `Failed to fetch server information by client '${ this.identifier }'!`, logger.logSeverity.WARNING, error );
             } );
         } );
         this.#redisClient.on( "error", ( error ) => {
@@ -135,6 +184,28 @@ class RedisClient {
      */
     get identifier() {
         return this.#clientIdentifier;
+    }
+
+    /**
+     * Used to return the Redis server version.
+     *
+     * @property
+     * @return {number}
+     * @public
+     */
+    get serverVersion() {
+        return this.#serverInfo[ "redis_version" ];
+    }
+
+    /**
+     * Verify if Redis server supports JSON data types.
+     *
+     * @property
+     * @returns {boolean}
+     * @public
+     */
+    get isJSONSupported() {
+        return !_.isNil( this.#serverFeatures[ "ReJSON" ] );
     }
 
     /**
@@ -172,6 +243,7 @@ class RedisClient {
 
     /**
      * Used to send a new blocking command to Redis.
+     * <br/>
      * WARNING: This will reserve the client connection until a result is received.
      *
      * @method
@@ -230,6 +302,28 @@ class RedisClient {
                 }
             } );
             this.#redisClient.subscribe( channel ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to execute any Redis command in an unmanaged way.
+     * <br/>
+     * WARNING: Use this only if there is no other implemented function in this module and the command
+     * you want to execute is not supported by the 'multi' Redis command (implemented in {@link RedisClient.executeCommands}).
+     * Make sure to handle the result as it will be returned raw.
+     *
+     * @method
+     * @param {string[]} commandArguments
+     * @returns {Promise<Object>}
+     * @public
+     */
+    callCommand( commandArguments ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#redisClient[ "call" ].apply( this.#redisClient, commandArguments ).then( ( result ) => {
+                resolve( result );
+            } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
         } );

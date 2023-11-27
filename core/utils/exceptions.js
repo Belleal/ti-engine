@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2021 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * SPDX-FileCopyrightText: © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
  * SPDX-License-Identifier: ICU
  */
 
@@ -21,6 +21,7 @@ let exceptionCodeEnum = tools.enum( {
     E_GEN_INVALID_SERVICE_DOMAIN_NAME: [ 1003, "invalid service domain name", "Invalid or no service domain name provided at microservice startup." ],
     E_GEN_SYSTEM_CACHE_UNAVAILABLE: [ 1004, "system cache unavailable", "The system cache required for proper engine operation is unavailable." ],
     E_GEN_BAD_SERVICE_HANDLER: [ 1005, "bad service handler", "The provided service handler is not a proper function." ],
+    E_GEN_FEATURE_UNSUPPORTED: [ 1006, "feature unsupported", "The requested feature is not supported by current configuration or version." ],
     /** Security & Administration related exceptions - codes under 2xxx */
     E_SEC_INVALID_AUTH_TOKEN: [ 2000, "invalid auth token", "Invalid authorization token provided." ],
     E_SEC_INVALID_EXPIRED_SESSION: [ 2001, "invalid or expired session", "Invalid or expired session encountered." ],

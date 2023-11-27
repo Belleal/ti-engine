@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2021 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * SPDX-FileCopyrightText: © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
  * SPDX-License-Identifier: ICU
  */
 

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2021 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * SPDX-FileCopyrightText: © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
  * SPDX-License-Identifier: ICU
  */
 
@@ -7,6 +7,8 @@ const _ = require( "lodash" );
 const tools = require( "#tools" );
 const config = require( "#config" );
 const logger = require( "#logger" );
+const exceptions = require( "#exceptions" );
+const cache = require( "#cache" );
 
 /**
  * @typedef {Object} TiTraceEntry
@@ -14,12 +16,17 @@ const logger = require( "#logger" );
  * @property {string} dispatchEvent
  * @property {string} fromAddress
  * @property {string} messageID
- * @property {string} messageSnapshot
+ * @property {Object} messageSnapshot
  * @property {string} messageState
  * @property {string} messageType
  * @property {string} toAddress
  * @property {string} traceID
+ * @property {number} traceTimestamp
  */
+
+const traceRoot = {
+    trace: []
+};
 
 /**
  * Enum for listing message types.
@@ -96,22 +103,28 @@ let formatLogEntry = ( traceEntry ) => {
 };
 
 /**
- * Used to obscure sensitive data in the message snapshot and convert it to string.
+ * Used to obscure sensitive data in the message, remove the payload, and return a snapshot.
  *
  * @method
  * @param {Message} message
- * @returns {string}
+ * @returns {Message}
  * @private
  */
 let obscureSensitiveData = ( message ) => {
-    let messageSnapshot = tools.stringifyJSON( message );
-    return _.replace( messageSnapshot, /("\w*?pin\w*?"|"\w*?pass\w*?"|"\w*?otp\w*?"):"(.*?)"/gmi, "\"SENSITIVE_PROPERTY\":\"OBSCURED_BY_SYSTEM\"" );
+    /** @type Message */
+    let messageSnapshot = tools.parseJSON( _.replace( tools.stringifyJSON( message ), /("\w*?pin\w*?"|"\w*?pass\w*?"|"\w*?otp\w*?"):"(.*?)"/gmi, "\"SENSITIVE_PROPERTY\":\"OBSCURED_BY_SYSTEM\"" ) );
+    delete messageSnapshot.payload;
+    return messageSnapshot;
 };
 
 /**
  * Used to create a trace entry for the provided {@link Message} and parameters.
  * <br/>
- * NOTE: With the exception of failed message delivery, trace events are logged with severity level DEBUG.
+ * NOTE: By default all trace events are stored in the memory cache for further processing and analysis. The
+ * location is configured in the MESSAGE_EXCHANGE_TRACE_REPOSITORY setting.
+ * <br/>
+ * NOTE: Trace events are logged with severity level NOTICE or ERROR for failed dispatches. They still might be
+ * filtered out if the minimum log level setting is set too high.
  *
  * @method
  * @param {Message} message The message to trace.
@@ -124,6 +137,10 @@ module.exports.recordTraceEntry = ( message, messageType, dispatchEvent, message
     // depending on whether the message comes as request or response, the from and to addresses will be opposite:
     let source = message.source.route + "." + message.source.instanceID;
     let destination = message.destination.route + ( ( message.destination.instanceID != null ) ? "." + message.destination.instanceID : "" );
+    let messageSnapshot = obscureSensitiveData( message );
+    delete messageSnapshot.chainID;
+    delete messageSnapshot.messageID;
+    let currentDate = new Date();
 
     /** @type TiTraceEntry */
     let traceEntry = {
@@ -131,16 +148,34 @@ module.exports.recordTraceEntry = ( message, messageType, dispatchEvent, message
         dispatchEvent: tools.getEnumName( dispatchEventEnum, dispatchEvent ),
         fromAddress: ( messageType === messageTypeEnum.MESSAGE_REQUEST ) ? source : destination,
         messageID: message.messageID,
-        messageSnapshot: obscureSensitiveData( message ),
+        messageSnapshot: messageSnapshot,
         messageState: tools.getEnumName( messageStateEnum, messageState ),
         messageType: tools.getEnumName( messageTypeEnum, messageType ),
         toAddress: ( messageType === messageTypeEnum.MESSAGE_REQUEST ) ? destination : source,
+        traceTimestamp: currentDate.getTime(),
         traceID: tools.getUUID()
     };
 
+    // only write the trace in the general log if this is enabled:
     if ( config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_LOG_ENABLED ) === true ) {
-        createLogEntry( traceEntry, ( dispatchEvent === dispatchEventEnum.FAILED ) ? logger.logSeverity.ERROR : logger.logSeverity.DEBUG );
+        createLogEntry( traceEntry, ( dispatchEvent === dispatchEventEnum.FAILED ) ? logger.logSeverity.ERROR : logger.logSeverity.NOTICE );
     }
 
-    // TODO Feature: Functionality that can dispatch the trace entry to a configurable database and/or monitoring system.
+    // add the trace entry to the repository in the memory cache:
+    cache.setJSON( config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_REPOSITORY ), traceRoot, "$", 1 ).then( () => {
+        return cache.arrayAppendJSON( config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_REPOSITORY ), traceEntry, "$.trace" );
+    } ).then( () => {
+        // this will refresh the expiration time for the trace repository on each new record:
+        let expiration = config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME );
+        return ( expiration > 0 ) ? cache.expireValue( config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_REPOSITORY ), expiration ) : expiration;
+    } ).catch( ( error ) => {
+        if ( error.code === exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED ) {
+            cache.addToSet( config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_REPOSITORY ), traceEntry ).catch( ( error ) => {
+                logger.log( `Failed to add message trace entry to the trace repository. While this will not prevent the application from running, it might still be a sign of a more serious problem!`, logger.logSeverity.WARNING, error );
+            } );
+        } else {
+            logger.log( `Failed to add message trace entry to the trace repository. While this will not prevent the application from running, it might still be a sign of a more serious problem!`, logger.logSeverity.WARNING, error );
+        }
+    } );
+
 };

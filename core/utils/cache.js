@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2021 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * SPDX-FileCopyrightText: © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
  * SPDX-License-Identifier: ICU
  */
 
@@ -279,6 +279,32 @@ class CommonMemoryCache extends ConnectionObserver {
     }
 
     /**
+     * Used to set expiration in seconds to an existing key.
+     * <br/>
+     * NOTE: For performance optimization reasons, only use this only if the Redis command does not itself support the 'EX' argument.
+     *
+     * @method
+     * @param {string} key
+     * @param {number} seconds
+     * @returns {Promise<number>} This will resolve with the seconds as provided initially by the caller.
+     * @public
+     */
+    expireValue( key, seconds ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( this.#isOperational === true ) {
+                let commandExpire = [ redis.cacheCommands.EXPIRE, key, seconds ];
+                this.#redisClient.executeCommands( [ commandExpire ] ).then( () => {
+                    resolve( seconds );
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
+        } );
+    }
+
+    /**
      * Used to add the specified values to a list.
      *
      * @method
@@ -313,7 +339,7 @@ class CommonMemoryCache extends ConnectionObserver {
      *
      * @method
      * @param {string} key
-     * @param {string} value
+     * @param {string|Object} value
      * @returns {Promise}
      * @public
      */
@@ -516,6 +542,104 @@ class CommonMemoryCache extends ConnectionObserver {
             }
         } );
     }
+
+    /**
+     * Used to store a JSON variable.
+     * <br/>
+     * NOTE: Requires ReJSON module installed on server to work.
+     *
+     * @method
+     * @param {string} key
+     * @param {Object} value
+     * @param {string} [path='&']
+     * @param {number} [overrideMode=0] By default this allows full override for existing keys.
+     * Option 1 will set the key only if it doesn't already exist. Option 2 will set it only if it already exists.
+     * @returns {Promise}
+     * @public
+     */
+    setJSON( key, value, path = "$", overrideMode = 0 ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( this.#isOperational === true ) {
+                if ( this.#redisClient.isJSONSupported ) {
+                    let commandArguments = [ redis.cacheCommands.JSON_SET, key, path, tools.stringifyJSON( value ) ];
+                    if ( overrideMode !== 0 ) {
+                        commandArguments.push( overrideMode === 1 ? redis.cacheOverrideMode.NX : redis.cacheOverrideMode.XX );
+                    }
+                    this.#redisClient.callCommand( commandArguments ).then( () => {
+                        resolve();
+                    } ).catch( ( error ) => {
+                        reject( error );
+                    } );
+                } else {
+                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED ), { details: "No RedisJSON module installed on server." } );
+                }
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
+        } );
+    }
+
+    /**
+     * Used to fetch a JSON variable.
+     * <br/>
+     * NOTE: Requires ReJSON module installed on server to work.
+     *
+     * @method
+     * @param {string} key
+     * @param {string} path
+     * @returns {Promise<Object>}
+     * @public
+     */
+    getJSON( key, path = "$" ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( this.#isOperational === true ) {
+                if ( this.#redisClient.isJSONSupported ) {
+                    let commandArguments = [ redis.cacheCommands.JSON_GET, key, path ];
+                    this.#redisClient.callCommand( commandArguments ).then( ( result ) => {
+                        resolve( tools.parseJSON( result ) );
+                    } ).catch( ( error ) => {
+                        reject( error );
+                    } );
+                } else {
+                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED ), { details: "No RedisJSON module installed on server." } );
+                }
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
+        } );
+    }
+
+    /**
+     * Used to add an item to a JSON array. That array needs to exist already.
+     * <br/>
+     * NOTE: Requires ReJSON module installed on server to work.
+     *
+     * @method
+     * @param {string} key
+     * @param {Object} value
+     * @param {string} path
+     * @returns {Promise}
+     * @public
+     */
+    arrayAppendJSON( key, value, path = "$" ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( this.#isOperational === true ) {
+                if ( this.#redisClient.isJSONSupported ) {
+                    let commandArguments = [ redis.cacheCommands.JSON_ARRAY_APPEND, key, path, tools.stringifyJSON( value ) ];
+                    this.#redisClient.callCommand( commandArguments ).then( () => {
+                        resolve();
+                    } ).catch( ( error ) => {
+                        reject( error );
+                    } );
+                } else {
+                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED ), { details: "No RedisJSON module installed on server." } );
+                }
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
+        } );
+    }
+
 }
 
 const instance = new CommonMemoryCache();
