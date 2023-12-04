@@ -42,6 +42,22 @@ module.exports.getSeverityName = ( severity ) => {
 };
 
 /**
+ * Used to extract information from an Exception and convert it to loggable data object.
+ *
+ * @method
+ * @param {Exception} exception
+ * @returns {{description, details: (*|undefined), exceptionID}}
+ * @private
+ */
+const exceptionToLog = ( exception ) => {
+    return {
+        exceptionID: exception.id,
+        description: exception.description,
+        details: !_.isEmpty( exception.data ) ? exception.data : undefined
+    };
+};
+
+/**
  * Used to generate and store a log entry in the active cache.
  *
  * @method
@@ -58,11 +74,9 @@ module.exports.log = ( message, level = logSeverityEnum.DEFAULT, data = {}, thre
     if ( data instanceof Error ) {
         data = tools.errorToJSON( data );
     } else if ( exceptions.isException( data ) ) {
-        data = {
-            id: data.id,
-            description: data.description,
-            details: !_.isEmpty( data.data ) ? data.data : undefined
-        };
+        data = exceptionToLog( data );
+    } else if ( data.exception !== undefined && exceptions.isException( data.exception ) ) {
+        data.exception = exceptionToLog( data.exception );
     }
 
     auditing.log( message, level, thread, data );

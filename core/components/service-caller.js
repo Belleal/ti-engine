@@ -20,7 +20,7 @@ const messageDispatcher = require( "#message-dispatcher" );
 
 /**
  * @typedef {Object} ServiceExecContext
- * @property {string} authToken A valid authentication token that initialized the service call.
+ * @property {string|undefined} authToken A valid authentication token that initialized the service call (if applicable).
  * @property {ServiceCallPredecessor|undefined} previousServiceCall The previous service call in the execution chain (if such exists).
  */
 
@@ -36,7 +36,7 @@ const messageDispatcher = require( "#message-dispatcher" );
  * @property {string} authToken A valid authentication token that initialized the service call.
  * @property {number} createdOn A unix timestamp taken at creation time of the service call.
  * @property {number} executionTime The total execution time of this service call in milliseconds.
- * @property {Object|undefined} exception If there was exception during the service call processing, it will be set here. Otherwise it will be 'undefined'.
+ * @property {Object|undefined} exception If there was exception during the service call processing, it will be set here. Otherwise, it will be 'undefined'.
  * @property {number|undefined} finishedOn A unix timestamp taken at finish time of the service call.
  * @property {boolean} isCompleted Flag to indicate if this service call has been completed.
  * @property {boolean|undefined} isSuccessful A flag indicating if this service call can be considered successful or not. Will be 'undefined' until the service call is processed.
@@ -45,9 +45,9 @@ const messageDispatcher = require( "#message-dispatcher" );
 
 /**
  * @typedef {Object} ServiceCallResult
- * @property {Object|undefined} exception If there was exception during the service call processing, it will be set here. Otherwise it will be 'undefined'.
+ * @property {Object|undefined} exception If there was exception during the service call processing, it will be set here. Otherwise, it will be 'undefined'.
  * @property {boolean} isSuccessful A flag indicating if this service call can be considered successful or not.
- * @property {Object|string|undefined} payload The payload containing the results from the service call processing. If string, it is ID of the payload in the memory cache instead.
+ * @property {Object|string|undefined} payload The payload containing the results from the service call processing. If string it is ID of the payload in the memory cache instead.
  */
 
 /**
@@ -78,7 +78,7 @@ class ServiceCaller extends MessageObserver {
     /**
      * Used to call a service in the service ecosystem asynchronously.
      * <br/>
-     * NOTE: This method will timeout after specific preconfigured time, in which case it will resolve with {@link E_COM_SERVICE_EXEC_TIMEOUT} error.
+     * NOTE: This method will time out after specific preconfigured time, in which case it will resolve with {@link E_COM_SERVICE_EXEC_TIMEOUT} error.
      *
      * @method
      * @param {ServiceAddress} serviceAddress The service address has to define a valid service domain name, service alias, and optionally a service version.

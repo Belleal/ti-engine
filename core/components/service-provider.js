@@ -13,7 +13,7 @@ const messageDispatcher = require( "#message-dispatcher" );
 /**
  * Abstract class used to define a Service Provider behavior.
  * <br/>
- * NOTE: Inherit this to create an a module that can be started as a microservice provider instance.
+ * NOTE: Inherit this to create a module that can be started as a microservice provider instance.
  * <br/>
  * NOTE: A service provider is a microservice that offers an API of named business services that can be invoked by other
  * microservices using {@link ServiceCall} objects. The provider will take care of the actual execution of that service and
@@ -28,6 +28,7 @@ const messageDispatcher = require( "#message-dispatcher" );
  */
 class ServiceProvider extends ServiceConsumer {
 
+    /** @type ServiceExecutor */
     #serviceExecutor;
 
     /**
@@ -104,7 +105,7 @@ class ServiceProvider extends ServiceConsumer {
     /**
      * Used to verify whether the service caller has authorization to access the service.
      * <br/>
-     * NOTE: Override this to implement authorization check. By default this method simply returns.
+     * NOTE: Override this to implement authorization check. By default, this method simply returns.
      *
      * @method
      * @param {string} authToken
@@ -124,7 +125,7 @@ class ServiceProvider extends ServiceConsumer {
      * keep in mind that your first param must always be the 'serviceDefinition' and the second one will be the general 'serviceParams' object.
      * <br/>
      * NOTE: Additionally, if you intend to call another service inside the service handler, then you have to use normal function for the handler and not
-     * an arrow function! Arrow functions cannot bind the scope of the parent class to themselves and you won't have access to it and its methods.
+     * an arrow function! Arrow functions cannot bind the scope of the parent class to themselves, and you won't have access to it and its methods.
      *
      * @method
      * @param {ServiceDefinition} serviceDefinition Full service definition object.
@@ -180,7 +181,7 @@ class ServiceProvider extends ServiceConsumer {
                 let promises = [];
                 _.forEach( serviceDefinitions, ( serviceDefinition ) => {
                     // NOTE: we are not going to interrupt the service interface loading if one of the services fails to load or is not found!
-                    // If this happens, a corresponding log entry will be created but the loading process will continue. Therefore the following
+                    // If this happens, a corresponding log entry will be created but the loading process will continue. Therefore, the following
                     // promise will always resolve (unless a programming error occurs in it of course).
                     let registrationPromise = ( serviceDefinition, defaultServiceHandler ) => {
                         return new Promise( ( resolve, reject ) => {
@@ -209,6 +210,17 @@ class ServiceProvider extends ServiceConsumer {
                 resolve();
             }
         } );
+    }
+
+    /**
+     * Used to get an ordered list of all currently registered services. This does not include the service versions.
+     *
+     * @method
+     * @returns {string[]}
+     * @public
+     */
+    getRegisteredServices() {
+        return _.sortBy( _.keys( this.#serviceExecutor.serviceInterface ) );
     }
 
 }

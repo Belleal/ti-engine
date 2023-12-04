@@ -20,6 +20,14 @@ const messageDispatcher = require( "#message-dispatcher" );
  */
 
 /**
+ * @typedef {Object.<string, ServiceInterfaceVersion>} ServiceInterface
+ */
+
+/**
+ * @typedef {Object.<number, ServiceHandlerMethod>} ServiceInterfaceVersion
+ */
+
+/**
  * @callback VerifyAccessMethod
  * @param {string} authToken
  * @param {ServiceAddress} serviceAddress
@@ -43,6 +51,7 @@ const messageDispatcher = require( "#message-dispatcher" );
  */
 class ServiceExecutor extends MessageObserver {
 
+    /** @type ServiceInterface */
     #serviceInterface = {};
     /** @type VerifyAccessMethod */
     #verifyAccess;
@@ -61,6 +70,15 @@ class ServiceExecutor extends MessageObserver {
     }
 
     /* Public interface */
+
+    /**
+     * Property returning the current service interface.
+     *
+     * @property
+     * @returns {ServiceInterface}
+     * @public
+     */
+    get serviceInterface() { return this.#serviceInterface; }
 
     /**
      *
@@ -117,7 +135,7 @@ class ServiceExecutor extends MessageObserver {
     }
 
     /**
-     * Used to setup the method for service access verification.
+     * Used to set up the method for service access verification.
      *
      * @method
      * @param {VerifyAccessMethod} verifyAccess

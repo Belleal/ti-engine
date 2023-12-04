@@ -21,6 +21,7 @@ const tools = require( "#tools" );
  * @property {EnvironmentVariable} env.TI_INSTANCE_ID
  * @property {EnvironmentVariable} env.TI_INSTANCE_NAME
  * @property {EnvironmentVariable} env.TI_AUDITING_LOG_CONSOLE_ENABLED
+ * @property {EnvironmentVariable} env.TI_AUDITING_LOG_DETAILS
  * @property {EnvironmentVariable} env.TI_AUDITING_LOG_MIN_LEVEL
  * @property {EnvironmentVariable} env.TI_AUDITING_LOG_USES_JSON
  * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_AUTH_KEY
@@ -134,8 +135,9 @@ const settings = require( "#settings" );
 
 // override remaining settings with ENV variables (if provided):
 if ( settings.auditing ) {
-    settings.auditing.logMinLevel = ( process.env.TI_AUDITING_LOG_MIN_LEVEL !== undefined ) ? process.env.TI_AUDITING_LOG_MIN_LEVEL : settings.auditing.logMinLevel;
     settings.auditing.logConsoleEnabled = ( process.env.TI_AUDITING_LOG_CONSOLE_ENABLED !== undefined ) ? tools.toBool( process.env.TI_AUDITING_LOG_CONSOLE_ENABLED ) : settings.auditing.logConsoleEnabled;
+    settings.auditing.logDetails = ( process.env.TI_AUDITING_LOG_DETAILS !== undefined ) ? tools.toBool( process.env.TI_AUDITING_LOG_DETAILS ) : settings.auditing.logDetails;
+    settings.auditing.logMinLevel = ( process.env.TI_AUDITING_LOG_MIN_LEVEL !== undefined ) ? process.env.TI_AUDITING_LOG_MIN_LEVEL : settings.auditing.logMinLevel;
     settings.auditing.logUsesJSON = ( process.env.TI_AUDITING_LOG_USES_JSON !== undefined ) ? tools.toBool( process.env.TI_AUDITING_LOG_USES_JSON ) : settings.auditing.logUsesJSON;
 }
 if ( settings.memoryCache ) {

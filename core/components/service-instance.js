@@ -13,9 +13,14 @@ const cache = require( "#cache" );
 const messageDispatcher = require( "#message-dispatcher" );
 
 /**
+ * @typedef {Object} ServiceConfiguration
+ * @property {ServiceDefinition[]} services A list of service definitions to be registered with the {@link ServiceProvider}.
+ */
+
+/**
  * Abstract class used to define a Service Instance behavior.
  * <br/>
- * NOTE: Inherit this to create an a module that can be started as a microservice instance.
+ * NOTE: Inherit this to create a module that can be started as a microservice instance.
  * <br/>
  * NOTE: This class does not
  *
@@ -27,6 +32,7 @@ class ServiceInstance {
 
     static #instanceID;
     static #serviceDomainName;
+    /** @type ServiceConfiguration */
     #serviceConfig;
     #serviceHealthCheck;
     #reportHealthyJob;
@@ -44,7 +50,7 @@ class ServiceInstance {
 
         ServiceInstance.#instanceID = process.env.TI_INSTANCE_ID || tools.getUUID();
         ServiceInstance.#serviceDomainName = serviceDomainName;
-        this.#serviceConfig = ( _.isObjectLike( serviceConfig ) ) ? serviceConfig : {};
+        this.#serviceConfig = ( _.isObjectLike( serviceConfig ) ) ? serviceConfig : { services: [] };
     }
 
     /* Public interface */
@@ -80,7 +86,7 @@ class ServiceInstance {
      * Property returning the service configuration JSON.
      *
      * @property
-     * @returns {Object}
+     * @returns {ServiceConfiguration}
      * @public
      */
     get serviceConfig() { return this.#serviceConfig; }

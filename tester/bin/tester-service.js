@@ -60,6 +60,7 @@ class TesterService extends ServiceProvider {
      * @public
      */
     verifyAccess( authToken, serviceAddress ) {
+        // for demo purposes accept any non-undefined value in the auth token in order to process the service call:
         if ( authToken ) {
             return Promise.resolve();
         } else {
@@ -76,32 +77,28 @@ class TesterService extends ServiceProvider {
      * @private
      */
     #executeTests() {
-        // execute service1 - simple service call
+        // execute "service1" - simple service call
         this.callService( {
-            serviceAlias: "service1",
-            serviceDomainName: "tester-service"
+            serviceAlias: this.getRegisteredServices()[ 0 ], // get the name of the first service - by default "service1"
+            serviceDomainName: ServiceProvider.serviceDomainName // get the name of own service domain - by default "ti-tester-service"
         }, {}, {
-            authToken: "auth"
+            authToken: "dummy-auth" // use a dummy non-undefined value for auth token as expected by method 'verifyAccess' above
         } ).then( ( result ) => {
             logger.log( "Execution of service1 result:", logger.logSeverity.NOTICE, result );
-            console.log( result );
         } ).catch( ( error ) => {
             logger.log( "Execution of service1 error result:", logger.logSeverity.ERROR, error );
-            console.error( error );
         } );
 
-        // execute service2 - 2-sequence service call
+        // execute "service2" - 2-sequence service call
         this.callService( {
-            serviceAlias: "service2",
-            serviceDomainName: "tester-service"
+            serviceAlias: this.getRegisteredServices()[ 1 ], // get the name of the second service - by default "service2"
+            serviceDomainName: ServiceProvider.serviceDomainName // get the name of own service domain - by default "ti-tester-service"
         }, {}, {
-            authToken: "auth"
+            authToken: "dummy-auth" // use a dummy non-undefined value for auth token as expected by method 'verifyAccess' above
         } ).then( ( result ) => {
             logger.log( "Execution of service2 result:", logger.logSeverity.NOTICE, result );
-            console.log( result );
         } ).catch( ( error ) => {
             logger.log( "Execution of service2 error result:", logger.logSeverity.ERROR, error );
-            console.error( error );
         } );
     }
 

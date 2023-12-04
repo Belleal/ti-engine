@@ -1,5 +1,14 @@
 # ti-engine changelog
 
+## Version 1.1.1
+
+* feat(config): add new ENV variable `TI_AUDITING_LOG_DETAILS` that controls the `auditing.logDetails` setting
+* feat(service provider): add a method that returns a list of the currently registered services
+* feat(tester service): improved the structure, configuration, and inline docs of tester service
+* fix(logger): fix the way Exception is logged when it's a part of the main logging data object
+* docs(readme): expanded the general documentation in `README.md` with a new section and improved many of the older sections
+* docs: improved some of the JSDoc definitions across the framework
+
 ## Version 1.1.0
 
 * feat(redis integration): implement better process for fetching and storing the remote Redis server settings and enabled features

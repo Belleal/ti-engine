@@ -1,3 +1,5 @@
+const ServiceProvider = require( "@ti-engine/core/service-provider" );
+
 /**
  * Test business service.
  * <br/>
@@ -15,10 +17,10 @@ module.exports.service = function ( serviceDefinition, serviceParams, serviceCal
     return new Promise( ( resolve, reject ) => {
         let s2TimestampStart = Date.now();
         this.callService( {
-            serviceAlias: "service1",
-            serviceDomainName: "tester-service"
+            serviceAlias: this.getRegisteredServices()[ 0 ], // get the name of the first service - by default "service1"
+            serviceDomainName: ServiceProvider.serviceDomainName // get the name of own service domain - by default "ti-tester-service"
         }, {}, {
-            authToken: serviceCallContext.authToken
+            authToken: serviceCallContext.authToken // reuse the provided auth token for the next service call
         } ).then( ( result ) => {
             if ( result.isSuccessful ) {
                 result = result.payload;
