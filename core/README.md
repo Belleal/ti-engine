@@ -6,10 +6,6 @@ Flexible framework for the creation of microservices with [node.js](https://node
 
 The **ti-engine** is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using **node.js**. The architectural concept of the framework is based on a standard _messaging system_ that allows for certain customization but also provides predictability and traceability of its behavior.
 
-Being a messaging system, the **ti-engine** relies on a message broker for the actual exchange of messages between microservice instances. The default implementation of the framework uses [Redis](https://redis.io/) cache, however, you could create your own implementation using something like [Rabbit MQ](https://www.rabbitmq.com/). See the [Advanced topics](#advanced-topics) section of this documentation for guides on how to do this.
-
-Please be aware, that this framework is under active development and will expand in the near future. Also, this documentation is still in the process of being created and refined. Make sure to keep an eye on the changes in case you want to use it in the meantime.
-
 ## Why ti-engine?
 
 The framework is created based on a decade of professional experience with the utilized technologies and architectural approach. It's primary goal is to provide you with a lightweight and flexible solution that can help you build quickly a microservice ecosystem with any degree of size and complexity.
@@ -24,6 +20,10 @@ This is what you gain by using **ti-engine** in your project:
 * Containerization - go with containers from the very start as the framework is designed to work in such an environment
 
 These are just some benefits **ti-engine** offers. Get to know it better to find out more ways in which it can help you improve productivity.
+
+## Overview
+
+Being a messaging system, the **ti-engine** relies on a message broker for the actual exchange of messages between microservice instances. The default implementation of the framework uses [Redis](https://redis.io/) cache, however, you could create your own implementation using something like [Rabbit MQ](https://www.rabbitmq.com/). See the [Advanced topics](#advanced-topics) section of this documentation for guides on how to do this.
 
 ## Prerequisites & installation
 
