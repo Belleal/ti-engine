@@ -1,5 +1,17 @@
 # ti-engine changelog
 
+## Version 1.1.2
+
+* feat(localization): add new functionality for localization based on labels and system language. It is currently utilized by the `exceptions` module for localizing the exception descriptions. The new `localization` module can also be accessed externally in the implementing application's files via standard import
+* feat(config): add new setting `localization.labelsPath` that specifies the file path for the localization labels
+* feat(config): add new setting `localization.language` that specifies the language to be used for the labels
+* feat(config): add new ENV variable `TI_LOCALIZATION_LABELS_PATH` that controls the `localization.labelsPath` setting
+* feat(config): add new ENV variable `TI_LOCALIZATION_LANGUAGE` that controls the `localization.language` setting
+* feat(logger): log exception label instead of system-level description
+* fix(start instance): fix the order of ENV loading in the `start-instance.js` script. It will now properly load the `.env` file first and then proceed with any configuration overrides in `config` module
+* fix(service provider): normalize service file paths on dynamic service handler loading
+* build(npm): update npm dependencies to their latest versions
+
 ## Version 1.1.1
 
 * feat(config): add new ENV variable `TI_AUDITING_LOG_DETAILS` that controls the `auditing.logDetails` setting

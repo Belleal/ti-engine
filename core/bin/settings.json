@@ -11,6 +11,10 @@
     "logName": "ti-engine",
     "projectID": ""
   },
+  "localization": {
+    "labelsPath": "../core/bin/localization/labels.json",
+    "language": "en"
+  },
   "memoryCache": {
     "authKey": null,
     "redisDB": 0,

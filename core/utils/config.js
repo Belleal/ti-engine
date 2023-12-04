@@ -24,6 +24,8 @@ const tools = require( "#tools" );
  * @property {EnvironmentVariable} env.TI_AUDITING_LOG_DETAILS
  * @property {EnvironmentVariable} env.TI_AUDITING_LOG_MIN_LEVEL
  * @property {EnvironmentVariable} env.TI_AUDITING_LOG_USES_JSON
+ * @property {EnvironmentVariable} env.TI_LOCALIZATION_LABELS_PATH
+ * @property {EnvironmentVariable} env.TI_LOCALIZATION_LANGUAGE
  * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_AUTH_KEY
  * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_REDIS_DB
  * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_REDIS_HOST
@@ -43,6 +45,7 @@ const tools = require( "#tools" );
  * @typedef {Object} SettingsMain
  * @property {SettingsAuditing} auditing
  * @property {SettingsGcloudIntegration} gcloudIntegration
+ * @property {SettingsLocalization} localization
  * @property {SettingsMemoryCache} memoryCache
  * @property {SettingsMessageExchange} messageExchange
  * @property {SettingsServiceConfig} serviceConfig
@@ -61,6 +64,12 @@ const tools = require( "#tools" );
  * @typedef {Object} SettingsGcloudIntegration
  * @property {string} apiKey
  * @property {string} projectID
+ */
+
+/**
+ * @typedef {Object} SettingsLocalization
+ * @property {string} labelsPath
+ * @property {string} language
  */
 
 /**
@@ -105,6 +114,8 @@ let settingsEnum = tools.enum( {
     AUDITING_LOG_USES_JSON: [ "auditing.logUsesJSON", "logUsesJSON", "" ],
     GCLOUD_API_KEY: [ "gcloudIntegration.apiKey", "apiKey", "" ],
     GCLOUD_PROJECT_ID: [ "gcloudIntegration.projectID", "projectID", "" ],
+    LOCALIZATION_LABELS_PATH: [ "localization.labelsPath", "labelsPath", "" ],
+    LOCALIZATION_LANGUAGE: [ "localization.language", "language", "" ],
     MEMORY_CACHE_AUTH_KEY: [ "memoryCache.authKey", "authKey", "" ],
     MEMORY_CACHE_REDIS_DB: [ "memoryCache.redisDB", "redisDB", "" ],
     MEMORY_CACHE_REDIS_HOST: [ "memoryCache.redisHost", "redisHost", "" ],
@@ -139,6 +150,10 @@ if ( settings.auditing ) {
     settings.auditing.logDetails = ( process.env.TI_AUDITING_LOG_DETAILS !== undefined ) ? tools.toBool( process.env.TI_AUDITING_LOG_DETAILS ) : settings.auditing.logDetails;
     settings.auditing.logMinLevel = ( process.env.TI_AUDITING_LOG_MIN_LEVEL !== undefined ) ? process.env.TI_AUDITING_LOG_MIN_LEVEL : settings.auditing.logMinLevel;
     settings.auditing.logUsesJSON = ( process.env.TI_AUDITING_LOG_USES_JSON !== undefined ) ? tools.toBool( process.env.TI_AUDITING_LOG_USES_JSON ) : settings.auditing.logUsesJSON;
+}
+if ( settings.localization ) {
+    settings.localization.labelsPath = ( process.env.TI_LOCALIZATION_LABELS_PATH !== undefined ) ? process.env.TI_LOCALIZATION_LABELS_PATH : settings.localization.labelsPath;
+    settings.localization.language = ( process.env.TI_LOCALIZATION_LANGUAGE !== undefined ) ? process.env.TI_LOCALIZATION_LANGUAGE : settings.localization.language;
 }
 if ( settings.memoryCache ) {
     settings.memoryCache.authKey = ( process.env.TI_MEMORY_CACHE_AUTH_KEY !== undefined ) ? process.env.TI_MEMORY_CACHE_AUTH_KEY : settings.memoryCache.authKey;

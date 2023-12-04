@@ -1,11 +1,12 @@
 {
   "name": "@ti-engine/core",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "ISC",
   "exports": {
     "./exceptions": "./utils/exceptions.js",
+    "./localization": "./utils/localization.js",
     "./logger": "./utils/logger.js",
     "./service-consumer": "./components/service-consumer.js",
     "./service-instance": "./components/service-instance.js",
@@ -22,6 +23,7 @@
     "#default-message-sender": "./components/exchange/default/default-message-sender.js",
     "#exceptions": "./utils/exceptions.js",
     "#gcloud-integration": "./integrations/gcloud-integration.js",
+    "#localization": "./utils/localization.js",
     "#logger": "./utils/logger.js",
     "#message-dispatcher": "./components/exchange/message-dispatcher.js",
     "#message-exchange": "./components/exchange/message-exchange.js",
@@ -43,7 +45,7 @@
   "dependencies": {
     "blake2": "^5.0.0",
     "dotenv": "^16.3.1",
-    "fs-extra": "^11.1.1",
+    "fs-extra": "^11.2.0",
     "lodash": "^4.17.21",
     "node-schedule": "^2.1.1",
     "ioredis": "^5.3.2"
@@ -54,7 +56,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Belleal/ti-engine.git"
+    "url": "git+https://github.com/Belleal/ti-engine.git"
   },
   "engines": {
     "node": ">=14.17.0"

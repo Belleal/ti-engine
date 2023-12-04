@@ -6,6 +6,7 @@
 const _ = require( "lodash" );
 const tools = require( "#tools" );
 const exceptions = require( "#exceptions" );
+const localization = require( "#localization" );
 
 /**
  * Enum for specifying the log entry severity. This is based on the Google Stackdriver severity levels.
@@ -52,7 +53,7 @@ module.exports.getSeverityName = ( severity ) => {
 const exceptionToLog = ( exception ) => {
     return {
         exceptionID: exception.id,
-        description: exception.description,
+        description: localization.getLabel( exception.label ),
         details: !_.isEmpty( exception.data ) ? exception.data : undefined
     };
 };

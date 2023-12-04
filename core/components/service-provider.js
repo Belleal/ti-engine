@@ -138,7 +138,7 @@ class ServiceProvider extends ServiceConsumer {
             /** @type {ServiceHandlerMethod} */
             let serviceHandler = null;
             if ( serviceDefinition.serviceFile ) {
-                let serviceFilePath = path.join( process.cwd(), serviceDefinition.serviceFile );
+                let serviceFilePath = path.normalize( path.join( process.cwd(), serviceDefinition.serviceFile ) );
                 try {
                     serviceHandler = require( serviceFilePath ).service;
                 } catch ( error ) {

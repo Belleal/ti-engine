@@ -7,11 +7,12 @@
 
 const _ = require( "lodash" );
 const path = require( "path" );
+
+// load any ENV variables defined in a .env file - before including any framework files:
+require( "dotenv" ).config( { path: path.join( process.cwd(), ".env" ) } );
+
 const tools = require( "#tools" );
 const logger = require( "#logger" );
-
-// load any ENV variables defined in a .env file:
-require( "dotenv" ).config( { path: path.join( process.cwd(), ".env" ) } );
 
 // configure the current instance variables before requiring any platform modules and store the necessary ones in memory cache:
 process.env.TI_INSTANCE_ID = "ti-" + tools.getUUID();
