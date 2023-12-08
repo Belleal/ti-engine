@@ -1,7 +1,10 @@
 /*
- * SPDX-FileCopyrightText: © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
- * SPDX-License-Identifier: ICU
- */
+ * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
+ * Copyright © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 
 const ServiceInstance = require( "#service-instance" );
 const exceptions = require( "#exceptions" );
@@ -10,7 +13,7 @@ const messageDispatcher = require( "#message-dispatcher" );
 /**
  * Abstract class used to define a Service Consumer behavior.
  * <br/>
- * NOTE: Inherit this to create an a module that can be started as a microservice consumer instance.
+ * NOTE: Inherit this to create a module that can be started as a microservice consumer instance.
  * <br/>
  * NOTE: A service consumer is a microservice that can invoke named business services in the APIs of other
  * microservices using {@link ServiceCall} objects. The consumer does not need to know the specifics of
@@ -91,6 +94,22 @@ class ServiceConsumer extends ServiceInstance {
                 reject( exceptions.raise( error ) );
             } );
         } );
+    }
+
+    /**
+     * Used to report health status of the service instance for external monitoring.
+     * This is a scheduled job that will be executed at SERVICE_HEALTH_CHECK_INTERVAL time.
+     * <br/>
+     * NOTE: By default this method will update a Redis key with an expiration timer. You can override this
+     * functionality with something custom like calling an HTTP endpoint.
+     *
+     * @method
+     * @override
+     * @virtual
+     * @public
+     */
+    reportHealthy() {
+        super.reportHealthy();
     }
 
     /**

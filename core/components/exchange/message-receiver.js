@@ -1,7 +1,10 @@
 /*
- * SPDX-FileCopyrightText: © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
- * SPDX-License-Identifier: ICU
- */
+ * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
+ * Copyright © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 
 const MessageHandler = require( "#message-handler" );
 const logger = require( "#logger" );
@@ -39,7 +42,7 @@ class MessageReceiver extends MessageHandler {
     /* Public interface */
 
     /**
-     * Property returning the configured receive queue.
+     * Property returning the configured receiving queue.
      *
      * @property
      * @returns {string}
@@ -62,7 +65,7 @@ class MessageReceiver extends MessageHandler {
     }
 
     /**
-     * Used to shutdown and disable the communication behavior of the handler.
+     * Used to shut down and disable the communication behavior of the handler.
      * <br/>
      * NOTE: Override this to add functionality.
      *

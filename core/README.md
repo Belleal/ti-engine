@@ -226,9 +226,10 @@ You can find the full list of available ENV variables and what they do below in 
 
 #### Application specific files
 
-Now let's look inside the `bin` folder. The two files there are the ones specified in the `.env` file. The `tester-service.js` contains the implementation of the `ServiceProvider` class. It has just three methods that contain its behavior:
+Now let's look inside the `bin` folder. The two files there are the ones specified in the `.env` file. The `tester-service.js` contains the implementation of the `ServiceProvider` class. It has just a few methods that contain its behavior:
 
 * Method `onStart` overrides the base one from the parent class and is invoked automatically by the framework once initialization of the microservice is complete. In this case the method invokes the execution of the test sequence just once and then the microservice remains dormant but active.
+* Method `reportHealthy` overrides but essentially just calls the same base method. Its only purpose here is to draw your attention to its existence and the possibility to implement your own health status reporting functionality if you want.
 * Method `verifyAccess` also overrides the base method and shows a very basic example of how to implement user access verification on business service level. Each time a service in the `ti-tester-service` is called, the framework will trigger this method and will only allow processing if there is a non-undefined value inside the `authToken` variable.
 * Method `#executeTests` is a custom private method that contains the test sequence itself. It is called by the `onStart` method just once per microservice start. Inside you can see two examples of calling a business service—in both cases the tester microservice is calling itself. In more practical situation, however, these calls would be directed towards other service domains.
 

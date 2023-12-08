@@ -1,5 +1,13 @@
 # ti-engine changelog
 
+## Version 1.1.5
+
+* fix(service instance): add overrides of the `reportHealthy` method in `ServiceConsumer` and `ServiceProvider` classes
+* fix(tester): implement `reportHealthy` method
+* docs(license): add a `LICENSE` file
+* docs(license): change all licensing information in source files to GNU 3.0
+* docs: improve the information in `README.md` file
+
 ## Version 1.1.4
 
 * feat(service instance): expose method `reportHealthy` and mark it as virtual to allow for overrides with custom health status reporting logic
