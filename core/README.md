@@ -21,18 +21,21 @@ This is what you gain by using **ti-engine** in your project:
 
 These are just some benefits **ti-engine** offers. Get to know it better to find out more ways in which it can help you improve productivity.
 
-## Overview
-
-Being a messaging system, the **ti-engine** relies on a message broker for the actual exchange of messages between microservice instances. The default implementation of the framework uses [Redis](https://redis.io/) cache, however, you could create your own implementation using something like [Rabbit MQ](https://www.rabbitmq.com/). See the [Advanced topics](#advanced-topics) section of this documentation for guides on how to do this.
-
 ## Prerequisites & installation
+
+Being a messaging system, the **ti-engine** relies on a message broker for the actual exchange of messages between microservice instances. The default implementation of the framework uses [Redis](https://redis.io/) cache, however, you could create your own implementation using something like [Rabbit MQ](https://www.rabbitmq.com/). See the [Advanced topics](#advanced-topics) section of this documentation for guides on how to do this. For now let's focus on the default setup.
 
 In order to run the basic ti-engine framework you will need a couple of things:
 
 * A local [node.js installation](https://nodejs.org/en/download/) with a minimum version of **14.17.0**
 * A local or remote [Redis cache installation](https://redis.io/download) with a minimum version of **5.0.14**
 
-If you are working under Windows 10+ OS and you need to install Redis, take a look at this [guide](https://redis.com/blog/redis-on-windows-10/). You could also use [Redis Cloud](https://app.redislabs.com/) for development purposes as it offers free basic account.
+If you are working under Windows 10+ OS and you need to install Redis, take a look at this [guide](https://redis.com/blog/redis-on-windows-10/). You could also use [Redis Cloud](https://app.redislabs.com/) for development purposes as it offers free basic account. You can configure your connection to remote Redis server using the following ENV variables:
+
+* `TI_MEMORY_CACHE_AUTH_KEY` can be used to provide the Redis password if there is any at all.
+* `TI_MEMORY_CACHE_REDIS_DB` can be used to specify the Redis DB you want to use. Make sure to set the correct number as for example Redis Cloud only uses DB `0`.
+* `TI_MEMORY_CACHE_REDIS_HOST` can be used to provide the remote host. This can be an IP or URL depending on your setup.
+* `TI_MEMORY_CACHE_REDIS_PORT` can be used to provide the remote port. By default, Redis uses `6379` however many implementations might use a custom port that needs to be specified in the connection settings.
 
 To get the framework itself, use the command `npm install @ti-engine/core`. And to include it directly in your package.json dependencies execute `npm install @ti-engine/core --save-prod`.
 
@@ -330,11 +333,132 @@ Now without exiting this node process let's start the original tester microservi
 
 This means the service call processing was successful and result was returned to `my-service`. Because we made the receiving of the result blocking and part of the initialization sequence, the new microservice did not report successful startup until it received that response from `ti-tester-service`.
 
-And with this we are ready. The new microservice is now operational. You can continue to tweak and play with it in order to understand better how it all works. For more details on the **ti-engine** inner working please see the following sections.
+And with this step we are done. The new microservice is now operational. You can continue to tweak and play with it in order to understand better how it all works. For more details on the **ti-engine** inner working please see the following sections.
 
 ## Using the framework
 
-Under development...
+### Framework settings
+
+Here you can find all settings used by **ti-engine** together with information on what they do. They are defined inside the `config` module and the full list can be accessed through the public `setting` enum. To get the current value of a setting, you can use the public method `getSetting` from the same module. Some settings can be overridden by providing ENV variables as specified below at node application start up.
+
+AUDITING_LOG_CONSOLE_ENABLED
+: JSON path `auditing.logConsoleEnabled`, type `boolean`, default `true`
+: ENV variable `TI_AUDITING_LOG_CONSOLE_ENABLED`
+: This setting controls whether the `auditing` module will send the log entries to the OS console or not. In some cases, like Cloud environments, you might want to disable this, especially if the OS console is not made available. This functions independently of other logging outputs like for example GCloud error reporting.
+
+AUDITING_LOG_DETAILS
+: JSON path `auditing.logDetails`, type `boolean`, default `true`
+: ENV variable `TI_AUDITING_LOG_DETAILS`
+: This setting controls whether the `auditing` module will include the log entry details (located in the `data` property) in the final log output. You might want to disable this if you want a leaner log output or the log entry details are not something you plan to use for analysis later.
+
+AUDITING_LOG_MIN_LEVEL
+: JSON path `auditing.logMinLevel`, type `number`, default `0`
+: ENV variable `TI_AUDITING_LOG_MIN_LEVEL`
+: This setting controls the minimum log severity level that the framework will log in the log output. You can and should set this to `200` (INFO) for production environments in order to filter out the DEBUG and the low-level DEFAULT entries.
+
+AUDITING_LOG_USES_JSON
+: JSON path `auditing.logUsesJSON`, type `boolean`, default `false`
+: ENV variable `TI_AUDITING_LOG_USES_JSON`
+: This setting controls whether the log entries would be sent to output formatted as JSONs or not. By default, the framework outputs log entries as prettified text. In some cases however you might want to have the entire entry as a JSON for further processing (for example if you're sending all logs to Elasticsearch).
+
+GCLOUD_API_KEY (Alpha)
+: JSON path `gcloudIntegration.apiKey`
+: This setting holds the API key for the GCloud integration module.
+
+GCLOUD_PROJECT_ID (Alpha)
+: JSON path `gcloudIntegration.projectID`
+: This setting holds the project ID for the GCloud integration module.
+
+LOCALIZATION_LABELS_PATH
+: JSON path `localization.labelsPath`, type `string`, default `../core/bin/localization/labels.json`
+: ENV variable `TI_LOCALIZATION_LABELS_PATH`
+: This setting holds the file system path to the `.json` file containing the localization information. By default, the framework provides such a file with english texts that can be customized further. Alternatively, you can provide your own file from a different location, but it still has to follow the rules of the `localization` module.
+
+LOCALIZATION_LANGUAGE
+: JSON path `localization.language`, type `string`, default `en`
+: ENV variable `TI_LOCALIZATION_LANGUAGE`
+: This setting specifies the default framework language. It will be used when translating labels into a localized text.
+
+MEMORY_CACHE_AUTH_KEY
+: JSON path `memoryCache.authKey`, type `string`, default `undefined`
+: ENV variable `TI_MEMORY_CACHE_AUTH_KEY`
+: This setting holds the Redis password for accessing the Redis server if such password is required.
+
+MEMORY_CACHE_REDIS_DB
+: JSON path `memoryCache.redisDB`, type `number`, default `0`
+: ENV variable `TI_MEMORY_CACHE_REDIS_DB`
+: This setting specifies the Redis DB to be used for all operations. When setting this make sure that the Redis server actually supports multiple DBs (for example Redis Cloud has only one DB with ID `0`).
+
+MEMORY_CACHE_REDIS_HOST
+: JSON path `memoryCache.redisHost`, type `string`, default `127.0.0.1`
+: ENV variable `TI_MEMORY_CACHE_REDIS_HOST`
+: This setting holds the Redis server hostname. It can be an IP or URL depending on your configuration.
+
+MEMORY_CACHE_REDIS_PORT
+: JSON path `memoryCache.redisPort`, type `number`, default `6379`
+: ENV variable `TI_MEMORY_CACHE_REDIS_PORT`
+: This setting holds the Redis server port.
+
+MEMORY_CACHE_USER
+: JSON path `memoryCache.user`, type `string`, default `default`
+: ENV variable `TI_MEMORY_CACHE_USER`
+: This setting holds the Redis username for accessing the Redis server if this is supported by the Redis version (it will be ignored otherwise).
+
+MESSAGE_EXCHANGE_QUEUE_PREFIX (Advanced)
+: JSON path `messageExchange.messageQueuePrefix`, type `string`, default `ti:messages:`
+: This setting holds the Redis key prefix for the queues that will hold the messages of the message exchange. This is not something you should modify unless you are making a customized implementation of the tier 1 architectural layer.
+
+MESSAGE_EXCHANGE_MESSAGE_STORE (Advanced)
+: JSON path `messageExchange.messageStore`, type `string`, default `ti:messages:store`
+: This setting holds the Redis key name of the hash table that will hold the message payloads of the message exchange. This is not something you should modify unless you are making a customized implementation of the tier 1 architectural layer.
+
+MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED (Advanced)
+: JSON path `messageExchange.securityHashEnabled`, type `boolean`, default `true`
+: ENV variable `TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED`
+: This setting controls whether the message exchange will use a control hash mechanism to ensure there is no tampering with the messages in between service calls. In most cases you would want to keep this enabled since it ensures the integrity of your data. If you are concerned about performance (hashing with `blake2` is very fast, but it still eats some milliseconds) you might want to try and disable this to see if it makes any notable difference.
+
+MESSAGE_EXCHANGE_SECURITY_HASH_KEY (Advanced)
+: JSON path `messageExchange.securityHashKey`, type `string`, default `random uuid`
+: ENV variable `TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY`
+: This setting holds the encryption key used by the message exchange control hash mechanism. By default, this has a random uuid value that can be used for development purposes only. For production environments you absolutely must provide your own encryption key via the ENV variable. Depending on your configuration and infrastructure it might come from a secure storage, HSM, key vault, etc.
+
+MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME
+: JSON path `messageExchange.traceExpirationTime`, type `number`, default `3600`
+: This setting specifies the expiration time in seconds of the Redis key that will hold the message trace entries. Set this to `0` to disable expiration altogether.
+
+MESSAGE_EXCHANGE_TRACE_LOG_ENABLED
+: JSON path `messageExchange.traceLogEnabled`, type `boolean`, default `false`
+: ENV variable `TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED`
+: This setting controls whether the `auditing` module should output all trace messages as normal log entries or not. Normally, you don't want that since it will clutter the standard log quite a lot. All traces go their own storage and can be reviewed and processed separately from the log entries. In some cases, however, as in debugging, enabling this can help you identify hard to track problem.
+
+MESSAGE_EXCHANGE_TRACE_REPOSITORY (Advanced)
+: JSON path `messageExchange.traceRepository`, type `string`, default `ti:messages:trace`
+: This setting holds the Redis key name for the message trace cache storage. This is not something you should modify unless you are making a customized implementation of the tier 1 architectural layer.
+
+SERVICE_EXECUTION_TIMEOUT
+: JSON path `serviceConfig.executionTimeout`, type `number`, default `180000`
+: This setting specifies the timeout in milliseconds of the service call executions at tier 2 of the architecture. Any service call that hasn't received response within this time will interrupt the wait and raise an `E_COM_SERVICE_EXEC_TIMEOUT` exception. Please keep in mind that reaching the timeout does not mean the remote service did not process the request. You might want to tweak this setting if you have many time-consuming operations in business services, or you plan to integrate with slow APIs.
+
+SERVICE_HEALTH_CHECK_ADDRESS (Advanced)
+: JSON path `serviceConfig.healthCheckAddress`, type `string`, default `ti:services:registry:health:`
+: This setting specifies the address of the health check report endpoint for the microservice. In the default implementation this is a prefix for a Redis key that gets updated once at every `SERVICE_HEALTH_CHECK_INTERVAL`. If you override the `reportHealthy` method of the microservice, this setting can contain a URL or another type of destination that can be used by your custom implementation.
+
+SERVICE_HEALTH_CHECK_INTERVAL (Advanced)
+: JSON path `serviceConfig.healthCheckInterval`, type `CRON string`, default `*/1 * * * * *`
+: This setting specifies the health check report interval at which the endpoint in `SERVICE_HEALTH_CHECK_ADDRESS` is notified.
+
+SERVICE_HEALTH_CHECK_TIMEOUT (Advanced)
+: JSON path `serviceConfig.healthCheckTimeout`, type `number`, default `3`
+: This setting specifies the timeout in seconds after which a microservice is no longer considered healthy. In the default implementation this represents an expiration parameter to the Redis key defined in `SERVICE_HEALTH_CHECK_ADDRESS`. Essentially, if the microservice does not update the Redis key within this time interval, it will expire and the monitoring application will lose the healthy status of the microservice. If you override the `reportHealthy` method of the microservice, this setting can be used for your custom implementation as needed.
+
+SERVICE_REGISTRY_ADDRESS (Advanced)
+: JSON path `serviceConfig.serviceRegistryAddress`, type `string`, default `ti:services:registry:catalog:`
+: This setting holds the prefix of the Redis key name used as business service registry. If the microservice is a `ServiceProvider`, on start up it will register its business service portfolio in that Redis set. Also, on each service call that same registry will be searched for the existence of the called business service. This is not something you should modify unless you are making a customized implementation of the tier 1 architectural layer.
+
+OPERATION_MODE
+: JSON path `operationMode`, type `string`, default `production`
+: ENV variable `NODE_ENV`
+: This setting holds the current operation mode of the node application. It will inherit the value from the `NODE_ENV` variable if it exists, otherwise will use its default.
 
 ## Advanced topics
 

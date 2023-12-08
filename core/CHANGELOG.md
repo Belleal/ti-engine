@@ -1,5 +1,12 @@
 # ti-engine changelog
 
+## Version 1.1.3
+
+* feat(config)!: removed ENV variable `TI_OPERATION_MODE` as it was duplicating the practical purpose of `NODE_ENV`
+* feat(config)!: setting `OPERATION_MODE` is now initialized by the `NODE_ENV` ENV variable (if provided)
+* feat(service instance): show application operation mode in log at successful startup
+* docs: add more sections and information in `README.md`
+
 ## Version 1.1.2
 
 * feat(localization): add new functionality for localization based on labels and system language. It is currently utilized by the `exceptions` module for localizing the exception descriptions. The new `localization` module can also be accessed externally in the implementing application's files via standard import

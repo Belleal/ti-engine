@@ -34,7 +34,6 @@ const tools = require( "#tools" );
  * @property {EnvironmentVariable} env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED
  * @property {EnvironmentVariable} env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY
  * @property {EnvironmentVariable} env.TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED
- * @property {EnvironmentVariable} env.TI_OPERATION_MODE
  */
 
 /**
@@ -174,7 +173,7 @@ if ( process.env.TI_GCLOUD_ENABLED === true && settings.gcloudIntegration ) {
     settings.gcloudIntegration.projectID = ( process.env.TI_GCLOUD_PROJECT_ID !== undefined ) ? process.env.TI_GCLOUD_PROJECT_ID : settings.gcloudIntegration.projectID;
 }
 
-settings.operationMode = process.env.TI_OPERATION_MODE || settings.operationMode;
+settings.operationMode = process.env.NODE_ENV || settings.operationMode;
 
 // prevent further modifications to the settings object:
 Object.freeze( settings );

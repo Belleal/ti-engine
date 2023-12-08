@@ -75,13 +75,14 @@ process.on( "uncaughtException", ( error ) => {
 try {
     logger.log( `Starting new instance of type '${ process.env.TI_INSTANCE_NAME }' with instance ID '${ process.env.TI_INSTANCE_ID }'.`, logger.logSeverity.NOTICE );
 
-    /** @type ServiceInstance */
     const serviceConstructor = require( path.join( process.cwd(), process.env.TI_INSTANCE_CLASS ) );
     const serviceConfigPath = process.env.TI_INSTANCE_CONFIG;
+    /** @type ServiceConfiguration */
     let serviceConfig = {};
     if ( serviceConfigPath ) {
         serviceConfig = require( path.join( process.cwd(), process.env.TI_INSTANCE_CONFIG ) );
     }
+    /** @type ServiceInstance */
     const mainInstance = new serviceConstructor( process.env.TI_INSTANCE_NAME, serviceConfig );
 
     /** @override */

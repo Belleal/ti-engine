@@ -225,7 +225,8 @@ class ServiceInstance {
             } );
 
             logger.log( `Instance '${ ServiceInstance.instanceID }' started successfully.`, logger.logSeverity.NOTICE, {
-                nodeVersion: process.version
+                nodeVersion: process.version,
+                operationMode: config.getSetting( config.setting.OPERATION_MODE )
             } );
 
             resolve();
