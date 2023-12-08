@@ -11,12 +11,12 @@ const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 
 /**
- * A tester microservice.
+ * A tester microservice for the ti-engine.
  *
- * @class TesterService
+ * @class TiTesterService
  * @public
  */
-class TesterService extends ServiceProvider {
+class TiTesterService extends ServiceProvider {
 
     /**
      * @constructor
@@ -119,4 +119,4 @@ class TesterService extends ServiceProvider {
 
 }
 
-module.exports = TesterService;
+module.exports = TiTesterService;
