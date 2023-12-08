@@ -1,5 +1,9 @@
 # ti-engine changelog
 
+## Version 1.1.4
+
+* feat(service instance): expose method `reportHealthy` and mark it as virtual to allow for overrides with custom health status reporting logic
+
 ## Version 1.1.3
 
 * feat(config)!: removed ENV variable `TI_OPERATION_MODE` as it was duplicating the practical purpose of `NODE_ENV`

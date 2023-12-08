@@ -190,6 +190,26 @@ class ServiceInstance {
         } );
     }
 
+    /**
+     * Used to report health status of the service instance for external monitoring.
+     * This is a scheduled job that will be executed at SERVICE_HEALTH_CHECK_INTERVAL time.
+     * <br/>
+     * NOTE: By default this method will update a Redis key with an expiration timer. You can override this
+     * functionality with something custom like calling an HTTP endpoint.
+     *
+     * @method
+     * @virtual
+     * @public
+     */
+    reportHealthy() {
+        if ( cache.isOperational ) {
+            let timestamp = new Date();
+            cache.setValue( this.#serviceHealthCheck, timestamp.toISOString(), config.getSetting( config.setting.SERVICE_HEALTH_CHECK_TIMEOUT ) ).catch( ( error ) => {
+                logger.log( `Error while trying to report for health check from '${ ServiceInstance.instanceID }'!`, logger.logSeverity.WARNING, error );
+            } );
+        }
+    }
+
     /* Private interface */
 
     /**
@@ -221,7 +241,7 @@ class ServiceInstance {
         return new Promise( ( resolve, reject ) => {
             // schedule regular health check:
             this.#reportHealthyJob = schedule.scheduleJob( config.getSetting( config.setting.SERVICE_HEALTH_CHECK_INTERVAL ), () => {
-                this.#reportHealthy();
+                this.reportHealthy();
             } );
 
             logger.log( `Instance '${ ServiceInstance.instanceID }' started successfully.`, logger.logSeverity.NOTICE, {
@@ -267,21 +287,6 @@ class ServiceInstance {
 
             resolve();
         } );
-    }
-
-    /**
-     * Scheduled job used to report for service instance health checks.
-     *
-     * @method
-     * @private
-     */
-    #reportHealthy() {
-        if ( cache.isOperational ) {
-            let timestamp = new Date();
-            cache.setValue( this.#serviceHealthCheck, timestamp.toISOString(), config.getSetting( config.setting.SERVICE_HEALTH_CHECK_TIMEOUT ) ).catch( ( error ) => {
-                logger.log( `Error while trying to report for health check from '${ ServiceInstance.instanceID }'!`, logger.logSeverity.WARNING, error );
-            } );
-        }
     }
 
 }
