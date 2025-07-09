@@ -44,7 +44,7 @@
   },
   "dependencies": {
     "blake2": "^5.0.0",
-    "dotenv": "^16.3.1",
+    "dotenv": "^17.2.0",
     "fs-extra": "^11.2.0",
     "lodash": "^4.17.21",
     "node-schedule": "^2.1.1",
