@@ -20,27 +20,27 @@ const _ = require( "lodash" );
  * @enum {string}
  */
 let cacheCommandsEnum = tools.enum( {
-    ADD_TO_SET: [ "sadd", "add to set", "https://redis.io/commands/sadd" ],
-    DELETE_VALUE: [ "del", "delete value", "https://redis.io/commands/del" ],
-    EXPIRE: [ "expire", "expire", "https://redis.io/commands/expire" ],
-    GET_ALL_FROM_SET: [ "smembers", "get all set members", "https://redis.io/commands/smembers" ],
-    GET_VALUE: [ "get", "get value", "https://redis.io/commands/get" ],
-    HASH_GET: [ "hget", "hash get", "https://redis.io/commands/hget" ],
-    HASH_GET_ALL: [ "hgetall", "hash get all", "https://redis.io/commands/hgetall" ],
-    HASH_REMOVE: [ "hdel", "hash remove", "https://redis.io/commands/hdel" ],
-    HASH_SET: [ "hset", "", "https://redis.io/commands/hset" ],
-    HASH_SET_MANY: [ "hmset", "(deprecated) use HSET with multiple fields", "https://redis.io/commands/hset" ],
-    IS_SET_MEMBER: [ "sismember", "", "https://redis.io/commands/sismember" ],
-    JSON_ARRAY_APPEND: [ "json.arrappend", "", "https://redis.io/commands/json.arrappend" ],
-    JSON_GET: [ "json.get", "", "https://redis.io/commands/json.get" ],
-    JSON_SET: [ "json.set", "", "https://redis.io/commands/json.set" ],
-    KEYS: [ "keys", "(warning: O(N), use SCAN where possible)", "https://redis.io/commands/keys" ],
-    LIST_PUSH: [ "lpush", "list push", "https://redis.io/commands/lpush" ],
-    LIST_POP_TAIL_BLOCKING: [ "brpop", "list pop tail blocking", "https://redis.io/commands/brpop" ],
-    LIST_POP_TAIL_PUSH_HEAD_BLOCKING: [ "brpoplpush", "list pop tail push head blocking", "https://redis.io/commands/brpoplpush" ],
-    LIST_REMOVE: [ "lrem", "list remove", "https://redis.io/commands/lrem" ],
-    SET_VALUE: [ "set", "set value", "https://redis.io/commands/set" ],
-    UNION_OF_SETS: [ "sunion", "union of sets", "https://redis.io/commands/sunion" ]
+    ADD_TO_SET: [ "sadd", "add to set", "https://redis.io/docs/latest/commands/sadd/" ],
+    DELETE_VALUE: [ "del", "delete value", "https://redis.io/docs/latest/commands/del/" ],
+    EXPIRE: [ "expire", "expire", "https://redis.io/docs/latest/commands/expire/" ],
+    GET_ALL_FROM_SET: [ "smembers", "get all set members", "https://redis.io/docs/latest/commands/smembers/" ],
+    GET_VALUE: [ "get", "get value", "https://redis.io/docs/latest/commands/get/" ],
+    HASH_GET: [ "hget", "hash get", "https://redis.io/docs/latest/commands/hget/" ],
+    HASH_GET_ALL: [ "hgetall", "hash get all", "https://redis.io/docs/latest/commands/hgetall/" ],
+    HASH_REMOVE: [ "hdel", "hash remove", "https://redis.io/docs/latest/commands/hdel/" ],
+    HASH_SET: [ "hset", "", "https://redis.io/docs/latest/commands/hset/" ],
+    HASH_SET_MANY: [ "hmset", "(deprecated) use HSET with multiple fields", "https://redis.io/docs/latest/commands/hmset/" ],
+    IS_SET_MEMBER: [ "sismember", "", "https://redis.io/docs/latest/commands/sismember/" ],
+    JSON_ARRAY_APPEND: [ "json.arrappend", "", "https://redis.io/docs/latest/commands/json.arrappend/" ],
+    JSON_GET: [ "json.get", "", "https://redis.io/docs/latest/commands/json.get/" ],
+    JSON_SET: [ "json.set", "", "https://redis.io/docs/latest/commands/json.set/" ],
+    KEYS: [ "keys", "(warning: O(N), use SCAN where possible)", "https://redis.io/docs/latest/commands/keys/" ],
+    LIST_PUSH: [ "lpush", "list push", "https://redis.io/docs/latest/commands/lpush/" ],
+    LIST_POP_TAIL_BLOCKING: [ "brpop", "list pop tail blocking", "https://redis.io/docs/latest/commands/brpop/" ],
+    LIST_POP_TAIL_PUSH_HEAD_BLOCKING: [ "brpoplpush", "list pop tail push head blocking", "https://redis.io/docs/latest/commands/brpoplpush/" ],
+    LIST_REMOVE: [ "lrem", "list remove", "https://redis.io/docs/latest/commands/lrem/" ],
+    SET_VALUE: [ "set", "set value", "https://redis.io/docs/latest/commands/set/" ],
+    UNION_OF_SETS: [ "sunion", "union of sets", "https://redis.io/docs/latest/commands/sunion/" ]
 } );
 
 /**

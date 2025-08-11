@@ -95,7 +95,9 @@ class MessageExchange extends MessageObserver {
      * @returns {string}
      * @public
      */
-    static get connectionNameRequestsOut() { return this.#connectionNameRequestsOut; }
+    static get connectionNameRequestsOut() {
+        return this.#connectionNameRequestsOut;
+    }
 
     /**
      * Used to set the connection name for the outgoing message requests.
@@ -104,7 +106,9 @@ class MessageExchange extends MessageObserver {
      * @param {string} value
      * @public
      */
-    static set connectionNameRequestsOut( value ) { this.#connectionNameRequestsOut = value; }
+    static set connectionNameRequestsOut( value ) {
+        this.#connectionNameRequestsOut = value;
+    }
 
     /**
      * Property returning the configured connection name for the incoming message requests.
@@ -113,7 +117,9 @@ class MessageExchange extends MessageObserver {
      * @returns {string}
      * @public
      */
-    static get connectionNameRequestsIn() { return this.#connectionNameRequestsIn; }
+    static get connectionNameRequestsIn() {
+        return this.#connectionNameRequestsIn;
+    }
 
     /**
      * Used to set the connection name for the incoming message requests.
@@ -122,7 +128,9 @@ class MessageExchange extends MessageObserver {
      * @param {string} value
      * @public
      */
-    static set connectionNameRequestsIn( value ) { this.#connectionNameRequestsIn = value; }
+    static set connectionNameRequestsIn( value ) {
+        this.#connectionNameRequestsIn = value;
+    }
 
     /**
      * Property returning the configured connection name for the outgoing message responses.
@@ -131,7 +139,9 @@ class MessageExchange extends MessageObserver {
      * @returns {string}
      * @public
      */
-    static get connectionNameResponsesOut() { return this.#connectionNameResponsesOut; }
+    static get connectionNameResponsesOut() {
+        return this.#connectionNameResponsesOut;
+    }
 
     /**
      * Used to set the connection name for the outgoing message responses.
@@ -140,7 +150,9 @@ class MessageExchange extends MessageObserver {
      * @param {string} value
      * @public
      */
-    static set connectionNameResponsesOut( value ) { this.#connectionNameResponsesOut = value; }
+    static set connectionNameResponsesOut( value ) {
+        this.#connectionNameResponsesOut = value;
+    }
 
     /**
      * Property returning the configured connection name for the incoming message responses.
@@ -149,7 +161,9 @@ class MessageExchange extends MessageObserver {
      * @returns {string}
      * @public
      */
-    static get connectionNameResponsesIn() { return this.#connectionNameResponsesIn; }
+    static get connectionNameResponsesIn() {
+        return this.#connectionNameResponsesIn;
+    }
 
     /**
      * Used to set the connection name for the incoming message responses.
@@ -158,7 +172,9 @@ class MessageExchange extends MessageObserver {
      * @param {string} value
      * @public
      */
-    static set connectionNameResponsesIn( value ) { this.#connectionNameResponsesIn = value; }
+    static set connectionNameResponsesIn( value ) {
+        this.#connectionNameResponsesIn = value;
+    }
 
     /**
      * Property returning the identifier of the pending messages queue.
@@ -167,7 +183,9 @@ class MessageExchange extends MessageObserver {
      * @returns {string}
      * @public
      */
-    static get pendingQueue() { return "pending:"; }
+    static get pendingQueue() {
+        return "pending:";
+    }
 
     /**
      * Property returning the identifier of the processed messages queue.
@@ -176,7 +194,9 @@ class MessageExchange extends MessageObserver {
      * @returns {string}
      * @public
      */
-    static get processedQueue() { return "processed:"; }
+    static get processedQueue() {
+        return "processed:";
+    }
 
     /**
      * Property returning the configured service instance ID.
@@ -185,7 +205,9 @@ class MessageExchange extends MessageObserver {
      * @returns {string}
      * @public
      */
-    get instanceID() { return this.#instanceID; }
+    get instanceID() {
+        return this.#instanceID;
+    }
 
     /**
      * Property returning the configured service domain name.
@@ -194,7 +216,9 @@ class MessageExchange extends MessageObserver {
      * @returns {string}
      * @public
      */
-    get serviceDomainName() { return this.#serviceDomainName; }
+    get serviceDomainName() {
+        return this.#serviceDomainName;
+    }
 
     /**
      * Returns the currently configured {@link MessageSender} for outbound message requests.
@@ -203,7 +227,9 @@ class MessageExchange extends MessageObserver {
      * @returns {MessageSender}
      * @public
      */
-    get messageRequestsOut() { return this.#messageRequestsOut; }
+    get messageRequestsOut() {
+        return this.#messageRequestsOut;
+    }
 
     /**
      * Returns the currently configured {@link MessageSender} for outbound message responses.
@@ -212,7 +238,9 @@ class MessageExchange extends MessageObserver {
      * @returns {MessageSender}
      * @public
      */
-    get messageResponsesOut() { return this.#messageResponsesOut; }
+    get messageResponsesOut() {
+        return this.#messageResponsesOut;
+    }
 
     /**
      * Returns the currently configured {@link MessageReceiver} for inbound message requests.
@@ -221,7 +249,9 @@ class MessageExchange extends MessageObserver {
      * @returns {MessageReceiver}
      * @public
      */
-    get messageRequestsIn() { return this.#messageRequestsIn; }
+    get messageRequestsIn() {
+        return this.#messageRequestsIn;
+    }
 
     /**
      * Returns the currently configured {@link MessageReceiver} for inbound message responses.
@@ -230,7 +260,9 @@ class MessageExchange extends MessageObserver {
      * @returns {MessageReceiver}
      * @public
      */
-    get messageResponsesIn() { return this.#messageResponsesIn; }
+    get messageResponsesIn() {
+        return this.#messageResponsesIn;
+    }
 
     /**
      * Returns a flag indicating if the message exchange is configured for outbound communication.
@@ -239,7 +271,9 @@ class MessageExchange extends MessageObserver {
      * @returns {boolean}
      * @public
      */
-    get configuredOutbound() { return this.#configuredOutbound; }
+    get configuredOutbound() {
+        return this.#configuredOutbound;
+    }
 
     /**
      * Returns a flag indicating if the message exchange is configured for inbound communication.
@@ -248,7 +282,9 @@ class MessageExchange extends MessageObserver {
      * @returns {boolean}
      * @public
      */
-    get configuredInbound() { return this.#configuredInbound; }
+    get configuredInbound() {
+        return this.#configuredInbound;
+    }
 
     /**
      * Should be used to enable all communication channels for messaging.
@@ -371,9 +407,9 @@ class MessageExchange extends MessageObserver {
         message.destination.instanceID = this.#instanceID;
 
         if ( MessageExchange.connectionNameRequestsIn === identifier ) {
-            messageTracer.recordTraceEntry( message, messageTracer.messageType.MESSAGE_REQUEST, messageTracer.dispatchEvent.RECEIVED, messageTracer.messageState.PENDING );
+            messageTracer.instance.recordTraceEntry( message, messageTracer.messageType.MESSAGE_REQUEST, messageTracer.dispatchEvent.RECEIVED, messageTracer.messageState.PENDING );
         } else if ( MessageExchange.connectionNameResponsesIn === identifier ) {
-            messageTracer.recordTraceEntry( message, messageTracer.messageType.MESSAGE_RESPONSE, messageTracer.dispatchEvent.RECEIVED, messageTracer.messageState.PROCESSED );
+            messageTracer.instance.recordTraceEntry( message, messageTracer.messageType.MESSAGE_RESPONSE, messageTracer.dispatchEvent.RECEIVED, messageTracer.messageState.PROCESSED );
         }
     }
 

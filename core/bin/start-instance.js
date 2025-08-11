@@ -8,7 +8,6 @@
 
 "use strict";
 
-const _ = require( "lodash" );
 const path = require( "path" );
 
 // Load any ENV variables defined in a .env file - before including any framework files:
@@ -58,7 +57,7 @@ process.on( "SIGINT", () => {
     shutDownInstance( 0 );
 } );
 
-// This event will handle the process termination (CMD close):
+// This event will handle the process termination via terminal hangup (CMD close) - not delivered on all platforms:
 process.on( "SIGHUP", () => {
     logger.log( `SIGHUP event detected in main instance process.`, logger.logSeverity.NOTICE );
     shutDownInstance( 0 );
@@ -70,7 +69,13 @@ process.on( "SIGTERM", () => {
     shutDownInstance( 0 );
 } );
 
-process.on( "unhandledRejection", ( reason, promise ) => {
+// Handle Windows console break (Ctrl + Break):
+process.on( "SIGBREAK", () => {
+    logger.log( `SIGBREAK event detected in main instance process.`, logger.logSeverity.NOTICE );
+    shutDownInstance( 0 );
+} );
+
+process.on( "unhandledRejection", ( reason ) => {
     // Check if the fail-fast behavior has been forcefully disabled:
     const failFastDisabled = tools.toBool( process.env.TI_FAIL_FAST_ON_UNHANDLED_OFF || "" );
     logger.log( `Unhandled promise rejection identified! Make sure this isn't a software bug.`, logger.logSeverity.WARNING, {

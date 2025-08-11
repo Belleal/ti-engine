@@ -51,7 +51,11 @@ class MessageDispatcher {
     initialize( messageExchange, configureInbound, configureOutbound ) {
         return new Promise( ( resolve, reject ) => {
             this.#messageExchange = messageExchange;
-            this.#messageExchange.enableMessaging( configureInbound, configureOutbound ).then( () => {
+
+            // Initialize the message tracer before enabling the message exchange:
+            messageTracer.instance.initialize().then( () => {
+                this.#messageExchange.enableMessaging( configureInbound, configureOutbound );
+            } ).then( () => {
                 resolve();
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -95,13 +99,13 @@ class MessageDispatcher {
                 logger.log( `Retrying to send message response with chain ID: ${ message.chainID }. This is attempt ${ attempt }...`, logger.logSeverity.NOTICE );
             } );
 
-            messageTracer.recordTraceEntry( message, messageTracer.messageType.MESSAGE_REQUEST, messageTracer.dispatchEvent.SENT, messageTracer.messageState.PENDING );
+            messageTracer.instance.recordTraceEntry( message, messageTracer.messageType.MESSAGE_REQUEST, messageTracer.dispatchEvent.SENT, messageTracer.messageState.PENDING );
 
             retry.execute( this.#messageExchange, this.#messageExchange.sendMessageRequest, [ message ] ).then( () => {
-                messageTracer.recordTraceEntry( message, messageTracer.messageType.MESSAGE_REQUEST, messageTracer.dispatchEvent.DELIVERED, messageTracer.messageState.PENDING );
+                messageTracer.instance.recordTraceEntry( message, messageTracer.messageType.MESSAGE_REQUEST, messageTracer.dispatchEvent.DELIVERED, messageTracer.messageState.PENDING );
                 resolve( message.messageID );
             } ).catch( ( error ) => {
-                messageTracer.recordTraceEntry( message, messageTracer.messageType.MESSAGE_REQUEST, messageTracer.dispatchEvent.FAILED, messageTracer.messageState.PENDING );
+                messageTracer.instance.recordTraceEntry( message, messageTracer.messageType.MESSAGE_REQUEST, messageTracer.dispatchEvent.FAILED, messageTracer.messageState.PENDING );
                 reject( exceptions.raise( error ) );
             } );
         } );
@@ -125,13 +129,13 @@ class MessageDispatcher {
                 logger.log( `Retrying to send message response with chain ID: ${ message.chainID }. This is attempt ${ attempt }...`, logger.logSeverity.NOTICE );
             } );
 
-            messageTracer.recordTraceEntry( message, messageTracer.messageType.MESSAGE_RESPONSE, messageTracer.dispatchEvent.SENT, messageTracer.messageState.PROCESSED );
+            messageTracer.instance.recordTraceEntry( message, messageTracer.messageType.MESSAGE_RESPONSE, messageTracer.dispatchEvent.SENT, messageTracer.messageState.PROCESSED );
 
             retry.execute( this.#messageExchange, this.#messageExchange.sendMessageResponse, [ message ] ).then( () => {
-                messageTracer.recordTraceEntry( message, messageTracer.messageType.MESSAGE_RESPONSE, messageTracer.dispatchEvent.DELIVERED, messageTracer.messageState.PROCESSED );
+                messageTracer.instance.recordTraceEntry( message, messageTracer.messageType.MESSAGE_RESPONSE, messageTracer.dispatchEvent.DELIVERED, messageTracer.messageState.PROCESSED );
                 resolve();
             } ).catch( ( error ) => {
-                messageTracer.recordTraceEntry( message, messageTracer.messageType.MESSAGE_RESPONSE, messageTracer.dispatchEvent.FAILED, messageTracer.messageState.PROCESSED );
+                messageTracer.instance.recordTraceEntry( message, messageTracer.messageType.MESSAGE_RESPONSE, messageTracer.dispatchEvent.FAILED, messageTracer.messageState.PROCESSED );
                 reject( exceptions.raise( error ) );
             } );
         } );

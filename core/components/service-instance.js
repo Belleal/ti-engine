@@ -49,6 +49,13 @@ class ServiceInstance {
             throw exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
         }
 
+        // Guard against multiple instances in a single process (not supported):
+        if ( ServiceInstance.#instanceID && ServiceInstance.#serviceDomainName ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, {
+                details: "Multiple ServiceInstance initializations per process are not supported."
+            } );
+        }
+
         // Ensure uniform 'ti-' prefix even if env is missing or custom starter script is used:
         const envID = process.env.TI_INSTANCE_ID;
         ServiceInstance.#instanceID = ( envID && String( envID ).startsWith( "ti-" ) ) ? envID : ( "ti-" + ( envID || tools.getUUID() ) );

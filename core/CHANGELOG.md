@@ -2,6 +2,15 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.1.7
+* feat(start instance): add support for the detection of `SIGBREAK` events and graceful shutdown on Windows
+* feat(service instance)!: prevent the initialization of multiple `ServiceInstance` within the same process
+* feat(message tracer)!: covert to singleton instance and add initialization method
+* feat(message dispatcher): initialize the message tracer on start before message exchange is enabled
+* fix(message tracer): optimize `recordTraceEntry` to not call set JSON command on every request
+* fix(gcloud integration): fix the bool conversion of the `TI_GCLOUD_ENABLED` ENV variable
+* fix(redis integration): update links to official commands documentation
+
 ## Version 1.1.6
 * feat(start instance): add fail-fast mode as default behavior on promise unhandled rejections
 * feat(start instance): implement functionality to derive safe default service domain name when none is provided in the configuration
