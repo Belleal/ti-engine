@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -24,8 +24,6 @@ const messageDispatcher = require( "#message-dispatcher" );
  * Abstract class used to define a Service Instance behavior.
  * <br/>
  * NOTE: Inherit this to create a module that can be started as a microservice instance.
- * <br/>
- * NOTE: This class does not
  *
  * @class ServiceInstance
  * @abstract
@@ -46,12 +44,15 @@ class ServiceInstance {
      * @param {Object} [serviceConfig={}] The JSON configuration for this service.
      */
     constructor( serviceDomainName, serviceConfig = {} ) {
-        // make sure this abstract class cannot be instantiated:
+        // Ensure this abstract class cannot be instantiated:
         if ( new.target === ServiceInstance ) {
             throw exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
         }
 
-        ServiceInstance.#instanceID = process.env.TI_INSTANCE_ID || tools.getUUID();
+        // Ensure uniform 'ti-' prefix even if env is missing or custom starter script is used:
+        const envID = process.env.TI_INSTANCE_ID;
+        ServiceInstance.#instanceID = ( envID && String( envID ).startsWith( "ti-" ) ) ? envID : ( "ti-" + ( envID || tools.getUUID() ) );
+
         ServiceInstance.#serviceDomainName = serviceDomainName;
         this.#serviceConfig = ( _.isObjectLike( serviceConfig ) ) ? serviceConfig : { services: [] };
     }
@@ -65,7 +66,9 @@ class ServiceInstance {
      * @returns {string}
      * @public
      */
-    static get instanceID() { return ServiceInstance.#instanceID; }
+    static get instanceID() {
+        return ServiceInstance.#instanceID;
+    }
 
     /**
      * Property returning the current service domain name.
@@ -74,7 +77,9 @@ class ServiceInstance {
      * @returns {string}
      * @public
      */
-    static get serviceDomainName() { return ServiceInstance.#serviceDomainName; }
+    static get serviceDomainName() {
+        return ServiceInstance.#serviceDomainName;
+    }
 
     /**
      * Property to indicate that this and every child class is a {@link ServiceInstance}.
@@ -83,7 +88,9 @@ class ServiceInstance {
      * @returns {boolean}
      * @public
      */
-    get isServiceInstance() { return true; }
+    get isServiceInstance() {
+        return true;
+    }
 
     /**
      * Property returning the service configuration JSON.
@@ -92,7 +99,9 @@ class ServiceInstance {
      * @returns {ServiceConfiguration}
      * @public
      */
-    get serviceConfig() { return this.#serviceConfig; }
+    get serviceConfig() {
+        return this.#serviceConfig;
+    }
 
     /**
      * Initializes the instance.
@@ -161,6 +170,8 @@ class ServiceInstance {
             this.#preStop().then( () => {
                 return this.onStop();
             } ).then( () => {
+                return cache.shutDown();
+            } ).then( () => {
                 return this.#postStop();
             } ).then( () => {
                 resolve();
@@ -175,7 +186,7 @@ class ServiceInstance {
      * <br/>
      * NOTE: This method will be invoked automatically.
      * <br/>
-     * NOTE: If you need to add more onStop logic you can override this method but make sure to call it in the
+     * NOTE: If you need to add more onStop logic, you can override this method but make sure to call it in the
      * overriding method using: super.onStop()
      *
      * @method
@@ -225,8 +236,8 @@ class ServiceInstance {
      * @private
      */
     #preStart() {
-        return new Promise( ( resolve, reject ) => {
-            this.#serviceHealthCheck = config.getSetting( config.setting.SERVICE_HEALTH_CHECK_ADDRESS ) + process.env.TI_INSTANCE_NAME + ":" + ServiceInstance.instanceID;
+        return new Promise( ( resolve ) => {
+            this.#serviceHealthCheck = config.getSetting( config.setting.SERVICE_HEALTH_CHECK_ADDRESS ) + ServiceInstance.serviceDomainName + ":" + ServiceInstance.instanceID;
             resolve();
         } );
     }
@@ -241,8 +252,8 @@ class ServiceInstance {
      * @private
      */
     #postStart() {
-        return new Promise( ( resolve, reject ) => {
-            // schedule regular health check:
+        return new Promise( ( resolve ) => {
+            // Schedule regular health check:
             this.#reportHealthyJob = schedule.scheduleJob( config.getSetting( config.setting.SERVICE_HEALTH_CHECK_INTERVAL ), () => {
                 this.reportHealthy();
             } );
@@ -266,11 +277,10 @@ class ServiceInstance {
      * @private
      */
     #preStop() {
-        return new Promise( ( resolve, reject ) => {
+        return new Promise( ( resolve ) => {
             if ( this.#reportHealthyJob ) {
                 this.#reportHealthyJob.cancel();
             }
-
             resolve();
         } );
     }
@@ -285,9 +295,8 @@ class ServiceInstance {
      * @private
      */
     #postStop() {
-        return new Promise( ( resolve, reject ) => {
+        return new Promise( ( resolve ) => {
             logger.log( `Instance '${ ServiceInstance.instanceID }' shut down successfully.`, logger.logSeverity.NOTICE );
-
             resolve();
         } );
     }

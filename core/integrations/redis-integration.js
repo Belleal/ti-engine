@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -29,12 +29,12 @@ let cacheCommandsEnum = tools.enum( {
     HASH_GET_ALL: [ "hgetall", "hash get all", "https://redis.io/commands/hgetall" ],
     HASH_REMOVE: [ "hdel", "hash remove", "https://redis.io/commands/hdel" ],
     HASH_SET: [ "hset", "", "https://redis.io/commands/hset" ],
-    HASH_SET_MANY: [ "hmset", "", "https://redis.io/commands/hmset" ],
+    HASH_SET_MANY: [ "hmset", "(deprecated) use HSET with multiple fields", "https://redis.io/commands/hset" ],
     IS_SET_MEMBER: [ "sismember", "", "https://redis.io/commands/sismember" ],
     JSON_ARRAY_APPEND: [ "json.arrappend", "", "https://redis.io/commands/json.arrappend" ],
     JSON_GET: [ "json.get", "", "https://redis.io/commands/json.get" ],
     JSON_SET: [ "json.set", "", "https://redis.io/commands/json.set" ],
-    KEYS: [ "keys", "", "https://redis.io/commands/keys" ],
+    KEYS: [ "keys", "(warning: O(N), use SCAN where possible)", "https://redis.io/commands/keys" ],
     LIST_PUSH: [ "lpush", "list push", "https://redis.io/commands/lpush" ],
     LIST_POP_TAIL_BLOCKING: [ "brpop", "list pop tail blocking", "https://redis.io/commands/brpop" ],
     LIST_POP_TAIL_PUSH_HEAD_BLOCKING: [ "brpoplpush", "list pop tail push head blocking", "https://redis.io/commands/brpoplpush" ],
@@ -66,6 +66,9 @@ module.exports.cacheOverrideMode = cacheOverrideModeEnum;
 
 /**
  * Used to create a Redis Cache client.
+ * <br/>
+ * NOTE: This client is set to automatically resend all pending commands on connection recovery with no limit on the retry attempts.
+ * This is done to avoid losing any pending commands in case of a connection failure. For a different behavior, use custom implementation.
  *
  * @class RedisClient
  * @public
@@ -79,6 +82,7 @@ class RedisClient {
     #serverInfo = {};
     #serverFeatures = {};
     #connectionObservers = [];
+    #messageHandlersByChannel = new Map();
 
     /**
      * @constructor
@@ -88,11 +92,13 @@ class RedisClient {
      * @param {string} authKey
      * @param {string} user
      * @param {number} defaultDB
-     * @param {boolean} autoRetryUnfulfilled
-     * @param {number} maxRetries
+     * @param {number} [retryMaxIntervalMs=1000] Optional max backoff interval.
+     * @param {number|undefined} [retryMaxAttempts=undefined] Optional max (re)connection attempts before abort.
      */
-    constructor( identifier, host, port, authKey, user, defaultDB, autoRetryUnfulfilled, maxRetries ) {
+    constructor( identifier, host, port, authKey, user, defaultDB, retryMaxIntervalMs = 1000, retryMaxAttempts = undefined ) {
         this.#clientIdentifier = identifier || "redis-client-" + tools.getUUID();
+        this.#retryMaxInterval = retryMaxIntervalMs;
+        this.#retryMaxAttempts = retryMaxAttempts;
 
         let retryStrategy = ( attempt ) => {
             let result = Math.min( attempt * 50, this.#retryMaxInterval );
@@ -116,8 +122,8 @@ class RedisClient {
             username: user,
             password: authKey,
             db: defaultDB,
-            autoResendUnfulfilledCommands: autoRetryUnfulfilled,
-            maxRetriesPerRequest: maxRetries,
+            autoResendUnfulfilledCommands: true,
+            maxRetriesPerRequest: null,
             retryStrategy: retryStrategy,
             reconnectOnError: reconnectOnError
         };
@@ -208,7 +214,8 @@ class RedisClient {
      * @public
      */
     get isJSONSupported() {
-        return !_.isNil( this.#serverFeatures[ "ReJSON" ] );
+        // Detect RedisJSON module variants (e.g., ReJSON, ReJSON2):
+        return !_.isNil( this.#serverFeatures[ "ReJSON" ] ) || !_.isNil( this.#serverFeatures[ "ReJSON2" ] );
     }
 
     /**
@@ -286,25 +293,69 @@ class RedisClient {
 
     /**
      * Used to subscribe to the specified channel for messages.
+     * <br/>
+     * NOTE: Call unsubscribeCommand(channel) to detach later.
      *
      * @method
-     * @param {string} channel
+     * @param {string} channel Unique identifier of the channel to subscribe to.
      * @param {function( Object )} messageHandler Will execute this handler every time a new message is received.
      * @return {Promise}
      * @public
      */
     subscribeCommand( channel, messageHandler ) {
         return new Promise( ( resolve, reject ) => {
-            this.#redisClient.on( "subscribe", ( channel, count ) => {
-                logger.log( "Subscription to message channel '" + channel + "' successful.", logger.logSeverity.DEBUG );
+            // Avoid attaching multiple listeners for the same channel:
+            if ( this.#messageHandlersByChannel.has( channel ) ) {
+                logger.log( "Attempting to subscribe to message channel '" + channel + "' while already subscribed to it.", logger.logSeverity.WARNING );
                 resolve();
-            } );
-            this.#redisClient.on( "message", ( channel, message ) => {
-                if ( typeof ( messageHandler ) === "function" ) {
-                    messageHandler( tools.parseJSON( message ) );
-                }
-            } );
-            this.#redisClient.subscribe( channel ).catch( ( error ) => {
+            } else {
+                const onMessage = ( subscribedChannel, message ) => {
+                    if ( subscribedChannel === channel && typeof messageHandler === "function" ) {
+                        messageHandler( tools.parseJSON( message ) );
+                    }
+                };
+
+                this.#redisClient.once( "subscribe", ( subscribedChannel ) => {
+                    if ( subscribedChannel === channel ) {
+                        logger.log( "Subscription to message channel '" + channel + "' successful.", logger.logSeverity.DEBUG );
+                        resolve();
+                    }
+                } );
+
+                this.#redisClient.on( "message", onMessage );
+                this.#messageHandlersByChannel.set( channel, onMessage );
+
+                this.#redisClient.subscribe( channel ).catch( ( error ) => {
+                    // Cleanup partial state if subscribe fails:
+                    const handler = this.#messageHandlersByChannel.get( channel );
+                    if ( handler ) {
+                        this.#redisClient.off( "message", handler );
+                        this.#messageHandlersByChannel.delete( channel );
+                    }
+                    reject( exceptions.raise( error ) );
+                } );
+            }
+        } );
+    }
+
+    /**
+     * Used to unsubscribe from a channel and remove its message handler.
+     *
+     * @method
+     * @param {string} channel Unique identifier of the channel to unsubscribe from.
+     * @return {Promise}
+     * @public
+     */
+    unsubscribeCommand( channel ) {
+        return new Promise( ( resolve, reject ) => {
+            const handler = this.#messageHandlersByChannel.get( channel );
+            if ( handler ) {
+                this.#redisClient.off( "message", handler );
+                this.#messageHandlersByChannel.delete( channel );
+            }
+            this.#redisClient.unsubscribe( channel ).then( () => {
+                resolve();
+            } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
         } );
@@ -332,6 +383,47 @@ class RedisClient {
         } );
     }
 
+    /**
+     * Used to gracefully close the Redis connection.
+     * Attempts to quit(), then falls back to disconnect() on timeout.
+     *
+     * @method
+     * @param {number} [timeoutMs=1000]
+     * @returns {Promise<Object>}
+     * @public
+     */
+    shutDown( timeoutMs = 1000 ) {
+        return new Promise( ( resolve ) => {
+            let finished = false;
+            const done = () => {
+                if ( !finished ) {
+                    finished = true;
+                    resolve();
+                }
+            };
+
+            const timeout = setTimeout( () => {
+                try {
+                    this.#redisClient.disconnect();
+                } catch ( error ) {
+                }
+                done();
+            }, timeoutMs );
+
+            this.#redisClient.quit().then( () => {
+                clearTimeout( timeout );
+                done();
+            } ).catch( () => {
+                clearTimeout( timeout );
+                try {
+                    this.#redisClient.disconnect();
+                } catch ( error ) {
+                }
+                done();
+            } );
+        } );
+    }
+
 }
 
 /**
@@ -344,11 +436,11 @@ class RedisClient {
  * @param {string} [authKey=undefined]
  * @param {string} [user="default"]
  * @param {number} [defaultDB=0]
- * @param {boolean} [autoRetryUnfulfilled=true]
- * @param {number} [maxRetries=20]
+ * @param {number} [retryMaxIntervalMs=1000]
+ * @param {number|undefined} [retryMaxAttempts=undefined]
  * @return {RedisClient}
  * @public
  */
-module.exports.createRedisClient = ( identifier, host, port = 6379, authKey = undefined, user = "default", defaultDB = 0, autoRetryUnfulfilled = true, maxRetries = 20 ) => {
-    return Object.freeze( new RedisClient( identifier, host, port, authKey, user, defaultDB, autoRetryUnfulfilled, maxRetries ) );
+module.exports.createRedisClient = ( identifier, host, port = 6379, authKey = undefined, user = "default", defaultDB = 0, retryMaxIntervalMs = 1000, retryMaxAttempts = undefined ) => {
+    return Object.freeze( new RedisClient( identifier, host, port, authKey, user, defaultDB, retryMaxIntervalMs, retryMaxAttempts ) );
 };

@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -11,18 +11,33 @@
 const _ = require( "lodash" );
 const path = require( "path" );
 
-// load any ENV variables defined in a .env file - before including any framework files:
+// Load any ENV variables defined in a .env file - before including any framework files:
 require( "dotenv" ).config( { path: path.join( process.cwd(), ".env" ) } );
 
 const tools = require( "#tools" );
 const logger = require( "#logger" );
 
-// configure the current instance variables before requiring any platform modules and store the necessary ones in memory cache:
+// Configure the current instance variables before requiring any platform modules and store the necessary ones in memory cache:
 process.env.TI_INSTANCE_ID = "ti-" + tools.getUUID();
 process.env.TI_INSTANCE_CLASS = process.env.TI_INSTANCE_CLASS || "";
-process.env.TI_INSTANCE_NAME = process.env.TI_INSTANCE_NAME || _.last( _.split( process.env.TI_INSTANCE_CLASS, "/" ) );
 
-// configure the process error handlers:
+// Derive a safe default service domain name if not explicitly provided:
+// - Normalize path separators
+// - Strip directory and file extension
+const defaultNameFromClass = ( () => {
+    try {
+        const normalized = ( process.env.TI_INSTANCE_CLASS || "" ).replace( /\\/g, "/" );
+        const base = path.posix.basename( normalized );
+        const name = path.parse( base ).name;
+        return name || "";
+    } catch {
+        return "";
+    }
+} )();
+
+process.env.TI_INSTANCE_NAME = process.env.TI_INSTANCE_NAME || defaultNameFromClass;
+
+// Configure the process error handlers:
 
 /**
  * Will be used to gracefully shut down the instance.
@@ -37,35 +52,39 @@ process.env.TI_INSTANCE_NAME = process.env.TI_INSTANCE_NAME || _.last( _.split( 
 let shutDownInstance = ( exitCode ) => {
 };
 
-// this event will handle the process termination (Ctrl + C):
+// This event will handle the process termination (Ctrl + C):
 process.on( "SIGINT", () => {
     logger.log( `SIGINT event detected in main instance process.`, logger.logSeverity.NOTICE );
     shutDownInstance( 0 );
 } );
 
-// this event will handle the process termination (CMD close):
+// This event will handle the process termination (CMD close):
 process.on( "SIGHUP", () => {
     logger.log( `SIGHUP event detected in main instance process.`, logger.logSeverity.NOTICE );
     shutDownInstance( 0 );
 } );
 
-// this event will handle the process termination:
+// This event will handle the process termination:
 process.on( "SIGTERM", () => {
     logger.log( `SIGTERM event detected in main instance process.`, logger.logSeverity.NOTICE );
     shutDownInstance( 0 );
 } );
 
 process.on( "unhandledRejection", ( reason, promise ) => {
+    // Check if the fail-fast behavior has been forcefully disabled:
+    const failFastDisabled = tools.toBool( process.env.TI_FAIL_FAST_ON_UNHANDLED_OFF || "" );
     logger.log( `Unhandled promise rejection identified! Make sure this isn't a software bug.`, logger.logSeverity.WARNING, {
-        reason: reason,
-        promise: tools.stringifyJSON( promise )
+        reason: tools.errorToJSON && reason instanceof Error ? tools.errorToJSON( reason ) : reason
     } );
+    if ( failFastDisabled !== true ) {
+        setImmediate( () => process.exit( 1 ) );
+    }
 } );
 
 process.on( "multipleResolves", ( type, promise, reason ) => {
     logger.log( `Multiple promise resolves detected! Make sure this isn't a software bug.`, logger.logSeverity.WARNING, {
-        reason: reason,
-        promise: tools.stringifyJSON( promise )
+        type,
+        reason: tools.errorToJSON && reason instanceof Error ? tools.errorToJSON( reason ) : reason
     } );
 } );
 
@@ -74,7 +93,7 @@ process.on( "uncaughtException", ( error ) => {
     setImmediate( () => process.exit( 1 ) );
 } );
 
-// start the instance:
+// Start the instance:
 try {
     logger.log( `Starting new instance of type '${ process.env.TI_INSTANCE_NAME }' with instance ID '${ process.env.TI_INSTANCE_ID }'.`, logger.logSeverity.NOTICE );
 

@@ -59,8 +59,12 @@ class DefaultMessageReceiver extends MessageReceiver {
     disable() {
         return new Promise( ( resolve, reject ) => {
             this.isAvailable = false;
-            this.#memoryCache = null;
-            resolve();
+            this.#memoryCache.shutDown().then( () => {
+                this.#memoryCache = null;
+                resolve();
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
         } );
     }
 

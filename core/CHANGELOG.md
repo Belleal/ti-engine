@@ -1,5 +1,23 @@
 # ti-engine changelog
 
+This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
+
+## Version 1.1.6
+* feat(start instance): add fail-fast mode as default behavior on promise unhandled rejections
+* feat(start instance): implement functionality to derive safe default service domain name when none is provided in the configuration
+* feat(config): add support for new ENV variable `TI_FAIL_FAST_ON_UNHANDLED_OFF` that controls the fail-fast mode
+* feat(service instance): ensure instance ID naming standard is followed when creating new instances and no ID is provided in the configuration
+* feat(redis integration): marked command `hmset` as deprecated (according to official documentation)
+* feat(redis integration)!: change redis client default behavior: set to automatically resend all pending commands on connection recovery with no limit on the retry attempts. This behavior cannot be changed. Arguments `autoRetryUnfulfilled` and `maxRetries` have been removed from the constructor
+* feat(redis integration)!: add options to configure redis connection retry policy. This can be controlled with two new arguments in the constructor `retryMaxIntervalMs` and `retryMaxAttempts`.
+* feat(redis integration)!: improve and extend the behavior of pub/sub implementation functionality. The `subscribeCommand` method can now only subscribe once to the same channel. The client instance will keep a map of all channels it has subscribed to. To unsubscribe, use the `unsubscribeCommand` method
+* feat(redis integration): add a `shutDown` method to gracefully close a redis connection. This is now used on instance shut down sequence as well as in the default message sender and receiver implementations
+* fix(start instance): fix the logging of reason for unhandled rejections and multiple resolves
+* fix(service instance): use the static service domain name to initialize the health check instead of the ENV variable
+* fix(redis integration): add detection of ReJSON2 in the verification of JSON support in the redis server
+* build(npm): update npm dependencies to their latest versions
+* docs: add section about ENV variables to the `README.md` file
+
 ## Version 1.1.5
 
 * fix(service instance): add overrides of the `reportHealthy` method in `ServiceConsumer` and `ServiceProvider` classes

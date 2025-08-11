@@ -57,7 +57,9 @@ class CommonMemoryCache extends ConnectionObserver {
      * @returns {boolean}
      * @public
      */
-    get isOperational() { return this.#isOperational; }
+    get isOperational() {
+        return this.#isOperational;
+    }
 
     /**
      * Property returning the connection identifier of the cache service.
@@ -66,7 +68,20 @@ class CommonMemoryCache extends ConnectionObserver {
      * @returns {string}
      * @public
      */
-    get connectionIdentifier() { return this.#connectionIdentifier; }
+    get connectionIdentifier() {
+        return this.#connectionIdentifier;
+    }
+
+    /**
+     * Used to gracefully shut down the cache service.
+     *
+     * @method
+     * @return {Promise}
+     * @public
+     */
+    shutDown() {
+        return this.#redisClient.shutDown( 250 );
+    }
 
     /**
      * Needs to be invoked by the connection handler when the connection is disrupted.
@@ -470,6 +485,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * Used to set a single hash field.
      *
      * @method
+     * @deprecated
      * @param {string} key
      * @param {string} name
      * @param {*} value
@@ -495,6 +511,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * Used to set multiple hash fields.
      *
      * @method
+     * @deprecated
      * @param {string} key
      * @param {Object[]} fields
      * @param {string} fields[].name

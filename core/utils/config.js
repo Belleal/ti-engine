@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -33,6 +33,8 @@ const tools = require( "#tools" );
  * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_REDIS_DB
  * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_REDIS_HOST
  * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_REDIS_PORT
+ * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_RETRY_MAX_ATTEMPTS
+ * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL
  * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_USER
  * @property {EnvironmentVariable} env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED
  * @property {EnvironmentVariable} env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY
@@ -80,6 +82,8 @@ const tools = require( "#tools" );
  * @property {number} redisDB
  * @property {string} redisHost
  * @property {number} redisPort
+ * @property {number} retryMaxAttempts
+ * @property {number} retryMaxInterval
  * @property {string} user
  */
 
@@ -122,6 +126,8 @@ let settingsEnum = tools.enum( {
     MEMORY_CACHE_REDIS_DB: [ "memoryCache.redisDB", "redisDB", "" ],
     MEMORY_CACHE_REDIS_HOST: [ "memoryCache.redisHost", "redisHost", "" ],
     MEMORY_CACHE_REDIS_PORT: [ "memoryCache.redisPort", "redisPort", "" ],
+    MEMORY_CACHE_RETRY_MAX_ATTEMPTS: [ "memoryCache.retryMaxAttempts", "retryMaxAttempts", "" ],
+    MEMORY_CACHE_RETRY_MAX_INTERVAL: [ "memoryCache.retryMaxInterval", "retryMaxInterval", "" ],
     MEMORY_CACHE_USER: [ "memoryCache.user", "user", "" ],
     MESSAGE_EXCHANGE_QUEUE_PREFIX: [ "messageExchange.messageQueuePrefix", "messageQueuePrefix", "" ],
     MESSAGE_EXCHANGE_MESSAGE_STORE: [ "messageExchange.messageStore", "messageStore", "" ],
@@ -162,6 +168,8 @@ if ( settings.memoryCache ) {
     settings.memoryCache.redisDB = ( process.env.TI_MEMORY_CACHE_REDIS_DB !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_DB : settings.memoryCache.redisDB;
     settings.memoryCache.redisHost = ( process.env.TI_MEMORY_CACHE_REDIS_HOST !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_HOST : settings.memoryCache.redisHost;
     settings.memoryCache.redisPort = ( process.env.TI_MEMORY_CACHE_REDIS_PORT !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_PORT : settings.memoryCache.redisPort;
+    settings.memoryCache.retryMaxAttempts = ( process.env.TI_MEMORY_CACHE_RETRY_MAX_ATTEMPTS !== undefined ) ? process.env.TI_MEMORY_CACHE_RETRY_MAX_ATTEMPTS : settings.memoryCache.retryMaxAttempts;
+    settings.memoryCache.retryMaxInterval = ( process.env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL !== undefined ) ? process.env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL : settings.memoryCache.retryMaxInterval;
     settings.memoryCache.user = ( process.env.TI_MEMORY_CACHE_USER !== undefined ) ? process.env.TI_MEMORY_CACHE_USER : settings.memoryCache.user;
 }
 if ( settings.messageExchange ) {

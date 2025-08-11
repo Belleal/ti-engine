@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -31,10 +31,24 @@ class MessageMemoryCache {
         let db = config.getSetting( config.setting.MEMORY_CACHE_REDIS_DB );
         let authKey = config.getSetting( config.setting.MEMORY_CACHE_AUTH_KEY );
         let user = config.getSetting( config.setting.MEMORY_CACHE_USER );
-        this.#redisClient = redis.createRedisClient( identifier, host, port, authKey, user, db );
+        let retryMaxAttempts = config.getSetting( config.setting.MEMORY_CACHE_RETRY_MAX_ATTEMPTS );
+        let retryMaxInterval = config.getSetting( config.setting.MEMORY_CACHE_RETRY_MAX_INTERVAL );
+        this.#redisClient = redis.createRedisClient( identifier, host, port, authKey, user, db, retryMaxInterval, retryMaxAttempts );
     }
 
     /* Public interface */
+
+    /**
+     * Used to gracefully shut down the cache service.
+     *
+     * @method
+     * @param {number} [timeoutMs]
+     * @return {Promise}
+     * @public
+     */
+    shutDown( timeoutMs ) {
+        return this.#redisClient.shutDown( timeoutMs );
+    }
 
     /**
      * Used to register a new {@link ConnectionObserver} for events related to the Redis connection state.
