@@ -58,6 +58,8 @@ class ServiceExecutor extends MessageObserver {
     #serviceInterface = {};
     /** @type VerifyAccessMethod */
     #verifyAccess;
+    #registrationTasks = {};
+    #registrationRetryInterval = 500;
 
     /**
      * @constructor
@@ -65,11 +67,12 @@ class ServiceExecutor extends MessageObserver {
     constructor() {
         super();
 
+        // Setup a default empty verify access method:
         this.#verifyAccess = () => {
             return Promise.resolve();
         };
 
-        cache.addConnectionObserver( this );
+        cache.instance.addConnectionObserver( this );
     }
 
     /* Public interface */
@@ -81,7 +84,9 @@ class ServiceExecutor extends MessageObserver {
      * @returns {ServiceInterface}
      * @public
      */
-    get serviceInterface() { return this.#serviceInterface; }
+    get serviceInterface() {
+        return this.#serviceInterface;
+    }
 
     /**
      *
@@ -94,7 +99,7 @@ class ServiceExecutor extends MessageObserver {
      */
     onMessage( identifier, message ) {
         this.#processServiceCall( message ).then( ( serviceCall ) => {
-            return messageDispatcher.sendResponse( serviceCall );
+            return messageDispatcher.instance.sendResponse( serviceCall );
         } ).catch( ( error ) => {
             logger.log( `Failed to send service call response after processing! Service call ID was: '${ message.messageID }'`, logger.logSeverity.ERROR, error );
         } );
@@ -123,17 +128,15 @@ class ServiceExecutor extends MessageObserver {
     onConnectionRecovered( identifier ) {
         super.onConnectionRecovered( identifier );
 
-        if ( identifier !== cache.connectionIdentifier ) {
-            if ( cache.isOperational ) {
-                let serviceCatalog = config.getSetting( config.setting.SERVICE_REGISTRY_ADDRESS ) + ServiceInstance.serviceDomainName;
-                _.forOwn( this.#serviceInterface, ( versions, serviceAlias ) => {
-                    cache.addToSet( serviceCatalog, serviceAlias ).catch( ( error ) => {
-                        logger.log( `Record for service '${ serviceAlias }' could not be added to the service registry.`, logger.logSeverity.ERROR, error );
-                    } );
-                } );
-            } else {
-                //TODO: Retry service registration after 0.5 seconds.
-            }
+        if ( identifier !== cache.instance.connectionIdentifier ) {
+            let serviceCatalog = config.getSetting( config.setting.SERVICE_REGISTRY_ADDRESS ) + ServiceInstance.serviceDomainName;
+            _.forOwn( this.#serviceInterface, ( versions, serviceAlias ) => {
+                if ( !this.#registrationTasks[ serviceAlias ] ) {
+                    this.#registrationTasks[ serviceAlias ] = setInterval( () => {
+                        this.#registerServiceToCatalog( serviceCatalog, serviceAlias );
+                    }, this.#registrationRetryInterval );
+                }
+            } );
         }
     }
 
@@ -201,6 +204,25 @@ class ServiceExecutor extends MessageObserver {
     }
 
     /**
+     * Used to register a service in the service registry.
+     *
+     * @method
+     * @param {string} serviceCatalog
+     * @param {string} serviceAlias
+     * @private
+     */
+    #registerServiceToCatalog( serviceCatalog, serviceAlias ) {
+        if ( cache.instance.isOperational ) {
+            cache.instance.addToSet( serviceCatalog, serviceAlias ).then( () => {
+                clearTimeout( this.#registrationTasks[ serviceAlias ] );
+                delete this.#registrationTasks[ serviceAlias ];
+            } ).catch( ( error ) => {
+                logger.log( `Record for service '${ serviceAlias }' could not be added to the service registry. Will retry in '${ this.#registrationRetryInterval }' milliseconds.`, logger.logSeverity.ERROR, error );
+            } );
+        }
+    }
+
+    /**
      * Used to process the actual service call.
      *
      * @method
@@ -209,7 +231,7 @@ class ServiceExecutor extends MessageObserver {
      * @private
      */
     #processServiceCall( serviceCall ) {
-        return new Promise( ( resolve, reject ) => {
+        return new Promise( ( resolve ) => {
             this.#verifyAccess( serviceCall.authToken, serviceCall.serviceAddress ).then( () => {
                 return this.#identifyService( serviceCall.serviceAddress );
             } ).then( ( serviceHandler ) => {

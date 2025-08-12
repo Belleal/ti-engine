@@ -2,6 +2,12 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.1.8
+* feat(auditing): change export of the singleton class in an `instance` variable for consistency and clarity
+* feat(message dispatcher): change export of the singleton class in an `instance` variable for consistency and clarity
+* feat(cache): change export of the singleton class in an `instance` variable for consistency and clarity
+* feat(service executor): implement service registration retry policy
+
 ## Version 1.1.7
 * feat(start instance): add support for the detection of `SIGBREAK` events and graceful shutdown on Windows
 * feat(service instance)!: prevent the initialization of multiple `ServiceInstance` within the same process

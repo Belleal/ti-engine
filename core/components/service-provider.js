@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -74,7 +74,7 @@ class ServiceProvider extends ServiceConsumer {
                 let serviceDefinitions = this.serviceConfig.services;
                 return this.registerServices( serviceDefinitions );
             } ).then( () => {
-                messageDispatcher.addMessageObserverRequestsIn( this.#serviceExecutor );
+                messageDispatcher.instance.addMessageObserverRequestsIn( this.#serviceExecutor );
                 resolve();
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -203,10 +203,10 @@ class ServiceProvider extends ServiceConsumer {
                     // If this happens, a corresponding log entry will be created but the loading process will continue. Therefore, the following
                     // promise will always resolve (unless a programming error occurs in it of course).
                     let registrationPromise = ( serviceDefinition, defaultServiceHandler ) => {
-                        return new Promise( ( resolve, reject ) => {
+                        return new Promise( ( resolve ) => {
                             this.registerService( serviceDefinition, defaultServiceHandler ).then( () => {
                                 resolve( true );
-                            } ).catch( ( error ) => {
+                            } ).catch( () => {
                                 resolve( false );
                             } );
                         } );

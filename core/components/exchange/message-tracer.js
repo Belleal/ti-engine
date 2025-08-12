@@ -114,7 +114,7 @@ class MessageTracer {
      */
     initialize() {
         return new Promise( ( resolve, reject ) => {
-            cache.setJSON( config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_REPOSITORY ), traceRoot, "$", 1 ).then( () => {
+            cache.instance.setJSON( config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_REPOSITORY ), traceRoot, "$", 1 ).then( () => {
                 resolve();
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -135,7 +135,7 @@ class MessageTracer {
      * @param {Message} message The message to trace.
      * @param {TiMessageType} messageType The type of the message.
      * @param {TiDispatchEvent} dispatchEvent The event in the dispatch system that triggered the trace entry.
-     * @param {TiMessageState} messageState The state of the processing of the message.
+     * @param {TiMessageState} messageState The state of the message processing.
      * @public
      */
     recordTraceEntry( message, messageType, dispatchEvent, messageState ) {
@@ -167,14 +167,14 @@ class MessageTracer {
         }
 
         // Add the trace entry to the repository in the memory cache:
-        cache.arrayAppendJSON( config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_REPOSITORY ), traceEntry, "$.trace" ).then( () => {
+        cache.instance.arrayAppendJSON( config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_REPOSITORY ), traceEntry, "$.trace" ).then( () => {
             // This will refresh the expiration time for the trace repository on each new record:
             let expiration = config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME );
-            return ( expiration > 0 ) ? cache.expireValue( config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_REPOSITORY ), expiration ) : expiration;
+            return ( expiration > 0 ) ? cache.instance.expireValue( config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_REPOSITORY ), expiration ) : expiration;
         } ).catch( ( error ) => {
             // If JSON is unsupported in Redis server, then try to store the trace entry in a Set:
             if ( error.code === exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED ) {
-                cache.addToSet( config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_REPOSITORY ), traceEntry ).catch( ( error ) => {
+                cache.instance.addToSet( config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_REPOSITORY ), traceEntry ).catch( ( error ) => {
                     logger.log( `Failed to add message trace entry to the trace repository. While this will not prevent the application from running, it might still be a sign of a more serious problem!`, logger.logSeverity.WARNING, error );
                 } );
             } else {

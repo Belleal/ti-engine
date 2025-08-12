@@ -11,12 +11,12 @@ The framework is created based on a decade of professional experience with the u
 
 This is what you gain by using **ti-engine** in your project:
 
-* Simplicity - begin productive work within minutes and get to codding you business logic
-* Flexibility - go as complex as you need to in your implementation
-* Reliability - message exchange between the services is constantly tracked across the entire ecosystem
-* Security - messages are encrypted in transit and cannot be modified by external agents
-* Scalability - serve mullions of requests by multiplying stateless service instances (hardware limitations still apply)
-* Containerization - go with containers from the very start as the framework is designed to work in such an environment
+* Simplicity: begin productive work within minutes and get to codding you business logic
+* Flexibility: go as complex as you need to in your implementation
+* Reliability: message exchange between the services is constantly tracked across the entire ecosystem
+* Security: messages are encrypted in transit and cannot be modified by external agents
+* Scalability: serve mullions of requests by multiplying stateless service instances (hardware limitations still apply)
+* Containerization: go with containers from the very start as the framework is designed to work in such an environment
 
 These are just some benefits **ti-engine** offers. Get to know it better to find out more ways in which it can help you improve productivity.
 

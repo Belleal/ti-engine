@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -95,7 +95,7 @@ class ServiceCaller extends MessageObserver {
             this.#findServiceInRegistry( serviceAddress ).then( () => {
                 return this.#prepareServiceCall( serviceAddress, serviceParams, serviceExecContext );
             } ).then( ( serviceCall ) => {
-                return messageDispatcher.sendRequest( serviceCall );
+                return messageDispatcher.instance.sendRequest( serviceCall );
             } ).then( ( messageID ) => {
                 this.#addTaskHandler( messageID, ( serviceCall ) => {
                     this.#completeServiceCall( serviceCall ).then( ( serviceCall ) => {
@@ -187,7 +187,7 @@ class ServiceCaller extends MessageObserver {
     #findServiceInRegistry( serviceAddress ) {
         return new Promise( ( resolve, reject ) => {
             let serviceCatalog = config.getSetting( config.setting.SERVICE_REGISTRY_ADDRESS ) + serviceAddress.serviceDomainName;
-            cache.isSetMember( serviceCatalog, serviceAddress.serviceAlias ).then( ( result ) => {
+            cache.instance.isSetMember( serviceCatalog, serviceAddress.serviceAlias ).then( ( result ) => {
                 if ( result === true ) {
                     resolve();
                 } else {
@@ -210,7 +210,7 @@ class ServiceCaller extends MessageObserver {
      * @private
      */
     #prepareServiceCall( serviceAddress, serviceParams, serviceExecContext ) {
-        return new Promise( ( resolve, reject ) => {
+        return new Promise( ( resolve ) => {
             const ServiceInstance = require( "#service-instance" );
 
             // assemble the new service call:
@@ -258,7 +258,7 @@ class ServiceCaller extends MessageObserver {
      * @private
      */
     #completeServiceCall( serviceCall ) {
-        return new Promise( ( resolve, reject ) => {
+        return new Promise( ( resolve ) => {
             serviceCall.finishedOn = Date.now();
             serviceCall.executionTime = serviceCall.finishedOn - serviceCall.createdOn;
             serviceCall.isCompleted = true;

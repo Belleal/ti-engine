@@ -12,12 +12,12 @@ The framework is created based on a decade of professional experience with the u
 
 This is what you gain by using **ti-engine** in your project:
 
-* Simplicity - begin productive work within minutes and get to codding you business logic
-* Flexibility - go as complex as you need to in your implementation
-* Reliability - message exchange between the services is constantly tracked across the entire ecosystem
-* Security - messages are encrypted in transit and cannot be modified by external agents
-* Scalability - serve mullions of requests by multiplying stateless service instances (hardware limitations still apply)
-* Containerization - go with containers from the very start as the framework is designed to work in such an environment
+* Simplicity: begin productive work within minutes and get to codding you business logic
+* Flexibility: go as complex as you need to in your implementation
+* Reliability: message exchange between the services is constantly tracked across the entire ecosystem
+* Security: messages are encrypted in transit and cannot be modified by external agents
+* Scalability: serve mullions of requests by multiplying stateless service instances (hardware limitations still apply)
+* Containerization: go with containers from the very start as the framework is designed to work in such an environment
 
 These are just some benefits **ti-engine** offers. Get to know it better to find out more ways in which it can help you improve productivity.
 
@@ -25,12 +25,12 @@ These are just some benefits **ti-engine** offers. Get to know it better to find
 
 Being a messaging system, the **ti-engine** relies on a message broker for the actual exchange of messages between microservice instances. The default implementation of the framework uses [Redis](https://redis.io/) cache, however, you could create your own implementation using something like [Rabbit MQ](https://www.rabbitmq.com/). See the [Advanced topics](#advanced-topics) section of this documentation for guides on how to do this. For now let's focus on the default setup.
 
-In order to run the basic ti-engine framework you will need a couple of things:
+In order to run the basic ti-engine framework, you will need a couple of things:
 
 * A local [node.js installation](https://nodejs.org/en/download/) with a minimum version of **14.17.0**
 * A local or remote [Redis cache installation](https://redis.io/download) with a minimum version of **5.0.14**
 
-If you are working under Windows 10+ OS and you need to install Redis, take a look at this [guide](https://redis.com/blog/redis-on-windows-10/). You could also use [Redis Cloud](https://app.redislabs.com/) for development purposes as it offers free basic account. You can configure your connection to remote Redis server using the following ENV variables:
+If you are working under Windows 10+ OS and you need to install Redis, take a look at this [guide](https://redis.com/blog/redis-on-windows-10/). You could also use [Redis Cloud](https://app.redislabs.com/) for development purposes as it offers free basic account. You can configure your connection to a remote Redis server using the following ENV variables:
 
 * `TI_MEMORY_CACHE_AUTH_KEY` can be used to provide the Redis password if there is any at all.
 * `TI_MEMORY_CACHE_REDIS_DB` can be used to specify the Redis DB you want to use. Make sure to set the correct number as for example Redis Cloud only uses DB `0`.

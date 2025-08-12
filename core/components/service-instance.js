@@ -156,8 +156,7 @@ class ServiceInstance {
 
             let configureInbound = ( this instanceof ServiceProvider );
             let configureOutbound = ( this instanceof ServiceConsumer );
-
-            messageDispatcher.initialize( new DefaultMessageExchange( ServiceInstance.instanceID, ServiceInstance.serviceDomainName ), configureInbound, configureOutbound ).then( () => {
+            messageDispatcher.instance.initialize( new DefaultMessageExchange( ServiceInstance.instanceID, ServiceInstance.serviceDomainName ), configureInbound, configureOutbound ).then( () => {
                 resolve();
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -177,7 +176,7 @@ class ServiceInstance {
             this.#preStop().then( () => {
                 return this.onStop();
             } ).then( () => {
-                return cache.shutDown();
+                return cache.instance.shutDown();
             } ).then( () => {
                 return this.#postStop();
             } ).then( () => {
@@ -203,7 +202,7 @@ class ServiceInstance {
      */
     onStop() {
         return new Promise( ( resolve, reject ) => {
-            messageDispatcher.shutDown().then( () => {
+            messageDispatcher.instance.shutDown().then( () => {
                 resolve();
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -223,9 +222,9 @@ class ServiceInstance {
      * @public
      */
     reportHealthy() {
-        if ( cache.isOperational ) {
+        if ( cache.instance.isOperational ) {
             let timestamp = new Date();
-            cache.setValue( this.#serviceHealthCheck, timestamp.toISOString(), config.getSetting( config.setting.SERVICE_HEALTH_CHECK_TIMEOUT ) ).catch( ( error ) => {
+            cache.instance.setValue( this.#serviceHealthCheck, timestamp.toISOString(), config.getSetting( config.setting.SERVICE_HEALTH_CHECK_TIMEOUT ) ).catch( ( error ) => {
                 logger.log( `Error while trying to report for health check from '${ ServiceInstance.instanceID }'!`, logger.logSeverity.WARNING, error );
             } );
         }
