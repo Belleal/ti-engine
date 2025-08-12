@@ -25,6 +25,8 @@ class TiTesterService extends ServiceProvider {
      */
     constructor( serviceDomainName, serviceConfig ) {
         super( serviceDomainName, serviceConfig );
+
+        console.log( "Using core from:", require.resolve( "@ti-engine/core" ) );
     }
 
     /* Public interface */
