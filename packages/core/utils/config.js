@@ -72,7 +72,7 @@ const tools = require( "#tools" );
 
 /**
  * @typedef {Object} SettingsLocalization
- * @property {string} labelsPath
+ * @property {Array<string>} labelsPath
  * @property {string} language
  */
 

@@ -1,10 +1,11 @@
 {
   "name": "@ti-engine/core",
-  "version": "1.1.10",
+  "version": "1.2.0",
   "description": "The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "exports": {
+    ".": "./bin/start-instance.js",
     "./exceptions": "./utils/exceptions.js",
     "./localization": "./utils/localization.js",
     "./logger": "./utils/logger.js",
@@ -23,6 +24,7 @@
     "#default-message-sender": "./components/exchange/default/default-message-sender.js",
     "#exceptions": "./utils/exceptions.js",
     "#gcloud-integration": "./integrations/gcloud-integration.js",
+    "#labels": "./bin/localization/labels.json",
     "#localization": "./utils/localization.js",
     "#logger": "./utils/logger.js",
     "#message-dispatcher": "./components/exchange/message-dispatcher.js",

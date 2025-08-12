@@ -117,7 +117,12 @@ class MessageTracer {
             cache.instance.setJSON( config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_REPOSITORY ), traceRoot, "$", 1 ).then( () => {
                 resolve();
             } ).catch( ( error ) => {
-                reject( exceptions.raise( error ) );
+                // If JSON is unsupported in Redis server, the trace will use a Set later, so we can resolve the promise:
+                if ( error.code === exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED ) {
+                    resolve();
+                } else {
+                    reject( exceptions.raise( error ) );
+                }
             } );
         } );
     }
@@ -125,7 +130,7 @@ class MessageTracer {
     /**
      * Used to create a trace entry for the provided {@link Message} and parameters.
      * <br/>
-     * NOTE: By default all trace events are stored in the memory cache for further processing and analysis. The
+     * NOTE: By default, all trace events are stored in the memory cache for further processing and analysis. The
      * location is configured in the MESSAGE_EXCHANGE_TRACE_REPOSITORY setting.
      * <br/>
      * NOTE: Trace events are logged with severity level NOTICE or ERROR for failed dispatches. They still might be
@@ -139,7 +144,7 @@ class MessageTracer {
      * @public
      */
     recordTraceEntry( message, messageType, dispatchEvent, messageState ) {
-        // Depending on whether the message comes as request or response, the from and to addresses will be opposite:
+        // Depending on whether the message comes as a request or response, the from and to addresses will be opposite:
         let source = message.source.route + "." + message.source.instanceID;
         let destination = message.destination.route + ( ( message.destination.instanceID != null ) ? "." + message.destination.instanceID : "" );
         let messageSnapshot = MessageTracer.#obscureSensitiveData( message );

@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -43,8 +43,13 @@ class DefaultMessageReceiver extends MessageReceiver {
         return new Promise( ( resolve, reject ) => {
             this.#memoryCache = memoryCache.create( this.connectionIdentifier );
             this.#memoryCache.addConnectionObserver( this );
-            this.receive();
-            resolve();
+            this.#memoryCache.initialize().then( () => {
+                this.isReceiving = true;
+                this.receive();
+                resolve();
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
         } );
     }
 
@@ -60,6 +65,7 @@ class DefaultMessageReceiver extends MessageReceiver {
         return new Promise( ( resolve, reject ) => {
             this.isAvailable = false;
             this.#memoryCache.shutDown().then( () => {
+                this.isReceiving = false;
                 this.#memoryCache = null;
                 resolve();
             } ).catch( ( error ) => {
@@ -80,6 +86,7 @@ class DefaultMessageReceiver extends MessageReceiver {
      */
     onReceive() {
         return new Promise( ( resolve, reject ) => {
+            // NOTE: The method execution will block on this call until a message is received:
             this.#memoryCache.receiveMessage( this.receiveQueue ).then( ( lightweightMessage ) => {
                 return this.#memoryCache.retrieveMessagePayload( lightweightMessage, config.getSetting( config.setting.MESSAGE_EXCHANGE_MESSAGE_STORE ) );
             } ).then( ( message ) => {

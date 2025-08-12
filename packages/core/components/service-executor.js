@@ -58,8 +58,6 @@ class ServiceExecutor extends MessageObserver {
     #serviceInterface = {};
     /** @type VerifyAccessMethod */
     #verifyAccess;
-    #registrationTasks = {};
-    #registrationRetryInterval = 500;
 
     /**
      * @constructor
@@ -67,7 +65,7 @@ class ServiceExecutor extends MessageObserver {
     constructor() {
         super();
 
-        // Setup a default empty verify access method:
+        // Set up a default empty verify access method:
         this.#verifyAccess = () => {
             return Promise.resolve();
         };
@@ -127,17 +125,6 @@ class ServiceExecutor extends MessageObserver {
      */
     onConnectionRecovered( identifier ) {
         super.onConnectionRecovered( identifier );
-
-        if ( identifier !== cache.instance.connectionIdentifier ) {
-            let serviceCatalog = config.getSetting( config.setting.SERVICE_REGISTRY_ADDRESS ) + ServiceInstance.serviceDomainName;
-            _.forOwn( this.#serviceInterface, ( versions, serviceAlias ) => {
-                if ( !this.#registrationTasks[ serviceAlias ] ) {
-                    this.#registrationTasks[ serviceAlias ] = setInterval( () => {
-                        this.#registerServiceToCatalog( serviceCatalog, serviceAlias );
-                    }, this.#registrationRetryInterval );
-                }
-            } );
-        }
     }
 
     /**
@@ -164,16 +151,26 @@ class ServiceExecutor extends MessageObserver {
      * @param {ServiceHandlerMethod} serviceHandler
      * @param {ServiceDefinition} serviceDefinition
      * @param {ServiceInstance} serviceInstance This will be used as context to bind all business services.
+     * @returns {Promise}
      * @public
      */
     addServiceHandler( serviceHandler, serviceDefinition, serviceInstance ) {
-        if ( !this.#serviceInterface[ serviceDefinition.serviceAlias ] ) {
-            this.#serviceInterface[ serviceDefinition.serviceAlias ] = {};
-        }
-        if ( this.#serviceInterface[ serviceDefinition.serviceAlias ][ serviceDefinition.serviceVersion ] ) {
-            logger.log( `Service handler for '${ serviceDefinition.serviceAlias }' version '${ serviceDefinition.serviceVersion }' already existed and will be overridden.`, logger.logSeverity.WARNING );
-        }
-        this.#serviceInterface[ serviceDefinition.serviceAlias ][ serviceDefinition.serviceVersion ] = serviceHandler.bind( serviceInstance, _.cloneDeep( serviceDefinition ) );
+        return new Promise( ( resolve, reject ) => {
+            this.#registerServiceToCatalog( serviceDefinition.serviceAlias ).then( () => {
+                // Bind the service handler to the service alias and version:
+                if ( !this.#serviceInterface[ serviceDefinition.serviceAlias ] ) {
+                    this.#serviceInterface[ serviceDefinition.serviceAlias ] = {};
+                }
+                if ( this.#serviceInterface[ serviceDefinition.serviceAlias ][ serviceDefinition.serviceVersion ] ) {
+                    logger.log( `Service handler for '${ serviceDefinition.serviceAlias }' version '${ serviceDefinition.serviceVersion }' already existed and will be overridden.`, logger.logSeverity.WARNING );
+                }
+                this.#serviceInterface[ serviceDefinition.serviceAlias ][ serviceDefinition.serviceVersion ] = serviceHandler.bind( serviceInstance, _.cloneDeep( serviceDefinition ) );
+
+                resolve();
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
     }
 
     /* Private interface */
@@ -207,19 +204,20 @@ class ServiceExecutor extends MessageObserver {
      * Used to register a service in the service registry.
      *
      * @method
-     * @param {string} serviceCatalog
      * @param {string} serviceAlias
+     * @returns {Promise}
      * @private
      */
-    #registerServiceToCatalog( serviceCatalog, serviceAlias ) {
-        if ( cache.instance.isOperational ) {
+    #registerServiceToCatalog( serviceAlias ) {
+        return new Promise( ( resolve, reject ) => {
+            let serviceCatalog = config.getSetting( config.setting.SERVICE_REGISTRY_ADDRESS ) + ServiceInstance.serviceDomainName;
             cache.instance.addToSet( serviceCatalog, serviceAlias ).then( () => {
-                clearTimeout( this.#registrationTasks[ serviceAlias ] );
-                delete this.#registrationTasks[ serviceAlias ];
+                resolve();
             } ).catch( ( error ) => {
-                logger.log( `Record for service '${ serviceAlias }' could not be added to the service registry. Will retry in '${ this.#registrationRetryInterval }' milliseconds.`, logger.logSeverity.ERROR, error );
+                logger.log( `Record for service '${ serviceAlias }' could not be added to the service registry. Service will not be visible to Service Consumers!`, logger.logSeverity.ERROR, error );
+                reject( exceptions.raise( error ) );
             } );
-        }
+        } );
     }
 
     /**

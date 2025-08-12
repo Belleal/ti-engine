@@ -140,10 +140,10 @@ class ServiceProvider extends ServiceConsumer {
     /**
      * Used to register a single service to the service provider's API. One service can have multiple versions accessible at the same time.
      * <br/>
-     * NOTE: This will actually bind the serviceDefinition as first parameter of the service handler function. When creating default service handlers,
+     * NOTE: This will actually bind the serviceDefinition as the first parameter of the service handler function. When creating default service handlers,
      * keep in mind that your first param must always be the 'serviceDefinition' and the second one will be the general 'serviceParams' object.
      * <br/>
-     * NOTE: Additionally, if you intend to call another service inside the service handler, then you have to use normal function for the handler and not
+     * NOTE: Additionally, if you intend to call another service inside the service handler, then you have to use a normal function for the handler and not
      * an arrow function! Arrow functions cannot bind the scope of the parent class to themselves, and you won't have access to it and its methods.
      *
      * @method
@@ -171,12 +171,15 @@ class ServiceProvider extends ServiceConsumer {
                 }
             }
 
-            // if we have a valid service handler proceed with the registration:
+            // if we have a valid service handler, proceed with the registration:
             if ( typeof ( serviceHandler ) === "function" ) {
                 // make sure we have a version and parent service provider specified:
                 serviceDefinition.serviceVersion = serviceDefinition.serviceVersion || 1;
-                this.#serviceExecutor.addServiceHandler( serviceHandler, serviceDefinition, this );
-                resolve();
+                this.#serviceExecutor.addServiceHandler( serviceHandler, serviceDefinition, this ).then( () => {
+                    resolve();
+                } ).catch( ( error ) => {
+                    reject( exceptions.raise( error ) );
+                } );
             } else {
                 reject( exceptions.raise( exceptions.exceptionCode.E_GEN_BAD_SERVICE_HANDLER ) );
             }
@@ -201,7 +204,7 @@ class ServiceProvider extends ServiceConsumer {
                 _.forEach( serviceDefinitions, ( serviceDefinition ) => {
                     // NOTE: we are not going to interrupt the service interface loading if one of the services fails to load or is not found!
                     // If this happens, a corresponding log entry will be created but the loading process will continue. Therefore, the following
-                    // promise will always resolve (unless a programming error occurs in it of course).
+                    // promise will always resolve (unless a programming error occurs in it, of course).
                     let registrationPromise = ( serviceDefinition, defaultServiceHandler ) => {
                         return new Promise( ( resolve ) => {
                             this.registerService( serviceDefinition, defaultServiceHandler ).then( () => {

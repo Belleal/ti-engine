@@ -10,9 +10,12 @@ const _ = require( "lodash" );
 const path = require( "path" );
 const config = require( "#config" );
 
-const labelsPath = path.normalize( path.join( process.cwd(), config.getSetting( config.setting.LOCALIZATION_LABELS_PATH ) ) );
-const labels = require( labelsPath );
+// const labelsPath = path.normalize( path.join( process.cwd(), config.getSetting( config.setting.LOCALIZATION_LABELS_PATH ) ) );
+// const labels = require( labelsPath );
+const labels = require( "#labels" );
 const defaultEmptyLabel = "!!! label not found !!!";
+
+// TODO: Add functionality to import additional custom labels.
 
 // prevent further modifications to the labels object:
 Object.freeze( labels );

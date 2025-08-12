@@ -12,7 +12,7 @@
     "projectID": ""
   },
   "localization": {
-    "labelsPath": "../core/bin/localization/labels.json",
+    "labelsPath": [],
     "language": "en"
   },
   "memoryCache": {

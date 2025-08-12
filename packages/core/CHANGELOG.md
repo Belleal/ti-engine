@@ -2,6 +2,18 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.2.0
+* feat(config)!: change the setting `localization.labelsPath` to be an array of strings. It can now be used to supply any additional custom labels in one or more files to the framework
+* feat(message memory cache): implement graceful exception handling during shut down procedure in `receiveMessage` and `sendMessage` methods
+* fix(default message sender): add missing initialization of the memory cache on enable
+* fix(default message receiver): add missing initialization of the memory cache on enable
+* fix(message receiver): ensure `receive` method is no longer called recursively when the receiver has been disabled
+* fix(redis integration)!: change the way the Redis client is initialized as the previous sequence was leaving unresolved promises and in some cases failed to fetch the Redis server settings. Also, it will now notify the listeners only once when the server settings are fetched and the connection is ready to be used
+* fix(localization)!: change the way system labels are loaded as the previous implementation could cause a critical startup error if the working dir was different from expected
+* fix(package): add the missing main export to the `start-instance.js` script. Without it was impossible to start the framework in specific cases like in a workspaces repository
+* fix(message tracer): exclude `E_GEN_FEATURE_UNSUPPORTED` exception from the initialization of the message tracer exception handler
+* fix(service executor)!: change the individual service registration process to ensure service registration does actually happen before the service provider finishes its initialization
+
 ## Version 1.1.10
 * fix(cache): fix redis client creation sequence. It is now created inside the constructor as intended. It still needs to be initialized explicitly using the `initialize` method.
 

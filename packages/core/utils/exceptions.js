@@ -37,6 +37,7 @@ let exceptionCodeEnum = tools.enum( {
     E_COM_SERVICE_NOT_REGISTERED: [ 3003, "service not registered", "The specified service is not found in the service registry." ],
     E_COM_SERVICE_NOT_FOUND: [ 3004, "service not found", "The specified service is not found in the service definition interface." ],
     E_COM_SERVICE_HANDLER_NOT_FOUND: [ 3005, "service handler not found", "No handler found in the interface for the specified service or service version." ],
+    E_COM_MESSAGE_RECEIVER_UNAVAILABLE: [ 3006, "message receiver unavailable", "The message receiver instance is currently unavailable." ],
     // E_COM_UNRECOGNIZED_API_URL: [ 301, "unrecognized api url", "Attempt to access unrecognized or invalid API URL." ],
     // E_COM_MISSING_REQUIRED_ARGUMENTS: [ 302, "missing required arguments", "Attempt to execute operation without all required arguments." ],
     // E_COM_UNRECOGNIZED_RESPONSE_STRUCTURE: [ 303, "unrecognized response structure", "The received response has unrecognized structure and cannot be parsed or examined." ],

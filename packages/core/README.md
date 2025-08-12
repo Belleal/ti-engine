@@ -395,9 +395,9 @@ GCLOUD_PROJECT_ID (Alpha)
 : This setting holds the project ID for the GCloud integration module.
 
 LOCALIZATION_LABELS_PATH
-: JSON path `localization.labelsPath`, type `string`, default `../core/bin/localization/labels.json`
+: JSON path `localization.labelsPath`, type `Array<string>`, default `[]`
 : ENV variable `TI_LOCALIZATION_LABELS_PATH`
-: This setting holds the file system path to the `.json` file containing the localization information. By default, the framework provides such a file with english texts that can be customized further. Alternatively, you can provide your own file from a different location, but it still has to follow the rules of the `localization` module.
+: This setting holds a list of paths to custom `.json` files containing additional localization information. By default, the framework also provides such a file with english texts that can be customized further. All additional JSONs in these files have to follow the rules and structure of the `localization` module.
 
 LOCALIZATION_LANGUAGE
 : JSON path `localization.language`, type `string`, default `en`

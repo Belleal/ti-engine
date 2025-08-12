@@ -56,7 +56,7 @@ class ServiceInstance {
             } );
         }
 
-        // Ensure uniform 'ti-' prefix even if env is missing or custom starter script is used:
+        // Ensure a uniform 'ti-' prefix even if env is missing or a custom starter script is used:
         const envID = process.env.TI_INSTANCE_ID;
         ServiceInstance.#instanceID = ( envID && String( envID ).startsWith( "ti-" ) ) ? envID : ( "ti-" + ( envID || tools.getUUID() ) );
 
@@ -217,7 +217,7 @@ class ServiceInstance {
      * Used to report health status of the service instance for external monitoring.
      * This is a scheduled job that will be executed at SERVICE_HEALTH_CHECK_INTERVAL time.
      * <br/>
-     * NOTE: By default this method will update a Redis key with an expiration timer. You can override this
+     * NOTE: By default, this method will update a Redis key with an expiration timer. You can override this
      * functionality with something custom like calling an HTTP endpoint.
      *
      * @method

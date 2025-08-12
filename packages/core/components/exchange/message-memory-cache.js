@@ -20,6 +20,7 @@ const redis = require( "#redis-integration" );
 class MessageMemoryCache {
 
     #redisClient = null;
+    #isShuttingDown = false;
 
     /**
      * @constructor
@@ -60,6 +61,7 @@ class MessageMemoryCache {
      * @public
      */
     shutDown( timeoutMs ) {
+        this.#isShuttingDown = true;
         return this.#redisClient.shutDown( timeoutMs );
     }
 
@@ -85,13 +87,17 @@ class MessageMemoryCache {
      */
     sendMessage( message, queue ) {
         return new Promise( ( resolve, reject ) => {
-            let command = [ redis.cacheCommands.LIST_PUSH, queue, tools.stringifyJSON( message ) ];
-            this.#redisClient.executeCommands( [ command ] ).then( ( results ) => {
-                results = results[ 0 ];
-                resolve( ( results && results.length > 1 ) ? results[ 1 ] : undefined );
-            } ).catch( ( error ) => {
-                reject( exceptions.raise( error ) );
-            } );
+            if ( this.#isShuttingDown === true ) {
+                reject( exceptions.raise( exceptions.exceptionCode.E_COM_MESSAGE_SENDER_UNAVAILABLE ) );
+            } else {
+                let command = [ redis.cacheCommands.LIST_PUSH, queue, tools.stringifyJSON( message ) ];
+                this.#redisClient.executeCommands( [ command ] ).then( ( results ) => {
+                    results = results[ 0 ];
+                    resolve( ( results && results.length > 1 ) ? results[ 1 ] : undefined );
+                } ).catch( ( error ) => {
+                    reject( exceptions.raise( error ) );
+                } );
+            }
         } );
     }
 
@@ -134,7 +140,11 @@ class MessageMemoryCache {
                 results = ( results && results.length > 1 ) ? results[ 1 ] : undefined;
                 resolve( tools.parseJSON( results ) );
             } ).catch( ( error ) => {
-                reject( exceptions.raise( error ) );
+                if ( this.#isShuttingDown === true ) {
+                    reject( exceptions.raise( exceptions.exceptionCode.E_COM_MESSAGE_RECEIVER_UNAVAILABLE ) );
+                } else {
+                    reject( exceptions.raise( error ) );
+                }
             } );
         } );
     }
