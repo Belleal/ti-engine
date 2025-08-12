@@ -150,13 +150,16 @@ class ServiceInstance {
      */
     onStart() {
         return new Promise( ( resolve, reject ) => {
-            const DefaultMessageExchange = require( "#default-message-exchange" );
-            const ServiceProvider = require( "#service-provider" );
-            const ServiceConsumer = require( "#service-consumer" );
+            cache.instance.initialize().then( () => {
+                const DefaultMessageExchange = require( "#default-message-exchange" );
+                const ServiceProvider = require( "#service-provider" );
+                const ServiceConsumer = require( "#service-consumer" );
 
-            let configureInbound = ( this instanceof ServiceProvider );
-            let configureOutbound = ( this instanceof ServiceConsumer );
-            messageDispatcher.instance.initialize( new DefaultMessageExchange( ServiceInstance.instanceID, ServiceInstance.serviceDomainName ), configureInbound, configureOutbound ).then( () => {
+                let configureInbound = ( this instanceof ServiceProvider );
+                let configureOutbound = ( this instanceof ServiceConsumer );
+
+                return messageDispatcher.instance.initialize( new DefaultMessageExchange( ServiceInstance.instanceID, ServiceInstance.serviceDomainName ), configureInbound, configureOutbound );
+            } ).then( () => {
                 resolve();
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );

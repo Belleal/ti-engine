@@ -36,13 +36,6 @@ class CommonMemoryCache extends ConnectionObserver {
         super();
 
         if ( !CommonMemoryCache.#instance ) {
-            let host = config.getSetting( config.setting.MEMORY_CACHE_REDIS_HOST );
-            let port = config.getSetting( config.setting.MEMORY_CACHE_REDIS_PORT );
-            let db = config.getSetting( config.setting.MEMORY_CACHE_REDIS_DB );
-            let authKey = config.getSetting( config.setting.MEMORY_CACHE_AUTH_KEY );
-            let user = config.getSetting( config.setting.MEMORY_CACHE_USER );
-            this.#redisClient = redis.createRedisClient( this.#connectionIdentifier, host, port, authKey, user, db );
-            this.#redisClient.addConnectionObserver( this );
             CommonMemoryCache.#instance = this;
         }
         return CommonMemoryCache.#instance;
@@ -70,6 +63,26 @@ class CommonMemoryCache extends ConnectionObserver {
      */
     get connectionIdentifier() {
         return this.#connectionIdentifier;
+    }
+
+    /**
+     * Used to initialize the cache service.
+     *
+     * @method
+     * @returns {Promise}
+     * @public
+     */
+    initialize() {
+        let host = config.getSetting( config.setting.MEMORY_CACHE_REDIS_HOST );
+        let port = config.getSetting( config.setting.MEMORY_CACHE_REDIS_PORT );
+        let db = config.getSetting( config.setting.MEMORY_CACHE_REDIS_DB );
+        let authKey = config.getSetting( config.setting.MEMORY_CACHE_AUTH_KEY );
+        let user = config.getSetting( config.setting.MEMORY_CACHE_USER );
+
+        this.#redisClient = redis.createRedisClient( this.#connectionIdentifier );
+        this.#redisClient.addConnectionObserver( this );
+
+        return this.#redisClient.initialize( host, port, authKey, user, db );
     }
 
     /**

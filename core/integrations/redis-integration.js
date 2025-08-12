@@ -87,99 +87,10 @@ class RedisClient {
     /**
      * @constructor
      * @param {string} identifier
-     * @param {string} host
-     * @param {number} port
-     * @param {string} authKey
-     * @param {string} user
-     * @param {number} defaultDB
-     * @param {number} [retryMaxIntervalMs=1000] Optional max backoff interval.
-     * @param {number|undefined} [retryMaxAttempts=undefined] Optional max (re)connection attempts before abort.
+     * @returns {RedisClient}
      */
-    constructor( identifier, host, port, authKey, user, defaultDB, retryMaxIntervalMs = 1000, retryMaxAttempts = undefined ) {
+    constructor( identifier ) {
         this.#clientIdentifier = identifier || "redis-client-" + tools.getUUID();
-        this.#retryMaxInterval = retryMaxIntervalMs;
-        this.#retryMaxAttempts = retryMaxAttempts;
-
-        let retryStrategy = ( attempt ) => {
-            let result = Math.min( attempt * 50, this.#retryMaxInterval );
-
-            if ( this.#retryMaxAttempts != null && attempt > this.#retryMaxAttempts ) {
-                logger.log( "In Redis retry strategy: reached max attempts for command retry. Aborting...", logger.logSeverity.WARNING, { attempts: attempt } );
-                result = exceptions.raise( exceptions.exceptionCode.E_COM_RETRY_ATTEMPTS_EXCEEDED );
-            }
-
-            return result;
-        };
-
-        let reconnectOnError = ( error ) => {
-            logger.log( `In Redis reconnect on error strategy: ${ error.message }`, logger.logSeverity.ERROR, error );
-            return !!error.message.includes( "READONLY" );
-        };
-
-        let options = {
-            port: port,
-            host: host,
-            username: user,
-            password: authKey,
-            db: defaultDB,
-            autoResendUnfulfilledCommands: true,
-            maxRetriesPerRequest: null,
-            retryStrategy: retryStrategy,
-            reconnectOnError: reconnectOnError
-        };
-
-        /** @type Redis */
-        this.#redisClient = new Redis( options );
-
-        this.#redisClient.on( "ready", () => {
-            logger.log( `Connection to Redis server ${ host }:${ port } (re)established by client '${ this.identifier }' and is ready to be used.`, logger.logSeverity.INFO );
-
-            // notify all connection observers about this event:
-            _.forEach( this.#connectionObservers, ( connectionObservers ) => {
-                connectionObservers.onConnectionRecovered( this.#clientIdentifier );
-            } );
-
-            // fetch the server information and store it:
-            this.#redisClient.info().then( ( result ) => {
-                this.#serverInfo = {};
-                if ( _.isString( result ) ) {
-                    let rawData = _.split( result, "\r\n" );
-                    _.forEach( rawData, ( entry ) => {
-                        let details = _.split( entry, ":" );
-                        if ( !_.startsWith( details[ 0 ], "#" ) && details[ 0 ] !== "" && details[ 0 ] ) {
-                            if ( _.isNaN( _.toNumber( details[ 1 ] ) ) ) {
-                                this.#serverInfo[ details[ 0 ] ] = details[ 1 ];
-                            } else {
-                                this.#serverInfo[ details[ 0 ] ] = _.toNumber( details[ 1 ] );
-                            }
-                        }
-                    } );
-                }
-                return this.#redisClient.module( "LIST" );
-            } ).then( ( result ) => {
-                this.#serverFeatures = {};
-                if ( _.isArray( result ) ) {
-                    _.forEach( result, ( entry ) => {
-                        this.#serverFeatures[ entry[ 1 ] ] = entry[ 3 ];
-                    } );
-                }
-            } ).catch( ( error ) => {
-                logger.log( `Failed to fetch server information by client '${ this.identifier }'!`, logger.logSeverity.WARNING, error );
-            } );
-        } );
-        this.#redisClient.on( "error", ( error ) => {
-            logger.log( `Error received in Redis client '${ this.identifier }'.`, logger.logSeverity.ERROR, error );
-
-            // notify all connection observers about this event:
-            _.forEach( this.#connectionObservers, ( connectionObservers ) => {
-                connectionObservers.onConnectionDisrupted( this.#clientIdentifier );
-            } );
-        } );
-        this.#redisClient.on( "reconnecting", ( info ) => {
-            if ( info.attempt > 1 ) {
-                logger.log( `Client '${ this.identifier }' reconnecting to Redis server after ${ info.delay } ms. This is attempt ${ info.attempt }.`, logger.logSeverity.DEBUG );
-            }
-        } );
     }
 
     /* Public interface */
@@ -188,7 +99,7 @@ class RedisClient {
      * Used to return the Redis client identifier.
      *
      * @property
-     * @return {string}
+     * @returns {string}
      * @public
      */
     get identifier() {
@@ -199,7 +110,7 @@ class RedisClient {
      * Used to return the Redis server version.
      *
      * @property
-     * @return {number}
+     * @returns {number}
      * @public
      */
     get serverVersion() {
@@ -216,6 +127,92 @@ class RedisClient {
     get isJSONSupported() {
         // Detect RedisJSON module variants (e.g., ReJSON, ReJSON2):
         return !_.isNil( this.#serverFeatures[ "ReJSON" ] ) || !_.isNil( this.#serverFeatures[ "ReJSON2" ] );
+    }
+
+    /**
+     * Used to initialize the Redis client.
+     *
+     * @method
+     * @param {string} host
+     * @param {number} port
+     * @param {string} authKey
+     * @param {string} user
+     * @param {number} defaultDB
+     * @param {number} [retryMaxIntervalMs=1000] Optional max backoff interval.
+     * @param {number|undefined} [retryMaxAttempts=undefined] Optional max (re)connection attempts before abort.
+     * @public
+     */
+    initialize( host, port, authKey, user, defaultDB, retryMaxIntervalMs = 1000, retryMaxAttempts = undefined ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( this.#redisClient ) {
+                resolve();
+            } else {
+                try {
+                    this.#retryMaxInterval = retryMaxIntervalMs;
+                    this.#retryMaxAttempts = retryMaxAttempts;
+
+                    let retryStrategy = ( attempt ) => {
+                        let result = Math.min( attempt * 50, this.#retryMaxInterval );
+
+                        if ( this.#retryMaxAttempts != null && attempt > this.#retryMaxAttempts ) {
+                            logger.log( "In Redis retry strategy: reached max attempts for command retry. Aborting...", logger.logSeverity.WARNING, { attempts: attempt } );
+                            result = exceptions.raise( exceptions.exceptionCode.E_COM_RETRY_ATTEMPTS_EXCEEDED );
+                        }
+
+                        return result;
+                    };
+
+                    let reconnectOnError = ( error ) => {
+                        logger.log( `In Redis reconnect on error strategy: ${ error.message }`, logger.logSeverity.ERROR, error );
+                        return !!error.message.includes( "READONLY" );
+                    };
+
+                    let options = {
+                        port: port,
+                        host: host,
+                        username: user,
+                        password: authKey,
+                        db: defaultDB,
+                        autoResendUnfulfilledCommands: true,
+                        maxRetriesPerRequest: null,
+                        retryStrategy: retryStrategy,
+                        reconnectOnError: reconnectOnError
+                    };
+
+                    /** @type Redis */
+                    this.#redisClient = new Redis( options );
+
+                    this.#redisClient.on( "ready", () => {
+                        logger.log( `Connection to Redis server ${ host }:${ port } (re)established by client '${ this.identifier }' and is ready to be used.`, logger.logSeverity.INFO );
+
+                        // Notify all connection observers about this event:
+                        _.forEach( this.#connectionObservers, ( connectionObservers ) => {
+                            connectionObservers.onConnectionRecovered( this.#clientIdentifier );
+                        } );
+
+                        // Fetch the server information and store it:
+                        this.#fetchServerInfo();
+
+                        resolve();
+                    } );
+                    this.#redisClient.on( "error", ( error ) => {
+                        logger.log( `Error received in Redis client '${ this.identifier }'.`, logger.logSeverity.ERROR, error );
+
+                        // Notify all connection observers about this event:
+                        _.forEach( this.#connectionObservers, ( connectionObservers ) => {
+                            connectionObservers.onConnectionDisrupted( this.#clientIdentifier );
+                        } );
+                    } );
+                    this.#redisClient.on( "reconnecting", ( info ) => {
+                        if ( info.attempt > 1 ) {
+                            logger.log( `Client '${ this.identifier }' reconnecting to Redis server after ${ info.delay } ms. This is attempt ${ info.attempt }.`, logger.logSeverity.DEBUG );
+                        }
+                    } );
+                } catch ( error ) {
+                    reject( exceptions.raise( error ) );
+                }
+            }
+        } );
     }
 
     /**
@@ -238,7 +235,7 @@ class RedisClient {
      *
      * @method
      * @param {Array[]} commands
-     * @return {Promise<*>}
+     * @returns {Promise<*>}
      * @public
      */
     executeCommands( commands ) {
@@ -259,7 +256,7 @@ class RedisClient {
      * @method
      * @param {string} command
      * @param {Array} commandArguments
-     * @return {Promise<*>}
+     * @returns {Promise<*>}
      * @public
      */
     blockingCommand( command, commandArguments ) {
@@ -278,7 +275,7 @@ class RedisClient {
      * @method
      * @param {string} channel
      * @param {(Object|string)} message
-     * @return {Promise<number>}
+     * @returns {Promise<number>}
      * @public
      */
     publishCommand( channel, message ) {
@@ -299,7 +296,7 @@ class RedisClient {
      * @method
      * @param {string} channel Unique identifier of the channel to subscribe to.
      * @param {function( Object )} messageHandler Will execute this handler every time a new message is received.
-     * @return {Promise}
+     * @returns {Promise}
      * @public
      */
     subscribeCommand( channel, messageHandler ) {
@@ -343,7 +340,7 @@ class RedisClient {
      *
      * @method
      * @param {string} channel Unique identifier of the channel to unsubscribe from.
-     * @return {Promise}
+     * @returns {Promise}
      * @public
      */
     unsubscribeCommand( channel ) {
@@ -424,6 +421,43 @@ class RedisClient {
         } );
     }
 
+    /* Private interface */
+
+    /**
+     * Used to fetch and store Redis server information.
+     *
+     * @method
+     * @private
+     */
+    #fetchServerInfo() {
+        this.#redisClient.info().then( ( result ) => {
+            this.#serverInfo = {};
+            if ( _.isString( result ) ) {
+                let rawData = _.split( result, "\r\n" );
+                _.forEach( rawData, ( entry ) => {
+                    let details = _.split( entry, ":" );
+                    if ( !_.startsWith( details[ 0 ], "#" ) && details[ 0 ] !== "" && details[ 0 ] ) {
+                        if ( _.isNaN( _.toNumber( details[ 1 ] ) ) ) {
+                            this.#serverInfo[ details[ 0 ] ] = details[ 1 ];
+                        } else {
+                            this.#serverInfo[ details[ 0 ] ] = _.toNumber( details[ 1 ] );
+                        }
+                    }
+                } );
+            }
+            return this.#redisClient.module( "LIST" );
+        } ).then( ( result ) => {
+            this.#serverFeatures = {};
+            if ( _.isArray( result ) ) {
+                _.forEach( result, ( entry ) => {
+                    this.#serverFeatures[ entry[ 1 ] ] = entry[ 3 ];
+                } );
+            }
+        } ).catch( ( error ) => {
+            logger.log( `Failed to fetch server information by client '${ this.identifier }'!`, logger.logSeverity.WARNING, error );
+        } );
+    }
+
 }
 
 /**
@@ -431,16 +465,9 @@ class RedisClient {
  *
  * @method
  * @param {string} identifier
- * @param {string} host
- * @param {number} [port=6379]
- * @param {string} [authKey=undefined]
- * @param {string} [user="default"]
- * @param {number} [defaultDB=0]
- * @param {number} [retryMaxIntervalMs=1000]
- * @param {number|undefined} [retryMaxAttempts=undefined]
  * @return {RedisClient}
  * @public
  */
-module.exports.createRedisClient = ( identifier, host, port = 6379, authKey = undefined, user = "default", defaultDB = 0, retryMaxIntervalMs = 1000, retryMaxAttempts = undefined ) => {
-    return Object.freeze( new RedisClient( identifier, host, port, authKey, user, defaultDB, retryMaxIntervalMs, retryMaxAttempts ) );
+module.exports.createRedisClient = ( identifier ) => {
+    return Object.freeze( new RedisClient( identifier ) );
 };

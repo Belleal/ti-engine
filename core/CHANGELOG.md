@@ -2,6 +2,12 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.1.9
+* feat(redis integration)!: change the way the `redis` client is initialized. Instead of happening automatically on class instantiation, it is now initialized on demand using the `initialize` method.
+* feat(cache): change the way the main cache instance is initialized in compliance with the new redis integration
+* feat(message memory cache)!: change the way the message memory cache is initialized in compliance with the new redis integration. The `initialize` method needs to be called explicitly to initialize the cache instance before it can be used.
+* fix(message dispatcher): fix the way the `messageExchange` is initialized in the `MessageDispatcher` class (was not returning a promise)
+
 ## Version 1.1.8
 * feat(auditing): change export of the singleton class in an `instance` variable for consistency and clarity
 * feat(message dispatcher): change export of the singleton class in an `instance` variable for consistency and clarity

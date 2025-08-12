@@ -24,8 +24,22 @@ class MessageMemoryCache {
     /**
      * @constructor
      * @param {string} identifier The connection identifier for the Redis connection.
+     * @returns {MessageMemoryCache}
      */
     constructor( identifier ) {
+        this.#redisClient = redis.createRedisClient( identifier );
+    }
+
+    /* Public interface */
+
+    /**
+     * Used to initialize the cache service.
+     *
+     * @method
+     * @returns {Promise}
+     * @public
+     */
+    initialize() {
         let host = config.getSetting( config.setting.MEMORY_CACHE_REDIS_HOST );
         let port = config.getSetting( config.setting.MEMORY_CACHE_REDIS_PORT );
         let db = config.getSetting( config.setting.MEMORY_CACHE_REDIS_DB );
@@ -33,17 +47,16 @@ class MessageMemoryCache {
         let user = config.getSetting( config.setting.MEMORY_CACHE_USER );
         let retryMaxAttempts = config.getSetting( config.setting.MEMORY_CACHE_RETRY_MAX_ATTEMPTS );
         let retryMaxInterval = config.getSetting( config.setting.MEMORY_CACHE_RETRY_MAX_INTERVAL );
-        this.#redisClient = redis.createRedisClient( identifier, host, port, authKey, user, db, retryMaxInterval, retryMaxAttempts );
-    }
 
-    /* Public interface */
+        return this.#redisClient.initialize( host, port, authKey, user, db, retryMaxInterval, retryMaxAttempts );
+    }
 
     /**
      * Used to gracefully shut down the cache service.
      *
      * @method
      * @param {number} [timeoutMs]
-     * @return {Promise}
+     * @returns {Promise}
      * @public
      */
     shutDown( timeoutMs ) {

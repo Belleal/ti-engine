@@ -54,7 +54,7 @@ class MessageDispatcher {
 
             // Initialize the message tracer before enabling the message exchange:
             messageTracer.instance.initialize().then( () => {
-                this.#messageExchange.enableMessaging( configureInbound, configureOutbound );
+                return this.#messageExchange.enableMessaging( configureInbound, configureOutbound );
             } ).then( () => {
                 resolve();
             } ).catch( ( error ) => {
