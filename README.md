@@ -22,5 +22,5 @@ These are just some benefits **ti-engine** offers. Get to know it better to find
 
 For more information and getting started guide please read the documentation of the individual packages:
 
-* [ti-engine/core](https://github.com/Belleal/ti-engine/tree/master/core) - This is the framework itself and there you can find the main documentation.
-* [ti-engine/tester](https://github.com/Belleal/ti-engine/tree/master/tester) - This is a sample tester microservice build with the framework.
+* [ti-engine/core](https://github.com/Belleal/ti-engine/tree/master/packages/core) - This is the framework itself and there you can find the main documentation.
+* [ti-engine/tester](https://github.com/Belleal/ti-engine/tree/master/packages/tester) - This is a sample tester microservice build with the framework.
