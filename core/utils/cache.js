@@ -36,6 +36,9 @@ class CommonMemoryCache extends ConnectionObserver {
         super();
 
         if ( !CommonMemoryCache.#instance ) {
+            this.#redisClient = redis.createRedisClient( this.#connectionIdentifier );
+            this.#redisClient.addConnectionObserver( this );
+
             CommonMemoryCache.#instance = this;
         }
         return CommonMemoryCache.#instance;
@@ -78,9 +81,6 @@ class CommonMemoryCache extends ConnectionObserver {
         let db = config.getSetting( config.setting.MEMORY_CACHE_REDIS_DB );
         let authKey = config.getSetting( config.setting.MEMORY_CACHE_AUTH_KEY );
         let user = config.getSetting( config.setting.MEMORY_CACHE_USER );
-
-        this.#redisClient = redis.createRedisClient( this.#connectionIdentifier );
-        this.#redisClient.addConnectionObserver( this );
 
         return this.#redisClient.initialize( host, port, authKey, user, db );
     }

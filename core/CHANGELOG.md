@@ -2,6 +2,9 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.1.10
+* fix(cache): fix redis client creation sequence. It is now created inside the constructor as intended. It still needs to be initialized explicitly using the `initialize` method.
+
 ## Version 1.1.9
 * feat(redis integration)!: change the way the `redis` client is initialized. Instead of happening automatically on class instantiation, it is now initialized on demand using the `initialize` method.
 * feat(cache): change the way the main cache instance is initialized in compliance with the new redis integration
