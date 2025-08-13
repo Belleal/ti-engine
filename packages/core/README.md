@@ -497,4 +497,24 @@ OPERATION_MODE
 
 ## Advanced topics
 
-Under development...
+### Localization
+
+The **ti-engine** framework provides a localization mechanism that allows you to translate labels into localized text. The framework comes with a default set of labels that can be found in the `localization` module. You can add your own custom labels to this set by providing one or more JSON files with the same structure as the default one (see below). The path to these files should be specified in the `LOCALIZATION_LABELS_PATH` setting. On startup, the framework will load all the JSON files and merge them into a single repository.
+
+The following is an example of a custom localization file (the names in brackets can be replaced with your own values):
+
+```json
+{
+  "labels": {
+    "[category]": {
+      "[sub-category]": {
+        "[label]": {
+          "en": "[localized label text]"
+        }
+      }
+    }
+  }
+}
+```
+
+The individual languages are specified with a two-letter code. The default language is `en` (English). If you want to use a different language, you can set the `LOCALIZATION_LANGUAGE` setting to the desired language code.

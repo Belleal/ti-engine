@@ -8,16 +8,26 @@
 
 const _ = require( "lodash" );
 const path = require( "path" );
-const config = require( "#config" );
-
-// const labelsPath = path.normalize( path.join( process.cwd(), config.getSetting( config.setting.LOCALIZATION_LABELS_PATH ) ) );
-// const labels = require( labelsPath );
 const labels = require( "#labels" );
+const config = require( "#config" );
+const logger = require( '#logger' );
+const exceptions = require( '#exceptions' );
+
 const defaultEmptyLabel = "!!! label not found !!!";
 
-// TODO: Add functionality to import additional custom labels.
+// Load any custom labels defined in the configuration:
+try {
+    const labelsPaths = config.getSetting( config.setting.LOCALIZATION_LABELS_PATH );
+    _.forEach( labelsPaths, ( labelsPath ) => {
+        let filePath = path.normalize( path.join( process.cwd(), labelsPath ) );
+        let fileLabels = require( filePath );
+        _.merge( labels, fileLabels );
+    } );
+} catch ( error ) {
+    logger.log( `Error while trying to load custom labels.`, logger.logSeverity.ERROR, exceptions.raise( error ) );
+}
 
-// prevent further modifications to the labels object:
+// Prevent further modifications to the labels object:
 Object.freeze( labels );
 
 /**

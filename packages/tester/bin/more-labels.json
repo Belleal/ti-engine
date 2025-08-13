@@ -1,0 +1,11 @@
+{
+  "labels": {
+    "additional": {
+      "test": {
+        "value1": {
+          "en": "Test label value 1."
+        }
+      }
+    }
+  }
+}

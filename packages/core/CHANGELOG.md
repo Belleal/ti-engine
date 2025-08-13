@@ -2,6 +2,10 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.2.1
+* feat(localization): add support for adding custom labels to the localization system. These have to follow the same format as the system labels
+* docs: add section about localization to the `README.md` file
+
 ## Version 1.2.0
 * feat(config)!: change the setting `localization.labelsPath` to be an array of strings. It can now be used to supply any additional custom labels in one or more files to the framework
 * feat(message memory cache): implement graceful exception handling during shut down procedure in `receiveMessage` and `sendMessage` methods
