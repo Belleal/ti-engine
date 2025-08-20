@@ -2,6 +2,9 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.2.2
+* feat(start instance): change package `dotenv` to `@dotenvx/dotenvx` for loading of ENV variables. The new package supports encrypting the ENV variables. For more information see https://dotenvx.com/docs/
+
 ## Version 1.2.1
 * feat(localization): add support for adding custom labels to the localization system. These have to follow the same format as the system labels
 * docs: add section about localization to the `README.md` file

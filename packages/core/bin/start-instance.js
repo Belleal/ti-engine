@@ -11,7 +11,7 @@
 const path = require( "path" );
 
 // Load any ENV variables defined in a .env file - before including any framework files:
-require( "dotenv" ).config( { path: path.join( process.cwd(), ".env" ) } );
+require( "@dotenvx/dotenvx" ).config( { path: path.join( process.cwd(), ".env" ) } );
 
 const tools = require( "#tools" );
 const logger = require( "#logger" );
@@ -36,7 +36,7 @@ const defaultNameFromClass = ( () => {
 
 process.env.TI_INSTANCE_NAME = process.env.TI_INSTANCE_NAME || defaultNameFromClass;
 
-// Configure the process error handlers:
+// Configure the process termination handlers to ensure a graceful shutdown:
 
 /**
  * Will be used to gracefully shut down the instance.
@@ -74,6 +74,8 @@ process.on( "SIGBREAK", () => {
     logger.log( `SIGBREAK event detected in main instance process.`, logger.logSeverity.NOTICE );
     shutDownInstance( 0 );
 } );
+
+// Configure the process general error handlers:
 
 process.on( "unhandledRejection", ( reason ) => {
     // Check if the fail-fast behavior has been forcefully disabled:
