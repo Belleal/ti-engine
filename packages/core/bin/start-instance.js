@@ -11,7 +11,28 @@
 const path = require( "path" );
 
 // Load any ENV variables defined in a .env file - before including any framework files:
-require( "@dotenvx/dotenvx" ).config( { path: path.join( process.cwd(), ".env" ) } );
+// - If an env file path is provided via process arguments, use it; otherwise, default to CWD/.env
+const envFilePath = ( () => {
+    let envPath = path.join( process.cwd(), ".env" );
+    try {
+        const argv = Array.isArray( process.argv ) ? process.argv.slice( 2 ) : [];
+        const aliases = [ "--env", "--env-file", "--dotenv", "--dotenv-path", "-e" ];
+        for ( const key of aliases ) {
+            const idx = argv.indexOf( key );
+            if ( idx !== -1 && idx + 1 < argv.length ) {
+                const value = argv[ idx + 1 ];
+                if ( typeof value === "string" && !value.startsWith( "-" ) ) {
+                    envPath = path.join( process.cwd(), value.trim() );
+                    break;
+                }
+            }
+        }
+    } catch {
+    }
+    return envPath;
+} )();
+
+require( "@dotenvx/dotenvx" ).config( { path: envFilePath } );
 
 const tools = require( "#tools" );
 const logger = require( "#logger" );

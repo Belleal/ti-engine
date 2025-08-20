@@ -2,6 +2,9 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.2.3
+* feat(start instance): add support for providing a custom path to the `.env` file to be used at service startup as process argument. Accepted arguments are `--env`, `--env-file`, `--dotenv`, `--dotenv-path`, and `-e`. The path itself should be relative to the working directory and should include the file name
+
 ## Version 1.2.2
 * feat(start instance): change package `dotenv` to `@dotenvx/dotenvx` for loading of ENV variables. The new package supports encrypting the ENV variables. For more information see https://dotenvx.com/docs/
 
