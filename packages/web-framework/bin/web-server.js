@@ -7,6 +7,8 @@
 */
 
 const ServiceConsumer = require( "@ti-engine/core/service-consumer" );
+const exceptions = require( "@ti-engine/core/exceptions" );
+const logger = require( "@ti-engine/core/logger" );
 
 /**
  * A web server microservice based on the ti-engine.
@@ -16,6 +18,8 @@ const ServiceConsumer = require( "@ti-engine/core/service-consumer" );
  */
 class TiWebServer extends ServiceConsumer {
 
+    #webServer = null;
+
     /**
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
@@ -23,6 +27,8 @@ class TiWebServer extends ServiceConsumer {
      */
     constructor( serviceDomainName, serviceConfig ) {
         super( serviceDomainName, serviceConfig );
+
+        this.#webServer = require( "fastify" )( {} );
     }
 
     /* Public interface */
@@ -36,7 +42,25 @@ class TiWebServer extends ServiceConsumer {
      * @public
      */
     onStart() {
-        return Promise.resolve();
+        return new Promise( ( resolve, reject ) => {
+            super.onStart().then( () => {
+                this.#webServer.get( "/", ( request, reply ) => {
+                    reply.send( { hello: "world" } )
+                } );
+
+                return this.#webServer.listen( { port: 3000 }, ( error, address ) => {
+                    if ( error ) {
+                        logger.log( `Error while trying to start web server from '${ ServiceConsumer.instanceID }'!`, logger.logSeverity.ERROR, error );
+                    } else {
+                        logger.log( `Web server started at '${ address }' from '${ ServiceConsumer.instanceID }'.`, logger.logSeverity.NOTICE );
+                    }
+                } );
+            } ).then( () => {
+                resolve();
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
     }
 
     /**
