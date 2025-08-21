@@ -10,6 +10,7 @@ const ServiceConsumer = require( "@ti-engine/core/service-consumer" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const logger = require( "@ti-engine/core/logger" );
 const { randomBytes } = require( "crypto" );
+const path = require( "path" );
 
 /**
  * A web server microservice based on the ti-engine.
@@ -31,11 +32,14 @@ class TiWebServer extends ServiceConsumer {
         super( serviceDomainName, serviceConfig );
 
         // Enable trustProxy so secure cookies work correctly behind reverse proxies/load balancers:
+        // TODO: Configure HTTPS
         this.#webServer = require( "fastify" )( {
             trustProxy: true
         } );
 
-        // TODO: Temp setup, move these to actual settings
+        // TODO: Temp setup, move these to actual settings in 'serviceConfig'
+        this.#webConfig.port = 3000;
+        this.#webConfig.host = "0.0.0.0";
         this.#webConfig.cookies = {
             secret: process.env.COOKIE_SECRET || randomBytes( 32 ).toString( "base64" ),
             setup: {
@@ -78,7 +82,7 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.register( require( "#common-routes" ) );
 
                 // Start listening for requests:
-                return this.#webServer.listen( { port: 3000, host: "0.0.0.0" } );
+                return this.#webServer.listen( { port: this.#webConfig.port, host: this.#webConfig.host } );
             } ).then( ( address ) => {
                 logger.log( `Web server started at '${ address }' from '${ ServiceConsumer.instanceID }'.`, logger.logSeverity.NOTICE );
                 resolve();
@@ -139,6 +143,15 @@ class TiWebServer extends ServiceConsumer {
                     frameAncestors: [ "'self'" ]
                 }
             }
+        } );
+
+        // Register static file serving before routes that depend on it:
+        this.#webServer.register( require( "@fastify/static" ), {
+            root: path.join( process.cwd(), "packages/web-framework/bin/public" ),
+            prefix: "/public/",
+            decorateReply: true,
+            serveDotFiles: false,
+            maxAge: "1h" // adjust caching as needed
         } );
 
         // Step 2 - Cookies (must be before session):

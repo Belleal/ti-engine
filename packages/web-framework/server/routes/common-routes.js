@@ -26,8 +26,8 @@ const exceptions = require( "@ti-engine/core/exceptions" );
  */
 const rootHandler = ( request, reply ) => {
     return new Promise( ( resolve, reject ) => {
-        //reject( exceptions.raise( exceptions.exceptionCode.E_GEN_JS_INTERNAL_ERROR ) );
-        resolve( { hello: "world" } );
+        reply.type( "text/html" )
+        return reply.sendFile( "index.html", { maxAge: 0, immutable: false } );
     } );
 };
 
