@@ -41,6 +41,7 @@ class TiWebServer extends ServiceConsumer {
         // TODO: Temp setup, move these to actual settings in 'serviceConfig'
         this.#webConfig.port = 3000;
         this.#webConfig.host = "0.0.0.0";
+        this.#webConfig.publicPath = "packages/web-framework/bin/public";
         this.#webConfig.cookies = {
             secret: process.env.COOKIE_SECRET || randomBytes( 32 ).toString( "base64" ),
             setup: {
@@ -167,13 +168,13 @@ class TiWebServer extends ServiceConsumer {
             }
         } );
 
-        // Register static file serving before routes that depend on it:
+        // Register the static file serving before routes that depend on it:
         this.#webServer.register( require( "@fastify/static" ), {
-            root: path.join( process.cwd(), "packages/web-framework/bin/public" ),
+            root: path.join( process.cwd(), this.#webConfig.publicPath ),
             prefix: "/public/",
             decorateReply: true,
             serveDotFiles: false,
-            maxAge: "1h" // adjust caching as needed
+            maxAge: "1h"
         } );
 
         // Step 2 - Cookies (must be before session):

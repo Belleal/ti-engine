@@ -32,6 +32,21 @@ const rootHandler = ( request, reply ) => {
 };
 
 /**
+ * Handler for the favicon route.
+ *
+ * @method
+ * @param {FastifyRequest} request
+ * @param {FastifyReply} reply
+ * @returns {Promise}
+ * @public
+ */
+const faviconHandler = ( request, reply ) => {
+    return new Promise( ( resolve, reject ) => {
+        return reply.sendFile( "favicon.ico", { maxAge: "1d", immutable: false } );
+    } );
+};
+
+/**
  * Registers common routes for the web server.
  *
  * @method
@@ -41,4 +56,5 @@ const rootHandler = ( request, reply ) => {
  */
 module.exports = ( fastify, options ) => {
     fastify.get( "/", rootHandler );
+    fastify.get( "/favicon.ico", faviconHandler );
 };
