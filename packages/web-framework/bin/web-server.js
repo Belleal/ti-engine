@@ -11,6 +11,7 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const logger = require( "@ti-engine/core/logger" );
 const { randomBytes } = require( "crypto" );
 const path = require( "path" );
+const SessionStore = require( "#session-store" );
 
 /**
  * A web server microservice based on the ti-engine.
@@ -65,7 +66,7 @@ class TiWebServer extends ServiceConsumer {
     /* Public interface */
 
     /**
-     * Executes custom logic on instance start.
+     * Starts the web server.
      *
      * @method
      * @returns {Promise}
@@ -84,10 +85,31 @@ class TiWebServer extends ServiceConsumer {
                 // Start listening for requests:
                 return this.#webServer.listen( { port: this.#webConfig.port, host: this.#webConfig.host } );
             } ).then( ( address ) => {
-                logger.log( `Web server started at '${ address }' from '${ ServiceConsumer.instanceID }'.`, logger.logSeverity.NOTICE );
+                logger.log( `Web server started at '${ address }' within instance '${ ServiceConsumer.instanceID }'.`, logger.logSeverity.NOTICE );
                 resolve();
             } ).catch( ( error ) => {
-                logger.log( `Error while trying to start web server from '${ ServiceConsumer.instanceID }'!`, logger.logSeverity.ERROR, error );
+                logger.log( `Error while trying to start web server within instance '${ ServiceConsumer.instanceID }'!`, logger.logSeverity.ERROR, error );
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Shuts down the web server.
+     *
+     * @method
+     * @returns {Promise}
+     * @override
+     * @public
+     */
+    onStop() {
+        return new Promise( ( resolve, reject ) => {
+            super.onStop().then( () => {
+                return this.#webServer.close();
+            } ).then( () => {
+                logger.log( `Web server stopped successfully.`, logger.logSeverity.NOTICE );
+                resolve();
+            } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
         } );
@@ -166,8 +188,8 @@ class TiWebServer extends ServiceConsumer {
             secret: this.#webConfig.session.secret,
             cookieName: "sid",
             rolling: true,
-            cookie: this.#webConfig.cookies.setup
-            // For production deployments, consider configuring a persistent session store (e.g., Redis) here.
+            cookie: this.#webConfig.cookies.setup,
+            store: new SessionStore()
         } );
 
         // Step 4 - CSRF protection (uses session):
