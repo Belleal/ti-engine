@@ -13,7 +13,35 @@
  * @typedef {import('fastify').FastifyReply} FastifyReply
  */
 
-const exceptions = require( "@ti-engine/core/exceptions" );
+/**
+ * Decodes a JWT (no verification). Returns payload object or null on error.
+ * @param {string} jwt
+ */
+const decodeJwtPayload = ( jwt ) => {
+    try {
+        const parts = jwt.split( "." );
+        if ( parts.length !== 3 ) return null;
+        const base64 = parts[ 1 ].replace( /-/g, "+" ).replace( /_/g, "/" );
+        const padded = base64.padEnd( base64.length + ( 4 - ( base64.length % 4 ) ) % 4, "=" );
+        const json = Buffer.from( padded, "base64" ).toString( "utf8" );
+        return JSON.parse( json );
+    } catch ( e ) {
+        return null;
+    }
+};
+
+/**
+ * Simple pre-handler to require an authenticated session.
+ */
+const requireAuth = ( request, reply ) => {
+    return new Promise( ( resolve, reject ) => {
+        if ( !request.session || !request.session.user ) {
+            return reply.code( 401 ).send( { error: "unauthenticated" } );
+        } else {
+            resolve();
+        }
+    } );
+}
 
 /**
  * Main handler for the root route.
@@ -46,6 +74,72 @@ const faviconHandler = ( request, reply ) => {
     } );
 };
 
+const loginHandler = ( request, reply ) => {
+    return new Promise( ( resolve, reject ) => {
+        return reply.redirect( "/login/google" );
+    } );
+};
+
+const logoutHandler = ( request, reply ) => {
+    return new Promise( ( resolve, reject ) => {
+        const done = () => {
+            try {
+                reply.clearCookie( "sid" );
+            } catch ( e ) {
+            }
+            reply.code( 204 ).send();
+            resolve();
+        };
+        if ( typeof request.destroySession === "function" ) {
+            request.destroySession( done );
+        } else {
+            if ( request.session ) request.session = null;
+            done();
+        }
+    } );
+};
+
+const getUserHandler = ( request, reply ) => {
+    return new Promise( ( resolve, reject ) => {
+        if ( request.session && request.session.user ) {
+            return { user: request.session.user };
+        }
+        return reply.code( 401 ).send( { error: "unauthenticated" } );
+    } );
+};
+
+const oauth2GoogleHandler = ( request, reply ) => {
+    return new Promise( ( resolve, reject ) => {
+        try {
+            request.server.googleOAuth2.getAccessTokenFromAuthorizationCodeFlow( request ).then( ( token ) => {
+                const idToken = token.id_token || ( token.token && token.token.id_token );
+                let profile = null;
+                if ( idToken ) {
+                    profile = decodeJwtPayload( idToken );
+                }
+
+                // Persist user and auth details in session:
+                request.session.user = profile ? {
+                    id: profile.sub,
+                    email: profile.email,
+                    name: profile.name || [ profile.given_name, profile.family_name ].filter( Boolean ).join( " " ),
+                    picture: profile.picture,
+                    email_verified: profile.email_verified
+                } : {};
+                request.session.auth = { provider: "google", token };
+
+                const redirectTo = request.session.redirectTo || "/";
+                delete request.session.redirectTo;
+                return reply.redirect( redirectTo );
+            } ).catch( ( error ) => {
+                return reply.code( 500 ).send( { error: "OAuth2 callback failed" } );
+            } );
+        } catch ( error ) {
+            return reply.code( 500 ).send( { error: "OAuth2 callback failed" } );
+        }
+    } );
+};
+
 /**
  * Registers common routes for the web server.
  *
@@ -57,4 +151,9 @@ const faviconHandler = ( request, reply ) => {
 module.exports = ( fastify, options ) => {
     fastify.get( "/", rootHandler );
     fastify.get( "/favicon.ico", faviconHandler );
+
+    fastify.get( "/login", loginHandler );
+    fastify.post( "/logout", { preHandler: fastify.csrfProtection ? fastify.csrfProtection : undefined }, logoutHandler );
+    fastify.get( "/me", getUserHandler );
+    fastify.get( options.webConfig.oauth2.google.callbackUrl, oauth2GoogleHandler );
 };

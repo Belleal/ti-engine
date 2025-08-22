@@ -59,7 +59,7 @@ class TiWebServer extends ServiceConsumer {
             google: {
                 clientID: process.env.GOOGLE_CLIENT_ID || "",
                 clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-                callbackUrl: process.env.GOOGLE_CALLBACK_URL || ""
+                callbackUrl: process.env.GOOGLE_CALLBACK_URL || "/login/google/callback"
             }
         };
     }
@@ -81,7 +81,7 @@ class TiWebServer extends ServiceConsumer {
                 this.#configurePlugins();
 
                 // Configure the web server routes:
-                this.#webServer.register( require( "#common-routes" ) );
+                this.#webServer.register( require( "#common-routes" ), { webConfig: this.#webConfig } );
 
                 // Start listening for requests:
                 return this.#webServer.listen( { port: this.#webConfig.port, host: this.#webConfig.host } );
