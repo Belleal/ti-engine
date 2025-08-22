@@ -11,6 +11,7 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const logger = require( "@ti-engine/core/logger" );
 const { randomBytes } = require( "crypto" );
 const path = require( "path" );
+const fs = require( "fs" );
 const SessionStore = require( "#session-store" );
 
 /**
@@ -32,18 +33,32 @@ class TiWebServer extends ServiceConsumer {
     constructor( serviceDomainName, serviceConfig ) {
         super( serviceDomainName, serviceConfig );
 
-        // Enable trustProxy so secure cookies work correctly behind reverse proxies/load balancers:
-        // TODO: Configure HTTPS
+        // Configure the web server for HTTPS if enabled in the service config:
+        let httpsOptions = undefined;
+        if ( serviceConfig.useTLS === true ) {
+            try {
+                httpsOptions = {
+                    key: fs.readFileSync( path.join( process.cwd(), serviceConfig.tlsKeyPath ) ),
+                    cert: fs.readFileSync( path.join( process.cwd(), serviceConfig.tlsCertPath ) )
+                };
+            } catch ( error ) {
+                logger.log( "Failed to read and load the TLS key/cert files.", logger.logSeverity.ERROR, error );
+                throw exceptions.raise( error );
+            }
+        }
+
         this.#webServer = require( "fastify" )( {
-            trustProxy: true
+            // Enable trustProxy so secure cookies work correctly behind reverse proxies/load balancers:
+            trustProxy: true,
+            https: httpsOptions
         } );
 
-        // TODO: Temp setup, move these to actual settings in 'serviceConfig'
-        this.#webConfig.port = 3000;
-        this.#webConfig.host = "0.0.0.0";
+        this.#webConfig.scheme = ( serviceConfig.useTLS === true ) ? "https" : "http";
+        this.#webConfig.port = serviceConfig.port || 3000;
+        this.#webConfig.host = serviceConfig.host || "0.0.0.0";
         this.#webConfig.publicPath = "packages/web-framework/bin/public";
         this.#webConfig.cookies = {
-            secret: process.env.COOKIE_SECRET || randomBytes( 32 ).toString( "base64" ),
+            secret: serviceConfig.cookies.secret || randomBytes( 32 ).toString( "base64" ),
             setup: {
                 path: "/",
                 httpOnly: true,
@@ -53,13 +68,13 @@ class TiWebServer extends ServiceConsumer {
             }
         };
         this.#webConfig.session = {
-            secret: process.env.SESSION_SECRET || process.env.COOKIE_SECRET || randomBytes( 32 ).toString( "base64" )
+            secret: serviceConfig.session.secret || serviceConfig.cookies.secret || randomBytes( 32 ).toString( "base64" )
         };
         this.#webConfig.oauth2 = {
             google: {
-                clientID: process.env.GOOGLE_CLIENT_ID || "",
-                clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-                callbackUrl: process.env.GOOGLE_CALLBACK_URL || "/login/google/callback"
+                clientID: process.env.TI_WEB_GOOGLE_CLIENT_ID || "",
+                clientSecret: process.env.TI_WEB_GOOGLE_CLIENT_SECRET || "",
+                callbackUrl: process.env.TI_WEB_GOOGLE_CALLBACK_URL || "/login/google/callback"
             }
         };
     }
@@ -215,7 +230,7 @@ class TiWebServer extends ServiceConsumer {
                 auth: GOOGLE_CONFIGURATION
             },
             startRedirectPath: "/login/google",
-            callbackUri: this.#webConfig.oauth2.google.callbackUrl,
+            callbackUri: ( this.#webConfig.scheme + "://" + this.#webConfig.host + ":" + this.#webConfig.port ) + this.#webConfig.oauth2.google.callbackUrl,
             cookie: this.#webConfig.cookies.setup,
             pkce: "S256"
             // Optionally, you can implement generateStateFunction/checkStateFunction for extra CSRF safety in the OAuth flow.

@@ -1,1 +1,13 @@
-{}
+{
+  "cookies": {
+    "secret": null
+  },
+  "port": 3000,
+  "host": "127.0.0.1",
+  "session": {
+    "secret": null
+  },
+  "tlsCertPath": "packages/web-framework/bin/localhost+2.pem",
+  "tlsKeyPath": "packages/web-framework/bin/localhost+2-key.pem",
+  "useTLS": true
+}

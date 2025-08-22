@@ -111,8 +111,8 @@ const getUserHandler = ( request, reply ) => {
 const oauth2GoogleHandler = ( request, reply ) => {
     return new Promise( ( resolve, reject ) => {
         try {
-            request.server.googleOAuth2.getAccessTokenFromAuthorizationCodeFlow( request ).then( ( token ) => {
-                const idToken = token.id_token || ( token.token && token.token.id_token );
+            request.server.googleOAuth2.getAccessTokenFromAuthorizationCodeFlow( request ).then( ( result ) => {
+                const idToken = result.id_token || ( result.token && result.token.id_token );
                 let profile = null;
                 if ( idToken ) {
                     profile = decodeJwtPayload( idToken );
@@ -126,9 +126,9 @@ const oauth2GoogleHandler = ( request, reply ) => {
                     picture: profile.picture,
                     email_verified: profile.email_verified
                 } : {};
-                request.session.auth = { provider: "google", token };
+                request.session.auth = { provider: "google", token: result.token };
 
-                const redirectTo = request.session.redirectTo || "/";
+                const redirectTo = request.session.redirectTo || "/dashboard";
                 delete request.session.redirectTo;
                 return reply.redirect( redirectTo );
             } ).catch( ( error ) => {
@@ -137,6 +137,13 @@ const oauth2GoogleHandler = ( request, reply ) => {
         } catch ( error ) {
             return reply.code( 500 ).send( { error: "OAuth2 callback failed" } );
         }
+    } );
+};
+
+const pageHandler = ( request, reply ) => {
+    return new Promise( ( resolve, reject ) => {
+        reply.type( "text/html" )
+        return reply.sendFile( "dashboard.html", { maxAge: 0, immutable: false } );
     } );
 };
 
@@ -151,6 +158,7 @@ const oauth2GoogleHandler = ( request, reply ) => {
 module.exports = ( fastify, options ) => {
     fastify.get( "/", rootHandler );
     fastify.get( "/favicon.ico", faviconHandler );
+    fastify.get( "/dashboard", pageHandler );
 
     fastify.get( "/login", loginHandler );
     fastify.post( "/logout", { preHandler: fastify.csrfProtection ? fastify.csrfProtection : undefined }, logoutHandler );
