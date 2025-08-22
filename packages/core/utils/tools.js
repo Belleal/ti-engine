@@ -319,8 +319,7 @@ module.exports.retrocycle = ( $ ) => {
  * @public
  */
 module.exports.stringifyJSON = ( value ) => {
-    let transformed = module.exports.decycle( value );
-    return _.isObjectLike( transformed ) ? JSON.stringify( _.toPlainObject( transformed ) ) : value;
+    return _.isObjectLike( value ) ? JSON.stringify( _.toPlainObject( module.exports.decycle( value ) ) ) : value;
 };
 
 /**

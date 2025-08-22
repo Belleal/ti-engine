@@ -2,6 +2,12 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.2.4
+* feat(cache): expose the cache module as export in `package.json`
+* feat(cache): add method `hashDeleteField` to remove a hash-set field. This implements the `hdel` Redis command
+* fix(tools): optimize method `stringifyJSON` not to call unnecessary decycling of the value if it's not an object
+* fix(cache): replace `hmset` with `hset` Redis command in both methods that set hash-set values. Also remove unnecessary `_.isObjectLike` call in `hashSetFields` method
+
 ## Version 1.2.3
 * feat(start instance): add support for providing a custom path to the `.env` file to be used at service startup as process argument. Accepted arguments are `--env`, `--env-file`, `--dotenv`, `--dotenv-path`, and `-e`. The path itself should be relative to the working directory and should include the file name
 

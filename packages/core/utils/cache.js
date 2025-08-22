@@ -508,7 +508,7 @@ class CommonMemoryCache extends ConnectionObserver {
     hashSetField( key, name, value ) {
         return new Promise( ( resolve, reject ) => {
             if ( this.#isOperational === true ) {
-                let commandHashSetField = [ redis.cacheCommands.HASH_SET_MANY, key, name, tools.stringifyJSON( value ) ];
+                let commandHashSetField = [ redis.cacheCommands.HASH_SET, key, name, tools.stringifyJSON( value ) ];
                 this.#redisClient.executeCommands( [ commandHashSetField ] ).then( () => {
                     resolve();
                 } ).catch( ( error ) => {
@@ -535,10 +535,10 @@ class CommonMemoryCache extends ConnectionObserver {
     hashSetFields( key, fields ) {
         return new Promise( ( resolve, reject ) => {
             if ( this.#isOperational === true ) {
-                let commandHashSetFields = [ redis.cacheCommands.HASH_SET_MANY, key ];
+                let commandHashSetFields = [ redis.cacheCommands.HASH_SET, key ];
                 _.forEach( fields, ( field ) => {
                     commandHashSetFields.push( field.name );
-                    commandHashSetFields.push( _.isObjectLike( field.value ) ? tools.stringifyJSON( field.value ) : field.value );
+                    commandHashSetFields.push( tools.stringifyJSON( field.value ) );
                 } );
                 this.#redisClient.executeCommands( [ commandHashSetFields ] ).then( () => {
                     resolve();
@@ -567,6 +567,31 @@ class CommonMemoryCache extends ConnectionObserver {
                 this.#redisClient.executeCommands( [ commandHashGetField ] ).then( ( results ) => {
                     results = results[ 0 ];
                     resolve( ( results && results.length > 1 && _.isString( results[ 1 ] ) ) ? tools.parseJSON( results[ 1 ] ) : null );
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
+        } );
+    }
+
+    /**
+     * Used to remove a single field from a hash.
+     *
+     * @method
+     * @param {string} key
+     * @param {string} field
+     * @return {Promise<boolean>} Will return 'true' if the field was removed, 'false' otherwise.
+     * @public
+     */
+    hashDeleteField( key, field ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( this.#isOperational === true ) {
+                let commandHashGetField = [ redis.cacheCommands.HASH_REMOVE, key, field ];
+                this.#redisClient.executeCommands( [ commandHashGetField ] ).then( ( results ) => {
+                    results = results[ 0 ];
+                    resolve( ( results && results.length > 1 ) ? tools.toBool( results[ 1 ] ) : false );
                 } ).catch( ( error ) => {
                     reject( error );
                 } );
