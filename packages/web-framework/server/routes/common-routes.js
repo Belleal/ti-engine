@@ -156,11 +156,128 @@ const pageHandler = ( request, reply ) => {
  * @public
  */
 module.exports = ( fastify, options ) => {
-    fastify.get( "/", rootHandler );
+    // TODO: all of this has to be reviewed and refactored.
+
+    // Inline handlers to capture options (webConfig) in closure:
+    const loginGetHandler = ( request, reply ) => {
+        const localEnabled = options.webConfig && options.webConfig.localAuth && options.webConfig.localAuth.enabled;
+        const csrfToken = typeof reply.generateCsrf === "function" ? reply.generateCsrf() : "";
+        const googleLoginUrl = "/login/google";
+        const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in</title>
+  <meta name="csrf-token" content="${ csrfToken }" />
+  ${ localEnabled ? '<script src="/public/login.js" defer></script>' : '' }
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 2rem; }
+    .box { max-width: 420px; margin: 2rem auto; border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; }
+    .row { margin-bottom: 0.75rem; }
+    label { display:block; margin-bottom: 0.25rem; font-weight: 600; }
+    input { width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:4px; }
+    button { padding:0.5rem 0.75rem; border:1px solid #2c7be5; background:#2c7be5; color:#fff; border-radius:4px; cursor:pointer; }
+    button.link { background:#fff; color:#2c7be5; border-color:#2c7be5; margin-left: 0.5rem; }
+    .error { color:#b00020; display:none; margin-bottom:0.5rem; }
+    .sep { text-align:center; color:#888; margin: 0.75rem 0; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Sign in</h2>
+    ${ localEnabled ? `
+    <div id="error" class="error"></div>
+    <form id="loginForm">
+      <div class="row">
+        <label for="username">Username</label>
+        <input id="username" name="username" autocomplete="username" />
+      </div>
+      <div class="row">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" />
+      </div>
+      <div class="row">
+        <button type="submit">Sign in</button>
+        <a class="link" href='${ googleLoginUrl }'>Sign in with Google</a>
+      </div>
+    </form>
+    ` : `
+    <div class="row">
+      <a href='${ googleLoginUrl }'>Sign in with Google</a>
+    </div>
+    ` }
+    <div class="sep">&nbsp;</div>
+  </div>
+</body>
+</html>`;
+        reply.header( "x-csrf-token", csrfToken );
+        reply.type( "text/html" );
+        return reply.send( html );
+    };
+
+    const loginPostHandler = ( request, reply ) => {
+        return new Promise( ( resolve ) => {
+            try {
+                const body = request.body || {};
+                const username = String( body.username || "" );
+                const password = String( body.password || "" );
+                const cfg = ( options.webConfig && options.webConfig.localAuth ) ? options.webConfig.localAuth : {};
+                if ( !cfg.enabled || !cfg.username ) {
+                    reply.code( 400 ).send( { error: "local_auth_disabled" } );
+                    return resolve();
+                }
+                const userOk = username === cfg.username;
+                let passOk = false;
+                if ( cfg.password ) {
+                    passOk = password === cfg.password;
+                }
+                if ( !passOk && cfg.passwordSha256 ) {
+                    try {
+                        const { createHash } = require( "crypto" );
+                        const hashed = createHash( "sha256" ).update( password, "utf8" ).digest( "hex" ).toLowerCase();
+                        passOk = hashed === String( cfg.passwordSha256 ).toLowerCase();
+                    } catch ( e ) {
+                    }
+                }
+                if ( !userOk || !passOk ) {
+                    reply.code( 401 ).send( { error: "invalid_credentials" } );
+                    return resolve();
+                }
+                request.session.user = { id: "local:" + cfg.username, name: cfg.username };
+                request.session.auth = { provider: "local" };
+                const redirectTo = request.session.redirectTo || "/dashboard";
+                delete request.session.redirectTo;
+                reply.code( 200 ).send( { ok: true, redirectTo } );
+                resolve();
+            } catch ( err ) {
+                reply.code( 500 ).send( { error: "login_failed" } );
+                resolve();
+            }
+        } );
+    };
+
+    const rootGetHandler = ( request, reply ) => {
+        const fs = require( "fs" );
+        const path = require( "path" );
+        const pubPath = ( options.webConfig && options.webConfig.publicPath ) ? options.webConfig.publicPath : "packages/web-framework/bin/public";
+        const filePath = path.join( process.cwd(), pubPath, "index.html" );
+        fs.readFile( filePath, "utf8", ( err, html ) => {
+            if ( err ) {
+                return reply.code( 500 ).type( "text/plain" ).send( "Failed to load page." );
+            }
+            const nonce = request.cspNonce || "";
+            const out = String( html ).replace( /%%CSP_NONCE%%/g, nonce );
+            reply.type( "text/html; charset=utf-8" ).send( out );
+        } );
+    };
+
+    fastify.get( "/", rootGetHandler );
     fastify.get( "/favicon.ico", faviconHandler );
     fastify.get( "/dashboard", pageHandler );
 
-    fastify.get( "/login", loginHandler );
+    fastify.get( "/login", loginGetHandler );
+    fastify.post( "/login", { preHandler: fastify.csrfProtection ? fastify.csrfProtection : undefined }, loginPostHandler );
     fastify.post( "/logout", { preHandler: fastify.csrfProtection ? fastify.csrfProtection : undefined }, logoutHandler );
     fastify.get( "/me", getUserHandler );
     fastify.get( options.webConfig.oauth2.google.callbackUrl, oauth2GoogleHandler );

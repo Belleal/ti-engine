@@ -3,11 +3,13 @@ Flexible framework for the creation of microservices with [node.js](https://node
 
 ## Introduction
 
-The **ti-engine** is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using **node.js**. The architectural concept of the framework is based on a standard _messaging system_ that allows for certain customization but also provides predictability and traceability of its behavior.
+The **ti-engine** is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using **node.js**.
+The architectural concept of the framework is based on a standard _messaging system_ that allows for certain customization but also provides predictability and traceability of its behavior.
 
 ## Why ti-engine?
 
-The framework is created based on a decade of professional experience with the utilized technologies and architectural approach. It's primary goal is to provide you with a lightweight and flexible solution that can help you build quickly a microservice ecosystem with any degree of size and complexity.
+The framework is created based on a decade of professional experience with the utilized technologies and architectural approach.
+It's primary goal is to provide you with a lightweight and flexible solution that can help you build quickly a microservice ecosystem with any degree of size and complexity.
 
 This is what you gain by using **ti-engine** in your project:
 
