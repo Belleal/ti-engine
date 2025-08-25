@@ -77,6 +77,13 @@ class TiWebServer extends ServiceConsumer {
                 callbackUrl: process.env.TI_WEB_GOOGLE_CALLBACK_URL || "/login/google/callback"
             }
         };
+        // TODO: this is for testing. Implement real auth solution.
+        this.#webConfig.localAuth = {
+            enabled: true,
+            username: "admin",
+            password: "admin",
+            passwordSha256: process.env.TI_WEB_LOCAL_PASSWORD_SHA256 || ""
+        };
     }
 
     /* Public interface */
@@ -155,32 +162,41 @@ class TiWebServer extends ServiceConsumer {
         // Step 1 - Security headers:
         this.#webServer.register( require( "@fastify/helmet" ), {
             global: true,
-            contentSecurityPolicy: {
-                useDefaults: true,
-                // Content Security Policy directives:
-                // - defaultSrc: Fallback for all resource types not explicitly listed; only allow same-origin.
-                // - scriptSrc: Allow scripts from same-origin and any HTTPS origin; blocks inline scripts by default.
-                // - styleSrc: Allow styles from same-origin and HTTPS; 'unsafe-inline' is permitted to support inline styles
-                //   (consider removing in the future to improve security if you can move styles to external files with nonces/hashes).
-                // - imgSrc: Allow images from same-origin, HTTPS, and data URIs (for small inline images like icons).
-                // - connectSrc: Control where XHR/fetch/WebSocket connections can be made; restrict to same-origin and HTTPS APIs.
-                // - fontSrc: Allow web fonts from same-origin, HTTPS, and data URIs.
-                // - objectSrc: Disallow plugins such as <object>, <embed>, <applet> by setting to 'none'.
-                // - frameAncestors: Restrict who can embed this site in frames/iframes; 'self' prevents clickjacking from other origins.
-                directives: {
-                    defaultSrc: [ "'self'" ],
-                    // Alpine.js default build evaluates expressions using Function; this needs 'unsafe-eval'.
-                    // If you switch to @alpinejs/csp build, you can remove 'unsafe-eval' here.
-                    scriptSrc: [ "'self'", "https:", "'unsafe-eval'" ],
-                    styleSrc: [ "'self'", "https:", "'unsafe-inline'" ],
-                    imgSrc: [ "'self'", "data:", "https:" ],
-                    // htmx may use WebSockets (hx-ws). Allow ws/wss for dev/prod respectively.
-                    connectSrc: [ "'self'", "https:", "ws:", "wss:" ],
-                    fontSrc: [ "'self'", "https:", "data:" ],
-                    objectSrc: [ "'none'" ],
-                    frameAncestors: [ "'self'" ]
-                }
+            contentSecurityPolicy: false
+        } );
+
+        // Generate a per-request CSP nonce and attach it to the request object:
+        this.#webServer.addHook( "onRequest", ( request, reply, done ) => {
+            try {
+                request.cspNonce = randomBytes( 16 ).toString( "base64" );
+            } catch ( e ) {
+                request.cspNonce = "";
             }
+            done();
+        } );
+
+        // Set a dynamic Content Security Policy header that includes the nonce for inline scripts:
+        this.#webServer.addHook( "onSend", ( request, reply, payload, done ) => {
+            try {
+                const ct = String( reply.getHeader( "content-type" ) || "" ).toLowerCase();
+                if ( ct.includes( "text/html" ) ) {
+                    const nonce = request.cspNonce || "";
+                    const csp =
+                        "default-src 'self'; " +
+                        "script-src 'self' https: 'unsafe-eval' 'nonce-" + nonce + "'; " +
+                        "style-src 'self' https: 'unsafe-inline'; " +
+                        "img-src 'self' https: data:; " +
+                        "connect-src 'self' https: ws: wss:; " +
+                        "font-src 'self' https: data:; " +
+                        "object-src 'none'; " +
+                        "frame-ancestors 'self'; " +
+                        "base-uri 'self'";
+                    reply.header( "Content-Security-Policy", csp );
+                }
+            } catch ( e ) {
+                // no-op
+            }
+            done( null, payload );
         } );
 
         // Register the static file serving before routes that depend on it:

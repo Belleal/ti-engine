@@ -2,9 +2,96 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Main Page</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/htmx.org@2.x.x/dist/htmx.min.js"></script>
+    <style>
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 2rem; }
+        .box { max-width: 420px; margin: 2rem auto; border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; }
+        .row { margin-bottom: 0.75rem; }
+        label { display:block; margin-bottom: 0.25rem; font-weight: 600; }
+        input { width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:4px; }
+        button { padding:0.5rem 0.75rem; border:1px solid #2c7be5; background:#2c7be5; color:#fff; border-radius:4px; cursor:pointer; }
+        button.link { background:#fff; color:#2c7be5; border-color:#2c7be5; margin-left: 0.5rem; }
+        .error { color:#b00020; display:none; margin-bottom:0.5rem; }
+        .sep { text-align:center; color:#888; margin: 0.75rem 0; }
+    </style>
 </head>
-<body>
-<p><a href="/login" role="button">Login</a></p>
+<body x-data="{}">
+    <h1>Welcome</h1>
+    <div id="login-container"
+         hx-get="/login"
+         hx-trigger="load"
+         hx-select=".box"
+         hx-swap="innerHTML">
+        <!-- Login content will be injected here by HTMX -->
+    </div>
+
+    <script nonce="%%CSP_NONCE%%">
+        // Initialize an Alpine store for auth-related state (e.g., CSRF token)
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('auth', { csrfToken: '' });
+        });
+
+        // Bind the login form submission to fetch with CSRF from the Alpine store
+        function bindForm() {
+            const form = document.querySelector('#loginForm');
+            if (!form) return; // local auth might be disabled
+            const errorEl = document.querySelector('#error');
+            form.addEventListener('submit', async (ev) => {
+                ev.preventDefault();
+                if (errorEl) errorEl.style.display = 'none';
+                const username = (document.querySelector('#username') || {}).value || '';
+                const password = (document.querySelector('#password') || {}).value || '';
+                let csrf = '';
+                try { csrf = (Alpine.store('auth') && Alpine.store('auth').csrfToken) || ''; } catch (_) {}
+                try {
+                    const res = await fetch('/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-csrf-token': csrf
+                        },
+                        body: JSON.stringify({ username, password })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (res.ok && data && (data.ok || data.redirectTo)) {
+                        window.location.href = data.redirectTo || '/dashboard';
+                    } else {
+                        if (errorEl) {
+                            errorEl.textContent = (data && data.error) ? String(data.error) : 'Login failed';
+                            errorEl.style.display = 'block';
+                        }
+                    }
+                } catch (err) {
+                    if (errorEl) {
+                        errorEl.textContent = 'Network error';
+                        errorEl.style.display = 'block';
+                    }
+                }
+            }, { once: true });
+        }
+
+        // Capture CSRF token from the HTMX response header
+        document.addEventListener('htmx:afterOnLoad', (e) => {
+            try {
+                const xhr = e && e.detail && e.detail.xhr;
+                if (!xhr) return;
+                const token = xhr.getResponseHeader('x-csrf-token');
+                if (token) {
+                    try { Alpine.store('auth').csrfToken = token; } catch (_) {}
+                }
+            } catch (_) { /* no-op */ }
+        });
+
+        // Bind the form after HTMX swaps the fragment into the container
+        document.addEventListener('htmx:afterSwap', (e) => {
+            const tgt = e && e.target;
+            if (tgt && tgt.id === 'login-container') {
+                bindForm();
+            }
+        });
+    </script>
 </body>
 </html>
