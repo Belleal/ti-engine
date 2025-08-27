@@ -170,8 +170,7 @@ module.exports = ( fastify, options ) => {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Sign in</title>
   <meta name="csrf-token" content="${ csrfToken }" />
-  ${ localEnabled ? '<script src="/public/login.js" defer></script>' : '' }
-  <style>
+  <style nonce="${ reply.cspNonce.style }">
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 2rem; }
     .box { max-width: 420px; margin: 2rem auto; border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; }
     .row { margin-bottom: 0.75rem; }
@@ -266,8 +265,8 @@ module.exports = ( fastify, options ) => {
             if ( err ) {
                 return reply.code( 500 ).type( "text/plain" ).send( "Failed to load page." );
             }
-            const nonce = request.cspNonce || "";
-            const out = String( html ).replace( /%%CSP_NONCE%%/g, nonce );
+            const nonce = reply.cspNonce.script || "";
+            const out = String( html ).replace( /%%CSP_NONCE%%/g, nonce ).replace( /%%CSP_STYLE_NONCE%%/g, reply.cspNonce.style );
             reply.type( "text/html; charset=utf-8" ).send( out );
         } );
     };

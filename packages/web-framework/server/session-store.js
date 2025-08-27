@@ -9,16 +9,27 @@
 const cache = require( "@ti-engine/core/cache" );
 const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
+const EventEmitter = require( "node:events" );
+const _ = require( "lodash" );
 
 const sessionStoreName = "ti:web:sessions";
 
 /**
- * A session store for the web server.
+ * A session store for the web server using the standard 'cache' module of the ti-engine.
+ * <br/>
+ * NOTE: This implementation is compatible with the 'express-session' module.
  *
  * @class SessionStore
  * @public
  */
-class SessionStore {
+class SessionStore extends EventEmitter {
+
+    /**
+     * @constructor
+     */
+    constructor() {
+        super();
+    }
 
     /**
      * Used to store a user session in the cache.
@@ -31,6 +42,13 @@ class SessionStore {
      */
     set( sessionID, session, callback ) {
         cache.instance.hashSetField( sessionStoreName, sessionID, session ).then( () => {
+            let expire = ( session.cookie && _.isNumber( session.cookie.maxAge ) ) ? session.cookie.maxAge / 1000 : null;
+            if ( expire ) {
+                return cache.instance.expireValue( sessionID, expire, sessionStoreName );
+            } else {
+                callback();
+            }
+        } ).then( () => {
             callback();
         } ).catch( ( error ) => {
             logger.log( `Error while trying to store user session in cache!`, logger.logSeverity.ERROR, error );
@@ -68,6 +86,25 @@ class SessionStore {
             callback();
         } ).catch( ( error ) => {
             logger.log( `Error while trying to remove user session from cache!`, logger.logSeverity.ERROR, error );
+            callback( exceptions.raise( error ) );
+        } );
+    }
+
+    /**
+     * Used to update the expiration time of a user session in the cache.
+     *
+     * @method
+     * @param {string} sessionID
+     * @param {Object} session
+     * @param {function( (Error|Exception|null)= )} callback
+     * @public
+     */
+    touch( sessionID, session, callback ) {
+        let expire = ( session.cookie && _.isNumber( session.cookie.maxAge ) ) ? session.cookie.maxAge / 1000 : null;
+        cache.instance.expireValue( sessionID, expire, sessionStoreName ).then( () => {
+            callback();
+        } ).catch( ( error ) => {
+            logger.log( `Error while trying to refresh user session expiration in cache!`, logger.logSeverity.ERROR, error );
             callback( exceptions.raise( error ) );
         } );
     }
