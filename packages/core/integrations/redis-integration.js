@@ -28,6 +28,7 @@ let cacheCommandsEnum = tools.enum( {
     HASH_GET: [ "hget", "hash get", "https://redis.io/docs/latest/commands/hget/" ],
     HASH_GET_ALL: [ "hgetall", "hash get all", "https://redis.io/docs/latest/commands/hgetall/" ],
     HASH_REMOVE: [ "hdel", "hash remove", "https://redis.io/docs/latest/commands/hdel/" ],
+    HASH_EXPIRE: [ "hexpire", "hash expire", "https://redis.io/docs/latest/commands/hexpire/" ],
     HASH_SET: [ "hset", "", "https://redis.io/docs/latest/commands/hset/" ],
     HASH_SET_MANY: [ "hmset", "(deprecated) use HSET with multiple fields", "https://redis.io/docs/latest/commands/hmset/" ],
     IS_SET_MEMBER: [ "sismember", "", "https://redis.io/docs/latest/commands/sismember/" ],

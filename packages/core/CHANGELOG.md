@@ -2,6 +2,9 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.2.5
+* feat(cache): extend method `expireValue` to work with has set fields as well
+
 ## Version 1.2.4
 * feat(cache): expose the cache module as export in `package.json`
 * feat(cache): add method `hashDeleteField` to remove a hash-set field. This implements the `hdel` Redis command

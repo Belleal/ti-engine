@@ -317,13 +317,19 @@ class CommonMemoryCache extends ConnectionObserver {
      * @method
      * @param {string} key
      * @param {number} seconds
+     * @param {string} [name] If you need to expire a field in a hash set instead, provide the name of the set here.
      * @returns {Promise<number>} This will resolve with the seconds as provided initially by the caller.
      * @public
      */
-    expireValue( key, seconds ) {
+    expireValue( key, seconds, name ) {
         return new Promise( ( resolve, reject ) => {
             if ( this.#isOperational === true ) {
-                let commandExpire = [ redis.cacheCommands.EXPIRE, key, seconds ];
+                let commandExpire = [];
+                if ( name ) {
+                    commandExpire = [ redis.cacheCommands.HASH_EXPIRE, name, seconds, "FIELDS", 1, key ];
+                } else {
+                    commandExpire = [ redis.cacheCommands.EXPIRE, key, seconds ];
+                }
                 this.#redisClient.executeCommands( [ commandExpire ] ).then( () => {
                     resolve( seconds );
                 } ).catch( ( error ) => {
