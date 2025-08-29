@@ -128,6 +128,18 @@ class ServiceExecutor extends MessageObserver {
     }
 
     /**
+     * Needs to be invoked by the connection handler when the connection is irrevocably lost.
+     *
+     * @method
+     * @param {string} identifier The identifier of the observed connection.
+     * @override
+     * @public
+     */
+    onConnectionLost( identifier ) {
+        super.onConnectionLost( identifier );
+    }
+
+    /**
      * Used to set up the method for service access verification.
      *
      * @method

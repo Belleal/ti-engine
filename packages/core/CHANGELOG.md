@@ -2,6 +2,19 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.0
+* feat(redis integration)!: change `reconnectOnError` behavior to also resubmit the failed command in case the error was of type `READONLY`
+* feat(redis integration): improve the reliability and usage of the event notification mechanism for connection observers
+* feat(redis integration): implement listener to the `end` event on Redis connection to capture when connection can no longer be recovered
+* feat(redis integration): notify connection observers `onConnectionLost` event
+* feat(redis integration): add redis client platform-specific status. It is used internally by the platform and can also be accessed via `redisClient.clientStatus` property
+* feat(connection observer): add new event handler `onConnectionLost` that will be invoked when the observed connection is irrevocably lost
+* feat(cache)!: implement `onConnectionLost` handler that will cause the service instance to immediately stop since it cannot work without the cache
+* fix(service caller): fix multiple promise reject condition when a service call timed out and the service handler still attempted to complete with subsequent error
+* fix(service instance): limit health check reporting to one attempt at a time to avoid unnecessary cache requests and log spam
+* fix(redis integration): fix a multiple promise resolve condition on Redis `reconnect` event
+* fix(redis integration): fix broken event propagation on `disrupted` events to some connection observers
+
 ## Version 1.2.5
 * feat(cache): extend method `expireValue` to work with has set fields as well
 

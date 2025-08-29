@@ -125,6 +125,22 @@ class CommonMemoryCache extends ConnectionObserver {
     }
 
     /**
+     * Needs to be invoked by the connection handler when the connection is irrevocably lost.
+     *
+     * @method
+     * @param {string} identifier The identifier of the observed connection.
+     * @override
+     * @public
+     */
+    onConnectionLost( identifier ) {
+        if ( identifier === this.#connectionIdentifier ) {
+            this.#isOperational = false;
+            // TODO: implement forced shut down of the service instance instead of crashing it outright
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE );
+        }
+    }
+
+    /**
      * Used to register a new {@link ConnectionObserver} for events related to the underlying Redis connection state.
      *
      * @method

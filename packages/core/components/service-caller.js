@@ -68,6 +68,7 @@ const messageDispatcher = require( "#message-dispatcher" );
 class ServiceCaller extends MessageObserver {
 
     #serviceCallTasks = {};
+    #serviceCallsUnprocessed = {};
 
     /**
      * @constructor
@@ -91,6 +92,8 @@ class ServiceCaller extends MessageObserver {
      * @public
      */
     executeServiceCall( serviceAddress, serviceParams, serviceExecContext ) {
+        let processingHandle = tools.getUUID();
+        this.#serviceCallsUnprocessed[ processingHandle ] = true;
         let execution = new Promise( ( resolve, reject ) => {
             this.#findServiceInRegistry( serviceAddress ).then( () => {
                 return this.#prepareServiceCall( serviceAddress, serviceParams, serviceExecContext );
@@ -107,22 +110,33 @@ class ServiceCaller extends MessageObserver {
 
                         resolve( serviceCallResult );
                     } ).catch( ( error ) => {
-                        reject( exceptions.raise( error ) );
+                        if ( this.#serviceCallsUnprocessed[ processingHandle ] === true ) {
+                            reject( exceptions.raise( error ) );
+                        }
                     } );
                 } );
             } ).catch( ( error ) => {
-                reject( exceptions.raise( error ) );
+                if ( this.#serviceCallsUnprocessed[ processingHandle ] === true ) {
+                    reject( exceptions.raise( error ) );
+                }
             } );
         } );
+        // TODO: review this section - it might cause a memory leak
         let timeoutHandle;
         let timeout = new Promise( ( resolve, reject ) => {
-            timeoutHandle = setTimeout( () => reject( exceptions.raise( exceptions.exceptionCode.E_COM_SERVICE_EXEC_TIMEOUT ) ), config.getSetting( config.setting.SERVICE_EXECUTION_TIMEOUT ) );
+            timeoutHandle = setTimeout( () => {
+                if ( this.#serviceCallsUnprocessed[ processingHandle ] === true ) {
+                    reject( exceptions.raise( exceptions.exceptionCode.E_COM_SERVICE_EXEC_TIMEOUT ) );
+                }
+            }, config.getSetting( config.setting.SERVICE_EXECUTION_TIMEOUT ) );
         } );
 
         return Promise.race( [ execution, timeout ] ).then( ( result ) => {
             clearTimeout( timeoutHandle );
+            delete this.#serviceCallsUnprocessed[ processingHandle ];
             return result;
         } ).catch( ( error ) => {
+            delete this.#serviceCallsUnprocessed[ processingHandle ];
             logger.log( `Error during service call execution!`, logger.logSeverity.ERROR, error );
             return {
                 isSuccessful: false,
@@ -141,10 +155,11 @@ class ServiceCaller extends MessageObserver {
      * @public
      */
     onMessage( identifier, message ) {
+        /** @type {function( Message )} */
         let execution = this.#getTaskHandler( message.messageID );
         if ( typeof ( execution ) === "function" ) {
-            execution( message );
             this.#removeTaskHandler( message.messageID );
+            execution( message );
         } else {
             logger.log( `Received message with ID '${ message.messageID }' in ServiceCaller that has no registered handler. This is probably a software bug!`, logger.logSeverity.WARNING );
         }
@@ -172,6 +187,18 @@ class ServiceCaller extends MessageObserver {
      */
     onConnectionRecovered( identifier ) {
         super.onConnectionRecovered( identifier );
+    }
+
+    /**
+     * Needs to be invoked by the connection handler when the connection is irrevocably lost.
+     *
+     * @method
+     * @param {string} identifier The identifier of the observed connection.
+     * @override
+     * @public
+     */
+    onConnectionLost( identifier ) {
+        super.onConnectionLost( identifier );
     }
 
     /* Private interface */
