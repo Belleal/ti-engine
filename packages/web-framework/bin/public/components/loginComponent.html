@@ -1,0 +1,84 @@
+<style nonce="${ reply.cspNonce.style }">
+    body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        margin: 2rem;
+    }
+
+    .box {
+        max-width: 420px;
+        margin: 2rem auto;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 1.5rem;
+    }
+
+    .row {
+        margin-bottom: 0.75rem;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 0.25rem;
+        font-weight: 600;
+    }
+
+    input {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    button {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #2c7be5;
+        background: #2c7be5;
+        color: #fff;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    button.link {
+        background: #fff;
+        color: #2c7be5;
+        border-color: #2c7be5;
+        margin-left: 0.5rem;
+    }
+
+    .error {
+        color: #b00020;
+        display: none;
+        margin-bottom: 0.5rem;
+    }
+
+    .sep {
+        text-align: center;
+        color: #888;
+        margin: 0.75rem 0;
+    }
+</style>
+<div class="box">
+    <h2>Sign in</h2>
+    ${ localEnabled ? `
+    <div id="error" class="error"></div>
+    <form id="loginForm">
+        <div class="row">
+            <label for="username">Username</label>
+            <input id="username" name="username" autocomplete="username"/>
+        </div>
+        <div class="row">
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password"/>
+        </div>
+        <div class="row">
+            <button type="submit">Sign in</button>
+            <a class="link" href='${ googleLoginUrl }'>Sign in with Google</a>
+        </div>
+    </form>
+    ` : `
+    <div class="row">
+        <a href='${ googleLoginUrl }'>Sign in with Google</a>
+    </div>
+    ` }
+    <div class="sep">&nbsp;</div>
+</div>
