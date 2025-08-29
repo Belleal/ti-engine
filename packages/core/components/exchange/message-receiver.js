@@ -117,7 +117,7 @@ class MessageReceiver extends MessageHandler {
             this.onReceive().then( ( message ) => {
                 return this.#postReceive( message );
             } ).then( ( message ) => {
-                this.onMessage( message );
+                this.notifyMessageObservers( message );
             } ).catch( ( error ) => {
                 if ( error.code !== exceptions.exceptionCode.E_COM_MESSAGE_RECEIVER_UNAVAILABLE ) {
                     logger.log( `Error while trying to receive the next pending message from memory cache in receiver '${ this.connectionIdentifier }'! Resuming operation...`, logger.logSeverity.ERROR, error );

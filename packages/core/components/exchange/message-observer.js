@@ -7,6 +7,7 @@
 */
 
 const ConnectionObserver = require( "#connection-observer" );
+const _ = require( "lodash" );
 const exceptions = require( "#exceptions" );
 
 /**
@@ -21,16 +22,45 @@ const exceptions = require( "#exceptions" );
  */
 class MessageObserver extends ConnectionObserver {
 
+    #priority = 0;
+
     /**
+     * @param {number} [priority=0] The priority of this observer. Higher values indicate higher priority.
      * @constructor
      */
-    constructor() {
+    constructor( priority = 0 ) {
         super();
 
         // make sure this abstract class cannot be instantiated:
         if ( new.target === MessageObserver ) {
             throw exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
         }
+
+        this.#priority = _.isNumber( priority ) ? priority : 0;
+    }
+
+    /**
+     * Returns the priority of this observer.
+     * <br/>
+     * NOTE: Higher values indicate higher priority.
+     *
+     * @property
+     * @returns {number}
+     */
+    get priority() {
+        return this.#priority;
+    }
+
+    /**
+     * Used to set the priority of this observer.
+     * <br/>
+     * NOTE: Higher values indicate higher priority.
+     *
+     * @property
+     * @param {number} value
+     */
+    set priority( value ) {
+        this.#priority = _.isNumber( value ) ? value : 0;
     }
 
     /**
@@ -41,10 +71,12 @@ class MessageObserver extends ConnectionObserver {
      * @method
      * @param {string} identifier The identifier of the observed connection.
      * @param {Message} message The message for processing.
+     * @returns {Message} The message that was received.
      * @virtual
      * @public
      */
     onMessage( identifier, message ) {
+        return message;
     }
 
     /**

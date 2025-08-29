@@ -91,16 +91,19 @@ class ServiceExecutor extends MessageObserver {
      *
      * @method
      * @param {string} identifier The identifier of the observed connection.
-     * @param {Message} message The message for processing.
+     * @param {ServiceCall} serviceCall The service call message for processing.
+     * @returns {ServiceCall} The service call message that was received.
      * @override
      * @public
      */
-    onMessage( identifier, message ) {
-        this.#processServiceCall( message ).then( ( serviceCall ) => {
+    onMessage( identifier, serviceCall ) {
+        this.#processServiceCall( serviceCall ).then( ( serviceCall ) => {
             return messageDispatcher.instance.sendResponse( serviceCall );
         } ).catch( ( error ) => {
-            logger.log( `Failed to send service call response after processing! Service call ID was: '${ message.messageID }'`, logger.logSeverity.ERROR, error );
+            logger.log( `Failed to send service call response after processing! Service call message ID was: '${ serviceCall.messageID }'`, logger.logSeverity.ERROR, error );
         } );
+
+        return serviceCall;
     }
 
     /**

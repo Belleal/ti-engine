@@ -13,8 +13,10 @@
  */
 module.exports.service = function ( serviceDefinition, serviceParams, serviceCallContext ) {
     return new Promise( ( resolve, reject ) => {
-        resolve( {
-            s1Timestamp: Date.now()
-        } );
+        setTimeout( () => {
+            resolve( {
+                s1Timestamp: Date.now()
+            } );
+        }, 500 );
     } );
 };

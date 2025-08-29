@@ -437,7 +437,7 @@ class RedisClient {
         return new Promise( ( resolve, reject ) => {
             try {
                 this.#retryMaxInterval = retryMaxIntervalMs;
-                this.#retryMaxAttempts = 3;//retryMaxAttempts;
+                this.#retryMaxAttempts = retryMaxAttempts;
 
                 let retryStrategy = ( attempt ) => {
                     let retryInterval = Math.min( attempt * 50, this.#retryMaxInterval );
@@ -495,9 +495,11 @@ class RedisClient {
                     logger.log( `Client '${ this.identifier }' reconnecting to Redis server after ${ retryInterval } ms.`, logger.logSeverity.DEBUG );
                 } );
                 this.#redisConnection.on( "end", () => {
-                    this.#clientStatus = clientStatusEnum.DISCONNECTED;
-                    logger.log( `Client '${ this.identifier }' cannot reconnect to Redis server and has been shut down.`, logger.logSeverity.WARNING );
-                    this.#notifyConnectionObservers();
+                    if ( this.#clientStatus !== clientStatusEnum.SHUTTING_DOWN ) {
+                        this.#clientStatus = clientStatusEnum.DISCONNECTED;
+                        logger.log( `Client '${ this.identifier }' cannot reconnect to Redis server and has been shut down.`, logger.logSeverity.WARNING );
+                        this.#notifyConnectionObservers();
+                    }
                 } );
             } catch ( error ) {
                 reject( exceptions.raise( error ) );

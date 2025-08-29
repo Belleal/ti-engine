@@ -50,13 +50,215 @@ const messageDispatcher = require( "#message-dispatcher" );
  * @typedef {Object} ServiceCallResult
  * @property {Object|undefined} exception If there was exception during the service call processing, it will be set here. Otherwise, it will be 'undefined'.
  * @property {boolean} isSuccessful A flag indicating if this service call can be considered successful or not.
- * @property {Object|string|undefined} payload The payload containing the results from the service call processing. If string it is ID of the payload in the memory cache instead.
+ * @property {Object|string|undefined} payload The payload containing the results from the service call processing. If a string, it is ID of the payload in the memory cache instead.
  */
 
 /**
- * @callback TaskHandler
- * @param {ServiceCall} serviceCall The service call for processing.
+ * Used to assemble and prepare a new {@link ServiceCall} object.
+ *
+ * @method
+ * @param {string} messageID The message ID of the service call. This has to be unique across the whole service call tree, including the current service call, and will be used to identify the service call in the service call tree.
+ * @param {ServiceAddress} serviceAddress The service address has to define a valid service domain name, service alias, and optionally a service version.
+ * @param {Object} serviceParams Set of named parameters to provide to the called service.
+ * @param {ServiceExecContext} serviceExecContext The context in which the service call is being executed.
+ * @returns {Promise<ServiceCall>}
+ * @private
  */
+let prepareServiceCall = ( messageID, serviceAddress, serviceParams, serviceExecContext ) => {
+    return new Promise( ( resolve ) => {
+        const ServiceInstance = require( "#service-instance" );
+
+        // assemble the new service call:
+        let chainID = ( serviceExecContext.previousServiceCall ) ? serviceExecContext.previousServiceCall.chainID : tools.getUUID();
+        let chainLevel = ( serviceExecContext.previousServiceCall ) ? serviceExecContext.previousServiceCall.chainLevel + 1 : 0;
+        let source = {
+            instanceID: ServiceInstance.instanceID,
+            route: ServiceInstance.serviceDomainName
+        };
+        let destination = {
+            instanceID: undefined,
+            route: serviceAddress.serviceDomainName
+        };
+        /** @type ServiceCall */
+        let serviceCall = {
+            authToken: serviceExecContext.authToken,
+            chainID: chainID,
+            chainLevel: chainLevel,
+            createdOn: Date.now(),
+            destination: destination,
+            executionTime: 0,
+            exception: undefined,
+            finishedOn: undefined,
+            isCompleted: false,
+            isSuccessful: undefined,
+            messageID: messageID,
+            payload: undefined,
+            predecessor: ( serviceExecContext.previousServiceCall ) ? serviceExecContext.previousServiceCall.messageID : undefined,
+            serviceAddress: serviceAddress,
+            serviceParams: serviceParams,
+            source: source,
+            successors: undefined
+        };
+
+        resolve( serviceCall );
+    } );
+}
+
+/**
+ * Used to verify if the service is registered in the service registry.
+ *
+ * @method
+ * @param {ServiceAddress} serviceAddress
+ * @returns {Promise}
+ * @private
+ */
+let findServiceInRegistry = ( serviceAddress ) => {
+    return new Promise( ( resolve, reject ) => {
+        let serviceCatalog = config.getSetting( config.setting.SERVICE_REGISTRY_ADDRESS ) + serviceAddress.serviceDomainName;
+        cache.instance.isSetMember( serviceCatalog, serviceAddress.serviceAlias ).then( ( result ) => {
+            if ( result === true ) {
+                resolve();
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_COM_SERVICE_NOT_REGISTERED ) );
+            }
+        } ).catch( ( error ) => {
+            reject( exceptions.raise( error ) );
+        } );
+    } );
+}
+
+/**
+ * A class defining a service call processor.
+ *
+ * @class ServiceCallProcessor
+ * @private
+ */
+class ServiceCallProcessor {
+
+    #messageID;
+    #serviceAddress;
+    #serviceParams;
+    #serviceExecContext;
+    #timeoutHandle;
+    #taskCompletionHandler;
+    #isProcessed = false;
+
+    /**
+     * @constructor
+     * @param {ServiceAddress} serviceAddress The service address has to define a valid service domain name, service alias, and optionally a service version.
+     * @param {Object} serviceParams Set of named parameters to provide to the called service.
+     * @param {ServiceExecContext} serviceExecContext The context in which the service call is being executed.
+     * @returns {ServiceCallProcessor}
+     */
+    constructor( serviceAddress, serviceParams, serviceExecContext ) {
+        this.#messageID = tools.getUUID();
+        this.#serviceAddress = serviceAddress;
+        this.#serviceParams = serviceParams;
+        this.#serviceExecContext = serviceExecContext;
+    }
+
+    /* Public interface */
+
+    /**
+     * The unique identifier of the service call.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get messageID() {
+        return this.#messageID;
+    }
+
+    /**
+     * Used to start the execution of the service call.
+     * <br/>
+     * NOTE: This method will time out after specific preconfigured time, in which case it will resolve with {@link E_COM_SERVICE_EXEC_TIMEOUT} error.
+     *
+     * @method
+     * @returns {Promise<ServiceCallResult>}
+     * @public
+     */
+    process() {
+        return Promise.race( [ this.#execute(), this.#timeout() ] ).then( ( result ) => {
+            clearTimeout( this.#timeoutHandle );
+            this.#isProcessed = true;
+            return result;
+        } ).catch( ( error ) => {
+            clearTimeout( this.#timeoutHandle );
+            this.#isProcessed = true;
+            logger.log( `Error during service call execution!`, logger.logSeverity.ERROR, error );
+            return {
+                isSuccessful: false,
+                exception: exceptions.raise( error ),
+                payload: undefined
+            };
+        } );
+    }
+
+    /**
+     * Used to complete the execution of the service call that was started within the {@link process} method.
+     *
+     * @method
+     * @param {ServiceCall} serviceCall
+     * @public
+     */
+    complete( serviceCall ) {
+        if ( this.#isProcessed !== true ) {
+            let serviceCallResult = {
+                exception: serviceCall.exception,
+                isSuccessful: ( serviceCall.isSuccessful !== undefined ) ? tools.toBool( serviceCall.isSuccessful ) : true,
+                payload: serviceCall.payload
+            };
+            this.#taskCompletionHandler( serviceCallResult );
+        }
+    }
+
+    /* Private interface */
+
+    /**
+     * Used to execute the service call.
+     *
+     * @method
+     * @returns {Promise<ServiceCallResult>}
+     * @private
+     */
+    #execute() {
+        return new Promise( ( resolve, reject ) => {
+            findServiceInRegistry( this.#serviceAddress ).then( () => {
+                return prepareServiceCall( this.#messageID, this.#serviceAddress, this.#serviceParams, this.#serviceExecContext );
+            } ).then( ( serviceCall ) => {
+                return messageDispatcher.instance.sendRequest( serviceCall );
+            } ).then( () => {
+                this.#taskCompletionHandler = ( serviceCallResult ) => {
+                    resolve( serviceCallResult );
+                };
+            } ).catch( ( error ) => {
+                if ( this.#isProcessed !== true ) {
+                    reject( exceptions.raise( error ) );
+                }
+            } );
+        } );
+    }
+
+    /**
+     * Used to time out the service call execution.
+     *
+     * @method
+     * @returns {Promise<ServiceCallResult>}
+     * @private
+     */
+    #timeout() {
+        return new Promise( ( resolve, reject ) => {
+            this.#timeoutHandle = setTimeout( () => {
+                if ( this.#isProcessed !== true ) {
+                    reject( exceptions.raise( exceptions.exceptionCode.E_COM_SERVICE_EXEC_TIMEOUT ) );
+                }
+            }, config.getSetting( config.setting.SERVICE_EXECUTION_TIMEOUT ) );
+        } );
+    }
+
+}
 
 /**
  * A class defining a service caller behavior.
@@ -67,14 +269,13 @@ const messageDispatcher = require( "#message-dispatcher" );
  */
 class ServiceCaller extends MessageObserver {
 
-    #serviceCallTasks = {};
-    #serviceCallsUnprocessed = {};
+    #serviceCallProcessors = {};
 
     /**
      * @constructor
      */
     constructor() {
-        super();
+        super( 10 );
     }
 
     /* Public interface */
@@ -92,56 +293,13 @@ class ServiceCaller extends MessageObserver {
      * @public
      */
     executeServiceCall( serviceAddress, serviceParams, serviceExecContext ) {
-        let processingHandle = tools.getUUID();
-        this.#serviceCallsUnprocessed[ processingHandle ] = true;
-        let execution = new Promise( ( resolve, reject ) => {
-            this.#findServiceInRegistry( serviceAddress ).then( () => {
-                return this.#prepareServiceCall( serviceAddress, serviceParams, serviceExecContext );
-            } ).then( ( serviceCall ) => {
-                return messageDispatcher.instance.sendRequest( serviceCall );
-            } ).then( ( messageID ) => {
-                this.#addTaskHandler( messageID, ( serviceCall ) => {
-                    this.#completeServiceCall( serviceCall ).then( ( serviceCall ) => {
-                        let serviceCallResult = {
-                            exception: serviceCall.exception,
-                            isSuccessful: ( serviceCall.isSuccessful !== undefined ) ? serviceCall.isSuccessful : true,
-                            payload: serviceCall.payload
-                        };
-
-                        resolve( serviceCallResult );
-                    } ).catch( ( error ) => {
-                        if ( this.#serviceCallsUnprocessed[ processingHandle ] === true ) {
-                            reject( exceptions.raise( error ) );
-                        }
-                    } );
-                } );
-            } ).catch( ( error ) => {
-                if ( this.#serviceCallsUnprocessed[ processingHandle ] === true ) {
-                    reject( exceptions.raise( error ) );
-                }
+        return new Promise( ( resolve, reject ) => {
+            let processor = new ServiceCallProcessor( serviceAddress, serviceParams, serviceExecContext );
+            this.#addProcessor( processor.messageID, processor );
+            processor.process().then( ( serviceCallResult ) => {
+                this.#removeProcessor( processor.messageID );
+                resolve( serviceCallResult );
             } );
-        } );
-        // TODO: review this section - it might cause a memory leak
-        let timeoutHandle;
-        let timeout = new Promise( ( resolve, reject ) => {
-            timeoutHandle = setTimeout( () => {
-                if ( this.#serviceCallsUnprocessed[ processingHandle ] === true ) {
-                    reject( exceptions.raise( exceptions.exceptionCode.E_COM_SERVICE_EXEC_TIMEOUT ) );
-                }
-            }, config.getSetting( config.setting.SERVICE_EXECUTION_TIMEOUT ) );
-        } );
-
-        return Promise.race( [ execution, timeout ] ).then( ( result ) => {
-            clearTimeout( timeoutHandle );
-            delete this.#serviceCallsUnprocessed[ processingHandle ];
-            return result;
-        } ).catch( ( error ) => {
-            delete this.#serviceCallsUnprocessed[ processingHandle ];
-            logger.log( `Error during service call execution!`, logger.logSeverity.ERROR, error );
-            return {
-                isSuccessful: false,
-                exception: exceptions.raise( error )
-            };
         } );
     }
 
@@ -150,19 +308,26 @@ class ServiceCaller extends MessageObserver {
      *
      * @method
      * @param {string} identifier The identifier of the observed connection.
-     * @param {Message} message The message for processing.
+     * @param {ServiceCall} serviceCall The service call message for processing.
+     * @returns {ServiceCall} The service call message that was received.
      * @override
      * @public
      */
-    onMessage( identifier, message ) {
-        /** @type {function( Message )} */
-        let execution = this.#getTaskHandler( message.messageID );
-        if ( typeof ( execution ) === "function" ) {
-            this.#removeTaskHandler( message.messageID );
-            execution( message );
+    onMessage( identifier, serviceCall ) {
+        // Complete the service call:
+        serviceCall.finishedOn = Date.now();
+        serviceCall.executionTime = serviceCall.finishedOn - serviceCall.createdOn;
+        serviceCall.isCompleted = true;
+
+        let processor = this.#getProcessor( serviceCall.messageID );
+        if ( processor ) {
+            this.#removeProcessor( serviceCall.messageID );
+            processor.complete( serviceCall );
         } else {
-            logger.log( `Received message with ID '${ message.messageID }' in ServiceCaller that has no registered handler. This is probably a software bug!`, logger.logSeverity.WARNING );
+            logger.log( `Received service call message with ID '${ serviceCall.messageID }' without registered processor! This may be caused by a service call timeout.`, logger.logSeverity.DEBUG, serviceCall.exception || undefined );
         }
+
+        return serviceCall;
     }
 
     /**
@@ -204,130 +369,39 @@ class ServiceCaller extends MessageObserver {
     /* Private interface */
 
     /**
-     * Used to verify if the service is registered in the service registry.
-     *
-     * @method
-     * @param {ServiceAddress} serviceAddress
-     * @returns {Promise}
-     * @private
-     */
-    #findServiceInRegistry( serviceAddress ) {
-        return new Promise( ( resolve, reject ) => {
-            let serviceCatalog = config.getSetting( config.setting.SERVICE_REGISTRY_ADDRESS ) + serviceAddress.serviceDomainName;
-            cache.instance.isSetMember( serviceCatalog, serviceAddress.serviceAlias ).then( ( result ) => {
-                if ( result === true ) {
-                    resolve();
-                } else {
-                    reject( exceptions.raise( exceptions.exceptionCode.E_COM_SERVICE_NOT_REGISTERED ) );
-                }
-            } ).catch( ( error ) => {
-                reject( exceptions.raise( error ) );
-            } );
-        } );
-    }
-
-    /**
-     * Used to assemble and prepare a new {@link ServiceCall} object.
-     *
-     * @method
-     * @param {ServiceAddress} serviceAddress The service address has to define a valid service domain name, service alias, and optionally a service version.
-     * @param {Object} serviceParams Set of named parameters to provide to the called service.
-     * @param {ServiceExecContext} serviceExecContext The context in which the service call is being executed.
-     * @returns {Promise<ServiceCall>}
-     * @private
-     */
-    #prepareServiceCall( serviceAddress, serviceParams, serviceExecContext ) {
-        return new Promise( ( resolve ) => {
-            const ServiceInstance = require( "#service-instance" );
-
-            // assemble the new service call:
-            let chainID = ( serviceExecContext.previousServiceCall ) ? serviceExecContext.previousServiceCall.chainID : tools.getUUID();
-            let chainLevel = ( serviceExecContext.previousServiceCall ) ? serviceExecContext.previousServiceCall.chainLevel + 1 : 0;
-            let source = {
-                instanceID: ServiceInstance.instanceID,
-                route: ServiceInstance.serviceDomainName
-            };
-            let destination = {
-                instanceID: undefined,
-                route: serviceAddress.serviceDomainName
-            };
-            /** @type ServiceCall */
-            let serviceCall = {
-                authToken: serviceExecContext.authToken,
-                chainID: chainID,
-                chainLevel: chainLevel,
-                createdOn: Date.now(),
-                destination: destination,
-                executionTime: 0,
-                exception: undefined,
-                finishedOn: undefined,
-                isCompleted: false,
-                isSuccessful: undefined,
-                messageID: tools.getUUID(),
-                payload: undefined,
-                predecessor: ( serviceExecContext.previousServiceCall ) ? serviceExecContext.previousServiceCall.messageID : undefined,
-                serviceAddress: serviceAddress,
-                serviceParams: serviceParams,
-                source: source,
-                successors: undefined
-            };
-
-            resolve( serviceCall );
-        } );
-    }
-
-    /**
-     * Used to complete the provided {@link ServiceCall} object by setting all required properties to their correct values.
-     *
-     * @method
-     * @param {ServiceCall} serviceCall
-     * @returns {Promise<ServiceCall>}
-     * @private
-     */
-    #completeServiceCall( serviceCall ) {
-        return new Promise( ( resolve ) => {
-            serviceCall.finishedOn = Date.now();
-            serviceCall.executionTime = serviceCall.finishedOn - serviceCall.createdOn;
-            serviceCall.isCompleted = true;
-
-            resolve( serviceCall );
-        } );
-    }
-
-    /**
      * Used to add a new task handler to the list of current tasks.
      *
      * @method
-     * @param {string} taskID
-     * @param {TaskHandler} taskHandler
+     * @param {string} messageID
+     * @param {ServiceCallProcessor} processor
      * @private
      */
-    #addTaskHandler( taskID, taskHandler ) {
-        this.#serviceCallTasks[ taskID ] = taskHandler;
+    #addProcessor( messageID, processor ) {
+        this.#serviceCallProcessors[ messageID ] = processor;
     }
 
     /**
      * Used to fetch a task handler from the list of current tasks.
      *
      * @method
-     * @param {string} taskID
-     * @returns {TaskHandler}
+     * @param {string} messageID
+     * @returns {ServiceCallProcessor}
      * @private
      */
-    #getTaskHandler( taskID ) {
-        return this.#serviceCallTasks[ taskID ];
+    #getProcessor( messageID ) {
+        return this.#serviceCallProcessors[ messageID ];
     }
 
     /**
      * Used to remove a task handler from the list of current tasks.
      *
      * @method
-     * @param {string} taskID
+     * @param {string} messageID
      * @private
      */
-    #removeTaskHandler( taskID ) {
-        if ( this.#serviceCallTasks[ taskID ] ) {
-            delete this.#serviceCallTasks[ taskID ];
+    #removeProcessor( messageID ) {
+        if ( this.#serviceCallProcessors[ messageID ] ) {
+            delete this.#serviceCallProcessors[ messageID ];
         }
     }
 

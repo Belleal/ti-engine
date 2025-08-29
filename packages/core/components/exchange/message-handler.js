@@ -134,9 +134,9 @@ class MessageHandler extends ConnectionObserver {
      */
     addMessageObserver( messageObserver ) {
         const MessageObserver = require( "#message-observer" );
-
         if ( messageObserver instanceof MessageObserver ) {
             this.#messageObservers.push( messageObserver );
+            this.#messageObservers = _.orderBy( this.#messageObservers, [ "priority" ], [ "desc" ] );
         } else {
             logger.log( `Attempting to add '${ messageObserver.constructor.name }' as message observer but it's not a child-class of 'MessageObserver'!`, logger.logSeverity.WARNING );
         }
@@ -144,19 +144,23 @@ class MessageHandler extends ConnectionObserver {
 
     /**
      * An event-triggered method that will notify any observers about a new message for handling.
+     * <br/>
+     * NOTE: Each observer will be notified in the order of their priority via their {@link MessageObserver.onMessage} method. Additionally, the message will be
+     * passed through each observer in the order of their priority. If the observer returns a modified message, it will be used instead of the original message!
      *
      * @method
      * @param {Message} message
      * @public
      */
-    onMessage( message ) {
+    notifyMessageObservers( message ) {
+        let modifiedMessage = message;
         _.forEach( this.#messageObservers, ( messageObserver ) => {
-            messageObserver.onMessage( this.#connectionIdentifier, message );
+            modifiedMessage = messageObserver.onMessage( this.#connectionIdentifier, modifiedMessage );
         } );
     }
 
     /**
-     * An event-triggered method that will notify any observers about primary connection recovered state.
+     * An event-triggered method that will notify any observers about the primary connection recovered state.
      * <br/>
      * NOTE: You can override this to add custom functionality but make sure to also call the base method
      * using: super.onConnectionRecovered( identifier )

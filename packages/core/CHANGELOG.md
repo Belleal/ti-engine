@@ -2,6 +2,16 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.1
+* feat(service caller): refactor the entire service call execution flow for clarity and better performance
+* feat(service caller): create a new private class `ServiceCallProcessor` to handle individual service calls in a contained scope
+* feat(message observer): add new property `priority` to the message observer class. It is used to determine the order in which the observers are notified about the messages
+* feat(message observer)!: change method `onMessage` to now return the message it received. This allows for the message to be modified before it is passed to the next observer based on `priority`
+* feat(message handler)!: change method `onMessage` to `notifyMessageObservers` for clarity. It now implements the `MessageObserver` functionality for prioritization and message modification
+* fix(service caller): fix an issue which did not allow for a service call to be marked as completed thus being entered into the trace log as still pending
+* fix(redis integration): remove hardcoded `#retryMaxAttempts` value in `#setupClient` method
+* fix(redis integration): fix an issue which was setting the client status to `DISCONNECTED` during a normal shut down procedure
+
 ## Version 1.3.0
 * feat(redis integration)!: change `reconnectOnError` behavior to also resubmit the failed command in case the error was of type `READONLY`
 * feat(redis integration): improve the reliability and usage of the event notification mechanism for connection observers

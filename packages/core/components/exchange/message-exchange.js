@@ -74,7 +74,7 @@ class MessageExchange extends MessageObserver {
      * @param {string} serviceDomainName The domain name of the microservice using the message exchange.
      */
     constructor( instanceID, serviceDomainName ) {
-        super();
+        super( 9 );
 
         // make sure this abstract class cannot be instantiated:
         if ( new.target === MessageExchange ) {
@@ -412,6 +412,7 @@ class MessageExchange extends MessageObserver {
      * @method
      * @param {string} identifier The identifier of the observed connection.
      * @param {Message} message The message for processing.
+     * @returns {Message} The message that was received.
      * @override
      * @public
      */
@@ -423,6 +424,8 @@ class MessageExchange extends MessageObserver {
         } else if ( MessageExchange.connectionNameResponsesIn === identifier ) {
             messageTracer.instance.recordTraceEntry( message, messageTracer.messageType.MESSAGE_RESPONSE, messageTracer.dispatchEvent.RECEIVED, messageTracer.messageState.PROCESSED );
         }
+
+        return message;
     }
 
     /**
