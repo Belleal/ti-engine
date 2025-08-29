@@ -6,7 +6,7 @@
     <title>Main Page</title>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/htmx.org@2.x.x/dist/htmx.min.js"></script>
-    <style>
+    <style nonce="%%CSP_STYLE_NONCE%%">
         body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 2rem; }
         .box { max-width: 420px; margin: 2rem auto; border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; }
         .row { margin-bottom: 0.75rem; }
@@ -21,7 +21,7 @@
 <body x-data="{}">
     <h1>Welcome</h1>
     <div id="login-container"
-         hx-get="/login"
+         hx-get="components/loginComponent.html"
          hx-trigger="load"
          hx-select=".box"
          hx-swap="innerHTML">
@@ -29,6 +29,13 @@
     </div>
 
     <script nonce="%%CSP_NONCE%%">
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.htmx) {
+                htmx.config.inlineScriptNonce = '%%CSP_NONCE%%';
+                htmx.config.inlineStyleNonce = '%%CSP_STYLE_NONCE%%';
+            }
+        });
+
         // Initialize an Alpine store for auth-related state (e.g., CSRF token)
         document.addEventListener('alpine:init', () => {
             Alpine.store('auth', { csrfToken: '' });

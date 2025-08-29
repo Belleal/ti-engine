@@ -37,6 +37,7 @@ class ServiceInstance {
     #serviceConfig;
     #serviceHealthCheck;
     #reportHealthyJob;
+    #healthReportUnderway = false;
 
     /**
      * @constructor
@@ -225,10 +226,14 @@ class ServiceInstance {
      * @public
      */
     reportHealthy() {
-        if ( cache.instance.isOperational ) {
+        if ( cache.instance.isOperational && !this.#healthReportUnderway ) {
+            this.#healthReportUnderway = true;
             let timestamp = new Date();
-            cache.instance.setValue( this.#serviceHealthCheck, timestamp.toISOString(), config.getSetting( config.setting.SERVICE_HEALTH_CHECK_TIMEOUT ) ).catch( ( error ) => {
-                logger.log( `Error while trying to report for health check from '${ ServiceInstance.instanceID }'!`, logger.logSeverity.WARNING, error );
+            cache.instance.setValue( this.#serviceHealthCheck, timestamp.toISOString(), config.getSetting( config.setting.SERVICE_HEALTH_CHECK_TIMEOUT ) ).then( () => {
+                this.#healthReportUnderway = false;
+            } ).catch( ( error ) => {
+                this.#healthReportUnderway = false;
+                logger.log( `Failed to report for health check from instance '${ ServiceInstance.instanceID }'!`, logger.logSeverity.WARNING, error );
             } );
         }
     }

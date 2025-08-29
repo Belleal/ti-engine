@@ -28,6 +28,7 @@ let cacheCommandsEnum = tools.enum( {
     HASH_GET: [ "hget", "hash get", "https://redis.io/docs/latest/commands/hget/" ],
     HASH_GET_ALL: [ "hgetall", "hash get all", "https://redis.io/docs/latest/commands/hgetall/" ],
     HASH_REMOVE: [ "hdel", "hash remove", "https://redis.io/docs/latest/commands/hdel/" ],
+    HASH_EXPIRE: [ "hexpire", "hash expire", "https://redis.io/docs/latest/commands/hexpire/" ],
     HASH_SET: [ "hset", "", "https://redis.io/docs/latest/commands/hset/" ],
     HASH_SET_MANY: [ "hmset", "(deprecated) use HSET with multiple fields", "https://redis.io/docs/latest/commands/hmset/" ],
     IS_SET_MEMBER: [ "sismember", "", "https://redis.io/docs/latest/commands/sismember/" ],
@@ -41,6 +42,21 @@ let cacheCommandsEnum = tools.enum( {
     LIST_REMOVE: [ "lrem", "list remove", "https://redis.io/docs/latest/commands/lrem/" ],
     SET_VALUE: [ "set", "set value", "https://redis.io/docs/latest/commands/set/" ],
     UNION_OF_SETS: [ "sunion", "union of sets", "https://redis.io/docs/latest/commands/sunion/" ]
+} );
+
+/**
+ * Enum for listing all client statuses.
+ *
+ * @readonly
+ * @enum {number}
+ */
+let clientStatusEnum = tools.enum( {
+    UNINITIALIZED: [ 0, "uninitialized", "Redis client is offline and not yet initialized." ],
+    CONNECTED: [ 1, "connected", "Redis client is connected and online." ],
+    CONNECTING: [ 2, "connecting", "Redis client is connecting to server." ],
+    DISRUPTED: [ 3, "disrupted", "Redis client is temporarily disconnected from server due to a disruption." ],
+    SHUTTING_DOWN: [ 4, "shutting down", "Redis client is shutting down." ],
+    DISCONNECTED: [ 5, "disconnected", "Redis client is permanently disconnected from server." ]
 } );
 
 /**
@@ -63,6 +79,10 @@ module.exports.cacheCommands = cacheCommandsEnum;
  * @typedef {string} TiRedisOverrideMode
  */
 module.exports.cacheOverrideMode = cacheOverrideModeEnum;
+/**
+ * @typedef {number} TiRedisClientStatus
+ */
+module.exports.clientStatus = clientStatusEnum;
 
 /**
  * Used to create a Redis Cache client.
@@ -76,6 +96,7 @@ module.exports.cacheOverrideMode = cacheOverrideModeEnum;
 class RedisClient {
 
     #clientIdentifier;
+    #clientStatus = clientStatusEnum.UNINITIALIZED;
     #retryMaxInterval = 1000;
     #retryMaxAttempts = undefined;
     #redisConnection = undefined;
@@ -116,6 +137,17 @@ class RedisClient {
      */
     get clientID() {
         return this.#redisClientID;
+    }
+
+    /**
+     * Used to return the Redis client status.
+     *
+     * @property
+     * @returns {number}
+     * @public
+     */
+    get clientStatus() {
+        return this.#clientStatus;
     }
 
     /**
@@ -167,12 +199,6 @@ class RedisClient {
                 } ).then( ( clientID ) => {
                     // Store the client ID:
                     this.#redisClientID = clientID;
-
-                    // Notify all connection observers about the initialization success:
-                    _.forEach( this.#connectionObservers, ( connectionObservers ) => {
-                        connectionObservers.onConnectionRecovered( this.#clientIdentifier );
-                    } );
-
                     resolve();
                 } ).catch( ( error ) => {
                     reject( exceptions.raise( error ) );
@@ -359,6 +385,7 @@ class RedisClient {
     shutDown( timeoutMs = 1000 ) {
         return new Promise( ( resolve ) => {
             let finished = false;
+            this.#clientStatus = clientStatusEnum.SHUTTING_DOWN;
             const done = () => {
                 if ( !finished ) {
                     finished = true;
@@ -403,28 +430,32 @@ class RedisClient {
      * @param {number} defaultDB
      * @param {number} [retryMaxIntervalMs=1000] Optional max backoff interval.
      * @param {number|undefined} [retryMaxAttempts=undefined] Optional max (re)connection attempts before abort.
-     * @public
+     * @returns {Promise}
+     * @private
      */
     #setupClient( host, port, authKey, user, defaultDB, retryMaxIntervalMs, retryMaxAttempts ) {
         return new Promise( ( resolve, reject ) => {
             try {
                 this.#retryMaxInterval = retryMaxIntervalMs;
-                this.#retryMaxAttempts = retryMaxAttempts;
+                this.#retryMaxAttempts = 3;//retryMaxAttempts;
 
                 let retryStrategy = ( attempt ) => {
-                    let result = Math.min( attempt * 50, this.#retryMaxInterval );
-
+                    let retryInterval = Math.min( attempt * 50, this.#retryMaxInterval );
                     if ( this.#retryMaxAttempts != null && attempt > this.#retryMaxAttempts ) {
                         logger.log( "In Redis retry strategy: reached max attempts for command retry. Aborting...", logger.logSeverity.WARNING, { attempts: attempt } );
-                        result = exceptions.raise( exceptions.exceptionCode.E_COM_RETRY_ATTEMPTS_EXCEEDED );
+                        retryInterval = exceptions.raise( exceptions.exceptionCode.E_COM_RETRY_ATTEMPTS_EXCEEDED );
                     }
-
-                    return result;
+                    return retryInterval;
                 };
 
                 let reconnectOnError = ( error ) => {
                     logger.log( `In Redis reconnect on error strategy: ${ error.message }`, logger.logSeverity.ERROR, error );
-                    return !!error.message.includes( "READONLY" );
+                    if ( error.message.includes( "READONLY" ) ) {
+                        // Returning 2 will also resubmit the failed command:
+                        return 2;
+                    } else {
+                        return 0;
+                    }
                 };
 
                 let options = {
@@ -441,23 +472,32 @@ class RedisClient {
 
                 /** @type Redis */
                 this.#redisConnection = new Redis( options );
+                this.#clientStatus = clientStatusEnum.CONNECTING;
 
-                this.#redisConnection.on( "ready", () => {
-                    logger.log( `Connection to Redis server ${ host }:${ port } (re)established by client '${ this.identifier }' and is ready to be used.`, logger.logSeverity.INFO );
+                this.#redisConnection.once( "ready", () => {
+                    this.#clientStatus = clientStatusEnum.CONNECTED;
+                    this.#notifyConnectionObservers();
+
+                    this.#redisConnection.on( "ready", () => {
+                        this.#clientStatus = clientStatusEnum.CONNECTED;
+                        this.#notifyConnectionObservers();
+                    } );
+
                     resolve();
                 } );
                 this.#redisConnection.on( "error", ( error ) => {
+                    this.#clientStatus = clientStatusEnum.DISRUPTED;
                     logger.log( `Error received in Redis client '${ this.identifier }'.`, logger.logSeverity.ERROR, error );
-
-                    // Notify all connection observers about this event:
-                    _.forEach( this.#connectionObservers, ( connectionObservers ) => {
-                        connectionObservers.onConnectionDisrupted( this.#clientIdentifier );
-                    } );
+                    this.#notifyConnectionObservers();
                 } );
-                this.#redisConnection.on( "reconnecting", ( info ) => {
-                    if ( info.attempt > 1 ) {
-                        logger.log( `Client '${ this.identifier }' reconnecting to Redis server after ${ info.delay } ms. This is attempt ${ info.attempt }.`, logger.logSeverity.DEBUG );
-                    }
+                this.#redisConnection.on( "reconnecting", ( retryInterval ) => {
+                    this.#clientStatus = clientStatusEnum.CONNECTING;
+                    logger.log( `Client '${ this.identifier }' reconnecting to Redis server after ${ retryInterval } ms.`, logger.logSeverity.DEBUG );
+                } );
+                this.#redisConnection.on( "end", () => {
+                    this.#clientStatus = clientStatusEnum.DISCONNECTED;
+                    logger.log( `Client '${ this.identifier }' cannot reconnect to Redis server and has been shut down.`, logger.logSeverity.WARNING );
+                    this.#notifyConnectionObservers();
                 } );
             } catch ( error ) {
                 reject( exceptions.raise( error ) );
@@ -466,9 +506,30 @@ class RedisClient {
     }
 
     /**
+     * Used to notify all connection observers about the current connection state.
+     *
+     * @method
+     * @private
+     */
+    #notifyConnectionObservers() {
+        // Notify all connection observers about the event:
+        _.forEach( this.#connectionObservers, ( connectionObservers ) => {
+            if ( this.#clientStatus === clientStatusEnum.CONNECTED ) {
+                logger.log( `Connection to Redis server ${ this.#redisConnection.options.host }:${ this.#redisConnection.options.port } (re)established by client '${ this.identifier }' and is ready to be used.`, logger.logSeverity.INFO );
+                connectionObservers.onConnectionRecovered( this.#clientIdentifier );
+            } else if ( this.#clientStatus === clientStatusEnum.DISRUPTED ) {
+                connectionObservers.onConnectionDisrupted( this.#clientIdentifier );
+            } else if ( this.#clientStatus === clientStatusEnum.DISCONNECTED ) {
+                connectionObservers.onConnectionLost( this.#clientIdentifier );
+            }
+        } );
+    }
+
+    /**
      * Used to fetch and store Redis server information.
      *
      * @method
+     * @returns {Promise}
      * @private
      */
     #fetchServerInfo() {

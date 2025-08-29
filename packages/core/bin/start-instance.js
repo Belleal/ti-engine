@@ -151,7 +151,7 @@ try {
             setImmediate( () => process.exit( 1 ) );
         } );
     } else {
-        logger.log( `Attempting to start a module that does not implement the ServiceInstance abstract class!`, logger.logSeverity.ERROR );
+        logger.log( `Attempting to start a module that does not implement the ServiceInstance abstract class!`, logger.logSeverity.CRITICAL );
         setImmediate( () => process.exit( 1 ) );
     }
 } catch ( error ) {

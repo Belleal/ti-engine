@@ -9,10 +9,44 @@
 const ServiceConsumer = require( "@ti-engine/core/service-consumer" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const logger = require( "@ti-engine/core/logger" );
-const { randomBytes } = require( "crypto" );
-const path = require( "path" );
-const fs = require( "fs" );
+const { randomBytes } = require( "node:crypto" );
+const path = require( "node:path" );
+const fs = require( "node:fs" );
+const http = require( "node:http" );
+const https = require( "node:https" );
+const express = require( "express" );
+const helmet = require( "helmet" );
+const session = require( "express-session" );
 const SessionStore = require( "#session-store" );
+const ServiceProvider = require( '@ti-engine/core/service-provider' )
+
+/**
+ * @typedef {Object} WebConfigMain
+ * @property {SettingsCookies} cookies
+ * @property {string} host
+ * @property {number} port
+ * @property {string} publicPath
+ * @property {ServicesConfig} services
+ * @property {SettingsSession} session
+ * @property {string} tlsCertPath
+ * @property {string} tlsKeyPath
+ * @property {boolean} useTLS
+ */
+
+/**
+ * @typedef {Object} ServicesConfig
+ * @property {number} requestTimeout
+ */
+
+/**
+ * @typedef {Object} SettingsCookies
+ * @property {string} secret
+ */
+
+/**
+ * @typedef {Object} SettingsSession
+ * @property {string} secret
+ */
 
 /**
  * A web server microservice based on the ti-engine.
@@ -23,46 +57,31 @@ const SessionStore = require( "#session-store" );
 class TiWebServer extends ServiceConsumer {
 
     #webServer = null;
+    #netServer = null;
     #webConfig = {};
+    #serverUrl = "";
+    #isShuttingDown = false;
 
     /**
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
-     * @param {Object} serviceConfig The JSON configuration for this service.
+     * @param {WebConfigMain} serviceConfig The JSON configuration for this service.
      */
     constructor( serviceDomainName, serviceConfig ) {
         super( serviceDomainName, serviceConfig );
 
-        // Configure the web server for HTTPS if enabled in the service config:
-        let httpsOptions = undefined;
-        if ( serviceConfig.useTLS === true ) {
-            try {
-                httpsOptions = {
-                    key: fs.readFileSync( path.join( process.cwd(), serviceConfig.tlsKeyPath ) ),
-                    cert: fs.readFileSync( path.join( process.cwd(), serviceConfig.tlsCertPath ) )
-                };
-            } catch ( error ) {
-                logger.log( "Failed to read and load the TLS key/cert files.", logger.logSeverity.ERROR, error );
-                throw exceptions.raise( error );
-            }
-        }
-
-        this.#webServer = require( "fastify" )( {
-            // Enable trustProxy so secure cookies work correctly behind reverse proxies/load balancers:
-            trustProxy: true,
-            https: httpsOptions
-        } );
-
-        this.#webConfig.scheme = ( serviceConfig.useTLS === true ) ? "https" : "http";
+        this.#webConfig.useTLS = ( serviceConfig.useTLS === true );
+        this.#webConfig.tlsCertPath = serviceConfig.tlsCertPath || "bin/tls/cert.pem";
+        this.#webConfig.tlsKeyPath = serviceConfig.tlsKeyPath || "bin/tls/key.pem";
         this.#webConfig.port = serviceConfig.port || 3000;
         this.#webConfig.host = serviceConfig.host || "0.0.0.0";
-        this.#webConfig.publicPath = "packages/web-framework/bin/public";
+        this.#webConfig.publicPath = serviceConfig.publicPath || "bin/public";
         this.#webConfig.cookies = {
             secret: serviceConfig.cookies.secret || randomBytes( 32 ).toString( "base64" ),
             setup: {
                 path: "/",
                 httpOnly: true,
-                secure: true,
+                secure: ( serviceConfig.useTLS === true ),
                 sameSite: "lax",
                 maxAge: 60 * 60 * 24 * 7 // 7 days
             }
@@ -89,6 +108,17 @@ class TiWebServer extends ServiceConsumer {
     /* Public interface */
 
     /**
+     * Property returning if the web server is currently shutting down.
+     *
+     * @property
+     * @returns {boolean}
+     * @public
+     */
+    get isShuttingDown() {
+        return this.#isShuttingDown;
+    }
+
+    /**
      * Starts the web server.
      *
      * @method
@@ -99,16 +129,80 @@ class TiWebServer extends ServiceConsumer {
     onStart() {
         return new Promise( ( resolve, reject ) => {
             super.onStart().then( () => {
-                // Attach and configure the official plugins:
-                this.#configurePlugins();
+                // Create and configure the web server:
+                this.#webServer = express();
 
-                // Configure the web server routes:
-                this.#webServer.register( require( "#common-routes" ), { webConfig: this.#webConfig } );
+                this.#webServer.set( "trust proxy", true );
+
+                this.#webServer.use( helmet( {
+                    contentSecurityPolicy: {
+                        useDefaults: true,
+                        // Content Security Policy directives:
+                        // - defaultSrc: Fallback for all resource types not explicitly listed; only allow same-origin.
+                        // - scriptSrc: Allow scripts from same-origin and any HTTPS origin; blocks inline scripts by default.
+                        // - styleSrc: Allow styles from same-origin and HTTPS; 'unsafe-inline' is permitted to support inline styles.
+                        // - imgSrc: Allow images from same-origin, HTTPS, and data URIs (for small inline images like icons).
+                        // - connectSrc: Control where XHR/fetch/WebSocket connections can be made; restrict to same-origin and HTTPS APIs.
+                        // - fontSrc: Allow web fonts from same-origin, HTTPS, and data URIs.
+                        // - objectSrc: Disallow plugins such as <object>, <embed>, <applet> by setting to 'none'.
+                        // - frameAncestors: Restrict who can embed this site in frames/iframes; 'self' prevents clickjacking from other origins.
+                        directives: {
+                            defaultSrc: [ "'self'" ],
+                            scriptSrc: [ "'self'", "https:", "'unsafe-eval'" ],
+                            styleSrc: [ "'self'", "https:", "'unsafe-inline'" ],
+                            imgSrc: [ "'self'", "data:", "https:" ],
+                            connectSrc: [ "'self'", "https:", "ws:", "wss:" ],
+                            fontSrc: [ "'self'", "https:", "data:" ],
+                            objectSrc: [ "'none'" ],
+                            frameAncestors: [ "'self'" ]
+                        }
+                    }
+                } ) );
+                this.#webServer.use( session( {
+                    secret: this.#webConfig.cookies.secret,
+                    resave: false,
+                    saveUninitialized: false,
+                    cookie: this.#webConfig.cookies.setup,
+                    unset: "destroy",
+                    store: new SessionStore()
+                } ) );
+
+                this.#webServer.use( this.#onShutDownHandler( this ) );
+                this.#webServer.use( express.static( this.#webConfig.publicPath, {} ) );
+                this.#webServer.use( this.#authenticationHandler( this ) );
+
+                this.#webServer.get( "/", ( request, response ) => {
+                    response.sendFile( path.join( process.cwd(), this.#webConfig.publicPath, "index.html" ) );
+                } );
+                this.#webServer.get( "/service/:version/:serviceURL", this.#serviceCallHandler( this ) );
+
+                // Configure the web server for HTTPS if enabled in the service config:
+                if ( this.#webConfig.useTLS === true ) {
+                    let httpsOptions = undefined;
+                    try {
+                        httpsOptions = {
+                            key: fs.readFileSync( path.join( process.cwd(), this.#webConfig.tlsKeyPath ) ),
+                            cert: fs.readFileSync( path.join( process.cwd(), this.#webConfig.tlsCertPath ) )
+                        };
+                    } catch ( error ) {
+                        logger.log( "Failed to read and load the TLS key/cert files.", logger.logSeverity.ERROR, error );
+                        throw exceptions.raise( error );
+                    }
+                    this.#webServer.use( this.#httpRedirectHandler() );
+                    this.#netServer = https.createServer( httpsOptions, this.#webServer );
+                } else {
+                    this.#netServer = http.createServer( this.#webServer );
+                }
 
                 // Start listening for requests:
-                return this.#webServer.listen( { port: this.#webConfig.port, host: this.#webConfig.host } );
-            } ).then( ( address ) => {
-                logger.log( `Web server started at '${ address }' within instance '${ ServiceConsumer.instanceID }'.`, logger.logSeverity.NOTICE );
+                return this.#beginListening( this.#netServer, this.#webConfig.port, this.#webConfig.host );
+            } ).then( ( server ) => {
+                if ( server.listening === true ) {
+                    this.#serverUrl = `http${ this.#webConfig.useTLS === true ? "s" : "" }://${ server.address().address }:${ server.address().port }`;
+                    logger.log( `Web server started at address '${ this.#serverUrl }' within instance '${ ServiceConsumer.instanceID }'.`, logger.logSeverity.NOTICE );
+                } else {
+                    logger.log( `Web server is not listening for requests after startup within instance '${ ServiceConsumer.instanceID }'.`, logger.logSeverity.WARNING );
+                }
                 resolve();
             } ).catch( ( error ) => {
                 logger.log( `Error while trying to start web server within instance '${ ServiceConsumer.instanceID }'!`, logger.logSeverity.ERROR, error );
@@ -127,8 +221,10 @@ class TiWebServer extends ServiceConsumer {
      */
     onStop() {
         return new Promise( ( resolve, reject ) => {
+            this.#isShuttingDown = true;
+
             super.onStop().then( () => {
-                return this.#webServer.close();
+                return this.#endListening( this.#netServer );
             } ).then( () => {
                 logger.log( `Web server stopped successfully.`, logger.logSeverity.NOTICE );
                 resolve();
@@ -150,107 +246,183 @@ class TiWebServer extends ServiceConsumer {
         super.reportHealthy();
     }
 
+    /**
+     * Used to verify the session ID of a request.
+     *
+     * @method
+     * @param {string} sessionID
+     * @returns {boolean}
+     * @public
+     */
+    verifySession( sessionID ) {
+        // TODO: implement this!
+        return true;
+    }
+
     /* Private interface */
 
     /**
-     * Used to set up all official plugins for the web server.
+     * Used to start listening for requests on the specified port and host.
      *
      * @method
+     * @param {http.Server|https.Server} server The server instance to listen on.
+     * @param {number} port The port to listen on.
+     * @param {string} host The host to listen on.
+     * @returns {Promise<http.Server|https.Server>}
      * @private
      */
-    #configurePlugins() {
-        // Step 1 - Security headers:
-        this.#webServer.register( require( "@fastify/helmet" ), {
-            global: true,
-            contentSecurityPolicy: false
+    #beginListening( server, port, host ) {
+        return new Promise( ( resolve, reject ) => {
+            server.once( "error", ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+            server.once( "listening", () => {
+                resolve( server );
+            } );
+            server.listen( port, host );
         } );
+    }
 
-        // Generate a per-request CSP nonce and attach it to the request object:
-        this.#webServer.addHook( "onRequest", ( request, reply, done ) => {
-            try {
-                request.cspNonce = randomBytes( 16 ).toString( "base64" );
-            } catch ( e ) {
-                request.cspNonce = "";
-            }
-            done();
-        } );
-
-        // Set a dynamic Content Security Policy header that includes the nonce for inline scripts:
-        this.#webServer.addHook( "onSend", ( request, reply, payload, done ) => {
-            try {
-                const ct = String( reply.getHeader( "content-type" ) || "" ).toLowerCase();
-                if ( ct.includes( "text/html" ) ) {
-                    const nonce = request.cspNonce || "";
-                    const csp =
-                        "default-src 'self'; " +
-                        "script-src 'self' https: 'unsafe-eval' 'nonce-" + nonce + "'; " +
-                        "style-src 'self' https: 'unsafe-inline'; " +
-                        "img-src 'self' https: data:; " +
-                        "connect-src 'self' https: ws: wss:; " +
-                        "font-src 'self' https: data:; " +
-                        "object-src 'none'; " +
-                        "frame-ancestors 'self'; " +
-                        "base-uri 'self'";
-                    reply.header( "Content-Security-Policy", csp );
+    /**
+     * Used to stop listening for requests on the specified server.
+     *
+     * @method
+     * @param {http.Server|https.Server} server The server instance to stop listening on.
+     * @returns {Promise}
+     * @private
+     */
+    #endListening( server ) {
+        return new Promise( ( resolve, reject ) => {
+            server.close( ( error ) => {
+                if ( error ) {
+                    reject( exceptions.raise( error ) );
+                } else {
+                    resolve();
                 }
-            } catch ( e ) {
-                // no-op
+            } );
+        } );
+    }
+
+    /**
+     * Handler for requests that are received while the web server is shutting down.
+     *
+     * @method
+     * @param {TiWebServer} instance
+     * @returns {(function(*, *, *): void)|*}
+     * @private
+     */
+    #onShutDownHandler( instance ) {
+        return ( request, response, next ) => {
+            if ( !instance.isShuttingDown ) {
+                next();
+            } else {
+                response.set( "Connection", "close" );
+                response.status( 503 ).send( {
+                    isSuccessful: false
+                } );
             }
-            done( null, payload );
-        } );
+        };
+    }
 
-        // Register the static file serving before routes that depend on it:
-        this.#webServer.register( require( "@fastify/static" ), {
-            root: path.join( process.cwd(), this.#webConfig.publicPath ),
-            prefix: "/public/",
-            decorateReply: true,
-            serveDotFiles: false,
-            maxAge: "1h"
-        } );
+    /**
+     * Handler for requests that require authentication.
+     *
+     * @method
+     * @param {TiWebServer} instance
+     * @returns {(function(*, *, *): void)|*}
+     * @private
+     */
+    #authenticationHandler( instance ) {
+        return ( request, response, next ) => {
+            if ( instance.verifySession( request.sessionID ) !== true ) {
+                response.status( 403 ).json( {
+                    isSuccessful: false
+                } );
+            } else {
+                next();
+            }
+        };
+    }
 
-        // Step 2 - Cookies (must be before session):
-        this.#webServer.register( require( "@fastify/cookie" ), {
-            secret: this.#webConfig.cookies.secret,
-            hook: "onRequest",
-            parseOptions: this.#webConfig.cookies.setup
-        } );
+    /**
+     * Handler for redirecting HTTP requests to HTTPS. Also works behind proxies using X-Forwarded-Proto.
+     *
+     * @method
+     * @returns {(function(*, *, *): void)|*}
+     * @private
+     */
+    #httpRedirectHandler() {
+        return ( request, response, next ) => {
+            const xfProto = String( request.get ? request.get( "x-forwarded-proto" ) : ( request.headers[ "x-forwarded-proto" ] || "" ) ).toLowerCase();
+            const isSecure = request.secure === true || xfProto === "https";
+            if ( isSecure ) {
+                next();
+            } else {
+                const location = `https://${ request.headers.host }${ request.url }`;
+                response.redirect( 301, location );
+            }
+        }
+    }
 
-        // Step 3 - Session (depends on cookies):
-        this.#webServer.register( require( "@fastify/session" ), {
-            secret: this.#webConfig.session.secret,
-            cookieName: "sid",
-            rolling: true,
-            cookie: this.#webConfig.cookies.setup,
-            store: new SessionStore()
-        } );
+    /**
+     * Express middleware used to listen for and respond to HTTP(S) service calls.
+     *
+     * @method
+     * @param {TiWebServer} instance
+     * @param {APIGateway} options.apiGateway Reference to the parent class since an Express middleware is unable to use 'this' pointers.
+     * @returns {function(*, *, *): void}
+     * @private
+     */
+    #serviceCallHandler( instance ) {
+        return ( request, response, next ) => {
+            request.setTimeout( instance.serviceConfig.services.requestTimeout );
 
-        // Step 4 - CSRF protection (uses session):
-        this.#webServer.register( require( "@fastify/csrf-protection" ), {
-            sessionPlugin: "@fastify/session"
-            // Defaults: looks for token in body._csrf, query._csrf, headers['x-csrf-token']
-        } );
+            instance.callService( {
+                serviceAlias: "service1", // get the name of the first service - by default "service1"
+                serviceDomainName: "ti-tester-service" // get the name of own service domain - by default "ti-tester-service"
+            }, {}, {
+                authToken: "dummy-auth" // use a dummy non-undefined value for auth token as expected by method 'verifyAccess' above
+            } ).then( ( result ) => {
+                logger.log( "Execution of service1 result:", logger.logSeverity.NOTICE, result );
+                response.status( 200 ).json( {
+                    isSuccessful: true
+                } );
+            } ).catch( ( error ) => {
+                logger.log( "Execution of service1 error result:", logger.logSeverity.ERROR, error );
+                next( error );
+            } );
 
-        // Step 5 - Auth utility (used to compose preHandlers):
-        this.#webServer.register( require( "@fastify/auth" ) );
-
-        // Step 6 - Google OAuth2 (requires cookie for state; routes added at /login/google and callback):
-        const { GOOGLE_CONFIGURATION } = require( "@fastify/oauth2" );
-        this.#webServer.register( require( "@fastify/oauth2" ), {
-            name: "googleOAuth2",
-            scope: [ "openid", "profile", "email" ],
-            credentials: {
-                client: {
-                    id: this.#webConfig.oauth2.google.clientID,
-                    secret: this.#webConfig.oauth2.google.clientSecret
-                },
-                auth: GOOGLE_CONFIGURATION
-            },
-            startRedirectPath: "/login/google",
-            callbackUri: ( this.#webConfig.scheme + "://" + this.#webConfig.host + ":" + this.#webConfig.port ) + this.#webConfig.oauth2.google.callbackUrl,
-            cookie: this.#webConfig.cookies.setup,
-            pkce: "S256"
-            // Optionally, you can implement generateStateFunction/checkStateFunction for extra CSRF safety in the OAuth flow.
-        } );
+            // let serviceVersion = request.params.version;
+            // let serviceURL = request.params.serviceURL;
+            // let serviceAddress = options.apiGateway.getServiceAddress( serviceVersion, serviceURL );
+            // if ( serviceAddress && typeof ( controller[ serviceAddress ] ) === "function" ) {
+            //     // verify if this is a developer only service and request proper key if it is:
+            //     if ( developerOnlyServices.indexOf( serviceURL ) > -1 && request.query.developerKey !== developerKey ) {
+            //         let error = exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_DEVELOPER_ACCESS );
+            //         error.httpCode = 403;
+            //         next( error );
+            //     } else {
+            //         let serviceParams = request.body || {};
+            //         controller[ serviceAddress ].apply( controller, [serviceParams] ).then( ( result ) => {
+            //             let authToken;
+            //             result = result || {};
+            //             if ( result.createAuthToken === true && result.playerID ) {
+            //                 delete result.createAuthToken;
+            //                 authToken = options.apiGateway[ _createAuthToken ]( result.playerID );
+            //             }
+            //             response.json( {
+            //                 isSuccessful: true,
+            //                 authToken: authToken,
+            //                 data: result
+            //             } );
+            //         } ).catch( ( error ) => {
+            //             next( error );
+            //         } );
+            //     }
+            // } else {
+            //     next( exceptions.raise( exceptions.exceptionCode.E_COM_INVALID_API_MAPPING ) );
+            // }
+        };
     }
 
 }

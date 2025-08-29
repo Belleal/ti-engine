@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/web-framework",
-  "version": "1.1.7",
+  "version": "1.2.1",
   "description": "The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
@@ -10,15 +10,10 @@
   },
   "dependencies": {
     "@ti-engine/core": "*",
-    "fastify": "^5.5.0",
-    "@fastify/auth": "^5.0.2",
-    "@fastify/bearer-auth": "^10.1.1",
-    "@fastify/cookie": "^11.0.2",
-    "@fastify/csrf-protection": "^7.1.0",
-    "@fastify/helmet": "^13.0.1",
-    "@fastify/oauth2": "^8.1.2",
-    "@fastify/session": "^11.1.0",
-    "@fastify/static": "^8.2.0"
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "helmet": "^8.1.0",
+    "lodash": "^4.17.21"
   },
   "engines": {
     "node": ">=14.17.0"

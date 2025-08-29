@@ -395,6 +395,18 @@ class MessageExchange extends MessageObserver {
     }
 
     /**
+     * Used to mark the connection with the provided identifier as disrupted.
+     *
+     * @method
+     * @param {string} identifier The identifier of the observed connection.
+     * @override
+     * @public
+     */
+    onConnectionLost( identifier ) {
+        // TODO: implement triggering of a graceful shutdown of the service instance
+    }
+
+    /**
      * Used only for the purposes of the message tracer.
      *
      * @method

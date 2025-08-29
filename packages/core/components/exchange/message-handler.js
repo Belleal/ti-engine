@@ -54,7 +54,9 @@ class MessageHandler extends ConnectionObserver {
      * @returns {boolean}
      * @public
      */
-    get isAvailable() { return this.#isAvailable; }
+    get isAvailable() {
+        return this.#isAvailable;
+    }
 
     /**
      * Used to set the isAvailable flag.
@@ -65,7 +67,9 @@ class MessageHandler extends ConnectionObserver {
      * @param {boolean} value
      * @public
      */
-    set isAvailable( value ) { this.#isAvailable = value; }
+    set isAvailable( value ) {
+        this.#isAvailable = value;
+    }
 
     /**
      * Returns the connection identifier.
@@ -74,7 +78,9 @@ class MessageHandler extends ConnectionObserver {
      * @returns {string}
      * @public
      */
-    get connectionIdentifier() { return this.#connectionIdentifier; }
+    get connectionIdentifier() {
+        return this.#connectionIdentifier;
+    }
 
     /**
      * Used to initialize and enable the communication capabilities of the handler.
@@ -185,6 +191,26 @@ class MessageHandler extends ConnectionObserver {
             this.#isAvailable = false;
             _.forEach( this.#messageObservers, ( messageObserver ) => {
                 messageObserver.onConnectionDisrupted( this.#connectionIdentifier );
+            } );
+        }
+    }
+
+    /**
+     * An event-triggered method that will notify any observers about the primary connection having been lost.
+     * <br/>
+     * NOTE: You can override this to add custom functionality but make sure to also call the base method
+     * using: super.onConnectionLost( identifier )
+     *
+     * @method
+     * @param {string} identifier The identifier of the observed connection.
+     * @override
+     * @private
+     */
+    onConnectionLost( identifier ) {
+        if ( identifier === this.#connectionIdentifier ) {
+            this.#isAvailable = false;
+            _.forEach( this.#messageObservers, ( messageObserver ) => {
+                messageObserver.onConnectionLost( this.#connectionIdentifier );
             } );
         }
     }
