@@ -2,6 +2,19 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.2
+* feat(exceptions): add a set of new exception codes for the needs of any wrapping `web-server` standard communication
+* feat(exception)!: change the default prefix path for exception labels to `system.exceptions.`
+* feat(localization): add an Enum list of all language codes based on ISO 639-1 standard
+* feat(localization): add an option to the `getLabel` method to provide the language code to use for localization. If not provided, the system will use the language code from the `localization.language` setting
+* feat(localization)!: change the default structure of system labels from `labels.general.[...]` to `system.[...]`
+* refactor(localization): add typedefs and JSDoc structure for the objects used in localization
+* refactor(exceptions): refactor and fix various JSDoc descriptions
+* refactor(auditing): change the type name of `LogEntry` to `TiLogEntry` and fix some JSDoc descriptions
+* fix(exceptions): fix an issue which caused the exception to disregard the `description` value sent in the constructor and use the default one instead
+* fix(config): fix an issue with the `TI_LOCALIZATION_LABELS_PATH` variable not respecting that the underlying setting expected an array. Now it is expected to be a single path and it will be wrapped into an array automatically
+* fix(auditing): fix a potential problem with setting the log entry reporter from an ENV variable; instead, the system will now use the `ServiceInstance.instanceID` property
+
 ## Version 1.3.1
 * feat(service caller): refactor the entire service call execution flow for clarity and better performance
 * feat(service caller): create a new private class `ServiceCallProcessor` to handle individual service calls in a contained scope

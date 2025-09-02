@@ -397,7 +397,7 @@ GCLOUD_PROJECT_ID (Alpha)
 LOCALIZATION_LABELS_PATH
 : JSON path `localization.labelsPath`, type `Array<string>`, default `[]`
 : ENV variable `TI_LOCALIZATION_LABELS_PATH`
-: This setting holds a list of paths to custom `.json` files containing additional localization information. By default, the framework also provides such a file with english texts that can be customized further. All additional JSONs in these files have to follow the rules and structure of the `localization` module.
+: This setting holds a list of paths to custom `.json` files containing additional localization information. By default, the framework also provides such a file with english texts that can be customized further. All additional JSONs in these files have to follow the rules and structure of the `localization` module. The ENV variable currently supports providing only a single custom path.
 
 LOCALIZATION_LANGUAGE
 : JSON path `localization.language`, type `string`, default `en`
@@ -501,20 +501,18 @@ OPERATION_MODE
 
 The **ti-engine** framework provides a localization mechanism that allows you to translate labels into localized text. The framework comes with a default set of labels that can be found in the `localization` module. You can add your own custom labels to this set by providing one or more JSON files with the same structure as the default one (see below). The path to these files should be specified in the `LOCALIZATION_LABELS_PATH` setting. On startup, the framework will load all the JSON files and merge them into a single repository.
 
-The following is an example of a custom localization file (the names in brackets can be replaced with your own values):
+The following is an example of a custom localization file. The names in brackets can be replaced with your own values. The depth of the three is unlimited and can be used to create a hierarchy of labels.
 
 ```json
 {
-  "labels": {
-    "[category]": {
-      "[sub-category]": {
-        "[label]": {
-          "en": "[localized label text]"
-        }
+  "[category]": {
+    "[sub-category]": {
+      "[label]": {
+        "[language code]": "[localized label text]"
       }
     }
   }
 }
 ```
 
-The individual languages are specified with a two-letter code. The default language is `en` (English). If you want to use a different language, you can set the `LOCALIZATION_LANGUAGE` setting to the desired language code.
+The individual languages are specified with a two-letter code according to ISO 639-1. The default language is `en` (English). If you want to use a different language, you can set the `LOCALIZATION_LANGUAGE` setting to the desired language code.

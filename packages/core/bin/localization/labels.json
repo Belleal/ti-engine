@@ -1,64 +1,62 @@
 {
-  "labels": {
-    "general": {
-      "exceptions": {
-        "0": {
-          "en": "Unidentified error encountered or unrecognized exception code provided."
-        },
-        "1000": {
-          "en": "Error thrown by internal JS source."
-        },
-        "1001": {
-          "en": "Attempt to construct an abstract class detected."
-        },
-        "1002": {
-          "en": "Attempt to call an abstract method detected."
-        },
-        "1003": {
-          "en": "Invalid or no service domain name provided at microservice startup."
-        },
-        "1004": {
-          "en": "The system cache required for proper engine operation is unavailable."
-        },
-        "1005": {
-          "en": "The provided service handler is not a proper function."
-        },
-        "1006": {
-          "en": "The requested feature is not supported by current configuration or version."
-        },
-        "2000": {
-          "en": "Invalid authorization token provided."
-        },
-        "2001": {
-          "en": "Invalid or expired session encountered."
-        },
-        "2002": {
-          "en": "Attempt for unauthorized access detected."
-        },
-        "2003": {
-          "en": "The system detected tampering with the message received via message exchange."
-        },
-        "3000": {
-          "en": "General error during cross-application communication."
-        },
-        "3001": {
-          "en": "The message sender instance is currently unavailable."
-        },
-        "3002": {
-          "en": "The execution of a service could not complete within the allowed timeout."
-        },
-        "3003": {
-          "en": "The specified service is not found in the service registry."
-        },
-        "3004": {
-          "en": "The specified service is not found in the service definition interface."
-        },
-        "3005": {
-          "en": "No handler found in the interface for the specified service or service version."
-        },
-        "3010": {
-          "en": "Connection retry attempts exceeded the configured limit."
-        }
+  "system": {
+    "exceptions": {
+      "0": {
+        "en": "Unidentified error encountered or unrecognized exception code provided."
+      },
+      "1000": {
+        "en": "Error thrown by internal JS source."
+      },
+      "1001": {
+        "en": "Attempt to construct an abstract class detected."
+      },
+      "1002": {
+        "en": "Attempt to call an abstract method detected."
+      },
+      "1003": {
+        "en": "Invalid or no service domain name provided at microservice startup."
+      },
+      "1004": {
+        "en": "The system cache required for proper engine operation is unavailable."
+      },
+      "1005": {
+        "en": "The provided service handler is not a proper function."
+      },
+      "1006": {
+        "en": "The requested feature is not supported by current configuration or version."
+      },
+      "2000": {
+        "en": "Invalid authorization token provided."
+      },
+      "2001": {
+        "en": "Invalid or expired session encountered."
+      },
+      "2002": {
+        "en": "Attempt for unauthorized access detected."
+      },
+      "2003": {
+        "en": "The system detected tampering with the message received via message exchange."
+      },
+      "3000": {
+        "en": "General error during cross-application communication."
+      },
+      "3001": {
+        "en": "The message sender instance is currently unavailable."
+      },
+      "3002": {
+        "en": "The execution of a service could not complete within the allowed timeout."
+      },
+      "3003": {
+        "en": "The specified service is not found in the service registry."
+      },
+      "3004": {
+        "en": "The specified service is not found in the service definition interface."
+      },
+      "3005": {
+        "en": "No handler found in the interface for the specified service or service version."
+      },
+      "3010": {
+        "en": "Connection retry attempts exceeded the configured limit."
       }
     }
   }

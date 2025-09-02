@@ -11,9 +11,10 @@ const tools = require( "#tools" );
 const logger = require( "#logger" );
 const config = require( "#config" );
 const gcloud = require( "#gcloud-integration" );
+const ServiceInstance = require( "#service-instance" );
 
 /**
- * @typedef {Object} LogEntry
+ * @typedef {Object} TiLogEntry
  * @property {string} _id Unique identifier that can be used to identify the document in a NoSQL database.
  * @property {TiLogSeverity} severity The log severity level.
  * @property {string} thread The categorization of the log message.
@@ -59,19 +60,19 @@ class Auditing {
      */
     log( message, severity = logger.logSeverity.DEFAULT, thread = "main", data = {} ) {
         try {
-            // log entries bellow the min allowed level will be ignored:
+            // Log entries below the minimum allowed level will be directly ignored:
             if ( severity >= config.getSetting( config.setting.AUDITING_LOG_MIN_LEVEL ) ) {
-                // obscure any passwords that might have landed in the data object;
-                // also make sure to convert a potential Error object to a JSON:
+                // Obscure any passwords that might have landed in the data object;
+                // Also make sure to convert a potential Error object to a JSON:
                 let copyOfData = ( config.getSetting( config.setting.AUDITING_LOG_DETAILS ) === true ) ? _.cloneDeep( data ) : undefined;
                 let logEntry = Auditing.#createLogEntry( severity, thread, message, copyOfData );
 
-                // make sure there is a console available:
+                // Make sure there is a console available (especially important for Cloud or containerized environments):
                 if ( config.getSetting( config.setting.AUDITING_LOG_CONSOLE_ENABLED ) === true && console ) {
                     Auditing.#logToConsole( logEntry );
                 }
 
-                // if this is an actual error, then send it to GCloud error reporting system as well:
+                // If this is an actual error, then send it to GCloud error reporting system as well:
                 if ( logEntry.severity >= logger.logSeverity.WARNING && data instanceof Error && gcloud.isEnabled() ) {
                     gcloud.reportError( data );
                 }
@@ -91,14 +92,14 @@ class Auditing {
      * @param {string} thread
      * @param {string} message
      * @param {Object} data
-     * @returns {LogEntry}
+     * @returns {TiLogEntry}
      * @private
      */
     static #createLogEntry( severity, thread, message, data ) {
         let currentDate = new Date();
         let logDate = tools.getUTCDateString( currentDate );
         let logTime = tools.getUTCTimeString( currentDate, true );
-        let reporter = process.env.TI_INSTANCE_ID;
+        let reporter = ServiceInstance.instanceID;
 
         return {
             _id: `${ logDate }-${ logTime }-${ thread }-${ reporter }-${ logger.getSeverityName( severity ) }-${ tools.getUUID() }`,
@@ -112,13 +113,13 @@ class Auditing {
     }
 
     /**
-     * Used to write the log entries to the system console (i.e. STD OUT and STD ERR).
+     * Used to write the log entries to the system console (i.e., STD OUT and STD ERR).
      * <br/>
      * NOTE: There was an issue in previous Node versions with console that can crash the application if the number of
-     *    outputs exceeds several thousands per second. To be monitored and adjusted as necessary!
+     * outputs exceeds several thousands per second. To be monitored and adjusted as necessary!
      *
      * @method
-     * @param {LogEntry} logEntry
+     * @param {TiLogEntry} logEntry
      * @private
      */
     static #logToConsole( logEntry ) {
@@ -140,7 +141,7 @@ class Auditing {
      * Used to format a log entry for the Node console.
      *
      * @method
-     * @param {LogEntry} logEntry
+     * @param {TiLogEntry} logEntry
      * @returns {string}
      * @private
      */
@@ -153,7 +154,7 @@ class Auditing {
      * Used to format a log entry data payload for the Node console.
      *
      * @method
-     * @param {LogEntry} logEntry
+     * @param {TiLogEntry} logEntry
      * @returns {string}
      * @private
      */

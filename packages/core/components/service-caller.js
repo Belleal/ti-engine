@@ -293,7 +293,7 @@ class ServiceCaller extends MessageObserver {
      * @public
      */
     executeServiceCall( serviceAddress, serviceParams, serviceExecContext ) {
-        return new Promise( ( resolve, reject ) => {
+        return new Promise( ( resolve ) => {
             let processor = new ServiceCallProcessor( serviceAddress, serviceParams, serviceExecContext );
             this.#addProcessor( processor.messageID, processor );
             processor.process().then( ( serviceCallResult ) => {

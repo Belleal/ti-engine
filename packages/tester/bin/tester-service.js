@@ -40,7 +40,7 @@ class TiTesterService extends ServiceProvider {
     onStart() {
         return new Promise( ( resolve, reject ) => {
             super.onStart().then( () => {
-                // give it little time to finish initialization and then execute the testing sequence:
+                // give it a little time to finish initialization and then execute the testing sequence:
                 setTimeout( () => {
                     this.#executeTests();
                 }, 500 );
@@ -86,34 +86,49 @@ class TiTesterService extends ServiceProvider {
     /* Private interface */
 
     /**
-     * Used to execute sequence of integration tests.
+     * Used to execute a sequence of integration tests.
      *
      * @method
      * @private
      */
     #executeTests() {
-        // execute "service1" - simple service call
+        // Use a fake non-undefined value for auth token as expected by the method 'verifyAccess' above:
+        const authToken = "dummy-auth";
+
+        // Execute "service1" - a simple service call
         this.callService( {
             serviceAlias: this.getRegisteredServices()[ 0 ], // get the name of the first service - by default "service1"
             serviceDomainName: ServiceProvider.serviceDomainName // get the name of own service domain - by default "ti-tester-service"
         }, {}, {
-            authToken: "dummy-auth" // use a dummy non-undefined value for auth token as expected by method 'verifyAccess' above
+            authToken: authToken
         } ).then( ( result ) => {
             logger.log( "Execution of service1 result:", logger.logSeverity.NOTICE, result );
         } ).catch( ( error ) => {
             logger.log( "Execution of service1 error result:", logger.logSeverity.ERROR, error );
         } );
 
-        // execute "service2" - 2-sequence service call
+        // Execute "service2" - 2-sequence service call
         this.callService( {
             serviceAlias: this.getRegisteredServices()[ 1 ], // get the name of the second service - by default "service2"
             serviceDomainName: ServiceProvider.serviceDomainName // get the name of own service domain - by default "ti-tester-service"
         }, {}, {
-            authToken: "dummy-auth" // use a dummy non-undefined value for auth token as expected by method 'verifyAccess' above
+            authToken: authToken
         } ).then( ( result ) => {
             logger.log( "Execution of service2 result:", logger.logSeverity.NOTICE, result );
         } ).catch( ( error ) => {
             logger.log( "Execution of service2 error result:", logger.logSeverity.ERROR, error );
+        } );
+
+        // Execute "service3" - non-existing service
+        this.callService( {
+            serviceAlias: "service3",
+            serviceDomainName: ServiceProvider.serviceDomainName // get the name of own service domain - by default "ti-tester-service"
+        }, {}, {
+            authToken: authToken
+        } ).then( ( result ) => {
+            logger.log( "Execution of service3 result:", logger.logSeverity.NOTICE, result );
+        } ).catch( ( error ) => {
+            logger.log( "Execution of service3 error result:", logger.logSeverity.ERROR, error );
         } );
     }
 

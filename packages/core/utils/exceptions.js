@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -15,7 +15,7 @@ const tools = require( "#tools" );
  * @readonly
  * @enum {number}
  */
-let exceptionCodeEnum = tools.enum( {
+const exceptionCodeEnum = tools.enum( {
     E_UNKNOWN_ERROR: [ 0, "unknown error", "Unidentified error encountered or unrecognized exception code provided." ],
     /** General exceptions - codes under 1xxx */
     E_GEN_JS_INTERNAL_ERROR: [ 1000, "js internal error", "Error thrown by internal JS source." ],
@@ -25,7 +25,7 @@ let exceptionCodeEnum = tools.enum( {
     E_GEN_SYSTEM_CACHE_UNAVAILABLE: [ 1004, "system cache unavailable", "The system cache required for proper engine operation is unavailable." ],
     E_GEN_BAD_SERVICE_HANDLER: [ 1005, "bad service handler", "The provided service handler is not a proper function." ],
     E_GEN_FEATURE_UNSUPPORTED: [ 1006, "feature unsupported", "The requested feature is not supported by current configuration or version." ],
-    /** Security & Administration related exceptions - codes under 2xxx */
+    /** Security & Administration exceptions - codes under 2xxx */
     E_SEC_INVALID_AUTH_TOKEN: [ 2000, "invalid auth token", "Invalid authorization token provided." ],
     E_SEC_INVALID_EXPIRED_SESSION: [ 2001, "invalid or expired session", "Invalid or expired session encountered." ],
     E_SEC_UNAUTHORIZED_ACCESS: [ 2002, "unauthorized access", "Attempt for unauthorized access detected." ],
@@ -39,22 +39,30 @@ let exceptionCodeEnum = tools.enum( {
     E_COM_SERVICE_HANDLER_NOT_FOUND: [ 3005, "service handler not found", "No handler found in the interface for the specified service or service version." ],
     E_COM_MESSAGE_RECEIVER_UNAVAILABLE: [ 3006, "message receiver unavailable", "The message receiver instance is currently unavailable." ],
     E_COM_MESSAGE_EXCHANGE_BROKEN: [ 3007, "message exchange broken", "The message exchange is irrevocably broken and cannot be used any longer." ],
-    // E_COM_UNRECOGNIZED_API_URL: [ 301, "unrecognized api url", "Attempt to access unrecognized or invalid API URL." ],
-    // E_COM_MISSING_REQUIRED_ARGUMENTS: [ 302, "missing required arguments", "Attempt to execute operation without all required arguments." ],
-    // E_COM_UNRECOGNIZED_RESPONSE_STRUCTURE: [ 303, "unrecognized response structure", "The received response has unrecognized structure and cannot be parsed or examined." ],
-    // E_COM_RECEIVED_ERROR_RESPONSE: [ 304, "received error response", "The received response indicates error in the external system." ],
-    // E_COM_JSON_RPC_DATA_INVALID: [ 305, "json rpc data invalid", "The JSON RPC 2.0 data being verified is not valid." ],
-    // E_COM_NO_OPEN_CONNECTION: [ 306, "no open connection", "Attempting to do communication request while there is no open connection available." ],
-    // E_COM_REQUEST_ERROR_RESPONSE: [ 307, "received error response", "The received response indicates error in the external system." ],
-    // E_COM_CONNECTION_TIMEOUT: [ 308, "connection timeout", "Attempting to do communication request but request timeout." ],
-    // E_COM_INVALID_API_MAPPING: [ 309, "invalid api mapping", "Attempt to access API URL without proper controller mapping." ],
-    E_COM_RETRY_ATTEMPTS_EXCEEDED: [ 3010, "retry attempts exceeded", "Connection retry attempts exceeded the configured limit." ]
+    E_COM_RETRY_ATTEMPTS_EXCEEDED: [ 3010, "retry attempts exceeded", "Connection retry attempts exceeded the configured limit." ],
+    /** Web server exceptions - codes under 4xxx */
+    E_WEB_INVALID_REQUEST_METHOD: [ 4000, "invalid request method", "The request method is not recognized or not supported." ],
+    E_WEB_INVALID_REQUEST_URI: [ 4001, "invalid request uri", "The request URI is not recognized or not supported." ],
+    E_WEB_INVALID_REQUEST_BODY: [ 4002, "invalid request body", "The request body is not recognized or not supported." ],
+    E_WEB_INVALID_REQUEST_QUERY: [ 4003, "invalid request query", "The request query is not recognized or not supported." ],
+    E_WEB_INVALID_REQUEST_HEADERS: [ 4004, "invalid request headers", "The request headers are not recognized or not supported." ],
+    E_WEB_INVALID_REQUEST_PARAMETERS: [ 4005, "invalid request parameters", "The request parameters are not recognized or not supported." ],
+    E_WEB_INVALID_REQUEST_FORMAT: [ 4006, "invalid request format", "The request format is not recognized or not supported." ],
+    E_WEB_INVALID_REQUEST_CONTENT_TYPE: [ 4007, "invalid request content type", "The request content type is not recognized or not supported." ],
+    E_WEB_INVALID_REQUEST_CONTENT_LENGTH: [ 4008, "invalid request content length", "The request content length is not recognized or not supported." ],
+    E_WEB_INVALID_REQUEST_CONTENT_ENCODING: [ 4009, "invalid request content encoding", "The request content encoding is not recognized or not supported." ],
+    E_WEB_INVALID_REQUEST_CONTENT_DISPOSITION: [ 4010, "invalid request content disposition", "The request content disposition is not recognized or not supported." ],
+    E_WEB_INVALID_REQUEST_CONTENT_TRANSFER_ENCODING: [ 4011, "invalid request content transfer encoding", "The request content transfer encoding is not recognized or not supported." ],
+    E_WEB_INVALID_REQUEST_CONTENT_RANGE: [ 4012, "invalid request content range", "The request content range is not recognized or not supported." ],
+    E_WEB_INVALID_REQUEST_CONTENT_LANGUAGE: [ 4013, "invalid request content language", "The request content language is not recognized or not supported." ]
 } );
 
 /**
  * @typedef {number} TiExceptionCode
  */
 module.exports.exceptionCode = exceptionCodeEnum;
+
+const labelPath = "system.exceptions.";
 
 /**
  * Represents an exception.
@@ -84,8 +92,8 @@ class Exception {
         this.#id = id;
         this.#code = exceptionCode;
         this.#httpCode = undefined;
-        this.#label = "labels.general.exceptions." + exceptionCode;
-        this.#description = exceptionCodeEnum.properties[ exceptionCode ].description;
+        this.#label = labelPath + exceptionCode;
+        this.#description = description || exceptionCodeEnum.properties[ exceptionCode ].description;
         this.#data = data || {};
     }
 
@@ -94,8 +102,8 @@ class Exception {
     /**
      * Unique identifier of the exception instance. Can be used for tracing problems with customer support cases.
      *
-     * @method
-     * @return {string}
+     * @property
+     * @returns {string}
      * @public
      */
     get id() {
@@ -105,8 +113,8 @@ class Exception {
     /**
      * Identifier code of the exception type.
      *
-     * @method
-     * @return {TiExceptionCode}
+     * @property
+     * @returns {TiExceptionCode}
      * @public
      */
     get code() {
@@ -116,8 +124,8 @@ class Exception {
     /**
      * HTTP error code if relevant.
      *
-     * @method
-     * @return {number}
+     * @property
+     * @returns {number}
      * @public
      */
     get httpCode() {
@@ -127,7 +135,7 @@ class Exception {
     /**
      * HTTP error code if relevant.
      *
-     * @method
+     * @property
      * @param {number} httpCode
      * @public
      */
@@ -138,8 +146,8 @@ class Exception {
     /**
      * Localized label identifier.
      *
-     * @method
-     * @return {string}
+     * @property
+     * @returns {string}
      * @public
      */
     get label() {
@@ -149,8 +157,8 @@ class Exception {
     /**
      * Description or additional technical information that is NOT localized.
      *
-     * @method
-     * @return {string}
+     * @property
+     * @returns {string}
      * @public
      */
     get description() {
@@ -160,8 +168,8 @@ class Exception {
     /**
      * JSON containing any additional data that has relevance for the exception. Can be converted JavaScript {@link Error} object as well.
      *
-     * @method
-     * @return {Object}
+     * @property
+     * @returns {Object}
      * @public
      */
     get data() {
@@ -171,7 +179,7 @@ class Exception {
     /**
      * JSON containing any additional data that has relevance for the exception. Can be converted JavaScript {@link Error} object as well.
      *
-     * @method
+     * @property
      * @param {Object} data
      * @public
      */
@@ -203,7 +211,7 @@ class Exception {
  *
  * @method
  * @param {Error|TiExceptionCode|Exception} source Could be a standard JS Error, an ExceptionCode, or another Exception (in which case it will be raised further).
- * @param {Object} [data] Additional JSON data that can accompany the exception. If more data is added on subsequent Raise calls, it will be merged with the existing one.
+ * @param {Object} [data] Additional JSON data that can go with the exception. If more data is added on later Raise calls, it will be merged with the existing one.
  * @param {string} [exceptionID] Should be used only in cases when we have a recognizable exception ID beforehand. Should not be entered otherwise!
  * @returns {Exception}
  * @public
@@ -226,13 +234,13 @@ module.exports.raise = ( source, data, exceptionID ) => {
         exception = new Exception( exceptionID || tools.getUUID(), ( exceptionCodeEnum.properties[ source ] ) ? source : module.exports.exceptionCode.E_UNKNOWN_ERROR );
     }
 
-    // merge the default exception data with the additional one, if it's provided:
+    // Merge the default exception data with the additional one if it's provided:
     if ( data ) {
         exception.data = _.mergeWith( ( exception.data || {} ), _.cloneDeep( data ), ( objValue, srcValue ) => {
             return ( _.isArray( objValue ) ) ? objValue.concat( srcValue ) : undefined;
         } );
 
-        // make sure to eliminate any circular dependencies inside the data object (these should never be needed for an error description):
+        // Make sure to eliminate any circular dependencies inside the data object (these should never be needed for an error description):
         exception.data = tools.decycle( exception.data );
     }
 
@@ -243,7 +251,7 @@ module.exports.raise = ( source, data, exceptionID ) => {
  * Verifies if the passed object is an Exception.
  *
  * @method
- * @param object
+ * @param {*} object
  * @returns {boolean}
  * @public
  */

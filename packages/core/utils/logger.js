@@ -17,7 +17,7 @@ const localization = require( "#localization" );
  * @readonly
  * @enum {number}
  */
-let logSeverityEnum = tools.enum( {
+const logSeverityEnum = tools.enum( {
     DEFAULT: [ 0, "default", "The log entry has no assigned severity level." ],
     DEBUG: [ 100, "debug", "Debug or trace information." ],
     INFO: [ 200, "info", "Routine information, such as ongoing status or performance." ],
@@ -46,7 +46,7 @@ module.exports.getSeverityName = ( severity ) => {
 };
 
 /**
- * Used to extract information from an Exception and convert it to loggable data object.
+ * Used to extract information from an Exception and convert it to a loggable data object.
  *
  * @method
  * @param {Exception} exception
@@ -62,7 +62,7 @@ const exceptionToLog = ( exception ) => {
 };
 
 /**
- * Used to generate and store a log entry in the active cache.
+ * Used to generate and store a new log entry via the active {@link Auditing} instance.
  *
  * @method
  * @param {string} message The primary log message.

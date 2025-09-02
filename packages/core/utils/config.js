@@ -73,7 +73,7 @@ const tools = require( "#tools" );
 /**
  * @typedef {Object} SettingsLocalization
  * @property {Array<string>} labelsPath
- * @property {string} language
+ * @property {TiLocalizationLanguage} language
  */
 
 /**
@@ -113,7 +113,7 @@ const tools = require( "#tools" );
  * @readonly
  * @enum {string} Keys of this ENUM are strings.
  */
-let settingsEnum = tools.enum( {
+const settingsEnum = tools.enum( {
     AUDITING_LOG_CONSOLE_ENABLED: [ "auditing.logConsoleEnabled", "logConsoleEnabled", "" ],
     AUDITING_LOG_DETAILS: [ "auditing.logDetails", "logDetails", "" ],
     AUDITING_LOG_MIN_LEVEL: [ "auditing.logMinLevel", "logMinLevel", "" ],
@@ -152,7 +152,7 @@ module.exports.setting = settingsEnum;
 /** @type {SettingsMain} */
 const settings = require( "#settings" );
 
-// override remaining settings with ENV variables (if provided):
+// Override the remaining settings with ENV variables (if provided):
 if ( settings.auditing ) {
     settings.auditing.logConsoleEnabled = ( process.env.TI_AUDITING_LOG_CONSOLE_ENABLED !== undefined ) ? tools.toBool( process.env.TI_AUDITING_LOG_CONSOLE_ENABLED ) : settings.auditing.logConsoleEnabled;
     settings.auditing.logDetails = ( process.env.TI_AUDITING_LOG_DETAILS !== undefined ) ? tools.toBool( process.env.TI_AUDITING_LOG_DETAILS ) : settings.auditing.logDetails;
@@ -160,7 +160,7 @@ if ( settings.auditing ) {
     settings.auditing.logUsesJSON = ( process.env.TI_AUDITING_LOG_USES_JSON !== undefined ) ? tools.toBool( process.env.TI_AUDITING_LOG_USES_JSON ) : settings.auditing.logUsesJSON;
 }
 if ( settings.localization ) {
-    settings.localization.labelsPath = ( process.env.TI_LOCALIZATION_LABELS_PATH !== undefined ) ? process.env.TI_LOCALIZATION_LABELS_PATH : settings.localization.labelsPath;
+    settings.localization.labelsPath = ( process.env.TI_LOCALIZATION_LABELS_PATH !== undefined ) ? [ process.env.TI_LOCALIZATION_LABELS_PATH ] : settings.localization.labelsPath;
     settings.localization.language = ( process.env.TI_LOCALIZATION_LANGUAGE !== undefined ) ? process.env.TI_LOCALIZATION_LANGUAGE : settings.localization.language;
 }
 if ( settings.memoryCache ) {
@@ -186,7 +186,7 @@ if ( process.env.TI_GCLOUD_ENABLED === true && settings.gcloudIntegration ) {
 
 settings.operationMode = process.env.NODE_ENV || settings.operationMode;
 
-// prevent further modifications to the settings object:
+// Prevent further modifications to the settings object:
 Object.freeze( settings );
 
 /**
