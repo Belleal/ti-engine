@@ -37,9 +37,9 @@ class ServiceProvider extends ServiceConsumer {
     /**
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
-     * @param {Object} [serviceConfig={}] The JSON configuration for this service.
+     * @param {ServiceConfiguration} [serviceConfig] The JSON configuration for this service.
      */
-    constructor( serviceDomainName, serviceConfig = {} ) {
+    constructor( serviceDomainName, serviceConfig ) {
         super( serviceDomainName, serviceConfig );
 
         // make sure this abstract class cannot be instantiated:

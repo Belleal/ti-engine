@@ -2,6 +2,9 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.4
+* fix(service instance): fix the way `ServiceConfiguration` is propagated via child classes and remove unnecessary defaults. Also update the relevant JSDoc
+
 ## Version 1.3.3
 * feat(exceptions): add new parameter `includeData` to `Exception.asJSON` method which allows the exclusion of the data parameter from the returned JSON
 * feat(exceptions): remove several excessive exception codes that were unlikely to be used

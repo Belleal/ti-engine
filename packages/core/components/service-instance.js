@@ -17,7 +17,7 @@ const messageDispatcher = require( "#message-dispatcher" );
 
 /**
  * @typedef {Object} ServiceConfiguration
- * @property {ServiceDefinition[]} services A list of service definitions to be registered with the {@link ServiceProvider}.
+ * @property {ServiceDefinition[]} [services] A list of service definitions to be registered with the {@link ServiceProvider}.
  */
 
 /**
@@ -42,9 +42,9 @@ class ServiceInstance {
     /**
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
-     * @param {Object} [serviceConfig={}] The JSON configuration for this service.
+     * @param {ServiceConfiguration} [serviceConfig={ services: [] }] The JSON configuration for this service.
      */
-    constructor( serviceDomainName, serviceConfig = {} ) {
+    constructor( serviceDomainName, serviceConfig = { services: [] } ) {
         // Ensure this abstract class cannot be instantiated:
         if ( new.target === ServiceInstance ) {
             throw exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
