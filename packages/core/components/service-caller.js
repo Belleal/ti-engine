@@ -48,7 +48,7 @@ const messageDispatcher = require( "#message-dispatcher" );
 
 /**
  * @typedef {Object} ServiceCallResult
- * @property {Object|undefined} exception If there was exception during the service call processing, it will be set here. Otherwise, it will be 'undefined'.
+ * @property {Exception|undefined} exception If there was exception during the service call processing, it will be set here. Otherwise, it will be 'undefined'.
  * @property {boolean} isSuccessful A flag indicating if this service call can be considered successful or not.
  * @property {Object|string|undefined} payload The payload containing the results from the service call processing. If a string, it is ID of the payload in the memory cache instead.
  */

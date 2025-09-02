@@ -50,11 +50,7 @@ const exceptionCodeEnum = tools.enum( {
     E_WEB_INVALID_REQUEST_FORMAT: [ 4006, "invalid request format", "The request format is not recognized or not supported." ],
     E_WEB_INVALID_REQUEST_CONTENT_TYPE: [ 4007, "invalid request content type", "The request content type is not recognized or not supported." ],
     E_WEB_INVALID_REQUEST_CONTENT_LENGTH: [ 4008, "invalid request content length", "The request content length is not recognized or not supported." ],
-    E_WEB_INVALID_REQUEST_CONTENT_ENCODING: [ 4009, "invalid request content encoding", "The request content encoding is not recognized or not supported." ],
-    E_WEB_INVALID_REQUEST_CONTENT_DISPOSITION: [ 4010, "invalid request content disposition", "The request content disposition is not recognized or not supported." ],
-    E_WEB_INVALID_REQUEST_CONTENT_TRANSFER_ENCODING: [ 4011, "invalid request content transfer encoding", "The request content transfer encoding is not recognized or not supported." ],
-    E_WEB_INVALID_REQUEST_CONTENT_RANGE: [ 4012, "invalid request content range", "The request content range is not recognized or not supported." ],
-    E_WEB_INVALID_REQUEST_CONTENT_LANGUAGE: [ 4013, "invalid request content language", "The request content language is not recognized or not supported." ]
+    E_WEB_INVALID_REQUEST_CONTENT_ENCODING: [ 4009, "invalid request content encoding", "The request content encoding is not recognized or not supported." ]
 } );
 
 /**
@@ -191,17 +187,18 @@ class Exception {
      * Extracts the essential information about the Exception and returns it as JSON.
      *
      * @method
+     * @param {boolean} [includeData=true] Whether to include the data property in the output.
      * @returns {Object}
      * @public
      */
-    asJSON() {
+    asJSON( includeData = true ) {
         return {
             id: this.id,
             code: this.code,
             httpCode: this.httpCode,
             label: this.label,
             description: this.description,
-            data: this.data
+            data: ( includeData === true ) ? this.data : undefined
         };
     }
 }

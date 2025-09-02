@@ -55,8 +55,44 @@
       "3005": {
         "en": "No handler found in the interface for the specified service or service version."
       },
+      "3006": {
+        "en": "The message receiver instance is currently unavailable."
+      },
+      "3007": {
+        "en": "The message exchange is irrevocably broken and cannot be used any longer."
+      },
       "3010": {
         "en": "Connection retry attempts exceeded the configured limit."
+      },
+      "4000": {
+        "en": "The request method is not recognized or not supported."
+      },
+      "4001": {
+        "en": "The request URI is not recognized or not supported."
+      },
+      "4002": {
+        "en": "The request body is not recognized or not supported."
+      },
+      "4003": {
+        "en": "The request query is not recognized or not supported."
+      },
+      "4004": {
+        "en": "The request headers are not recognized or not supported."
+      },
+      "4005": {
+        "en": "The request parameters are not recognized or not supported."
+      },
+      "4006": {
+        "en": "The request format is not recognized or not supported."
+      },
+      "4007": {
+        "en": "The request content type is not recognized or not supported."
+      },
+      "4008": {
+        "en": "The request content length is not recognized or not supported."
+      },
+      "4009": {
+        "en": "The request content encoding is not recognized or not supported."
       }
     }
   }
