@@ -18,7 +18,7 @@ const express = require( "express" );
 const helmet = require( "helmet" );
 const session = require( "express-session" );
 const SessionStore = require( "#session-store" );
-const ServiceProvider = require( '@ti-engine/core/service-provider' )
+const webHandlers = require( "#web-handlers" );
 
 /**
  * @typedef {Object} WebConfigMain
@@ -35,12 +35,17 @@ const ServiceProvider = require( '@ti-engine/core/service-provider' )
 
 /**
  * @typedef {Object} ServicesConfig
+ * @property {ServicesInventory} inventory
  * @property {number} requestTimeout
  */
 
 /**
  * @typedef {Object} SettingsCookies
  * @property {string} secret
+ */
+
+/**
+ * @typedef {Record<string, Record<string, ServiceAddress>>} ServicesInventory
  */
 
 /**
@@ -61,6 +66,7 @@ class TiWebServer extends ServiceConsumer {
     #webConfig = {};
     #serverUrl = "";
     #isShuttingDown = false;
+    #allowedHosts = [];
 
     /**
      * @constructor
@@ -103,6 +109,9 @@ class TiWebServer extends ServiceConsumer {
             password: "admin",
             passwordSha256: process.env.TI_WEB_LOCAL_PASSWORD_SHA256 || ""
         };
+
+        // Include the current host in the list of allowed hosts:
+        this.#allowedHosts.push( this.#webConfig.host );
     }
 
     /* Public interface */
@@ -131,9 +140,9 @@ class TiWebServer extends ServiceConsumer {
             super.onStart().then( () => {
                 // Create and configure the web server:
                 this.#webServer = express();
-
                 this.#webServer.set( "trust proxy", true );
 
+                // Set up 'helmet' and 'session' middlewares first:
                 this.#webServer.use( helmet( {
                     contentSecurityPolicy: {
                         useDefaults: true,
@@ -167,16 +176,7 @@ class TiWebServer extends ServiceConsumer {
                     store: new SessionStore()
                 } ) );
 
-                this.#webServer.use( this.#onShutDownHandler( this ) );
-                this.#webServer.use( express.static( this.#webConfig.publicPath, {} ) );
-                this.#webServer.use( this.#authenticationHandler( this ) );
-
-                this.#webServer.get( "/", ( request, response ) => {
-                    response.sendFile( path.join( process.cwd(), this.#webConfig.publicPath, "index.html" ) );
-                } );
-                this.#webServer.get( "/service/:version/:serviceURL", this.#serviceCallHandler( this ) );
-
-                // Configure the web server for HTTPS if enabled in the service config:
+                // Create and configure the net server for HTTPS if enabled in the service config:
                 if ( this.#webConfig.useTLS === true ) {
                     let httpsOptions = undefined;
                     try {
@@ -188,11 +188,24 @@ class TiWebServer extends ServiceConsumer {
                         logger.log( "Failed to read and load the TLS key/cert files.", logger.logSeverity.ERROR, error );
                         throw exceptions.raise( error );
                     }
-                    this.#webServer.use( this.#httpRedirectHandler() );
+                    this.#webServer.use( webHandlers.httpRedirectHandler( this ) );
                     this.#netServer = https.createServer( httpsOptions, this.#webServer );
                 } else {
                     this.#netServer = http.createServer( this.#webServer );
                 }
+
+                // Set up the web server routes:
+                this.#webServer.use( webHandlers.onShutDownHandler( this ) );
+                this.#webServer.use( express.static( this.#webConfig.publicPath, {} ) );
+                this.#webServer.use( webHandlers.authenticationHandler( this ) );
+
+                this.#webServer.get( "/", ( request, response ) => {
+                    response.sendFile( path.join( process.cwd(), this.#webConfig.publicPath, "index.html" ) );
+                } );
+                this.#webServer.post( "/service/:version/:name", webHandlers.serviceCallHandler( this ) );
+
+                this.#webServer.all( "*splat", webHandlers.invalidRouteHandler() );
+                this.#webServer.use( webHandlers.defaultErrorHandler() );
 
                 // Start listening for requests:
                 return this.#beginListening( this.#netServer, this.#webConfig.port, this.#webConfig.host );
@@ -259,10 +272,39 @@ class TiWebServer extends ServiceConsumer {
         return true;
     }
 
+    /**
+     * Used to get a service mapping if such exists.
+     *
+     * @method
+     * @param {string} serviceVersion
+     * @param {string} serviceName
+     * @returns {ServiceAddress}
+     * @public
+     */
+    getServiceAddress( serviceVersion, serviceName ) {
+        let serviceAddress = undefined;
+        if ( this.serviceConfig.services && this.serviceConfig.services.inventory ) {
+            serviceAddress = ( this.serviceConfig.services.inventory[ serviceVersion ] ) ? this.serviceConfig.services.inventory[ serviceVersion ][ serviceName ] : undefined;
+        }
+        return serviceAddress;
+    }
+
+    /**
+     * Used to check if the specified hostname is allowed to access the web server.
+     *
+     * @method
+     * @param {string} hostname
+     * @returns {boolean}
+     * @public
+     */
+    isAllowedHost( hostname ) {
+        return this.#allowedHosts.includes( hostname );
+    }
+
     /* Private interface */
 
     /**
-     * Used to start listening for requests on the specified port and host.
+     * Used to start listening for requests on the specified port and host and on the specified server.
      *
      * @method
      * @param {http.Server|https.Server} server The server instance to listen on.
@@ -301,128 +343,6 @@ class TiWebServer extends ServiceConsumer {
                 }
             } );
         } );
-    }
-
-    /**
-     * Handler for requests that are received while the web server is shutting down.
-     *
-     * @method
-     * @param {TiWebServer} instance
-     * @returns {(function(*, *, *): void)|*}
-     * @private
-     */
-    #onShutDownHandler( instance ) {
-        return ( request, response, next ) => {
-            if ( !instance.isShuttingDown ) {
-                next();
-            } else {
-                response.set( "Connection", "close" );
-                response.status( 503 ).send( {
-                    isSuccessful: false
-                } );
-            }
-        };
-    }
-
-    /**
-     * Handler for requests that require authentication.
-     *
-     * @method
-     * @param {TiWebServer} instance
-     * @returns {(function(*, *, *): void)|*}
-     * @private
-     */
-    #authenticationHandler( instance ) {
-        return ( request, response, next ) => {
-            if ( instance.verifySession( request.sessionID ) !== true ) {
-                response.status( 403 ).json( {
-                    isSuccessful: false
-                } );
-            } else {
-                next();
-            }
-        };
-    }
-
-    /**
-     * Handler for redirecting HTTP requests to HTTPS. Also works behind proxies using X-Forwarded-Proto.
-     *
-     * @method
-     * @returns {(function(*, *, *): void)|*}
-     * @private
-     */
-    #httpRedirectHandler() {
-        return ( request, response, next ) => {
-            const xfProto = String( request.get ? request.get( "x-forwarded-proto" ) : ( request.headers[ "x-forwarded-proto" ] || "" ) ).toLowerCase();
-            const isSecure = request.secure === true || xfProto === "https";
-            if ( isSecure ) {
-                next();
-            } else {
-                const location = `https://${ request.headers.host }${ request.url }`;
-                response.redirect( 301, location );
-            }
-        }
-    }
-
-    /**
-     * Express middleware used to listen for and respond to HTTP(S) service calls.
-     *
-     * @method
-     * @param {TiWebServer} instance
-     * @param {APIGateway} options.apiGateway Reference to the parent class since an Express middleware is unable to use 'this' pointers.
-     * @returns {function(*, *, *): void}
-     * @private
-     */
-    #serviceCallHandler( instance ) {
-        return ( request, response, next ) => {
-            request.setTimeout( instance.serviceConfig.services.requestTimeout );
-
-            instance.callService( {
-                serviceAlias: "service1", // get the name of the first service - by default "service1"
-                serviceDomainName: "ti-tester-service" // get the name of own service domain - by default "ti-tester-service"
-            }, {}, {
-                authToken: "dummy-auth" // use a dummy non-undefined value for auth token as expected by method 'verifyAccess' above
-            } ).then( ( result ) => {
-                logger.log( "Execution of service1 result:", logger.logSeverity.NOTICE, result );
-                response.status( 200 ).json( {
-                    isSuccessful: true
-                } );
-            } ).catch( ( error ) => {
-                logger.log( "Execution of service1 error result:", logger.logSeverity.ERROR, error );
-                next( error );
-            } );
-
-            // let serviceVersion = request.params.version;
-            // let serviceURL = request.params.serviceURL;
-            // let serviceAddress = options.apiGateway.getServiceAddress( serviceVersion, serviceURL );
-            // if ( serviceAddress && typeof ( controller[ serviceAddress ] ) === "function" ) {
-            //     // verify if this is a developer only service and request proper key if it is:
-            //     if ( developerOnlyServices.indexOf( serviceURL ) > -1 && request.query.developerKey !== developerKey ) {
-            //         let error = exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_DEVELOPER_ACCESS );
-            //         error.httpCode = 403;
-            //         next( error );
-            //     } else {
-            //         let serviceParams = request.body || {};
-            //         controller[ serviceAddress ].apply( controller, [serviceParams] ).then( ( result ) => {
-            //             let authToken;
-            //             result = result || {};
-            //             if ( result.createAuthToken === true && result.playerID ) {
-            //                 delete result.createAuthToken;
-            //                 authToken = options.apiGateway[ _createAuthToken ]( result.playerID );
-            //             }
-            //             response.json( {
-            //                 isSuccessful: true,
-            //                 authToken: authToken,
-            //                 data: result
-            //             } );
-            //         } ).catch( ( error ) => {
-            //             next( error );
-            //         } );
-            //     }
-            // } else {
-            //     next( exceptions.raise( exceptions.exceptionCode.E_COM_INVALID_API_MAPPING ) );
-            // }
-        };
     }
 
 }

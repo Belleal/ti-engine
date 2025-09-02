@@ -1,12 +1,13 @@
 {
   "name": "@ti-engine/web-framework",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "imports": {
     "#common-routes": "./server/routes/common-routes.js",
-    "#session-store": "./server/session-store.js"
+    "#session-store": "./server/session-store.js",
+    "#web-handlers": "./server/web-handlers.js"
   },
   "dependencies": {
     "@ti-engine/core": "*",
