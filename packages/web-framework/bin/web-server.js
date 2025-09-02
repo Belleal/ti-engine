@@ -14,6 +14,7 @@ const path = require( "node:path" );
 const fs = require( "node:fs" );
 const http = require( "node:http" );
 const https = require( "node:https" );
+const _ = require( "lodash" );
 const express = require( "express" );
 const helmet = require( "helmet" );
 const session = require( "express-session" );
@@ -21,12 +22,13 @@ const SessionStore = require( "#session-store" );
 const webHandlers = require( "#web-handlers" );
 
 /**
- * @typedef {Object} WebConfigMain
+ * @typedef {ServiceConfiguration} WebServiceConfiguration
+ * @property {ApiConfig} api
  * @property {SettingsCookies} cookies
  * @property {string} host
  * @property {number} port
  * @property {string} publicPath
- * @property {ServicesConfig} services
+ * @property {number} requestTimeout
  * @property {SettingsSession} session
  * @property {string} tlsCertPath
  * @property {string} tlsKeyPath
@@ -34,8 +36,8 @@ const webHandlers = require( "#web-handlers" );
  */
 
 /**
- * @typedef {Object} ServicesConfig
- * @property {ServicesInventory} inventory
+ * @typedef {Object} ApiConfig
+ * @property {ApiInventory} inventory
  * @property {number} requestTimeout
  */
 
@@ -45,12 +47,11 @@ const webHandlers = require( "#web-handlers" );
  */
 
 /**
- * @typedef {Record<string, Record<string, ServiceAddress>>} ServicesInventory
+ * @typedef {Record<string, Record<string, ServiceAddress>>} ApiInventory
  */
 
 /**
  * @typedef {Object} SettingsSession
- * @property {string} secret
  */
 
 /**
@@ -63,7 +64,6 @@ class TiWebServer extends ServiceConsumer {
 
     #webServer = null;
     #netServer = null;
-    #webConfig = {};
     #serverUrl = "";
     #isShuttingDown = false;
     #allowedHosts = [];
@@ -71,50 +71,28 @@ class TiWebServer extends ServiceConsumer {
     /**
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
-     * @param {WebConfigMain} serviceConfig The JSON configuration for this service.
+     * @param {WebServiceConfiguration} serviceConfig The JSON configuration for this service.
      */
     constructor( serviceDomainName, serviceConfig ) {
         super( serviceDomainName, serviceConfig );
 
-        this.#webConfig.useTLS = ( serviceConfig.useTLS === true );
-        this.#webConfig.tlsCertPath = serviceConfig.tlsCertPath || "bin/tls/cert.pem";
-        this.#webConfig.tlsKeyPath = serviceConfig.tlsKeyPath || "bin/tls/key.pem";
-        this.#webConfig.port = serviceConfig.port || 3000;
-        this.#webConfig.host = serviceConfig.host || "0.0.0.0";
-        this.#webConfig.publicPath = serviceConfig.publicPath || "bin/public";
-        this.#webConfig.cookies = {
-            secret: serviceConfig.cookies.secret || randomBytes( 32 ).toString( "base64" ),
-            setup: {
-                path: "/",
-                httpOnly: true,
-                secure: ( serviceConfig.useTLS === true ),
-                sameSite: "lax",
-                maxAge: 60 * 60 * 24 * 7 // 7 days
-            }
-        };
-        this.#webConfig.session = {
-            secret: serviceConfig.session.secret || serviceConfig.cookies.secret || randomBytes( 32 ).toString( "base64" )
-        };
-        this.#webConfig.oauth2 = {
-            google: {
-                clientID: process.env.TI_WEB_GOOGLE_CLIENT_ID || "",
-                clientSecret: process.env.TI_WEB_GOOGLE_CLIENT_SECRET || "",
-                callbackUrl: process.env.TI_WEB_GOOGLE_CALLBACK_URL || "/login/google/callback"
-            }
-        };
-        // TODO: this is for testing. Implement real auth solution.
-        this.#webConfig.localAuth = {
-            enabled: true,
-            username: "admin",
-            password: "admin",
-            passwordSha256: process.env.TI_WEB_LOCAL_PASSWORD_SHA256 || ""
-        };
-
         // Include the current host in the list of allowed hosts:
-        this.#allowedHosts.push( this.#webConfig.host );
+        this.#allowedHosts.push( this.serviceConfig.host );
     }
 
     /* Public interface */
+
+    /**
+     * Property returning the service configuration JSON.
+     *
+     * @property
+     * @returns {WebServiceConfiguration}
+     * @override
+     * @public
+     */
+    get serviceConfig() {
+        return super.serviceConfig;
+    }
 
     /**
      * Property returning if the web server is currently shutting down.
@@ -168,50 +146,56 @@ class TiWebServer extends ServiceConsumer {
                     }
                 } ) );
                 this.#webServer.use( session( {
-                    secret: this.#webConfig.cookies.secret,
+                    secret: this.serviceConfig.cookies.secret || randomBytes( 32 ).toString( "base64" ),
                     resave: false,
                     saveUninitialized: false,
-                    cookie: this.#webConfig.cookies.setup,
+                    cookie: {
+                        path: this.serviceConfig.cookies.path,
+                        httpOnly: this.serviceConfig.cookies.httpOnly,
+                        secure: ( this.serviceConfig.useTLS === true ),
+                        sameSite: this.serviceConfig.cookies.sameSite,
+                        maxAge: this.serviceConfig.cookies.maxAge
+                    },
                     unset: "destroy",
                     store: new SessionStore()
                 } ) );
 
                 // Create and configure the net server for HTTPS if enabled in the service config:
-                if ( this.#webConfig.useTLS === true ) {
-                    let httpsOptions = undefined;
+                let netServerOptions = {
+                    requestTimeout: _.max( [ this.serviceConfig.api.requestTimeout, this.serviceConfig.requestTimeout ] )
+                };
+                if ( this.serviceConfig.useTLS === true ) {
                     try {
-                        httpsOptions = {
-                            key: fs.readFileSync( path.join( process.cwd(), this.#webConfig.tlsKeyPath ) ),
-                            cert: fs.readFileSync( path.join( process.cwd(), this.#webConfig.tlsCertPath ) )
-                        };
+                        netServerOptions.key = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsKeyPath ) );
+                        netServerOptions.cert = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsCertPath ) );
                     } catch ( error ) {
                         logger.log( "Failed to read and load the TLS key/cert files.", logger.logSeverity.ERROR, error );
                         throw exceptions.raise( error );
                     }
                     this.#webServer.use( webHandlers.httpRedirectHandler( this ) );
-                    this.#netServer = https.createServer( httpsOptions, this.#webServer );
+                    this.#netServer = https.createServer( netServerOptions, this.#webServer );
                 } else {
-                    this.#netServer = http.createServer( this.#webServer );
+                    this.#netServer = http.createServer( netServerOptions, this.#webServer );
                 }
 
                 // Set up the web server routes:
                 this.#webServer.use( webHandlers.onShutDownHandler( this ) );
-                this.#webServer.use( express.static( this.#webConfig.publicPath, {} ) );
                 this.#webServer.use( webHandlers.authenticationHandler( this ) );
 
                 this.#webServer.get( "/", ( request, response ) => {
-                    response.sendFile( path.join( process.cwd(), this.#webConfig.publicPath, "index.html" ) );
+                    response.sendFile( path.join( process.cwd(), this.serviceConfig.publicPath, "index.html" ) );
                 } );
+                this.#webServer.use( express.static( this.serviceConfig.publicPath, {} ) );
                 this.#webServer.post( "/service/:version/:name", webHandlers.serviceCallHandler( this ) );
 
                 this.#webServer.all( "*splat", webHandlers.invalidRouteHandler() );
                 this.#webServer.use( webHandlers.defaultErrorHandler() );
 
                 // Start listening for requests:
-                return this.#beginListening( this.#netServer, this.#webConfig.port, this.#webConfig.host );
+                return this.#beginListening( this.#netServer, this.serviceConfig.port, this.serviceConfig.host );
             } ).then( ( server ) => {
                 if ( server.listening === true ) {
-                    this.#serverUrl = `http${ this.#webConfig.useTLS === true ? "s" : "" }://${ server.address().address }:${ server.address().port }`;
+                    this.#serverUrl = `http${ this.serviceConfig.useTLS === true ? "s" : "" }://${ server.address().address }:${ server.address().port }`;
                     logger.log( `Web server started at address '${ this.#serverUrl }' within instance '${ ServiceConsumer.instanceID }'.`, logger.logSeverity.NOTICE );
                 } else {
                     logger.log( `Web server is not listening for requests after startup within instance '${ ServiceConsumer.instanceID }'.`, logger.logSeverity.WARNING );
@@ -283,8 +267,8 @@ class TiWebServer extends ServiceConsumer {
      */
     getServiceAddress( serviceVersion, serviceName ) {
         let serviceAddress = undefined;
-        if ( this.serviceConfig.services && this.serviceConfig.services.inventory ) {
-            serviceAddress = ( this.serviceConfig.services.inventory[ serviceVersion ] ) ? this.serviceConfig.services.inventory[ serviceVersion ][ serviceName ] : undefined;
+        if ( this.serviceConfig.api && this.serviceConfig.api.inventory ) {
+            serviceAddress = ( this.serviceConfig.api.inventory[ serviceVersion ] ) ? this.serviceConfig.api.inventory[ serviceVersion ][ serviceName ] : undefined;
         }
         return serviceAddress;
     }
@@ -335,6 +319,7 @@ class TiWebServer extends ServiceConsumer {
      */
     #endListening( server ) {
         return new Promise( ( resolve, reject ) => {
+            // Close the server:
             server.close( ( error ) => {
                 if ( error ) {
                     reject( exceptions.raise( error ) );
@@ -342,6 +327,10 @@ class TiWebServer extends ServiceConsumer {
                     resolve();
                 }
             } );
+            // Close all connections after a short delay to allow all requests to complete:
+            setTimeout( () => {
+                server.closeAllConnections();
+            }, 1000 );
         } );
     }
 

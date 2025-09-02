@@ -62,6 +62,7 @@ module.exports.onShutDownHandler = ( instance ) => {
  */
 module.exports.authenticationHandler = ( instance ) => {
     return ( request, response, next ) => {
+        // TODO: Implement list check for excluded routes.
         if ( instance.verifySession( request.sessionID ) !== true ) {
             response.status( 403 ).json( {
                 isSuccessful: false
