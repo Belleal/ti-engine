@@ -185,6 +185,7 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.get( "/", ( request, response ) => {
                     response.sendFile( path.join( process.cwd(), this.serviceConfig.publicPath, "index.html" ) );
                 } );
+                this.#webServer.use( "/.well-known", express.static( path.join( this.serviceConfig.publicPath, "/.well-known" ), { dotfiles: "allow" } ) );
                 this.#webServer.use( express.static( this.serviceConfig.publicPath, {} ) );
                 this.#webServer.post( "/service/:version/:name", webHandlers.serviceCallHandler( this ) );
 
