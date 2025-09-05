@@ -68,6 +68,11 @@ class TiWebServer extends ServiceConsumer {
     #isShuttingDown = false;
     #allowedHosts = [];
     #unprotectedRoutes = [];
+    #localAuthentication = {
+        username: undefined,
+        password: undefined,
+        enabled: false
+    };
 
     /**
      * @constructor
@@ -82,8 +87,16 @@ class TiWebServer extends ServiceConsumer {
 
         // Define the unprotected routes:
         this.#unprotectedRoutes.push( "/" );
+        this.#unprotectedRoutes.push( "/enter" );
+        this.#unprotectedRoutes.push( "/login" );
+        this.#unprotectedRoutes.push( "/logout" );
         this.#unprotectedRoutes.push( /^\/static\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
         this.#unprotectedRoutes.push( /^\/\.well-known\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
+
+        // TODO: For testing purposes only! Remove this later!
+        this.#localAuthentication.username = "admin";
+        this.#localAuthentication.password = "admin";
+        this.#localAuthentication.enabled = true;
     }
 
     /* Public interface */
@@ -151,6 +164,8 @@ class TiWebServer extends ServiceConsumer {
                         }
                     }
                 } ) );
+                this.#webServer.use( express.json() );
+                this.#webServer.use( express.urlencoded( { extended: false } ) );
                 this.#webServer.use( session( {
                     secret: this.serviceConfig.cookies.secret || randomBytes( 32 ).toString( "base64" ),
                     resave: false,
@@ -186,13 +201,27 @@ class TiWebServer extends ServiceConsumer {
 
                 // Set up the web server routes:
                 this.#webServer.use( webHandlers.onShutDownHandler( this ) );
-                this.#webServer.use( webHandlers.authenticationHandler( this ) );
+                this.#webServer.use( webHandlers.resourceProtectionHandler( this ) );
 
                 this.#webServer.get( "/", ( request, response ) => {
                     response.sendFile( path.join( process.cwd(), this.serviceConfig.publicPath, "index.html" ) );
                 } );
                 this.#webServer.use( "/.well-known", express.static( path.join( this.serviceConfig.publicPath, "/.well-known" ), { dotfiles: "allow" } ) );
                 this.#webServer.use( "/static", express.static( this.serviceConfig.publicPath, {} ) );
+
+                // Auth routes
+                this.#webServer.get( "/enter", ( request, response ) => {
+                    if ( this.verifySession( request.session ) ) {
+                        response.sendFile( path.join( process.cwd(), this.serviceConfig.publicPath, "fragments", "frame-application.html" ) );
+                    } else {
+                        response.sendFile( path.join( process.cwd(), this.serviceConfig.publicPath, "fragments", "frame-login.html" ) );
+                    }
+                } );
+                this.#webServer.post( "/login", webHandlers.authenticationHandler( this ) );
+                this.#webServer.post( "/logout", webHandlers.logoutHandler() );
+                this.#webServer.get( "/me", webHandlers.userInformationHandler() );
+
+                // API service proxy route (protected by auth middleware):
                 this.#webServer.post( "/service/:version/:name", webHandlers.serviceCallHandler( this ) );
 
                 this.#webServer.all( "*splat", webHandlers.invalidRouteHandler() );
@@ -251,16 +280,34 @@ class TiWebServer extends ServiceConsumer {
     }
 
     /**
-     * Used to verify the session ID of a request.
+     * Used to verify the session of a request.
      *
      * @method
-     * @param {string} sessionID
+     * @param {Object} session
      * @returns {boolean}
      * @public
      */
-    verifySession( sessionID ) {
-        // TODO: implement this!
-        return false;
+    verifySession( session ) {
+        // TODO: Implement this!
+        return Boolean( session && session.user );
+    }
+
+    /**
+     * Used to verify the local authentication of a request.
+     *
+     * @method
+     * @param {string} username
+     * @param {string} password
+     * @returns {boolean}
+     * @public
+     */
+    localAuthentication( username, password ) {
+        // TODO: Implement this!
+        if ( this.#localAuthentication.enabled === true ) {
+            return ( username === this.#localAuthentication.username && password === this.#localAuthentication.password );
+        } else {
+            return false;
+        }
     }
 
     /**

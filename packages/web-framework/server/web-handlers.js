@@ -53,7 +53,27 @@ module.exports.onShutDownHandler = ( instance ) => {
 };
 
 /**
- * Handler for requests that require authentication.
+ * Handler that verifies if the requested resource requires authentication or is freely accessible.
+ *
+ * @method
+ * @param {TiWebServer} instance
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.resourceProtectionHandler = ( instance ) => {
+    return ( request, response, next ) => {
+        if ( instance.isUnprotectedRoute( request.url ) || instance.verifySession( request.session ) ) {
+            next();
+        } else {
+            response.status( 403 ).send( {
+                isSuccessful: false
+            } );
+        }
+    };
+};
+
+/**
+ * Handler for server-side authentication.
  *
  * @method
  * @param {TiWebServer} instance
@@ -62,12 +82,53 @@ module.exports.onShutDownHandler = ( instance ) => {
  */
 module.exports.authenticationHandler = ( instance ) => {
     return ( request, response, next ) => {
-        if ( instance.isUnprotectedRoute( request.url ) || instance.verifySession( request.sessionID ) === true ) {
-            next();
+        const username = String( ( request.body && request.body.username ) || "" ).trim();
+        const password = String( ( request.body && request.body.password ) || "" );
+
+        if ( instance.localAuthentication( username, password ) ) {
+            request.session.user = { id: `local:${ username }`, name: username };
+            response.redirect( "/" );
         } else {
-            response.status( 403 ).send( {
+            response.status( 401 ).send( {
                 isSuccessful: false
             } );
+        }
+    };
+};
+
+/**
+ * Handler for server-side logout.
+ *
+ * @method
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.logoutHandler = () => {
+    return ( request, response, next ) => {
+        const done = ( error ) => {
+            response.redirect( "/" );
+        };
+        if ( request.session ) {
+            request.session.destroy( done );
+        } else {
+            done();
+        }
+    };
+};
+
+/**
+ * Handler for retrieving authenticated user information.
+ *
+ * @method
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.userInformationHandler = () => {
+    return ( request, response, next ) => {
+        if ( request.session && request.session.user ) {
+            response.status( 200 ).send( { isSuccessful: true, user: request.session.user } );
+        } else {
+            response.status( 401 ).send( { isSuccessful: false } );
         }
     };
 };

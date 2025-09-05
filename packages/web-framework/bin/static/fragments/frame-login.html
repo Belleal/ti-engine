@@ -1,7 +1,10 @@
 <div id="ti-login" class="ti-content login">
     <h2>Sign in</h2>
     <div id="ti-error" class="ti-error"></div>
-    <form id="ti-login-form">
+    <form id="ti-login-form"
+          hx-post="/login"
+          hx-target="#ti-main"
+          hx-swap="innerHTML">
         <div>
             <label for="ti-username">Username</label>
             <input id="ti-username" name="username" autocomplete="username"/>

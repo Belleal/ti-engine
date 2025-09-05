@@ -9,9 +9,10 @@
 const cache = require( "@ti-engine/core/cache" );
 const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
-const EventEmitter = require( "node:events" );
 const _ = require( "lodash" );
+const session = require( "express-session" );
 
+// The name of the session store in the cache:
 const sessionStoreName = "ti:web:sessions";
 
 /**
@@ -22,7 +23,7 @@ const sessionStoreName = "ti:web:sessions";
  * @class SessionStore
  * @public
  */
-class SessionStore extends EventEmitter {
+class SessionStore extends session.Store {
 
     /**
      * @constructor
