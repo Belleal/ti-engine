@@ -29,7 +29,7 @@
     }
   },
   "port": 3000,
-  "publicPath": "packages/web-framework/bin/public",
+  "publicPath": "packages/web-framework/bin/static",
   "requestTimeout": 180000,
   "session": {},
   "tlsCertPath": "packages/web-framework/bin/tls/localhost+2.pem",

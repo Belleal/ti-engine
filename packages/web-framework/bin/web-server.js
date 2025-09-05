@@ -67,6 +67,7 @@ class TiWebServer extends ServiceConsumer {
     #serverUrl = "";
     #isShuttingDown = false;
     #allowedHosts = [];
+    #unprotectedRoutes = [];
 
     /**
      * @constructor
@@ -78,6 +79,11 @@ class TiWebServer extends ServiceConsumer {
 
         // Include the current host in the list of allowed hosts:
         this.#allowedHosts.push( this.serviceConfig.host );
+
+        // Define the unprotected routes:
+        this.#unprotectedRoutes.push( "/" );
+        this.#unprotectedRoutes.push( /^\/static\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
+        this.#unprotectedRoutes.push( /^\/\.well-known\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
     }
 
     /* Public interface */
@@ -186,7 +192,7 @@ class TiWebServer extends ServiceConsumer {
                     response.sendFile( path.join( process.cwd(), this.serviceConfig.publicPath, "index.html" ) );
                 } );
                 this.#webServer.use( "/.well-known", express.static( path.join( this.serviceConfig.publicPath, "/.well-known" ), { dotfiles: "allow" } ) );
-                this.#webServer.use( express.static( this.serviceConfig.publicPath, {} ) );
+                this.#webServer.use( "/static", express.static( this.serviceConfig.publicPath, {} ) );
                 this.#webServer.post( "/service/:version/:name", webHandlers.serviceCallHandler( this ) );
 
                 this.#webServer.all( "*splat", webHandlers.invalidRouteHandler() );
@@ -254,7 +260,7 @@ class TiWebServer extends ServiceConsumer {
      */
     verifySession( sessionID ) {
         // TODO: implement this!
-        return true;
+        return false;
     }
 
     /**
@@ -284,6 +290,37 @@ class TiWebServer extends ServiceConsumer {
      */
     isAllowedHost( hostname ) {
         return this.#allowedHosts.includes( hostname );
+    }
+
+    /**
+     * Used to check if the specified route is unprotected (i.e., does not require authentication).
+     * Unprotected routes are:
+     * - /
+     * - /static/...
+     * - /.well-known/...
+     *
+     * @method
+     * @param {string} route
+     * @returns {boolean}
+     * @public
+     */
+    isUnprotectedRoute( route ) {
+        const pathOnly = String( route || "" ).split( "?" )[ 0 ];
+        let result = false;
+        for ( let idx = 0; idx < this.#unprotectedRoutes.length; idx++ ) {
+            const pattern = this.#unprotectedRoutes[ idx ];
+            if ( _.isRegExp( pattern ) ) {
+                // Avoid stateful RegExp behavior when 'g' or 'y' flags are present:
+                pattern.lastIndex = 0;
+                result = pattern.test( pathOnly );
+            } else {
+                result = pattern === pathOnly;
+            }
+            if ( result ) {
+                break;
+            }
+        }
+        return result;
     }
 
     /* Private interface */

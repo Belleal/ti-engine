@@ -62,13 +62,12 @@ module.exports.onShutDownHandler = ( instance ) => {
  */
 module.exports.authenticationHandler = ( instance ) => {
     return ( request, response, next ) => {
-        // TODO: Implement list check for excluded routes.
-        if ( instance.verifySession( request.sessionID ) !== true ) {
-            response.status( 403 ).json( {
+        if ( instance.isUnprotectedRoute( request.url ) || instance.verifySession( request.sessionID ) === true ) {
+            next();
+        } else {
+            response.status( 403 ).send( {
                 isSuccessful: false
             } );
-        } else {
-            next();
         }
     };
 };
@@ -117,11 +116,11 @@ module.exports.serviceCallHandler = ( instance ) => {
             exception.httpCode = 404;
             next( exception );
         } else {
-            request.setTimeout( instance.serviceConfig.services.requestTimeout );
+            request.setTimeout( instance.serviceConfig.api.requestTimeout );
             instance.callService( serviceAddress, request.body || {}, {
                 authToken: request.sessionID,
             } ).then( ( result ) => {
-                response.status( result.isSuccessful ? 200 : ( ( result.exception && result.exception.httpCode ) ? result.exception.httpCode : 400 ) ).json( result );
+                response.status( result.isSuccessful ? 200 : ( ( result.exception && result.exception.httpCode ) ? result.exception.httpCode : 400 ) ).send( result );
             } ).catch( ( error ) => {
                 next( error );
             } );
@@ -139,7 +138,7 @@ module.exports.serviceCallHandler = ( instance ) => {
 module.exports.invalidRouteHandler = () => {
     return ( request, response, next ) => {
         logger.log( `Received request to an invalid route: "${ request.originalUrl }"`, logger.logSeverity.ERROR, exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI ) );
-        response.status( 404 ).json( {
+        response.status( 404 ).send( {
             isSuccessful: false
         } );
     };
@@ -156,7 +155,7 @@ module.exports.defaultErrorHandler = () => {
     return ( error, request, response, next ) => {
         let exception = exceptions.raise( error );
         logger.log( "Received request caused an exception.", logger.logSeverity.ERROR, exception );
-        response.status( exception.httpCode || 500 ).json( {
+        response.status( exception.httpCode || 500 ).send( {
             isSuccessful: false,
             exception: exception.asJSON( false )
         } );

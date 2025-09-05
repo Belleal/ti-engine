@@ -49,8 +49,20 @@ body {
 }
 
 .ti-content {
+    display: flex;
     flex: auto;
     width: 100%;
     height: 100%;
     background-color: #9c9c9c;
+}
+
+.ti-content.login {
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+}
+
+.ti-error {
+    color: #811010;
 }

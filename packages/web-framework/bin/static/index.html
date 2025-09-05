@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Main Page</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/ico">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/htmx.org@2.x.x/dist/htmx.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/scripts/main.css"/>
+</head>
+<body>
+<div id="ti-main" class="ti-main" x-data="{}"
+     hx-get="/static/fragments/frame-login.html"
+     hx-trigger="load"
+     hx-target="this"
+     hx-swap="innerHTML"></div>
+</body>
+</html>
