@@ -235,7 +235,7 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.use( webHandlers.resourceProtectionHandler( this ) );
 
                 this.#webServer.get( "/", webHandlers.webAppHandler( this ) );
-                this.#webServer.use( "/.well-known", express.static( path.join( this.#fullPublicPath, "/.well-known" ), { dotfiles: "allow" } ) );
+                this.#webServer.use( "/.well-known", express.static( path.join( this.#fullPublicPath, ".well-known" ), { dotfiles: "allow" } ) );
                 this.#webServer.use( "/static", express.static( this.#fullPublicPath, {} ) );
                 this.#webServer.use( "/app", webHandlers.webAppHandler( this ) );
 
