@@ -97,8 +97,14 @@ class TiWebServer extends ServiceConsumer {
         this.#unprotectedRoutes.push( /^\/static\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
         this.#unprotectedRoutes.push( /^\/\.well-known\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
 
-        this.#fullPublicPath = path.isAbsolute( this.serviceConfig.publicPath ) ? this.serviceConfig.publicPath : path.join( process.cwd(), this.serviceConfig.publicPath );
-        this.#fullPublicPath = path.normalize( this.#fullPublicPath );
+        // Fast-fail if the public path is not provided:
+        if ( !this.serviceConfig.publicPath || typeof this.serviceConfig.publicPath !== "string" ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE );
+        }
+        this.#fullPublicPath = path.normalize( path.isAbsolute( this.serviceConfig.publicPath ) ? this.serviceConfig.publicPath : path.join( process.cwd(), this.serviceConfig.publicPath ) );
+        if ( fs.existsSync( this.#fullPublicPath ) === false ) {
+            logger.log( `Public path '${ this.#fullPublicPath }' does not exist. Static routes will resolve with 404 until path is created.`, logger.logSeverity.WARNING );
+        }
 
         this.#webAppManager = new WebAppManager( "web-application" );
 
