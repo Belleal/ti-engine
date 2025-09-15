@@ -92,17 +92,16 @@ class WebAppManager {
      */
     #loadHtmlFragment( filePath ) {
         return new Promise( ( resolve, reject ) => {
-            if ( !fs.existsSync( filePath ) || !fs.statSync( filePath ).isFile() ) {
-                reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI ) );
-            } else {
-                fs.readFile( filePath, { encoding: "utf8" }, ( error, data ) => {
-                    if ( error ) {
-                        reject( exceptions.raise( error ) );
-                    } else {
-                        resolve( this.transformHtml( data ) );
-                    }
-                } );
-            }
+            fs.promises.stat( filePath ).then( ( stat ) => {
+                if ( !stat.isFile() ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI );
+                }
+                return fs.promises.readFile( filePath, "utf8" );
+            } ).then( ( data ) => {
+                resolve( this.transformHtml( data ) );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
         } );
     }
 
