@@ -9,6 +9,8 @@
 const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const URL = require( "node:url" ).URL;
+const path = require( "node:path" );
+const fs = require( "node:fs" );
 
 /**
  * Express middleware callback.
@@ -190,7 +192,7 @@ module.exports.serviceCallHandler = ( instance ) => {
 };
 
 /**
- * Used to intercept and handle all requests to invalid URLs.
+ * Handler to intercept and handle all remaining requests to invalid URLs.
  *
  * @method
  * @returns {ExpressHandler}
@@ -206,7 +208,7 @@ module.exports.invalidRouteHandler = () => {
 };
 
 /**
- * Express middleware for handling errors in most situations.
+ * Handler to intercept any errors that have not been resolved by previous middleware. Should be last in the sequence.
  *
  * @method
  * @returns {ExpressErrorHandler}
@@ -220,5 +222,37 @@ module.exports.defaultErrorHandler = () => {
             isSuccessful: false,
             exception: exception.asJSON( false )
         } );
+    };
+};
+
+/**
+ * Handler for requests that should be processed by the web application manager.
+ *
+ * @method
+ * @param {TiWebServer} instance
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.webAppHandler = ( instance ) => {
+    return ( request, response, next ) => {
+        if ( request.method !== "GET" && request.method !== "HEAD" ) {
+            return next();
+        } else {
+            instance.webAppManager.getHtmlFragment( request.session, instance.fullPublicPath, request.path ).then( ( fileData ) => {
+                // Disable caches if HTML is dynamically rewritten (safer default):
+                response.set( "Cache-Control", "no-store" );
+                response.set( "Content-Type", "text/html; charset=utf-8" );
+
+                if ( request.method === "HEAD" ) {
+                    response.status( 200 ).end();
+                } else {
+                    response.status( 200 ).send( fileData );
+                }
+            } ).catch( ( error ) => {
+                let exception = exceptions.raise( error );
+                exception.httpCode = 404;
+                next( exception );
+            } );
+        }
     };
 };
