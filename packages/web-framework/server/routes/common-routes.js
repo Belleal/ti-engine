@@ -6,12 +6,7 @@
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-/**
- * @typedef {import('fastify').FastifyInstance} FastifyInstance
- * @typedef {import('fastify').FastifyPluginOptions} FastifyPluginOptions
- * @typedef {import('fastify').FastifyRequest} FastifyRequest
- * @typedef {import('fastify').FastifyReply} FastifyReply
- */
+// TODO: Obsolete file. Remove later.
 
 /**
  * Decodes a JWT (no verification). Returns payload object or null on error.

@@ -20,6 +20,7 @@ const helmet = require( "helmet" );
 const session = require( "express-session" );
 const SessionStore = require( "#session-store" );
 const webHandlers = require( "#web-handlers" );
+const WebAppManager = require( "#web-app-manager" );
 
 /**
  * @typedef {ServiceConfiguration} WebServiceConfiguration
@@ -66,8 +67,10 @@ class TiWebServer extends ServiceConsumer {
     #netServer = null;
     #serverUrl = "";
     #isShuttingDown = false;
+    #fullPublicPath = "";
     #allowedHosts = [];
     #unprotectedRoutes = [];
+    #webAppManager = null;
     #localAuthentication = {
         username: undefined,
         password: undefined,
@@ -87,11 +90,16 @@ class TiWebServer extends ServiceConsumer {
 
         // Define the unprotected routes:
         this.#unprotectedRoutes.push( "/" );
-        this.#unprotectedRoutes.push( "/enter" );
+        this.#unprotectedRoutes.push( /^\/app\/(?:.+\/)*[^\/]+$/i );
         this.#unprotectedRoutes.push( "/login" );
         this.#unprotectedRoutes.push( "/logout" );
         this.#unprotectedRoutes.push( /^\/static\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
         this.#unprotectedRoutes.push( /^\/\.well-known\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
+
+        this.#fullPublicPath = path.isAbsolute( this.serviceConfig.publicPath ) ? this.serviceConfig.publicPath : path.join( process.cwd(), this.serviceConfig.publicPath );
+        this.#fullPublicPath = path.normalize( this.#fullPublicPath );
+
+        this.#webAppManager = new WebAppManager( "web-application" );
 
         // TODO: For testing purposes only! Remove this later!
         this.#localAuthentication.username = "admin";
@@ -122,6 +130,28 @@ class TiWebServer extends ServiceConsumer {
      */
     get isShuttingDown() {
         return this.#isShuttingDown;
+    }
+
+    /**
+     * Property returning the full path to the public directory.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get fullPublicPath() {
+        return this.#fullPublicPath;
+    }
+
+    /**
+     * Property returning the {@link WebAppManager} instance.
+     *
+     * @property
+     * @returns {WebAppManager}
+     * @public
+     */
+    get webAppManager() {
+        return this.#webAppManager;
     }
 
     /**
@@ -203,20 +233,11 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.use( webHandlers.onShutDownHandler( this ) );
                 this.#webServer.use( webHandlers.resourceProtectionHandler( this ) );
 
-                this.#webServer.get( "/", ( request, response ) => {
-                    response.sendFile( path.join( process.cwd(), this.serviceConfig.publicPath, "index.html" ) );
-                } );
-                this.#webServer.use( "/.well-known", express.static( path.join( this.serviceConfig.publicPath, "/.well-known" ), { dotfiles: "allow" } ) );
-                this.#webServer.use( "/static", express.static( this.serviceConfig.publicPath, {} ) );
+                this.#webServer.get( "/", webHandlers.webAppHandler( this ) );
+                this.#webServer.use( "/.well-known", express.static( path.join( this.#fullPublicPath, "/.well-known" ), { dotfiles: "allow" } ) );
+                this.#webServer.use( "/static", express.static( this.#fullPublicPath, {} ) );
+                this.#webServer.use( "/app", webHandlers.webAppHandler( this ) );
 
-                // Auth routes
-                this.#webServer.get( "/enter", ( request, response ) => {
-                    if ( this.verifySession( request.session ) ) {
-                        response.sendFile( path.join( process.cwd(), this.serviceConfig.publicPath, "fragments", "frame-application.html" ) );
-                    } else {
-                        response.sendFile( path.join( process.cwd(), this.serviceConfig.publicPath, "fragments", "frame-login.html" ) );
-                    }
-                } );
                 this.#webServer.post( "/login", webHandlers.authenticationHandler( this ) );
                 this.#webServer.post( "/logout", webHandlers.logoutHandler() );
                 this.#webServer.get( "/me", webHandlers.userInformationHandler() );
