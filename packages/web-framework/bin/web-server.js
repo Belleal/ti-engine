@@ -236,7 +236,7 @@ class TiWebServer extends ServiceConsumer {
 
                 this.#webServer.get( "/", webHandlers.webAppHandler( this ) );
                 this.#webServer.use( "/.well-known", express.static( path.join( this.#fullPublicPath, ".well-known" ), { dotfiles: "allow" } ) );
-                this.#webServer.use( "/static", express.static( this.#fullPublicPath, {} ) );
+                this.#webServer.use( "/static", express.static( this.#fullPublicPath, { maxAge: "1y", immutable: true } ) );
                 this.#webServer.use( "/app", webHandlers.webAppHandler( this ) );
 
                 this.#webServer.post( "/login", webHandlers.authenticationHandler( this ) );
