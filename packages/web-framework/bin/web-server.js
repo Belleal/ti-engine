@@ -90,6 +90,7 @@ class TiWebServer extends ServiceConsumer {
 
         // Define the unprotected routes:
         this.#unprotectedRoutes.push( "/" );
+        this.#unprotectedRoutes.push( "/app" );
         this.#unprotectedRoutes.push( /^\/app\/(?:.+\/)*[^\/]+$/i );
         this.#unprotectedRoutes.push( "/login" );
         this.#unprotectedRoutes.push( "/logout" );
