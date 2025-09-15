@@ -118,7 +118,7 @@ class RedisClient {
     /* Public interface */
 
     /**
-     * Used to return the Redis client identifier.
+     * Used to return the Redis client identifier assigned internally.
      *
      * @property
      * @returns {string}
@@ -129,7 +129,7 @@ class RedisClient {
     }
 
     /**
-     * Used to return the Redis client ID.
+     * Used to return the client ID assigned by the Redis server.
      *
      * @property
      * @returns {number}
@@ -195,9 +195,9 @@ class RedisClient {
                     // Fetch the server information and store it:
                     return this.#fetchServerInfo();
                 } ).then( () => {
-                    return this.#getClientId();
+                    return this.#getClientID();
                 } ).then( ( clientID ) => {
-                    // Store the client ID:
+                    // Store the connection ID:
                     this.#redisClientID = clientID;
                     resolve();
                 } ).catch( ( error ) => {
@@ -476,10 +476,12 @@ class RedisClient {
 
                 this.#redisConnection.once( "ready", () => {
                     this.#clientStatus = clientStatusEnum.CONNECTED;
+                    logger.log( `Connection to Redis server '${ this.#redisConnection.options.host }:${ this.#redisConnection.options.port }' established by client '${ this.identifier }' and is ready to be used.`, logger.logSeverity.INFO );
                     this.#notifyConnectionObservers();
 
                     this.#redisConnection.on( "ready", () => {
                         this.#clientStatus = clientStatusEnum.CONNECTED;
+                        logger.log( `Connection to Redis server '${ this.#redisConnection.options.host }:${ this.#redisConnection.options.port }' reestablished by client '${ this.identifier }' and is ready to be used.`, logger.logSeverity.INFO );
                         this.#notifyConnectionObservers();
                     } );
 
@@ -515,14 +517,13 @@ class RedisClient {
      */
     #notifyConnectionObservers() {
         // Notify all connection observers about the event:
-        _.forEach( this.#connectionObservers, ( connectionObservers ) => {
+        _.forEach( this.#connectionObservers, ( connectionObserver ) => {
             if ( this.#clientStatus === clientStatusEnum.CONNECTED ) {
-                logger.log( `Connection to Redis server ${ this.#redisConnection.options.host }:${ this.#redisConnection.options.port } (re)established by client '${ this.identifier }' and is ready to be used.`, logger.logSeverity.INFO );
-                connectionObservers.onConnectionRecovered( this.#clientIdentifier );
+                connectionObserver.onConnectionRecovered( this.#clientIdentifier );
             } else if ( this.#clientStatus === clientStatusEnum.DISRUPTED ) {
-                connectionObservers.onConnectionDisrupted( this.#clientIdentifier );
+                connectionObserver.onConnectionDisrupted( this.#clientIdentifier );
             } else if ( this.#clientStatus === clientStatusEnum.DISCONNECTED ) {
-                connectionObservers.onConnectionLost( this.#clientIdentifier );
+                connectionObserver.onConnectionLost( this.#clientIdentifier );
             }
         } );
     }
@@ -574,7 +575,7 @@ class RedisClient {
      * @returns {Promise<number>}
      * @private
      */
-    #getClientId() {
+    #getClientID() {
         let commandArguments = [ "client", "id" ];
         return this.callCommand( commandArguments ).then( ( clientID ) => Number( clientID ) );
     }

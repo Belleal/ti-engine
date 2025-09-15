@@ -187,7 +187,7 @@ class ServiceCallProcessor {
         } ).catch( ( error ) => {
             clearTimeout( this.#timeoutHandle );
             this.#isProcessed = true;
-            logger.log( `Error during service call execution!`, logger.logSeverity.ERROR, error );
+            logger.log( `Error during service call execution!`, logger.logSeverity.DEBUG, error );
             return {
                 isSuccessful: false,
                 exception: exceptions.raise( error ),

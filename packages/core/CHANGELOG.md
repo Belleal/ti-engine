@@ -2,6 +2,11 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.5
+* fix(redis integration): fix a duplicated log entry on connection ready event if multiple observers are registered
+* feat(service caller)!: change log level of error result in `process` method from `ERROR` to `DEBUG`. Implementers are expected to handle this and decide if the error should be propagated further or not
+* docs: update and fix various issues with the `README.md` file
+
 ## Version 1.3.4
 * fix(service instance): fix the way `ServiceConfiguration` is propagated via child classes and remove unnecessary defaults. Also update the relevant JSDoc
 
