@@ -11,9 +11,9 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const logger = require( "@ti-engine/core/logger" );
 const { randomBytes } = require( "node:crypto" );
 const path = require( "node:path" );
-const fs = require( "node:fs" );
 const http = require( "node:http" );
 const https = require( "node:https" );
+const fs = require( "node:fs" );
 const _ = require( "lodash" );
 const express = require( "express" );
 const helmet = require( "helmet" );
@@ -63,14 +63,14 @@ const WebAppManager = require( "#web-app-manager" );
  */
 class TiWebServer extends ServiceConsumer {
 
-    #webServer = null;
-    #netServer = null;
+    #webServer;
+    #netServer;
     #serverUrl = "";
     #isShuttingDown = false;
     #fullPublicPath = "";
     #allowedHosts = [];
     #unprotectedRoutes = [];
-    #webAppManager = null;
+    #webAppManager;
     #localAuthentication = {
         username: undefined,
         password: undefined,
@@ -176,31 +176,29 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer = express();
                 this.#webServer.set( "trust proxy", true );
 
-                // Set up 'helmet' and 'session' middlewares first:
+                // Set up security and session middlewares first:
+                this.#webServer.use( webHandlers.nonceGenerationHandler() );
                 this.#webServer.use( helmet( {
-                    contentSecurityPolicy: {
+                    contentSecurityPolicy: false
+                } ) );
+                this.#webServer.use( ( request, response, next ) => {
+                    const csp = helmet.contentSecurityPolicy( {
                         useDefaults: true,
-                        // Content Security Policy directives:
-                        // - defaultSrc: Fallback for all resource types not explicitly listed; only allow same-origin.
-                        // - scriptSrc: Allow scripts from same-origin and any HTTPS origin; blocks inline scripts by default.
-                        // - styleSrc: Allow styles from same-origin and HTTPS; 'unsafe-inline' is permitted to support inline styles.
-                        // - imgSrc: Allow images from same-origin, HTTPS, and data URIs (for small inline images like icons).
-                        // - connectSrc: Control where XHR/fetch/WebSocket connections can be made; restrict to same-origin and HTTPS APIs.
-                        // - fontSrc: Allow web fonts from same-origin, HTTPS, and data URIs.
-                        // - objectSrc: Disallow plugins such as <object>, <embed>, <applet> by setting to 'none'.
-                        // - frameAncestors: Restrict who can embed this site in frames/iframes; 'self' prevents clickjacking from other origins.
                         directives: {
                             defaultSrc: [ "'self'" ],
-                            scriptSrc: [ "'self'", "https:", "'unsafe-eval'" ],
-                            styleSrc: [ "'self'", "https:", "'unsafe-inline'" ],
+                            scriptSrc: [ "'self'", "https:", "'unsafe-eval'", ( "'nonce-" + response.locals.cspNonce + "'" ) ],
+                            styleSrc: [ "'self'", "https:" ],
+                            styleSrcElem: [ "'self'", "https:", ( "'nonce-" + response.locals.cspNonce + "'" ) ],
+                            styleSrcAttr: [ "'unsafe-inline'" ],
                             imgSrc: [ "'self'", "data:", "https:" ],
                             connectSrc: [ "'self'", "https:", "ws:", "wss:" ],
                             fontSrc: [ "'self'", "https:", "data:" ],
                             objectSrc: [ "'none'" ],
                             frameAncestors: [ "'self'" ]
                         }
-                    }
-                } ) );
+                    } );
+                    return csp( request, response, next );
+                } );
                 this.#webServer.use( express.json() );
                 this.#webServer.use( express.urlencoded( { extended: false } ) );
                 this.#webServer.use( session( {
@@ -224,8 +222,8 @@ class TiWebServer extends ServiceConsumer {
                 };
                 if ( this.serviceConfig.useTLS === true ) {
                     try {
-                        netServerOptions.key = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsKeyPath ) );
-                        netServerOptions.cert = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsCertPath ) );
+                        netServerOptions.key = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsKeyPath ), "utf8" );
+                        netServerOptions.cert = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsCertPath ), "utf8" );
                     } catch ( error ) {
                         logger.log( "Failed to read and load the TLS key/cert files.", logger.logSeverity.ERROR, error );
                         throw exceptions.raise( error );
@@ -404,10 +402,10 @@ class TiWebServer extends ServiceConsumer {
      * Used to start listening for requests on the specified port and host and on the specified server.
      *
      * @method
-     * @param {http.Server|https.Server} server The server instance to listen on.
+     * @param {Server} server The server instance to listen on.
      * @param {number} port The port to listen on.
      * @param {string} host The host to listen on.
-     * @returns {Promise<http.Server|https.Server>}
+     * @returns {Promise<Server>}
      * @private
      */
     #beginListening( server, port, host ) {
@@ -426,7 +424,7 @@ class TiWebServer extends ServiceConsumer {
      * Used to stop listening for requests on the specified server.
      *
      * @method
-     * @param {http.Server|https.Server} server The server instance to stop listening on.
+     * @param {Server} server The server instance to stop listening on.
      * @returns {Promise}
      * @private
      */

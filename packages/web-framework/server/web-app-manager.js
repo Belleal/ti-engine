@@ -33,12 +33,20 @@ class WebAppManager {
      *
      * @method
      * @param {string} html
-     * @returns {string}
+     * @param {Object} [options]
+     * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
+     * @returns {Promise<string>}
      * @virtual
      * @public
      */
-    transformHtml( html ) {
-        return html;
+    transformHtml( html, options = {} ) {
+        return new Promise( ( resolve, reject ) => {
+            let transformedHtml = html;
+            if ( options.nonce ) {
+                transformedHtml = String( html ).replace( /NONCE_PLACEHOLDER/g, options.nonce );
+            }
+            resolve( transformedHtml );
+        } );
     }
 
     /**
@@ -48,10 +56,12 @@ class WebAppManager {
      * @param {Object} session
      * @param {string} fullPublicPath
      * @param {string} route
+     * @param {Object} [options]
+     * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
      * @returns {Promise<string>}
      * @public
      */
-    getHtmlFragment( session, fullPublicPath, route ) {
+    getHtmlFragment( session, fullPublicPath, route, options = {} ) {
         return new Promise( ( resolve, reject ) => {
             let fragment = null;
             switch ( route ) {
@@ -72,6 +82,8 @@ class WebAppManager {
 
             this.#verifyAccess( session, fragment ).then( () => {
                 return this.#loadHtmlFragment( path.join( fullPublicPath, fragment.path ) );
+            } ).then( ( fileData ) => {
+                return this.transformHtml( fileData, options );
             } ).then( ( fileData ) => {
                 resolve( fileData );
             } ).catch( ( error ) => {
@@ -97,8 +109,8 @@ class WebAppManager {
                     throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI );
                 }
                 return fs.promises.readFile( filePath, "utf8" );
-            } ).then( ( data ) => {
-                resolve( this.transformHtml( data ) );
+            } ).then( ( fileData ) => {
+                resolve( fileData );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
