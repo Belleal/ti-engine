@@ -54,7 +54,7 @@ module.exports.enum = ( seed ) => {
         } else {
             properties[ value ] = {
                 value: value,
-                name: key.toLowerCase()
+                name: key
             };
         }
     } );
@@ -522,7 +522,7 @@ class RetryPolicy {
                 if ( this.#onFailedAttempt ) {
                     this.#onFailedAttempt( error );
                 }
-                return this.#retry( context, operation, params, ( attempt - 1 ), error );
+                return this.#retry( context, operation, params, ( attempt + 1 ), error );
             } );
         }
     }

@@ -30,6 +30,7 @@ const cache = require( "#cache" );
 const traceRoot = {
     trace: []
 };
+const UNKNOWN_TOKEN = "UNKNOWN";
 
 /**
  * Enum for listing message types.
@@ -155,12 +156,12 @@ class MessageTracer {
         /** @type TiTraceEntry */
         let traceEntry = {
             chainID: message.chainID,
-            dispatchEvent: dispatchEventEnum.name( dispatchEvent ),
+            dispatchEvent: dispatchEventEnum.name( dispatchEvent, UNKNOWN_TOKEN ),
             fromAddress: ( messageType === messageTypeEnum.MESSAGE_REQUEST ) ? source : destination,
             messageID: message.messageID,
             messageSnapshot: messageSnapshot,
-            messageState: messageStateEnum.name( messageState ),
-            messageType: messageTypeEnum.name( messageType ),
+            messageState: messageStateEnum.name( messageState, UNKNOWN_TOKEN ),
+            messageType: messageTypeEnum.name( messageType, UNKNOWN_TOKEN ),
             toAddress: ( messageType === messageTypeEnum.MESSAGE_REQUEST ) ? destination : source,
             traceTimestamp: currentDate.getTime(),
             traceID: tools.getUUID()

@@ -72,6 +72,7 @@ class WebAppManager {
                     fragment = this.#fragments[ 'home' ];
                 }
                     break;
+                case '/app':
                 case '/enter': {
                     fragment = ( session && session.user )
                         ? this.#fragments[ 'application-main' ]

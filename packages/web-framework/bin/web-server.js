@@ -200,9 +200,12 @@ class TiWebServer extends ServiceConsumer {
                 } ) );
 
                 // Create and configure the net server for HTTPS if enabled in the service config:
-                let netServerOptions = {
-                    requestTimeout: _.max( [ this.serviceConfig.api.requestTimeout, this.serviceConfig.requestTimeout ] )
-                };
+                let netServerOptions = {};
+                const timeoutCandidates = [
+                    this.serviceConfig.api.requestTimeout,
+                    this.serviceConfig.requestTimeout
+                ].filter( ( value ) => Number.isFinite( value ) );
+                const resolvedRequestTimeout = timeoutCandidates.length ? Math.max( ...timeoutCandidates ) : undefined;
                 if ( this.serviceConfig.useTLS === true ) {
                     try {
                         netServerOptions.key = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsKeyPath ), "utf8" );
@@ -215,6 +218,9 @@ class TiWebServer extends ServiceConsumer {
                     this.#netServer = https.createServer( netServerOptions, this.#webServer );
                 } else {
                     this.#netServer = http.createServer( netServerOptions, this.#webServer );
+                }
+                if ( Number.isFinite( resolvedRequestTimeout ) ) {
+                    this.#netServer.requestTimeout = resolvedRequestTimeout;
                 }
 
                 // Set up the web server routes:

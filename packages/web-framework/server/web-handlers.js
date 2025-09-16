@@ -153,7 +153,8 @@ module.exports.httpRedirectHandler = ( instance ) => {
             if ( instance.isAllowedHost( request.hostname ) !== true ) {
                 response.status( exceptions.httpCode.C_404 ).end();
             } else {
-                const location = new URL( request.url, "https://" + request.host );
+                const host = request.get ? request.get( "host" ) : request.headers.host;
+                const location = new URL( request.url, "https://" + host );
                 response.set( "Cache-Control", "no-store" );
                 response.redirect( exceptions.httpCode.C_308, location );
             }
@@ -283,7 +284,7 @@ module.exports.cspHeaderHandler = () => {
             styleSrcElem: styleSrcElem,
             imgSrc: [ "'self'", "data:", "https:" ],
             connectSrc: [ "'self'", "https:", "ws:", "wss:" ],
-            fontSrc: [ "'self'", "https:" ],
+            fontSrc: [ "'self'", "https:", "data:" ],
             objectSrc: [ "'none'" ],
             frameAncestors: [ "'self'" ]
         };
