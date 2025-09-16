@@ -207,13 +207,17 @@ class TiWebServer extends ServiceConsumer {
                 ].filter( ( value ) => Number.isFinite( value ) );
                 const resolvedRequestTimeout = timeoutCandidates.length ? Math.max( ...timeoutCandidates ) : undefined;
                 if ( this.serviceConfig.useTLS === true ) {
-                    try {
-                        netServerOptions.key = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsKeyPath ) );
-                        netServerOptions.cert = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsCertPath ) );
-                    } catch ( error ) {
-                        logger.log( "Failed to read and load the TLS key/cert files.", logger.logSeverity.ERROR, error );
-                        throw exceptions.raise( error );
+                    if ( !this.serviceConfig.tlsKeyPath || !this.serviceConfig.tlsCertPath ) {
+                        let exception = exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, {
+                            tlsKeyPath: this.serviceConfig.tlsKeyPath,
+                            tlsCertPath: this.serviceConfig.tlsCertPath
+                        } );
+                        exception.httpCode = exceptions.httpCode.C_500;
+                        throw exception;
                     }
+                    netServerOptions.key = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsKeyPath ) );
+                    netServerOptions.cert = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsCertPath ) );
+
                     this.#webServer.use( webHandlers.httpRedirectHandler( this ) );
                     this.#netServer = https.createServer( netServerOptions, this.#webServer );
                 } else {
@@ -222,6 +226,9 @@ class TiWebServer extends ServiceConsumer {
                 if ( Number.isFinite( resolvedRequestTimeout ) ) {
                     this.#netServer.requestTimeout = resolvedRequestTimeout;
                     this.#netServer.headersTimeout = resolvedRequestTimeout + 100;
+                    if ( typeof this.#netServer.keepAliveTimeout === "number" ) {
+                        this.#netServer.keepAliveTimeout = resolvedRequestTimeout + 1000;
+                    }
                 }
 
                 // Set up the web server routes:
@@ -423,7 +430,16 @@ class TiWebServer extends ServiceConsumer {
             if ( !server ) {
                 resolve();
             } else {
-                // Close the server:
+                // Close all connections after a short delay to allow all requests to complete:
+                setTimeout( () => {
+                    if ( typeof server.closeIdleConnections === "function" ) {
+                        server.closeIdleConnections();
+                    }
+                    if ( typeof server.closeAllConnections === "function" ) {
+                        server.closeAllConnections();
+                    }
+                }, 1000 );
+
                 server.close( ( error ) => {
                     if ( error ) {
                         reject( exceptions.raise( error ) );
@@ -431,10 +447,6 @@ class TiWebServer extends ServiceConsumer {
                         resolve();
                     }
                 } );
-                // Close all connections after a short delay to allow all requests to complete:
-                setTimeout( () => {
-                    server.closeAllConnections();
-                }, 1000 );
             }
         } );
     }

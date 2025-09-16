@@ -46,20 +46,18 @@ class WebAppManager {
      * @public
      */
     transformHtml( html, options = {} ) {
-        return new Promise( ( resolve, reject ) => {
-            const nonce = options?.nonce;
-            let transformedHtml = String( html );
-            if ( typeof nonce !== "string" || !RE_CSP_NONCE.test( nonce ) ) {
-                resolve( transformedHtml );
-            } else {
-                transformedHtml = transformedHtml.replace( RE_NONCE_ATTR, `nonce="${ nonce }"` );
-                if ( options.isHome ) {
-                    transformedHtml = transformedHtml.replace( RE_INLINE_SCRIPT_NONCE, `"inlineScriptNonce":"${ nonce }"` )
-                        .replace( RE_INLINE_STYLE_NONCE, `"inlineStyleNonce":"${ nonce }"` );
-                }
-                resolve( transformedHtml );
+        const nonce = options?.nonce;
+        let transformedHtml = String( html );
+        if ( typeof nonce === "string" && RE_CSP_NONCE.test( nonce ) ) {
+            transformedHtml = transformedHtml.replace( RE_NONCE_ATTR, `nonce="${ nonce }"` );
+            if ( options.isHome ) {
+                transformedHtml = transformedHtml
+                    .replace( RE_INLINE_SCRIPT_NONCE, `"inlineScriptNonce":"${ nonce }"` )
+                    .replace( RE_INLINE_STYLE_NONCE, `"inlineStyleNonce":"${ nonce }"` );
             }
-        } );
+        }
+
+        return Promise.resolve( transformedHtml );
     }
 
     /**
@@ -77,10 +75,11 @@ class WebAppManager {
     getHtmlFragment( session, fullPublicPath, route, options = {} ) {
         return new Promise( ( resolve, reject ) => {
             let fragment = null;
+            const localOptions = ( options && typeof options === "object" ) ? { ...options } : {};
             switch ( route ) {
                 case '/': {
                     fragment = this.#fragments[ 'home' ];
-                    options.isHome = true;
+                    localOptions.isHome = true;
                 }
                     break;
                 case '/app':
@@ -98,7 +97,7 @@ class WebAppManager {
             this.#verifyAccess( session, fragment ).then( () => {
                 return this.#loadHtmlFragment( path.join( fullPublicPath, fragment.path ) );
             } ).then( ( fileData ) => {
-                return this.transformHtml( fileData, options );
+                return this.transformHtml( fileData, localOptions );
             } ).then( ( fileData ) => {
                 resolve( fileData );
             } ).catch( ( error ) => {

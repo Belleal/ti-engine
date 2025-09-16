@@ -7,6 +7,7 @@ This document will contain the list of changes made to the framework. The format
 * feat(exceptions): add public enum with all HTTP codes. Also use it as type for the `httpCode` exception property
 * feat(tools): add `description` property to enum objects
 * feat(tools): add `contains` property to enum objects
+* feat(tools): change enum factory behavior to create a copy of the seed object instead of modifying it
 * refactor(exceptions): ensure `httpCode` setter accepts only valid values
 * refactor(tools): deprecate method `getEnumName`. Use `name` property of the enum object itself
 * refactor(tools)!: remove method `createCSVFile` as it is unnecessary for the framework's operation. It also eliminates the dependency from `fs-extra` package

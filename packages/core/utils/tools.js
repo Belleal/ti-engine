@@ -44,11 +44,12 @@ module.exports.getUUID = () => {
  * @public
  */
 module.exports.enum = ( seed ) => {
-    let properties = {};
+    const enumObject = {};
+    const properties = Object.create( null );
 
     _.forOwn( seed, ( value, key ) => {
         if ( Array.isArray( value ) ) {
-            seed[ key ] = value[ 0 ];
+            enumObject[ key ] = value[ 0 ];
             properties[ value[ 0 ] ] = {
                 value: value[ 0 ],
                 name: value[ 1 ],
@@ -63,7 +64,7 @@ module.exports.enum = ( seed ) => {
     } );
     Object.values( properties ).forEach( Object.freeze );
     Object.freeze( properties );
-    seed.properties = properties;
+    enumObject.properties = properties;
 
     /**
      * Used to get the name of an {@link TiEnumValue} if such value exists.
@@ -74,8 +75,8 @@ module.exports.enum = ( seed ) => {
      * @returns {string|undefined}
      * @public
      */
-    seed.name = ( value, placeholder = undefined ) => {
-        return ( seed.properties[ value ] ) ? seed.properties[ value ].name : placeholder;
+    enumObject.name = ( value, placeholder = undefined ) => {
+        return ( enumObject.properties[ value ] ) ? enumObject.properties[ value ].name : placeholder;
     };
 
     /**
@@ -87,11 +88,11 @@ module.exports.enum = ( seed ) => {
      * @returns {string|undefined}
      * @public
      */
-    seed.description = ( value, placeholder = undefined ) => {
-        if ( !seed.properties[ value ] ) {
+    enumObject.description = ( value, placeholder = undefined ) => {
+        if ( !enumObject.properties[ value ] ) {
             return placeholder;
         } else {
-            return ( seed.properties[ value ].description !== undefined ) ? seed.properties[ value ].description : placeholder;
+            return ( enumObject.properties[ value ].description !== undefined ) ? enumObject.properties[ value ].description : placeholder;
         }
     };
 
@@ -103,12 +104,12 @@ module.exports.enum = ( seed ) => {
      * @returns {boolean}
      * @public
      */
-    seed.contains = ( value ) => {
-        return !!( seed.properties[ value ] );
+    enumObject.contains = ( value ) => {
+        return !!( enumObject.properties[ value ] );
     };
 
-    Object.freeze( seed );
-    return seed;
+    Object.freeze( enumObject );
+    return enumObject;
 };
 
 /**
@@ -193,7 +194,7 @@ module.exports.getUTCDateString = ( date ) => {
  * @returns {string}
  * @public
  */
-module.exports.getUTCTimeString = ( date, useMilliseconds ) => {
+module.exports.getUTCTimeString = ( date, useMilliseconds = false ) => {
     let hours = ( "00" + date.getUTCHours() ).match( /\d{2}$/ );
     let minutes = ( "00" + date.getUTCMinutes() ).match( /\d{2}$/ );
     let seconds = ( "00" + date.getUTCSeconds() ).match( /\d{2}$/ );
