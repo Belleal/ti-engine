@@ -9,11 +9,9 @@
         <a href="" role="button" class="ti-sidebar-button">B</a>
     </div>
 </div>
-<div id="ti-content" class="ti-content">
-    <script type="application/javascript" nonce="NONCE_PLACEHOLDER">
-        let testFunction = () => {
-            console.log( "Hello World!" );
-        };
-        testFunction();
-    </script>
+<div id="ti-content" class="ti-content"
+     hx-post="/service/v1/test-1"
+     hx-trigger="load delay:500ms"
+     hx-target="this"
+     hx-swap="innerHTML">
 </div>

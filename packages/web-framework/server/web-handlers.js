@@ -10,6 +10,7 @@ const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const { randomBytes } = require( "node:crypto" );
 const URL = require( "node:url" ).URL;
+const helmet = require( "helmet" );
 
 /**
  * Express middleware callback.
@@ -224,9 +225,16 @@ module.exports.defaultErrorHandler = () => {
     };
 };
 
+/**
+ * Handler for generating a nonce for CSP.
+ *
+ * @method
+ * @returns {ExpressHandler}
+ * @public
+ */
 module.exports.nonceGenerationHandler = () => {
     return ( request, response, next ) => {
-        if ( request.method === "GET" ) {
+        if ( request.method === "GET" || request.method === "HEAD" ) {
             try {
                 const nonce = randomBytes( 16 ).toString( "base64" );
                 request.cspNonce = nonce;
@@ -245,6 +253,50 @@ module.exports.nonceGenerationHandler = () => {
 };
 
 /**
+ * Handler for setting the Content-Security-Policy header.
+ *
+ * @method
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.cspHeaderHandler = () => {
+    return ( request, response, next ) => {
+        const nonce = response?.locals?.cspNonce;
+
+        // Build script-src directive:
+        const scriptSrc = [ "'strict-dynamic'", "'self'", "https:" ];
+        if ( nonce ) {
+            scriptSrc.push( `'nonce-${ nonce }'` );
+        }
+
+        // Build style-src-elem directive:
+        const styleSrcElem = [ "'self'", "https:" ];
+        if ( nonce ) {
+            styleSrcElem.push( `'nonce-${ nonce }'` );
+        }
+
+        // Build directives object:
+        const directives = {
+            defaultSrc: [ "'self'" ],
+            scriptSrc: scriptSrc,
+            styleSrc: [ "'self'", "https:" ],
+            styleSrcElem: styleSrcElem,
+            imgSrc: [ "'self'", "data:", "https:" ],
+            connectSrc: [ "'self'", "https:", "ws:", "wss:" ],
+            fontSrc: [ "'self'", "https:" ],
+            objectSrc: [ "'none'" ],
+            frameAncestors: [ "'self'" ]
+        };
+
+        const csp = helmet.contentSecurityPolicy( {
+            useDefaults: true,
+            directives
+        } );
+        return csp( request, response, next );
+    };
+};
+
+/**
  * Handler for requests that should be processed by the web application manager.
  *
  * @method
@@ -255,25 +307,27 @@ module.exports.nonceGenerationHandler = () => {
 module.exports.webAppHandler = ( instance ) => {
     return ( request, response, next ) => {
         if ( request.method !== "GET" && request.method !== "HEAD" ) {
-            return next();
+            next();
         } else {
             const resLocals = ( response && response.locals ) || {};
             const nonce = request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce;
-            instance.webAppManager.getHtmlFragment( request.session, instance.fullPublicPath, request.path, { nonce: nonce } ).then( ( fileData ) => {
-                // Disable caches if HTML is dynamically rewritten (safer default):
+            // HEAD: set headers only:
+            if ( request.method === "HEAD" ) {
                 response.set( "Cache-Control", "no-store" );
                 response.set( "Content-Type", "text/html; charset=utf-8" );
-
-                if ( request.method === "HEAD" ) {
-                    response.status( exceptions.httpCode.C_200 ).end();
-                } else {
+                response.status( exceptions.httpCode.C_200 ).end();
+            } else {
+                // GET: load and render:
+                instance.webAppManager.getHtmlFragment( request.session, instance.fullPublicPath, request.path, { nonce: nonce } ).then( ( fileData ) => {
+                    response.set( "Cache-Control", "no-store" );
+                    response.set( "Content-Type", "text/html; charset=utf-8" );
                     response.status( exceptions.httpCode.C_200 ).send( fileData );
-                }
-            } ).catch( ( error ) => {
-                let exception = exceptions.raise( error );
-                exception.httpCode = exceptions.httpCode.C_404;
-                next( exception );
-            } );
+                } ).catch( ( error ) => {
+                    let exception = exceptions.raise( error );
+                    exception.httpCode = exceptions.httpCode.C_404;
+                    next( exception );
+                } );
+            }
         }
     };
 };

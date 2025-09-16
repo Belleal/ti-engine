@@ -43,7 +43,10 @@ class WebAppManager {
         return new Promise( ( resolve, reject ) => {
             let transformedHtml = html;
             if ( options.nonce ) {
-                transformedHtml = String( html ).replace( /NONCE_PLACEHOLDER/g, options.nonce );
+                transformedHtml = String( html ).replace( /nonce="{ti-nonce-placeholder}"/g, `nonce="${ options.nonce }"` );
+                // TODO: Only use this for the index file.
+                transformedHtml = transformedHtml.replace( /"inlineScriptNonce":"{ti-nonce-placeholder}"/g, `"inlineScriptNonce":"${ options.nonce }"` );
+                transformedHtml = transformedHtml.replace( /"inlineStyleNonce":"{ti-nonce-placeholder}"/g, `"inlineStyleNonce":"${ options.nonce }"` );
             }
             resolve( transformedHtml );
         } );

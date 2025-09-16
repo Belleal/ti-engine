@@ -25,6 +25,9 @@
       "1006": {
         "en": "The requested feature is not supported by current configuration or version."
       },
+      "1007": {
+        "en": "The provided argument is not of the expected type."
+      },
       "2000": {
         "en": "Invalid authorization token provided."
       },

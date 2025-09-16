@@ -13,7 +13,7 @@ const crypto = require( "node:crypto" );
  * @typedef {Object} TiEnumValue
  * @property {number|string} value
  * @property {string} name
- * @property {string} description
+ * @property {string} [description]
  */
 
 /**
@@ -54,12 +54,49 @@ module.exports.enum = ( seed ) => {
         } else {
             properties[ value ] = {
                 value: value,
-                name: key.toLowerCase(),
-                description: ""
+                name: key.toLowerCase()
             };
         }
     } );
     seed.properties = properties;
+
+    /**
+     * Used to get the name of an {@link TiEnumValue} if such value exists.
+     *
+     * @method
+     * @param {number|string} value
+     * @param {string} [placeholder=undefined] If provided it will be returned when the enum value does not have a name defined.
+     * @returns {string|undefined}
+     * @public
+     */
+    seed.name = ( value, placeholder = undefined ) => {
+        return ( seed.properties[ value ] ) ? seed.properties[ value ].name : placeholder;
+    };
+
+    /**
+     * Used to get the description of an {@link TiEnumValue} if such value exists.
+     *
+     * @method
+     * @param {number|string} value
+     * @param {string} [placeholder=undefined] If provided it will be returned when the enum value does not have a description defined.
+     * @returns {string|undefined}
+     * @public
+     */
+    seed.description = ( value, placeholder = undefined ) => {
+        return ( seed.properties[ value ] && seed.properties[ value ].description ) ? seed.properties[ value ].description : placeholder;
+    };
+
+    /**
+     * Used to check if the provided value is contained in the provided {@link TiEnum} list.
+     *
+     * @method
+     * @param {number|string} value
+     * @returns {boolean}
+     * @public
+     */
+    seed.contains = ( value ) => {
+        return !!( seed.properties[ value ] );
+    };
 
     Object.freeze( seed );
     return seed;
@@ -69,6 +106,7 @@ module.exports.enum = ( seed ) => {
  * Used to get the name of an {@link TiEnum} value if such exists.
  *
  * @method
+ * @deprecated Use the 'name' property of the provided {@link TiEnum} instead.
  * @param {TiEnum} enumList
  * @param {number|string} enumValue
  * @param {string} [placeholder=undefined] If provided it will be returned when the enum value does not have a name defined.
@@ -80,7 +118,7 @@ module.exports.getEnumName = ( enumList, enumValue, placeholder = undefined ) =>
 };
 
 /**
- * Convert an Error to JSON object.
+ * Convert an Error to a JSON object.
  * <br/>
  * NOTE: If the value provided is not an error, then it will just be cloned.
  *

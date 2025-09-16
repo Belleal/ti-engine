@@ -83,7 +83,6 @@ const httpCodeEnum = tools.enum( {
     C_302: [ 302, "Found", "Tells the client to look at (browse to) another URL." ],
     C_303: [ 303, "See Other", "The response to the request can be found under another URI using the GET method." ],
     C_304: [ 304, "Not Modified", "Indicates that the resource has not been modified since the version specified by the request headers If-Modified-Since or If-None-Match." ],
-    C_305: [ 305, "Use Proxy", "The requested resource is available only through a proxy, the address for which is provided in the response." ],
     C_307: [ 307, "Temporary Redirect", "In this case, the request should be repeated with another URI; however, future requests should still use the original URI." ],
     C_308: [ 308, "Permanent Redirect", "This and all future requests should be directed to the given URI. 308 parallels the behavior of 301, but does not allow the HTTP method to change." ],
     /** 4xx client errors */
@@ -159,16 +158,16 @@ class Exception {
      * @constructor
      * @param {string} id The unique ID to be assigned to this exception.
      * @param {TiExceptionCode} exceptionCode An unique exception identifier. If this is not recognized, the default error code will be used instead.
-     * @param {Object} [data] Any additional data to insert into the exception.
-     * @param {string} [description] Description of the exception.
+     * @param {Object} [data={}] Any additional data to insert into the exception.
+     * @param {string} [description=undefined] Description of the exception.
      */
     constructor( id, exceptionCode, data, description ) {
-        exceptionCode = ( exceptionCodeEnum.properties[ exceptionCode ] ) ? exceptionCode : module.exports.exceptionCode.E_UNKNOWN_ERROR;
+        exceptionCode = exceptionCodeEnum.contains( exceptionCode ) ? exceptionCode : exceptionCodeEnum.E_UNKNOWN_ERROR;
 
         this.#id = id;
         this.#code = exceptionCode;
         this.#label = labelPath + exceptionCode;
-        this.#description = description || exceptionCodeEnum.properties[ exceptionCode ].description;
+        this.#description = description || exceptionCodeEnum.description( exceptionCode );
         this.#data = data || {};
     }
 
@@ -215,7 +214,11 @@ class Exception {
      * @public
      */
     set httpCode( httpCode ) {
-        this.#httpCode = httpCode;
+        if ( httpCodeEnum.contains( httpCode ) ) {
+            this.#httpCode = httpCode;
+        } else {
+            this.#httpCode = undefined;
+        }
     }
 
     /**
@@ -271,14 +274,19 @@ class Exception {
      * @public
      */
     asJSON( includeData = true ) {
-        return {
+        let json = {
             id: this.id,
             code: this.code,
-            httpCode: this.httpCode,
             label: this.label,
-            description: this.description,
-            data: ( includeData === true ) ? this.data : undefined
+            description: this.description
         };
+        if ( this.#httpCode !== undefined ) {
+            json.httpCode = this.#httpCode;
+        }
+        if ( includeData === true ) {
+            json.data = this.#data;
+        }
+        return json;
     }
 }
 
@@ -297,17 +305,25 @@ module.exports.raise = ( source, data, exceptionID ) => {
     let exception;
 
     if ( source instanceof Error ) {
-        exception = new Exception( exceptionID || tools.getUUID(), module.exports.exceptionCode.E_GEN_JS_INTERNAL_ERROR, tools.errorToJSON( source ) );
+        exception = new Exception( exceptionID || tools.getUUID(), exceptionCodeEnum.E_GEN_JS_INTERNAL_ERROR, tools.errorToJSON( source ) );
     } else if ( source instanceof Exception ) {
         exception = source;
     } else if ( _.isString( source ) ) {
-        exception = new Exception( exceptionID || tools.getUUID(), module.exports.exceptionCode.E_GEN_JS_INTERNAL_ERROR, {
+        exception = new Exception( exceptionID || tools.getUUID(), exceptionCodeEnum.E_GEN_JS_INTERNAL_ERROR, {
             message: source
         } );
     } else if ( _.isObjectLike( source ) ) {
-        exception = new Exception( exceptionID || ( source.id || tools.getUUID() ), source.code || module.exports.exceptionCode.E_GEN_JS_INTERNAL_ERROR, source.data, source.description );
+        exception = new Exception(
+            exceptionID || ( source.id || tools.getUUID() ),
+            source.code || exceptionCodeEnum.E_GEN_JS_INTERNAL_ERROR,
+            source.data,
+            source.description
+        );
+        if ( httpCodeEnum.contains( source.httpCode ) ) {
+            exception.httpCode = source.httpCode;
+        }
     } else {
-        exception = new Exception( exceptionID || tools.getUUID(), ( exceptionCodeEnum.properties[ source ] ) ? source : module.exports.exceptionCode.E_UNKNOWN_ERROR );
+        exception = new Exception( exceptionID || tools.getUUID(), ( exceptionCodeEnum.contains( source ) ) ? source : exceptionCodeEnum.E_UNKNOWN_ERROR );
     }
 
     // Merge the default exception data with the additional one if it's provided:

@@ -42,7 +42,7 @@ module.exports.logSeverity = logSeverityEnum;
  * @returns {string}
  */
 module.exports.getSeverityName = ( severity ) => {
-    return tools.getEnumName( logSeverityEnum, severity, "unknown" );
+    return logSeverityEnum.name( severity, "unknown" );
 };
 
 /**

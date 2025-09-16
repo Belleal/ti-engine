@@ -5,6 +5,10 @@ This document will contain the list of changes made to the framework. The format
 ## Version 1.3.6
 * feat(exceptions): add new exception code `E_GEN_INVALID_ARGUMENT_TYPE`
 * feat(exceptions): add public enum with all HTTP codes. Also use it as type for the `httpCode` exception property
+* feat(tools): add `description` property to enum objects
+* feat(tools): add `contains` property to enum objects
+* refactor(exceptions): ensure `httpCode` setter accepts only valid values
+* refactor(tools): deprecate method `getEnumName`. Use `name` property of the enum object itself
 * refactor(tools)!: remove method `createCSVFile` as it is unnecessary for the framework's operation. It also eliminates the dependency from `fs-extra` package
 * build(npm): update npm dependencies to their latest versions
 * build(npm): remove `fs-extra` package as it is not used by the framework

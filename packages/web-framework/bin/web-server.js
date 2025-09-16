@@ -181,24 +181,7 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.use( helmet( {
                     contentSecurityPolicy: false
                 } ) );
-                this.#webServer.use( ( request, response, next ) => {
-                    const csp = helmet.contentSecurityPolicy( {
-                        useDefaults: true,
-                        directives: {
-                            defaultSrc: [ "'self'" ],
-                            scriptSrc: [ "'self'", "https:", "'unsafe-eval'", ( "'nonce-" + response.locals.cspNonce + "'" ) ],
-                            styleSrc: [ "'self'", "https:" ],
-                            styleSrcElem: [ "'self'", "https:", ( "'nonce-" + response.locals.cspNonce + "'" ) ],
-                            styleSrcAttr: [ "'unsafe-inline'" ],
-                            imgSrc: [ "'self'", "data:", "https:" ],
-                            connectSrc: [ "'self'", "https:", "ws:", "wss:" ],
-                            fontSrc: [ "'self'", "https:", "data:" ],
-                            objectSrc: [ "'none'" ],
-                            frameAncestors: [ "'self'" ]
-                        }
-                    } );
-                    return csp( request, response, next );
-                } );
+                this.#webServer.use( webHandlers.cspHeaderHandler() );
                 this.#webServer.use( express.json() );
                 this.#webServer.use( express.urlencoded( { extended: false } ) );
                 this.#webServer.use( session( {

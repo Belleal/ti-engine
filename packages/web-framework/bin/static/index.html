@@ -3,14 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="htmx-config" content='{"inlineScriptNonce":"{ti-nonce-placeholder}","inlineStyleNonce":"{ti-nonce-placeholder}","allowEval":true}'/>
     <title>Main Page</title>
     <link rel="icon" href="/static/favicon.ico" type="image/ico">
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/htmx.org@2.x.x/dist/htmx.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/csp@3.x.x/dist/cdn.min.js" nonce="{ti-nonce-placeholder}"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/htmx.org@2.x.x/dist/htmx.min.js" nonce="{ti-nonce-placeholder}"></script>
+    <script defer src="/static/scripts/safe-nonce.min.js" nonce="{ti-nonce-placeholder}"></script>
     <link rel="stylesheet" type="text/css" href="/static/scripts/main.css"/>
 </head>
-<body>
-<div id="ti-main" class="ti-main" x-data="{}"
+<body hx-ext="safe-nonce" x-data="{}">
+<div id="ti-main" class="ti-main"
      hx-get="/app/enter"
      hx-trigger="load"
      hx-target="this"

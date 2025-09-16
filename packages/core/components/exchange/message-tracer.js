@@ -155,12 +155,12 @@ class MessageTracer {
         /** @type TiTraceEntry */
         let traceEntry = {
             chainID: message.chainID,
-            dispatchEvent: tools.getEnumName( dispatchEventEnum, dispatchEvent ),
+            dispatchEvent: dispatchEventEnum.name( dispatchEvent ),
             fromAddress: ( messageType === messageTypeEnum.MESSAGE_REQUEST ) ? source : destination,
             messageID: message.messageID,
             messageSnapshot: messageSnapshot,
-            messageState: tools.getEnumName( messageStateEnum, messageState ),
-            messageType: tools.getEnumName( messageTypeEnum, messageType ),
+            messageState: messageStateEnum.name( messageState ),
+            messageType: messageTypeEnum.name( messageType ),
             toAddress: ( messageType === messageTypeEnum.MESSAGE_REQUEST ) ? destination : source,
             traceTimestamp: currentDate.getTime(),
             traceID: tools.getUUID()

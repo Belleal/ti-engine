@@ -5,20 +5,19 @@
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "imports": {
-    "#common-routes": "./server/routes/common-routes.js",
     "#session-store": "./server/session-store.js",
     "#web-app-manager": "./server/web-app-manager.js",
     "#web-handlers": "./server/web-handlers.js"
   },
   "dependencies": {
     "@ti-engine/core": "*",
+    "@alpinejs/csp": "^3.15.0",
     "express": "^5.1.0",
     "express-session": "^1.18.2",
     "helmet": "^8.1.0",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "alpinejs": "^3.15.0",
     "htmx.org": "^2.0.7"
   },
   "engines": {
