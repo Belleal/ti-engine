@@ -19,6 +19,9 @@ const crypto = require( "node:crypto" );
 /**
  * @typedef {Object} TiEnum
  * @property {Object.<number|string,TiEnumValue>} properties
+ * @property {(value: number|string, placeholder?: string) => (string|undefined)} name
+ * @property {(value: number|string, placeholder?: string) => (string|undefined)} description
+ * @property {(value: number|string) => boolean} contains
  */
 
 /**
@@ -37,14 +40,14 @@ module.exports.getUUID = () => {
  *
  * @method
  * @param {Object} seed
- * @returns {Object}
+ * @returns {Object} This is a {@link TiEnum} object. Setting the proper reference here would unfortunately break IDE support.
  * @public
  */
 module.exports.enum = ( seed ) => {
     let properties = {};
 
     _.forOwn( seed, ( value, key ) => {
-        if ( value instanceof Array ) {
+        if ( Array.isArray( value ) ) {
             seed[ key ] = value[ 0 ];
             properties[ value[ 0 ] ] = {
                 value: value[ 0 ],
@@ -58,6 +61,8 @@ module.exports.enum = ( seed ) => {
             };
         }
     } );
+    Object.values( properties ).forEach( Object.freeze );
+    Object.freeze( properties );
     seed.properties = properties;
 
     /**
@@ -83,7 +88,11 @@ module.exports.enum = ( seed ) => {
      * @public
      */
     seed.description = ( value, placeholder = undefined ) => {
-        return ( seed.properties[ value ] && seed.properties[ value ].description ) ? seed.properties[ value ].description : placeholder;
+        if ( !seed.properties[ value ] ) {
+            return placeholder;
+        } else {
+            return ( seed.properties[ value ].description !== undefined ) ? seed.properties[ value ].description : placeholder;
+        }
     };
 
     /**

@@ -11,6 +11,11 @@ const logger = require( "@ti-engine/core/logger" );
 const path = require( "node:path" );
 const fs = require( "node:fs" );
 
+const RE_NONCE_ATTR = /nonce="{ti-nonce-placeholder}"/g;
+const RE_INLINE_SCRIPT_NONCE = /"inlineScriptNonce":"{ti-nonce-placeholder}"/g;
+const RE_INLINE_STYLE_NONCE = /"inlineStyleNonce":"{ti-nonce-placeholder}"/g;
+const RE_CSP_NONCE = /^[A-Za-z0-9+\/=_-]{16,}$/;
+
 class WebAppManager {
 
     #webAppIdentifier = null;
@@ -34,6 +39,7 @@ class WebAppManager {
      * @method
      * @param {string} html
      * @param {Object} [options]
+     * @param {boolean} [options.isHome] Optional flag to indicate whether the requested route is the home page.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
      * @returns {Promise<string>}
      * @virtual
@@ -41,14 +47,18 @@ class WebAppManager {
      */
     transformHtml( html, options = {} ) {
         return new Promise( ( resolve, reject ) => {
-            let transformedHtml = html;
-            if ( options.nonce ) {
-                transformedHtml = String( html ).replace( /nonce="{ti-nonce-placeholder}"/g, `nonce="${ options.nonce }"` );
-                // TODO: Only use this for the index file.
-                transformedHtml = transformedHtml.replace( /"inlineScriptNonce":"{ti-nonce-placeholder}"/g, `"inlineScriptNonce":"${ options.nonce }"` );
-                transformedHtml = transformedHtml.replace( /"inlineStyleNonce":"{ti-nonce-placeholder}"/g, `"inlineStyleNonce":"${ options.nonce }"` );
+            const nonce = options?.nonce;
+            let transformedHtml = String( html );
+            if ( typeof nonce !== "string" || !RE_CSP_NONCE.test( nonce ) ) {
+                resolve( transformedHtml );
+            } else {
+                transformedHtml = transformedHtml.replace( RE_NONCE_ATTR, `nonce="${ nonce }"` );
+                if ( options.isHome ) {
+                    transformedHtml = transformedHtml.replace( RE_INLINE_SCRIPT_NONCE, `"inlineScriptNonce":"${ nonce }"` )
+                        .replace( RE_INLINE_STYLE_NONCE, `"inlineStyleNonce":"${ nonce }"` );
+                }
+                resolve( transformedHtml );
             }
-            resolve( transformedHtml );
         } );
     }
 
@@ -70,6 +80,7 @@ class WebAppManager {
             switch ( route ) {
                 case '/': {
                     fragment = this.#fragments[ 'home' ];
+                    options.isHome = true;
                 }
                     break;
                 case '/app':
@@ -108,12 +119,7 @@ class WebAppManager {
      */
     #loadHtmlFragment( filePath ) {
         return new Promise( ( resolve, reject ) => {
-            fs.promises.stat( filePath ).then( ( stat ) => {
-                if ( !stat.isFile() ) {
-                    throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI );
-                }
-                return fs.promises.readFile( filePath, "utf8" );
-            } ).then( ( fileData ) => {
+            fs.promises.readFile( filePath, "utf8" ).then( ( fileData ) => {
                 resolve( fileData );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );

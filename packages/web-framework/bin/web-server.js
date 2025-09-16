@@ -208,8 +208,8 @@ class TiWebServer extends ServiceConsumer {
                 const resolvedRequestTimeout = timeoutCandidates.length ? Math.max( ...timeoutCandidates ) : undefined;
                 if ( this.serviceConfig.useTLS === true ) {
                     try {
-                        netServerOptions.key = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsKeyPath ), "utf8" );
-                        netServerOptions.cert = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsCertPath ), "utf8" );
+                        netServerOptions.key = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsKeyPath ) );
+                        netServerOptions.cert = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsCertPath ) );
                     } catch ( error ) {
                         logger.log( "Failed to read and load the TLS key/cert files.", logger.logSeverity.ERROR, error );
                         throw exceptions.raise( error );
@@ -221,6 +221,7 @@ class TiWebServer extends ServiceConsumer {
                 }
                 if ( Number.isFinite( resolvedRequestTimeout ) ) {
                     this.#netServer.requestTimeout = resolvedRequestTimeout;
+                    this.#netServer.headersTimeout = resolvedRequestTimeout + 100;
                 }
 
                 // Set up the web server routes:
@@ -391,10 +392,10 @@ class TiWebServer extends ServiceConsumer {
      * Used to start listening for requests on the specified port and host and on the specified server.
      *
      * @method
-     * @param {Server} server The server instance to listen on.
+     * @param {http.Server|https.Server} server The server instance to listen on.
      * @param {number} port The port to listen on.
      * @param {string} host The host to listen on.
-     * @returns {Promise<Server>}
+     * @returns {Promise<http.Server|https.Server>}
      * @private
      */
     #beginListening( server, port, host ) {
@@ -413,24 +414,28 @@ class TiWebServer extends ServiceConsumer {
      * Used to stop listening for requests on the specified server.
      *
      * @method
-     * @param {Server} server The server instance to stop listening on.
+     * @param {http.Server|https.Server} server The server instance to stop listening on.
      * @returns {Promise}
      * @private
      */
     #endListening( server ) {
         return new Promise( ( resolve, reject ) => {
-            // Close the server:
-            server.close( ( error ) => {
-                if ( error ) {
-                    reject( exceptions.raise( error ) );
-                } else {
-                    resolve();
-                }
-            } );
-            // Close all connections after a short delay to allow all requests to complete:
-            setTimeout( () => {
-                server.closeAllConnections();
-            }, 1000 );
+            if ( !server ) {
+                resolve();
+            } else {
+                // Close the server:
+                server.close( ( error ) => {
+                    if ( error ) {
+                        reject( exceptions.raise( error ) );
+                    } else {
+                        resolve();
+                    }
+                } );
+                // Close all connections after a short delay to allow all requests to complete:
+                setTimeout( () => {
+                    server.closeAllConnections();
+                }, 1000 );
+            }
         } );
     }
 
