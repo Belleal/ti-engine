@@ -2,6 +2,14 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.6
+* feat(exceptions): add new exception code `E_GEN_INVALID_ARGUMENT_TYPE`
+* feat(exceptions): add public enum with all HTTP codes. Also use it as type for the `httpCode` exception property
+* refactor(tools)!: remove method `createCSVFile` as it is unnecessary for the framework's operation. It also eliminates the dependency from `fs-extra` package
+* build(npm): update npm dependencies to their latest versions
+* build(npm): remove `fs-extra` package as it is not used by the framework
+* build(npm)!: bump the minimum supported Node.js version to 18.0.0
+
 ## Version 1.3.5
 * fix(redis integration): fix a duplicated log entry on connection ready event if multiple observers are registered
 * feat(service caller)!: change log level of error result in `process` method from `ERROR` to `DEBUG`. Implementers are expected to handle this and decide if the error should be propagated further or not

@@ -7,7 +7,6 @@
 */
 
 const _ = require( "lodash" );
-const fs = require( "fs-extra" );
 const crypto = require( "node:crypto" );
 
 /**
@@ -397,50 +396,6 @@ module.exports.decomposeJSON = ( input ) => {
     }
 
     return decomposed;
-};
-
-/**
- * Used to create a CSV file from the provided data.
- *
- * @method
- * @param {Object[]} data
- * @param {string} filePath
- * @param {string} fileName
- * @return {Promise}
- * @public
- */
-module.exports.createCSVFile = ( data, filePath, fileName ) => {
-    return new Promise( ( resolve, reject ) => {
-        let fileData = "";
-        if ( data && data.length > 0 ) {
-            let keys = [];
-            _.forOwn( data[ 0 ], ( value, key ) => {
-                keys.push( key );
-            } );
-            keys.sort();
-
-            _.forEach( keys, ( key, idx ) => {
-                fileData += key + ( ( idx < keys.length - 1 ) ? "," : "" );
-            } );
-            fileData += "\n";
-
-            _.forEach( data, ( entry ) => {
-                _.forEach( keys, ( key, idx ) => {
-                    fileData += entry[ key ] + ( ( idx < keys.length - 1 ) ? "," : "" );
-                } );
-                fileData += "\n";
-            } );
-        }
-
-        fs.ensureDir( filePath ).then( () => {
-            const fullPath = filePath + "/" + Date.now() + "-" + fileName + ".csv";
-            return fs.appendFile( fullPath, fileData );
-        } ).then( () => {
-            resolve();
-        } ).catch( ( error ) => {
-            reject( error );
-        } );
-    } );
 };
 
 /**
