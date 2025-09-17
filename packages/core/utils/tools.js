@@ -18,10 +18,10 @@ const crypto = require( "node:crypto" );
 
 /**
  * @typedef {Object} TiEnum
- * @property {Object.<number|string, TiEnumValue>} properties
- * @property {function((number|string), [string]): (string|undefined)} name
- * @property {function((number|string), [string]): (string|undefined)} description
- * @property {function((number|string)): boolean} contains
+ * @property {Object.<number|string,TiEnumValue>} properties
+ * @property {function( (number|string), [string] ): (string|undefined)} name
+ * @property {function( (number|string), [string] ): (string|undefined)} description
+ * @property {function( (number|string) ): boolean} contains
  */
 
 /**
@@ -256,7 +256,7 @@ module.exports.getUTCTimeString = ( date, useMilliseconds = false ) => {
  *
  * @method
  * @param {Object} object
- * @param {function} [replacer]
+ * @param {function( Object ): Object} [replacer]
  * @returns {Object}
  * @public
  */
@@ -488,8 +488,12 @@ class RetryPolicy {
 
     /**
      * @constructor
+     * @param {number} maxAttempts The maximum number of attempts to execute the operation.
      */
     constructor( maxAttempts ) {
+        if ( !Number.isInteger( maxAttempts ) || maxAttempts < 1 ) {
+            throw new TypeError( "maxAttempts must be a positive integer" );
+        }
         this.#maxAttempts = maxAttempts;
     }
 
@@ -500,7 +504,7 @@ class RetryPolicy {
      *
      * @method
      * @param {Object} context The context in which the operation will be executed (i.e., this reference).
-     * @param {function(...*): Promise<*>} operation Operation to be executed; must return a Promise.
+     * @param {function( ...* ): Promise<*>} operation Operation to be executed; must return a Promise.
      * @param {Array<*>} params The arguments to be provided to the operation upon execution.
      * @returns {Promise}
      * @public
@@ -526,7 +530,7 @@ class RetryPolicy {
      * Used to register a method that will be automatically called on each execution retry (after the initial one).
      *
      * @method
-     * @param {function(number)} action The current attempt number will be provided as an argument.
+     * @param {function( number, (Error|undefined) )} action The current attempt and last error are provided.
      * @public
      */
     onRetry( action ) {
@@ -542,7 +546,7 @@ class RetryPolicy {
      *
      * @method
      * @param {Object} context
-     * @param {function(...*): Promise<*>} operation Operation to be executed; must return a Promise.
+     * @param {function( ...* ): Promise<*>} operation Operation to be executed; must return a Promise.
      * @param {Array<*>} params The arguments to be provided to the operation upon execution.
      * @param {number} attempt
      * @param {Error} error
@@ -554,7 +558,7 @@ class RetryPolicy {
             return Promise.reject( error );
         } else {
             if ( attempt > 1 && this.#onRetry ) {
-                this.#onRetry( attempt );
+                this.#onRetry( attempt, error );
             }
             return Promise
                 .resolve()
