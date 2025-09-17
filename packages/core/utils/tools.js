@@ -18,10 +18,10 @@ const crypto = require( "node:crypto" );
 
 /**
  * @typedef {Object} TiEnum
- * @property {Object.<number|string,TiEnumValue>} properties
- * @property {(value: number|string, placeholder?: string) => (string|undefined)} name
- * @property {(value: number|string, placeholder?: string) => (string|undefined)} description
- * @property {(value: number|string) => boolean} contains
+ * @property {Object.<number|string, TiEnumValue>} properties
+ * @property {function((number|string), [string]): (string|undefined)} name
+ * @property {function((number|string), [string]): (string|undefined)} description
+ * @property {function((number|string)): boolean} contains
  */
 
 /**
@@ -500,8 +500,8 @@ class RetryPolicy {
      *
      * @method
      * @param {Object} context The context in which the operation will be executed (i.e., this reference).
-     * @param {function: Promise} operation Operation to be executed; has to return a Promise.
-     * @param {Array} params The arguments to be provided to the operation upon execution.
+     * @param {function(...*): Promise<*>} operation Operation to be executed; must return a Promise.
+     * @param {Array<*>} params The arguments to be provided to the operation upon execution.
      * @returns {Promise}
      * @public
      */
@@ -526,7 +526,7 @@ class RetryPolicy {
      * Used to register a method that will be automatically called on each execution retry (after the initial one).
      *
      * @method
-     * @param {function( number )} action The current attempt number will be provided as an argument.
+     * @param {function(number)} action The current attempt number will be provided as an argument.
      * @public
      */
     onRetry( action ) {
@@ -542,8 +542,8 @@ class RetryPolicy {
      *
      * @method
      * @param {Object} context
-     * @param {function: Promise} operation
-     * @param {Array} params
+     * @param {function(...*): Promise<*>} operation Operation to be executed; must return a Promise.
+     * @param {Array<*>} params The arguments to be provided to the operation upon execution.
      * @param {number} attempt
      * @param {Error} error
      * @returns {Promise}

@@ -4,14 +4,14 @@ This document will contain the list of changes made to the framework. The format
 
 ## Version 1.3.6
 * feat(exceptions): add new exception code `E_GEN_INVALID_ARGUMENT_TYPE`
-* feat(exceptions): add public enum with all HTTP codes. Also use it as type for the `httpCode` exception property
+* feat(exceptions): add public enum with all HTTP codes exported as `httpCode` and typedef `TiHttpCode`. Use it as the type for the `httpCode` exception property
 * feat(tools): add `description` property to enum objects
 * feat(tools): add `contains` property to enum objects
-* feat(tools): change enum factory behavior to create a copy of the seed object instead of modifying it
-* refactor(exceptions): ensure `httpCode` setter accepts only valid values
-* refactor(tools): deprecate method `getEnumName`. Use `name` property of the enum object itself
+* feat(tools)!: change enum factory behavior to create a copy of the seed object instead of modifying it (may break code relying on seed object mutation)
+* refactor(exceptions): invalid `httpCode` inputs are coerced to `undefined`; `Exception.asJSON` includes `httpCode` only when defined
+* refactor(tools): deprecate method `getEnumName` in favor of `enum.name`; removal planned for 1.4.0
 * refactor(tools)!: remove method `createCSVFile` as it is unnecessary for the framework's operation. It also eliminates the dependency from `fs-extra` package
-* refactor(tools): ensure reserved keys cannot be used as enum names and make all properties non-enumerable
+* refactor(tools)!: disallow reserved keys as enum names; make enum properties non-enumerable and freeze the enum object to enforce immutability (may affect code relying on enumeration/extension)
 * fix(tools): fix a bug in the `RetryPolicy` class that caused the `maxAttempts` property to be ignored
 * build(npm): update npm dependencies to their latest versions
 * build(npm): remove `fs-extra` package as it is not used by the framework
