@@ -227,7 +227,7 @@ module.exports.getUTCTimeString = ( date, useMilliseconds = false ) => {
     const hours = String( date.getUTCHours() ).padStart( 2, "0" );
     const minutes = String( date.getUTCMinutes() ).padStart( 2, "0" );
     const seconds = String( date.getUTCSeconds() ).padStart( 2, "0" );
-    const milliseconds = String( date.getUTCMilliseconds() ).padStart( 3, "0" );
+    const milliseconds = useMilliseconds ? `.${ String( date.getUTCMilliseconds() ).padStart( 3, "0" ) }` : "";
     return `${ hours }:${ minutes }:${ seconds }${ useMilliseconds ? `.${ milliseconds }` : "" }`;
 };
 
@@ -390,7 +390,7 @@ module.exports.retrocycle = ( $ ) => {
  *
  * @method
  * @param {Object} value
- * @return {string}
+ * @returns {string|*}
  * @public
  */
 module.exports.stringifyJSON = ( value ) => {
@@ -420,7 +420,7 @@ module.exports.isJsonString = ( string ) => {
  *
  * @method
  * @param {string} value
- * @return {Object}
+ * @returns {Object|string}
  * @public
  */
 module.exports.parseJSON = ( value ) => {
@@ -439,7 +439,7 @@ module.exports.parseJSON = ( value ) => {
  *
  * @param {Object} input
  * @recursion
- * @return {string|null}
+ * @returns {string|null}
  * @public
  */
 module.exports.decomposeJSON = ( input ) => {
@@ -505,11 +505,11 @@ class RetryPolicy {
      * @method
      * @param {Object} context The context in which the operation will be executed (i.e., this reference).
      * @param {function( ...* ): Promise<*>} operation Operation to be executed; must return a Promise.
-     * @param {Array<*>} params The arguments to be provided to the operation upon execution.
+     * @param {Array<*>} [params=[]] The arguments to be provided to the operation upon execution.
      * @returns {Promise}
      * @public
      */
-    execute( context, operation, params ) {
+    execute( context, operation, params = [] ) {
         return this.#retry( context, operation, params, 1, undefined );
     }
 
