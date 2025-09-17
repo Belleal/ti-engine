@@ -95,8 +95,8 @@ class MessageDispatcher {
             retry.onFailedAttempt( ( error ) => {
                 logger.log( `Failed to send message request with chain ID: ${ message.chainID }`, logger.logSeverity.WARNING, error );
             } );
-            retry.onRetry( ( attempt ) => {
-                logger.log( `Retrying to send message response with chain ID: ${ message.chainID }. This is attempt ${ attempt }...`, logger.logSeverity.NOTICE );
+            retry.onRetry( ( attempt, error ) => {
+                logger.log( `Retrying to send message response with chain ID: ${ message.chainID }. This is attempt ${ attempt }...`, logger.logSeverity.NOTICE, ( error ) ? { error: tools.errorToJSON( error ) } : undefined );
             } );
 
             messageTracer.instance.recordTraceEntry( message, messageTracer.messageType.MESSAGE_REQUEST, messageTracer.dispatchEvent.SENT, messageTracer.messageState.PENDING );
@@ -125,8 +125,8 @@ class MessageDispatcher {
             retry.onFailedAttempt( ( error ) => {
                 logger.log( `Failed to send message response with chain ID: ${ message.chainID }`, logger.logSeverity.WARNING, error );
             } );
-            retry.onRetry( ( attempt ) => {
-                logger.log( `Retrying to send message response with chain ID: ${ message.chainID }. This is attempt ${ attempt }...`, logger.logSeverity.NOTICE );
+            retry.onRetry( ( attempt, error ) => {
+                logger.log( `Retrying to send message response with chain ID: ${ message.chainID }. This is attempt ${ attempt }...`, logger.logSeverity.NOTICE, ( error ) ? { error: tools.errorToJSON( error ) } : undefined );
             } );
 
             messageTracer.instance.recordTraceEntry( message, messageTracer.messageType.MESSAGE_RESPONSE, messageTracer.dispatchEvent.SENT, messageTracer.messageState.PROCESSED );
