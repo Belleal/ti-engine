@@ -7,19 +7,21 @@
 */
 
 const _ = require( "lodash" );
-const fs = require( "fs-extra" );
 const crypto = require( "node:crypto" );
 
 /**
  * @typedef {Object} TiEnumValue
  * @property {number|string} value
  * @property {string} name
- * @property {string} description
+ * @property {string} [description]
  */
 
 /**
  * @typedef {Object} TiEnum
  * @property {Object.<number|string,TiEnumValue>} properties
+ * @property {function( (number|string), [string] ): (string|undefined)} name
+ * @property {function( (number|string), [string] ): (string|undefined)} description
+ * @property {function( (number|string) ): boolean} contains
  */
 
 /**
@@ -38,38 +40,113 @@ module.exports.getUUID = () => {
  *
  * @method
  * @param {Object} seed
- * @returns {Object}
+ * @returns {Object} This is a {@link TiEnum} object. Setting the proper reference here would unfortunately break IDE support.
  * @public
  */
 module.exports.enum = ( seed ) => {
-    let properties = {};
+    const enumObject = Object.create( null );
+    const properties = Object.create( null );
+    const reserved = new Set( [ "properties", "name", "description", "contains", "__proto__", "prototype", "constructor" ] );
 
     _.forOwn( seed, ( value, key ) => {
-        if ( value instanceof Array ) {
-            seed[ key ] = value[ 0 ];
-            properties[ value[ 0 ] ] = {
-                value: value[ 0 ],
-                name: value[ 1 ],
-                description: value[ 2 ]
-            };
-        } else {
-            properties[ value ] = {
-                value: value,
-                name: key.toLowerCase(),
-                description: ""
-            };
+        if ( !reserved.has( key ) ) {
+            if ( Array.isArray( value ) ) {
+                enumObject[ key ] = value[ 0 ];
+                properties[ value[ 0 ] ] = {
+                    value: value[ 0 ],
+                    name: value[ 1 ],
+                    description: value[ 2 ]
+                };
+            } else {
+                enumObject[ key ] = value;
+                properties[ value ] = {
+                    value: value,
+                    name: key
+                };
+            }
         }
     } );
-    seed.properties = properties;
+    Object.values( properties ).forEach( Object.freeze );
+    Object.freeze( properties );
 
-    Object.freeze( seed );
-    return seed;
+    /**
+     * Used to get the name of an {@link TiEnumValue} if such value exists.
+     *
+     * @method
+     * @param {number|string} value
+     * @param {string} [placeholder=undefined] If provided it will be returned when the enum value does not have a name defined.
+     * @returns {string|undefined}
+     * @public
+     */
+    const name = ( value, placeholder = undefined ) => {
+        return ( properties[ value ] ) ? properties[ value ].name : placeholder;
+    };
+
+    /**
+     * Used to get the description of an {@link TiEnumValue} if such value exists.
+     *
+     * @method
+     * @param {number|string} value
+     * @param {string} [placeholder=undefined] If provided it will be returned when the enum value does not have a description defined.
+     * @returns {string|undefined}
+     * @public
+     */
+    const description = ( value, placeholder = undefined ) => {
+        if ( !properties[ value ] ) {
+            return placeholder;
+        } else {
+            return ( properties[ value ].description !== undefined ) ? properties[ value ].description : placeholder;
+        }
+    };
+
+    /**
+     * Used to check if the provided value is contained in the provided {@link TiEnum} list.
+     *
+     * @method
+     * @param {number|string} value
+     * @returns {boolean}
+     * @public
+     */
+    const contains = ( value ) => {
+        return !!( properties[ value ] );
+    };
+
+    Object.defineProperties( enumObject, {
+        contains: {
+            enumerable: false,
+            configurable: false,
+            writable: false,
+            value: contains
+        },
+        description: {
+            enumerable: false,
+            configurable: false,
+            writable: false,
+            value: description
+        },
+        name: {
+            enumerable: false,
+            configurable: false,
+            writable: false,
+            value: name
+        },
+        properties: {
+            enumerable: false,
+            configurable: false,
+            writable: false,
+            value: properties
+        }
+    } );
+    Object.freeze( enumObject );
+
+    return enumObject;
 };
 
 /**
  * Used to get the name of an {@link TiEnum} value if such exists.
  *
  * @method
+ * @deprecated Use the 'name' property of the provided {@link TiEnum} instead.
  * @param {TiEnum} enumList
  * @param {number|string} enumValue
  * @param {string} [placeholder=undefined] If provided it will be returned when the enum value does not have a name defined.
@@ -81,7 +158,7 @@ module.exports.getEnumName = ( enumList, enumValue, placeholder = undefined ) =>
 };
 
 /**
- * Convert an Error to JSON object.
+ * Convert an Error to a JSON object.
  * <br/>
  * NOTE: If the value provided is not an error, then it will just be cloned.
  *
@@ -123,7 +200,7 @@ module.exports.toBool = ( value ) => {
 };
 
 /**
- * Will return UTC date string in format YYYY-MM-DD from the provided date.
+ * Will return a UTC date string in format YYYY-MM-DD from the provided date.
  *
  * @method
  * @param {Date} date
@@ -131,15 +208,14 @@ module.exports.toBool = ( value ) => {
  * @public
  */
 module.exports.getUTCDateString = ( date ) => {
-    let year = date.getUTCFullYear();
-    let month = ( "00" + ( date.getUTCMonth() + 1 ) ).match( /\d{2}$/ );
-    let day = ( "00" + date.getUTCDate() ).match( /\d{2}$/ );
-
-    return String( year + "-" + month + "-" + day );
+    const year = date.getUTCFullYear();
+    const month = String( date.getUTCMonth() + 1 ).padStart( 2, "0" );
+    const day = String( date.getUTCDate() ).padStart( 2, "0" );
+    return `${ year }-${ month }-${ day }`;
 };
 
 /**
- * Will return UTC time string in format hh:mm:ss.MMM from the provided date.
+ * Will return a UTC time string in format hh:mm:ss, or hh:mm:ss.MMM when useMilliseconds is true.
  *
  * @method
  * @param {Date} date
@@ -147,13 +223,12 @@ module.exports.getUTCDateString = ( date ) => {
  * @returns {string}
  * @public
  */
-module.exports.getUTCTimeString = ( date, useMilliseconds ) => {
-    let hours = ( "00" + date.getUTCHours() ).match( /\d{2}$/ );
-    let minutes = ( "00" + date.getUTCMinutes() ).match( /\d{2}$/ );
-    let seconds = ( "00" + date.getUTCSeconds() ).match( /\d{2}$/ );
-    let milliseconds = ( "000" + date.getUTCMilliseconds() ).match( /\d{3}$/ );
-
-    return String( hours + ":" + minutes + ":" + seconds + ( ( useMilliseconds ) ? "." + milliseconds : "" ) );
+module.exports.getUTCTimeString = ( date, useMilliseconds = false ) => {
+    const hours = String( date.getUTCHours() ).padStart( 2, "0" );
+    const minutes = String( date.getUTCMinutes() ).padStart( 2, "0" );
+    const seconds = String( date.getUTCSeconds() ).padStart( 2, "0" );
+    const milliseconds = useMilliseconds ? `${ String( date.getUTCMilliseconds() ).padStart( 3, "0" ) }` : "";
+    return `${ hours }:${ minutes }:${ seconds }${ useMilliseconds ? `.${ milliseconds }` : "" }`;
 };
 
 /**
@@ -181,7 +256,7 @@ module.exports.getUTCTimeString = ( date, useMilliseconds ) => {
  *
  * @method
  * @param {Object} object
- * @param {function} [replacer]
+ * @param {function( Object ): Object} [replacer]
  * @returns {Object}
  * @public
  */
@@ -315,7 +390,7 @@ module.exports.retrocycle = ( $ ) => {
  *
  * @method
  * @param {Object} value
- * @return {string}
+ * @returns {string|*}
  * @public
  */
 module.exports.stringifyJSON = ( value ) => {
@@ -345,7 +420,7 @@ module.exports.isJsonString = ( string ) => {
  *
  * @method
  * @param {string} value
- * @return {Object}
+ * @returns {Object|string}
  * @public
  */
 module.exports.parseJSON = ( value ) => {
@@ -364,7 +439,7 @@ module.exports.parseJSON = ( value ) => {
  *
  * @param {Object} input
  * @recursion
- * @return {string|null}
+ * @returns {string|null}
  * @public
  */
 module.exports.decomposeJSON = ( input ) => {
@@ -400,50 +475,6 @@ module.exports.decomposeJSON = ( input ) => {
 };
 
 /**
- * Used to create a CSV file from the provided data.
- *
- * @method
- * @param {Object[]} data
- * @param {string} filePath
- * @param {string} fileName
- * @return {Promise}
- * @public
- */
-module.exports.createCSVFile = ( data, filePath, fileName ) => {
-    return new Promise( ( resolve, reject ) => {
-        let fileData = "";
-        if ( data && data.length > 0 ) {
-            let keys = [];
-            _.forOwn( data[ 0 ], ( value, key ) => {
-                keys.push( key );
-            } );
-            keys.sort();
-
-            _.forEach( keys, ( key, idx ) => {
-                fileData += key + ( ( idx < keys.length - 1 ) ? "," : "" );
-            } );
-            fileData += "\n";
-
-            _.forEach( data, ( entry ) => {
-                _.forEach( keys, ( key, idx ) => {
-                    fileData += entry[ key ] + ( ( idx < keys.length - 1 ) ? "," : "" );
-                } );
-                fileData += "\n";
-            } );
-        }
-
-        fs.ensureDir( filePath ).then( () => {
-            const fullPath = filePath + "/" + Date.now() + "-" + fileName + ".csv";
-            return fs.appendFile( fullPath, fileData );
-        } ).then( () => {
-            resolve();
-        } ).catch( ( error ) => {
-            reject( error );
-        } );
-    } );
-};
-
-/**
  * Used to create retry policy for the execution of an operation.
  *
  * @class RetryPolicy
@@ -457,8 +488,12 @@ class RetryPolicy {
 
     /**
      * @constructor
+     * @param {number} maxAttempts The maximum number of attempts to execute the operation.
      */
     constructor( maxAttempts ) {
+        if ( !Number.isInteger( maxAttempts ) || maxAttempts < 1 ) {
+            throw new TypeError( "maxAttempts must be a positive integer" );
+        }
         this.#maxAttempts = maxAttempts;
     }
 
@@ -468,13 +503,13 @@ class RetryPolicy {
      * Used to start execution of the provided operation.
      *
      * @method
-     * @param {Object} context The context in which the operation will be executed (i.e. this reference).
-     * @param {function} operation Operation to be executed; has to return a Promise.
-     * @param {Array} params The arguments to be provided to the operation upon execution.
+     * @param {Object} context The context in which the operation will be executed (i.e., this reference).
+     * @param {function( ...* ): Promise<*>} operation Operation to be executed; must return a Promise.
+     * @param {Array<*>} [params=[]] The arguments to be provided to the operation upon execution.
      * @returns {Promise}
      * @public
      */
-    execute( context, operation, params ) {
+    execute( context, operation, params = [] ) {
         return this.#retry( context, operation, params, 1, undefined );
     }
 
@@ -495,7 +530,7 @@ class RetryPolicy {
      * Used to register a method that will be automatically called on each execution retry (after the initial one).
      *
      * @method
-     * @param {function( number )} action The current attempt number will be provided as an argument.
+     * @param {function( number, (Error|undefined) )} action The current attempt and last error are provided.
      * @public
      */
     onRetry( action ) {
@@ -511,8 +546,8 @@ class RetryPolicy {
      *
      * @method
      * @param {Object} context
-     * @param {function} operation
-     * @param {Array} params
+     * @param {function( ...* ): Promise<*>} operation Operation to be executed; must return a Promise.
+     * @param {Array<*>} params The arguments to be provided to the operation upon execution.
      * @param {number} attempt
      * @param {Error} error
      * @returns {Promise}
@@ -523,14 +558,25 @@ class RetryPolicy {
             return Promise.reject( error );
         } else {
             if ( attempt > 1 && this.#onRetry ) {
-                this.#onRetry( attempt );
-            }
-            return operation.apply( context, params ).catch( error => {
-                if ( this.#onFailedAttempt ) {
-                    this.#onFailedAttempt( error );
+                try {
+                    this.#onRetry( attempt, error );
+                } catch ( _ ) { /* ignore observer errors */
                 }
-                return this.#retry( context, operation, params, ( attempt - 1 ), error );
-            } );
+            }
+            return Promise
+                .resolve()
+                .then( () => {
+                    return operation.apply( context, params );
+                } )
+                .catch( ( error ) => {
+                    if ( this.#onFailedAttempt ) {
+                        try {
+                            this.#onFailedAttempt( error );
+                        } catch ( _ ) { /* ignore observer errors */
+                        }
+                    }
+                    return this.#retry( context, operation, params, ( attempt + 1 ), error );
+                } );
         }
     }
 

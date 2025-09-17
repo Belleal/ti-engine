@@ -11,6 +11,11 @@ const logger = require( "@ti-engine/core/logger" );
 const path = require( "node:path" );
 const fs = require( "node:fs" );
 
+const RE_NONCE_ATTR = /nonce="{ti-nonce-placeholder}"/g;
+const RE_INLINE_SCRIPT_NONCE = /"inlineScriptNonce":"{ti-nonce-placeholder}"/g;
+const RE_INLINE_STYLE_NONCE = /"inlineStyleNonce":"{ti-nonce-placeholder}"/g;
+const RE_CSP_NONCE = /^[A-Za-z0-9+\/=_-]{16,}$/;
+
 class WebAppManager {
 
     #webAppIdentifier = null;
@@ -33,12 +38,26 @@ class WebAppManager {
      *
      * @method
      * @param {string} html
-     * @returns {string}
+     * @param {Object} [options]
+     * @param {boolean} [options.isHome] Optional flag to indicate whether the requested route is the home page.
+     * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
+     * @returns {Promise<string>}
      * @virtual
      * @public
      */
-    transformHtml( html ) {
-        return html;
+    transformHtml( html, options = {} ) {
+        const nonce = options?.nonce;
+        let transformedHtml = String( html );
+        if ( typeof nonce === "string" && RE_CSP_NONCE.test( nonce ) ) {
+            transformedHtml = transformedHtml.replace( RE_NONCE_ATTR, `nonce="${ nonce }"` );
+            if ( options.isHome ) {
+                transformedHtml = transformedHtml
+                    .replace( RE_INLINE_SCRIPT_NONCE, `"inlineScriptNonce":"${ nonce }"` )
+                    .replace( RE_INLINE_STYLE_NONCE, `"inlineStyleNonce":"${ nonce }"` );
+            }
+        }
+
+        return Promise.resolve( transformedHtml );
     }
 
     /**
@@ -48,17 +67,22 @@ class WebAppManager {
      * @param {Object} session
      * @param {string} fullPublicPath
      * @param {string} route
+     * @param {Object} [options]
+     * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
      * @returns {Promise<string>}
      * @public
      */
-    getHtmlFragment( session, fullPublicPath, route ) {
+    getHtmlFragment( session, fullPublicPath, route, options = {} ) {
         return new Promise( ( resolve, reject ) => {
             let fragment = null;
+            const localOptions = ( options && typeof options === "object" ) ? { ...options } : {};
             switch ( route ) {
                 case '/': {
                     fragment = this.#fragments[ 'home' ];
+                    localOptions.isHome = true;
                 }
                     break;
+                case '/app':
                 case '/enter': {
                     fragment = ( session && session.user )
                         ? this.#fragments[ 'application-main' ]
@@ -72,6 +96,8 @@ class WebAppManager {
 
             this.#verifyAccess( session, fragment ).then( () => {
                 return this.#loadHtmlFragment( path.join( fullPublicPath, fragment.path ) );
+            } ).then( ( fileData ) => {
+                return this.transformHtml( fileData, localOptions );
             } ).then( ( fileData ) => {
                 resolve( fileData );
             } ).catch( ( error ) => {
@@ -92,13 +118,8 @@ class WebAppManager {
      */
     #loadHtmlFragment( filePath ) {
         return new Promise( ( resolve, reject ) => {
-            fs.promises.stat( filePath ).then( ( stat ) => {
-                if ( !stat.isFile() ) {
-                    throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI );
-                }
-                return fs.promises.readFile( filePath, "utf8" );
-            } ).then( ( data ) => {
-                resolve( this.transformHtml( data ) );
+            fs.promises.readFile( filePath, "utf8" ).then( ( fileData ) => {
+                resolve( fileData );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );

@@ -8,9 +8,9 @@
 
 const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
+const { randomBytes } = require( "node:crypto" );
 const URL = require( "node:url" ).URL;
-const path = require( "node:path" );
-const fs = require( "node:fs" );
+const helmet = require( "helmet" );
 
 /**
  * Express middleware callback.
@@ -47,7 +47,7 @@ module.exports.onShutDownHandler = ( instance ) => {
             next();
         } else {
             response.set( "Connection", "close" );
-            response.status( 503 ).send( {
+            response.status( exceptions.httpCode.C_503 ).send( {
                 isSuccessful: false
             } );
         }
@@ -67,7 +67,7 @@ module.exports.resourceProtectionHandler = ( instance ) => {
         if ( instance.isUnprotectedRoute( request.url ) || instance.verifySession( request.session ) ) {
             next();
         } else {
-            response.status( 403 ).send( {
+            response.status( exceptions.httpCode.C_403 ).send( {
                 isSuccessful: false
             } );
         }
@@ -91,7 +91,7 @@ module.exports.authenticationHandler = ( instance ) => {
             request.session.user = { id: `local:${ username }`, name: username };
             response.redirect( "/" );
         } else {
-            response.status( 401 ).send( {
+            response.status( exceptions.httpCode.C_401 ).send( {
                 isSuccessful: false
             } );
         }
@@ -128,9 +128,9 @@ module.exports.logoutHandler = () => {
 module.exports.userInformationHandler = () => {
     return ( request, response, next ) => {
         if ( request.session && request.session.user ) {
-            response.status( 200 ).send( { isSuccessful: true, user: request.session.user } );
+            response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, user: request.session.user } );
         } else {
-            response.status( 401 ).send( { isSuccessful: false } );
+            response.status( exceptions.httpCode.C_401 ).send( { isSuccessful: false } );
         }
     };
 };
@@ -151,11 +151,12 @@ module.exports.httpRedirectHandler = ( instance ) => {
             next();
         } else {
             if ( instance.isAllowedHost( request.hostname ) !== true ) {
-                response.status( 404 ).end();
+                response.status( exceptions.httpCode.C_404 ).end();
             } else {
-                const location = new URL( request.url, "https://" + request.host );
+                const host = request.get ? request.get( "host" ) : request.headers.host;
+                const location = new URL( request.url, "https://" + host );
                 response.set( "Cache-Control", "no-store" );
-                response.redirect( 308, location );
+                response.redirect( exceptions.httpCode.C_308, location );
             }
         }
     }
@@ -176,14 +177,14 @@ module.exports.serviceCallHandler = ( instance ) => {
         let serviceAddress = instance.getServiceAddress( request.params.version, request.params.name );
         if ( !serviceAddress ) {
             let exception = exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI );
-            exception.httpCode = 404;
+            exception.httpCode = exceptions.httpCode.C_404;
             next( exception );
         } else {
             request.setTimeout( instance.serviceConfig.api.requestTimeout );
             instance.callService( serviceAddress, request.body || {}, {
                 authToken: request.sessionID,
             } ).then( ( result ) => {
-                response.status( result.isSuccessful ? 200 : ( ( result.exception && result.exception.httpCode ) ? result.exception.httpCode : 400 ) ).send( result );
+                response.status( result.isSuccessful ? exceptions.httpCode.C_200 : ( ( result.exception && result.exception.httpCode ) ? result.exception.httpCode : exceptions.httpCode.C_400 ) ).send( result );
             } ).catch( ( error ) => {
                 next( error );
             } );
@@ -201,14 +202,14 @@ module.exports.serviceCallHandler = ( instance ) => {
 module.exports.invalidRouteHandler = () => {
     return ( request, response, next ) => {
         logger.log( `Received request to an invalid route: "${ request.originalUrl }"`, logger.logSeverity.ERROR, exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI ) );
-        response.status( 404 ).send( {
+        response.status( exceptions.httpCode.C_404 ).send( {
             isSuccessful: false
         } );
     };
 };
 
 /**
- * Handler to intercept any errors that have not been resolved by previous middleware. Should be last in the sequence.
+ * Handler to intercept any errors that have not been resolved by previous middleware. Should be the last in the sequence.
  *
  * @method
  * @returns {ExpressErrorHandler}
@@ -218,10 +219,81 @@ module.exports.defaultErrorHandler = () => {
     return ( error, request, response, next ) => {
         let exception = exceptions.raise( error );
         logger.log( "Received request caused an exception.", logger.logSeverity.ERROR, exception );
-        response.status( exception.httpCode || 500 ).send( {
+        response.status( exception.httpCode || exceptions.httpCode.C_500 ).send( {
             isSuccessful: false,
             exception: exception.asJSON( false )
         } );
+    };
+};
+
+/**
+ * Handler for generating a nonce for CSP.
+ *
+ * @method
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.nonceGenerationHandler = () => {
+    return ( request, response, next ) => {
+        if ( request.method === "GET" || request.method === "HEAD" ) {
+            try {
+                const nonce = randomBytes( 16 ).toString( "base64" );
+                request.cspNonce = nonce;
+                request.nonce = request.nonce || nonce;
+                response.locals = response.locals || {};
+                response.locals.cspNonce = nonce;
+                response.locals.nonce = response.locals.nonce || nonce;
+                next();
+            } catch ( error ) {
+                next( error );
+            }
+        } else {
+            next();
+        }
+    };
+};
+
+/**
+ * Handler for setting the Content-Security-Policy header.
+ *
+ * @method
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.cspHeaderHandler = () => {
+    return ( request, response, next ) => {
+        const nonce = response?.locals?.cspNonce;
+
+        // Build script-src directive:
+        const scriptSrc = [ "'strict-dynamic'", "'self'", "https:" ];
+        if ( nonce ) {
+            scriptSrc.push( `'nonce-${ nonce }'` );
+        }
+
+        // Build style-src-elem directive:
+        const styleSrcElem = [ "'self'", "https:" ];
+        if ( nonce ) {
+            styleSrcElem.push( `'nonce-${ nonce }'` );
+        }
+
+        // Build directives object:
+        const directives = {
+            defaultSrc: [ "'self'" ],
+            scriptSrc: scriptSrc,
+            styleSrc: [ "'self'", "https:" ],
+            styleSrcElem: styleSrcElem,
+            imgSrc: [ "'self'", "data:", "https:" ],
+            connectSrc: [ "'self'", "https:", "ws:", "wss:" ],
+            fontSrc: [ "'self'", "https:", "data:" ],
+            objectSrc: [ "'none'" ],
+            frameAncestors: [ "'self'" ]
+        };
+
+        const csp = helmet.contentSecurityPolicy( {
+            useDefaults: true,
+            directives
+        } );
+        return csp( request, response, next );
     };
 };
 
@@ -236,23 +308,27 @@ module.exports.defaultErrorHandler = () => {
 module.exports.webAppHandler = ( instance ) => {
     return ( request, response, next ) => {
         if ( request.method !== "GET" && request.method !== "HEAD" ) {
-            return next();
+            next();
         } else {
-            instance.webAppManager.getHtmlFragment( request.session, instance.fullPublicPath, request.path ).then( ( fileData ) => {
-                // Disable caches if HTML is dynamically rewritten (safer default):
+            const resLocals = ( response && response.locals ) || {};
+            const nonce = request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce;
+            // HEAD: set headers only:
+            if ( request.method === "HEAD" ) {
                 response.set( "Cache-Control", "no-store" );
                 response.set( "Content-Type", "text/html; charset=utf-8" );
-
-                if ( request.method === "HEAD" ) {
-                    response.status( 200 ).end();
-                } else {
-                    response.status( 200 ).send( fileData );
-                }
-            } ).catch( ( error ) => {
-                let exception = exceptions.raise( error );
-                exception.httpCode = 404;
-                next( exception );
-            } );
+                response.status( exceptions.httpCode.C_200 ).end();
+            } else {
+                // GET: load and render:
+                instance.webAppManager.getHtmlFragment( request.session, instance.fullPublicPath, request.path, { nonce: nonce } ).then( ( fileData ) => {
+                    response.set( "Cache-Control", "no-store" );
+                    response.set( "Content-Type", "text/html; charset=utf-8" );
+                    response.status( exceptions.httpCode.C_200 ).send( fileData );
+                } ).catch( ( error ) => {
+                    let exception = exceptions.raise( error );
+                    exception.httpCode = exceptions.httpCode.C_404;
+                    next( exception );
+                } );
+            }
         }
     };
 };

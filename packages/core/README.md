@@ -1,5 +1,11 @@
 # ti-engine core
 
+![GitHub top language](https://img.shields.io/github/languages/top/Belleal/ti-engine)
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Belleal/ti-engine)
+![npms.io (scoped package)](https://img.shields.io/npms-io/maintenance-score/%40ti-engine/core)
+![npms.io (scoped package)](https://img.shields.io/npms-io/popularity-score/%40ti-engine/core)
+![npms.io (scoped package)](https://img.shields.io/npms-io/quality-score/%40ti-engine/core)
+
 Flexible framework for the creation of microservices with [node.js](https://nodejs.org/).
 
 ## Introduction
@@ -27,7 +33,7 @@ Being a messaging system, the **ti-engine** relies on a message broker for the a
 
 To run the basic **ti-engine** framework, you will need a couple of things:
 
-* A local [node.js installation](https://nodejs.org/en/download/) with a minimum version of **14.17.0**
+* A local [node.js installation](https://nodejs.org/en/download/) with a minimum version of **18.0.0**
 * A local or remote [Redis cache installation](https://redis.io/download) with a minimum version of **5.0.14**
 
 If you are working under Windows 10+ OS and you need to install Redis, take a look at this [guide](https://redis.com/blog/redis-on-windows-10/). You could also use [Redis Cloud](https://app.redislabs.com/) for development as it offers a free basic account. You can configure your connection to a remote Redis server using the following ENV variables:
@@ -320,9 +326,9 @@ Now let's start the new microservice with `node .\node_modules\@ti-engine\core\b
 
 ```text
 [timestamp]: [instance-id] - notice - Starting new instance of type 'my-service' with instance ID '[instance-id]'.
-[timestamp]: [instance-id] - info - Connection to Redis server 127.0.0.1:6379 (re)established by client 'connection-msg-responses-in' and is ready to be used.
-[timestamp]: [instance-id] - info - Connection to Redis server 127.0.0.1:6379 (re)established by client 'connection-msg-requests-out' and is ready to be used.
-[timestamp]: [instance-id] - info - Connection to Redis server 127.0.0.1:6379 (re)established by client 'system-cache' and is ready to be used.
+[timestamp]: [instance-id] - info - Connection to Redis server '127.0.0.1:6379' established by client 'system-cache' and is ready to be used.
+[timestamp]: [instance-id] - info - Connection to Redis server '127.0.0.1:6379' established by client 'connection-msg-responses-in' and is ready to be used.
+[timestamp]: [instance-id] - info - Connection to Redis server '127.0.0.1:6379' established by client 'connection-msg-requests-out' and is ready to be used.
 ```
 
 If you haven't started anything else, this is all you should see at this point.
@@ -331,10 +337,10 @@ Now without exiting this node process, let's start the original tester microserv
 
 ```text
 ...
-[timestamp]: [instance-id] - notice - Execution of service2 result:
-   » {"isSuccessful":true,"payload":{"s1Timestamp":[timestamp],"s2TimestampStart":[timestamp],"s2TimestampEnd":[timestamp]}}
 [timestamp]: [instance-id] - notice - Instance [instance-id] started successfully.
    » {"nodeVersion":[node-version]}
+[timestamp]: [instance-id] - notice - Execution of service2 result:
+   » {"isSuccessful":true,"payload":{"s1Timestamp":[timestamp],"s2TimestampStart":[timestamp],"s2TimestampEnd":[timestamp]}}
 ```
 
 This means the service call processing was successful and a result was returned to `my-service`. Because we made the receiving of the result blocking and part of the initialization sequence, the new microservice did not report successful startup until it received that response from `ti-tester-service`.

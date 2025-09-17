@@ -11,9 +11,9 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const logger = require( "@ti-engine/core/logger" );
 const { randomBytes } = require( "node:crypto" );
 const path = require( "node:path" );
-const fs = require( "node:fs" );
 const http = require( "node:http" );
 const https = require( "node:https" );
+const fs = require( "node:fs" );
 const _ = require( "lodash" );
 const express = require( "express" );
 const helmet = require( "helmet" );
@@ -63,14 +63,14 @@ const WebAppManager = require( "#web-app-manager" );
  */
 class TiWebServer extends ServiceConsumer {
 
-    #webServer = null;
-    #netServer = null;
+    #webServer;
+    #netServer;
     #serverUrl = "";
     #isShuttingDown = false;
     #fullPublicPath = "";
     #allowedHosts = [];
     #unprotectedRoutes = [];
-    #webAppManager = null;
+    #webAppManager;
     #localAuthentication = {
         username: undefined,
         password: undefined,
@@ -176,31 +176,12 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer = express();
                 this.#webServer.set( "trust proxy", true );
 
-                // Set up 'helmet' and 'session' middlewares first:
+                // Set up security and session middlewares first:
+                this.#webServer.use( webHandlers.nonceGenerationHandler() );
                 this.#webServer.use( helmet( {
-                    contentSecurityPolicy: {
-                        useDefaults: true,
-                        // Content Security Policy directives:
-                        // - defaultSrc: Fallback for all resource types not explicitly listed; only allow same-origin.
-                        // - scriptSrc: Allow scripts from same-origin and any HTTPS origin; blocks inline scripts by default.
-                        // - styleSrc: Allow styles from same-origin and HTTPS; 'unsafe-inline' is permitted to support inline styles.
-                        // - imgSrc: Allow images from same-origin, HTTPS, and data URIs (for small inline images like icons).
-                        // - connectSrc: Control where XHR/fetch/WebSocket connections can be made; restrict to same-origin and HTTPS APIs.
-                        // - fontSrc: Allow web fonts from same-origin, HTTPS, and data URIs.
-                        // - objectSrc: Disallow plugins such as <object>, <embed>, <applet> by setting to 'none'.
-                        // - frameAncestors: Restrict who can embed this site in frames/iframes; 'self' prevents clickjacking from other origins.
-                        directives: {
-                            defaultSrc: [ "'self'" ],
-                            scriptSrc: [ "'self'", "https:", "'unsafe-eval'" ],
-                            styleSrc: [ "'self'", "https:", "'unsafe-inline'" ],
-                            imgSrc: [ "'self'", "data:", "https:" ],
-                            connectSrc: [ "'self'", "https:", "ws:", "wss:" ],
-                            fontSrc: [ "'self'", "https:", "data:" ],
-                            objectSrc: [ "'none'" ],
-                            frameAncestors: [ "'self'" ]
-                        }
-                    }
+                    contentSecurityPolicy: false
                 } ) );
+                this.#webServer.use( webHandlers.cspHeaderHandler() );
                 this.#webServer.use( express.json() );
                 this.#webServer.use( express.urlencoded( { extended: false } ) );
                 this.#webServer.use( session( {
@@ -219,21 +200,35 @@ class TiWebServer extends ServiceConsumer {
                 } ) );
 
                 // Create and configure the net server for HTTPS if enabled in the service config:
-                let netServerOptions = {
-                    requestTimeout: _.max( [ this.serviceConfig.api.requestTimeout, this.serviceConfig.requestTimeout ] )
-                };
+                let netServerOptions = {};
+                const timeoutCandidates = [
+                    this.serviceConfig.api.requestTimeout,
+                    this.serviceConfig.requestTimeout
+                ].filter( ( value ) => Number.isFinite( value ) );
+                const resolvedRequestTimeout = timeoutCandidates.length ? Math.max( ...timeoutCandidates ) : undefined;
                 if ( this.serviceConfig.useTLS === true ) {
-                    try {
-                        netServerOptions.key = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsKeyPath ) );
-                        netServerOptions.cert = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsCertPath ) );
-                    } catch ( error ) {
-                        logger.log( "Failed to read and load the TLS key/cert files.", logger.logSeverity.ERROR, error );
-                        throw exceptions.raise( error );
+                    if ( !this.serviceConfig.tlsKeyPath || !this.serviceConfig.tlsCertPath ) {
+                        let exception = exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, {
+                            tlsKeyPath: this.serviceConfig.tlsKeyPath,
+                            tlsCertPath: this.serviceConfig.tlsCertPath
+                        } );
+                        exception.httpCode = exceptions.httpCode.C_500;
+                        throw exception;
                     }
+                    netServerOptions.key = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsKeyPath ) );
+                    netServerOptions.cert = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsCertPath ) );
+
                     this.#webServer.use( webHandlers.httpRedirectHandler( this ) );
                     this.#netServer = https.createServer( netServerOptions, this.#webServer );
                 } else {
                     this.#netServer = http.createServer( netServerOptions, this.#webServer );
+                }
+                if ( Number.isFinite( resolvedRequestTimeout ) ) {
+                    this.#netServer.requestTimeout = resolvedRequestTimeout;
+                    this.#netServer.headersTimeout = resolvedRequestTimeout + 100;
+                    if ( typeof this.#netServer.keepAliveTimeout === "number" ) {
+                        this.#netServer.keepAliveTimeout = resolvedRequestTimeout + 1000;
+                    }
                 }
 
                 // Set up the web server routes:
@@ -432,18 +427,27 @@ class TiWebServer extends ServiceConsumer {
      */
     #endListening( server ) {
         return new Promise( ( resolve, reject ) => {
-            // Close the server:
-            server.close( ( error ) => {
-                if ( error ) {
-                    reject( exceptions.raise( error ) );
-                } else {
-                    resolve();
-                }
-            } );
-            // Close all connections after a short delay to allow all requests to complete:
-            setTimeout( () => {
-                server.closeAllConnections();
-            }, 1000 );
+            if ( !server ) {
+                resolve();
+            } else {
+                // Close all connections after a short delay to allow all requests to complete:
+                setTimeout( () => {
+                    if ( typeof server.closeIdleConnections === "function" ) {
+                        server.closeIdleConnections();
+                    }
+                    if ( typeof server.closeAllConnections === "function" ) {
+                        server.closeAllConnections();
+                    }
+                }, 1000 );
+
+                server.close( ( error ) => {
+                    if ( error ) {
+                        reject( exceptions.raise( error ) );
+                    } else {
+                        resolve();
+                    }
+                } );
+            }
         } );
     }
 
