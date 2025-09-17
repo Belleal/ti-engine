@@ -44,27 +44,30 @@ module.exports.getUUID = () => {
  * @public
  */
 module.exports.enum = ( seed ) => {
-    const enumObject = {};
+    const enumObject = Object.create( null );
     const properties = Object.create( null );
+    const reserved = new Set( [ "properties", "name", "description", "contains", "__proto__", "prototype", "constructor" ] );
 
     _.forOwn( seed, ( value, key ) => {
-        if ( Array.isArray( value ) ) {
-            enumObject[ key ] = value[ 0 ];
-            properties[ value[ 0 ] ] = {
-                value: value[ 0 ],
-                name: value[ 1 ],
-                description: value[ 2 ]
-            };
-        } else {
-            properties[ value ] = {
-                value: value,
-                name: key
-            };
+        if ( !reserved.has( key ) ) {
+            if ( Array.isArray( value ) ) {
+                enumObject[ key ] = value[ 0 ];
+                properties[ value[ 0 ] ] = {
+                    value: value[ 0 ],
+                    name: value[ 1 ],
+                    description: value[ 2 ]
+                };
+            } else {
+                enumObject[ key ] = value;
+                properties[ value ] = {
+                    value: value,
+                    name: key
+                };
+            }
         }
     } );
     Object.values( properties ).forEach( Object.freeze );
     Object.freeze( properties );
-    enumObject.properties = properties;
 
     /**
      * Used to get the name of an {@link TiEnumValue} if such value exists.
@@ -75,8 +78,8 @@ module.exports.enum = ( seed ) => {
      * @returns {string|undefined}
      * @public
      */
-    enumObject.name = ( value, placeholder = undefined ) => {
-        return ( enumObject.properties[ value ] ) ? enumObject.properties[ value ].name : placeholder;
+    const name = ( value, placeholder = undefined ) => {
+        return ( properties[ value ] ) ? properties[ value ].name : placeholder;
     };
 
     /**
@@ -88,11 +91,11 @@ module.exports.enum = ( seed ) => {
      * @returns {string|undefined}
      * @public
      */
-    enumObject.description = ( value, placeholder = undefined ) => {
-        if ( !enumObject.properties[ value ] ) {
+    const description = ( value, placeholder = undefined ) => {
+        if ( !properties[ value ] ) {
             return placeholder;
         } else {
-            return ( enumObject.properties[ value ].description !== undefined ) ? enumObject.properties[ value ].description : placeholder;
+            return ( properties[ value ].description !== undefined ) ? properties[ value ].description : placeholder;
         }
     };
 
@@ -104,11 +107,38 @@ module.exports.enum = ( seed ) => {
      * @returns {boolean}
      * @public
      */
-    enumObject.contains = ( value ) => {
-        return !!( enumObject.properties[ value ] );
+    const contains = ( value ) => {
+        return !!( properties[ value ] );
     };
 
+    Object.defineProperties( enumObject, {
+        contains: {
+            enumerable: false,
+            configurable: false,
+            writable: false,
+            value: contains
+        },
+        description: {
+            enumerable: false,
+            configurable: false,
+            writable: false,
+            value: description
+        },
+        name: {
+            enumerable: false,
+            configurable: false,
+            writable: false,
+            value: name
+        },
+        properties: {
+            enumerable: false,
+            configurable: false,
+            writable: false,
+            value: properties
+        }
+    } );
     Object.freeze( enumObject );
+
     return enumObject;
 };
 
@@ -170,7 +200,7 @@ module.exports.toBool = ( value ) => {
 };
 
 /**
- * Will return UTC date string in format YYYY-MM-DD from the provided date.
+ * Will return a UTC date string in format YYYY-MM-DD from the provided date.
  *
  * @method
  * @param {Date} date
@@ -178,15 +208,14 @@ module.exports.toBool = ( value ) => {
  * @public
  */
 module.exports.getUTCDateString = ( date ) => {
-    let year = date.getUTCFullYear();
-    let month = ( "00" + ( date.getUTCMonth() + 1 ) ).match( /\d{2}$/ );
-    let day = ( "00" + date.getUTCDate() ).match( /\d{2}$/ );
-
-    return String( year + "-" + month + "-" + day );
+    const year = date.getUTCFullYear();
+    const month = String( date.getUTCMonth() + 1 ).padStart( 2, "0" );
+    const day = String( date.getUTCDate() ).padStart( 2, "0" );
+    return `${ year }-${ month }-${ day }`;
 };
 
 /**
- * Will return UTC time string in format hh:mm:ss.MMM from the provided date.
+ * Will return a UTC time string in format hh:mm:ss, or hh:mm:ss.MMM when useMilliseconds is true.
  *
  * @method
  * @param {Date} date
@@ -195,12 +224,11 @@ module.exports.getUTCDateString = ( date ) => {
  * @public
  */
 module.exports.getUTCTimeString = ( date, useMilliseconds = false ) => {
-    let hours = ( "00" + date.getUTCHours() ).match( /\d{2}$/ );
-    let minutes = ( "00" + date.getUTCMinutes() ).match( /\d{2}$/ );
-    let seconds = ( "00" + date.getUTCSeconds() ).match( /\d{2}$/ );
-    let milliseconds = ( "000" + date.getUTCMilliseconds() ).match( /\d{3}$/ );
-
-    return String( hours + ":" + minutes + ":" + seconds + ( ( useMilliseconds ) ? "." + milliseconds : "" ) );
+    const hours = String( date.getUTCHours() ).padStart( 2, "0" );
+    const minutes = String( date.getUTCMinutes() ).padStart( 2, "0" );
+    const seconds = String( date.getUTCSeconds() ).padStart( 2, "0" );
+    const milliseconds = String( date.getUTCMilliseconds() ).padStart( 3, "0" );
+    return `${ hours }:${ minutes }:${ seconds }${ useMilliseconds ? `.${ milliseconds }` : "" }`;
 };
 
 /**
@@ -471,8 +499,8 @@ class RetryPolicy {
      * Used to start execution of the provided operation.
      *
      * @method
-     * @param {Object} context The context in which the operation will be executed (i.e. this reference).
-     * @param {function} operation Operation to be executed; has to return a Promise.
+     * @param {Object} context The context in which the operation will be executed (i.e., this reference).
+     * @param {function: Promise} operation Operation to be executed; has to return a Promise.
      * @param {Array} params The arguments to be provided to the operation upon execution.
      * @returns {Promise}
      * @public
@@ -514,7 +542,7 @@ class RetryPolicy {
      *
      * @method
      * @param {Object} context
-     * @param {function} operation
+     * @param {function: Promise} operation
      * @param {Array} params
      * @param {number} attempt
      * @param {Error} error
@@ -528,12 +556,17 @@ class RetryPolicy {
             if ( attempt > 1 && this.#onRetry ) {
                 this.#onRetry( attempt );
             }
-            return operation.apply( context, params ).catch( error => {
-                if ( this.#onFailedAttempt ) {
-                    this.#onFailedAttempt( error );
-                }
-                return this.#retry( context, operation, params, ( attempt + 1 ), error );
-            } );
+            return Promise
+                .resolve()
+                .then( () => {
+                    return operation.apply( context, params );
+                } )
+                .catch( ( error ) => {
+                    if ( this.#onFailedAttempt ) {
+                        this.#onFailedAttempt( error );
+                    }
+                    return this.#retry( context, operation, params, ( attempt + 1 ), error );
+                } );
         }
     }
 
