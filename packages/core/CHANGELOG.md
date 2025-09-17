@@ -11,6 +11,7 @@ This document will contain the list of changes made to the framework. The format
 * refactor(exceptions): ensure `httpCode` setter accepts only valid values
 * refactor(tools): deprecate method `getEnumName`. Use `name` property of the enum object itself
 * refactor(tools)!: remove method `createCSVFile` as it is unnecessary for the framework's operation. It also eliminates the dependency from `fs-extra` package
+* refactor(tools): ensure reserved keys cannot be used as enum names and make all properties non-enumerable
 * fix(tools): fix a bug in the `RetryPolicy` class that caused the `maxAttempts` property to be ignored
 * build(npm): update npm dependencies to their latest versions
 * build(npm): remove `fs-extra` package as it is not used by the framework
