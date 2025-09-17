@@ -558,7 +558,10 @@ class RetryPolicy {
             return Promise.reject( error );
         } else {
             if ( attempt > 1 && this.#onRetry ) {
-                this.#onRetry( attempt, error );
+                try {
+                    this.#onRetry( attempt, error );
+                } catch ( _ ) { /* ignore observer errors */
+                }
             }
             return Promise
                 .resolve()
@@ -567,7 +570,10 @@ class RetryPolicy {
                 } )
                 .catch( ( error ) => {
                     if ( this.#onFailedAttempt ) {
-                        this.#onFailedAttempt( error );
+                        try {
+                            this.#onFailedAttempt( error );
+                        } catch ( _ ) { /* ignore observer errors */
+                        }
                     }
                     return this.#retry( context, operation, params, ( attempt + 1 ), error );
                 } );
