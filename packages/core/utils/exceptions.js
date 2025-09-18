@@ -14,6 +14,7 @@ const tools = require( "#tools" );
  *
  * @readonly
  * @enum {number}
+ * @typedef {number} TiExceptionCode
  */
 const exceptionCodeEnum = tools.enum( {
     E_UNKNOWN_ERROR: [ 0, "unknown error", "Unidentified error encountered or unrecognized exception code provided." ],
@@ -54,11 +55,14 @@ const exceptionCodeEnum = tools.enum( {
     E_WEB_INVALID_REQUEST_CONTENT_ENCODING: [ 4009, "invalid request content encoding", "The request content encoding is not recognized or not supported." ]
 } );
 
+module.exports.exceptionCode = exceptionCodeEnum;
+
 /**
  * Enum for listing all HTTP codes.
  *
  * @readonly
  * @enum {number}
+ * @typedef {number} TiHttpCode
  */
 const httpCodeEnum = tools.enum( {
     /** 1xx informational response */
@@ -127,14 +131,6 @@ const httpCodeEnum = tools.enum( {
     C_511: [ 511, "Network Authentication Required", "The client needs to authenticate to gain network access. Intended for use by intercepting proxies used to control access to the network." ]
 } );
 
-/**
- * @typedef {number} TiExceptionCode
- */
-module.exports.exceptionCode = exceptionCodeEnum;
-
-/**
- * @typedef {number} TiHttpCode
- */
 module.exports.httpCode = httpCodeEnum;
 
 const labelPath = "system.exceptions.";

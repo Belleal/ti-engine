@@ -112,6 +112,7 @@ const tools = require( "#tools" );
  *
  * @readonly
  * @enum {string} Keys of this ENUM are strings.
+ * @typedef {string} TiSetting
  */
 const settingsEnum = tools.enum( {
     AUDITING_LOG_CONSOLE_ENABLED: [ "auditing.logConsoleEnabled", "logConsoleEnabled", "" ],
@@ -144,9 +145,6 @@ const settingsEnum = tools.enum( {
     OPERATION_MODE: [ "operationMode", "operationMode", "" ]
 } );
 
-/**
- * @typedef {string} TiSetting
- */
 module.exports.setting = settingsEnum;
 
 /** @type {SettingsMain} */

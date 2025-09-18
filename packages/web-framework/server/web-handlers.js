@@ -84,12 +84,24 @@ module.exports.resourceProtectionHandler = ( instance ) => {
  */
 module.exports.authenticationHandler = ( instance ) => {
     return ( request, response, next ) => {
-        const username = String( ( request.body && request.body.username ) || "" ).trim();
-        const password = String( ( request.body && request.body.password ) || "" );
+        const method = request.params.method;
+        if ( method === "local" ) {
+            const username = String( ( request.body && request.body.username ) || "" ).trim();
+            const password = String( ( request.body && request.body.password ) || "" );
 
-        if ( instance.localAuthentication( username, password ) ) {
-            request.session.user = { id: `local:${ username }`, name: username };
-            response.redirect( "/" );
+            if ( instance.localAuthentication( username, password ) === true ) {
+                request.session.user = { id: `local:${ username }`, name: username };
+                response.redirect( "/" );
+            } else {
+                response.status( exceptions.httpCode.C_401 ).send( {
+                    isSuccessful: false
+                } );
+            }
+        } else if ( method === "openid-google" ) {
+            // TODO: Implement OpenID Connect authentication.
+            response.status( exceptions.httpCode.C_401 ).send( {
+                isSuccessful: false
+            } );
         } else {
             response.status( exceptions.httpCode.C_401 ).send( {
                 isSuccessful: false

@@ -18,19 +18,20 @@ const _ = require( "lodash" );
 const express = require( "express" );
 const helmet = require( "helmet" );
 const session = require( "express-session" );
-const SessionStore = require( "#session-store" );
 const webHandlers = require( "#web-handlers" );
+const SessionStore = require( "#session-store" );
 const WebAppManager = require( "#web-app-manager" );
+const AuthManager = require( "#auth-manager" );
 
 /**
  * @typedef {ServiceConfiguration} WebServiceConfiguration
  * @property {ApiConfig} api
+ * @property {SettingsAuth} auth
  * @property {SettingsCookies} cookies
  * @property {string} host
  * @property {number} port
  * @property {string} publicPath
  * @property {number} requestTimeout
- * @property {SettingsSession} session
  * @property {string} tlsCertPath
  * @property {string} tlsKeyPath
  * @property {boolean} useTLS
@@ -43,16 +44,18 @@ const WebAppManager = require( "#web-app-manager" );
  */
 
 /**
+ * @typedef {Object} SettingsAuth
+ * @property {string[]} enabledMethods
+ * @property {Object} oauth2
+ */
+
+/**
  * @typedef {Object} SettingsCookies
  * @property {string} secret
  */
 
 /**
  * @typedef {Record<string, Record<string, ServiceAddress>>} ApiInventory
- */
-
-/**
- * @typedef {Object} SettingsSession
  */
 
 /**
@@ -71,11 +74,7 @@ class TiWebServer extends ServiceConsumer {
     #allowedHosts = [];
     #unprotectedRoutes = [];
     #webAppManager;
-    #localAuthentication = {
-        username: undefined,
-        password: undefined,
-        enabled: false
-    };
+    #authManager;
 
     /**
      * @constructor
@@ -107,11 +106,7 @@ class TiWebServer extends ServiceConsumer {
         }
 
         this.#webAppManager = new WebAppManager( "web-application" );
-
-        // TODO: For testing purposes only! Remove this later!
-        this.#localAuthentication.username = "admin";
-        this.#localAuthentication.password = "admin";
-        this.#localAuthentication.enabled = true;
+        this.#authManager = new AuthManager( this.serviceConfig.auth );
     }
 
     /* Public interface */
@@ -240,7 +235,7 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.use( "/static", express.static( this.#fullPublicPath, { maxAge: "1y", immutable: true } ) );
                 this.#webServer.use( "/app", webHandlers.webAppHandler( this ) );
 
-                this.#webServer.post( "/login", webHandlers.authenticationHandler( this ) );
+                this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
                 this.#webServer.post( "/logout", webHandlers.logoutHandler() );
                 this.#webServer.get( "/me", webHandlers.userInformationHandler() );
 
@@ -250,7 +245,8 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.all( "*splat", webHandlers.invalidRouteHandler() );
                 this.#webServer.use( webHandlers.defaultErrorHandler() );
 
-                // Start listening for requests:
+                return this.#authManager.initialize();
+            } ).then( () => {
                 return this.#beginListening( this.#netServer, this.serviceConfig.port, this.serviceConfig.host );
             } ).then( ( server ) => {
                 if ( server.listening === true ) {
@@ -325,12 +321,7 @@ class TiWebServer extends ServiceConsumer {
      * @public
      */
     localAuthentication( username, password ) {
-        // TODO: Implement this!
-        if ( this.#localAuthentication.enabled === true ) {
-            return ( username === this.#localAuthentication.username && password === this.#localAuthentication.password );
-        } else {
-            return false;
-        }
+        return this.#authManager.localAuthentication( username, password );
     }
 
     /**
@@ -384,7 +375,7 @@ class TiWebServer extends ServiceConsumer {
                 pattern.lastIndex = 0;
                 result = pattern.test( pathOnly );
             } else {
-                result = pattern === pathOnly;
+                result = ( pattern === pathOnly );
             }
             if ( result ) {
                 break;
