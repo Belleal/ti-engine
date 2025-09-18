@@ -18,19 +18,21 @@ const _ = require( "lodash" );
 const express = require( "express" );
 const helmet = require( "helmet" );
 const session = require( "express-session" );
-const SessionStore = require( "#session-store" );
 const webHandlers = require( "#web-handlers" );
+const SessionStore = require( "#session-store" );
 const WebAppManager = require( "#web-app-manager" );
+const AuthManager = require( "#auth-manager" );
+const authMethod = require( "#auth-manager" ).authMethod;
 
 /**
  * @typedef {ServiceConfiguration} WebServiceConfiguration
  * @property {ApiConfig} api
+ * @property {SettingsAuth} auth
  * @property {SettingsCookies} cookies
  * @property {string} host
  * @property {number} port
  * @property {string} publicPath
  * @property {number} requestTimeout
- * @property {SettingsSession} session
  * @property {string} tlsCertPath
  * @property {string} tlsKeyPath
  * @property {boolean} useTLS
@@ -43,16 +45,23 @@ const WebAppManager = require( "#web-app-manager" );
  */
 
 /**
+ * @typedef {Object} SettingsAuth
+ * @property {string[]} enabledMethods
+ * @property {Object} local
+ * @property {Object} oauth2
+ */
+
+/**
  * @typedef {Object} SettingsCookies
  * @property {string} secret
+ * @property {string} path
+ * @property {boolean} httpOnly
+ * @property {"lax"|"strict"|"none"} sameSite
+ * @property {number} maxAge
  */
 
 /**
  * @typedef {Record<string, Record<string, ServiceAddress>>} ApiInventory
- */
-
-/**
- * @typedef {Object} SettingsSession
  */
 
 /**
@@ -71,11 +80,7 @@ class TiWebServer extends ServiceConsumer {
     #allowedHosts = [];
     #unprotectedRoutes = [];
     #webAppManager;
-    #localAuthentication = {
-        username: undefined,
-        password: undefined,
-        enabled: false
-    };
+    #authManager;
 
     /**
      * @constructor
@@ -92,7 +97,7 @@ class TiWebServer extends ServiceConsumer {
         this.#unprotectedRoutes.push( "/" );
         this.#unprotectedRoutes.push( "/app" );
         this.#unprotectedRoutes.push( /^\/app\/(?:.+\/)*[^\/]+$/i );
-        this.#unprotectedRoutes.push( "/login" );
+        this.#unprotectedRoutes.push( /^\/login\/[^\/]+$/i );
         this.#unprotectedRoutes.push( "/logout" );
         this.#unprotectedRoutes.push( /^\/static\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
         this.#unprotectedRoutes.push( /^\/\.well-known\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
@@ -107,11 +112,7 @@ class TiWebServer extends ServiceConsumer {
         }
 
         this.#webAppManager = new WebAppManager( "web-application" );
-
-        // TODO: For testing purposes only! Remove this later!
-        this.#localAuthentication.username = "admin";
-        this.#localAuthentication.password = "admin";
-        this.#localAuthentication.enabled = true;
+        this.#authManager = new AuthManager( this.serviceConfig.auth );
     }
 
     /* Public interface */
@@ -240,9 +241,12 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.use( "/static", express.static( this.#fullPublicPath, { maxAge: "1y", immutable: true } ) );
                 this.#webServer.use( "/app", webHandlers.webAppHandler( this ) );
 
-                this.#webServer.post( "/login", webHandlers.authenticationHandler( this ) );
+                this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
                 this.#webServer.post( "/logout", webHandlers.logoutHandler() );
                 this.#webServer.get( "/me", webHandlers.userInformationHandler() );
+                if ( this.#authManager.isEnabled( authMethod.OPENID_GOOGLE ) ) {
+                    this.#webServer.get( this.#authManager.getGoogleCallbackUrl(), webHandlers.googleCallbackHandler() );
+                }
 
                 // API service proxy route (protected by auth middleware):
                 this.#webServer.post( "/service/:version/:name", webHandlers.serviceCallHandler( this ) );
@@ -250,7 +254,8 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.all( "*splat", webHandlers.invalidRouteHandler() );
                 this.#webServer.use( webHandlers.defaultErrorHandler() );
 
-                // Start listening for requests:
+                return this.#authManager.initialize();
+            } ).then( () => {
                 return this.#beginListening( this.#netServer, this.serviceConfig.port, this.serviceConfig.host );
             } ).then( ( server ) => {
                 if ( server.listening === true ) {
@@ -319,18 +324,13 @@ class TiWebServer extends ServiceConsumer {
      * Used to verify the local authentication of a request.
      *
      * @method
-     * @param {string} username
-     * @param {string} password
-     * @returns {boolean}
+     * @param {TiAuthMethod} authMethod
+     * @param {Object} [authDetails={}]
+     * @returns {Promise}
      * @public
      */
-    localAuthentication( username, password ) {
-        // TODO: Implement this!
-        if ( this.#localAuthentication.enabled === true ) {
-            return ( username === this.#localAuthentication.username && password === this.#localAuthentication.password );
-        } else {
-            return false;
-        }
+    authenticate( authMethod, authDetails = {} ) {
+        return this.#authManager.authenticate( authMethod, authDetails );
     }
 
     /**
@@ -384,7 +384,7 @@ class TiWebServer extends ServiceConsumer {
                 pattern.lastIndex = 0;
                 result = pattern.test( pathOnly );
             } else {
-                result = pattern === pathOnly;
+                result = ( pattern === pathOnly );
             }
             if ( result ) {
                 break;

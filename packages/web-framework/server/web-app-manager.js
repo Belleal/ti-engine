@@ -16,6 +16,10 @@ const RE_INLINE_SCRIPT_NONCE = /"inlineScriptNonce":"{ti-nonce-placeholder}"/g;
 const RE_INLINE_STYLE_NONCE = /"inlineStyleNonce":"{ti-nonce-placeholder}"/g;
 const RE_CSP_NONCE = /^[A-Za-z0-9+\/=_-]{16,}$/;
 
+/**
+ * @class WebAppManager
+ * @public
+ */
 class WebAppManager {
 
     #webAppIdentifier = null;

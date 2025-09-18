@@ -40,6 +40,9 @@
       "2003": {
         "en": "The system detected tampering with the message received via message exchange."
       },
+      "2004": {
+        "en": "The requested authentication method is not recognized or supported."
+      },
       "3000": {
         "en": "General error during cross-application communication."
       },

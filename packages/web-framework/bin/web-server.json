@@ -11,27 +11,30 @@
     },
     "requestTimeout": 120000
   },
+  "auth": {
+    "enabledMethods": [
+      "local",
+      "openid-google"
+    ],
+    "oauth2": {
+      "google": {
+        "clientID": null,
+        "clientSecret": null,
+        "callbackUrl": "/login/google-callback"
+      }
+    }
+  },
   "cookies": {
     "secret": null,
-    "setup": {
-      "path": "/",
-      "httpOnly": true,
-      "sameSite": "lax",
-      "maxAge": 604800
-    }
+    "path": "/",
+    "httpOnly": true,
+    "sameSite": "lax",
+    "maxAge": 604800
   },
   "host": "127.0.0.1",
-  "oauth2": {
-    "google": {
-      "clientID": "",
-      "clientSecret": "",
-      "callbackUrl": "/login/google-callback"
-    }
-  },
   "port": 3000,
   "publicPath": "packages/web-framework/bin/static",
   "requestTimeout": 180000,
-  "session": {},
   "tlsCertPath": "packages/web-framework/bin/tls/localhost+2.pem",
   "tlsKeyPath": "packages/web-framework/bin/tls/localhost+2-key.pem",
   "useTLS": true

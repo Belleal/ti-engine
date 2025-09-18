@@ -112,6 +112,7 @@ const tools = require( "#tools" );
  *
  * @readonly
  * @enum {string} Keys of this ENUM are strings.
+ * @typedef {string} TiSetting
  */
 const settingsEnum = tools.enum( {
     AUDITING_LOG_CONSOLE_ENABLED: [ "auditing.logConsoleEnabled", "logConsoleEnabled", "" ],
@@ -144,9 +145,6 @@ const settingsEnum = tools.enum( {
     OPERATION_MODE: [ "operationMode", "operationMode", "" ]
 } );
 
-/**
- * @typedef {string} TiSetting
- */
 module.exports.setting = settingsEnum;
 
 /** @type {SettingsMain} */
@@ -178,8 +176,8 @@ if ( settings.messageExchange ) {
     settings.messageExchange.traceLogEnabled = ( process.env.TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED !== undefined ) ? tools.toBool( process.env.TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED ) : settings.messageExchange.traceLogEnabled;
 }
 
-// make sure GCloud is enabled before trying to set it up:
-if ( process.env.TI_GCLOUD_ENABLED === true && settings.gcloudIntegration ) {
+// Make sure GCloud is enabled before trying to set it up:
+if ( tools.toBool( process.env.TI_GCLOUD_ENABLED ) === true && settings.gcloudIntegration ) {
     settings.gcloudIntegration.apiKey = ( process.env.TI_GCLOUD_API_KEY !== undefined ) ? process.env.TI_GCLOUD_API_KEY : settings.gcloudIntegration.apiKey;
     settings.gcloudIntegration.projectID = ( process.env.TI_GCLOUD_PROJECT_ID !== undefined ) ? process.env.TI_GCLOUD_PROJECT_ID : settings.gcloudIntegration.projectID;
 }

@@ -2,6 +2,11 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.7
+* feat(exceptions): add new exception code `E_SEC_UNRECOGNIZED_AUTH_METHOD`
+* fix(config): fix potential issue with `TI_GCLOUD_ENABLED` parsing as boolean
+* docs: adjust some of the JSDoc descriptions and definitions
+
 ## Version 1.3.6
 * feat(exceptions): add new exception code `E_GEN_INVALID_ARGUMENT_TYPE`
 * feat(exceptions): add public enum with all HTTP codes exported as `httpCode` and typedef `TiHttpCode`. Use it as the type for the `httpCode` exception property
