@@ -32,6 +32,7 @@ const exceptionCodeEnum = tools.enum( {
     E_SEC_INVALID_EXPIRED_SESSION: [ 2001, "invalid or expired session", "Invalid or expired session encountered." ],
     E_SEC_UNAUTHORIZED_ACCESS: [ 2002, "unauthorized access", "Attempt for unauthorized access detected." ],
     E_SEC_MESSAGE_TAMPERING_DETECTED: [ 2003, "message tampering detected", "The system detected tampering with the message received via message exchange." ],
+    E_SEC_UNRECOGNIZED_AUTH_METHOD: [ 2004, "unrecognized auth method", "The requested authentication method is not recognized or supported." ],
     /** Cross-Application Communication exceptions - codes under 3xxx */
     E_COM_GENERAL_ERROR: [ 3000, "general communication error", "General error during cross-application communication." ],
     E_COM_MESSAGE_SENDER_UNAVAILABLE: [ 3001, "message sender unavailable", "The message sender instance is currently unavailable." ],

@@ -11,6 +11,7 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const { randomBytes } = require( "node:crypto" );
 const URL = require( "node:url" ).URL;
 const helmet = require( "helmet" );
+const authMethod = require( "#auth-manager" ).authMethod;
 
 /**
  * Express middleware callback.
@@ -47,9 +48,7 @@ module.exports.onShutDownHandler = ( instance ) => {
             next();
         } else {
             response.set( "Connection", "close" );
-            response.status( exceptions.httpCode.C_503 ).send( {
-                isSuccessful: false
-            } );
+            response.status( exceptions.httpCode.C_503 ).end();
         }
     };
 };
@@ -67,9 +66,7 @@ module.exports.resourceProtectionHandler = ( instance ) => {
         if ( instance.isUnprotectedRoute( request.url ) || instance.verifySession( request.session ) ) {
             next();
         } else {
-            response.status( exceptions.httpCode.C_403 ).send( {
-                isSuccessful: false
-            } );
+            response.status( exceptions.httpCode.C_403 ).end();
         }
     };
 };
@@ -85,28 +82,62 @@ module.exports.resourceProtectionHandler = ( instance ) => {
 module.exports.authenticationHandler = ( instance ) => {
     return ( request, response, next ) => {
         const method = request.params.method;
-        if ( method === "local" ) {
+        if ( method === authMethod.LOCAL ) {
             const username = String( ( request.body && request.body.username ) || "" ).trim();
             const password = String( ( request.body && request.body.password ) || "" );
-
-            if ( instance.localAuthentication( username, password ) === true ) {
-                request.session.user = { id: `local:${ username }`, name: username };
-                response.redirect( "/" );
-            } else {
-                response.status( exceptions.httpCode.C_401 ).send( {
-                    isSuccessful: false
-                } );
-            }
-        } else if ( method === "openid-google" ) {
-            // TODO: Implement OpenID Connect authentication.
-            response.status( exceptions.httpCode.C_401 ).send( {
-                isSuccessful: false
+            instance.authenticate( authMethod.LOCAL, { username: username, password: password } ).then( ( result ) => {
+                if ( result === true ) {
+                    request.session.regenerate( ( error ) => {
+                        if ( error ) {
+                            next( error );
+                        } else {
+                            request.session.user = { id: `local:${ username }`, name: username };
+                            request.session.save( ( error ) => {
+                                if ( error ) {
+                                    next( error );
+                                } else {
+                                    response.redirect( exceptions.httpCode.C_303, "/app/enter" );
+                                }
+                            } );
+                        }
+                    } );
+                } else {
+                    response.status( exceptions.httpCode.C_401 ).end();
+                }
+            } ).catch( ( error ) => {
+                next( error );
+            } );
+        } else if ( method === authMethod.OPENID_GOOGLE ) {
+            const host = request.get( "host" );
+            const scheme = request.secure || ( String( request.get( "x-forwarded-proto" ) ).toLowerCase() === "https" ) ? "https" : "http";
+            instance.authenticate( authMethod.OPENID_GOOGLE, { baseUrl: `${ scheme }://${ host }` } ).then( ( redirectTo ) => {
+                response.redirect( redirectTo );
+            } ).catch( ( error ) => {
+                next( error );
             } );
         } else {
-            response.status( exceptions.httpCode.C_401 ).send( {
-                isSuccessful: false
-            } );
+            response.status( exceptions.httpCode.C_401 ).end();
         }
+    };
+};
+
+/**
+ * Used to handle the callback from the Google OpenID authentication.
+ *
+ * @method
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.googleCallbackHandler = () => {
+    return ( request, response, next ) => {
+        request.session.user = { id: `google:${ request.query.id }`, name: request.query.name };
+        request.session.save( ( error ) => {
+            if ( error ) {
+                next( error );
+            } else {
+                response.redirect( exceptions.httpCode.C_303, "/app/enter" );
+            }
+        } );
     };
 };
 

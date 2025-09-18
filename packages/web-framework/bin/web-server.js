@@ -22,6 +22,7 @@ const webHandlers = require( "#web-handlers" );
 const SessionStore = require( "#session-store" );
 const WebAppManager = require( "#web-app-manager" );
 const AuthManager = require( "#auth-manager" );
+const authMethod = require( "#auth-manager" ).authMethod;
 
 /**
  * @typedef {ServiceConfiguration} WebServiceConfiguration
@@ -46,12 +47,17 @@ const AuthManager = require( "#auth-manager" );
 /**
  * @typedef {Object} SettingsAuth
  * @property {string[]} enabledMethods
+ * @property {Object} local
  * @property {Object} oauth2
  */
 
 /**
  * @typedef {Object} SettingsCookies
  * @property {string} secret
+ * @property {string} path
+ * @property {boolean} httpOnly
+ * @property {"lax"|"strict"|"none"} sameSite
+ * @property {number} maxAge
  */
 
 /**
@@ -91,7 +97,7 @@ class TiWebServer extends ServiceConsumer {
         this.#unprotectedRoutes.push( "/" );
         this.#unprotectedRoutes.push( "/app" );
         this.#unprotectedRoutes.push( /^\/app\/(?:.+\/)*[^\/]+$/i );
-        this.#unprotectedRoutes.push( "/login" );
+        this.#unprotectedRoutes.push( /^\/login\/[^\/]+$/i );
         this.#unprotectedRoutes.push( "/logout" );
         this.#unprotectedRoutes.push( /^\/static\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
         this.#unprotectedRoutes.push( /^\/\.well-known\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
@@ -238,6 +244,9 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
                 this.#webServer.post( "/logout", webHandlers.logoutHandler() );
                 this.#webServer.get( "/me", webHandlers.userInformationHandler() );
+                if ( this.#authManager.isEnabled( authMethod.OPENID_GOOGLE ) ) {
+                    this.#webServer.get( this.#authManager.getGoogleCallbackUrl(), webHandlers.googleCallbackHandler() );
+                }
 
                 // API service proxy route (protected by auth middleware):
                 this.#webServer.post( "/service/:version/:name", webHandlers.serviceCallHandler( this ) );
@@ -315,13 +324,13 @@ class TiWebServer extends ServiceConsumer {
      * Used to verify the local authentication of a request.
      *
      * @method
-     * @param {string} username
-     * @param {string} password
-     * @returns {boolean}
+     * @param {TiAuthMethod} authMethod
+     * @param {Object} [authDetails={}]
+     * @returns {Promise}
      * @public
      */
-    localAuthentication( username, password ) {
-        return this.#authManager.localAuthentication( username, password );
+    authenticate( authMethod, authDetails = {} ) {
+        return this.#authManager.authenticate( authMethod, authDetails );
     }
 
     /**
