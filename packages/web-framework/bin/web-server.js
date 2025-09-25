@@ -152,6 +152,17 @@ class TiWebServer extends ServiceConsumer {
     }
 
     /**
+     * Property returning the server URL.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get serverUrl() {
+        return this.#serverUrl;
+    }
+
+    /**
      * Property returning the {@link WebAppManager} instance.
      *
      * @property
@@ -241,11 +252,11 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.use( "/static", express.static( this.#fullPublicPath, { maxAge: "1y", immutable: true } ) );
                 this.#webServer.use( "/app", webHandlers.webAppHandler( this ) );
 
-                this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
+                this.#webServer.get( "/login/:method", webHandlers.authenticationHandler( this ) );
                 this.#webServer.post( "/logout", webHandlers.logoutHandler() );
                 this.#webServer.get( "/me", webHandlers.userInformationHandler() );
                 if ( this.#authManager.isEnabled( authMethod.OPENID_GOOGLE ) ) {
-                    this.#webServer.get( this.#authManager.getGoogleCallbackUrl(), webHandlers.googleCallbackHandler() );
+                    this.#webServer.get( this.#authManager.getGoogleCallbackUrl(), webHandlers.googleCallbackHandler( this ) );
                 }
 
                 // API service proxy route (protected by auth middleware):
@@ -321,7 +332,7 @@ class TiWebServer extends ServiceConsumer {
     }
 
     /**
-     * Used to verify the local authentication of a request.
+     * Used to authenticate a user via the specified auth method.
      *
      * @method
      * @param {TiAuthMethod} authMethod
@@ -331,6 +342,20 @@ class TiWebServer extends ServiceConsumer {
      */
     authenticate( authMethod, authDetails = {} ) {
         return this.#authManager.authenticate( authMethod, authDetails );
+    }
+
+    /**
+     * Used to set up user authorization according to the specified auth method.
+     *
+     * @method
+     * @param {TiAuthMethod} authMethod
+     * @param {URL} currentUrl
+     * @param {Object} oidc
+     * @returns {Promise}
+     * @public
+     */
+    authorize( authMethod, currentUrl, oidc ) {
+        return this.#authManager.authorize( authMethod, currentUrl, oidc );
     }
 
     /**

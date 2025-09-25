@@ -17,10 +17,8 @@
             <button type="submit">Sign in</button>
         </div>
     </form>
-    <form id="ti-google-oauth2-form"
-          hx-post="/login/local"
-          hx-target="#ti-main"
-          hx-swap="innerHTML">
+    <form id="ti-google-oauth2-form" action="/login/openid-google" method="get" hx-boost="false">
         <button type="submit">Sign in with Google</button>
     </form>
+    <a href="/login/openid-google">Sign in with Google</a>
 </div>

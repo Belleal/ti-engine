@@ -103,7 +103,7 @@ class AuthManager {
     }
 
     /**
-     * Used to authenticate a user via the specified authentication method.
+     * Used to authenticate a user via the specified auth method.
      *
      * @method
      * @param {TiAuthMethod} authMethod
@@ -118,6 +118,30 @@ class AuthManager {
                 return this.#localAuthentication( authDetails.username, authDetails.password );
             case authMethodEnum.OPENID_GOOGLE:
                 return this.#openIDGoogleAuthentication( authDetails.baseUrl );
+            default: {
+                let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
+                exception.httpCode = exceptions.httpCode.C_401;
+                throw exception;
+            }
+        }
+    }
+
+    /**
+     * Used to set up user authorization according to the specified auth method.
+     *
+     * @method
+     * @param {TiAuthMethod} authMethod
+     * @param {URL} currentUrl
+     * @param {Object} oidc
+     * @returns {Promise}
+     * @public
+     */
+    authorize( authMethod, currentUrl, oidc ) {
+        switch ( authMethod ) {
+            case authMethodEnum.LOCAL:
+                return Promise.resolve();
+            case authMethodEnum.OPENID_GOOGLE:
+                return this.#openIDGoogleAuthorization( currentUrl, oidc );
             default: {
                 let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
                 exception.httpCode = exceptions.httpCode.C_401;
@@ -184,7 +208,7 @@ class AuthManager {
             // TODO: Implement this!
             const googleDiscoveryUrl = "https://accounts.google.com/.well-known/openid-configuration";
             const googleSettings = this.#authSettings.oauth2.google;
-            openidClient.discovery( new URL( googleDiscoveryUrl ), googleSettings.clientID, googleSettings.clientSecret ).then( ( configuration ) => {
+            openidClient.discovery( new URL( googleDiscoveryUrl ), googleSettings.clientID, googleSettings.clientSecret, openidClient.ClientSecretPost( googleSettings.clientSecret ), { algorithm: "oidc" } ).then( ( configuration ) => {
                 this.#googleOauth2Configuration = configuration;
                 resolve();
             } ).catch( ( error ) => {
@@ -207,8 +231,8 @@ class AuthManager {
             openidClient.calculatePKCECodeChallenge( codeVerifier ).then( ( codeChallenge ) => {
                 const parameters = {
                     redirect_uri: `${ baseUrl }${ this.#authSettings.oauth2.google.callbackUrl }`,
-                    response_type: "code",
-                    client_id: this.#authSettings.oauth2.google.clientID,
+                    //response_type: "code",
+                    //client_id: this.#authSettings.oauth2.google.clientID,
                     scope: "openid email profile",
                     code_challenge: codeChallenge,
                     code_challenge_method: "S256"
@@ -217,9 +241,31 @@ class AuthManager {
                     parameters.state = openidClient.randomState();
                 }
                 const redirectTo = openidClient.buildAuthorizationUrl( this.#googleOauth2Configuration, parameters );
-                resolve( redirectTo );
+                resolve( { redirectTo: redirectTo, codeVerifier: codeVerifier, state: parameters.state } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to perform the actual OpenID Connect authorization.
+     *
+     * @method
+     * @param {URL} currentUrl
+     * @param {Object} oidc
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #openIDGoogleAuthorization( currentUrl, oidc ) {
+        return new Promise( ( resolve, reject ) => {
+            openidClient.authorizationCodeGrant( this.#googleOauth2Configuration, currentUrl, { pkceCodeVerifier: oidc.codeVerifier } ).then( ( token ) => {
+                const claims = token.claims();
+                return openidClient.fetchUserInfo( this.#googleOauth2Configuration, token.access_token, claims.sub );
+            } ).then( ( userInfo ) => {
+                resolve( userInfo );
+            } ).catch( ( error ) => {
+                reject( error );
             } );
         } );
     }

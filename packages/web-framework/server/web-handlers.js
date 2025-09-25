@@ -110,13 +110,20 @@ module.exports.authenticationHandler = ( instance ) => {
         } else if ( method === authMethod.OPENID_GOOGLE ) {
             const host = request.get( "host" );
             const scheme = request.secure || ( String( request.get( "x-forwarded-proto" ) ).toLowerCase() === "https" ) ? "https" : "http";
-            instance.authenticate( authMethod.OPENID_GOOGLE, { baseUrl: `${ scheme }://${ host }` } ).then( ( redirectTo ) => {
-                response.redirect( redirectTo );
+            instance.authenticate( authMethod.OPENID_GOOGLE, { baseUrl: `${ scheme }://${ host }` } ).then( ( result ) => {
+                request.session.oidc = { codeVerifier: result.codeVerifier, state: result.state };
+                request.session.save( ( error ) => {
+                    if ( error ) {
+                        next( error );
+                    } else {
+                        response.redirect( exceptions.httpCode.C_303, result.redirectTo );
+                    }
+                } );
             } ).catch( ( error ) => {
                 next( error );
             } );
         } else {
-            response.status( exceptions.httpCode.C_401 ).end();
+            next();
         }
     };
 };
@@ -128,16 +135,36 @@ module.exports.authenticationHandler = ( instance ) => {
  * @returns {ExpressHandler}
  * @public
  */
-module.exports.googleCallbackHandler = () => {
+module.exports.googleCallbackHandler = ( instance ) => {
     return ( request, response, next ) => {
-        request.session.user = { id: `google:${ request.query.id }`, name: request.query.name };
-        request.session.save( ( error ) => {
-            if ( error ) {
+        const code = request.query.code;
+        const state = request.query.state;
+        const oidc = request.session.oidc || {};
+        if ( !code || !oidc?.codeVerifier ) {
+            response.status( exceptions.httpCode.C_400 ).end();
+        } else if ( oidc.state && state !== oidc.state ) {
+            response.status( exceptions.httpCode.C_400 ).end();
+        } else {
+            instance.authorize( authMethod.OPENID_GOOGLE, new URL( request.originalUrl, instance.serverUrl ), oidc ).then( ( userInfo ) => {
+                request.session.regenerate( ( error ) => {
+                    if ( error ) {
+                        next( error );
+                    } else {
+                        request.session.user = { id: `google:${ userInfo.sub }`, email: userInfo.email, name: userInfo.name };
+                        delete request.session.oidc;
+                        request.session.save( ( error ) => {
+                            if ( error ) {
+                                next( error );
+                            } else {
+                                response.redirect( exceptions.httpCode.C_303, "/" );
+                            }
+                        } );
+                    }
+                } );
+            } ).catch( ( error ) => {
                 next( error );
-            } else {
-                response.redirect( exceptions.httpCode.C_303, "/app/enter" );
-            }
-        } );
+            } );
+        }
     };
 };
 
