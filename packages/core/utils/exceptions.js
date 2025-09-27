@@ -163,7 +163,7 @@ class Exception {
 
         this.#id = id;
         this.#code = exceptionCode;
-        this.#label = labelPath + exceptionCode;
+        this.#label = labelPath + String( exceptionCode );
         this.#description = description || exceptionCodeEnum.description( exceptionCode );
         this.#data = data || {};
     }

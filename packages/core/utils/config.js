@@ -163,11 +163,11 @@ if ( settings.localization ) {
 }
 if ( settings.memoryCache ) {
     settings.memoryCache.authKey = ( process.env.TI_MEMORY_CACHE_AUTH_KEY !== undefined ) ? process.env.TI_MEMORY_CACHE_AUTH_KEY : settings.memoryCache.authKey;
-    settings.memoryCache.redisDB = ( process.env.TI_MEMORY_CACHE_REDIS_DB !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_DB : settings.memoryCache.redisDB;
+    settings.memoryCache.redisDB = ( process.env.TI_MEMORY_CACHE_REDIS_DB !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_REDIS_DB ) : settings.memoryCache.redisDB;
     settings.memoryCache.redisHost = ( process.env.TI_MEMORY_CACHE_REDIS_HOST !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_HOST : settings.memoryCache.redisHost;
-    settings.memoryCache.redisPort = ( process.env.TI_MEMORY_CACHE_REDIS_PORT !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_PORT : settings.memoryCache.redisPort;
-    settings.memoryCache.retryMaxAttempts = ( process.env.TI_MEMORY_CACHE_RETRY_MAX_ATTEMPTS !== undefined ) ? process.env.TI_MEMORY_CACHE_RETRY_MAX_ATTEMPTS : settings.memoryCache.retryMaxAttempts;
-    settings.memoryCache.retryMaxInterval = ( process.env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL !== undefined ) ? process.env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL : settings.memoryCache.retryMaxInterval;
+    settings.memoryCache.redisPort = ( process.env.TI_MEMORY_CACHE_REDIS_PORT !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_REDIS_PORT ) : settings.memoryCache.redisPort;
+    settings.memoryCache.retryMaxAttempts = ( process.env.TI_MEMORY_CACHE_RETRY_MAX_ATTEMPTS !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_RETRY_MAX_ATTEMPTS ) : settings.memoryCache.retryMaxAttempts;
+    settings.memoryCache.retryMaxInterval = ( process.env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL ) : settings.memoryCache.retryMaxInterval;
     settings.memoryCache.user = ( process.env.TI_MEMORY_CACHE_USER !== undefined ) ? process.env.TI_MEMORY_CACHE_USER : settings.memoryCache.user;
 }
 if ( settings.messageExchange ) {

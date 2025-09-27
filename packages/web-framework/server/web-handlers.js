@@ -35,6 +35,20 @@ const authMethod = require( "#auth-manager" ).authMethod;
  */
 
 /**
+ * Used to assemble the current URL of a request.
+ *
+ * @method
+ * @param {*} request
+ * @returns {string}
+ * @private
+ */
+let getCurrentUrl = ( request ) => {
+    const host = request.get( "host" );
+    const scheme = ( request.secure === true || String( request.get( "x-forwarded-proto" ) ).toLowerCase() === "https" ) ? "https" : "http";
+    return `${ scheme }://${ host }`;
+};
+
+/**
  * Handler for requests that are received while the web server is shutting down.
  *
  * @method
@@ -108,9 +122,7 @@ module.exports.authenticationHandler = ( instance ) => {
                 next( error );
             } );
         } else if ( method === authMethod.OPENID_GOOGLE ) {
-            const host = request.get( "host" );
-            const scheme = request.secure || ( String( request.get( "x-forwarded-proto" ) ).toLowerCase() === "https" ) ? "https" : "http";
-            instance.authenticate( authMethod.OPENID_GOOGLE, { baseUrl: `${ scheme }://${ host }` } ).then( ( result ) => {
+            instance.authenticate( authMethod.OPENID_GOOGLE, { baseUrl: getCurrentUrl( request ) } ).then( ( result ) => {
                 request.session.oidc = { codeVerifier: result.codeVerifier, state: result.state };
                 request.session.save( ( error ) => {
                     if ( error ) {
@@ -145,7 +157,7 @@ module.exports.googleCallbackHandler = ( instance ) => {
         } else if ( oidc.state && state !== oidc.state ) {
             response.status( exceptions.httpCode.C_400 ).end();
         } else {
-            instance.authorize( authMethod.OPENID_GOOGLE, new URL( request.originalUrl, instance.serverUrl ), oidc ).then( ( userInfo ) => {
+            instance.authorize( authMethod.OPENID_GOOGLE, new URL( request.originalUrl, getCurrentUrl( request ) ), oidc ).then( ( userInfo ) => {
                 request.session.regenerate( ( error ) => {
                     if ( error ) {
                         next( error );

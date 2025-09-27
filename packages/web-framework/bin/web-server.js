@@ -253,6 +253,7 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.use( "/app", webHandlers.webAppHandler( this ) );
 
                 this.#webServer.get( "/login/:method", webHandlers.authenticationHandler( this ) );
+                this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
                 this.#webServer.post( "/logout", webHandlers.logoutHandler() );
                 this.#webServer.get( "/me", webHandlers.userInformationHandler() );
                 if ( this.#authManager.isEnabled( authMethod.OPENID_GOOGLE ) ) {
