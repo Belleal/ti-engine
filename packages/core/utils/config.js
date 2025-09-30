@@ -112,6 +112,7 @@ const tools = require( "#tools" );
  *
  * @readonly
  * @enum {string} Keys of this ENUM are strings.
+ * @typedef {string} TiSetting
  */
 const settingsEnum = tools.enum( {
     AUDITING_LOG_CONSOLE_ENABLED: [ "auditing.logConsoleEnabled", "logConsoleEnabled", "" ],
@@ -144,9 +145,6 @@ const settingsEnum = tools.enum( {
     OPERATION_MODE: [ "operationMode", "operationMode", "" ]
 } );
 
-/**
- * @typedef {string} TiSetting
- */
 module.exports.setting = settingsEnum;
 
 /** @type {SettingsMain} */
@@ -165,11 +163,11 @@ if ( settings.localization ) {
 }
 if ( settings.memoryCache ) {
     settings.memoryCache.authKey = ( process.env.TI_MEMORY_CACHE_AUTH_KEY !== undefined ) ? process.env.TI_MEMORY_CACHE_AUTH_KEY : settings.memoryCache.authKey;
-    settings.memoryCache.redisDB = ( process.env.TI_MEMORY_CACHE_REDIS_DB !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_DB : settings.memoryCache.redisDB;
+    settings.memoryCache.redisDB = ( process.env.TI_MEMORY_CACHE_REDIS_DB !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_REDIS_DB ) : settings.memoryCache.redisDB;
     settings.memoryCache.redisHost = ( process.env.TI_MEMORY_CACHE_REDIS_HOST !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_HOST : settings.memoryCache.redisHost;
-    settings.memoryCache.redisPort = ( process.env.TI_MEMORY_CACHE_REDIS_PORT !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_PORT : settings.memoryCache.redisPort;
-    settings.memoryCache.retryMaxAttempts = ( process.env.TI_MEMORY_CACHE_RETRY_MAX_ATTEMPTS !== undefined ) ? process.env.TI_MEMORY_CACHE_RETRY_MAX_ATTEMPTS : settings.memoryCache.retryMaxAttempts;
-    settings.memoryCache.retryMaxInterval = ( process.env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL !== undefined ) ? process.env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL : settings.memoryCache.retryMaxInterval;
+    settings.memoryCache.redisPort = ( process.env.TI_MEMORY_CACHE_REDIS_PORT !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_REDIS_PORT ) : settings.memoryCache.redisPort;
+    settings.memoryCache.retryMaxAttempts = ( process.env.TI_MEMORY_CACHE_RETRY_MAX_ATTEMPTS !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_RETRY_MAX_ATTEMPTS ) : settings.memoryCache.retryMaxAttempts;
+    settings.memoryCache.retryMaxInterval = ( process.env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL ) : settings.memoryCache.retryMaxInterval;
     settings.memoryCache.user = ( process.env.TI_MEMORY_CACHE_USER !== undefined ) ? process.env.TI_MEMORY_CACHE_USER : settings.memoryCache.user;
 }
 if ( settings.messageExchange ) {
@@ -178,8 +176,8 @@ if ( settings.messageExchange ) {
     settings.messageExchange.traceLogEnabled = ( process.env.TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED !== undefined ) ? tools.toBool( process.env.TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED ) : settings.messageExchange.traceLogEnabled;
 }
 
-// make sure GCloud is enabled before trying to set it up:
-if ( process.env.TI_GCLOUD_ENABLED === true && settings.gcloudIntegration ) {
+// Make sure GCloud is enabled before trying to set it up:
+if ( tools.toBool( process.env.TI_GCLOUD_ENABLED ) === true && settings.gcloudIntegration ) {
     settings.gcloudIntegration.apiKey = ( process.env.TI_GCLOUD_API_KEY !== undefined ) ? process.env.TI_GCLOUD_API_KEY : settings.gcloudIntegration.apiKey;
     settings.gcloudIntegration.projectID = ( process.env.TI_GCLOUD_PROJECT_ID !== undefined ) ? process.env.TI_GCLOUD_PROJECT_ID : settings.gcloudIntegration.projectID;
 }

@@ -14,6 +14,7 @@ const tools = require( "#tools" );
  *
  * @readonly
  * @enum {number}
+ * @typedef {number} TiExceptionCode
  */
 const exceptionCodeEnum = tools.enum( {
     E_UNKNOWN_ERROR: [ 0, "unknown error", "Unidentified error encountered or unrecognized exception code provided." ],
@@ -31,6 +32,7 @@ const exceptionCodeEnum = tools.enum( {
     E_SEC_INVALID_EXPIRED_SESSION: [ 2001, "invalid or expired session", "Invalid or expired session encountered." ],
     E_SEC_UNAUTHORIZED_ACCESS: [ 2002, "unauthorized access", "Attempt for unauthorized access detected." ],
     E_SEC_MESSAGE_TAMPERING_DETECTED: [ 2003, "message tampering detected", "The system detected tampering with the message received via message exchange." ],
+    E_SEC_UNRECOGNIZED_AUTH_METHOD: [ 2004, "unrecognized auth method", "The requested authentication method is not recognized or supported." ],
     /** Cross-Application Communication exceptions - codes under 3xxx */
     E_COM_GENERAL_ERROR: [ 3000, "general communication error", "General error during cross-application communication." ],
     E_COM_MESSAGE_SENDER_UNAVAILABLE: [ 3001, "message sender unavailable", "The message sender instance is currently unavailable." ],
@@ -54,11 +56,14 @@ const exceptionCodeEnum = tools.enum( {
     E_WEB_INVALID_REQUEST_CONTENT_ENCODING: [ 4009, "invalid request content encoding", "The request content encoding is not recognized or not supported." ]
 } );
 
+module.exports.exceptionCode = exceptionCodeEnum;
+
 /**
  * Enum for listing all HTTP codes.
  *
  * @readonly
  * @enum {number}
+ * @typedef {number} TiHttpCode
  */
 const httpCodeEnum = tools.enum( {
     /** 1xx informational response */
@@ -127,14 +132,6 @@ const httpCodeEnum = tools.enum( {
     C_511: [ 511, "Network Authentication Required", "The client needs to authenticate to gain network access. Intended for use by intercepting proxies used to control access to the network." ]
 } );
 
-/**
- * @typedef {number} TiExceptionCode
- */
-module.exports.exceptionCode = exceptionCodeEnum;
-
-/**
- * @typedef {number} TiHttpCode
- */
 module.exports.httpCode = httpCodeEnum;
 
 const labelPath = "system.exceptions.";
@@ -166,7 +163,7 @@ class Exception {
 
         this.#id = id;
         this.#code = exceptionCode;
-        this.#label = labelPath + exceptionCode;
+        this.#label = labelPath + String( exceptionCode );
         this.#description = description || exceptionCodeEnum.description( exceptionCode );
         this.#data = data || {};
     }

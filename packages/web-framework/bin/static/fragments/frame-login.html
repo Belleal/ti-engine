@@ -2,7 +2,7 @@
     <h2>Sign in</h2>
     <div id="ti-error" class="ti-error"></div>
     <form id="ti-login-form"
-          hx-post="/login"
+          hx-post="/login/local"
           hx-target="#ti-main"
           hx-swap="innerHTML">
         <div>
@@ -17,7 +17,8 @@
             <button type="submit">Sign in</button>
         </div>
     </form>
-    <div>
-        <a href="" role="button">Sign in with Google</a>
-    </div>
+    <form id="ti-google-oauth2-form" action="/login/openid-google" method="get" hx-boost="false">
+        <button type="submit">Sign in with Google</button>
+    </form>
+    <a href="/login/openid-google">Sign in with Google</a>
 </div>

@@ -11,6 +11,7 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const { randomBytes } = require( "node:crypto" );
 const URL = require( "node:url" ).URL;
 const helmet = require( "helmet" );
+const authMethod = require( "#auth-manager" ).authMethod;
 
 /**
  * Express middleware callback.
@@ -34,6 +35,20 @@ const helmet = require( "helmet" );
  */
 
 /**
+ * Used to assemble the current URL of a request.
+ *
+ * @method
+ * @param {*} request
+ * @returns {string}
+ * @private
+ */
+let getCurrentUrl = ( request ) => {
+    const host = request.get( "host" );
+    const scheme = ( request.secure === true || String( request.get( "x-forwarded-proto" ) ).toLowerCase() === "https" ) ? "https" : "http";
+    return `${ scheme }://${ host }`;
+};
+
+/**
  * Handler for requests that are received while the web server is shutting down.
  *
  * @method
@@ -47,9 +62,7 @@ module.exports.onShutDownHandler = ( instance ) => {
             next();
         } else {
             response.set( "Connection", "close" );
-            response.status( exceptions.httpCode.C_503 ).send( {
-                isSuccessful: false
-            } );
+            response.status( exceptions.httpCode.C_503 ).end();
         }
     };
 };
@@ -67,9 +80,7 @@ module.exports.resourceProtectionHandler = ( instance ) => {
         if ( instance.isUnprotectedRoute( request.url ) || instance.verifySession( request.session ) ) {
             next();
         } else {
-            response.status( exceptions.httpCode.C_403 ).send( {
-                isSuccessful: false
-            } );
+            response.status( exceptions.httpCode.C_403 ).end();
         }
     };
 };
@@ -84,15 +95,86 @@ module.exports.resourceProtectionHandler = ( instance ) => {
  */
 module.exports.authenticationHandler = ( instance ) => {
     return ( request, response, next ) => {
-        const username = String( ( request.body && request.body.username ) || "" ).trim();
-        const password = String( ( request.body && request.body.password ) || "" );
-
-        if ( instance.localAuthentication( username, password ) ) {
-            request.session.user = { id: `local:${ username }`, name: username };
-            response.redirect( "/" );
+        const method = request.params.method;
+        if ( method === authMethod.LOCAL ) {
+            const username = String( ( request.body && request.body.username ) || "" ).trim();
+            const password = String( ( request.body && request.body.password ) || "" );
+            instance.authenticate( authMethod.LOCAL, { username: username, password: password } ).then( ( result ) => {
+                if ( result === true ) {
+                    request.session.regenerate( ( error ) => {
+                        if ( error ) {
+                            next( error );
+                        } else {
+                            request.session.user = { id: `local:${ username }`, name: username };
+                            request.session.save( ( error ) => {
+                                if ( error ) {
+                                    next( error );
+                                } else {
+                                    response.redirect( exceptions.httpCode.C_303, "/app/enter" );
+                                }
+                            } );
+                        }
+                    } );
+                } else {
+                    response.status( exceptions.httpCode.C_401 ).end();
+                }
+            } ).catch( ( error ) => {
+                next( error );
+            } );
+        } else if ( method === authMethod.OPENID_GOOGLE ) {
+            instance.authenticate( authMethod.OPENID_GOOGLE, { baseUrl: getCurrentUrl( request ) } ).then( ( result ) => {
+                request.session.oidc = { codeVerifier: result.codeVerifier, state: result.state };
+                request.session.save( ( error ) => {
+                    if ( error ) {
+                        next( error );
+                    } else {
+                        response.redirect( exceptions.httpCode.C_303, result.redirectTo );
+                    }
+                } );
+            } ).catch( ( error ) => {
+                next( error );
+            } );
         } else {
-            response.status( exceptions.httpCode.C_401 ).send( {
-                isSuccessful: false
+            next();
+        }
+    };
+};
+
+/**
+ * Used to handle the callback from the Google OpenID authentication.
+ *
+ * @method
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.googleCallbackHandler = ( instance ) => {
+    return ( request, response, next ) => {
+        const code = request.query.code;
+        const state = request.query.state;
+        const oidc = request.session.oidc || {};
+        if ( !code || !oidc?.codeVerifier ) {
+            response.status( exceptions.httpCode.C_400 ).end();
+        } else if ( oidc.state && state !== oidc.state ) {
+            response.status( exceptions.httpCode.C_400 ).end();
+        } else {
+            instance.authorize( authMethod.OPENID_GOOGLE, new URL( request.originalUrl, getCurrentUrl( request ) ), oidc ).then( ( userInfo ) => {
+                request.session.regenerate( ( error ) => {
+                    if ( error ) {
+                        next( error );
+                    } else {
+                        request.session.user = { id: `google:${ userInfo.sub }`, email: userInfo.email, name: userInfo.name };
+                        delete request.session.oidc;
+                        request.session.save( ( error ) => {
+                            if ( error ) {
+                                next( error );
+                            } else {
+                                response.redirect( exceptions.httpCode.C_303, "/" );
+                            }
+                        } );
+                    }
+                } );
+            } ).catch( ( error ) => {
+                next( error );
             } );
         }
     };
