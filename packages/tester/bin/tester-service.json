@@ -2,12 +2,12 @@
   "services": [
     {
       "serviceAlias": "service1",
-      "serviceFile": "packages/tester/bin/services/v1/service1.js",
+      "serviceFile": "bin/services/v1/service1.js",
       "serviceVersion": 1
     },
     {
       "serviceAlias": "service2",
-      "serviceFile": "packages/tester/bin/services/v1/service2.js",
+      "serviceFile": "bin/services/v1/service2.js",
       "serviceVersion": 1
     }
   ]

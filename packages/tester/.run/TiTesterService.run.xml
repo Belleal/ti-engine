@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="TiTesterService" type="NodeJSConfigurationType" application-parameters="--env packages\tester\.env" path-to-js-file="packages/core/bin/start-instance.js" working-dir="$PROJECT_DIR$">
+  <configuration default="false" name="TiTesterService" type="NodeJSConfigurationType" application-parameters="--env .env" path-to-js-file="../core/bin/start-instance.js" working-dir="$PROJECT_DIR$/packages/tester">
     <envs>
       <env name="TI_MEMORY_CACHE_AUTH_KEY" value="" />
       <env name="TI_MEMORY_CACHE_REDIS_HOST" value="redis-17467.c300.eu-central-1-1.ec2.redns.redis-cloud.com" />

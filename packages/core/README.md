@@ -6,6 +6,8 @@
 ![npms.io (scoped package)](https://img.shields.io/npms-io/popularity-score/%40ti-engine/core)
 ![npms.io (scoped package)](https://img.shields.io/npms-io/quality-score/%40ti-engine/core)
 
+![Logo](https://github.com/Belleal/ti-engine/blob/master/packages/core/docs/ti-engine-icon.ico)
+
 Flexible framework for the creation of microservices with [node.js](https://nodejs.org/).
 
 ## Introduction
@@ -36,12 +38,7 @@ To run the basic **ti-engine** framework, you will need a couple of things:
 * A local [node.js installation](https://nodejs.org/en/download/) with a minimum version of **18.0.0**
 * A local or remote [Redis cache installation](https://redis.io/download) with a minimum version of **5.0.14**
 
-If you are working under Windows 10+ OS and you need to install Redis, take a look at this [guide](https://redis.com/blog/redis-on-windows-10/). You could also use [Redis Cloud](https://app.redislabs.com/) for development as it offers a free basic account. You can configure your connection to a remote Redis server using the following ENV variables:
-
-* `TI_MEMORY_CACHE_AUTH_KEY` can be used to provide the Redis password if there is any at all.
-* `TI_MEMORY_CACHE_REDIS_DB` can be used to specify the Redis DB you want to use. Make sure to set the correct number as, for example, Redis Cloud only uses DB `0`.
-* `TI_MEMORY_CACHE_REDIS_HOST` can be used to provide the remote host. This can be an IP or URL depending on your setup.
-* `TI_MEMORY_CACHE_REDIS_PORT` can be used to provide the remote port. By default, Redis uses `6379` however many implementations might use a custom port that needs to be specified in the connection settings.
+If you are working under Windows 10+ OS and you need to install Redis, take a look at this [guide](https://redis.com/blog/redis-on-windows-10/). You could also use [Redis Cloud](https://app.redislabs.com/) for development as it offers a free basic account.
 
 To get the framework itself, use the command `npm install @ti-engine/core`. And to include it directly in your package.json dependencies execute `npm install @ti-engine/core --save-prod`.
 
@@ -50,13 +47,15 @@ To get the framework itself, use the command `npm install @ti-engine/core`. And 
 To start using the **ti-engine**, you will have to make sure that all prerequisites are available and operational. However, before we get to the fun part, you need to also consider a couple of crucial things while working with this framework:
 
 1. The runtime configuration of the framework can be customized using ENV variables. These can be provided to node.js in all the standard ways, but there is also an option to include an `.env` file.
-2. It loads your framework-related custom scripts and files dynamically, but it always assumes their provided paths are relative to the _current working directory_ (i.e., it uses `process.cwd()` to resolve the file paths). Be mindful of that whenever you declare file paths in the various settings.
+2. It loads your framework-related custom scripts and files dynamically, but it always assumes their provided paths are relative to the _current working directory_ (i.e., it uses `process.cwd()` to resolve the file paths). Be mindful of that whenever you declare relative file paths in the various settings.
+
+### Running the tester module
 
 Once you have everything else ready, you should download the **ti-engine** tester module with the command `npm install @ti-engine/tester`. The tester module packages an example microservice that shows the basic approach for using the framework. To make sure everything is working properly, you should try and start the tester service:
 
 1. Open a command prompt and navigate to the directory of the tester module; it should be something like that:
    `[path to your project]/node_modules/@ti-engine/tester`
-2. Execute the following command `node ../core/bin/start-instance.js`. Keep in mind that the working directory for the node process has to be the one specified in point 1. Otherwise, you'll get errors that certain files cannot be found and loaded.
+2. Execute the following command `node ../core/bin/start-instance.js`. Keep in mind that the working directory for the node process has to be the one specified in point 1. Otherwise, you'll get errors that certain files cannot be found and loaded. Also, this configuration assumes that you have an unprotected local Redis server running on the default port. If you have a different setup, you can provide the host and port via ENV variables. We'll cover that in the section [Configuring for a remote Redis server](#configuring-for-a-remote-redis-server).
 3. If everything was done properly, you should see the following output:
 
 ```text
@@ -86,20 +85,21 @@ At the start of the output log, you can see a `NOTICE` that tells you a couple o
 * The instance name - in this case `ti-tester-service`. In the terminology of the framework, this is also known as a _service domain name_.
 * The _instance identifier_. It is an uuid string with a `ti-` prefix, that is generated by the framework at process start. It can and will be used to trace the messages during their movement through the microservice ecosystem. But more on that later.
 
-The following five `INFO` lines inform you about the successful connections to Redis. The default configuration assumes that your Redis is running on localhost and uses the default port. If you have a different setup, you can provide the host and port via ENV variables. We'll cover that in the section [Using the framework](#using-the-framework).
+The following five `INFO` lines inform you about the successful connections to Redis. Remember, the default configuration assumes that your Redis is running on localhost, requires no password, and uses the default port.
 
 Following that come a couple of `INFO` lines that inform you about the microservice interface state. The framework starts with the process of _business services_ registration within the service domain of the microservice `ti-tester-service` and successfully adds two such services. The necessary information for this is read from a JSON config file included in the package. We'll get into more details on what this all means in the section [Creating a microservice](#creating-a-microservice).
 
 Once the initialization sequence has completed, the framework informs you that the microservice instance has started successfully with a `NOTICE` entry.
 
-If the framework encountered an error during initialization instead, you would see something like this instead:
+NOTE: If the framework encountered an error during initialization, you would see something like this instead:
 
 ```text
 [timestamp]: [instance-id] - notice - Starting new instance of type 'ti-tester-service' with instance ID '[instance-id]'.
 [timestamp]: [instance-id] - alert - Error detected in the instance startup script!
+   » [information about the error]
 ```
 
-Finally, you should see a sequence of test execution statements with their results in JSON format. These are the results of three business service calls that are part of the default tester microservice. The final `NOTICE` should indicate that all three tests have been completed successfully.
+Finally, you should see a sequence of test execution statements with their results in JSON format. These are the results of three business service calls that are part of the default tester microservice. The final `NOTICE` should indicate that all three tests out of three have been completed successfully.
 
 You can now kill the node process which should show you the following two lines:
 
@@ -113,6 +113,18 @@ The framework will always try to capture the shut-down event and log it with the
 The tester module gets its starting configuration from an `.env` file included in the package. You can find more information about it later in the [Creating a microservice](#creating-a-microservice) section.
 
 Before moving on, also take a good look at the file `bin/start-instance.js`. It should give you an idea of how the process of starting and stopping a microservice operates. In most cases this file should be enough as a starting script for your **ti-engine** based microservice applications. You can, of course, create your own starting script, but then you'll have to consider all necessary steps to properly handle the microservice instance.
+
+### Configuring for a remote Redis server
+
+You can configure your connection to a remote Redis server using the following ENV variables:
+
+* `TI_MEMORY_CACHE_AUTH_KEY` can be used to provide the Redis password if there is any at all.
+* `TI_MEMORY_CACHE_REDIS_DB` can be used to specify the Redis DB you want to use. Make sure to set the correct number as, for example, Redis Cloud only uses DB `0`.
+* `TI_MEMORY_CACHE_REDIS_HOST` can be used to provide the remote host. This can be an IP or URL depending on your setup.
+* `TI_MEMORY_CACHE_REDIS_PORT` can be used to provide the remote port. By default, Redis uses `6379` however many implementations might use a custom port that needs to be specified in the connection settings.
+* `TI_MEMORY_CACHE_USER` can be used to specify the Redis username if this is supported by your Redis implementation.
+
+The easiest way to configure these variables is to edit the `.env` file included in the package. You might have to do that if you want to run the tester module successfully with a remote Redis server.
 
 ## Architecture
 
@@ -138,7 +150,7 @@ For now, take a look at the following diagram:
 
 It shows the standard flow of a message exchange between one sender and _n_ identical message receivers. The sender splits each message into an _envelope_ and a _payload_, then stores the payload in the shared cache and enqueues the envelope in the requests (destination) queue. Receivers can subscribe to that queue to fetch enqueued messages and process their contents. During the fetch sequence a receiver assembles the full message by getting the payload from the storage. This process is depicted by the blue flow lines.
 
-After the processing is done, the message payload is modified, and the receiver sends the message back to the original sender using the same mechanism. It again splits the message into an envelope and a payload, stores the payload in the storage and enqueues the envelope in the sender response (source) queue. The sender will then assemble the message back and process the contained results. This process is depicted by the red flow lines.
+After the processing is done, the message payload is modified, and the receiver sends the message back to the original sender using the same mechanism. It again splits the message into an envelope and a payload, stores the payload in the storage, and enqueues the envelope in the sender response (source) queue. The sender will then assemble the message back and process the contained results. This process is depicted by the red flow lines.
 
 In this scenario the framework uses _Redis lists_ as queues for the message envelopes and _Redis hash_ as message payload storage. The splitting between envelope and payload is done to avoid unnecessary transportation of potentially large volumes of operational data between the microservices. Other message brokers might use a slightly different approach, but they should still adhere to the same logical flow.
 
@@ -169,15 +181,15 @@ This tier comprises the actual implementation of your application. Its structure
 * It needs to take care of any type of stateful behavior like user sessions or transactions.
 * It needs to act as the primary interface between users and your application, thus handling access management and user interactions.
 
-Depending on the type of software you are building, tier 3 can be an API Gateway, a Web application, backend for a Mobile application or anything like that.
+Depending on the type of software you are building, tier 3 can be an API Gateway, a Web application, backend for a Mobile application, or anything like that.
 
 ## Creating a microservice
 
 Now let's walk through the process of creating a microservice with **ti-engine**. We'll start with analyzing the contents of the tester module. Then we'll proceed with creating a new microservice that can call one of the business services in the default `ti-tester-service`.
 
-### The ti-tester microservice
+### Deconstructing the ti-tester microservice
 
-If you managed to execute the initial framework test as explained in the [Getting started](#getting-started) section, you should already be familiar with the default tester microservice. Here we'll dissect its contents even further.
+If you managed to execute the initial framework test as explained in the [Running the tester module](#running-the-tester-module) section, you should already be familiar with the default ti-tester microservice. Here we'll dissect its contents even further.
 
 Let's take a look at the files and file structure first (only relevant items are shown):
 
@@ -187,6 +199,7 @@ bin
   ↳ v1
     ↳ service1.js
     ↳ service2.js
+  ↳ more-labels.json
   ↳ tester-service.js
   ↳ tester-service.json
 .env
@@ -195,43 +208,45 @@ package.json
 
 You don't have to follow the exact same folder structure as most of the paths can be defined via ENV parameters and in the configuration file. However, having a good clean structure helps when organizing your work in more complex projects.
 
-In the default tester microservice all application files are located inside the `bin` folder. Outside you have only the `package.json` and the `.env` files which can be considered more of a configuration for the node process rather than part of the application itself. Nevertheless, let's start with them:
+In the tester module all application files are located inside the `bin` folder. Outside you have only the `package.json` and the `.env` files which can be considered more of a configuration for the node process rather than part of the application itself. Nevertheless, let's start with them:
 
 #### package.json contents
 
 ```json
 {
   "name": "@ti-engine/tester",
-  "version": "...",
-  "description": "...",
-  "author": "...",
-  "license": "ISC",
+  "version": "[tester module version]",
+  "description": "[tester module description]",
+  "author": "[tester module author]",
+  "license": "GPL-3.0-or-later",
   "dependencies": {
     "@ti-engine/core": "latest"
   },
   "engines": {
-    "node": ">=14.17.0"
+    "node": "[min required node version]"
   }
 }
 ```
 
-Apart from the standard information properties there are only two important entries here: `"@ti-engine/core": "latest"` and `"node": ">=14.17.0"`. The dependency on the core of the framework is set to `latest`, but as with any other npm library you should set this to a specific version when releasing on production. The minimum node version should also reflect the minimum requirements of your application and can be adjusted accordingly, but it should not go below the minimum version required by **ti-engine**.
+Apart from the standard information properties there are only two important entries here: `"@ti-engine/core": "[min required core version]"` and `"node": "[min required node version]"`. The dependency on the core of the framework is set to `latest`, but as with any other npm library you should set this to a specific version when releasing on production. The minimum node version should also reflect the minimum requirements of your application and can be adjusted accordingly, but it should not go below the minimum version required by the **ti-engine** itself.
 
 #### .env contents
 
 ```text
+TI_INSTANCE_NAME=ti-tester-service
 TI_INSTANCE_CLASS=bin/tester-service.js
 TI_INSTANCE_CONFIG=bin/tester-service.json
-TI_INSTANCE_NAME=tester-service
 TI_AUDITING_LOG_MIN_LEVEL=200
+TI_LOCALIZATION_LABELS_PATH=bin/more-labels.json
 ```
 
-The ENV initialization file provides the minimal settings for the proper tester microservice operation. The first three are usually _mandatory_ for every microservice you create, while the last is provided for the needs of the tester demonstration. Let's review them and see what they do:
+The ENV initialization file provides the minimal settings for the proper tester microservice operation. The first three are usually _mandatory_ for every microservice you create, while the last two are provided for the needs of the tester demonstration. Let's review them and see what they do:
 
-* `TI_INSTANCE_CLASS` specifies the relative path to the implementation of the `ServiceInstance` framework class—in this case a `ServiceProvider`. As stated above, the path is relative to the working directory of the `node` process. This variable is mandatory for every microservice you create with the **ti-engine**. If it is not provided, the microservice won't be able to start at all, and you will get an exception.
-* `TI_INSTANCE_CONFIG` specifies the relative path to the configuration data for the microservice. We'll delve into the specific settings below. Technically, you can omit this variable, and the microservice will still start successfully with an empty configuration. There are very few cases, however, where this would be applicable.
 * `TI_INSTANCE_NAME` is the _service domain_ name provided for the microservice. It has to be _unique_ in the context of the microservice ecosystem. If not provided, the framework will attempt to extract this information from the name of the implementation file. That is not a recommended approach, though, as it might cause hard to identify errors later.
-* `TI_AUDITING_LOG_MIN_LEVEL` specifies the minimum log level that should be sent to the log output stream. With a setting of `200` (corresponding to INFO) we filter out all `DEFAULT(0)` and `DEBUG(100)` entries as we don't need them for the tester microservice.
+* `TI_INSTANCE_CLASS` specifies the relative path to the implementation of the `ServiceInstance` framework class—in this case a `ServiceProvider`. As stated above, the path is relative to the working directory of the `node.js` process. This variable is mandatory for every microservice you create with the **ti-engine**. If it is not provided, the microservice won't be able to start at all, and you will get an exception.
+* `TI_INSTANCE_CONFIG` specifies the relative path to the configuration data for the microservice. We'll delve into the specific settings below. Technically, you can omit this variable, and the microservice will still start successfully with an empty configuration. There are very few cases, however, where this would be applicable.
+* `TI_AUDITING_LOG_MIN_LEVEL` specifies the minimum log level that should be sent to the log output stream. With a setting of `200` (corresponding to `INFO`) we filter out all `DEFAULT (0)` and `DEBUG (100)` entries as we don't need them for the tester microservice.
+* `TI_LOCALIZATION_LABELS_PATH` specifies the relative path to the additional localization labels file. This is optional and can be omitted if you don't need custom labels for your microservice.
 
 You can find the full list of available ENV variables and what they do below in [Using the framework](#using-the-framework) section.
 
@@ -242,9 +257,12 @@ Now let's look inside the `bin` folder. The two files there are the ones specifi
 * Method `onStart` overrides the base one from the parent class and is invoked automatically by the framework once initialization of the microservice is complete. In this case the method invokes the execution of the test sequence just once, and then the microservice remains dormant but active.
 * Method `reportHealthy` overrides but essentially just calls the same base method. Its only purpose here is to draw your attention to its existence and the possibility to implement your own health status reporting functionality if you want.
 * Method `verifyAccess` also overrides the base method and shows a very basic example of how to implement user access verification on business service level. Each time a service in the `ti-tester-service` is called, the framework will trigger this method and will only allow processing if there is a non-undefined value inside the `authToken` variable.
-* Method `#executeTests` is a custom private method that contains the test sequence itself. It is called by the `onStart` method just once per microservice start. Inside you can see two examples of calling a business service—in both cases the tester microservice is calling itself. In a more practical situation, however, these calls would be directed towards other service domains.
+* Method `#executeTests` is a custom private method that contains the test execution sequence itself. It is called by the `onStart` method just once per microservice start.
+* Method `#assertService` is an assertion wrapper around a standard service call request. Inside it, you can see how a business service is invoked and how the results should be handled.
 
 The file `tester-service.json` contains framework configuration for the tester microservice. It will be automatically loaded inside the `ServiceInstance` class during initialization and will already be available inside the `onStart` method for usage. In this case the configuration is related to the two business services that will be provided by the microservice. More on this topic will be covered in the section [Using the framework](#using-the-framework). For now pay attention to the `serviceFile` parameter and that it once again provides a relative path to the actual file containing the business logic.
+
+The file `more-labels.json` contains one additional localization label for the tester microservice and is only used to demonstrate how to add custom labels to the microservice. For more information on localization, see the section [Localization](#localization).
 
 The final two files are located in `bin/services/v1/` folder. They contain the definitions and business logic of the two business services that will be loaded at initialization time and provided by the tester microservice. In this case `service1.js` contains a basic service that returns the current timestamp. The `service2.js` file contains a slightly more complex example of a service calling another service (in this case `service1`) before also returning two timestamps taken at the beginning and end of execution. Pay attention to the way the methods inside are declared and exported as this is the proper way to do this while using the **ti-engine** framework. Once again, we'll delve into the details and specifics of creating business services in the section [Using the framework](#using-the-framework).
 
@@ -253,9 +271,9 @@ The final two files are located in `bin/services/v1/` folder. They contain the d
 Now that we've seen the structure of the tester microservice, let's create a new one and make it call `service2`. Let's use the same file structure as for the tester. Create a folder `my-service` and in it create a `package.json` file. Make sure to include a dependency to `"@ti-engine/core": "latest"` in it. After that create a `.env` file and add the following entries in it:
 
 ```text
+TI_INSTANCE_NAME=my-service
 TI_INSTANCE_CLASS=bin/my-service.js
 TI_INSTANCE_CONFIG=bin/my-service.json
-TI_INSTANCE_NAME=my-service
 TI_AUDITING_LOG_MIN_LEVEL=200
 ```
 

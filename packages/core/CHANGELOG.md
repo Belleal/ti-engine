@@ -2,6 +2,11 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.8
+* fix(tester): fix the relative paths of various files in the tester service. The configuration now assumes that the working directory is the root of the tester package instead of the repository itself
+* build(npm): update npm dependencies to their latest versions
+* docs: fix some outdated information in the `README.md` file and add some more details
+
 ## Version 1.3.7
 * feat(exceptions): add new exception code `E_SEC_UNRECOGNIZED_AUTH_METHOD`
 * fix(config): fix potential issue with `TI_GCLOUD_ENABLED` parsing as boolean
