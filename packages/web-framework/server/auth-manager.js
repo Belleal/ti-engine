@@ -9,6 +9,7 @@
 const tools = require( "@ti-engine/core/tools" );
 const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
+const { randomBytes } = require( "node:crypto" );
 const openidClient = require( "openid-client" );
 
 /**
@@ -21,7 +22,20 @@ const openidClient = require( "openid-client" );
 const authMethodEnum = tools.enum( {
     LOCAL: [ "local", "local", "Local authentication with username and password." ],
     OPENID_AZURE: [ "openid-azure", "openid-azure", "Authentication to Azure Cloud using OpenID Connect." ],
-    OPENID_GOOGLE: [ "openid-google", "openid-google", "Authentication to Google using OpenID Connect." ]
+    OPENID_GOOGLE: [ "openid-google", "openid-google", "Authentication to Google Cloud using OpenID Connect." ]
+} );
+
+/**
+ * Enum for specifying the OpenID Connect client authentication method.
+ *
+ * @readonly
+ * @enum {string}
+ * @typedef {string} TiTokenEndpointAuthMethod
+ */
+const openIDTokenEndpointAuthMethodEnum = tools.enum( {
+    BASIC: [ "client_secret_basic", "basic", "Uses 'client_secret_basic' token endpoint authentication method." ],
+    POST: [ "client_secret_post", "post", "Uses 'client_secret_post' token endpoint authentication method." ],
+    NONE: [ "none", "none", "Uses 'none' token endpoint authentication method." ]
 } );
 
 /**
@@ -30,17 +44,18 @@ const authMethodEnum = tools.enum( {
  */
 class AuthManager {
 
+    #initialized = false;
     /** @type {SettingsAuth} */
     #authSettings = {
         enabledMethods: [],
         local: {
             username: undefined,
-            password: undefined,
-            enabled: false
+            password: undefined
         },
         oauth2: {}
     };
-    #googleOauth2Configuration = {};
+    #clientConfigOAuth2Google = {};
+    #clientConfigOAuth2Azure = {};
 
     /**
      * @constructor
@@ -51,19 +66,29 @@ class AuthManager {
             this.#authSettings = settings;
         }
 
-        if ( this.#authSettings.enabledMethods.includes( authMethodEnum.LOCAL ) ) {
+        // Set up local authentication configuration:
+        if ( this.isAuthEnabled( authMethodEnum.LOCAL ) ) {
             // TODO: For testing purposes only! Implement real local auth later!
             this.#authSettings.local = this.#authSettings.local || {};
             this.#authSettings.local.username = "admin";
             this.#authSettings.local.password = "admin";
-            this.#authSettings.local.enabled = true;
         }
 
-        if ( this.#authSettings.enabledMethods.includes( authMethodEnum.OPENID_GOOGLE ) ) {
+        // Set up OAuth2 configuration:
+        this.#authSettings.oauth2 = this.#authSettings.oauth2 || {};
+        if ( this.isAuthEnabled( authMethodEnum.OPENID_GOOGLE ) ) {
             this.#authSettings.oauth2.google = this.#authSettings.oauth2.google || {};
-            this.#authSettings.oauth2.google.clientID = process.env.TI_GCLOUD_AUTH_CLIENT_ID;
-            this.#authSettings.oauth2.google.clientSecret = process.env.TI_GCLOUD_AUTH_CLIENT_SECRET;
-            this.#authSettings.oauth2.google.callbackUrl = this.#authSettings.oauth2.google.callbackUrl || "/login/google-callback";
+            this.#authSettings.oauth2.google.clientID = process.env.TI_GCLOUD_AUTH_CLIENT_ID || this.#authSettings.oauth2.google.clientID;
+            this.#authSettings.oauth2.google.clientSecret = process.env.TI_GCLOUD_AUTH_CLIENT_SECRET || this.#authSettings.oauth2.google.clientSecret;
+            this.#authSettings.oauth2.google.callbackUrl = process.env.TI_GCLOUD_AUTH_CALLBACK_URL || this.#authSettings.oauth2.google.callbackUrl;
+            this.#authSettings.oauth2.google.discoveryUrl = process.env.TI_GCLOUD_AUTH_DISCOVERY_URL || this.#authSettings.oauth2.google.discoveryUrl;
+        }
+        if ( this.isAuthEnabled( authMethodEnum.OPENID_AZURE ) ) {
+            this.#authSettings.oauth2.azure = this.#authSettings.oauth2.azure || {};
+            this.#authSettings.oauth2.azure.clientID = process.env.TI_AZURE_AUTH_CLIENT_ID || this.#authSettings.oauth2.azure.clientID;
+            this.#authSettings.oauth2.azure.clientSecret = process.env.TI_AZURE_AUTH_CLIENT_SECRET || this.#authSettings.oauth2.azure.clientSecret;
+            this.#authSettings.oauth2.azure.callbackUrl = process.env.TI_AZURE_AUTH_CALLBACK_URL || this.#authSettings.oauth2.azure.callbackUrl;
+            this.#authSettings.oauth2.azure.discoveryUrl = process.env.TI_AZURE_AUTH_DISCOVERY_URL || this.#authSettings.oauth2.azure.discoveryUrl;
         }
     }
 
@@ -79,10 +104,20 @@ class AuthManager {
     initialize() {
         return new Promise( ( resolve, reject ) => {
             let promises = [];
-            if ( this.#authSettings.enabledMethods.includes( authMethodEnum.OPENID_GOOGLE ) ) {
-                promises.push( this.#initializeOpenIDGoogle() );
+            if ( this.isAuthEnabled( authMethodEnum.OPENID_GOOGLE ) ) {
+                promises.push( this.#initializeOpenIDClient( this.#authSettings.oauth2.google ).then( ( configuration ) => {
+                    this.#clientConfigOAuth2Google = configuration;
+                    logger.log( "Enabled OpenID Connect authentication with Google Cloud.", logger.logSeverity.NOTICE );
+                } ) );
+            }
+            if ( this.isAuthEnabled( authMethodEnum.OPENID_AZURE ) ) {
+                promises.push( this.#initializeOpenIDClient( this.#authSettings.oauth2.azure ).then( ( configuration ) => {
+                    this.#clientConfigOAuth2Azure = configuration;
+                    logger.log( "Enabled OpenID Connect authentication with Azure Cloud.", logger.logSeverity.NOTICE );
+                } ) );
             }
             return Promise.all( promises ).then( () => {
+                this.#initialized = true;
                 resolve();
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -98,26 +133,32 @@ class AuthManager {
      * @returns {boolean}
      * @public
      */
-    isEnabled( authMethod ) {
+    isAuthEnabled( authMethod ) {
         return this.#authSettings.enabledMethods.includes( authMethod );
     }
 
     /**
-     * Used to authenticate a user via the specified auth method.
+     * Used to authenticate a user via the specified authentication method.
      *
      * @method
      * @param {TiAuthMethod} authMethod
      * @param {Object} authDetails
-     * @returns {Promise}
-     * @throws {Exception} If the authentication method is not recognized or enabled.
+     * @returns {Promise<Object>}
+     * @throws {Exception.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the authentication method is not recognized or enabled.
+     * @throws {Exception.E_GEN_NOT_INITIALIZED} If the auth manager was not properly initialized.
      * @public
      */
     authenticate( authMethod, authDetails ) {
+        if ( !this.#initialized ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_NOT_INITIALIZED );
+        }
         switch ( authMethod ) {
             case authMethodEnum.LOCAL:
-                return this.#localAuthentication( authDetails.username, authDetails.password );
+                return this.#authenticateLocal( authDetails.username, authDetails.password );
             case authMethodEnum.OPENID_GOOGLE:
-                return this.#openIDGoogleAuthentication( authDetails.baseUrl );
+                return this.#authenticateOpenID( authDetails.baseUrl, this.#authSettings.oauth2.google, this.#clientConfigOAuth2Google );
+            case authMethodEnum.OPENID_AZURE:
+                return this.#authenticateOpenID( authDetails.baseUrl, this.#authSettings.oauth2.azure, this.#clientConfigOAuth2Azure );
             default: {
                 let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
                 exception.httpCode = exceptions.httpCode.C_401;
@@ -127,13 +168,14 @@ class AuthManager {
     }
 
     /**
-     * Used to set up user authorization according to the specified auth method.
+     * Used to set up user authorization according to the specified authentication method.
      *
      * @method
      * @param {TiAuthMethod} authMethod
      * @param {URL} currentUrl
      * @param {Object} oidc
      * @returns {Promise}
+     * @throws {Exception.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the authentication method is not recognized.
      * @public
      */
     authorize( authMethod, currentUrl, oidc ) {
@@ -141,7 +183,9 @@ class AuthManager {
             case authMethodEnum.LOCAL:
                 return Promise.resolve();
             case authMethodEnum.OPENID_GOOGLE:
-                return this.#openIDGoogleAuthorization( currentUrl, oidc );
+                return this.#authorizeOpenID( currentUrl, oidc, this.#clientConfigOAuth2Google );
+            case authMethodEnum.OPENID_AZURE:
+                return this.#authorizeOpenID( currentUrl, oidc, this.#clientConfigOAuth2Azure );
             default: {
                 let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
                 exception.httpCode = exceptions.httpCode.C_401;
@@ -151,18 +195,19 @@ class AuthManager {
     }
 
     /**
-     * Used to get the callback URL for Google authentication.
-     * <br/>
-     * NOTE: This method is only available if the Google authentication method is enabled.
+     * Used to get the callback URL for the specified OAuth2 authentication method.
      *
      * @method
+     * @param {TiAuthMethod} authMethod
      * @returns {string}
-     * @throws {Exception} If the Google authentication method is not enabled.
+     * @throws {Exception.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the requested OAuth2 method is not recognized or enabled.
      * @public
      */
-    getGoogleCallbackUrl() {
-        if ( this.#authSettings.enabledMethods.includes( authMethodEnum.OPENID_GOOGLE ) ) {
+    getOAuth2CallbackUrl( authMethod ) {
+        if ( authMethod === authMethodEnum.OPENID_GOOGLE && this.isAuthEnabled( authMethodEnum.OPENID_GOOGLE ) ) {
             return this.#authSettings.oauth2.google.callbackUrl;
+        } else if ( authMethod === authMethodEnum.OPENID_AZURE && this.isAuthEnabled( authMethodEnum.OPENID_AZURE ) ) {
+            return this.#authSettings.oauth2.azure.callbackUrl;
         } else {
             let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
             exception.httpCode = exceptions.httpCode.C_401;
@@ -173,19 +218,69 @@ class AuthManager {
     /* Private interface */
 
     /**
+     * Used to initialize the OpenID Connect client for the specified OAuth2 authentication method.
+     * <br/>
+     * NOTE: Google Cloud guide available here: https://developers.google.com/identity/openid-connect/openid-connect
+     * <br/>
+     * NOTE: Azure Cloud guide available here: https://learn.microsoft.com/en-us/entra/identity-platform/v2-protocols
+     *
+     * @method
+     * @param {SettingsOAuth2Client} oauth2
+     * @returns {Promise<openidClient.Configuration>}
+     * @throws {Exception.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the token endpoint authentication method is not recognized.
+     * @private
+     */
+    #initializeOpenIDClient( oauth2 ) {
+        return new Promise( ( resolve, reject ) => {
+            // TODO: Public clients are not fully supported yet!
+            let clientAuthentication;
+            let metadata = {};
+            if ( oauth2.isPublic === true ) {
+                metadata = { token_endpoint_auth_method: openIDTokenEndpointAuthMethodEnum.NONE };
+                clientAuthentication = openidClient.None();
+            } else {
+                const method = oauth2.tokenEndpointAuthMethod || openIDTokenEndpointAuthMethodEnum.POST;
+                switch ( method ) {
+                    case openIDTokenEndpointAuthMethodEnum.POST: {
+                        clientAuthentication = openidClient.ClientSecretPost( oauth2.clientSecret );
+                        metadata = { token_endpoint_auth_method: openIDTokenEndpointAuthMethodEnum.POST };
+                    }
+                        break;
+                    case openIDTokenEndpointAuthMethodEnum.BASIC: {
+                        clientAuthentication = openidClient.ClientSecretBasic( oauth2.clientSecret );
+                        metadata = { token_endpoint_auth_method: openIDTokenEndpointAuthMethodEnum.BASIC };
+                    }
+                        break;
+                    default: {
+                        let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
+                        exception.httpCode = exceptions.httpCode.C_401;
+                        throw exception;
+                    }
+                }
+            }
+
+            openidClient.discovery( new URL( oauth2.discoveryUrl ), oauth2.clientID, metadata, clientAuthentication, { algorithm: "oidc" } ).then( ( configuration ) => {
+                resolve( configuration );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
      * Used to verify the local authentication of a request.
      *
      * @method
      * @param {string} username
      * @param {string} password
-     * @returns {Promise<boolean>}
+     * @returns {Promise<Object>}
      * @private
      */
-    #localAuthentication( username, password ) {
+    #authenticateLocal( username, password ) {
         return new Promise( ( resolve, reject ) => {
             // TODO: Implement this!
-            if ( this.#authSettings.local.enabled === true ) {
-                resolve( username === this.#authSettings.local.username && password === this.#authSettings.local.password );
+            if ( this.isAuthEnabled( authMethodEnum.LOCAL ) ) {
+                resolve( { result: ( username === this.#authSettings.local.username && password === this.#authSettings.local.password ) } );
             } else {
                 let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
                 exception.httpCode = exceptions.httpCode.C_401;
@@ -195,53 +290,32 @@ class AuthManager {
     }
 
     /**
-     * Used to initialize the OpenID Connect client for Google authentication.
-     * <br/>
-     * NOTE: Guide available here https://developers.google.com/identity/openid-connect/openid-connect
-     *
-     * @method
-     * @returns {Promise}
-     * @private
-     */
-    #initializeOpenIDGoogle() {
-        return new Promise( ( resolve, reject ) => {
-            // TODO: Implement this!
-            const googleDiscoveryUrl = "https://accounts.google.com/.well-known/openid-configuration";
-            const googleSettings = this.#authSettings.oauth2.google;
-            openidClient.discovery( new URL( googleDiscoveryUrl ), googleSettings.clientID, googleSettings.clientSecret, openidClient.ClientSecretPost( googleSettings.clientSecret ), { algorithm: "oidc" } ).then( ( configuration ) => {
-                this.#googleOauth2Configuration = configuration;
-                resolve();
-            } ).catch( ( error ) => {
-                reject( error );
-            } );
-        } );
-    }
-
-    /**
      * Used to perform the actual OpenID Connect authentication.
      *
      * @method
      * @param {string} baseUrl
-     * @returns {Promise<URL>}
+     * @param {SettingsOAuth2Client} oauth2
+     * @param {openidClient.Configuration} clientConfig
+     * @returns {Promise<Object>}
      * @private
      */
-    #openIDGoogleAuthentication( baseUrl ) {
+    #authenticateOpenID( baseUrl, oauth2, clientConfig ) {
         return new Promise( ( resolve, reject ) => {
             const codeVerifier = openidClient.randomPKCECodeVerifier();
+            const nonce = ( typeof openidClient.randomNonce === "function" ) ? openidClient.randomNonce() : randomBytes( 16 ).toString( "base64" );
+            const redirectUri = new URL( oauth2.callbackUrl, baseUrl ).toString();
             openidClient.calculatePKCECodeChallenge( codeVerifier ).then( ( codeChallenge ) => {
                 const parameters = {
-                    redirect_uri: `${ baseUrl }${ this.#authSettings.oauth2.google.callbackUrl }`,
-                    //response_type: "code",
-                    //client_id: this.#authSettings.oauth2.google.clientID,
+                    redirect_uri: redirectUri,
+                    response_type: "code",
                     scope: "openid email profile",
+                    state: openidClient.randomState(),
                     code_challenge: codeChallenge,
-                    code_challenge_method: "S256"
+                    code_challenge_method: "S256",
+                    nonce: nonce
                 };
-                if ( !this.#googleOauth2Configuration.serverMetadata().supportsPKCE() ) {
-                    parameters.state = openidClient.randomState();
-                }
-                const redirectTo = openidClient.buildAuthorizationUrl( this.#googleOauth2Configuration, parameters );
-                resolve( { redirectTo: redirectTo, codeVerifier: codeVerifier, state: parameters.state } );
+                const redirectTo = openidClient.buildAuthorizationUrl( clientConfig, parameters );
+                resolve( { redirectTo: redirectTo, codeVerifier: codeVerifier, state: parameters.state, nonce: nonce } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
@@ -254,18 +328,23 @@ class AuthManager {
      * @method
      * @param {URL} currentUrl
      * @param {Object} oidc
+     * @param {openidClient.Configuration} clientConfig
      * @returns {Promise<Object>}
      * @private
      */
-    #openIDGoogleAuthorization( currentUrl, oidc ) {
+    #authorizeOpenID( currentUrl, oidc, clientConfig ) {
         return new Promise( ( resolve, reject ) => {
-            openidClient.authorizationCodeGrant( this.#googleOauth2Configuration, currentUrl, { pkceCodeVerifier: oidc.codeVerifier } ).then( ( token ) => {
+            openidClient.authorizationCodeGrant( clientConfig, currentUrl, {
+                pkceCodeVerifier: oidc.codeVerifier,
+                expectedState: oidc.state,
+                expectedNonce: oidc.nonce
+            } ).then( ( token ) => {
                 const claims = token.claims();
-                return openidClient.fetchUserInfo( this.#googleOauth2Configuration, token.access_token, claims.sub );
+                return openidClient.fetchUserInfo( clientConfig, token.access_token, claims.sub );
             } ).then( ( userInfo ) => {
                 resolve( userInfo );
             } ).catch( ( error ) => {
-                reject( error );
+                reject( exceptions.raise( error ) );
             } );
         } );
     }

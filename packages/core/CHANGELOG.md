@@ -2,6 +2,10 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.9
+* feat(exceptions): add new exception code `E_GEN_NOT_INITIALIZED`
+* docs: fix image links in the `README.md` file
+
 ## Version 1.3.8
 * fix(tester): fix the relative paths of various files in the tester service. The configuration now assumes that the working directory is the root of the tester package instead of the repository itself
 * build(npm): update npm dependencies to their latest versions

@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/web-framework",
-  "version": "1.2.9",
+  "version": "1.2.10",
   "description": "A web-framework based on the ti-engine. It provides a customizable ready-to-use web-server microservice and a set of tools for creating web applications. NOTICE: This is still a work in progress and the full architecture, design, and functionality are not available!",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
@@ -17,7 +17,7 @@
     "express-session": "^1.18.2",
     "helmet": "^8.1.0",
     "lodash": "^4.17.21",
-    "openid-client": "^6.8.0"
+    "openid-client": "^6.8.1"
   },
   "devDependencies": {
     "htmx.org": "^2.0.7"

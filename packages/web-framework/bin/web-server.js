@@ -11,8 +11,6 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const logger = require( "@ti-engine/core/logger" );
 const { randomBytes } = require( "node:crypto" );
 const path = require( "node:path" );
-const http = require( "node:http" );
-const https = require( "node:https" );
 const fs = require( "node:fs" );
 const _ = require( "lodash" );
 const express = require( "express" );
@@ -23,6 +21,8 @@ const SessionStore = require( "#session-store" );
 const WebAppManager = require( "#web-app-manager" );
 const AuthManager = require( "#auth-manager" );
 const authMethod = require( "#auth-manager" ).authMethod;
+
+/** @typedef {import("node:http").Server} NodeServer */
 
 /**
  * @typedef {ServiceConfiguration} WebServiceConfiguration
@@ -49,6 +49,18 @@ const authMethod = require( "#auth-manager" ).authMethod;
  * @property {string[]} enabledMethods
  * @property {Object} local
  * @property {Object} oauth2
+ * @property {SettingsOAuth2Client} [oauth2.azure]
+ * @property {SettingsOAuth2Client} [oauth2.google]
+ */
+
+/**
+ * @typedef {Object} SettingsOAuth2Client
+ * @property {string} [clientID]
+ * @property {string} [clientSecret]
+ * @property {string} [callbackUrl]
+ * @property {string} [discoveryUrl]
+ * @property {boolean} [isPublic]
+ * @property {TiTokenEndpointAuthMethod} [tokenEndpointAuthMethod]
  */
 
 /**
@@ -86,6 +98,7 @@ class TiWebServer extends ServiceConsumer {
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
      * @param {WebServiceConfiguration} serviceConfig The JSON configuration for this service.
+     * @throws {Exception.E_GEN_INVALID_ARGUMENT_TYPE} If the service configuration for the public path is invalid.
      */
     constructor( serviceDomainName, serviceConfig ) {
         super( serviceDomainName, serviceConfig );
@@ -178,6 +191,7 @@ class TiWebServer extends ServiceConsumer {
      *
      * @method
      * @returns {Promise}
+     * @throws {Exception.E_GEN_INVALID_ARGUMENT_TYPE} If the service configuration for the TLS key or cert paths is invalid.
      * @override
      * @public
      */
@@ -231,9 +245,9 @@ class TiWebServer extends ServiceConsumer {
                     netServerOptions.cert = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsCertPath ) );
 
                     this.#webServer.use( webHandlers.httpRedirectHandler( this ) );
-                    this.#netServer = https.createServer( netServerOptions, this.#webServer );
+                    this.#netServer = require( "node:https" ).createServer( netServerOptions, this.#webServer );
                 } else {
-                    this.#netServer = http.createServer( netServerOptions, this.#webServer );
+                    this.#netServer = require( "node:http" ).createServer( netServerOptions, this.#webServer );
                 }
                 if ( Number.isFinite( resolvedRequestTimeout ) ) {
                     this.#netServer.requestTimeout = resolvedRequestTimeout;
@@ -256,8 +270,11 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
                 this.#webServer.post( "/logout", webHandlers.logoutHandler() );
                 this.#webServer.get( "/me", webHandlers.userInformationHandler() );
-                if ( this.#authManager.isEnabled( authMethod.OPENID_GOOGLE ) ) {
-                    this.#webServer.get( this.#authManager.getGoogleCallbackUrl(), webHandlers.googleCallbackHandler( this ) );
+                if ( this.#authManager.isAuthEnabled( authMethod.OPENID_GOOGLE ) ) {
+                    this.#webServer.get( this.#authManager.getOAuth2CallbackUrl( authMethod.OPENID_GOOGLE ), webHandlers.authorizedOAuth2CallbackHandler( this, authMethod.OPENID_GOOGLE ) );
+                }
+                if ( this.#authManager.isAuthEnabled( authMethod.OPENID_AZURE ) ) {
+                    this.#webServer.get( this.#authManager.getOAuth2CallbackUrl( authMethod.OPENID_AZURE ), webHandlers.authorizedOAuth2CallbackHandler( this, authMethod.OPENID_AZURE ) );
                 }
 
                 // API service proxy route (protected by auth middleware):
@@ -425,10 +442,10 @@ class TiWebServer extends ServiceConsumer {
      * Used to start listening for requests on the specified port and host and on the specified server.
      *
      * @method
-     * @param {http.Server|https.Server} server The server instance to listen on.
+     * @param {NodeServer} server The server instance to listen on.
      * @param {number} port The port to listen on.
      * @param {string} host The host to listen on.
-     * @returns {Promise<http.Server|https.Server>}
+     * @returns {Promise<NodeServer>}
      * @private
      */
     #beginListening( server, port, host ) {
@@ -447,7 +464,7 @@ class TiWebServer extends ServiceConsumer {
      * Used to stop listening for requests on the specified server.
      *
      * @method
-     * @param {http.Server|https.Server} server The server instance to stop listening on.
+     * @param {NodeServer} server The server instance to stop listening on.
      * @returns {Promise}
      * @private
      */

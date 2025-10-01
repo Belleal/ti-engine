@@ -27,6 +27,7 @@ const exceptionCodeEnum = tools.enum( {
     E_GEN_BAD_SERVICE_HANDLER: [ 1005, "bad service handler", "The provided service handler is not a proper function." ],
     E_GEN_FEATURE_UNSUPPORTED: [ 1006, "feature unsupported", "The requested feature is not supported by current configuration or version." ],
     E_GEN_INVALID_ARGUMENT_TYPE: [ 1007, "invalid argument type", "The provided argument is not of the expected type." ],
+    E_GEN_NOT_INITIALIZED: [ 1008, "not initialized", "The invoked framework component is not initialized." ],
     /** Security & Administration exceptions - codes under 2xxx */
     E_SEC_INVALID_AUTH_TOKEN: [ 2000, "invalid auth token", "Invalid authorization token provided." ],
     E_SEC_INVALID_EXPIRED_SESSION: [ 2001, "invalid or expired session", "Invalid or expired session encountered." ],

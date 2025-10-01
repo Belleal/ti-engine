@@ -17,15 +17,20 @@
       "openid-google"
     ],
     "oauth2": {
+      "azure": {
+        "tokenEndpointAuthMethod": "client_secret_post",
+        "callbackUrl": "/login/azure-callback",
+        "isPublic": false
+      },
       "google": {
-        "clientID": null,
-        "clientSecret": null,
-        "callbackUrl": "/login/google-callback"
+        "tokenEndpointAuthMethod": "client_secret_post",
+        "callbackUrl": "/login/google-callback",
+        "discoveryUrl": "https://accounts.google.com/.well-known/openid-configuration",
+        "isPublic": false
       }
     }
   },
   "cookies": {
-    "secret": null,
     "path": "/",
     "httpOnly": true,
     "sameSite": "lax",
