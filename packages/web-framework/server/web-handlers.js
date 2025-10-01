@@ -121,8 +121,8 @@ module.exports.authenticationHandler = ( instance ) => {
             } ).catch( ( error ) => {
                 next( error );
             } );
-        } else if ( method === authMethod.OPENID_GOOGLE ) {
-            instance.authenticate( authMethod.OPENID_GOOGLE, { baseUrl: getCurrentUrl( request ) } ).then( ( result ) => {
+        } else if ( method === authMethod.OPENID_GOOGLE || method === authMethod.OPENID_AZURE ) {
+            instance.authenticate( method, { baseUrl: getCurrentUrl( request ) } ).then( ( result ) => {
                 request.session.oidc = { codeVerifier: result.codeVerifier, state: result.state };
                 request.session.save( ( error ) => {
                     if ( error ) {
@@ -144,10 +144,12 @@ module.exports.authenticationHandler = ( instance ) => {
  * Used to handle the callback from the Google OpenID authentication.
  *
  * @method
+ * @param {TiWebServer} instance
+ * @param {TiAuthMethod} authMethod
  * @returns {ExpressHandler}
  * @public
  */
-module.exports.googleCallbackHandler = ( instance ) => {
+module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
     return ( request, response, next ) => {
         const code = request.query.code;
         const state = request.query.state;
@@ -157,12 +159,12 @@ module.exports.googleCallbackHandler = ( instance ) => {
         } else if ( oidc.state && state !== oidc.state ) {
             response.status( exceptions.httpCode.C_400 ).end();
         } else {
-            instance.authorize( authMethod.OPENID_GOOGLE, new URL( request.originalUrl, getCurrentUrl( request ) ), oidc ).then( ( userInfo ) => {
+            instance.authorize( authMethod, new URL( request.originalUrl, getCurrentUrl( request ) ), oidc ).then( ( userInfo ) => {
                 request.session.regenerate( ( error ) => {
                     if ( error ) {
                         next( error );
                     } else {
-                        request.session.user = { id: `google:${ userInfo.sub }`, email: userInfo.email, name: userInfo.name };
+                        request.session.user = { id: `oauth2:${ userInfo.sub }`, email: userInfo.email, name: userInfo.name };
                         delete request.session.oidc;
                         request.session.save( ( error ) => {
                             if ( error ) {

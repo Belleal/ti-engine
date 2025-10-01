@@ -5,8 +5,9 @@
 I'll generally support only the **latest minor version** of the framework. If you have issues with an older version it would be best to update to latest supported one. Check the table below for current status.
 
 | Version | Supported          |
-| ------- |--------------------|
-| 1.2.x   | :white_check_mark: |
+|---------|--------------------|
+| 1.3.x   | :white_check_mark: |
+| 1.2.x   | :x:                |
 | 1.1.x   | :x:                |
 | 1.0.x   | :x:                |
 
