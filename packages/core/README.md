@@ -6,7 +6,7 @@
 ![npms.io (scoped package)](https://img.shields.io/npms-io/popularity-score/%40ti-engine/core)
 ![npms.io (scoped package)](https://img.shields.io/npms-io/quality-score/%40ti-engine/core)
 
-![Logo](https://github.com/Belleal/ti-engine/blob/master/packages/core/docs/ti-engine-icon.ico)
+![Logo](https://raw.githubusercontent.com/Belleal/ti-engine/master/packages/core/docs/ti-engine-icon.ico)
 
 Flexible framework for the creation of microservices with [node.js](https://nodejs.org/).
 
@@ -146,7 +146,7 @@ Another important aspect for you to remember is that the message exchange is ent
 
 For now, take a look at the following diagram:
 
-![Message Exchange](https://github.com/Belleal/ti-engine/blob/master/packages/core/docs/diagram1.png)
+![Message Exchange](https://raw.githubusercontent.com/Belleal/ti-engine/master/packages/core/docs/diagram1.png)
 
 It shows the standard flow of a message exchange between one sender and _n_ identical message receivers. The sender splits each message into an _envelope_ and a _payload_, then stores the payload in the shared cache and enqueues the envelope in the requests (destination) queue. Receivers can subscribe to that queue to fetch enqueued messages and process their contents. During the fetch sequence a receiver assembles the full message by getting the payload from the storage. This process is depicted by the blue flow lines.
 

@@ -9,6 +9,7 @@
 const tools = require( "@ti-engine/core/tools" );
 const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
+const { randomBytes } = require( "node:crypto" );
 const openidClient = require( "openid-client" );
 
 /**
@@ -43,13 +44,13 @@ const openIDTokenEndpointAuthMethodEnum = tools.enum( {
  */
 class AuthManager {
 
+    #initialized = false;
     /** @type {SettingsAuth} */
     #authSettings = {
         enabledMethods: [],
         local: {
             username: undefined,
-            password: undefined,
-            enabled: false
+            password: undefined
         },
         oauth2: {}
     };
@@ -66,24 +67,23 @@ class AuthManager {
         }
 
         // Set up local authentication configuration:
-        if ( this.#authSettings.enabledMethods.includes( authMethodEnum.LOCAL ) ) {
+        if ( this.isAuthEnabled( authMethodEnum.LOCAL ) ) {
             // TODO: For testing purposes only! Implement real local auth later!
             this.#authSettings.local = this.#authSettings.local || {};
             this.#authSettings.local.username = "admin";
             this.#authSettings.local.password = "admin";
-            this.#authSettings.local.enabled = true;
         }
 
         // Set up OAuth2 configuration:
         this.#authSettings.oauth2 = this.#authSettings.oauth2 || {};
-        if ( this.#authSettings.enabledMethods.includes( authMethodEnum.OPENID_GOOGLE ) ) {
+        if ( this.isAuthEnabled( authMethodEnum.OPENID_GOOGLE ) ) {
             this.#authSettings.oauth2.google = this.#authSettings.oauth2.google || {};
             this.#authSettings.oauth2.google.clientID = process.env.TI_GCLOUD_AUTH_CLIENT_ID || this.#authSettings.oauth2.google.clientID;
             this.#authSettings.oauth2.google.clientSecret = process.env.TI_GCLOUD_AUTH_CLIENT_SECRET || this.#authSettings.oauth2.google.clientSecret;
             this.#authSettings.oauth2.google.callbackUrl = process.env.TI_GCLOUD_AUTH_CALLBACK_URL || this.#authSettings.oauth2.google.callbackUrl;
             this.#authSettings.oauth2.google.discoveryUrl = process.env.TI_GCLOUD_AUTH_DISCOVERY_URL || this.#authSettings.oauth2.google.discoveryUrl;
         }
-        if ( this.#authSettings.enabledMethods.includes( authMethodEnum.OPENID_AZURE ) ) {
+        if ( this.isAuthEnabled( authMethodEnum.OPENID_AZURE ) ) {
             this.#authSettings.oauth2.azure = this.#authSettings.oauth2.azure || {};
             this.#authSettings.oauth2.azure.clientID = process.env.TI_AZURE_AUTH_CLIENT_ID || this.#authSettings.oauth2.azure.clientID;
             this.#authSettings.oauth2.azure.clientSecret = process.env.TI_AZURE_AUTH_CLIENT_SECRET || this.#authSettings.oauth2.azure.clientSecret;
@@ -104,17 +104,20 @@ class AuthManager {
     initialize() {
         return new Promise( ( resolve, reject ) => {
             let promises = [];
-            if ( this.#authSettings.enabledMethods.includes( authMethodEnum.OPENID_GOOGLE ) ) {
+            if ( this.isAuthEnabled( authMethodEnum.OPENID_GOOGLE ) ) {
                 promises.push( this.#initializeOpenIDClient( this.#authSettings.oauth2.google ).then( ( configuration ) => {
                     this.#clientConfigOAuth2Google = configuration;
+                    logger.log( "Enabled OpenID Connect authentication with Google Cloud.", logger.logSeverity.NOTICE );
                 } ) );
             }
-            if ( this.#authSettings.enabledMethods.includes( authMethodEnum.OPENID_AZURE ) ) {
+            if ( this.isAuthEnabled( authMethodEnum.OPENID_AZURE ) ) {
                 promises.push( this.#initializeOpenIDClient( this.#authSettings.oauth2.azure ).then( ( configuration ) => {
                     this.#clientConfigOAuth2Azure = configuration;
+                    logger.log( "Enabled OpenID Connect authentication with Azure Cloud.", logger.logSeverity.NOTICE );
                 } ) );
             }
             return Promise.all( promises ).then( () => {
+                this.#initialized = true;
                 resolve();
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -130,7 +133,7 @@ class AuthManager {
      * @returns {boolean}
      * @public
      */
-    isEnabled( authMethod ) {
+    isAuthEnabled( authMethod ) {
         return this.#authSettings.enabledMethods.includes( authMethod );
     }
 
@@ -141,10 +144,14 @@ class AuthManager {
      * @param {TiAuthMethod} authMethod
      * @param {Object} authDetails
      * @returns {Promise<Object>}
-     * @throws {Exception} If the authentication method is not recognized or enabled.
+     * @throws {Exception.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the authentication method is not recognized or enabled.
+     * @throws {Exception.E_GEN_NOT_INITIALIZED} If the auth manager was not properly initialized.
      * @public
      */
     authenticate( authMethod, authDetails ) {
+        if ( !this.#initialized ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_NOT_INITIALIZED );
+        }
         switch ( authMethod ) {
             case authMethodEnum.LOCAL:
                 return this.#authenticateLocal( authDetails.username, authDetails.password );
@@ -168,6 +175,7 @@ class AuthManager {
      * @param {URL} currentUrl
      * @param {Object} oidc
      * @returns {Promise}
+     * @throws {Exception.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the authentication method is not recognized.
      * @public
      */
     authorize( authMethod, currentUrl, oidc ) {
@@ -192,13 +200,13 @@ class AuthManager {
      * @method
      * @param {TiAuthMethod} authMethod
      * @returns {string}
-     * @throws {Exception} If the requested OAuth2 method is not enabled.
+     * @throws {Exception.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the requested OAuth2 method is not recognized or enabled.
      * @public
      */
     getOAuth2CallbackUrl( authMethod ) {
-        if ( authMethod === authMethodEnum.OPENID_GOOGLE && this.#authSettings.enabledMethods.includes( authMethodEnum.OPENID_GOOGLE ) ) {
+        if ( authMethod === authMethodEnum.OPENID_GOOGLE && this.isAuthEnabled( authMethodEnum.OPENID_GOOGLE ) ) {
             return this.#authSettings.oauth2.google.callbackUrl;
-        } else if ( authMethod === authMethodEnum.OPENID_AZURE && this.#authSettings.enabledMethods.includes( authMethodEnum.OPENID_AZURE ) ) {
+        } else if ( authMethod === authMethodEnum.OPENID_AZURE && this.isAuthEnabled( authMethodEnum.OPENID_AZURE ) ) {
             return this.#authSettings.oauth2.azure.callbackUrl;
         } else {
             let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
@@ -219,6 +227,7 @@ class AuthManager {
      * @method
      * @param {SettingsOAuth2Client} oauth2
      * @returns {Promise<openidClient.Configuration>}
+     * @throws {Exception.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the token endpoint authentication method is not recognized.
      * @private
      */
     #initializeOpenIDClient( oauth2 ) {
@@ -253,7 +262,7 @@ class AuthManager {
             openidClient.discovery( new URL( oauth2.discoveryUrl ), oauth2.clientID, metadata, clientAuthentication, { algorithm: "oidc" } ).then( ( configuration ) => {
                 resolve( configuration );
             } ).catch( ( error ) => {
-                reject( error );
+                reject( exceptions.raise( error ) );
             } );
         } );
     }
@@ -270,7 +279,7 @@ class AuthManager {
     #authenticateLocal( username, password ) {
         return new Promise( ( resolve, reject ) => {
             // TODO: Implement this!
-            if ( this.#authSettings.local.enabled === true ) {
+            if ( this.isAuthEnabled( authMethodEnum.LOCAL ) ) {
                 resolve( { result: ( username === this.#authSettings.local.username && password === this.#authSettings.local.password ) } );
             } else {
                 let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
@@ -293,17 +302,20 @@ class AuthManager {
     #authenticateOpenID( baseUrl, oauth2, clientConfig ) {
         return new Promise( ( resolve, reject ) => {
             const codeVerifier = openidClient.randomPKCECodeVerifier();
+            const nonce = ( typeof openidClient.randomNonce === "function" ) ? openidClient.randomNonce() : randomBytes( 16 ).toString( "base64" );
+            const redirectUri = new URL( oauth2.callbackUrl, baseUrl ).toString();
             openidClient.calculatePKCECodeChallenge( codeVerifier ).then( ( codeChallenge ) => {
                 const parameters = {
-                    redirect_uri: `${ baseUrl }${ oauth2.callbackUrl }`,
-                    //response_type: "code",
+                    redirect_uri: redirectUri,
+                    response_type: "code",
                     scope: "openid email profile",
                     state: openidClient.randomState(),
                     code_challenge: codeChallenge,
-                    code_challenge_method: "S256"
+                    code_challenge_method: "S256",
+                    nonce: nonce
                 };
                 const redirectTo = openidClient.buildAuthorizationUrl( clientConfig, parameters );
-                resolve( { redirectTo: redirectTo, codeVerifier: codeVerifier, state: parameters.state } );
+                resolve( { redirectTo: redirectTo, codeVerifier: codeVerifier, state: parameters.state, nonce: nonce } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
@@ -324,14 +336,15 @@ class AuthManager {
         return new Promise( ( resolve, reject ) => {
             openidClient.authorizationCodeGrant( clientConfig, currentUrl, {
                 pkceCodeVerifier: oidc.codeVerifier,
-                expectedState: oidc.state
+                expectedState: oidc.state,
+                expectedNonce: oidc.nonce
             } ).then( ( token ) => {
                 const claims = token.claims();
                 return openidClient.fetchUserInfo( clientConfig, token.access_token, claims.sub );
             } ).then( ( userInfo ) => {
                 resolve( userInfo );
             } ).catch( ( error ) => {
-                reject( error );
+                reject( exceptions.raise( error ) );
             } );
         } );
     }

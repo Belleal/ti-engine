@@ -1,6 +1,6 @@
 # ti-engine tester
 
-![Logo](https://github.com/Belleal/ti-engine/blob/master/packages/core/docs/ti-engine-icon.ico)
+![Logo](https://raw.githubusercontent.com/Belleal/ti-engine/master/packages/core/docs/ti-engine-icon.ico)
 
 Flexible framework for the creation of microservices with [node.js](https://nodejs.org/).
 

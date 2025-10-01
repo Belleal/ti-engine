@@ -28,6 +28,9 @@
       "1007": {
         "en": "The provided argument is not of the expected type."
       },
+      "1008": {
+        "en": "The invoked framework component is not initialized."
+      },
       "2000": {
         "en": "Invalid authorization token provided."
       },

@@ -98,6 +98,7 @@ class TiWebServer extends ServiceConsumer {
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
      * @param {WebServiceConfiguration} serviceConfig The JSON configuration for this service.
+     * @throws {Exception.E_GEN_INVALID_ARGUMENT_TYPE} If the service configuration for the public path is invalid.
      */
     constructor( serviceDomainName, serviceConfig ) {
         super( serviceDomainName, serviceConfig );
@@ -190,6 +191,7 @@ class TiWebServer extends ServiceConsumer {
      *
      * @method
      * @returns {Promise}
+     * @throws {Exception.E_GEN_INVALID_ARGUMENT_TYPE} If the service configuration for the TLS key or cert paths is invalid.
      * @override
      * @public
      */
@@ -268,10 +270,10 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
                 this.#webServer.post( "/logout", webHandlers.logoutHandler() );
                 this.#webServer.get( "/me", webHandlers.userInformationHandler() );
-                if ( this.#authManager.isEnabled( authMethod.OPENID_GOOGLE ) ) {
+                if ( this.#authManager.isAuthEnabled( authMethod.OPENID_GOOGLE ) ) {
                     this.#webServer.get( this.#authManager.getOAuth2CallbackUrl( authMethod.OPENID_GOOGLE ), webHandlers.authorizedOAuth2CallbackHandler( this, authMethod.OPENID_GOOGLE ) );
                 }
-                if ( this.#authManager.isEnabled( authMethod.OPENID_AZURE ) ) {
+                if ( this.#authManager.isAuthEnabled( authMethod.OPENID_AZURE ) ) {
                     this.#webServer.get( this.#authManager.getOAuth2CallbackUrl( authMethod.OPENID_AZURE ), webHandlers.authorizedOAuth2CallbackHandler( this, authMethod.OPENID_AZURE ) );
                 }
 

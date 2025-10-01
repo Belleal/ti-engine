@@ -74,6 +74,7 @@ class WebAppManager {
      * @param {Object} [options]
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
      * @returns {Promise<string>}
+     * @throws {Exception.E_WEB_INVALID_REQUEST_URI} If the provided route is not supported.
      * @public
      */
     getHtmlFragment( session, fullPublicPath, route, options = {} ) {

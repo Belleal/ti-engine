@@ -123,7 +123,7 @@ module.exports.authenticationHandler = ( instance ) => {
             } );
         } else if ( method === authMethod.OPENID_GOOGLE || method === authMethod.OPENID_AZURE ) {
             instance.authenticate( method, { baseUrl: getCurrentUrl( request ) } ).then( ( result ) => {
-                request.session.oidc = { codeVerifier: result.codeVerifier, state: result.state };
+                request.session.oidc = { codeVerifier: result.codeVerifier, state: result.state, nonce: result.nonce };
                 request.session.save( ( error ) => {
                     if ( error ) {
                         next( error );
