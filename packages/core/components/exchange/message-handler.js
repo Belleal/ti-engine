@@ -33,6 +33,7 @@ class MessageHandler extends ConnectionObserver {
     /**
      * @constructor
      * @param {string} identifier An identifier for this message handler. Should be unique in the context of the message exchange.
+     * @throws {Exception.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
      */
     constructor( identifier ) {
         super();

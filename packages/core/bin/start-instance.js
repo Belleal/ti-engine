@@ -14,25 +14,22 @@ const path = require( "path" );
 // - If an env file path is provided via process arguments, use it; otherwise, default to CWD/.env
 const envFilePath = ( () => {
     let envPath = path.join( process.cwd(), ".env" );
-    try {
-        const argv = Array.isArray( process.argv ) ? process.argv.slice( 2 ) : [];
-        const aliases = [ "--env", "--env-file", "--dotenv", "--dotenv-path", "-e" ];
-        for ( const key of aliases ) {
-            const idx = argv.indexOf( key );
-            if ( idx !== -1 && idx + 1 < argv.length ) {
-                const value = argv[ idx + 1 ];
-                if ( typeof value === "string" && !value.startsWith( "-" ) ) {
-                    envPath = path.join( process.cwd(), value.trim() );
-                    break;
-                }
+    const argv = Array.isArray( process.argv ) ? process.argv.slice( 2 ) : [];
+    const aliases = [ "--env", "--env-file", "--dotenv", "--dotenv-path", "-e" ];
+    for ( const key of aliases ) {
+        const idx = argv.indexOf( key );
+        if ( idx !== -1 && idx + 1 < argv.length ) {
+            const value = argv[ idx + 1 ];
+            if ( typeof value === "string" && !value.startsWith( "-" ) ) {
+                envPath = path.join( process.cwd(), value.trim() );
+                break;
             }
         }
-    } catch {
     }
     return envPath;
 } )();
 
-require( "@dotenvx/dotenvx" ).config( { path: envFilePath } );
+require( "@dotenvx/dotenvx" ).config( { path: envFilePath, quiet: true } );
 
 const tools = require( "#tools" );
 const logger = require( "#logger" );
@@ -70,6 +67,7 @@ process.env.TI_INSTANCE_NAME = process.env.TI_INSTANCE_NAME || defaultNameFromCl
  * @private
  */
 let shutDownInstance = ( exitCode ) => {
+    process.exit( exitCode );
 };
 
 // This event will handle the process termination (Ctrl + C):
@@ -136,11 +134,11 @@ try {
     const mainInstance = new serviceConstructor( process.env.TI_INSTANCE_NAME, serviceConfig );
 
     /** @override */
-    shutDownInstance = ( code ) => {
+    shutDownInstance = ( exitCode ) => {
         mainInstance.stop().then( () => {
-            setImmediate( () => process.exit( code ) );
+            setImmediate( () => process.exit( exitCode ) );
         } ).catch( ( error ) => {
-            logger.log( `Error occurred during shut down of instance '${ process.env.TI_INSTANCE_ID }'! Exit code changed from '${ code }' to '1'.`, logger.logSeverity.ERROR, error );
+            logger.log( `Error occurred during shut down of instance '${ process.env.TI_INSTANCE_ID }'! Exit code changed from '${ exitCode }' to '1'.`, logger.logSeverity.ERROR, error );
             setImmediate( () => process.exit( 1 ) );
         } );
     };

@@ -43,6 +43,8 @@ class ServiceInstance {
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
      * @param {ServiceConfiguration} [serviceConfig={ services: [] }] The JSON configuration for this service.
+     * @throws {Exception.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
+     * @throws {Exception.E_GEN_FEATURE_UNSUPPORTED} If multiple instances are started in the same process.
      */
     constructor( serviceDomainName, serviceConfig = { services: [] } ) {
         // Ensure this abstract class cannot be instantiated:

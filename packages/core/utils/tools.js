@@ -347,7 +347,8 @@ module.exports.decycle = ( object, replacer ) => {
 module.exports.retrocycle = ( $ ) => {
     "use strict";
 
-    let px = /^\$(?:\[(?:\d+|"(?:[^\\"\u0000-\u001f]|\\(?:[\\"\/bfnrt]|u[0-9a-zA-Z]{4}))*")])*$/;
+    // eslint-disable-next-line no-control-regex
+    let px = /^\$(?:\[(?:\d+|"(?:[^\\"\u0000-\u001f]|\\(?:[\\"/bfnrt]|u[0-9a-zA-Z]{4}))*")])*$/;
 
     // The rez function walks recursively through the object looking for $ref
     // properties. When it finds one that has a value that is a path, then it
@@ -408,7 +409,7 @@ module.exports.stringifyJSON = ( value ) => {
 module.exports.isJsonString = ( string ) => {
     try {
         JSON.parse( string );
-    } catch ( error ) {
+    } catch {
         return false;
     }
     return true;
@@ -427,7 +428,7 @@ module.exports.parseJSON = ( value ) => {
     try {
         let transformed = JSON.parse( value );
         return module.exports.retrocycle( transformed );
-    } catch ( error ) {
+    } catch {
         return value;
     }
 };
@@ -489,6 +490,7 @@ class RetryPolicy {
     /**
      * @constructor
      * @param {number} maxAttempts The maximum number of attempts to execute the operation.
+     * @throws {TypeError} maxAttempts must be a positive integer.
      */
     constructor( maxAttempts ) {
         if ( !Number.isInteger( maxAttempts ) || maxAttempts < 1 ) {
@@ -560,7 +562,8 @@ class RetryPolicy {
             if ( attempt > 1 && this.#onRetry ) {
                 try {
                     this.#onRetry( attempt, error );
-                } catch ( _ ) { /* ignore observer errors */
+                } catch {
+                    // ignore observer errors...
                 }
             }
             return Promise
@@ -572,7 +575,8 @@ class RetryPolicy {
                     if ( this.#onFailedAttempt ) {
                         try {
                             this.#onFailedAttempt( error );
-                        } catch ( _ ) { /* ignore observer errors */
+                        } catch {
+                            // ignore observer errors...
                         }
                     }
                     return this.#retry( context, operation, params, ( attempt + 1 ), error );

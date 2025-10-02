@@ -19,6 +19,7 @@ class ConnectionObserver {
 
     /**
      * @constructor
+     * @throws {Exception.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
      */
     constructor() {
         // make sure this abstract class cannot be instantiated:
@@ -36,6 +37,7 @@ class ConnectionObserver {
      * @param {string} identifier The identifier of the observed connection.
      * @virtual
      * @public
+     *
      */
     onConnectionDisrupted( identifier ) {
     }

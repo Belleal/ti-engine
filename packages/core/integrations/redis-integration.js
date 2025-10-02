@@ -396,7 +396,8 @@ class RedisClient {
             const timeout = setTimeout( () => {
                 try {
                     this.#redisConnection.disconnect();
-                } catch ( error ) {
+                } catch {
+                    // do nothing here...
                 }
                 done();
             }, timeoutMs );
@@ -408,7 +409,8 @@ class RedisClient {
                 clearTimeout( timeout );
                 try {
                     this.#redisConnection.disconnect();
-                } catch ( error ) {
+                } catch {
+                    // do nothing here...
                 }
                 done();
             } );
