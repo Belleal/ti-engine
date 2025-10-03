@@ -13,12 +13,15 @@ const URL = require( "node:url" ).URL;
 const helmet = require( "helmet" );
 const authMethod = require( "#auth-manager" ).authMethod;
 
+/** @typedef {import("express").req} ExpressRequest */
+/** @typedef {import("express").res} ExpressResponse */
+
 /**
  * Express middleware callback.
  *
  * @callback ExpressHandler
- * @param {*} request
- * @param {*} response
+ * @param {ExpressRequest} request
+ * @param {ExpressResponse} response
  * @param {function( Error | null )} next
  * @returns {void}
  */
@@ -28,8 +31,8 @@ const authMethod = require( "#auth-manager" ).authMethod;
  *
  * @callback ExpressErrorHandler
  * @param {Error} error
- * @param {*} request
- * @param {*} response
+ * @param {ExpressRequest} request
+ * @param {ExpressResponse} response
  * @param {function( Error | null )} next
  * @returns {void}
  */
@@ -38,7 +41,7 @@ const authMethod = require( "#auth-manager" ).authMethod;
  * Used to assemble the current URL of a request.
  *
  * @method
- * @param {*} request
+ * @param {ExpressRequest} request
  * @returns {string}
  * @private
  */

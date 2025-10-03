@@ -13,6 +13,8 @@
   ],
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
+  "main": "./bin/start-instance.js",
+  "type": "commonjs",
   "exports": {
     ".": "./bin/start-instance.js",
     "./cache": "./utils/cache.js",
