@@ -94,6 +94,10 @@ class WebAppManager {
                         : this.#fragments[ 'login' ];
                 }
                     break;
+                case '/dashboard': {
+                    fragment = this.#fragments[ 'dashboard' ];
+                }
+                    break;
                 default: {
                     throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI );
                 }

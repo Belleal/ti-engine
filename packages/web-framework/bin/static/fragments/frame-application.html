@@ -1,17 +1,23 @@
 <div id="ti-sidebar" class="ti-sidebar">
     <div id="ti-sidebar-menu-top" class="ti-sidebar-menu top">
-        <a href="" role="button" class="ti-sidebar-button">1</a>
-        <a href="" role="button" class="ti-sidebar-button">2</a>
-        <a href="" role="button" class="ti-sidebar-button">3</a>
+        <button hx-get="/" hx-target="body" hx-swap="outerHTML" hx-push-url="true" type="button" class="ti-sidebar-button">
+            <span class="material-symbols-outlined">home</span>
+        </button>
+        <span class="ti-spacer-v-10"></span>
+        <button type="button" class="ti-sidebar-button">
+            <span class="material-symbols-outlined">radio_button_checked</span>
+        </button>
+        <button type="button" class="ti-sidebar-button">
+            <span class="material-symbols-outlined">radio_button_checked</span>
+        </button>
     </div>
     <div id="ti-sidebar-menu-bottom" class="ti-sidebar-menu bottom">
-        <a href="" role="button" class="ti-sidebar-button">A</a>
-        <a href="" role="button" class="ti-sidebar-button">B</a>
+        <button type="button" class="ti-sidebar-button">
+            <span class="material-symbols-outlined">radio_button_checked</span>
+        </button>
+        <button type="button" class="ti-sidebar-button">
+            <span class="material-symbols-outlined">radio_button_checked</span>
+        </button>
     </div>
 </div>
-<div id="ti-content" class="ti-content"
-     hx-post="/service/v1/test-1"
-     hx-trigger="load delay:500ms"
-     hx-target="this"
-     hx-swap="innerHTML">
-</div>
+<div id="ti-content" class="ti-content"></div>
