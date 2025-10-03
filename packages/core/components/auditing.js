@@ -77,7 +77,7 @@ class Auditing {
                     gcloud.reportError( data );
                 }
             }
-        } catch ( error ) {
+        } catch {
             // do nothing here for now...
         }
     }

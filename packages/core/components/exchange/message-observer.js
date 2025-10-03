@@ -25,8 +25,9 @@ class MessageObserver extends ConnectionObserver {
     #priority = 0;
 
     /**
-     * @param {number} [priority=0] The priority of this observer. Higher values indicate higher priority.
      * @constructor
+     * @param {number} [priority=0] The priority of this observer. Higher values indicate higher priority.
+     * @throws {Exception.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
      */
     constructor( priority = 0 ) {
         super();

@@ -1,7 +1,16 @@
 {
   "name": "@ti-engine/core",
-  "version": "1.3.9",
+  "version": "1.3.10",
   "description": "The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.",
+  "keywords": [
+    "microservices",
+    "framework",
+    "node",
+    "redis",
+    "messaging",
+    "pubsub",
+    "distributed-systems"
+  ],
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "exports": {
@@ -46,20 +55,35 @@
     "#tools": "./utils/tools.js"
   },
   "dependencies": {
-    "blake2": "^5.0.0",
     "@dotenvx/dotenvx": "^1.51.0",
+    "blake2": "^5.0.0",
+    "ioredis": "^5.8.0",
     "lodash": "^4.17.21",
-    "node-schedule": "^2.1.1",
-    "ioredis": "^5.8.0"
+    "node-schedule": "^2.1.1"
   },
   "optionalDependencies": {
     "@google-cloud/error-reporting": "^3.0.5",
     "zeromq": "^6.5.0"
   },
+  "files": [
+    "bin/",
+    "components/",
+    "integrations/",
+    "utils/",
+    "package.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Belleal/ti-engine.git"
+    "url": "git+https://github.com/Belleal/ti-engine.git",
+    "directory": "packages/core"
   },
+  "bugs": {
+    "url": "https://github.com/Belleal/ti-engine/issues"
+  },
+  "homepage": "https://github.com/Belleal/ti-engine/tree/master/packages/core#readme",
   "engines": {
     "node": ">=18.0.0"
   }

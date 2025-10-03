@@ -129,6 +129,7 @@ class CommonMemoryCache extends ConnectionObserver {
      *
      * @method
      * @param {string} identifier The identifier of the observed connection.
+     * @throws {Exception.E_GEN_SYSTEM_CACHE_UNAVAILABLE} If the cache service is no longer available.
      * @override
      * @public
      */

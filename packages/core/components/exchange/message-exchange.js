@@ -72,6 +72,7 @@ class MessageExchange extends MessageObserver {
      * @constructor
      * @param {string} instanceID The unique identifier of the microservice instance using the message exchange.
      * @param {string} serviceDomainName The domain name of the microservice using the message exchange.
+     * @throws {Exception.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
      */
     constructor( instanceID, serviceDomainName ) {
         super( 9 );
