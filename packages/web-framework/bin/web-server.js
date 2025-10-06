@@ -204,9 +204,7 @@ class TiWebServer extends ServiceConsumer {
 
                 // Set up security and session middlewares first:
                 this.#webServer.use( webHandlers.nonceGenerationHandler() );
-                this.#webServer.use( helmet( {
-                    contentSecurityPolicy: false
-                } ) );
+                this.#webServer.use( helmet( { contentSecurityPolicy: false } ) );
                 this.#webServer.use( webHandlers.cspHeaderHandler() );
                 this.#webServer.use( express.json() );
                 this.#webServer.use( express.urlencoded( { extended: false } ) );
@@ -224,6 +222,9 @@ class TiWebServer extends ServiceConsumer {
                     unset: "destroy",
                     store: new SessionStore()
                 } ) );
+                this.#webServer.use( webHandlers.originRefererValidationHandler() );
+                this.#webServer.use( webHandlers.csrfInitHandler( this ) );
+                this.#webServer.use( webHandlers.csrfProtectionHandler() );
 
                 // Create and configure the net server for HTTPS if enabled in the service config:
                 let netServerOptions = {};
@@ -268,7 +269,7 @@ class TiWebServer extends ServiceConsumer {
 
                 this.#webServer.get( "/login/:method", webHandlers.authenticationHandler( this ) );
                 this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
-                this.#webServer.get( "/logout", webHandlers.logoutHandler() );
+                this.#webServer.post( "/logout", webHandlers.logoutHandler() );
                 this.#webServer.get( "/me", webHandlers.userInformationHandler() );
                 if ( this.#authManager.isAuthEnabled( authMethod.OPENID_GOOGLE ) ) {
                     this.#webServer.get( this.#authManager.getOAuth2CallbackUrl( authMethod.OPENID_GOOGLE ), webHandlers.authorizedOAuth2CallbackHandler( this, authMethod.OPENID_GOOGLE ) );

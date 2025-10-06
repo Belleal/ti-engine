@@ -11,6 +11,16 @@
     <script defer src="/static/scripts/safe-nonce.min.js" nonce="{ti-nonce-placeholder}"></script>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
     <link rel="stylesheet" type="text/css" href="/static/scripts/main.css"/>
+    <script nonce="{ti-nonce-placeholder}">
+        function getCookie( name ) {
+            const cookie = document.cookie.match( new RegExp( "(?:^|; )" + name.replace( /[$()*+.?[\\]^{}|\\\\]/g, "\\$&" ) + "=([^;]*)" ) );
+            return cookie ? decodeURIComponent( cookie[ 1 ] ) : "";
+        }
+
+        document.addEventListener( "htmx:configRequest", ( event ) => {
+            event.detail.headers[ 'x-xsrf-token' ] = getCookie( "ti-xsrf-token" ) || "";
+        } );
+    </script>
 </head>
 <body hx-ext="safe-nonce" x-data="{}">
 <div id="ti-main" class="ti-main"
