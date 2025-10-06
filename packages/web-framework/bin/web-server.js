@@ -204,9 +204,7 @@ class TiWebServer extends ServiceConsumer {
 
                 // Set up security and session middlewares first:
                 this.#webServer.use( webHandlers.nonceGenerationHandler() );
-                this.#webServer.use( helmet( {
-                    contentSecurityPolicy: false
-                } ) );
+                this.#webServer.use( helmet( { contentSecurityPolicy: false } ) );
                 this.#webServer.use( webHandlers.cspHeaderHandler() );
                 this.#webServer.use( express.json() );
                 this.#webServer.use( express.urlencoded( { extended: false } ) );
@@ -224,6 +222,9 @@ class TiWebServer extends ServiceConsumer {
                     unset: "destroy",
                     store: new SessionStore()
                 } ) );
+                this.#webServer.use( webHandlers.originRefererValidationHandler() );
+                this.#webServer.use( webHandlers.csrfInitHandler( this ) );
+                this.#webServer.use( webHandlers.csrfProtectionHandler() );
 
                 // Create and configure the net server for HTTPS if enabled in the service config:
                 let netServerOptions = {};

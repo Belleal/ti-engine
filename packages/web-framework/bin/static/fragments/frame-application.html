@@ -1,17 +1,72 @@
 <div id="ti-sidebar" class="ti-sidebar">
     <div id="ti-sidebar-menu-top" class="ti-sidebar-menu top">
-        <a href="" role="button" class="ti-sidebar-button">1</a>
-        <a href="" role="button" class="ti-sidebar-button">2</a>
-        <a href="" role="button" class="ti-sidebar-button">3</a>
+        <button hx-get="/" hx-target="body" hx-swap="outerHTML" hx-push-url="true" type="button" class="ti-sidebar-button" aria-label="Home">
+            <span class="material-symbols-outlined">home</span>
+        </button>
+        <span class="ti-spacer-v-10"></span>
+        <button type="button" class="ti-sidebar-button">
+            <span class="material-symbols-outlined">radio_button_checked</span>
+        </button>
+        <button type="button" class="ti-sidebar-button">
+            <span class="material-symbols-outlined">radio_button_checked</span>
+        </button>
     </div>
     <div id="ti-sidebar-menu-bottom" class="ti-sidebar-menu bottom">
-        <a href="" role="button" class="ti-sidebar-button">A</a>
-        <a href="" role="button" class="ti-sidebar-button">B</a>
+        <div class="ti-flyout-host">
+            <button type="button" class="ti-sidebar-button" aria-expanded="false" aria-controls="flyout-tools" aria-label="Tools menu">
+                <span class="material-symbols-outlined">radio_button_checked</span>
+            </button>
+            <div id="flyout-tools" class="ti-flyout" hidden>
+                <button class="ti-flyout-item">Action 1</button>
+                <button class="ti-flyout-item">Action 2</button>
+            </div>
+        </div>
+        <div class="ti-flyout-host">
+            <button type="button" class="ti-sidebar-button" aria-expanded="false" aria-controls="flyout-user" aria-label="User menu">
+                <span class="material-symbols-outlined">radio_button_checked</span>
+            </button>
+            <div id="flyout-user" class="ti-flyout" hidden>
+                <button class="ti-flyout-item">Action 1</button>
+                <button class="ti-flyout-item">Action 2</button>
+            </div>
+        </div>
     </div>
 </div>
-<div id="ti-content" class="ti-content"
-     hx-post="/service/v1/test-1"
-     hx-trigger="load delay:500ms"
-     hx-target="this"
-     hx-swap="innerHTML">
-</div>
+<div id="ti-content" class="ti-content"></div>
+<script nonce="{ti-nonce-placeholder}">
+    ( function () {
+        const hosts = document.querySelectorAll( '.ti-flyout-host' );
+        let openFlyout = null;
+
+        function closeFlyout() {
+            if ( !openFlyout ) return;
+            openFlyout.hidden = true;
+            const btn = openFlyout.previousElementSibling;
+            if ( btn ) btn.setAttribute( 'aria-expanded', 'false' );
+            openFlyout = null;
+        }
+
+        hosts.forEach( host => {
+            const btn = host.querySelector( '.ti-sidebar-button' );
+            const flyout = host.querySelector( '.ti-flyout' );
+            if ( !btn || !flyout ) return;
+
+            btn.addEventListener( 'click', ( e ) => {
+                e.stopPropagation();
+                const isOpen = !flyout.hidden;
+                // Close any other
+                closeFlyout();
+                if ( !isOpen ) {
+                    flyout.hidden = false;
+                    btn.setAttribute( 'aria-expanded', 'true' );
+                    openFlyout = flyout;
+                }
+            } );
+        } );
+
+        document.addEventListener( 'click', () => closeFlyout() );
+        document.addEventListener( 'keydown', ( e ) => {
+            if ( e.key === 'Escape' ) closeFlyout();
+        } );
+    } )();
+</script>

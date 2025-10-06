@@ -8,17 +8,20 @@
 
 const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
-const { randomBytes } = require( "node:crypto" );
+const { randomBytes, timingSafeEqual } = require( "node:crypto" );
 const URL = require( "node:url" ).URL;
 const helmet = require( "helmet" );
 const authMethod = require( "#auth-manager" ).authMethod;
+
+/** @typedef {import("express").req} ExpressRequest */
+/** @typedef {import("express").res} ExpressResponse */
 
 /**
  * Express middleware callback.
  *
  * @callback ExpressHandler
- * @param {*} request
- * @param {*} response
+ * @param {ExpressRequest} request
+ * @param {ExpressResponse} response
  * @param {function( Error | null )} next
  * @returns {void}
  */
@@ -28,8 +31,8 @@ const authMethod = require( "#auth-manager" ).authMethod;
  *
  * @callback ExpressErrorHandler
  * @param {Error} error
- * @param {*} request
- * @param {*} response
+ * @param {ExpressRequest} request
+ * @param {ExpressResponse} response
  * @param {function( Error | null )} next
  * @returns {void}
  */
@@ -38,14 +41,91 @@ const authMethod = require( "#auth-manager" ).authMethod;
  * Used to assemble the current URL of a request.
  *
  * @method
- * @param {*} request
+ * @param {ExpressRequest} request
  * @returns {string}
  * @private
  */
-let getCurrentUrl = ( request ) => {
+let getBaseUrl = ( request ) => {
     const host = request.get( "host" );
-    const scheme = ( request.secure === true || String( request.get( "x-forwarded-proto" ) ).toLowerCase() === "https" ) ? "https" : "http";
-    return `${ scheme }://${ host }`;
+    const protocol = ( request.secure === true || String( request.get( "x-forwarded-proto" ) ).toLowerCase() === "https" ) ? "https" : "http";
+    return `${ protocol }://${ host }`;
+};
+
+/**
+ * Timing-safe token comparison.
+ *
+ * @method
+ * @param {string} first
+ * @param {string} second
+ * @returns {boolean}
+ * @private
+ */
+let safeEquals = ( first, second ) => {
+    try {
+        const ba = Buffer.from( String( first || "" ) );
+        const bb = Buffer.from( String( second || "" ) );
+        return ( ba.length !== bb.length ) ? false : timingSafeEqual( ba, bb );
+    } catch {
+        return false;
+    }
+};
+
+/**
+ * Extract origin to validate. Prefer Origin, fallback to Referer origin.
+ *
+ * @method
+ * @param {ExpressRequest} request
+ * @returns {string|undefined} e.g., "https://example.com:8443"
+ * @private
+ */
+let getRequestOrigin = ( request ) => {
+    let result = undefined;
+    const origin = request.get( "origin" );
+    if ( origin ) {
+        result = origin;
+    } else {
+        const referer = request.get( "referer" );
+        if ( referer ) {
+            try {
+                const refererUrl = new URL( referer );
+                result = `${ refererUrl.protocol }//${ refererUrl.host }`;
+            } catch {
+                // do nothing here...
+            }
+        }
+    }
+    return result;
+};
+
+/**
+ * Used to regenerate the session and save it.
+ *
+ * @method
+ * @param {ExpressRequest} request
+ * @param {string} redirectTo
+ * @param {function( Session ): Session} modifier
+ * @returns {Promise<string>}
+ * @private
+ */
+let regenerateAndSaveSession = ( request, redirectTo, modifier ) => {
+    return new Promise( ( resolve, reject ) => {
+        request.session.regenerate( ( error ) => {
+            if ( error ) {
+                reject( error );
+            } else {
+                if ( modifier && typeof modifier === "function" ) {
+                    request.session = modifier( request.session );
+                }
+                request.session.save( ( error ) => {
+                    if ( error ) {
+                        reject( error );
+                    } else {
+                        resolve( redirectTo );
+                    }
+                } )
+            }
+        } )
+    } );
 };
 
 /**
@@ -99,22 +179,14 @@ module.exports.authenticationHandler = ( instance ) => {
         if ( method === authMethod.LOCAL ) {
             const username = String( ( request.body && request.body.username ) || "" ).trim();
             const password = String( ( request.body && request.body.password ) || "" );
-            instance.authenticate( authMethod.LOCAL, { username: username, password: password } ).then( ( result ) => {
-                if ( result === true ) {
-                    request.session.regenerate( ( error ) => {
-                        if ( error ) {
-                            next( error );
-                        } else {
-                            request.session.user = { id: `local:${ username }`, name: username };
-                            request.session.save( ( error ) => {
-                                if ( error ) {
-                                    next( error );
-                                } else {
-                                    response.redirect( exceptions.httpCode.C_303, "/app/enter" );
-                                }
-                            } );
-                        }
-                    } );
+            instance.authenticate( authMethod.LOCAL, { username: username, password: password } ).then( ( data ) => {
+                return ( data && data.result === true ) ? regenerateAndSaveSession( request, "/app/enter", ( session ) => {
+                    session.user = { id: `local:${ username }`, name: username };
+                    return session;
+                } ) : null;
+            } ).then( ( redirectTo ) => {
+                if ( redirectTo ) {
+                    response.redirect( exceptions.httpCode.C_303, redirectTo );
                 } else {
                     response.status( exceptions.httpCode.C_401 ).end();
                 }
@@ -122,15 +194,13 @@ module.exports.authenticationHandler = ( instance ) => {
                 next( error );
             } );
         } else if ( method === authMethod.OPENID_GOOGLE || method === authMethod.OPENID_AZURE ) {
-            instance.authenticate( method, { baseUrl: getCurrentUrl( request ) } ).then( ( result ) => {
-                request.session.oidc = { codeVerifier: result.codeVerifier, state: result.state, nonce: result.nonce };
-                request.session.save( ( error ) => {
-                    if ( error ) {
-                        next( error );
-                    } else {
-                        response.redirect( exceptions.httpCode.C_303, result.redirectTo );
-                    }
+            instance.authenticate( method, { baseUrl: getBaseUrl( request ) } ).then( ( result ) => {
+                return regenerateAndSaveSession( request, result.redirectTo, ( session ) => {
+                    session.oidc = { codeVerifier: result.codeVerifier, state: result.state, nonce: result.nonce };
+                    return session;
                 } );
+            } ).then( ( redirectTo ) => {
+                response.redirect( exceptions.httpCode.C_303, redirectTo );
             } ).catch( ( error ) => {
                 next( error );
             } );
@@ -159,22 +229,14 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
         } else if ( oidc.state && state !== oidc.state ) {
             response.status( exceptions.httpCode.C_400 ).end();
         } else {
-            instance.authorize( authMethod, new URL( request.originalUrl, getCurrentUrl( request ) ), oidc ).then( ( userInfo ) => {
-                request.session.regenerate( ( error ) => {
-                    if ( error ) {
-                        next( error );
-                    } else {
-                        request.session.user = { id: `oauth2:${ userInfo.sub }`, email: userInfo.email, name: userInfo.name };
-                        delete request.session.oidc;
-                        request.session.save( ( error ) => {
-                            if ( error ) {
-                                next( error );
-                            } else {
-                                response.redirect( exceptions.httpCode.C_303, "/" );
-                            }
-                        } );
-                    }
+            instance.authorize( authMethod, new URL( request.originalUrl, getBaseUrl( request ) ), oidc ).then( ( userInfo ) => {
+                return regenerateAndSaveSession( request, "/", ( session ) => {
+                    session.user = { id: `oauth2:${ userInfo.sub }`, email: userInfo.email, name: userInfo.name };
+                    delete session.oidc;
+                    return session;
                 } );
+            } ).then( ( redirectTo ) => {
+                response.redirect( exceptions.httpCode.C_303, redirectTo );
             } ).catch( ( error ) => {
                 next( error );
             } );
@@ -412,6 +474,116 @@ module.exports.webAppHandler = ( instance ) => {
                     exception.httpCode = exceptions.httpCode.C_404;
                     next( exception );
                 } );
+            }
+        }
+    };
+};
+
+/**
+ * Validate Origin/Referer for non-GET/HEAD/OPTIONS requests.
+ * Origin must match the current request origin (protocol + host[:port]).
+ *
+ * @method
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.originRefererValidationHandler = () => {
+    return ( request, response, next ) => {
+        if ( request.method === "GET" || request.method === "HEAD" || request.method === "OPTIONS" ) {
+            next();
+        } else {
+            const expectedOrigin = getBaseUrl( request );
+            const providedOrigin = getRequestOrigin( request );
+            if ( !providedOrigin || String( providedOrigin ).toLowerCase() !== String( expectedOrigin ).toLowerCase() ) {
+                logger.log( `Issue identified with origin/referer mismatch. Expected '${ expectedOrigin }', received '${ providedOrigin }'.`, logger.logSeverity.WARNING );
+                response.status( exceptions.httpCode.C_403 ).send( {
+                    isSuccessful: false,
+                    exception: exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS ).asJSON( false )
+                } );
+            } else {
+                next();
+            }
+        }
+    };
+};
+
+/**
+ * Ensure a per-session CSRF token and expose it to the client via a non-HTTPOnly cookie (double-submit token).
+ * Set only on GET/HEAD to avoid caching/set-cookie noise on API calls.
+ *
+ * @method
+ * @param {TiWebServer} instance
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.csrfInitHandler = ( instance ) => {
+    return ( request, response, next ) => {
+        if ( request.method !== "GET" && request.method !== "HEAD" ) {
+            next();
+        } else {
+            try {
+                const session = request.session;
+                if ( session ) {
+                    if ( !session.csrfToken ) {
+                        session.csrfToken = randomBytes( 32 ).toString( "base64url" );
+                    }
+                    // Expose the token via a readable cookie for front-end code (double-submit pattern):
+                    const cookieOptions = {
+                        path: instance.serviceConfig.cookies.path,
+                        sameSite: instance.serviceConfig.cookies.sameSite,
+                        secure: !!instance.serviceConfig.useTLS,
+                        httpOnly: false
+                    };
+                    if ( Number.isFinite( instance.serviceConfig.cookies.maxAge ) ) {
+                        cookieOptions.maxAge = instance.serviceConfig.cookies.maxAge;
+                    }
+                    response.cookie( "ti-xsrf-token", session.csrfToken, cookieOptions );
+                }
+                next();
+            } catch ( error ) {
+                let exception = exceptions.raise( error );
+                exception.httpCode = exceptions.httpCode.C_400;
+                next( exception );
+            }
+        }
+    };
+};
+
+/**
+ * Require and validate the CSRF token on state-changing requests.
+ * Accept from the header 'X-CSRF-Token' or 'X-XSRF-Token', or body/query 'csrfToken'.
+ * Token must match the one in the current session set by {@link csrfInitHandler}.
+ *
+ * @method
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.csrfProtectionHandler = () => {
+    return ( request, response, next ) => {
+        if ( request.method === "GET" || request.method === "HEAD" || request.method === "OPTIONS" ) {
+            next();
+        } else {
+            const expected = request.session && request.session.csrfToken;
+            if ( !expected ) {
+                return response.status( exceptions.httpCode.C_403 ).send( {
+                    isSuccessful: false,
+                    exception: exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_HEADERS ).asJSON( false )
+                } );
+            } else {
+                const provided =
+                    request.get( "x-csrf-token" ) ||
+                    request.get( "x-xsrf-token" ) ||
+                    ( request.body && ( request.body.csrfToken || request.body._csrf ) ) ||
+                    ( request.query && ( request.query.csrfToken || request.query._csrf ) );
+                if ( !safeEquals( provided, expected ) ) {
+                    logger.log( "Issue identified with CSRF token validation fail.", logger.logSeverity.WARNING );
+                    return response.status( exceptions.httpCode.C_403 ).send( {
+                        isSuccessful: false,
+                        exception: exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_HEADERS ).asJSON( false )
+                    } );
+                } else {
+                    next();
+                }
             }
         }
     };
