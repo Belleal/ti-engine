@@ -45,7 +45,7 @@ const authMethod = require( "#auth-manager" ).authMethod;
  * @returns {string}
  * @private
  */
-let getCurrentUrl = ( request ) => {
+let getBaseUrl = ( request ) => {
     const host = request.get( "host" );
     const protocol = ( request.secure === true || String( request.get( "x-forwarded-proto" ) ).toLowerCase() === "https" ) ? "https" : "http";
     return `${ protocol }://${ host }`;
@@ -194,7 +194,7 @@ module.exports.authenticationHandler = ( instance ) => {
                 next( error );
             } );
         } else if ( method === authMethod.OPENID_GOOGLE || method === authMethod.OPENID_AZURE ) {
-            instance.authenticate( method, { baseUrl: getCurrentUrl( request ) } ).then( ( result ) => {
+            instance.authenticate( method, { baseUrl: getBaseUrl( request ) } ).then( ( result ) => {
                 return regenerateAndSaveSession( request, result.redirectTo, ( session ) => {
                     session.oidc = { codeVerifier: result.codeVerifier, state: result.state, nonce: result.nonce };
                     return session;
@@ -229,7 +229,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
         } else if ( oidc.state && state !== oidc.state ) {
             response.status( exceptions.httpCode.C_400 ).end();
         } else {
-            instance.authorize( authMethod, new URL( request.originalUrl, getCurrentUrl( request ) ), oidc ).then( ( userInfo ) => {
+            instance.authorize( authMethod, new URL( request.originalUrl, getBaseUrl( request ) ), oidc ).then( ( userInfo ) => {
                 return regenerateAndSaveSession( request, "/", ( session ) => {
                     session.user = { id: `oauth2:${ userInfo.sub }`, email: userInfo.email, name: userInfo.name };
                     delete session.oidc;
@@ -492,7 +492,7 @@ module.exports.originRefererValidationHandler = () => {
         if ( request.method === "GET" || request.method === "HEAD" || request.method === "OPTIONS" ) {
             next();
         } else {
-            const expectedOrigin = getCurrentUrl( request );
+            const expectedOrigin = getBaseUrl( request );
             const providedOrigin = getRequestOrigin( request );
             if ( !providedOrigin || String( providedOrigin ).toLowerCase() !== String( expectedOrigin ).toLowerCase() ) {
                 logger.log( `Issue identified with origin/referer mismatch. Expected '${ expectedOrigin }', received '${ providedOrigin }'.`, logger.logSeverity.WARNING );
