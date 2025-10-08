@@ -59,6 +59,8 @@ let configureComponentSidebarFlyout = ( options = {} ) => {
         fixed: options.fixed ?? true,
         trapFocus: options.trapFocus ?? false,
         isOpen: false,
+        //menuTitle: options.menuTitle ?? "Menu",
+        //buttonConfigs: options.buttonConfigs ?? [],
         init() {
             this._reflow = this.reposition.bind( this );
             window.addEventListener( "resize", this._reflow, { passive: true } );
@@ -87,8 +89,8 @@ let configureComponentSidebarFlyout = ( options = {} ) => {
             this.$nextTick( () => this.setAria() );
         },
         setAria() {
-            if ( !this.$refs.button ) return;
-            this.$refs.button.setAttribute( "aria-expanded", String( this.isOpen ) );
+            if ( !this.$refs.flyoutButton ) return;
+            this.$refs.flyoutButton.setAttribute( "aria-expanded", String( this.isOpen ) );
         },
         reposition() {
             if ( !this.isOpen || !this.$refs.flyoutButton || !this.$refs.flyoutPanel ) return;

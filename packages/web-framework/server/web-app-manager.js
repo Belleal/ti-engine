@@ -15,6 +15,7 @@ const RE_NONCE_ATTR = /nonce="{ti-nonce-placeholder}"/g;
 const RE_INLINE_SCRIPT_NONCE = /"inlineScriptNonce":"{ti-nonce-placeholder}"/g;
 const RE_INLINE_STYLE_NONCE = /"inlineStyleNonce":"{ti-nonce-placeholder}"/g;
 const RE_CSP_NONCE = /^[A-Za-z0-9+\/=_-]{16,}$/;
+const RE_TI_SIDEBAR_FLYOUT = /<ti-sidebar-flyout(?=[\s>/])(?:\s+[^>]*?)?\s*\/>/gi;
 
 /**
  * @class WebAppManager
@@ -56,7 +57,7 @@ class WebAppManager {
 
             // TODO: Temporary setup - will be expanded later
             this.#loadHtmlFragment( path.join( fullPublicPath, "fragments/components/component-sidebar-flyout.html" ) ).then( ( fileData ) => {
-                transformedHtml = transformedHtml.replaceAll( '<ti-sidebar-flyout/>', fileData );
+                transformedHtml = transformedHtml.replaceAll( RE_TI_SIDEBAR_FLYOUT, `<ti-sidebar-flyout>${ fileData }</ti-sidebar-flyout>` );
 
                 // Insert nonces:
                 const nonce = options?.nonce;
