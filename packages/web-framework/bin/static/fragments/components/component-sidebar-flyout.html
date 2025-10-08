@@ -1,0 +1,16 @@
+<div x-id="['component-flyout']" x-data="flyoutConfig({ placement: 'right-start', offset: 20, fixed: true })" class="ti-sidebar-flyout-container">
+    <button x-on:click.stop="toggle()" x-on:ti-close-all-flyout="close()" x-ref="flyoutButton"
+            type="button" class="ti-sidebar-button ti-glass-btn-black"
+            :aria-expanded="String(isOpen)" :aria-controls="$id('component-flyout')" aria-label="">
+        <span class="material-symbols-outlined">radio_button_checked</span>
+    </button>
+    <div :id="$id('component-flyout')" x-show="isOpen" x-ref="flyoutPanel" x-on:click.outside="close()"
+         role="menu" class="ti-sidebar-flyout ti-glass-panel-black">
+        <button type="button" class="ti-sidebar-flyout-item ti-glass-btn-black">
+            <span class="material-symbols-outlined">person</span><span>Profile</span>
+        </button>
+        <button type="button" class="ti-sidebar-flyout-item ti-glass-btn-black">
+            <span class="material-symbols-outlined">logout</span><span>Logout</span>
+        </button>
+    </div>
+</div>

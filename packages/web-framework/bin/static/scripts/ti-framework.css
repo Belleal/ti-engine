@@ -1,0 +1,156 @@
+:root {
+    --ti-button-size: 44px;
+    --ti-button-radius: 12px;
+    --ti-gap: 10px;
+}
+
+body {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.ti-main {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+.ti-sidebar {
+    display: flex;
+    flex-flow: column;
+    justify-content: space-between;
+    flex: auto;
+}
+
+.ti-sidebar-menu {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ti-gap);
+    margin: 10px;
+}
+
+.ti-sidebar-menu.top {
+    justify-self: flex-start;
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+
+.ti-sidebar-menu.bottom {
+    justify-self: flex-end;
+    justify-content: flex-end;
+    align-items: flex-end;
+}
+
+.ti-sidebar-button {
+    width: var(--ti-button-size);
+    height: var(--ti-button-size);
+    border-radius: var(--ti-button-radius);
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.ti-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: auto;
+    width: 100%;
+    height: 100%;
+}
+
+.ti-content.login {
+    flex-direction: column;
+    gap: var(--ti-gap);
+    align-items: center;
+    justify-content: center;
+}
+
+.ti-error {
+    color: #811010;
+}
+
+.ti-spacer-v-10 {
+    flex: auto;
+    height: 10px;
+    width: 100%;
+}
+
+.ti-panel {
+    display: flex;
+    width: 200px;
+    height: 200px;
+}
+
+/* Flyout (popover) menu styling */
+.ti-sidebar-flyout-container {
+    display: inline-flex;
+    position: relative;
+}
+
+.ti-sidebar-flyout[hidden] {
+    display: none !important;
+}
+
+.ti-sidebar-flyout {
+    /* Positioning */
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    transform: none;
+    inset: auto;
+
+    /* Box model */
+    min-width: 180px;
+    padding: 10px;
+    border-radius: 12px;
+
+    /* Layout */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Flyout items */
+.ti-sidebar-flyout-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: left;
+    flex-direction: row;
+    cursor: pointer;
+    gap: 5px;
+
+    -webkit-tap-highlight-color: transparent;
+    appearance: none;
+    width: 100%;
+    height: var(--ti-button-size);
+    border: 0;
+    background: transparent;
+    color: var(--ti-sidebar-fg);
+    text-align: left;
+    padding: 10px;
+    border-radius: 10px;
+    box-shadow: inset 5px 5px 10px rgba(0, 0, 0, 0.35), inset -5px -5px 10px rgba(255, 255, 255, 0.03);
+    transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.ti-sidebar-flyout-item:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.ti-sidebar-flyout-item:active {
+    box-shadow: inset 8px 8px 16px rgba(0, 0, 0, 0.55), inset -8px -8px 16px rgba(255, 255, 255, 0.02);
+}
+
+.ti-sidebar-flyout-sep {
+    border: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin: 6px 4px;
+}

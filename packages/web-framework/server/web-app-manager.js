@@ -42,6 +42,7 @@ class WebAppManager {
      *
      * @method
      * @param {string} html
+     * @param {string} fullPublicPath
      * @param {Object} [options]
      * @param {boolean} [options.isHome] Optional flag to indicate whether the requested route is the home page.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
@@ -49,19 +50,30 @@ class WebAppManager {
      * @virtual
      * @public
      */
-    transformHtml( html, options = {} ) {
-        const nonce = options?.nonce;
-        let transformedHtml = String( html );
-        if ( typeof nonce === "string" && RE_CSP_NONCE.test( nonce ) ) {
-            transformedHtml = transformedHtml.replace( RE_NONCE_ATTR, `nonce="${ nonce }"` );
-            if ( options.isHome ) {
-                transformedHtml = transformedHtml
-                    .replace( RE_INLINE_SCRIPT_NONCE, `"inlineScriptNonce":"${ nonce }"` )
-                    .replace( RE_INLINE_STYLE_NONCE, `"inlineStyleNonce":"${ nonce }"` );
-            }
-        }
+    transformHtml( html, fullPublicPath, options = {} ) {
+        return new Promise( ( resolve, reject ) => {
+            let transformedHtml = String( html );
 
-        return Promise.resolve( transformedHtml );
+            // TODO: Temporary setup - will be expanded later
+            this.#loadHtmlFragment( path.join( fullPublicPath, "fragments/components/component-sidebar-flyout.html" ) ).then( ( fileData ) => {
+                transformedHtml = transformedHtml.replaceAll( '<ti-sidebar-flyout/>', fileData );
+
+                // Insert nonces:
+                const nonce = options?.nonce;
+                if ( typeof nonce === "string" && RE_CSP_NONCE.test( nonce ) ) {
+                    transformedHtml = transformedHtml.replaceAll( RE_NONCE_ATTR, `nonce="${ nonce }"` );
+                    if ( options.isHome ) {
+                        transformedHtml = transformedHtml
+                            .replaceAll( RE_INLINE_SCRIPT_NONCE, `"inlineScriptNonce":"${ nonce }"` )
+                            .replaceAll( RE_INLINE_STYLE_NONCE, `"inlineStyleNonce":"${ nonce }"` );
+                    }
+                }
+
+                resolve( transformedHtml );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
     }
 
     /**
@@ -106,7 +118,7 @@ class WebAppManager {
             this.#verifyAccess( session, fragment ).then( () => {
                 return this.#loadHtmlFragment( path.join( fullPublicPath, fragment.path ) );
             } ).then( ( fileData ) => {
-                return this.transformHtml( fileData, localOptions );
+                return this.transformHtml( fileData, fullPublicPath, localOptions );
             } ).then( ( fileData ) => {
                 resolve( fileData );
             } ).catch( ( error ) => {
