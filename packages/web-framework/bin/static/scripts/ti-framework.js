@@ -1,3 +1,31 @@
+function isPlainObject( v ) {
+    return Object.prototype.toString.call( v ) === '[object Object]';
+}
+
+function deepMerge( base, src ) {
+    if ( !isPlainObject( base ) || !isPlainObject( src ) ) {
+        // primitive, array, or non-plain object → src wins
+        return structuredClone ? structuredClone( src ) : JSON.parse( JSON.stringify( src ) );
+    }
+    const out = { ...base };
+    for ( const key of Object.keys( src ) ) {
+        const b = base[ key ];
+        const s = src[ key ];
+
+        if ( Array.isArray( s ) ) {
+            // replace arrays (not concat)
+            out[ key ] = s.slice();
+        } else if ( isPlainObject( s ) && isPlainObject( b ) ) {
+            out[ key ] = deepMerge( b, s );
+        } else if ( isPlainObject( s ) ) {
+            out[ key ] = deepMerge( {}, s ); // clone object
+        } else {
+            out[ key ] = s; // primitives, dates, functions, etc. → override
+        }
+    }
+    return out;
+}
+
 function getVisibleBox( isFixed ) {
     const docEl = document.documentElement;
 
@@ -55,38 +83,41 @@ let configureComponentSidebarFlyout = ( options = {} ) => {
     /** @type {Object} */
     return {
         placement: options.placement ?? "right-start",
-        offset: options.offset ?? 8,
+        offset: options.offset ?? 10,
         fixed: options.fixed ?? true,
-        trapFocus: options.trapFocus ?? false,
         isOpen: false,
         //menuTitle: options.menuTitle ?? "Menu",
         //buttonConfigs: options.buttonConfigs ?? [],
         init() {
             this._reflow = this.reposition.bind( this );
+            this._close = this.close.bind( this );
             window.addEventListener( "resize", this._reflow, { passive: true } );
             window.addEventListener( "scroll", this._reflow, { passive: true } );
-            window.addEventListener( TI_EVENT_CLOSE_ALL_FLYOUT, () => {
-                if ( this.isOpen ) this.close();
-            } );
+            window.addEventListener( TI_EVENT_CLOSE_ALL_FLYOUT, this._close );
         },
         destroy() {
             window.removeEventListener( "resize", this._reflow );
             window.removeEventListener( "scroll", this._reflow );
+            window.removeEventListener( TI_EVENT_CLOSE_ALL_FLYOUT, this._close );
         },
         toggle() {
             this.isOpen ? this.close() : this.open();
         },
         open() {
-            window.dispatchEvent( new CustomEvent( TI_EVENT_CLOSE_ALL_FLYOUT ) );
-            this.isOpen = true;
-            this.$nextTick( () => {
-                this.setAria();
-                this.reposition();
-            } );
+            if ( !this.isOpen ) {
+                window.dispatchEvent( new CustomEvent( TI_EVENT_CLOSE_ALL_FLYOUT ) );
+                this.isOpen = true;
+                this.$nextTick( () => {
+                    this.setAria();
+                    this.reposition();
+                } );
+            }
         },
         close() {
-            this.isOpen = false;
-            this.$nextTick( () => this.setAria() );
+            if ( this.isOpen ) {
+                this.isOpen = false;
+                this.$nextTick( () => this.setAria() );
+            }
         },
         setAria() {
             if ( !this.$refs.flyoutButton ) return;
@@ -141,5 +172,5 @@ let configureComponentSidebarFlyout = ( options = {} ) => {
 };
 
 document.addEventListener( "alpine:init", () => {
-    Alpine.data( "flyoutConfig", configureComponentSidebarFlyout );
+    Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
 } );

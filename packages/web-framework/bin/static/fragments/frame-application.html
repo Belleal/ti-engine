@@ -1,8 +1,8 @@
 <div id="ti-sidebar" class="ti-sidebar ti-glass-panel-black">
     <div id="ti-sidebar-menu-top" class="ti-sidebar-menu top">
-        <button hx-get="/" hx-target="body" hx-swap="outerHTML" hx-push-url="true" type="button" class="ti-sidebar-button ti-glass-btn-black" aria-label="Home">
+        <a href="/" type="button" class="ti-sidebar-button ti-glass-btn-black" aria-label="Home">
             <span class="material-symbols-outlined">home</span>
-        </button>
+        </a>
         <span class="ti-spacer-v-10"></span>
         <button type="button" class="ti-sidebar-button ti-glass-btn-black">
             <span class="material-symbols-outlined">radio_button_checked</span>
@@ -12,10 +12,15 @@
         </button>
     </div>
     <div id="ti-sidebar-menu-bottom" class="ti-sidebar-menu bottom">
-        <ti-sidebar-flyout x-data="{ menuTitle: 'Menu', buttonConfigs: [{ title: 'Logout', icon: 'logout' }] }"/>
-        <ti-sidebar-flyout/>
+        <div x-data="$store.tiComponentsConfig.sidebarAdministrationMenu">{ti-sidebar-flyout-placeholder}</div>
+        <div x-data="$store.tiComponentsConfig.sidebarUserMenu">{ti-sidebar-flyout-placeholder}</div>
     </div>
 </div>
-<div id="ti-content" class="ti-content">
-    <div class="ti-panel ti-glass-panel-black"></div>
+<div id="ti-content"
+     hx-get="/app/dashboard"
+     hx-trigger="load"
+     hx-target="this"
+     hx-swap="innerHTML"
+     class="ti-content">
+    {ti-nested-view-placeholder}
 </div>

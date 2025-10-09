@@ -6,6 +6,7 @@
     <meta name="htmx-config" content='{"inlineScriptNonce":"{ti-nonce-placeholder}","inlineStyleNonce":"{ti-nonce-placeholder}","allowEval":false}'/>
     <title>Main Page</title>
     <link rel="icon" href="/static/favicon.ico" type="image/ico">
+    <script defer src="/static/scripts/ti-user-interface.js" nonce="{ti-nonce-placeholder}"></script>
     <script defer src="/static/scripts/ti-framework.js" nonce="{ti-nonce-placeholder}"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/csp@3.x.x/dist/cdn.min.js" nonce="{ti-nonce-placeholder}"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/htmx.org@2.x.x/dist/htmx.min.js" nonce="{ti-nonce-placeholder}"></script>
@@ -29,6 +30,8 @@
      hx-get="/app/enter"
      hx-trigger="load"
      hx-target="this"
-     hx-swap="innerHTML"></div>
+     hx-swap="innerHTML">
+    {ti-nested-view-placeholder}
+</div>
 </body>
 </html>

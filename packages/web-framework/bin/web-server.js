@@ -109,7 +109,7 @@ class TiWebServer extends ServiceConsumer {
         // Define the unprotected routes:
         this.#unprotectedRoutes.push( "/" );
         this.#unprotectedRoutes.push( "/app" );
-        this.#unprotectedRoutes.push( /^\/app\/(?:.+\/)*[^\/]+$/i );
+        this.#unprotectedRoutes.push( "/app/enter" );
         this.#unprotectedRoutes.push( /^\/login\/[^\/]+$/i );
         this.#unprotectedRoutes.push( "/logout" );
         this.#unprotectedRoutes.push( /^\/static\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
@@ -265,8 +265,8 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.get( "/", webHandlers.webAppHandler( this ) );
                 this.#webServer.use( "/.well-known", express.static( path.join( this.#fullPublicPath, ".well-known" ), { dotfiles: "allow" } ) );
                 this.#webServer.use( "/static", express.static( this.#fullPublicPath, { maxAge: "1y", immutable: true } ) );
-                this.#webServer.use( "/app", webHandlers.webAppHandler( this ) );
 
+                this.#webServer.get( "/app/:view", webHandlers.webAppHandler( this ) );
                 this.#webServer.get( "/login/:method", webHandlers.authenticationHandler( this ) );
                 this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
                 this.#webServer.post( "/logout", webHandlers.logoutHandler() );

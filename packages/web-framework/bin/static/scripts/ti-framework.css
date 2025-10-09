@@ -54,6 +54,15 @@ body {
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    text-decoration: none;
+}
+
+.ti-sidebar-button:link {
+    text-decoration: none !important;
+}
+
+.ti-sidebar-button:visited {
+    text-decoration: none !important;
 }
 
 .ti-content {

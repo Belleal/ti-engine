@@ -121,8 +121,6 @@ process.on( "uncaughtException", ( error ) => {
 
 // Start the instance:
 try {
-    logger.log( `Starting new instance of type '${ process.env.TI_INSTANCE_NAME }' with instance ID '${ process.env.TI_INSTANCE_ID }'.`, logger.logSeverity.NOTICE );
-
     const serviceConstructor = require( path.join( process.cwd(), process.env.TI_INSTANCE_CLASS ) );
     const serviceConfigPath = process.env.TI_INSTANCE_CONFIG;
     /** @type ServiceConfiguration */
@@ -144,6 +142,7 @@ try {
     };
 
     if ( mainInstance.isServiceInstance ) {
+        logger.log( `Starting new instance of type '${ process.env.TI_INSTANCE_NAME }' with instance ID '${ process.env.TI_INSTANCE_ID }'.`, logger.logSeverity.NOTICE );
         mainInstance.start().catch( ( error ) => {
             logger.log( `Error detected during instance '${ process.env.TI_INSTANCE_ID }' startup!`, logger.logSeverity.ALERT, error );
             setImmediate( () => process.exit( 1 ) );

@@ -462,12 +462,22 @@ module.exports.webAppHandler = ( instance ) => {
             if ( request.method === "HEAD" ) {
                 response.set( "Cache-Control", "no-store" );
                 response.set( "Content-Type", "text/html; charset=utf-8" );
+                if ( request.path === "/" ) {
+                    response.set( "HX-Refresh", "true" );
+                }
                 response.status( exceptions.httpCode.C_200 ).end();
             } else {
                 // GET: load and render:
-                instance.webAppManager.getHtmlFragment( request.session, instance.fullPublicPath, request.path, { nonce: nonce } ).then( ( fileData ) => {
+                instance.webAppManager.assembleHtmlView( request.session, instance.fullPublicPath, request.path, {
+                    nonce: nonce,
+                    isPartial: request.get( "HX-Request" ) === "true",
+                    view: request.params.view
+                } ).then( ( fileData ) => {
                     response.set( "Cache-Control", "no-store" );
                     response.set( "Content-Type", "text/html; charset=utf-8" );
+                    if ( request.path === "/" ) {
+                        response.set( "HX-Refresh", "true" );
+                    }
                     response.status( exceptions.httpCode.C_200 ).send( fileData );
                 } ).catch( ( error ) => {
                     let exception = exceptions.raise( error );

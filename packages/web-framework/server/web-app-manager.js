@@ -10,12 +10,12 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const logger = require( "@ti-engine/core/logger" );
 const path = require( "node:path" );
 const fs = require( "node:fs" );
+const _ = require( "lodash" );
 
 const RE_NONCE_ATTR = /nonce="{ti-nonce-placeholder}"/g;
 const RE_INLINE_SCRIPT_NONCE = /"inlineScriptNonce":"{ti-nonce-placeholder}"/g;
 const RE_INLINE_STYLE_NONCE = /"inlineStyleNonce":"{ti-nonce-placeholder}"/g;
 const RE_CSP_NONCE = /^[A-Za-z0-9+\/=_-]{16,}$/;
-const RE_TI_SIDEBAR_FLYOUT = /<ti-sidebar-flyout(?=[\s>/])(?:\s+[^>]*?)?\s*\/>/gi;
 
 /**
  * @class WebAppManager
@@ -34,6 +34,8 @@ class WebAppManager {
         this.#fragments[ 'application-main' ] = { path: "fragments/frame-application.html" };
         this.#fragments[ 'login' ] = { path: "fragments/frame-login.html" };
         this.#fragments[ 'dashboard' ] = { path: "fragments/frame-dashboard.html" };
+        this.#fragments[ 'administration' ] = { path: "fragments/frame-administration.html" };
+        this.#fragments[ 'profile' ] = { path: "fragments/frame-profile.html" };
     }
 
     /* Public interface */
@@ -57,7 +59,7 @@ class WebAppManager {
 
             // TODO: Temporary setup - will be expanded later
             this.#loadHtmlFragment( path.join( fullPublicPath, "fragments/components/component-sidebar-flyout.html" ) ).then( ( fileData ) => {
-                transformedHtml = transformedHtml.replaceAll( RE_TI_SIDEBAR_FLYOUT, `<ti-sidebar-flyout>${ fileData }</ti-sidebar-flyout>` );
+                transformedHtml = transformedHtml.replaceAll( "{ti-sidebar-flyout-placeholder}", fileData );
 
                 // Insert nonces:
                 const nonce = options?.nonce;
@@ -77,51 +79,40 @@ class WebAppManager {
         } );
     }
 
-    /**
-     * Returns the HTML fragment for the requested route.
-     *
-     * @method
-     * @param {Object} session
-     * @param {string} fullPublicPath
-     * @param {string} route
-     * @param {Object} [options]
-     * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
-     * @returns {Promise<string>}
-     * @throws {Exception.E_WEB_INVALID_REQUEST_URI} If the provided route is not supported.
-     * @public
-     */
-    getHtmlFragment( session, fullPublicPath, route, options = {} ) {
+
+    assembleHtmlView( session, fullPublicPath, route, options = {} ) {
         return new Promise( ( resolve, reject ) => {
             let fragment = null;
-            const localOptions = ( options && typeof options === "object" ) ? { ...options } : {};
-            switch ( route ) {
-                case '/': {
-                    fragment = this.#fragments[ 'home' ];
-                    localOptions.isHome = true;
+            let getHtmlPromises = [];
+            let localOptions = ( options && typeof options === "object" ) ? { ...options } : {};
+
+            if ( route === "/" ) {
+                fragment = this.#fragments[ 'home' ];
+                localOptions.isHome = true;
+                getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, fragment, localOptions ) );
+            } else if ( route === "/app" || route === "/app/enter" ) {
+                fragment = ( session && session.user ) ? this.#fragments[ 'application-main' ] : this.#fragments[ 'login' ];
+                getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, fragment, localOptions ) );
+            } else {
+                // TODO: Not yet ready!
+                if ( options.isPartial !== true ) {
+                    getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, this.#fragments[ 'home' ], localOptions ) );
                 }
-                    break;
-                case '/app':
-                case '/enter': {
-                    fragment = ( session && session.user )
-                        ? this.#fragments[ 'application-main' ]
-                        : this.#fragments[ 'login' ];
-                }
-                    break;
-                case '/dashboard': {
-                    fragment = this.#fragments[ 'dashboard' ];
-                }
-                    break;
-                default: {
+
+                fragment = this.#fragments[ options.view ];
+                if ( !fragment ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI );
+                } else {
+                    getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, fragment, localOptions ) );
                 }
             }
 
-            this.#verifyAccess( session, fragment ).then( () => {
-                return this.#loadHtmlFragment( path.join( fullPublicPath, fragment.path ) );
-            } ).then( ( fileData ) => {
-                return this.transformHtml( fileData, fullPublicPath, localOptions );
-            } ).then( ( fileData ) => {
-                resolve( fileData );
+            Promise.all( getHtmlPromises ).then( ( filesData ) => {
+                let assembledHtml = undefined;
+                _.forEach( filesData, ( fileData ) => {
+                    assembledHtml = ( assembledHtml ) ? assembledHtml.replace( "{ti-nested-view-placeholder}", fileData ) : fileData;
+                } );
+                resolve( assembledHtml );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
@@ -129,6 +120,33 @@ class WebAppManager {
     }
 
     /* Private interface */
+
+    /**
+     * Returns the HTML fragment for the requested route.
+     *
+     * @method
+     * @param {Object} session
+     * @param {string} fullPublicPath
+     * @param {Object} fragment
+     * @param {Object} [options]
+     * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
+     * @returns {Promise<string>}
+     * @throws {Exception.E_WEB_INVALID_REQUEST_URI} If the provided route is not supported.
+     * @public
+     */
+    #getHtmlFragment( session, fullPublicPath, fragment, options = {} ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#verifyAccess( session, fragment ).then( () => {
+                return this.#loadHtmlFragment( path.join( fullPublicPath, fragment.path ) );
+            } ).then( ( fileData ) => {
+                return this.transformHtml( fileData, fullPublicPath, options );
+            } ).then( ( fileData ) => {
+                resolve( fileData );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
 
     /**
      * Loads the HTML fragment from the specified file path.
@@ -159,7 +177,7 @@ class WebAppManager {
      */
     #verifyAccess( session, resource ) {
         return new Promise( ( resolve, reject ) => {
-            // TODO: Implement this.
+            // TODO: Implement role based access management.
             resolve();
         } );
     }
