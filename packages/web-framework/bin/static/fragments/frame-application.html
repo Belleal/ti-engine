@@ -12,15 +12,14 @@
         </button>
     </div>
     <div id="ti-sidebar-menu-bottom" class="ti-sidebar-menu bottom">
-        <div x-data="$store.tiComponentsConfig.sidebarAdministrationMenu">{ti-sidebar-flyout-placeholder}</div>
-        <div x-data="$store.tiComponentsConfig.sidebarUserMenu">{ti-sidebar-flyout-placeholder}</div>
+        <div x-data="$store.tiComponentsConfig.sidebarAdministrationMenu">
+            <ti-component-sidebar-flyout-placeholder/>
+        </div>
+        <div x-data="$store.tiComponentsConfig.sidebarUserMenu">
+            <ti-component-sidebar-flyout-placeholder/>
+        </div>
     </div>
 </div>
-<div id="ti-content"
-     hx-get="/app/dashboard"
-     hx-trigger="load"
-     hx-target="this"
-     hx-swap="innerHTML"
-     class="ti-content">
-    {ti-nested-view-placeholder}
+<div id="ti-content" class="ti-content">
+    <ti-nested-frame-placeholder hx-get="/app/dashboard" hx-trigger="load" hx-target="this" hx-swap="outerHTML" hx-push-url="true"/>
 </div>

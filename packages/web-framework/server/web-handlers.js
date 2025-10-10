@@ -160,7 +160,18 @@ module.exports.resourceProtectionHandler = ( instance ) => {
         if ( instance.isUnprotectedRoute( request.url ) || instance.verifySession( request.session ) ) {
             next();
         } else {
-            response.status( exceptions.httpCode.C_403 ).end();
+            const acceptsHtml = request.accepts( [ "html", "json" ] ) === "html";
+            const redirectTo = "/";
+            if ( String( request.get( "HX-Request" ) || "" ).toLowerCase() === "true" ) {
+                response.set( "HX-Redirect", redirectTo );
+                response.status( exceptions.httpCode.C_401 ).end();
+            } else if ( acceptsHtml ) {
+                response.redirect( exceptions.httpCode.C_303, redirectTo );
+            } else {
+                response.status( exceptions.httpCode.C_401 ).send( {
+                    isSuccessful: false
+                } );
+            }
         }
     };
 };
@@ -457,28 +468,23 @@ module.exports.webAppHandler = ( instance ) => {
             next();
         } else {
             const resLocals = ( response && response.locals ) || {};
-            const nonce = request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce;
+            const isPartial = request.get( "HX-Request" ) === "true";
+            const nonce = ( isPartial ) ? request.get( "x-csp-nonce" ) : ( request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce );
             // HEAD: set headers only:
             if ( request.method === "HEAD" ) {
                 response.set( "Cache-Control", "no-store" );
                 response.set( "Content-Type", "text/html; charset=utf-8" );
-                if ( request.path === "/" ) {
-                    response.set( "HX-Refresh", "true" );
-                }
                 response.status( exceptions.httpCode.C_200 ).end();
             } else {
                 // GET: load and render:
                 instance.webAppManager.assembleHtmlView( request.session, instance.fullPublicPath, request.path, {
                     nonce: nonce,
-                    isPartial: request.get( "HX-Request" ) === "true",
+                    isPartial: isPartial,
                     view: request.params.view
-                } ).then( ( fileData ) => {
+                } ).then( ( html ) => {
                     response.set( "Cache-Control", "no-store" );
                     response.set( "Content-Type", "text/html; charset=utf-8" );
-                    if ( request.path === "/" ) {
-                        response.set( "HX-Refresh", "true" );
-                    }
-                    response.status( exceptions.httpCode.C_200 ).send( fileData );
+                    response.status( exceptions.httpCode.C_200 ).send( html );
                 } ).catch( ( error ) => {
                     let exception = exceptions.raise( error );
                     exception.httpCode = exceptions.httpCode.C_404;

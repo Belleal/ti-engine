@@ -200,6 +200,18 @@ module.exports.toBool = ( value ) => {
 };
 
 /**
+ * Used to fetch only the unique values from the provided array.
+ *
+ * @method
+ * @param {Array} array
+ * @returns {Array}
+ * @public
+ */
+module.exports.arrayUniques = ( array ) => {
+    return [ ...new Set( array ) ];
+};
+
+/**
  * Will return a UTC date string in format YYYY-MM-DD from the provided date.
  *
  * @method

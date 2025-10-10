@@ -5,7 +5,7 @@ function isPlainObject( v ) {
 function deepMerge( base, src ) {
     if ( !isPlainObject( base ) || !isPlainObject( src ) ) {
         // primitive, array, or non-plain object → src wins
-        return structuredClone ? structuredClone( src ) : JSON.parse( JSON.stringify( src ) );
+        return ( typeof structuredClone === "function" ) ? structuredClone( src ) : JSON.parse( JSON.stringify( src ) );
     }
     const out = { ...base };
     for ( const key of Object.keys( src ) ) {
@@ -67,6 +67,11 @@ function clampToBox( x, y, w, h, box, edgePadding = 0 ) {
         x: Math.min( Math.max( x, minX ), Math.max( minX, maxX ) ),
         y: Math.min( Math.max( y, minY ), Math.max( minY, maxY ) )
     };
+}
+
+function getCookie( name ) {
+    const cookie = document.cookie.match( new RegExp( "(?:^|; )" + name.replace( /[$()*+.?[\\]^{}|\\\\]/g, "\\$&" ) + "=([^;]*)" ) );
+    return cookie ? decodeURIComponent( cookie[ 1 ] ) : "";
 }
 
 /**
@@ -171,6 +176,20 @@ let configureComponentSidebarFlyout = ( options = {} ) => {
     };
 };
 
+/**
+ * Perform a one-time configuration of the HTMX framework.
+ */
+document.addEventListener( "htmx:configRequest", ( event ) => {
+    event.detail.headers[ 'x-xsrf-token' ] = getCookie( "ti-xsrf-token" ) || "";
+    // Reuse the existing nonce from the active document:
+    const styleNonce = ( htmx?.config?.inlineStyleNonce ) || "";
+    const scriptNonce = ( htmx?.config?.inlineScriptNonce ) || "";
+    event.detail.headers[ 'x-csp-nonce' ] = styleNonce || scriptNonce || "";
+} );
+
+/**
+ * Register on-initialization tasks for the Alpine.js framework.
+ */
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
 } );

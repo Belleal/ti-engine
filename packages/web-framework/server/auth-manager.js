@@ -116,7 +116,7 @@ class AuthManager {
                     logger.log( "Enabled OpenID Connect authentication with Azure Cloud.", logger.logSeverity.NOTICE );
                 } ) );
             }
-            return Promise.all( promises ).then( () => {
+            Promise.all( promises ).then( () => {
                 this.#initialized = true;
                 resolve();
             } ).catch( ( error ) => {
