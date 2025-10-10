@@ -76,15 +76,13 @@ class WebAppManager {
         return new Promise( ( resolve, reject ) => {
             let transformedHtml = String( html );
 
-            // Insert all nonces:
-            const nonce = options?.nonce;
-            if ( typeof nonce === "string" && RE_CSP_NONCE.test( nonce ) ) {
-                transformedHtml = transformedHtml.replaceAll( RE_NONCE_ATTR, `nonce="${ nonce }"` );
-                if ( options.isHome ) {
-                    transformedHtml = transformedHtml
-                        .replaceAll( RE_INLINE_SCRIPT_NONCE, `"inlineScriptNonce":"${ nonce }"` )
-                        .replaceAll( RE_INLINE_STYLE_NONCE, `"inlineStyleNonce":"${ nonce }"` );
-                }
+            // Insert nonce in all placeholder locations. If nonce is not provided or is invalid, this will use an empty string instead to remove the placeholder:
+            const nonce = ( typeof options?.nonce === "string" && RE_CSP_NONCE.test( options?.nonce ) ) ? options?.nonce : "";
+            transformedHtml = transformedHtml.replaceAll( RE_NONCE_ATTR, `nonce="${ nonce }"` );
+            if ( options.isHome ) {
+                transformedHtml = transformedHtml
+                    .replaceAll( RE_INLINE_SCRIPT_NONCE, `"inlineScriptNonce":"${ nonce }"` )
+                    .replaceAll( RE_INLINE_STYLE_NONCE, `"inlineStyleNonce":"${ nonce }"` );
             }
 
             if ( options.title ) {

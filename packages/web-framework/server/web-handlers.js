@@ -129,6 +129,18 @@ let regenerateAndSaveSession = ( request, redirectTo, modifier ) => {
 };
 
 /**
+ * Check if the request is an HTMX request.
+ *
+ * @method
+ * @param {ExpressRequest} request
+ * @returns {boolean}
+ * @private
+ */
+let isHtmxRequest = ( request ) => {
+    return String( request.get( "HX-Request" ) || "" ).toLowerCase() === "true";
+};
+
+/**
  * Handler for requests that are received while the web server is shutting down.
  *
  * @method
@@ -162,7 +174,7 @@ module.exports.resourceProtectionHandler = ( instance ) => {
         } else {
             const acceptsHtml = request.accepts( [ "html", "json" ] ) === "html";
             const redirectTo = "/";
-            if ( String( request.get( "HX-Request" ) || "" ).toLowerCase() === "true" ) {
+            if ( isHtmxRequest( request ) ) {
                 response.set( "HX-Redirect", redirectTo );
                 response.status( exceptions.httpCode.C_204 ).end();
             } else if ( acceptsHtml ) {
@@ -468,7 +480,7 @@ module.exports.webAppHandler = ( instance ) => {
             next();
         } else {
             const resLocals = ( response && response.locals ) || {};
-            const isPartial = String( request.get( "HX-Request" ) || "" ).toLowerCase() === "true";
+            const isPartial = isHtmxRequest( request );
             const nonceHeader = request.get( "x-csp-nonce" ) || "";
             const nonce = isPartial ? nonceHeader : ( request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce );
             // HEAD: set headers only:

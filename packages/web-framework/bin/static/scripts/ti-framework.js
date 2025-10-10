@@ -138,8 +138,6 @@ let configureComponentSidebarFlyout = ( options = {} ) => {
         offset: options.offset ?? 10,
         fixed: options.fixed ?? true,
         isOpen: false,
-        //menuTitle: options.menuTitle ?? "Menu",
-        //buttonConfigs: options.buttonConfigs ?? [],
         init() {
             this._reflow = this.reposition.bind( this );
             this._close = this.close.bind( this );
