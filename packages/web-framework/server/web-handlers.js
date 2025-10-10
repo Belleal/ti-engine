@@ -46,8 +46,10 @@ const authMethod = require( "#auth-manager" ).authMethod;
  * @private
  */
 let getBaseUrl = ( request ) => {
-    const host = request.get( "host" );
-    const protocol = ( request.secure === true || String( request.get( "x-forwarded-proto" ) ).toLowerCase() === "https" ) ? "https" : "http";
+    const xfProtocol = String( request.get( "x-forwarded-proto" ) || "" ).toLowerCase();
+    const xfHost = request.get( "x-forwarded-host" );
+    const protocol = ( request.secure || xfProtocol === "https" ) ? "https" : "http";
+    const host = xfHost || request.get( "host" );
     return `${ protocol }://${ host }`;
 };
 
@@ -557,10 +559,12 @@ module.exports.csrfInitHandler = ( instance ) => {
                         session.csrfToken = randomBytes( 32 ).toString( "base64url" );
                     }
                     // Expose the token via a readable cookie for front-end code (double-submit pattern):
+                    const xfProto = String( request.get( "x-forwarded-proto" ) || "" ).toLowerCase();
+                    const isSecure = ( request.secure === true ) || ( xfProto === "https" );
                     const cookieOptions = {
                         path: instance.serviceConfig.cookies.path,
                         sameSite: instance.serviceConfig.cookies.sameSite,
-                        secure: !!instance.serviceConfig.useTLS,
+                        secure: isSecure,
                         httpOnly: false
                     };
                     if ( Number.isFinite( instance.serviceConfig.cookies.maxAge ) ) {

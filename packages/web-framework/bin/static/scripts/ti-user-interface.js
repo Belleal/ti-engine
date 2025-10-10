@@ -1,3 +1,26 @@
+/**
+ * @typedef {Object} SidebarFlyoutConfig
+ * @property {string} [menuTitle]
+ * @property {number} [offset]
+ * @property {string} [placement]
+ * @property {boolean} [fixed]
+ * @property {Array<SidebarFlyoutButtonConfig>} [buttonConfigs]
+ */
+
+/**
+ * @typedef {Object} SidebarFlyoutButtonConfig
+ * @property {string} title
+ * @property {string} icon
+ * @property {Object} action
+ * @property {string} action.href
+ * @property {string} action.target
+ * @property {string} action.swap
+ */
+
+/**
+ * @constant
+ * @type {SidebarFlyoutConfig}
+ */
 const configSidebarUserMenu = {
     menuTitle: "User",
     offset: 20,
@@ -20,6 +43,11 @@ const configSidebarUserMenu = {
         }
     } ]
 };
+
+/**
+ * @constant
+ * @type {SidebarFlyoutConfig}
+ */
 const configSidebarAdministrationMenu = {
     menuTitle: "Administration",
     offset: 20,
@@ -34,6 +62,9 @@ const configSidebarAdministrationMenu = {
     } ]
 };
 
+/**
+ * Register on-initialization tasks for the Alpine.js framework.
+ */
 document.addEventListener( "alpine:init", () => {
     const defaultConfig = {
         menuTitle: "Menu",
