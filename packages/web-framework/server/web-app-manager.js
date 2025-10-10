@@ -139,7 +139,7 @@ class WebAppManager {
             Promise.all( getHtmlPromises ).then( ( filesData ) => {
                 let assembledHtml = undefined;
                 filesData.forEach( ( fileData ) => {
-                    // There should always be exactly one ti-nested-frame-placeholder element in each HTML fragment:
+                    // There should always be at most one ti-nested-frame-placeholder element in each HTML fragment:
                     assembledHtml = ( assembledHtml ) ? this.#replacePlaceholderElement( assembledHtml, TI_NESTED_FRAME_PLACEHOLDER, fileData ) : fileData;
                 } );
                 resolve( assembledHtml );
@@ -252,11 +252,14 @@ class WebAppManager {
         if ( start === -1 ) {
             return html;
         }
-        const gt = html.indexOf( '>', start );
+        const gt = html.indexOf( ">", start );
         if ( gt === -1 ) {
             return html;
         }
-        const isSelfClosing = html[ gt - 1 ] === '/';
+        // Tolerate whitespace(s) before '/>' and attributes on the tag:
+        let p = gt - 1;
+        while ( p > start && /\s/.test( html[ p ] ) ) p--;
+        const isSelfClosing = html[ p ] === "/";
         let end;
         if ( isSelfClosing ) {
             end = gt + 1;

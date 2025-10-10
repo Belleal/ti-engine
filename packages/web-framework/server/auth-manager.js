@@ -102,26 +102,22 @@ class AuthManager {
      * @public
      */
     initialize() {
-        return new Promise( ( resolve, reject ) => {
-            let promises = [];
-            if ( this.isAuthEnabled( authMethodEnum.OPENID_GOOGLE ) ) {
-                promises.push( this.#initializeOpenIDClient( this.#authSettings.oauth2.google ).then( ( configuration ) => {
-                    this.#clientConfigOAuth2Google = configuration;
-                    logger.log( "Enabled OpenID Connect authentication with Google Cloud.", logger.logSeverity.NOTICE );
-                } ) );
-            }
-            if ( this.isAuthEnabled( authMethodEnum.OPENID_AZURE ) ) {
-                promises.push( this.#initializeOpenIDClient( this.#authSettings.oauth2.azure ).then( ( configuration ) => {
-                    this.#clientConfigOAuth2Azure = configuration;
-                    logger.log( "Enabled OpenID Connect authentication with Azure Cloud.", logger.logSeverity.NOTICE );
-                } ) );
-            }
-            Promise.all( promises ).then( () => {
-                this.#initialized = true;
-                resolve();
-            } ).catch( ( error ) => {
-                reject( exceptions.raise( error ) );
-            } );
+        let promises = [];
+        if ( this.isAuthEnabled( authMethodEnum.OPENID_GOOGLE ) ) {
+            promises.push( this.#initializeOpenIDClient( this.#authSettings.oauth2.google ).then( ( configuration ) => {
+                this.#clientConfigOAuth2Google = configuration;
+                logger.log( "Enabled OpenID Connect authentication with Google Cloud.", logger.logSeverity.NOTICE );
+            } ) );
+        }
+        if ( this.isAuthEnabled( authMethodEnum.OPENID_AZURE ) ) {
+            promises.push( this.#initializeOpenIDClient( this.#authSettings.oauth2.azure ).then( ( configuration ) => {
+                this.#clientConfigOAuth2Azure = configuration;
+                logger.log( "Enabled OpenID Connect authentication with Azure Cloud.", logger.logSeverity.NOTICE );
+            } ) );
+        }
+
+        return Promise.all( promises ).then( () => {
+            this.#initialized = true;
         } );
     }
 

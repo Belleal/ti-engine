@@ -201,13 +201,19 @@ module.exports.toBool = ( value ) => {
 
 /**
  * Used to fetch only the unique values from the provided array.
+ * <br/>
+ * Note: For objects and arrays, uniqueness is determined by reference equality. Primitives are compared by their value.
  *
  * @method
  * @param {Array} array
  * @returns {Array}
+ * @throws {TypeError} If the provided parameter is not an array
  * @public
  */
 module.exports.arrayUniques = ( array ) => {
+    if ( !Array.isArray( array ) ) {
+        throw new TypeError( "Expected an array" );
+    }
     return [ ...new Set( array ) ];
 };
 

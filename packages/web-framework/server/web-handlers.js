@@ -164,7 +164,7 @@ module.exports.resourceProtectionHandler = ( instance ) => {
             const redirectTo = "/";
             if ( String( request.get( "HX-Request" ) || "" ).toLowerCase() === "true" ) {
                 response.set( "HX-Redirect", redirectTo );
-                response.status( exceptions.httpCode.C_401 ).end();
+                response.status( exceptions.httpCode.C_204 ).end();
             } else if ( acceptsHtml ) {
                 response.redirect( exceptions.httpCode.C_303, redirectTo );
             } else {
@@ -468,8 +468,9 @@ module.exports.webAppHandler = ( instance ) => {
             next();
         } else {
             const resLocals = ( response && response.locals ) || {};
-            const isPartial = request.get( "HX-Request" ) === "true";
-            const nonce = ( isPartial ) ? request.get( "x-csp-nonce" ) : ( request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce );
+            const isPartial = String( request.get( "HX-Request" ) || "" ).toLowerCase() === "true";
+            const nonceHeader = request.get( "x-csp-nonce" ) || request.get( "X-CSP-Nonce" ) || "";
+            const nonce = isPartial ? nonceHeader : ( request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce );
             // HEAD: set headers only:
             if ( request.method === "HEAD" ) {
                 response.set( "Cache-Control", "no-store" );

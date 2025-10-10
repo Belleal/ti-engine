@@ -70,7 +70,7 @@ function clampToBox( x, y, w, h, box, edgePadding = 0 ) {
 }
 
 function getCookie( name ) {
-    const cookie = document.cookie.match( new RegExp( "(?:^|; )" + name.replace( /[$()*+.?[\\]^{}|\\\\]/g, "\\$&" ) + "=([^;]*)" ) );
+    const cookie = document.cookie.match( new RegExp( "(?:^|; )" + name.replace( /[$()*+.?[\]\\^{}|]/g, "\\$&" ) + "=([^;]*)" ) );
     return cookie ? decodeURIComponent( cookie[ 1 ] ) : "";
 }
 
@@ -145,25 +145,34 @@ let configureComponentSidebarFlyout = ( options = {} ) => {
             let left = rect.left + ( this.fixed ? 0 : scrollX );
 
             const [ side, align = "start" ] = this.placement.split( "-" );
-
             if ( side === "right" ) {
                 left = rect.right + ( this.fixed ? 0 : scrollX ) + this.offset;
-                top = rect.top + ( this.fixed ? 0 : scrollY );
             } else if ( side === "left" ) {
                 left = rect.left + ( this.fixed ? 0 : scrollX ) - pw - this.offset;
-                top = rect.top + ( this.fixed ? 0 : scrollY );
             } else if ( side === "bottom" ) {
                 top = rect.bottom + ( this.fixed ? 0 : scrollY ) + this.offset;
-                left = rect.left + ( this.fixed ? 0 : scrollX );
             } else if ( side === "top" ) {
                 top = rect.top + ( this.fixed ? 0 : scrollY ) - ph - this.offset;
-                left = rect.left + ( this.fixed ? 0 : scrollX );
             }
-
-            if ( align === "center" ) {
-                left = rect.left + ( this.fixed ? 0 : scrollX ) + ( rect.width - pw ) / 2;
-            } else if ( align === "end" ) {
-                left = rect.right + ( this.fixed ? 0 : scrollX ) - pw;
+            // Alignment for horizontal sides (left/right) adjusts the vertical position:
+            if ( side === "left" || side === "right" ) {
+                if ( align === "start" ) {
+                    top = rect.top + ( this.fixed ? 0 : scrollY );
+                } else if ( align === "center" ) {
+                    top = rect.top + ( this.fixed ? 0 : scrollY ) + ( rect.height - ph ) / 2;
+                } else if ( align === "end" ) {
+                    top = rect.bottom + ( this.fixed ? 0 : scrollY ) - ph;
+                }
+            }
+            // Alignment for vertical sides (top/bottom) adjusts the horizontal position:
+            else if ( side === "top" || side === "bottom" ) {
+                if ( align === "start" ) {
+                    left = rect.left + ( this.fixed ? 0 : scrollX );
+                } else if ( align === "center" ) {
+                    left = rect.left + ( this.fixed ? 0 : scrollX ) + ( rect.width - pw ) / 2;
+                } else if ( align === "end" ) {
+                    left = rect.right + ( this.fixed ? 0 : scrollX ) - pw;
+                }
             }
 
             const box = getVisibleBox( this.fixed );
