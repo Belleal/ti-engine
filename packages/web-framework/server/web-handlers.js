@@ -469,7 +469,7 @@ module.exports.webAppHandler = ( instance ) => {
         } else {
             const resLocals = ( response && response.locals ) || {};
             const isPartial = String( request.get( "HX-Request" ) || "" ).toLowerCase() === "true";
-            const nonceHeader = request.get( "x-csp-nonce" ) || request.get( "X-CSP-Nonce" ) || "";
+            const nonceHeader = request.get( "x-csp-nonce" ) || "";
             const nonce = isPartial ? nonceHeader : ( request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce );
             // HEAD: set headers only:
             if ( request.method === "HEAD" ) {

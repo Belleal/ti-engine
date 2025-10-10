@@ -1,61 +1,100 @@
-function isPlainObject( v ) {
-    return Object.prototype.toString.call( v ) === '[object Object]';
+/**
+ * Used to check if a value is a plain object.
+ *
+ * @method
+ * @param {*} value
+ * @returns {boolean}
+ * @public
+ */
+function isPlainObject( value ) {
+    return Object.prototype.toString.call( value ) === "[object Object]";
 }
 
-function deepMerge( base, src ) {
-    if ( !isPlainObject( base ) || !isPlainObject( src ) ) {
-        // primitive, array, or non-plain object → src wins
-        return ( typeof structuredClone === "function" ) ? structuredClone( src ) : JSON.parse( JSON.stringify( src ) );
-    }
-    const out = { ...base };
-    for ( const key of Object.keys( src ) ) {
-        const b = base[ key ];
-        const s = src[ key ];
+/**
+ * Used to perform a deep merge of two objects. 'base' is the object that will be modified.
+ * <br/>
+ * NOTE: If 'structuredClone' is not available, fall back to JSON.parse/JSON.stringify. The later will not preserve non-JSON-serializable
+ * values (functions, undefined, symbols) and will convert Dates to strings, RegExp to empty objects, etc.
+ *
+ * @method
+ * @param {Object} base
+ * @param {Object} source
+ * @returns {Object}
+ * @public
+ */
+function deepMerge( base, source ) {
+    if ( !isPlainObject( base ) || !isPlainObject( source ) ) {
+        return ( typeof structuredClone === "function" ) ? structuredClone( source ) : JSON.parse( JSON.stringify( source ) );
+    } else {
+        const out = { ...base };
+        for ( const key of Object.keys( source ) ) {
+            const b = base[ key ];
+            const s = source[ key ];
 
-        if ( Array.isArray( s ) ) {
-            // replace arrays (not concat)
-            out[ key ] = s.slice();
-        } else if ( isPlainObject( s ) && isPlainObject( b ) ) {
-            out[ key ] = deepMerge( b, s );
-        } else if ( isPlainObject( s ) ) {
-            out[ key ] = deepMerge( {}, s ); // clone object
-        } else {
-            out[ key ] = s; // primitives, dates, functions, etc. → override
+            if ( Array.isArray( s ) ) {
+                out[ key ] = s.slice();
+            } else if ( isPlainObject( s ) && isPlainObject( b ) ) {
+                out[ key ] = deepMerge( b, s );
+            } else if ( isPlainObject( s ) ) {
+                out[ key ] = deepMerge( {}, s );
+            } else {
+                out[ key ] = s;
+            }
         }
+        return out;
     }
-    return out;
 }
 
+/**
+ * Used to get the visible box of the document.
+ *
+ * @method
+ * @param {boolean} isFixed
+ * @returns {Object}
+ * @public
+ */
 function getVisibleBox( isFixed ) {
-    const docEl = document.documentElement;
-
-    // Fixed coordinates are viewport-based (top/left = 0/0)
+    // Fixed coordinates are viewport-based (top/left = 0/0):
     if ( isFixed ) {
         if ( window.visualViewport ) {
-            const vv = window.visualViewport;
+            const viewport = window.visualViewport;
             return {
-                left: vv.offsetLeft, // CSS px, where the viewport begins relative to layout viewport
-                top: vv.offsetTop,
-                width: vv.width,
-                height: vv.height,
-                pageLeft: vv.pageLeft, // document coords
-                pageTop: vv.pageTop
+                left: viewport.offsetLeft, // CSS px, where the viewport begins relative to layout viewport
+                top: viewport.offsetTop,
+                width: viewport.width,
+                height: viewport.height,
+                pageLeft: viewport.pageLeft, // document coords
+                pageTop: viewport.pageTop
             };
+        } else {
+            return { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight, pageLeft: window.scrollX, pageTop: window.scrollY };
         }
-        return { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight, pageLeft: window.scrollX, pageTop: window.scrollY };
+    } else {
+        // Absolute coordinates are document-based (top/left = scroll position):
+        return {
+            left: window.scrollX,
+            top: window.scrollY,
+            width: document.documentElement.clientWidth,
+            height: document.documentElement.clientHeight,
+            pageLeft: window.scrollX,
+            pageTop: window.scrollY
+        };
     }
-
-    // Absolute coordinates are document-based (top/left = scroll position)
-    return {
-        left: window.scrollX,
-        top: window.scrollY,
-        width: docEl.clientWidth,
-        height: docEl.clientHeight,
-        pageLeft: window.scrollX,
-        pageTop: window.scrollY
-    };
 }
 
+/**
+ * Used to clamp a position to a box.
+ *
+ * @method
+ * @param {number} x
+ * @param {number} y
+ * @param {number} w
+ * @param {number} h
+ * @param {Object} box
+ * @param {number} [edgePadding=0]
+ * @returns {{x: number, y: number}}
+ * @public
+ */
 function clampToBox( x, y, w, h, box, edgePadding = 0 ) {
     // If the box has an offset (visualViewport on some platforms), normalize appropriately.
     // For fixed elements, x/y are in viewport coordinates; for absolute, in page coordinates.
@@ -69,6 +108,14 @@ function clampToBox( x, y, w, h, box, edgePadding = 0 ) {
     };
 }
 
+/**
+ * Used to get a cookie value by name.
+ *
+ * @method
+ * @param {string} name
+ * @returns {string}
+ * @public
+ */
 function getCookie( name ) {
     const cookie = document.cookie.match( new RegExp( "(?:^|; )" + name.replace( /[$()*+.?[\]\\^{}|]/g, "\\$&" ) + "=([^;]*)" ) );
     return cookie ? decodeURIComponent( cookie[ 1 ] ) : "";
