@@ -46,8 +46,10 @@ const authMethod = require( "#auth-manager" ).authMethod;
  * @private
  */
 let getBaseUrl = ( request ) => {
-    const host = request.get( "host" );
-    const protocol = ( request.secure === true || String( request.get( "x-forwarded-proto" ) ).toLowerCase() === "https" ) ? "https" : "http";
+    const xfProtocol = String( request.get( "x-forwarded-proto" ) || "" ).toLowerCase();
+    const xfHost = request.get( "x-forwarded-host" );
+    const protocol = ( request.secure || xfProtocol === "https" ) ? "https" : "http";
+    const host = xfHost || request.get( "host" );
     return `${ protocol }://${ host }`;
 };
 
@@ -129,6 +131,18 @@ let regenerateAndSaveSession = ( request, redirectTo, modifier ) => {
 };
 
 /**
+ * Check if the request is an HTMX request.
+ *
+ * @method
+ * @param {ExpressRequest} request
+ * @returns {boolean}
+ * @private
+ */
+let isHtmxRequest = ( request ) => {
+    return String( request.get( "HX-Request" ) || "" ).toLowerCase() === "true";
+};
+
+/**
  * Handler for requests that are received while the web server is shutting down.
  *
  * @method
@@ -160,7 +174,18 @@ module.exports.resourceProtectionHandler = ( instance ) => {
         if ( instance.isUnprotectedRoute( request.url ) || instance.verifySession( request.session ) ) {
             next();
         } else {
-            response.status( exceptions.httpCode.C_403 ).end();
+            const acceptsHtml = request.accepts( [ "html", "json" ] ) === "html";
+            const redirectTo = "/";
+            if ( isHtmxRequest( request ) ) {
+                response.set( "HX-Redirect", redirectTo );
+                response.status( exceptions.httpCode.C_204 ).end();
+            } else if ( acceptsHtml ) {
+                response.redirect( exceptions.httpCode.C_303, redirectTo );
+            } else {
+                response.status( exceptions.httpCode.C_401 ).send( {
+                    isSuccessful: false
+                } );
+            }
         }
     };
 };
@@ -457,7 +482,9 @@ module.exports.webAppHandler = ( instance ) => {
             next();
         } else {
             const resLocals = ( response && response.locals ) || {};
-            const nonce = request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce;
+            const isPartial = isHtmxRequest( request );
+            const nonceHeader = request.get( "x-csp-nonce" ) || "";
+            const nonce = isPartial ? nonceHeader : ( request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce );
             // HEAD: set headers only:
             if ( request.method === "HEAD" ) {
                 response.set( "Cache-Control", "no-store" );
@@ -465,10 +492,14 @@ module.exports.webAppHandler = ( instance ) => {
                 response.status( exceptions.httpCode.C_200 ).end();
             } else {
                 // GET: load and render:
-                instance.webAppManager.getHtmlFragment( request.session, instance.fullPublicPath, request.path, { nonce: nonce } ).then( ( fileData ) => {
+                instance.webAppManager.assembleHtmlView( request.session, instance.fullPublicPath, request.path, {
+                    nonce: nonce,
+                    isPartial: isPartial,
+                    view: request.params.view
+                } ).then( ( html ) => {
                     response.set( "Cache-Control", "no-store" );
                     response.set( "Content-Type", "text/html; charset=utf-8" );
-                    response.status( exceptions.httpCode.C_200 ).send( fileData );
+                    response.status( exceptions.httpCode.C_200 ).send( html );
                 } ).catch( ( error ) => {
                     let exception = exceptions.raise( error );
                     exception.httpCode = exceptions.httpCode.C_404;
@@ -528,10 +559,12 @@ module.exports.csrfInitHandler = ( instance ) => {
                         session.csrfToken = randomBytes( 32 ).toString( "base64url" );
                     }
                     // Expose the token via a readable cookie for front-end code (double-submit pattern):
+                    const xfProto = String( request.get( "x-forwarded-proto" ) || "" ).toLowerCase();
+                    const isSecure = ( request.secure === true ) || ( xfProto === "https" );
                     const cookieOptions = {
                         path: instance.serviceConfig.cookies.path,
                         sameSite: instance.serviceConfig.cookies.sameSite,
-                        secure: !!instance.serviceConfig.useTLS,
+                        secure: isSecure,
                         httpOnly: false
                     };
                     if ( Number.isFinite( instance.serviceConfig.cookies.maxAge ) ) {

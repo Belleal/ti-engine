@@ -1,0 +1,30 @@
+<div x-id="['component-flyout']"
+     x-data="tiComponentSidebarFlyout({ placement: placement, offset: offset, fixed: fixed })"
+     class="ti-sidebar-flyout-container">
+    <button x-on:click.stop="toggle()"
+            x-on:ti-close-all-flyout="close()"
+            x-bind:aria-expanded="String(isOpen)"
+            x-bind:aria-controls="$id('component-flyout')"
+            x-bind:aria-label="menuTitle"
+            x-ref="flyoutButton"
+            type="button" class="ti-sidebar-button ti-glass-btn-black">
+        <span class="material-symbols-outlined">radio_button_checked</span>
+    </button>
+    <div x-on:click.outside="close()"
+         x-bind:id="$id('component-flyout')"
+         x-show="isOpen"
+         x-ref="flyoutPanel"
+         role="menu" class="ti-sidebar-flyout ti-glass-panel-black">
+        <template x-for="(buttonConfig, index) in buttonConfigs">
+            <button x-on:click="close()"
+                    x-bind:hx-get="(!buttonConfig.action.method || buttonConfig.action.method === 'get') ? buttonConfig.action.href : null"
+                    x-bind:hx-post="(buttonConfig.action.method && buttonConfig.action.method === 'post') ? buttonConfig.action.href : null"
+                    x-bind:hx-target="buttonConfig.action.target"
+                    x-bind:hx-swap="buttonConfig.action.swap"
+                    hx-push-url="true"
+                    type="button" class="ti-sidebar-flyout-item ti-glass-btn-black">
+                <span x-text="buttonConfig.icon" class="material-symbols-outlined"></span><span x-text="buttonConfig.title"></span>
+            </button>
+        </template>
+    </div>
+</div>

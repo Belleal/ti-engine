@@ -7,7 +7,7 @@
 */
 
 const exceptions = require( "@ti-engine/core/exceptions" );
-const logger = require( "@ti-engine/core/logger" );
+const tools = require( "@ti-engine/core/tools" );
 const path = require( "node:path" );
 const fs = require( "node:fs" );
 
@@ -15,6 +15,7 @@ const RE_NONCE_ATTR = /nonce="{ti-nonce-placeholder}"/g;
 const RE_INLINE_SCRIPT_NONCE = /"inlineScriptNonce":"{ti-nonce-placeholder}"/g;
 const RE_INLINE_STYLE_NONCE = /"inlineStyleNonce":"{ti-nonce-placeholder}"/g;
 const RE_CSP_NONCE = /^[A-Za-z0-9+\/=_-]{16,}$/;
+const TI_NESTED_FRAME_PLACEHOLDER = "ti-nested-frame-placeholder";
 
 /**
  * @class WebAppManager
@@ -30,85 +31,116 @@ class WebAppManager {
 
         // TODO: All of this will be configurable later.
         this.#fragments[ 'home' ] = { path: "index.html" };
-        this.#fragments[ 'application-main' ] = { path: "fragments/frame-application.html" };
-        this.#fragments[ 'login' ] = { path: "fragments/frame-login.html" };
-        this.#fragments[ 'dashboard' ] = { path: "fragments/frame-dashboard.html" };
+        this.#fragments[ 'application-main' ] = {
+            title: "Application",
+            path: "fragments/frame-application.html",
+            components: [ "component-sidebar-flyout", "component-sidebar-flyout" ]
+        };
+        this.#fragments[ 'login' ] = {
+            title: "Login",
+            path: "fragments/frame-login.html"
+        };
+        this.#fragments[ 'dashboard' ] = {
+            title: "Dashboard",
+            path: "fragments/frame-dashboard.html"
+        };
+        this.#fragments[ 'administration' ] = {
+            title: "Administration",
+            path: "fragments/frame-administration.html"
+        };
+        this.#fragments[ 'profile' ] = {
+            title: "Profile",
+            path: "fragments/frame-profile.html"
+        };
     }
 
     /* Public interface */
 
     /**
-     * Optional HTML transformation hook. Override in subclasses to add nonces or other dynamic data to outgoing HTML.
+     * Optional HTML transformation hook.
+     * <br/>
+     * NOTE: Override in subclasses to add nonces or other dynamic data to outgoing HTML.
      *
      * @method
      * @param {string} html
+     * @param {string} fullPublicPath
      * @param {Object} [options]
      * @param {boolean} [options.isHome] Optional flag to indicate whether the requested route is the home page.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
+     * @param {string} [options.title] Optional title to replace the placeholder in the HTML.
      * @returns {Promise<string>}
      * @virtual
      * @public
      */
-    transformHtml( html, options = {} ) {
-        const nonce = options?.nonce;
-        let transformedHtml = String( html );
-        if ( typeof nonce === "string" && RE_CSP_NONCE.test( nonce ) ) {
-            transformedHtml = transformedHtml.replace( RE_NONCE_ATTR, `nonce="${ nonce }"` );
+    transformHtml( html, fullPublicPath, options = {} ) {
+        return new Promise( ( resolve, reject ) => {
+            let transformedHtml = String( html );
+
+            // Insert nonce in all placeholder locations. If nonce is not provided or is invalid, this will use an empty string instead to remove the placeholder:
+            const nonce = ( typeof options?.nonce === "string" && RE_CSP_NONCE.test( options?.nonce ) ) ? options?.nonce : "";
+            transformedHtml = transformedHtml.replaceAll( RE_NONCE_ATTR, `nonce="${ nonce }"` );
             if ( options.isHome ) {
                 transformedHtml = transformedHtml
-                    .replace( RE_INLINE_SCRIPT_NONCE, `"inlineScriptNonce":"${ nonce }"` )
-                    .replace( RE_INLINE_STYLE_NONCE, `"inlineStyleNonce":"${ nonce }"` );
+                    .replaceAll( RE_INLINE_SCRIPT_NONCE, `"inlineScriptNonce":"${ nonce }"` )
+                    .replaceAll( RE_INLINE_STYLE_NONCE, `"inlineStyleNonce":"${ nonce }"` );
             }
-        }
 
-        return Promise.resolve( transformedHtml );
+            if ( options.title ) {
+                transformedHtml = transformedHtml.replace( "{ti-title-placeholder}", options.title );
+            }
+
+            resolve( transformedHtml );
+        } );
     }
 
     /**
-     * Returns the HTML fragment for the requested route.
+     * Used to assemble the complete HTML view for the requested route, including nested HTML fragments.
      *
      * @method
      * @param {Object} session
      * @param {string} fullPublicPath
      * @param {string} route
      * @param {Object} [options]
+     * @param {boolean} [options.isPartial] Optional flag to indicate whether the requested route is a partial load of a fragment.
+     * @param {string} [options.view] Optional view name to load within this route.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
-     * @returns {Promise<string>}
-     * @throws {Exception.E_WEB_INVALID_REQUEST_URI} If the provided route is not supported.
+     * @return {Promise<string>}
      * @public
      */
-    getHtmlFragment( session, fullPublicPath, route, options = {} ) {
+    assembleHtmlView( session, fullPublicPath, route, options = {} ) {
         return new Promise( ( resolve, reject ) => {
-            let fragment = null;
-            const localOptions = ( options && typeof options === "object" ) ? { ...options } : {};
-            switch ( route ) {
-                case '/': {
-                    fragment = this.#fragments[ 'home' ];
-                    localOptions.isHome = true;
-                }
-                    break;
-                case '/app':
-                case '/enter': {
-                    fragment = ( session && session.user )
-                        ? this.#fragments[ 'application-main' ]
-                        : this.#fragments[ 'login' ];
-                }
-                    break;
-                case '/dashboard': {
-                    fragment = this.#fragments[ 'dashboard' ];
-                }
-                    break;
-                default: {
+            let fragment;
+            let getHtmlPromises = [];
+            let localOptions = ( options && typeof options === "object" ) ? { ...options } : {};
+
+            if ( route === "/" ) {
+                fragment = this.#fragments[ 'home' ];
+                localOptions.isHome = true;
+                getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, fragment, localOptions ) );
+            } else if ( route === "/app" || route === "/app/enter" ) {
+                fragment = ( session && session.user ) ? this.#fragments[ 'application-main' ] : this.#fragments[ 'login' ];
+                getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, fragment, localOptions ) );
+            } else {
+                fragment = this.#fragments[ options.view ];
+                if ( !fragment ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI );
+                } else {
+                    // This handles application refreshes from nested frames:
+                    if ( options.isPartial !== true ) {
+                        getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, this.#fragments[ 'home' ], { ...localOptions, isHome: true } ) );
+                        getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, this.#fragments[ 'application-main' ], localOptions ) );
+                    }
+                    getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, fragment, localOptions ) );
                 }
             }
 
-            this.#verifyAccess( session, fragment ).then( () => {
-                return this.#loadHtmlFragment( path.join( fullPublicPath, fragment.path ) );
-            } ).then( ( fileData ) => {
-                return this.transformHtml( fileData, localOptions );
-            } ).then( ( fileData ) => {
-                resolve( fileData );
+            Promise.all( getHtmlPromises ).then( ( filesData ) => {
+                let assembledHtml = undefined;
+                filesData.forEach( ( fileData ) => {
+                    // There should always be at most one ti-nested-frame-placeholder element in each HTML fragment:
+                    assembledHtml = ( assembledHtml ) ? this.#replacePlaceholderElement( assembledHtml, TI_NESTED_FRAME_PLACEHOLDER, fileData ) : fileData;
+                } );
+                resolve( assembledHtml );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
@@ -116,6 +148,36 @@ class WebAppManager {
     }
 
     /* Private interface */
+
+    /**
+     * Returns the HTML fragment for the requested route.
+     *
+     * @method
+     * @param {Object} session
+     * @param {string} fullPublicPath
+     * @param {Object} fragment
+     * @param {Object} [options]
+     * @param {boolean} [options.isHome] Optional flag to indicate whether the requested route is the home page.
+     * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
+     * @returns {Promise<string>}
+     * @throws {Exception.E_WEB_INVALID_REQUEST_URI} If the provided route is not supported.
+     * @public
+     */
+    #getHtmlFragment( session, fullPublicPath, fragment, options = {} ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#verifyAccess( session, fragment ).then( () => {
+                return this.#loadHtmlFragment( path.join( fullPublicPath, fragment.path ) );
+            } ).then( ( fileData ) => {
+                return this.#replaceComponentPlaceholders( fileData, fullPublicPath, fragment.components );
+            } ).then( ( fileData ) => {
+                return this.transformHtml( fileData, fullPublicPath, { ...options, title: fragment.title } );
+            } ).then( ( fileData ) => {
+                resolve( fileData );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
 
     /**
      * Loads the HTML fragment from the specified file path.
@@ -127,12 +189,88 @@ class WebAppManager {
      */
     #loadHtmlFragment( filePath ) {
         return new Promise( ( resolve, reject ) => {
+            // TODO: Add caching layer here.
             fs.promises.readFile( filePath, "utf8" ).then( ( fileData ) => {
                 resolve( fileData );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
         } );
+    }
+
+    /**
+     * Used to replace the component placeholders in the HTML with the actual component HTML.
+     *
+     * @method
+     * @param {string} html
+     * @param {string} fullPublicPath
+     * @param {Array<string>} components
+     * @returns {Promise<string>}
+     * @private
+     */
+    #replaceComponentPlaceholders( html, fullPublicPath, components ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( components === undefined || components.length === 0 ) {
+                resolve( html );
+            } else {
+                let transformedHtml = String( html );
+                let promises = [];
+                const componentData = {};
+                tools.arrayUniques( components ).forEach( ( component ) => {
+                    promises.push( this.#loadHtmlFragment( path.join( fullPublicPath, `fragments/components/${ component }.html` ) ).then( ( fileData ) => {
+                        componentData[ component ] = fileData;
+                    } ) );
+                } );
+
+                Promise.all( promises ).then( () => {
+                    components.forEach( ( component ) => {
+                        transformedHtml = this.#replacePlaceholderElement( transformedHtml, `ti-${ component }-placeholder`, componentData[ component ] );
+                    } );
+
+                    resolve( transformedHtml );
+                } ).catch( ( error ) => {
+                    reject( exceptions.raise( error ) );
+                } );
+            }
+        } );
+    }
+
+    /**
+     * Used to replace a placeholder element in the HTML with the provided replacement.
+     *
+     * @method
+     * @param {string} html
+     * @param {string} tagName
+     * @param {string} replacement
+     * @return {string}
+     * @private
+     */
+    #replacePlaceholderElement( html, tagName, replacement ) {
+        const start = html.indexOf( `<${ tagName }` );
+        if ( start === -1 ) {
+            return html;
+        }
+        const gt = html.indexOf( ">", start );
+        if ( gt === -1 ) {
+            return html;
+        }
+        // Tolerate whitespace(s) before '/>' and attributes on the tag:
+        let p = gt - 1;
+        while ( p > start && /\s/.test( html[ p ] ) ) p--;
+        const isSelfClosing = html[ p ] === "/";
+        let end;
+        if ( isSelfClosing ) {
+            end = gt + 1;
+        } else {
+            const close = `</${ tagName }>`;
+            end = html.indexOf( close, gt + 1 );
+            if ( end === -1 ) {
+                return html;
+            }
+            end += close.length;
+        }
+
+        return html.slice( 0, start ) + replacement + html.slice( end );
     }
 
     /**
@@ -146,7 +284,7 @@ class WebAppManager {
      */
     #verifyAccess( session, resource ) {
         return new Promise( ( resolve, reject ) => {
-            // TODO: Implement this.
+            // TODO: Implement role based access management.
             resolve();
         } );
     }
