@@ -11,6 +11,7 @@ const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const { randomBytes } = require( "node:crypto" );
 const openidClient = require( "openid-client" );
+const User = require( "#user" );
 
 /**
  * Enum for specifying the authentication method.
@@ -39,6 +40,8 @@ const openIDTokenEndpointAuthMethodEnum = tools.enum( {
 } );
 
 /**
+ * The AuthManager class is used to manage authentication and authorization.
+ *
  * @class AuthManager
  * @public
  */
@@ -156,9 +159,7 @@ class AuthManager {
             case authMethodEnum.OPENID_AZURE:
                 return this.#authenticateOpenID( authDetails.baseUrl, this.#authSettings.oauth2.azure, this.#clientConfigOAuth2Azure );
             default: {
-                let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
-                exception.httpCode = exceptions.httpCode.C_401;
-                throw exception;
+                throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
             }
         }
     }
@@ -170,22 +171,20 @@ class AuthManager {
      * @param {TiAuthMethod} authMethod
      * @param {URL} currentUrl
      * @param {Object} oidc
-     * @returns {Promise}
+     * @returns {Promise<User>}
      * @throws {Exception.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the authentication method is not recognized.
      * @public
      */
     authorize( authMethod, currentUrl, oidc ) {
         switch ( authMethod ) {
             case authMethodEnum.LOCAL:
-                return Promise.resolve();
+                return Promise.resolve( new User( { userID: `local:${ tools.getUUID() }`, username: oidc.username } ) );
             case authMethodEnum.OPENID_GOOGLE:
                 return this.#authorizeOpenID( currentUrl, oidc, this.#clientConfigOAuth2Google );
             case authMethodEnum.OPENID_AZURE:
                 return this.#authorizeOpenID( currentUrl, oidc, this.#clientConfigOAuth2Azure );
             default: {
-                let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
-                exception.httpCode = exceptions.httpCode.C_401;
-                throw exception;
+                throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
             }
         }
     }
@@ -205,9 +204,7 @@ class AuthManager {
         } else if ( authMethod === authMethodEnum.OPENID_AZURE && this.isAuthEnabled( authMethodEnum.OPENID_AZURE ) ) {
             return this.#authSettings.oauth2.azure.callbackUrl;
         } else {
-            let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
-            exception.httpCode = exceptions.httpCode.C_401;
-            throw exception;
+            throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
         }
     }
 
@@ -248,9 +245,7 @@ class AuthManager {
                     }
                         break;
                     default: {
-                        let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
-                        exception.httpCode = exceptions.httpCode.C_401;
-                        throw exception;
+                        throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
                     }
                 }
             }
@@ -275,12 +270,10 @@ class AuthManager {
     #authenticateLocal( username, password ) {
         return new Promise( ( resolve, reject ) => {
             // TODO: Implement this!
-            if ( this.isAuthEnabled( authMethodEnum.LOCAL ) ) {
-                resolve( { result: ( username === this.#authSettings.local.username && password === this.#authSettings.local.password ) } );
+            if ( this.isAuthEnabled( authMethodEnum.LOCAL ) && ( username === this.#authSettings.local.username && password === this.#authSettings.local.password ) ) {
+                resolve();
             } else {
-                let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
-                exception.httpCode = exceptions.httpCode.C_401;
-                reject( exception );
+                reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS ) );
             }
         } );
     }
@@ -325,7 +318,7 @@ class AuthManager {
      * @param {URL} currentUrl
      * @param {Object} oidc
      * @param {openidClient.Configuration} clientConfig
-     * @returns {Promise<Object>}
+     * @returns {Promise<User>}
      * @private
      */
     #authorizeOpenID( currentUrl, oidc, clientConfig ) {
@@ -338,7 +331,7 @@ class AuthManager {
                 const claims = token.claims();
                 return openidClient.fetchUserInfo( clientConfig, token.access_token, claims.sub );
             } ).then( ( userInfo ) => {
-                resolve( userInfo );
+                resolve( new User( { userID: `oauth2:${ userInfo.sub }`, username: userInfo.email, email: userInfo.email, name: userInfo.name } ) );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );

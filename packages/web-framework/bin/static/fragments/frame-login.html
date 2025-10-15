@@ -2,17 +2,14 @@
 <div id="ti-login" class="ti-content login">
     <h2>Sign in</h2>
     <div id="ti-error" class="ti-error"></div>
-    <form id="ti-login-form"
-          hx-post="/login/local"
-          hx-target="#ti-main"
-          hx-swap="innerHTML">
+    <form id="ti-login-form" action="/login/local" method="post">
         <div>
             <label for="ti-username">Username</label>
-            <input id="ti-username" name="username" autocomplete="username"/>
+            <input id="ti-username" name="username" autocomplete="username" required/>
         </div>
         <div>
             <label for="ti-password">Password</label>
-            <input id="ti-password" name="password" type="password" autocomplete="current-password"/>
+            <input id="ti-password" name="password" type="password" autocomplete="current-password" required/>
         </div>
         <div>
             <button type="submit">Sign in</button>
