@@ -239,8 +239,8 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.use( webHandlers.nonceGenerationHandler() );
                 this.#webServer.use( helmet( { contentSecurityPolicy: false } ) );
                 this.#webServer.use( webHandlers.cspHeaderHandler() );
-                this.#webServer.use( express.json() );
-                this.#webServer.use( express.urlencoded( { extended: false } ) );
+                this.#webServer.use( express.json( { limit: "1mb" } ) );
+                this.#webServer.use( express.urlencoded( { extended: false, limit: "100kb" } ) );
                 this.#webServer.use( cookieParser() );
                 this.#webServer.use( session( {
                     secret: this.serviceConfig.cookies.secret || randomBytes( 32 ).toString( "base64" ),
@@ -257,7 +257,7 @@ class TiWebServer extends ServiceConsumer {
                     store: new SessionStore()
                 } ) );
                 this.#webServer.use( webHandlers.csrfInitHandler( this ) );
-                this.#webServer.use( webHandlers.originRefererValidationHandler( this ) );
+                this.#webServer.use( webHandlers.originRefererValidationHandler() );
                 this.#webServer.use( webHandlers.csrfProtectionHandler() );
 
                 // Set up the web server routes:
