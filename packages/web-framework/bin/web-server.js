@@ -249,7 +249,7 @@ class TiWebServer extends ServiceConsumer {
                     cookie: {
                         path: this.serviceConfig.cookies.path,
                         httpOnly: this.serviceConfig.cookies.httpOnly,
-                        secure: ( this.serviceConfig.useTLS === true ),
+                        secure: "auto",
                         sameSite: this.serviceConfig.cookies.sameSite,
                         maxAge: this.serviceConfig.cookies.maxAge
                     },

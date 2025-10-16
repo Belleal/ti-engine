@@ -11,9 +11,9 @@ const tools = require( "@ti-engine/core/tools" );
 const path = require( "node:path" );
 const fs = require( "node:fs" );
 
-const RE_NONCE_ATTR = /nonce="{ti-nonce-placeholder}"/g;
-const RE_INLINE_SCRIPT_NONCE = /"inlineScriptNonce":"{ti-nonce-placeholder}"/g;
-const RE_INLINE_STYLE_NONCE = /"inlineStyleNonce":"{ti-nonce-placeholder}"/g;
+const RE_NONCE_ATTR = /\{ti-nonce-placeholder}/g;
+const RE_CSRF_ATTR = /\{ti-csrf-placeholder}/g;
+const RE_HTMX_CONFIG = /\{ti-htmx-config-placeholder}/g;
 const RE_CSP_NONCE = /^[A-Za-z0-9+\/=_-]{16,}$/;
 const TI_NESTED_FRAME_PLACEHOLDER = "ti-nested-frame-placeholder";
 
@@ -65,6 +65,7 @@ class WebAppManager {
      * @param {string} html
      * @param {string} fullPublicPath
      * @param {Object} [options]
+     * @param {string} [options.csrfToken] Optional CSRF token to inject into the HTML.
      * @param {boolean} [options.isHome] Optional flag to indicate whether the requested route is the home page.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
      * @param {string} [options.title] Optional title to replace the placeholder in the HTML.
@@ -78,12 +79,20 @@ class WebAppManager {
 
             // Insert nonce in all placeholder locations. If nonce is not provided or is invalid, this will use an empty string instead to remove the placeholder:
             const nonce = ( typeof options?.nonce === "string" && RE_CSP_NONCE.test( options?.nonce ) ) ? options?.nonce : "";
-            transformedHtml = transformedHtml.replaceAll( RE_NONCE_ATTR, `nonce="${ nonce }"` );
+            transformedHtml = transformedHtml.replaceAll( RE_NONCE_ATTR, nonce );
             if ( options.isHome ) {
-                transformedHtml = transformedHtml
-                    .replaceAll( RE_INLINE_SCRIPT_NONCE, `"inlineScriptNonce":"${ nonce }"` )
-                    .replaceAll( RE_INLINE_STYLE_NONCE, `"inlineStyleNonce":"${ nonce }"` );
+                let htmxConfig = {
+                    inlineScriptNonce: nonce,
+                    inlineStyleNonce: nonce,
+                    allowEval: false,
+                    refreshOnHistoryMiss: true,
+                    historyCacheSize: 0
+                };
+                transformedHtml = transformedHtml.replace( RE_HTMX_CONFIG, JSON.stringify( htmxConfig ) );
             }
+
+            const csrfToken = ( typeof options?.csrfToken === "string" ) ? options?.csrfToken : "";
+            transformedHtml = transformedHtml.replaceAll( RE_CSRF_ATTR, csrfToken );
 
             if ( options.title ) {
                 transformedHtml = transformedHtml.replace( "{ti-title-placeholder}", options.title );
@@ -101,6 +110,7 @@ class WebAppManager {
      * @param {string} fullPublicPath
      * @param {string} route
      * @param {Object} [options]
+     * @param {string} [options.csrfToken] Optional CSRF token to inject into the HTML.
      * @param {boolean} [options.isPartial] Optional flag to indicate whether the requested route is a partial load of a fragment.
      * @param {string} [options.view] Optional view name to load within this route.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
@@ -157,6 +167,7 @@ class WebAppManager {
      * @param {string} fullPublicPath
      * @param {Object} fragment
      * @param {Object} [options]
+     * @param {string} [options.csrfToken] Optional CSRF token to inject into the HTML.
      * @param {boolean} [options.isHome] Optional flag to indicate whether the requested route is the home page.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
      * @returns {Promise<string>}

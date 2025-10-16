@@ -264,7 +264,8 @@ class AuthManager {
      * @method
      * @param {string} username
      * @param {string} password
-     * @returns {Promise<Object>}
+     * @returns {Promise}
+     * @throws {Exception.E_SEC_UNAUTHORIZED_ACCESS} If the authentication fails.
      * @private
      */
     #authenticateLocal( username, password ) {
@@ -331,7 +332,8 @@ class AuthManager {
                 const claims = token.claims();
                 return openidClient.fetchUserInfo( clientConfig, token.access_token, claims.sub );
             } ).then( ( userInfo ) => {
-                resolve( new User( { userID: `oauth2:${ userInfo.sub }`, username: userInfo.email, email: userInfo.email, name: userInfo.name } ) );
+                const username = userInfo.preferred_username ?? userInfo.email ?? userInfo.name ?? `sub:${ userInfo.sub }`;
+                resolve( new User( { userID: `oauth2:${ userInfo.sub }`, username: username, email: userInfo.email, name: userInfo.name } ) );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );

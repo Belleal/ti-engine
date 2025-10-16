@@ -10,9 +10,17 @@
     --ti-glass-shadow: rgba(0, 0, 0, 0.60);
     --ti-glass-blur: 14px; /* backdrop blur amount */
 
+    --ti-back-pane-bg: rgba(156, 156, 156, 0.72);
+
     --ti-sidebar-fg: rgba(240, 242, 248, 0.92); /* text/icon color on glass */
     --ti-sidebar-fg-dim: rgba(240, 242, 248, 0.65);
     --ti-accent: #4da3ff; /* hover/focus accent */
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --ti-back-pane-bg: rgba(24, 24, 24, 0.72);
+    }
 }
 
 .ti-glass-panel-black {
@@ -98,5 +106,5 @@
 }
 
 .ti-glass-back-pane {
-    background-color: rgb(156, 156, 156);
+    background-color: var(--ti-back-pane-bg, rgba(156, 156, 156, 0.72));
 }

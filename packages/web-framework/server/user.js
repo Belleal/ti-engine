@@ -38,35 +38,71 @@ class User {
         this.#username = userData.username;
         this.#email = userData.email;
         this.#name = userData.name;
-        this.#roles = userData.roles;
-        this.#permissions = userData.permissions;
+        this.#roles = Array.isArray( userData.roles ) ? userData.roles : [];
+        this.#permissions = Array.isArray( userData.permissions ) ? userData.permissions : [];
         this.#details = userData.details || {};
     }
 
+    /**
+     * @property
+     * @returns {string}
+     * @public
+     */
     get userID() {
         return this.#userID;
     }
 
+    /**
+     * @property
+     * @returns {string}
+     * @public
+     */
     get username() {
         return this.#username;
     }
 
+    /**
+     * @property
+     * @returns {string}
+     * @public
+     */
     get email() {
         return this.#email;
     }
 
+    /**
+     * @property
+     * @returns {string}
+     * @public
+     */
     get name() {
         return this.#name;
     }
 
+    /**
+     * @method
+     * @returns {*}
+     * @public
+     */
     getDetail( key ) {
         return this.#details[ key ];
     }
 
+    /**
+     * @method
+     * @param {string} key
+     * @param {*} value
+     * @public
+     */
     setDetail( key, value ) {
         this.#details[ key ] = value;
     }
 
+    /**
+     * @method
+     * @returns {Object}
+     * @public
+     */
     asJSON() {
         return {
             userID: this.#userID,

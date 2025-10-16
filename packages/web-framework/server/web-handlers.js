@@ -269,7 +269,9 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, redirectTo );
             } ).catch( ( error ) => {
-                next( error );
+                let exception = exceptions.raise( error );
+                exception.httpCode = exceptions.httpCode.C_401;
+                next( exception );
             } );
         }
     };
@@ -501,7 +503,8 @@ module.exports.webAppHandler = ( instance ) => {
                 instance.webAppManager.assembleHtmlView( request.session, instance.fullPublicPath, request.path, {
                     nonce: nonce,
                     isPartial: isPartial,
-                    view: request.params.view
+                    view: request.params.view,
+                    csrfToken: request.session?.csrfToken
                 } ).then( ( html ) => {
                     response.set( "Cache-Control", "no-store" );
                     response.set( "Content-Type", "text/html; charset=utf-8" );
@@ -615,8 +618,7 @@ module.exports.csrfProtectionHandler = () => {
                     request.get( "x-csrf-token" ) ||
                     request.get( "x-xsrf-token" ) ||
                     ( request.body && ( request.body.csrfToken || request.body._csrf ) ) ||
-                    ( request.query && ( request.query.csrfToken || request.query._csrf ) ) ||
-                    ( request.cookies && request.cookies[ "ti-xsrf-token" ] );
+                    ( request.query && ( request.query.csrfToken || request.query._csrf ) );
                 if ( !safeEquals( provided, expected ) ) {
                     logger.log( "Issue identified with CSRF token validation fail.", logger.logSeverity.WARNING );
                     return response.status( exceptions.httpCode.C_403 ).send( {
