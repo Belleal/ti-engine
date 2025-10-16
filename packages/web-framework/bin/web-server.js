@@ -257,7 +257,7 @@ class TiWebServer extends ServiceConsumer {
                     store: new SessionStore()
                 } ) );
                 this.#webServer.use( webHandlers.csrfInitHandler( this ) );
-                this.#webServer.use( webHandlers.originRefererValidationHandler() );
+                this.#webServer.use( webHandlers.originRefererValidationHandler( this ) );
                 this.#webServer.use( webHandlers.csrfProtectionHandler() );
 
                 // Set up the web server routes:

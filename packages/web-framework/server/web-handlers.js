@@ -524,15 +524,16 @@ module.exports.webAppHandler = ( instance ) => {
  * Origin must match the current request origin (protocol + host[:port]).
  *
  * @method
+ * @param {TiWebServer} instance
  * @returns {ExpressHandler}
  * @public
  */
-module.exports.originRefererValidationHandler = () => {
+module.exports.originRefererValidationHandler = ( instance ) => {
     return ( request, response, next ) => {
         if ( request.method === "GET" || request.method === "HEAD" || request.method === "OPTIONS" ) {
             next();
         } else {
-            const expectedOrigin = getBaseUrl( request );
+            const expectedOrigin = instance.serverUrl;
             const providedOrigin = getRequestOrigin( request );
             // If the browser didn’t send Origin/Referer (normal for same-origin form POSTs), let CSRF middleware handle protection instead of blocking here:
             if ( providedOrigin && String( providedOrigin ).toLowerCase() !== String( expectedOrigin ).toLowerCase() ) {
