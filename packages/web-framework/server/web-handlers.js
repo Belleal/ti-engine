@@ -82,9 +82,12 @@ let safeEquals = ( first, second ) => {
  */
 let getRequestOrigin = ( request ) => {
     let result = undefined;
-    const origin = request.get( "origin" );
-    if ( origin ) {
-        result = origin;
+    const rawOrigin = request.get( "origin" );
+    const origin = String( rawOrigin || "" ).trim().toLowerCase();
+
+    // Ignore explicit "null" or empty origins:
+    if ( origin && origin !== "null" ) {
+        result = rawOrigin;
     } else {
         const referer = request.get( "referer" );
         if ( referer ) {
@@ -96,6 +99,7 @@ let getRequestOrigin = ( request ) => {
             }
         }
     }
+
     return result;
 };
 
@@ -204,19 +208,19 @@ module.exports.authenticationHandler = ( instance ) => {
         if ( method === authMethod.LOCAL ) {
             const username = String( ( request.body && request.body.username ) || "" ).trim();
             const password = String( ( request.body && request.body.password ) || "" );
-            instance.authenticate( authMethod.LOCAL, { username: username, password: password } ).then( ( data ) => {
-                return ( data && data.result === true ) ? regenerateAndSaveSession( request, "/app/enter", ( session ) => {
-                    session.user = { id: `local:${ username }`, name: username };
+            instance.authenticate( authMethod.LOCAL, { username: username, password: password } ).then( () => {
+                return instance.authorize( authMethod.LOCAL, new URL( request.originalUrl, getBaseUrl( request ) ), { username: username } );
+            } ).then( ( user ) => {
+                return regenerateAndSaveSession( request, "/", ( session ) => {
+                    session.user = user.asJSON();
                     return session;
-                } ) : null;
+                } );
             } ).then( ( redirectTo ) => {
-                if ( redirectTo ) {
-                    response.redirect( exceptions.httpCode.C_303, redirectTo );
-                } else {
-                    response.status( exceptions.httpCode.C_401 ).end();
-                }
+                response.redirect( exceptions.httpCode.C_303, redirectTo );
             } ).catch( ( error ) => {
-                next( error );
+                let exception = exceptions.raise( error );
+                exception.httpCode = exceptions.httpCode.C_401;
+                next( exception );
             } );
         } else if ( method === authMethod.OPENID_GOOGLE || method === authMethod.OPENID_AZURE ) {
             instance.authenticate( method, { baseUrl: getBaseUrl( request ) } ).then( ( result ) => {
@@ -227,7 +231,9 @@ module.exports.authenticationHandler = ( instance ) => {
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, redirectTo );
             } ).catch( ( error ) => {
-                next( error );
+                let exception = exceptions.raise( error );
+                exception.httpCode = exceptions.httpCode.C_401;
+                next( exception );
             } );
         } else {
             next();
@@ -254,16 +260,18 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
         } else if ( oidc.state && state !== oidc.state ) {
             response.status( exceptions.httpCode.C_400 ).end();
         } else {
-            instance.authorize( authMethod, new URL( request.originalUrl, getBaseUrl( request ) ), oidc ).then( ( userInfo ) => {
+            instance.authorize( authMethod, new URL( request.originalUrl, getBaseUrl( request ) ), oidc ).then( ( user ) => {
                 return regenerateAndSaveSession( request, "/", ( session ) => {
-                    session.user = { id: `oauth2:${ userInfo.sub }`, email: userInfo.email, name: userInfo.name };
+                    session.user = user.asJSON();
                     delete session.oidc;
                     return session;
                 } );
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, redirectTo );
             } ).catch( ( error ) => {
-                next( error );
+                let exception = exceptions.raise( error );
+                exception.httpCode = exceptions.httpCode.C_401;
+                next( exception );
             } );
         }
     };
@@ -279,7 +287,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
 module.exports.logoutHandler = () => {
     return ( request, response, next ) => {
         const done = ( error ) => {
-            response.redirect( "/" );
+            response.redirect( exceptions.httpCode.C_303, "/" );
         };
         if ( request.session ) {
             request.session.destroy( done );
@@ -495,7 +503,8 @@ module.exports.webAppHandler = ( instance ) => {
                 instance.webAppManager.assembleHtmlView( request.session, instance.fullPublicPath, request.path, {
                     nonce: nonce,
                     isPartial: isPartial,
-                    view: request.params.view
+                    view: request.params.view,
+                    csrfToken: request.session?.csrfToken
                 } ).then( ( html ) => {
                     response.set( "Cache-Control", "no-store" );
                     response.set( "Content-Type", "text/html; charset=utf-8" );
@@ -525,7 +534,8 @@ module.exports.originRefererValidationHandler = () => {
         } else {
             const expectedOrigin = getBaseUrl( request );
             const providedOrigin = getRequestOrigin( request );
-            if ( !providedOrigin || String( providedOrigin ).toLowerCase() !== String( expectedOrigin ).toLowerCase() ) {
+            // If the browser didn’t send Origin/Referer (normal for same-origin form POSTs), let CSRF middleware handle protection instead of blocking here:
+            if ( providedOrigin && String( providedOrigin ).trim().toLowerCase() !== String( expectedOrigin ).trim().toLowerCase() ) {
                 logger.log( `Issue identified with origin/referer mismatch. Expected '${ expectedOrigin }', received '${ providedOrigin }'.`, logger.logSeverity.WARNING );
                 response.status( exceptions.httpCode.C_403 ).send( {
                     isSuccessful: false,
@@ -603,6 +613,7 @@ module.exports.csrfProtectionHandler = () => {
                     exception: exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_HEADERS ).asJSON( false )
                 } );
             } else {
+                // Try to locate the CSRF token in the request:
                 const provided =
                     request.get( "x-csrf-token" ) ||
                     request.get( "x-xsrf-token" ) ||

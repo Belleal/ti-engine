@@ -16,6 +16,7 @@ const _ = require( "lodash" );
 const express = require( "express" );
 const helmet = require( "helmet" );
 const session = require( "express-session" );
+const cookieParser = require( "cookie-parser" );
 const webHandlers = require( "#web-handlers" );
 const SessionStore = require( "#session-store" );
 const WebAppManager = require( "#web-app-manager" );
@@ -202,30 +203,6 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer = express();
                 this.#webServer.set( "trust proxy", true );
 
-                // Set up security and session middlewares first:
-                this.#webServer.use( webHandlers.nonceGenerationHandler() );
-                this.#webServer.use( helmet( { contentSecurityPolicy: false } ) );
-                this.#webServer.use( webHandlers.cspHeaderHandler() );
-                this.#webServer.use( express.json() );
-                this.#webServer.use( express.urlencoded( { extended: false } ) );
-                this.#webServer.use( session( {
-                    secret: this.serviceConfig.cookies.secret || randomBytes( 32 ).toString( "base64" ),
-                    resave: false,
-                    saveUninitialized: false,
-                    cookie: {
-                        path: this.serviceConfig.cookies.path,
-                        httpOnly: this.serviceConfig.cookies.httpOnly,
-                        secure: ( this.serviceConfig.useTLS === true ),
-                        sameSite: this.serviceConfig.cookies.sameSite,
-                        maxAge: this.serviceConfig.cookies.maxAge
-                    },
-                    unset: "destroy",
-                    store: new SessionStore()
-                } ) );
-                this.#webServer.use( webHandlers.originRefererValidationHandler() );
-                this.#webServer.use( webHandlers.csrfInitHandler( this ) );
-                this.#webServer.use( webHandlers.csrfProtectionHandler() );
-
                 // Create and configure the net server for HTTPS if enabled in the service config:
                 let netServerOptions = {};
                 const timeoutCandidates = [
@@ -257,6 +234,31 @@ class TiWebServer extends ServiceConsumer {
                         this.#netServer.keepAliveTimeout = resolvedRequestTimeout + 1000;
                     }
                 }
+
+                // Set up security and session middlewares first:
+                this.#webServer.use( webHandlers.nonceGenerationHandler() );
+                this.#webServer.use( helmet( { contentSecurityPolicy: false } ) );
+                this.#webServer.use( webHandlers.cspHeaderHandler() );
+                this.#webServer.use( express.json( { limit: "1mb" } ) );
+                this.#webServer.use( express.urlencoded( { extended: false, limit: "100kb" } ) );
+                this.#webServer.use( cookieParser() );
+                this.#webServer.use( session( {
+                    secret: this.serviceConfig.cookies.secret || randomBytes( 32 ).toString( "base64" ),
+                    resave: false,
+                    saveUninitialized: false,
+                    cookie: {
+                        path: this.serviceConfig.cookies.path,
+                        httpOnly: this.serviceConfig.cookies.httpOnly,
+                        secure: "auto",
+                        sameSite: this.serviceConfig.cookies.sameSite,
+                        maxAge: this.serviceConfig.cookies.maxAge
+                    },
+                    unset: "destroy",
+                    store: new SessionStore()
+                } ) );
+                this.#webServer.use( webHandlers.csrfInitHandler( this ) );
+                this.#webServer.use( webHandlers.originRefererValidationHandler() );
+                this.#webServer.use( webHandlers.csrfProtectionHandler() );
 
                 // Set up the web server routes:
                 this.#webServer.use( webHandlers.onShutDownHandler( this ) );
@@ -370,7 +372,7 @@ class TiWebServer extends ServiceConsumer {
      * @param {TiAuthMethod} authMethod
      * @param {URL} currentUrl
      * @param {Object} oidc
-     * @returns {Promise}
+     * @returns {Promise<User>}
      * @public
      */
     authorize( authMethod, currentUrl, oidc ) {
