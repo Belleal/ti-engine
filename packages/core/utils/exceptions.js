@@ -43,6 +43,7 @@ const exceptionCodeEnum = tools.enum( {
     E_COM_SERVICE_HANDLER_NOT_FOUND: [ 3005, "service handler not found", "No handler found in the interface for the specified service or service version." ],
     E_COM_MESSAGE_RECEIVER_UNAVAILABLE: [ 3006, "message receiver unavailable", "The message receiver instance is currently unavailable." ],
     E_COM_MESSAGE_EXCHANGE_BROKEN: [ 3007, "message exchange broken", "The message exchange is irrevocably broken and cannot be used any longer." ],
+    E_COM_SERVICE_EXEC_FAILED: [ 3008, "service exec failed", "The execution of a service reported a failure. This might be a business logic error or a system error." ],
     E_COM_RETRY_ATTEMPTS_EXCEEDED: [ 3010, "retry attempts exceeded", "Connection retry attempts exceeded the configured limit." ],
     /** Web server exceptions - codes under 4xxx */
     E_WEB_INVALID_REQUEST_METHOD: [ 4000, "invalid request method", "The request method is not recognized or not supported." ],

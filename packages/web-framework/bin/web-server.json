@@ -37,6 +37,7 @@
     "maxAge": 604800
   },
   "host": "127.0.0.1",
+  "language": "en",
   "port": 3000,
   "publicPath": "packages/web-framework/bin/static",
   "requestTimeout": 180000,

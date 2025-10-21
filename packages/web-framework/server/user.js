@@ -18,6 +18,7 @@ class User {
     #username;
     #email;
     #name;
+    #language;
     #roles;
     #permissions;
     #details;
@@ -29,6 +30,7 @@ class User {
      * @param {string} [userData.username]
      * @param {string} [userData.email]
      * @param {string} [userData.name]
+     * @param {TiLocalizationLanguage} [userData.language]
      * @param {string[]} [userData.roles]
      * @param {string[]} [userData.permissions]
      * @param {Object} [userData.details]
@@ -38,6 +40,7 @@ class User {
         this.#username = userData.username;
         this.#email = userData.email;
         this.#name = userData.name;
+        this.#language = userData.language;
         this.#roles = Array.isArray( userData.roles ) ? userData.roles : [];
         this.#permissions = Array.isArray( userData.permissions ) ? userData.permissions : [];
         this.#details = userData.details || {};
@@ -80,6 +83,15 @@ class User {
     }
 
     /**
+     * @property
+     * @returns {TiLocalizationLanguage}
+     * @public
+     */
+    get language() {
+        return this.#language;
+    }
+
+    /**
      * @method
      * @returns {*}
      * @public
@@ -109,6 +121,7 @@ class User {
             username: this.#username,
             email: this.#email,
             name: this.#name,
+            language: this.#language,
             roles: this.#roles,
             permissions: this.#permissions,
             details: this.#details

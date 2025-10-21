@@ -97,6 +97,27 @@ body {
     height: 200px;
 }
 
+.ti-notifications {
+    position: fixed;
+    top: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: auto;
+    width: 100%;
+    z-index: 1000;
+}
+
+.ti-notification {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: row;
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 12px;
+}
+
 /* Flyout (popover) menu styling */
 .ti-sidebar-flyout-container {
     display: inline-flex;

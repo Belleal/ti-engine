@@ -59,6 +59,14 @@ const configSidebarAdministrationMenu = {
             target: "#ti-content",
             swap: "innerHTML"
         }
+    }, {
+        title: "Error",
+        icon: "error",
+        action: {
+            href: "/app/error",
+            target: "#ti-content",
+            swap: "innerHTML"
+        }
     } ]
 };
 

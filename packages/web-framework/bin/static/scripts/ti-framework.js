@@ -231,6 +231,33 @@ let configureComponentSidebarFlyout = ( options = {} ) => {
 };
 
 /**
+ * Returns a configuration object for the notifications component "component-notification-bar.html".
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+let configureComponentNotificationBar = () => {
+    return {
+        notifications: [],
+        timers: {},
+        add( notification ) {
+            this.notifications.push( notification );
+            if ( notification.timeout > 0 ) {
+                this.timers[ notification.id ] = setTimeout( () => this.remove( notification.id ), notification.timeout );
+            }
+        },
+        remove( id ) {
+            this.notifications = this.notifications.filter( notification => notification.id !== id );
+            if ( this.timers[ id ] ) {
+                clearTimeout( this.timers[ id ] );
+                delete this.timers[ id ];
+            }
+        }
+    };
+};
+
+/**
  * Perform a one-time configuration of the HTMX framework.
  */
 document.addEventListener( "htmx:configRequest", ( event ) => {
@@ -241,9 +268,38 @@ document.addEventListener( "htmx:configRequest", ( event ) => {
     event.detail.headers[ 'x-csp-nonce' ] = styleNonce || scriptNonce || "";
 } );
 
+document.addEventListener( "htmx:responseError", ( event ) => {
+    // If the server sent HX-Trigger with our payload, it will also emit a separate event,
+    // But here we parse body as fallback when body is JSON
+    try {
+        const xhr = event.detail.xhr;
+        const contentType = xhr.getResponseHeader( "Content-Type" ) || "";
+        if ( contentType.includes( "application/json" ) && xhr.responseText ) {
+            const data = JSON.parse( xhr.responseText );
+            Alpine.store( "tiNotify" ).notify( data );
+        }
+    } catch {
+    }
+} );
+
+// Handle server-triggered custom event when HX-Trigger is used
+document.body.addEventListener( "ti:error", ( event ) => {
+    Alpine.store( "tiNotify" ).notify( event.detail );
+} );
+
 /**
  * Register on-initialization tasks for the Alpine.js framework.
  */
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
+    Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
+    Alpine.store( "tiNotify", {
+        notify( data ) {
+            Alpine.$data( document.querySelector( "#ti-notifications" ) ).add( {
+                id: data?.exception?.id || Date.now(),
+                code: data?.exception?.code || 0,
+                message: data?.message || "Unexpected application error."
+            } );
+        }
+    } );
 } );

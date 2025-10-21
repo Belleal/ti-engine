@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/core",
-  "version": "1.3.11",
+  "version": "1.3.12",
   "description": "The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.",
   "keywords": [
     "microservices",
@@ -59,7 +59,7 @@
   "dependencies": {
     "@dotenvx/dotenvx": "^1.51.0",
     "blake2": "^5.0.0",
-    "ioredis": "^5.8.0",
+    "ioredis": "^5.8.1",
     "lodash": "^4.17.21",
     "node-schedule": "^2.1.1"
   },

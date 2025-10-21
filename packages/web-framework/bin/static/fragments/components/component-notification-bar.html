@@ -1,0 +1,7 @@
+<div id="ti-notifications" x-data="tiComponentNotificationBar()" class="ti-notifications">
+    <template x-for="notification in notifications" x-bind:key="notification.id">
+        <div x-on:click="remove( notification.id )" class="ti-notification ti-glass-panel-black">
+            <span x-text="notification.message"/>
+        </div>
+    </template>
+</div>

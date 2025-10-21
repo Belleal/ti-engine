@@ -2,6 +2,10 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.12
+* feat(exceptions): add new exception code `E_COM_SERVICE_EXEC_FAILED`
+* build(npm): update npm dependencies to their latest versions
+
 ## Version 1.3.11
 * feat(tools): add `arrayUniques` method to the tools module that helps extract only the unique array values
 * fix(start instance): fix `undefined` instance ID in the log message about starting the instance
