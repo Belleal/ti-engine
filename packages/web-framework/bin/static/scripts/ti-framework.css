@@ -113,6 +113,7 @@ body {
     align-items: center;
     justify-content: center;
     flex-direction: row;
+    gap: 10px;
     cursor: pointer;
     padding: 10px;
     border-radius: 12px;
