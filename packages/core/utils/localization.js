@@ -281,13 +281,28 @@ module.exports.getLabel = ( label, language ) => {
 
 /**
  * Used to return the entire labels tree.
+ * <br/>
+ * NOTE: The result will be a modified copy of the label tree that has no "language" end-nodes and keeps only the appropriate labels for the requested language.
+ * For example, if the original JSON path is "path.to.label.language", the returned path will be just "path.to.label" corresponding to the text label.
  *
  * @method
- * @param {TiLocalizationLanguage} [language] Currently not used!
+ * @param {TiLocalizationLanguage} [language] The language code to use for the lookup. If not provided, the current system language will be used.
  * @returns {Object}
  * @public
  */
 module.exports.getAllLabels = ( language ) => {
-    // TODO: Implement extraction for specific language only.
-    return _.cloneDeep( labels );
+    const usedLanguage = language || config.getSetting( config.setting.LOCALIZATION_LANGUAGE );
+    return _.cloneDeepWith( labels, ( value ) => {
+        if ( _.isPlainObject( value ) ) {
+            const values = Object.values( value );
+            const isLeaf = values.length > 0 && values.every( v => _.isString( v ) || _.isNil( v ) );
+            if ( isLeaf ) {
+                // Return only the desired language or default placeholder if missing:
+                return _.get( value, usedLanguage, defaultEmptyLabel );
+            }
+        } else {
+            // Return undefined to let lodash handle default deep cloning for non-leaves:
+            return undefined;
+        }
+    } );
 };

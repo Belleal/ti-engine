@@ -257,6 +257,10 @@ let configureComponentNotificationBar = () => {
                     delete this.timers[ id ];
                 }
             }
+        },
+        destroy() {
+            Object.keys( this.timers ).forEach( ( id ) => clearTimeout( this.timers[ id ] ) );
+            this.timers = {};
         }
     };
 };
@@ -299,10 +303,10 @@ let configureApplication = () => {
                     const contentType = ( response.headers.get( "content-type" ) || "" ).toLowerCase();
                     return ( contentType.includes( "application/json" ) ) ? response.json() : { isSuccessful: response.ok, message: response.statusText };
                 } ).then( ( result ) => {
-                    if ( result.isSuccessful !== true ) {
-                        reject( result );
-                    } else {
+                    if ( result && result.isSuccessful === true ) {
                         resolve( result );
+                    } else {
+                        reject( result || { isSuccessful: false } );
                     }
                 } ).catch( ( error ) => {
                     reject( error );
@@ -316,7 +320,7 @@ let configureApplication = () => {
                     id: data?.exception?.id || ++this.notificationIDCounter,
                     code: data?.exception?.code || 0,
                     message: data?.message || "Unexpected application error.",
-                    timeout: data?.timeout || 5000
+                    timeout: data?.timeout || 60000
                 } );
             }
         }

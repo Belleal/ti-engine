@@ -545,3 +545,5 @@ The following is an example of a custom localization file. The names in brackets
 ```
 
 The individual languages are specified with a two-letter code according to ISO 639-1. The default language is `en` (English). If you want to use a different language, you can set the `LOCALIZATION_LANGUAGE` setting to the desired language code.
+
+If you want to localize the system labels of the framework, you can do so by providing a custom localization file with the same structure as the default one but containing only the languages you want to add. For example, the default English label for `E_UNKNOWN_ERROR` is found in JSON path `system.exceptions.0.en`. To add an entry for German, your file needs to contain a `system.exceptions.0.de` property. The localization module will handle the rest. You can use the same approach to modify the existing English labels as well. The full list of system labels is found in the `bin/localization/labels.json` file. Avoid modifying the default file since it might get overwritten by future updates.

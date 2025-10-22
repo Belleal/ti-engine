@@ -327,7 +327,9 @@ module.exports.userInformationHandler = () => {
         if ( request.session && request.session.user ) {
             response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, user: request.session.user } );
         } else {
-            response.status( exceptions.httpCode.C_401 ).end();
+            let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
+            exception.httpCode = exceptions.httpCode.C_401;
+            next( exception );
         }
     };
 };
@@ -451,7 +453,7 @@ module.exports.defaultErrorHandler = () => {
                 } );
                 return response.status( status ).send( "" );
             } else if ( isAcceptingResponseType( request, "html" ) && request.method === "GET" ) {
-                response.redirect( exceptions.httpCode.C_303, "/?error=" + encodeURIComponent( payload.exception.label ) );
+                response.redirect( exceptions.httpCode.C_303, "/?error=" + encodeURIComponent( exception.code ) );
             } else {
                 response.status( status ).send( payload );
             }

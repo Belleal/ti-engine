@@ -183,7 +183,7 @@ class WebAppManager {
         return new Promise( ( resolve, reject ) => {
             if ( view === "config" ) {
                 resolve( {
-                    labels: localization.getAllLabels()
+                    labels: localization.getAllLabels( session?.language )
                 } );
             } else {
                 reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI ) );

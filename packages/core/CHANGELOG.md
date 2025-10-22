@@ -5,6 +5,8 @@ This document will contain the list of changes made to the framework. The format
 ## Version 1.3.12
 
 * feat(exceptions): add new exception code `E_COM_SERVICE_EXEC_FAILED`
+* feat(localization): add new public method `getAllLabels`
+* docs: add more information about the `localization` module in `README.md` file
 * build(npm): update npm dependencies to their latest versions
 
 ## Version 1.3.11
