@@ -148,15 +148,21 @@ let isHtmxRequest = ( request ) => {
 };
 
 /**
- * Used to determine if the request accepts HTML.
+ * Used to determine if the request accepts the specified response type.
  *
  * @method
  * @param {ExpressRequest} request
+ * @param {string} type
  * @return {boolean}
  * @private
  */
-let isAcceptingHTML = ( request ) => {
-    return request.accepts( [ "html", "json" ] ) === "html";
+let isAcceptingResponseType = ( request, type ) => {
+    const accept = String( request.get( "accept" ) || "" ).toLowerCase();
+    if ( accept ) {
+        return request.accepts( type ) === type;
+    } else {
+        return false;
+    }
 };
 
 /**
@@ -195,7 +201,7 @@ module.exports.resourceProtectionHandler = ( instance ) => {
             if ( isHtmxRequest( request ) ) {
                 response.set( "HX-Redirect", redirectTo );
                 response.status( exceptions.httpCode.C_204 ).end();
-            } else if ( isAcceptingHTML( request ) ) {
+            } else if ( isAcceptingResponseType( request, "html" ) ) {
                 response.redirect( exceptions.httpCode.C_303, redirectTo );
             } else {
                 response.status( exceptions.httpCode.C_401 ).end();
@@ -426,7 +432,7 @@ module.exports.defaultErrorHandler = () => {
             if ( isHtmxRequest( request ) ) {
                 response.set( "HX-Redirect", "/not-found" );
                 response.status( exceptions.httpCode.C_404 ).end();
-            } else if ( isAcceptingHTML( request ) && request.method === "GET" ) {
+            } else if ( isAcceptingResponseType( request, "html" ) && request.method === "GET" ) {
                 response.redirect( exceptions.httpCode.C_303, "/not-found" );
             } else {
                 response.status( exceptions.httpCode.C_404 ).send( payload );
@@ -444,7 +450,7 @@ module.exports.defaultErrorHandler = () => {
                     } )
                 } );
                 return response.status( status ).send( "" );
-            } else if ( isAcceptingHTML( request ) && request.method === "GET" ) {
+            } else if ( isAcceptingResponseType( request, "html" ) && request.method === "GET" ) {
                 response.redirect( exceptions.httpCode.C_303, "/?error=" + encodeURIComponent( payload.exception.label ) );
             } else {
                 response.status( status ).send( payload );
@@ -537,31 +543,47 @@ module.exports.webAppHandler = ( instance ) => {
         if ( request.method !== "GET" && request.method !== "HEAD" ) {
             next();
         } else {
-            const resLocals = ( response && response.locals ) || {};
-            const isPartial = isHtmxRequest( request );
-            const nonceHeader = request.get( "x-csp-nonce" ) || "";
-            const nonce = isPartial ? nonceHeader : ( request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce );
-            // HEAD: set headers only:
-            if ( request.method === "HEAD" ) {
-                response.set( "Cache-Control", "no-store" );
-                response.set( "Content-Type", "text/html; charset=utf-8" );
-                response.status( exceptions.httpCode.C_200 ).end();
-            } else {
-                // GET: load and render:
-                instance.webAppManager.assembleHtmlView( request.session, instance.fullPublicPath, request.path, {
-                    nonce: nonce,
-                    isPartial: isPartial,
-                    view: request.params.view,
-                    csrfToken: request.session?.csrfToken
-                } ).then( ( html ) => {
+            if ( isAcceptingResponseType( request, "html" ) ) {
+                // HEAD: set headers only:
+                if ( request.method === "HEAD" ) {
                     response.set( "Cache-Control", "no-store" );
                     response.set( "Content-Type", "text/html; charset=utf-8" );
-                    response.status( exceptions.httpCode.C_200 ).send( html );
+                    response.status( exceptions.httpCode.C_200 ).end();
+                } else {
+                    // GET: load and render:
+                    const resLocals = ( response && response.locals ) || {};
+                    const isPartial = isHtmxRequest( request );
+                    const nonceHeader = request.get( "x-csp-nonce" ) || "";
+                    const nonce = isPartial ? nonceHeader : ( request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce );
+                    instance.webAppManager.assembleHtmlView( request.session, instance.fullPublicPath, request.path, {
+                        nonce: nonce,
+                        isPartial: isPartial,
+                        view: request.params.view,
+                        csrfToken: request.session?.csrfToken
+                    } ).then( ( html ) => {
+                        response.set( "Cache-Control", "no-store" );
+                        response.set( "Content-Type", "text/html; charset=utf-8" );
+                        response.status( exceptions.httpCode.C_200 ).send( html );
+                    } ).catch( ( error ) => {
+                        let exception = exceptions.raise( error );
+                        exception.httpCode = exception.httpCode || (
+                            exception.code === exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI
+                                ? exceptions.httpCode.C_404
+                                : exceptions.httpCode.C_500
+                        );
+                        next( exception );
+                    } );
+                }
+            } else if ( isAcceptingResponseType( request, "json" ) ) {
+                instance.webAppManager.processDataRequest( request.session, request.params?.view ).then( ( result ) => {
+                    response.set( "Cache-Control", "no-store" );
+                    response.set( "Content-Type", "application/json; charset=utf-8" );
+                    response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, data: result } );
                 } ).catch( ( error ) => {
-                    let exception = exceptions.raise( error );
-                    exception.httpCode = ( exception.code === exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI ) ? exceptions.httpCode.C_404 : exceptions.httpCode.C_500;
-                    next( exception );
+                    next( exceptions.raise( error ) );
                 } );
+            } else {
+                next();
             }
         }
     };

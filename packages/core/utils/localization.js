@@ -278,3 +278,16 @@ Object.freeze( labels );
 module.exports.getLabel = ( label, language ) => {
     return _.get( labels, label + "." + ( ( language ) ? language : config.getSetting( config.setting.LOCALIZATION_LANGUAGE ) ), defaultEmptyLabel );
 };
+
+/**
+ * Used to return the entire labels tree.
+ *
+ * @method
+ * @param {TiLocalizationLanguage} [language] Currently not used!
+ * @returns {Object}
+ * @public
+ */
+module.exports.getAllLabels = ( language ) => {
+    // TODO: Implement extraction for specific language only.
+    return _.cloneDeep( labels );
+};

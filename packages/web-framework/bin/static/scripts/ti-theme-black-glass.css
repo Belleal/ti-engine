@@ -19,7 +19,7 @@
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --ti-back-pane-bg: rgba(24, 24, 24, 0.72);
+        /* --ti-back-pane-bg: rgba(24, 24, 24, 0.72); */
     }
 }
 

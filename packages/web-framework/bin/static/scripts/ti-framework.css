@@ -2,6 +2,7 @@
     --ti-button-size: 44px;
     --ti-button-radius: 12px;
     --ti-gap: 10px;
+    --ti-notification-top: 50px;
 }
 
 body {
@@ -99,7 +100,7 @@ body {
 
 .ti-notifications {
     position: fixed;
-    top: 50px;
+    top: var(--ti-notification-top);
     display: flex;
     align-items: center;
     justify-content: center;

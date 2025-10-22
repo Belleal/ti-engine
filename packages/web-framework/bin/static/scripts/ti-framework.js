@@ -242,16 +242,82 @@ let configureComponentNotificationBar = () => {
         notifications: [],
         timers: {},
         add( notification ) {
-            this.notifications.push( notification );
-            if ( notification.timeout > 0 ) {
-                this.timers[ notification.id ] = setTimeout( () => this.remove( notification.id ), notification.timeout );
+            if ( notification && notification.id ) {
+                this.notifications.push( notification );
+                if ( typeof notification.timeout === "number" && notification.timeout > 0 ) {
+                    this.timers[ notification.id ] = setTimeout( () => this.remove( notification.id ), notification.timeout );
+                }
             }
         },
         remove( id ) {
-            this.notifications = this.notifications.filter( notification => notification.id !== id );
-            if ( this.timers[ id ] ) {
-                clearTimeout( this.timers[ id ] );
-                delete this.timers[ id ];
+            if ( id ) {
+                this.notifications = this.notifications.filter( notification => notification.id !== id );
+                if ( this.timers[ id ] ) {
+                    clearTimeout( this.timers[ id ] );
+                    delete this.timers[ id ];
+                }
+            }
+        }
+    };
+};
+
+/**
+ * Returns a configuration object for the application management instance.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+let configureApplication = () => {
+    return {
+        isInitialized: false,
+        user: undefined,
+        labels: {},
+        notificationIDCounter: 0,
+        init() {
+            this.sendRequest( "/app/config" ).then( ( result ) => {
+                // TODO: use result to initialize the application
+                this.labels = result.data.labels;
+                this.isInitialized = true;
+            } ).catch( ( error ) => {
+                error.message = `Failed to initialize the application: ${ error.message }`;
+                this.notify( error );
+            } );
+        },
+        sendRequest( url, method = "GET" ) {
+            return new Promise( ( resolve, reject ) => {
+                const xsrf = getCookie( "ti-xsrf-token" ) || "";
+                fetch( url, {
+                    method: method,
+                    headers: {
+                        "Accept": "application/json",
+                        "x-xsrf-token": xsrf
+                    },
+                    credentials: "same-origin",
+                    cache: "no-store",
+                } ).then( ( response ) => {
+                    const contentType = ( response.headers.get( "content-type" ) || "" ).toLowerCase();
+                    return ( contentType.includes( "application/json" ) ) ? response.json() : { isSuccessful: response.ok, message: response.statusText };
+                } ).then( ( result ) => {
+                    if ( result.isSuccessful !== true ) {
+                        reject( result );
+                    } else {
+                        resolve( result );
+                    }
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } );
+        },
+        notify( data ) {
+            const notificationBar = document.querySelector( "#ti-notifications" );
+            if ( notificationBar ) {
+                Alpine.$data( notificationBar ).add( {
+                    id: data?.exception?.id || ++this.notificationIDCounter,
+                    code: data?.exception?.code || 0,
+                    message: data?.message || "Unexpected application error.",
+                    timeout: data?.timeout || 5000
+                } );
             }
         }
     };
@@ -276,7 +342,7 @@ document.addEventListener( "htmx:responseError", ( event ) => {
         const contentType = xhr.getResponseHeader( "Content-Type" ) || "";
         if ( contentType.includes( "application/json" ) && xhr.responseText ) {
             const data = JSON.parse( xhr.responseText );
-            Alpine.store( "tiNotify" ).notify( data );
+            Alpine.store( "tiApplication" ).notify( data );
         }
     } catch {
     }
@@ -284,22 +350,14 @@ document.addEventListener( "htmx:responseError", ( event ) => {
 
 // Handle server-triggered custom event when HX-Trigger is used
 document.body.addEventListener( "ti:error", ( event ) => {
-    Alpine.store( "tiNotify" ).notify( event.detail );
+    Alpine.store( "tiApplication" ).notify( event.detail );
 } );
 
 /**
  * Register on-initialization tasks for the Alpine.js framework.
  */
 document.addEventListener( "alpine:init", () => {
+    Alpine.store( "tiApplication", configureApplication() );
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
-    Alpine.store( "tiNotify", {
-        notify( data ) {
-            Alpine.$data( document.querySelector( "#ti-notifications" ) ).add( {
-                id: data?.exception?.id || Date.now(),
-                code: data?.exception?.code || 0,
-                message: data?.message || "Unexpected application error."
-            } );
-        }
-    } );
 } );

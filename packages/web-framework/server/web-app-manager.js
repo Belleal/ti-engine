@@ -8,6 +8,7 @@
 
 const exceptions = require( "@ti-engine/core/exceptions" );
 const tools = require( "@ti-engine/core/tools" );
+const localization = require( "@ti-engine/core/localization" );
 const path = require( "node:path" );
 const fs = require( "node:fs" );
 
@@ -165,6 +166,28 @@ class WebAppManager {
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
+        } );
+    }
+
+    /**
+     * Used to process a request for a data resource.
+     *
+     * @method
+     * @param {Object} session
+     * @param {string} view
+     * @param {Object} [options]
+     * @return {Promise<Object>}
+     * @public
+     */
+    processDataRequest( session, view, options = {} ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( view === "config" ) {
+                resolve( {
+                    labels: localization.getAllLabels()
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI ) );
+            }
         } );
     }
 
