@@ -243,6 +243,7 @@ let configureComponentNotificationBar = () => {
         timers: {},
         add( notification ) {
             if ( notification && notification.id ) {
+                this.remove( notification.id );
                 this.notifications.push( notification );
                 if ( typeof notification.timeout === "number" && notification.timeout > 0 ) {
                     this.timers[ notification.id ] = setTimeout( () => this.remove( notification.id ), notification.timeout );
@@ -261,6 +262,7 @@ let configureComponentNotificationBar = () => {
         destroy() {
             Object.keys( this.timers ).forEach( ( id ) => clearTimeout( this.timers[ id ] ) );
             this.timers = {};
+            this.notifications = [];
         }
     };
 };
@@ -277,11 +279,16 @@ let configureApplication = () => {
         isInitialized: false,
         user: undefined,
         labels: {},
-        notificationIDCounter: 0,
+        notificationIDCounter: 1,
         init() {
             this.sendRequest( "/app/config" ).then( ( result ) => {
                 // TODO: use result to initialize the application
-                this.labels = result.data.labels;
+                this.labels = result?.data?.labels || {};
+
+                document.addEventListener( "ti:error", ( event ) => {
+                    this.notify( event.detail );
+                } );
+
                 this.isInitialized = true;
             } ).catch( ( error ) => {
                 error.message = `Failed to initialize the application: ${ error.message }`;
@@ -303,10 +310,10 @@ let configureApplication = () => {
                     const contentType = ( response.headers.get( "content-type" ) || "" ).toLowerCase();
                     return ( contentType.includes( "application/json" ) ) ? response.json() : { isSuccessful: response.ok, message: response.statusText };
                 } ).then( ( result ) => {
-                    if ( result && result.isSuccessful === true ) {
-                        resolve( result );
+                    if ( result && result.isSuccessful === false ) {
+                        reject( result );
                     } else {
-                        reject( result || { isSuccessful: false } );
+                        resolve( result );
                     }
                 } ).catch( ( error ) => {
                     reject( error );
@@ -317,7 +324,7 @@ let configureApplication = () => {
             const notificationBar = document.querySelector( "#ti-notifications" );
             if ( notificationBar ) {
                 Alpine.$data( notificationBar ).add( {
-                    id: data?.exception?.id || ++this.notificationIDCounter,
+                    id: data?.exception?.id || this.notificationIDCounter++,
                     code: data?.exception?.code || 0,
                     message: data?.message || "Unexpected application error.",
                     timeout: data?.timeout || 60000
@@ -349,12 +356,8 @@ document.addEventListener( "htmx:responseError", ( event ) => {
             Alpine.store( "tiApplication" ).notify( data );
         }
     } catch {
+        // Do nothing here...
     }
-} );
-
-// Handle server-triggered custom event when HX-Trigger is used
-document.body.addEventListener( "ti:error", ( event ) => {
-    Alpine.store( "tiApplication" ).notify( event.detail );
 } );
 
 /**

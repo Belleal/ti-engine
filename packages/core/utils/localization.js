@@ -245,12 +245,7 @@ module.exports.localizationLanguage = localizationLanguageEnum;
  * @typedef {Object<string, TiLocalizedLabel | TiLabelsTree>} TiLabelsTree
  */
 
-/**
- * @typedef {Object} TiLabels
- * @property {TiLabelsTree} labels
- */
-
-/** @type {TiLabels} */
+/** @type {TiLabelsTree} */
 const labels = require( "#labels" );
 
 // Load any custom labels defined in the configuration:
@@ -279,6 +274,8 @@ module.exports.getLabel = ( label, language ) => {
     return _.get( labels, label + "." + ( ( language ) ? language : config.getSetting( config.setting.LOCALIZATION_LANGUAGE ) ), defaultEmptyLabel );
 };
 
+const labelsCacheByLanguage = new Map();
+
 /**
  * Used to return the entire labels tree.
  * <br/>
@@ -292,17 +289,25 @@ module.exports.getLabel = ( label, language ) => {
  */
 module.exports.getAllLabels = ( language ) => {
     const usedLanguage = language || config.getSetting( config.setting.LOCALIZATION_LANGUAGE );
-    return _.cloneDeepWith( labels, ( value ) => {
-        if ( _.isPlainObject( value ) ) {
-            const values = Object.values( value );
-            const isLeaf = values.length > 0 && values.every( v => _.isString( v ) || _.isNil( v ) );
-            if ( isLeaf ) {
-                // Return only the desired language or default placeholder if missing:
-                return _.get( value, usedLanguage, defaultEmptyLabel );
+
+    if ( labelsCacheByLanguage.has( usedLanguage ) ) {
+        return labelsCacheByLanguage.get( usedLanguage );
+    } else {
+        const labelsByLanguage = _.cloneDeepWith( labels, ( value ) => {
+            if ( _.isPlainObject( value ) ) {
+                const values = Object.values( value );
+                const isLeaf = values.length > 0 && values.every( v => _.isString( v ) || _.isNil( v ) );
+                if ( isLeaf ) {
+                    // Return only the desired language or default placeholder if missing:
+                    return _.get( value, usedLanguage, defaultEmptyLabel );
+                }
+            } else {
+                // Return undefined to let lodash handle default deep cloning for non-leaves:
+                return undefined;
             }
-        } else {
-            // Return undefined to let lodash handle default deep cloning for non-leaves:
-            return undefined;
-        }
-    } );
+        } );
+
+        labelsCacheByLanguage.set( usedLanguage, labelsByLanguage );
+        return labelsByLanguage;
+    }
 };

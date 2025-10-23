@@ -433,7 +433,7 @@ module.exports.defaultErrorHandler = () => {
 
             if ( isHtmxRequest( request ) ) {
                 response.set( "HX-Redirect", "/not-found" );
-                response.status( exceptions.httpCode.C_404 ).end();
+                response.status( exceptions.httpCode.C_204 ).end();
             } else if ( isAcceptingResponseType( request, "html" ) && request.method === "GET" ) {
                 response.redirect( exceptions.httpCode.C_303, "/not-found" );
             } else {
