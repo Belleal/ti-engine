@@ -281,14 +281,13 @@ let configureApplication = () => {
         labels: {},
         notificationIDCounter: 1,
         init() {
+            document.addEventListener( "ti:error", ( event ) => {
+                this.notify( event.detail );
+            } );
+
             this.sendRequest( "/app/config" ).then( ( result ) => {
                 // TODO: use result to initialize the application
                 this.labels = result?.data?.labels || {};
-
-                document.addEventListener( "ti:error", ( event ) => {
-                    this.notify( event.detail );
-                } );
-
                 this.isInitialized = true;
             } ).catch( ( error ) => {
                 error.message = `Failed to initialize the application: ${ error.message }`;
@@ -353,7 +352,10 @@ document.addEventListener( "htmx:responseError", ( event ) => {
         const contentType = xhr.getResponseHeader( "Content-Type" ) || "";
         if ( contentType.includes( "application/json" ) && xhr.responseText ) {
             const data = JSON.parse( xhr.responseText );
-            Alpine.store( "tiApplication" ).notify( data );
+            const tiApplication = Alpine.store( "tiApplication" );
+            if ( tiApplication && tiApplication.isInitialized ) {
+                tiApplication.notify( data );
+            }
         }
     } catch {
         // Do nothing here...

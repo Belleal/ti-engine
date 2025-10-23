@@ -36,6 +36,27 @@ module.exports.getUUID = () => {
 };
 
 /**
+ * Used to deep-freeze an object.
+ *
+ * @method
+ * @param {Object} object
+ * @param {WeakSet} [seen]
+ * @return {Object}
+ * @public
+ */
+module.exports.deepFreeze = ( object, seen = new WeakSet() ) => {
+    if ( object === null || typeof object !== "object" || seen.has( object ) ) {
+        return object;
+    } else {
+        seen.add( object );
+        _.forOwn( object, ( value ) => {
+            module.exports.deepFreeze( value, seen );
+        } );
+        return Object.freeze( object );
+    }
+};
+
+/**
  * Used to create a custom Enum list.
  *
  * @method

@@ -6,6 +6,9 @@ This document will contain the list of changes made to the framework. The format
 
 * feat(exceptions): add new exception code `E_COM_SERVICE_EXEC_FAILED`
 * feat(localization): add new public method `getAllLabels`
+* feat(localization): use new `deepFreeze` method to freeze all label trees
+* feat(tools): add new public method `deepFreeze` for freezing an object and all its sub-objects recursively
+* feat(config): use new `deepFreeze` method to freeze all configuration settings
 * docs: add more information about the `localization` module in `README.md` file
 * build(npm): update npm dependencies to their latest versions
 

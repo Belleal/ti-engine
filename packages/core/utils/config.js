@@ -185,7 +185,7 @@ if ( tools.toBool( process.env.TI_GCLOUD_ENABLED ) === true && settings.gcloudIn
 settings.operationMode = process.env.NODE_ENV || settings.operationMode;
 
 // Prevent further modifications to the settings object:
-Object.freeze( settings );
+tools.deepFreeze( settings );
 
 /**
  * A standard getter method for fetching a setting.

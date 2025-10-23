@@ -259,7 +259,7 @@ if ( labelsPaths && _.isArray( labelsPaths ) && labelsPaths.length > 0 ) {
 }
 
 // Prevent further modifications to the TiLabels object:
-Object.freeze( labels );
+tools.deepFreeze( labels );
 
 /**
  * Used to return the textual value for a label based on the current system language by default or the specified language code if provided.
@@ -284,7 +284,7 @@ const labelsCacheByLanguage = new Map();
  *
  * @method
  * @param {TiLocalizationLanguage} [language] The language code to use for the lookup. If not provided, the current system language will be used.
- * @returns {Object}
+ * @returns {TiLabelsTree}
  * @public
  */
 module.exports.getAllLabels = ( language ) => {
@@ -307,6 +307,7 @@ module.exports.getAllLabels = ( language ) => {
             }
         } );
 
+        tools.deepFreeze( labelsByLanguage );
         labelsCacheByLanguage.set( usedLanguage, labelsByLanguage );
         return labelsByLanguage;
     }
