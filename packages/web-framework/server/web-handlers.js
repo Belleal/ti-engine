@@ -8,12 +8,13 @@
 
 const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
+const localization = require( "@ti-engine/core/localization" );
 const { randomBytes, timingSafeEqual } = require( "node:crypto" );
 const URL = require( "node:url" ).URL;
 const helmet = require( "helmet" );
 const authMethod = require( "#auth-manager" ).authMethod;
 
-/** @typedef {import("express").req} ExpressRequest */
+/** @typedef {import("express").Request} ExpressRequest */
 /** @typedef {import("express").res} ExpressResponse */
 
 /**
@@ -147,6 +148,24 @@ let isHtmxRequest = ( request ) => {
 };
 
 /**
+ * Used to determine if the request accepts the specified response type.
+ *
+ * @method
+ * @param {ExpressRequest} request
+ * @param {string} type
+ * @return {boolean}
+ * @private
+ */
+let isAcceptingResponseType = ( request, type ) => {
+    const accept = String( request.get( "accept" ) || "" ).toLowerCase();
+    if ( accept ) {
+        return request.accepts( type ) === type;
+    } else {
+        return false;
+    }
+};
+
+/**
  * Handler for requests that are received while the web server is shutting down.
  *
  * @method
@@ -178,17 +197,14 @@ module.exports.resourceProtectionHandler = ( instance ) => {
         if ( instance.isUnprotectedRoute( request.url ) || instance.verifySession( request.session ) ) {
             next();
         } else {
-            const acceptsHtml = request.accepts( [ "html", "json" ] ) === "html";
             const redirectTo = "/";
             if ( isHtmxRequest( request ) ) {
                 response.set( "HX-Redirect", redirectTo );
                 response.status( exceptions.httpCode.C_204 ).end();
-            } else if ( acceptsHtml ) {
+            } else if ( isAcceptingResponseType( request, "html" ) ) {
                 response.redirect( exceptions.httpCode.C_303, redirectTo );
             } else {
-                response.status( exceptions.httpCode.C_401 ).send( {
-                    isSuccessful: false
-                } );
+                response.status( exceptions.httpCode.C_401 ).end();
             }
         }
     };
@@ -213,6 +229,7 @@ module.exports.authenticationHandler = ( instance ) => {
             } ).then( ( user ) => {
                 return regenerateAndSaveSession( request, "/", ( session ) => {
                     session.user = user.asJSON();
+                    session.language = user.language || instance.serviceConfig.language;
                     return session;
                 } );
             } ).then( ( redirectTo ) => {
@@ -263,6 +280,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
             instance.authorize( authMethod, new URL( request.originalUrl, getBaseUrl( request ) ), oidc ).then( ( user ) => {
                 return regenerateAndSaveSession( request, "/", ( session ) => {
                     session.user = user.asJSON();
+                    session.language = user.language || instance.serviceConfig.language;
                     delete session.oidc;
                     return session;
                 } );
@@ -309,7 +327,9 @@ module.exports.userInformationHandler = () => {
         if ( request.session && request.session.user ) {
             response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, user: request.session.user } );
         } else {
-            response.status( exceptions.httpCode.C_401 ).send( { isSuccessful: false } );
+            let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
+            exception.httpCode = exceptions.httpCode.C_401;
+            next( exception );
         }
     };
 };
@@ -363,7 +383,13 @@ module.exports.serviceCallHandler = ( instance ) => {
             instance.callService( serviceAddress, request.body || {}, {
                 authToken: request.sessionID,
             } ).then( ( result ) => {
-                response.status( result.isSuccessful ? exceptions.httpCode.C_200 : ( ( result.exception && result.exception.httpCode ) ? result.exception.httpCode : exceptions.httpCode.C_400 ) ).send( result );
+                if ( result.isSuccessful !== true ) {
+                    let exception = exceptions.raise( result.exception || exceptions.exceptionCode.E_COM_SERVICE_EXEC_FAILED );
+                    exception.httpCode = exception.httpCode || exceptions.httpCode.C_400;
+                    next( exception );
+                } else {
+                    response.status( exceptions.httpCode.C_200 ).send( result );
+                }
             } ).catch( ( error ) => {
                 next( error );
             } );
@@ -380,10 +406,9 @@ module.exports.serviceCallHandler = ( instance ) => {
  */
 module.exports.invalidRouteHandler = () => {
     return ( request, response, next ) => {
-        logger.log( `Received request to an invalid route: "${ request.originalUrl }"`, logger.logSeverity.ERROR, exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI ) );
-        response.status( exceptions.httpCode.C_404 ).send( {
-            isSuccessful: false
-        } );
+        let exception = exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI );
+        exception.httpCode = exceptions.httpCode.C_404;
+        next( exception );
     };
 };
 
@@ -396,12 +421,43 @@ module.exports.invalidRouteHandler = () => {
  */
 module.exports.defaultErrorHandler = () => {
     return ( error, request, response, next ) => {
-        let exception = exceptions.raise( error );
-        logger.log( "Received request caused an exception.", logger.logSeverity.ERROR, exception );
-        response.status( exception.httpCode || exceptions.httpCode.C_500 ).send( {
+        const exception = exceptions.raise( error );
+        const payload = {
             isSuccessful: false,
-            exception: exception.asJSON( false )
-        } );
+            exception: exception.asJSON( false ),
+            message: localization.getLabel( exception.label, request.session?.language )
+        };
+
+        if ( exception.httpCode === exceptions.httpCode.C_404 ) {
+            logger.log( `Received request to an invalid route: "${ request.originalUrl }"`, logger.logSeverity.DEBUG, exception );
+
+            if ( isHtmxRequest( request ) ) {
+                response.set( "HX-Redirect", "/not-found" );
+                response.status( exceptions.httpCode.C_204 ).end();
+            } else if ( isAcceptingResponseType( request, "html" ) && request.method === "GET" ) {
+                response.redirect( exceptions.httpCode.C_303, "/not-found" );
+            } else {
+                response.status( exceptions.httpCode.C_404 ).send( payload );
+            }
+        } else {
+            logger.log( "Received request caused an exception.", logger.logSeverity.DEBUG, exception );
+            const status = exception.httpCode || exceptions.httpCode.C_500;
+
+            if ( isHtmxRequest( request ) ) {
+                response.set( {
+                    "HX-Reswap": "none",
+                    "HX-Retarget": "#ti-notifications",
+                    "HX-Trigger": JSON.stringify( {
+                        "ti:error": payload
+                    } )
+                } );
+                return response.status( status ).send( "" );
+            } else if ( isAcceptingResponseType( request, "html" ) && request.method === "GET" ) {
+                response.redirect( exceptions.httpCode.C_303, "/?error=" + encodeURIComponent( exception.code ) );
+            } else {
+                response.status( status ).send( payload );
+            }
+        }
     };
 };
 
@@ -489,31 +545,47 @@ module.exports.webAppHandler = ( instance ) => {
         if ( request.method !== "GET" && request.method !== "HEAD" ) {
             next();
         } else {
-            const resLocals = ( response && response.locals ) || {};
-            const isPartial = isHtmxRequest( request );
-            const nonceHeader = request.get( "x-csp-nonce" ) || "";
-            const nonce = isPartial ? nonceHeader : ( request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce );
-            // HEAD: set headers only:
-            if ( request.method === "HEAD" ) {
-                response.set( "Cache-Control", "no-store" );
-                response.set( "Content-Type", "text/html; charset=utf-8" );
-                response.status( exceptions.httpCode.C_200 ).end();
-            } else {
-                // GET: load and render:
-                instance.webAppManager.assembleHtmlView( request.session, instance.fullPublicPath, request.path, {
-                    nonce: nonce,
-                    isPartial: isPartial,
-                    view: request.params.view,
-                    csrfToken: request.session?.csrfToken
-                } ).then( ( html ) => {
+            if ( isAcceptingResponseType( request, "html" ) ) {
+                // HEAD: set headers only:
+                if ( request.method === "HEAD" ) {
                     response.set( "Cache-Control", "no-store" );
                     response.set( "Content-Type", "text/html; charset=utf-8" );
-                    response.status( exceptions.httpCode.C_200 ).send( html );
+                    response.status( exceptions.httpCode.C_200 ).end();
+                } else {
+                    // GET: load and render:
+                    const resLocals = ( response && response.locals ) || {};
+                    const isPartial = isHtmxRequest( request );
+                    const nonceHeader = request.get( "x-csp-nonce" ) || "";
+                    const nonce = isPartial ? nonceHeader : ( request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce );
+                    instance.webAppManager.assembleHtmlView( request.session, instance.fullPublicPath, request.path, {
+                        nonce: nonce,
+                        isPartial: isPartial,
+                        view: request.params.view,
+                        csrfToken: request.session?.csrfToken
+                    } ).then( ( html ) => {
+                        response.set( "Cache-Control", "no-store" );
+                        response.set( "Content-Type", "text/html; charset=utf-8" );
+                        response.status( exceptions.httpCode.C_200 ).send( html );
+                    } ).catch( ( error ) => {
+                        let exception = exceptions.raise( error );
+                        exception.httpCode = exception.httpCode || (
+                            exception.code === exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI
+                                ? exceptions.httpCode.C_404
+                                : exceptions.httpCode.C_500
+                        );
+                        next( exception );
+                    } );
+                }
+            } else if ( isAcceptingResponseType( request, "json" ) ) {
+                instance.webAppManager.processDataRequest( request.session, request.params?.view ).then( ( result ) => {
+                    response.set( "Cache-Control", "no-store" );
+                    response.set( "Content-Type", "application/json; charset=utf-8" );
+                    response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, data: result } );
                 } ).catch( ( error ) => {
-                    let exception = exceptions.raise( error );
-                    exception.httpCode = exceptions.httpCode.C_404;
-                    next( exception );
+                    next( exceptions.raise( error ) );
                 } );
+            } else {
+                next();
             }
         }
     };
@@ -537,10 +609,9 @@ module.exports.originRefererValidationHandler = () => {
             // If the browser didn’t send Origin/Referer (normal for same-origin form POSTs), let CSRF middleware handle protection instead of blocking here:
             if ( providedOrigin && String( providedOrigin ).trim().toLowerCase() !== String( expectedOrigin ).trim().toLowerCase() ) {
                 logger.log( `Issue identified with origin/referer mismatch. Expected '${ expectedOrigin }', received '${ providedOrigin }'.`, logger.logSeverity.WARNING );
-                response.status( exceptions.httpCode.C_403 ).send( {
-                    isSuccessful: false,
-                    exception: exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS ).asJSON( false )
-                } );
+                let exception = exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS );
+                exception.httpCode = exceptions.httpCode.C_403;
+                next( exception );
             } else {
                 next();
             }
@@ -577,6 +648,9 @@ module.exports.csrfInitHandler = ( instance ) => {
                         secure: isSecure,
                         httpOnly: false
                     };
+                    if ( cookieOptions.sameSite === "none" && !cookieOptions.secure ) {
+                        logger.log( "CSRF cookie may be blocked: SameSite=None requires Secure; ensure HTTPS or adjust config.", logger.logSeverity.WARNING );
+                    }
                     if ( Number.isFinite( instance.serviceConfig.cookies.maxAge ) ) {
                         cookieOptions.maxAge = instance.serviceConfig.cookies.maxAge;
                     }
@@ -608,10 +682,9 @@ module.exports.csrfProtectionHandler = () => {
         } else {
             const expected = request.session && request.session.csrfToken;
             if ( !expected ) {
-                return response.status( exceptions.httpCode.C_403 ).send( {
-                    isSuccessful: false,
-                    exception: exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_HEADERS ).asJSON( false )
-                } );
+                let exception = exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_HEADERS );
+                exception.httpCode = exceptions.httpCode.C_403;
+                next( exception );
             } else {
                 // Try to locate the CSRF token in the request:
                 const provided =
@@ -621,10 +694,9 @@ module.exports.csrfProtectionHandler = () => {
                     ( request.query && ( request.query.csrfToken || request.query._csrf ) );
                 if ( !safeEquals( provided, expected ) ) {
                     logger.log( "Issue identified with CSRF token validation fail.", logger.logSeverity.WARNING );
-                    return response.status( exceptions.httpCode.C_403 ).send( {
-                        isSuccessful: false,
-                        exception: exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_HEADERS ).asJSON( false )
-                    } );
+                    let exception = exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_HEADERS );
+                    exception.httpCode = exceptions.httpCode.C_403;
+                    next( exception );
                 } else {
                     next();
                 }

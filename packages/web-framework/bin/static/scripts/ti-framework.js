@@ -231,6 +231,109 @@ let configureComponentSidebarFlyout = ( options = {} ) => {
 };
 
 /**
+ * Returns a configuration object for the notifications component "component-notification-bar.html".
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+let configureComponentNotificationBar = () => {
+    return {
+        notifications: [],
+        timers: {},
+        add( notification ) {
+            if ( notification && notification.id ) {
+                this.remove( notification.id );
+                this.notifications.push( notification );
+                if ( typeof notification.timeout === "number" && notification.timeout > 0 ) {
+                    this.timers[ notification.id ] = setTimeout( () => this.remove( notification.id ), notification.timeout );
+                }
+            }
+        },
+        remove( id ) {
+            if ( id ) {
+                this.notifications = this.notifications.filter( notification => notification.id !== id );
+                if ( this.timers[ id ] ) {
+                    clearTimeout( this.timers[ id ] );
+                    delete this.timers[ id ];
+                }
+            }
+        },
+        destroy() {
+            Object.keys( this.timers ).forEach( ( id ) => clearTimeout( this.timers[ id ] ) );
+            this.timers = {};
+            this.notifications = [];
+        }
+    };
+};
+
+/**
+ * Returns a configuration object for the application management instance.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+let configureApplication = () => {
+    return {
+        isInitialized: false,
+        user: undefined,
+        labels: {},
+        notificationIDCounter: 1,
+        init() {
+            document.addEventListener( "ti:error", ( event ) => {
+                this.notify( event.detail );
+            } );
+
+            this.sendRequest( "/app/config" ).then( ( result ) => {
+                // TODO: use result to initialize the application
+                this.labels = result?.data?.labels || {};
+                this.isInitialized = true;
+            } ).catch( ( error ) => {
+                error.message = `Failed to initialize the application: ${ error.message }`;
+                this.notify( error );
+            } );
+        },
+        sendRequest( url, method = "GET" ) {
+            return new Promise( ( resolve, reject ) => {
+                const xsrf = getCookie( "ti-xsrf-token" ) || "";
+                fetch( url, {
+                    method: method,
+                    headers: {
+                        "Accept": "application/json",
+                        "x-xsrf-token": xsrf
+                    },
+                    credentials: "same-origin",
+                    cache: "no-store",
+                } ).then( ( response ) => {
+                    const contentType = ( response.headers.get( "content-type" ) || "" ).toLowerCase();
+                    return ( contentType.includes( "application/json" ) ) ? response.json() : { isSuccessful: response.ok, message: response.statusText };
+                } ).then( ( result ) => {
+                    if ( result && result.isSuccessful === false ) {
+                        reject( result );
+                    } else {
+                        resolve( result );
+                    }
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } );
+        },
+        notify( data ) {
+            const notificationBar = document.querySelector( "#ti-notifications" );
+            if ( notificationBar ) {
+                Alpine.$data( notificationBar ).add( {
+                    id: data?.exception?.id || this.notificationIDCounter++,
+                    code: data?.exception?.code || 0,
+                    message: data?.message || "Unexpected application error.",
+                    timeout: data?.timeout || 60000
+                } );
+            }
+        }
+    };
+};
+
+/**
  * Perform a one-time configuration of the HTMX framework.
  */
 document.addEventListener( "htmx:configRequest", ( event ) => {
@@ -241,9 +344,29 @@ document.addEventListener( "htmx:configRequest", ( event ) => {
     event.detail.headers[ 'x-csp-nonce' ] = styleNonce || scriptNonce || "";
 } );
 
+document.addEventListener( "htmx:responseError", ( event ) => {
+    // If the server sent HX-Trigger with our payload, it will also emit a separate event,
+    // But here we parse body as fallback when body is JSON
+    try {
+        const xhr = event.detail.xhr;
+        const contentType = xhr.getResponseHeader( "Content-Type" ) || "";
+        if ( contentType.includes( "application/json" ) && xhr.responseText ) {
+            const data = JSON.parse( xhr.responseText );
+            const tiApplication = Alpine.store( "tiApplication" );
+            if ( tiApplication && tiApplication.isInitialized ) {
+                tiApplication.notify( data );
+            }
+        }
+    } catch {
+        // Do nothing here...
+    }
+} );
+
 /**
  * Register on-initialization tasks for the Alpine.js framework.
  */
 document.addEventListener( "alpine:init", () => {
+    Alpine.store( "tiApplication", configureApplication() );
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
+    Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
 } );

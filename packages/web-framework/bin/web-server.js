@@ -31,6 +31,7 @@ const authMethod = require( "#auth-manager" ).authMethod;
  * @property {SettingsAuth} auth
  * @property {SettingsCookies} cookies
  * @property {string} host
+ * @property {TiLocalizationLanguage} language
  * @property {number} port
  * @property {string} publicPath
  * @property {number} requestTimeout
@@ -109,8 +110,10 @@ class TiWebServer extends ServiceConsumer {
 
         // Define the unprotected routes:
         this.#unprotectedRoutes.push( "/" );
+        this.#unprotectedRoutes.push( "/not-found" );
         this.#unprotectedRoutes.push( "/app" );
         this.#unprotectedRoutes.push( "/app/enter" );
+        this.#unprotectedRoutes.push( "/app/config" );
         this.#unprotectedRoutes.push( /^\/login\/[^\/]+$/i );
         this.#unprotectedRoutes.push( "/logout" );
         this.#unprotectedRoutes.push( /^\/static\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
@@ -265,6 +268,7 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.use( webHandlers.resourceProtectionHandler( this ) );
 
                 this.#webServer.get( "/", webHandlers.webAppHandler( this ) );
+                this.#webServer.get( "/not-found", webHandlers.webAppHandler( this ) );
                 this.#webServer.use( "/.well-known", express.static( path.join( this.#fullPublicPath, ".well-known" ), { dotfiles: "allow" } ) );
                 this.#webServer.use( "/static", express.static( this.#fullPublicPath, { maxAge: "1y", immutable: true } ) );
 

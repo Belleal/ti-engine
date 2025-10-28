@@ -8,6 +8,7 @@
 
 const exceptions = require( "@ti-engine/core/exceptions" );
 const tools = require( "@ti-engine/core/tools" );
+const localization = require( "@ti-engine/core/localization" );
 const path = require( "node:path" );
 const fs = require( "node:fs" );
 
@@ -30,7 +31,10 @@ class WebAppManager {
         this.#webAppIdentifier = identifier;
 
         // TODO: All of this will be configurable later.
-        this.#fragments[ 'home' ] = { path: "index.html" };
+        this.#fragments[ 'home' ] = {
+            path: "index.html",
+            components: [ "component-notification-bar" ]
+        };
         this.#fragments[ 'application-main' ] = {
             title: "Application",
             path: "fragments/frame-application.html",
@@ -51,6 +55,10 @@ class WebAppManager {
         this.#fragments[ 'profile' ] = {
             title: "Profile",
             path: "fragments/frame-profile.html"
+        };
+        this.#fragments[ 'not-found' ] = {
+            title: "Not Found",
+            path: "fragments/frame-not-found.html"
         };
     }
 
@@ -125,11 +133,15 @@ class WebAppManager {
 
             if ( route === "/" ) {
                 fragment = this.#fragments[ 'home' ];
-                localOptions.isHome = true;
-                getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, fragment, localOptions ) );
+                getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, fragment, { ...localOptions, isHome: true } ) );
+            } else if ( route === "/app/error" ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_METHOD );
             } else if ( route === "/app" || route === "/app/enter" ) {
                 fragment = ( session && session.user ) ? this.#fragments[ 'application-main' ] : this.#fragments[ 'login' ];
                 getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, fragment, localOptions ) );
+            } else if ( route === "/not-found" ) {
+                getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, this.#fragments[ 'home' ], { ...localOptions, isHome: true } ) );
+                getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, this.#fragments[ 'not-found' ], localOptions ) );
             } else {
                 fragment = this.#fragments[ options.view ];
                 if ( !fragment ) {
@@ -154,6 +166,28 @@ class WebAppManager {
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
+        } );
+    }
+
+    /**
+     * Used to process a request for a data resource.
+     *
+     * @method
+     * @param {Object} session
+     * @param {string} view
+     * @param {Object} [options]
+     * @return {Promise<Object>}
+     * @public
+     */
+    processDataRequest( session, view, options = {} ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( view === "config" ) {
+                resolve( {
+                    labels: localization.getAllLabels( session?.language )
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI ) );
+            }
         } );
     }
 

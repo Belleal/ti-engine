@@ -2,6 +2,7 @@
     --ti-button-size: 44px;
     --ti-button-radius: 12px;
     --ti-gap: 10px;
+    --ti-notification-top: 50px;
 }
 
 body {
@@ -95,6 +96,40 @@ body {
     display: flex;
     width: 200px;
     height: 200px;
+}
+
+.ti-notifications {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + var(--ti-notification-top));
+    left: 0;
+    right: 0;
+    box-sizing: border-box;
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: auto;
+    width: auto;
+    z-index: 1100;
+    pointer-events: none;
+}
+
+.ti-notification {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: row;
+    gap: 10px;
+    cursor: pointer;
+    pointer-events: auto;
+    padding: 10px;
+    border-radius: 12px;
+}
+
+.ti-notification:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
 }
 
 /* Flyout (popover) menu styling */

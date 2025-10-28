@@ -2,30 +2,46 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.12
+
+* feat(exceptions): add new exception code `E_COM_SERVICE_EXEC_FAILED`
+* feat(localization): add new public method `getAllLabels`
+* feat(localization): use new `deepFreeze` method to freeze all label trees
+* feat(tools): add new public method `deepFreeze` for freezing an object and all its sub-objects recursively
+* feat(config): use new `deepFreeze` method to freeze all configuration settings
+* docs: add more information about the `localization` module in `README.md` file
+* build(npm): update npm dependencies to their latest versions
+
 ## Version 1.3.11
+
 * feat(tools): add `arrayUniques` method to the tools module that helps extract only the unique array values
 * fix(start instance): fix `undefined` instance ID in the log message about starting the instance
 
 ## Version 1.3.10
+
 * chore: fix various minor issues reported by the linter
 * build(npm): add more information and options to the `package.json` file
 * docs: add some JSDoc descriptions to classes and methods
 
 ## Version 1.3.9
+
 * feat(exceptions): add new exception code `E_GEN_NOT_INITIALIZED`
 * docs: fix image links in the `README.md` file
 
 ## Version 1.3.8
+
 * fix(tester): fix the relative paths of various files in the tester service. The configuration now assumes that the working directory is the root of the tester package instead of the repository itself
 * build(npm): update npm dependencies to their latest versions
 * docs: fix some outdated information in the `README.md` file and add some more details
 
 ## Version 1.3.7
+
 * feat(exceptions): add new exception code `E_SEC_UNRECOGNIZED_AUTH_METHOD`
 * fix(config): fix potential issue with `TI_GCLOUD_ENABLED` parsing as boolean
 * docs: adjust some of the JSDoc descriptions and definitions
 
 ## Version 1.3.6
+
 * feat(exceptions): add new exception code `E_GEN_INVALID_ARGUMENT_TYPE`
 * feat(exceptions): add public enum with all HTTP codes exported as `httpCode` and typedef `TiHttpCode`. Use it as the type for the `httpCode` exception property
 * feat(tools): add `description` property to enum objects
@@ -41,19 +57,23 @@ This document will contain the list of changes made to the framework. The format
 * build(npm)!: bump the minimum supported Node.js version to 18.0.0
 
 ## Version 1.3.5
+
 * fix(redis integration): fix a duplicated log entry on connection ready event if multiple observers are registered
 * feat(service caller)!: change log level of error result in `process` method from `ERROR` to `DEBUG`. Implementers are expected to handle this and decide if the error should be propagated further or not
 * docs: update and fix various issues with the `README.md` file
 
 ## Version 1.3.4
+
 * fix(service instance): fix the way `ServiceConfiguration` is propagated via child classes and remove unnecessary defaults. Also update the relevant JSDoc
 
 ## Version 1.3.3
+
 * feat(exceptions): add new parameter `includeData` to `Exception.asJSON` method which allows the exclusion of the data parameter from the returned JSON
 * feat(exceptions): remove several excessive exception codes that were unlikely to be used
 * fix(localization): add several missing exception labels
 
 ## Version 1.3.2
+
 * feat(exceptions): add a set of new exception codes for the needs of any wrapping `web-server` standard communication
 * feat(exception)!: change the default prefix path for exception labels to `system.exceptions.`
 * feat(localization): add an Enum list of all language codes based on ISO 639-1 standard
@@ -67,6 +87,7 @@ This document will contain the list of changes made to the framework. The format
 * fix(auditing): fix a potential problem with setting the log entry reporter from an ENV variable; instead, the system will now use the `ServiceInstance.instanceID` property
 
 ## Version 1.3.1
+
 * feat(service caller): refactor the entire service call execution flow for clarity and better performance
 * feat(service caller): create a new private class `ServiceCallProcessor` to handle individual service calls in a contained scope
 * feat(message observer): add new property `priority` to the message observer class. It is used to determine the order in which the observers are notified about the messages
@@ -77,6 +98,7 @@ This document will contain the list of changes made to the framework. The format
 * fix(redis integration): fix an issue which was setting the client status to `DISCONNECTED` during a normal shut down procedure
 
 ## Version 1.3.0
+
 * feat(redis integration)!: change `reconnectOnError` behavior to also resubmit the failed command in case the error was of type `READONLY`
 * feat(redis integration): improve the reliability and usage of the event notification mechanism for connection observers
 * feat(redis integration): implement listener to the `end` event on Redis connection to capture when connection can no longer be recovered
@@ -90,25 +112,31 @@ This document will contain the list of changes made to the framework. The format
 * fix(redis integration): fix broken event propagation on `disrupted` events to some connection observers
 
 ## Version 1.2.5
+
 * feat(cache): extend method `expireValue` to work with has set fields as well
 
 ## Version 1.2.4
+
 * feat(cache): expose the cache module as export in `package.json`
 * feat(cache): add method `hashDeleteField` to remove a hash-set field. This implements the `hdel` Redis command
 * fix(tools): optimize method `stringifyJSON` not to call unnecessary decycling of the value if it's not an object
 * fix(cache): replace `hmset` with `hset` Redis command in both methods that set hash-set values. Also remove unnecessary `_.isObjectLike` call in `hashSetFields` method
 
 ## Version 1.2.3
+
 * feat(start instance): add support for providing a custom path to the `.env` file to be used at service startup as process argument. Accepted arguments are `--env`, `--env-file`, `--dotenv`, `--dotenv-path`, and `-e`. The path itself should be relative to the working directory and should include the file name
 
 ## Version 1.2.2
+
 * feat(start instance): change package `dotenv` to `@dotenvx/dotenvx` for loading of ENV variables. The new package supports encrypting the ENV variables. For more information see https://dotenvx.com/docs/
 
 ## Version 1.2.1
+
 * feat(localization): add support for adding custom labels to the localization system. These have to follow the same format as the system labels
 * docs: add section about localization to the `README.md` file
 
 ## Version 1.2.0
+
 * feat(config)!: change the setting `localization.labelsPath` to be an array of strings. It can now be used to supply any additional custom labels in one or more files to the framework
 * feat(message memory cache): implement graceful exception handling during shut down procedure in `receiveMessage` and `sendMessage` methods
 * fix(default message sender): add missing initialization of the memory cache on enable
@@ -121,21 +149,25 @@ This document will contain the list of changes made to the framework. The format
 * fix(service executor)!: change the individual service registration process to ensure service registration does actually happen before the service provider finishes its initialization
 
 ## Version 1.1.10
+
 * fix(cache): fix redis client creation sequence. It is now created inside the constructor as intended. It still needs to be initialized explicitly using the `initialize` method.
 
 ## Version 1.1.9
+
 * feat(redis integration)!: change the way the `redis` client is initialized. Instead of happening automatically on class instantiation, it is now initialized on demand using the `initialize` method.
 * feat(cache): change the way the main cache instance is initialized in compliance with the new redis integration
 * feat(message memory cache)!: change the way the message memory cache is initialized in compliance with the new redis integration. The `initialize` method needs to be called explicitly to initialize the cache instance before it can be used.
 * fix(message dispatcher): fix the way the `messageExchange` is initialized in the `MessageDispatcher` class (was not returning a promise)
 
 ## Version 1.1.8
+
 * feat(auditing): change export of the singleton class in an `instance` variable for consistency and clarity
 * feat(message dispatcher): change export of the singleton class in an `instance` variable for consistency and clarity
 * feat(cache): change export of the singleton class in an `instance` variable for consistency and clarity
 * feat(service executor): implement service registration retry policy
 
 ## Version 1.1.7
+
 * feat(start instance): add support for the detection of `SIGBREAK` events and graceful shutdown on Windows
 * feat(service instance)!: prevent the initialization of multiple `ServiceInstance` within the same process
 * feat(message tracer)!: covert to singleton instance and add initialization method
@@ -145,6 +177,7 @@ This document will contain the list of changes made to the framework. The format
 * fix(redis integration): update links to official commands documentation
 
 ## Version 1.1.6
+
 * feat(start instance): add fail-fast mode as default behavior on promise unhandled rejections
 * feat(start instance): implement functionality to derive safe default service domain name when none is provided in the configuration
 * feat(config): add support for new ENV variable `TI_FAIL_FAST_ON_UNHANDLED_OFF` that controls the fail-fast mode

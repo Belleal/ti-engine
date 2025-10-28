@@ -37,10 +37,11 @@
     "maxAge": 604800
   },
   "host": "127.0.0.1",
+  "language": "en",
   "port": 3000,
-  "publicPath": "packages/web-framework/bin/static",
+  "publicPath": "bin/static",
   "requestTimeout": 180000,
-  "tlsCertPath": "packages/web-framework/bin/tls/localhost+2.pem",
-  "tlsKeyPath": "packages/web-framework/bin/tls/localhost+2-key.pem",
+  "tlsCertPath": "bin/tls/localhost+2.pem",
+  "tlsKeyPath": "bin/tls/localhost+2-key.pem",
   "useTLS": true
 }

@@ -245,12 +245,7 @@ module.exports.localizationLanguage = localizationLanguageEnum;
  * @typedef {Object<string, TiLocalizedLabel | TiLabelsTree>} TiLabelsTree
  */
 
-/**
- * @typedef {Object} TiLabels
- * @property {TiLabelsTree} labels
- */
-
-/** @type {TiLabels} */
+/** @type {TiLabelsTree} */
 const labels = require( "#labels" );
 
 // Load any custom labels defined in the configuration:
@@ -264,7 +259,7 @@ if ( labelsPaths && _.isArray( labelsPaths ) && labelsPaths.length > 0 ) {
 }
 
 // Prevent further modifications to the TiLabels object:
-Object.freeze( labels );
+tools.deepFreeze( labels );
 
 /**
  * Used to return the textual value for a label based on the current system language by default or the specified language code if provided.
@@ -277,4 +272,43 @@ Object.freeze( labels );
  */
 module.exports.getLabel = ( label, language ) => {
     return _.get( labels, label + "." + ( ( language ) ? language : config.getSetting( config.setting.LOCALIZATION_LANGUAGE ) ), defaultEmptyLabel );
+};
+
+const labelsCacheByLanguage = new Map();
+
+/**
+ * Used to return the entire labels tree.
+ * <br/>
+ * NOTE: The result will be a modified copy of the label tree that has no "language" end-nodes and keeps only the appropriate labels for the requested language.
+ * For example, if the original JSON path is "path.to.label.language", the returned path will be just "path.to.label" corresponding to the text label.
+ *
+ * @method
+ * @param {TiLocalizationLanguage} [language] The language code to use for the lookup. If not provided, the current system language will be used.
+ * @returns {TiLabelsTree}
+ * @public
+ */
+module.exports.getAllLabels = ( language ) => {
+    const usedLanguage = language || config.getSetting( config.setting.LOCALIZATION_LANGUAGE );
+
+    if ( labelsCacheByLanguage.has( usedLanguage ) ) {
+        return labelsCacheByLanguage.get( usedLanguage );
+    } else {
+        const labelsByLanguage = _.cloneDeepWith( labels, ( value ) => {
+            if ( _.isPlainObject( value ) ) {
+                const values = Object.values( value );
+                const isLeaf = values.length > 0 && values.every( v => _.isString( v ) || _.isNil( v ) );
+                if ( isLeaf ) {
+                    // Return only the desired language or default placeholder if missing:
+                    return _.get( value, usedLanguage, defaultEmptyLabel );
+                }
+            } else {
+                // Return undefined to let lodash handle default deep cloning for non-leaves:
+                return undefined;
+            }
+        } );
+
+        tools.deepFreeze( labelsByLanguage );
+        labelsCacheByLanguage.set( usedLanguage, labelsByLanguage );
+        return labelsByLanguage;
+    }
 };

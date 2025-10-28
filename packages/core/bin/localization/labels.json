@@ -70,6 +70,9 @@
       "3007": {
         "en": "The message exchange is irrevocably broken and cannot be used any longer."
       },
+      "3008": {
+        "en": "The execution of a service reported a failure. This might be a business logic error or a system error."
+      },
       "3010": {
         "en": "Connection retry attempts exceeded the configured limit."
       },

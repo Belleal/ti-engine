@@ -1,0 +1,11 @@
+<div id="ti-notifications" x-data="tiComponentNotificationBar()" role="region" aria-live="polite" aria-atomic="false" class="ti-notifications">
+    <template x-for="notification in notifications"
+              x-bind:key="notification.id">
+        <div x-on:click="remove( notification.id )"
+             x-on:keydown.enter="remove( notification.id )"
+             x-on:keydown.space.prevent="remove( notification.id )"
+             role="alert" tabindex="0" class="ti-notification ti-glass-panel-black">
+            <span class="material-symbols-outlined">error</span><span x-text="notification.message"></span>
+        </div>
+    </template>
+</div>
