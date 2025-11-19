@@ -11,7 +11,6 @@ const tools = require( "@ti-engine/core/tools" );
 const localization = require( "@ti-engine/core/localization" );
 const path = require( "node:path" );
 const fs = require( "node:fs" );
-const _ = require( "lodash" );
 
 const RE_NONCE_ATTR = /\{ti-nonce-placeholder}/g;
 const RE_CSRF_ATTR = /\{ti-csrf-placeholder}/g;
@@ -36,6 +35,7 @@ class TiWebAppManager {
     #webAppIdentifier;
     #fragments = {};
     #staticFileCache = {};
+    #staticFileCacheEnabled;
 
     /**
      * @constructor
@@ -49,6 +49,7 @@ class TiWebAppManager {
         }
 
         this.#webAppIdentifier = identifier;
+        this.#staticFileCacheEnabled = ( process.env.TI_WEB_APP_STATIC_CACHE_DISABLED !== "true" );
 
         // Define the default HTML fragments for the application:
         this.#fragments[ 'home' ] = {
@@ -288,23 +289,26 @@ class TiWebAppManager {
      */
     #locateStaticFile( staticContentPaths, filePath ) {
         return new Promise( ( resolve, reject ) => {
-            if ( this.#staticFileCache[ filePath ] !== undefined ) {
+            if ( this.#staticFileCacheEnabled === true && this.#staticFileCache[ filePath ] !== undefined ) {
                 resolve( this.#staticFileCache[ filePath ] );
             } else {
                 let fullFilePath;
                 // Search for the file in the static content paths in reverse order so that the default system path is checked last. This will ensure that
                 // any fragment overrides are loaded first (i.e., fragments with the same relative path):
-                _.forEachRight( staticContentPaths, ( staticContentPath ) => {
+                for ( let idx = staticContentPaths.length - 1; idx >= 0; idx-- ) {
+                    const staticContentPath = staticContentPaths[ idx ];
                     let potentialFilePath = path.join( staticContentPath, filePath );
                     if ( fs.existsSync( potentialFilePath ) ) {
                         fullFilePath = potentialFilePath;
-                        return false;
+                        break;
                     }
-                } );
+                }
 
                 if ( fullFilePath !== undefined ) {
                     fs.promises.readFile( fullFilePath, "utf8" ).then( ( fileData ) => {
-                        this.#staticFileCache[ filePath ] = fileData;
+                        if ( this.#staticFileCacheEnabled === true ) {
+                            this.#staticFileCache[ filePath ] = fileData;
+                        }
                         resolve( fileData );
                     } ).catch( ( error ) => {
                         reject( exceptions.raise( error ) );

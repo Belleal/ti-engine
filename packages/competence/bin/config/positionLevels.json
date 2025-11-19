@@ -58,7 +58,7 @@
   },
   "T": {
     "name": "Manager",
-    "english": "A professional with very rich experience in the position who acquired additional experience as a manager and leader of a team or an unit. They have successfully managed a multitude of complex projects and tasks, demonstrating skills for strategic planning and coordination. They have acquired a higher education degree in the corresponding field and posses relevant professional certificates that complement their competences both as specialist and manager.",
+    "description": "A professional with very rich experience in the position who acquired additional experience as a manager and leader of a team or an unit. They have successfully managed a multitude of complex projects and tasks, demonstrating skills for strategic planning and coordination. They have acquired a higher education degree in the corresponding field and posses relevant professional certificates that complement their competences both as specialist and manager.",
     "grade": 5,
     "stages": 1,
     "previous": [

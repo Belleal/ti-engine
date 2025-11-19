@@ -155,36 +155,53 @@ class Auditing {
      * Used to format a log entry data payload for the Node console.
      *
      * @method
-     * @param {Object} data
+     * @param {*} data
      * @param {string} [prefix=""]
+     * @param {number} [currentDepth=0]
+     * @param {number} [maxDepth=5]
+     * @param {Set} [visited=new Set()]
      * @returns {string}
      * @private
      */
-    static #formatConsoleData( data, prefix = "" ) {
-        let formattedData = "";
+    static #formatConsoleData( data, prefix = "", currentDepth = 0, maxDepth = 5, visited = new Set() ) {
+        if ( data === null || data === undefined || !_.isObjectLike( data ) ) {
+            // Handle null, undefined, and primitive values:
+            return prefix + "» " + String( data );
+        } else if ( currentDepth >= maxDepth ) {
+            // Check max depth:
+            return prefix + "! [max data depth reached]";
+        } else if ( visited.has( data ) ) {
+            // Check for circular references:
+            return prefix + "! [circular reference detected]";
+        } else {
+            let formattedData = "";
+            visited.add( data );
 
-        if ( _.isObjectLike( data ) ) {
             _.forOwn( data, ( value, key ) => {
-                if ( key === "stack" ) {
-                    formattedData += prefix + `» exception stack:` + EOL;
-                    let stackLines = value.split( "\n" );
-                    _.forEach( stackLines, ( line, index ) => {
-                        formattedData += prefix + `- ${ _.trim( line ) }` + EOL;
+                let stackLines = ( _.isString( value ) ) ? value.split( "\n" ) : [ value ];
+                if ( stackLines.length > 1 ) {
+                    _.forEach( stackLines, ( line, idx ) => {
+                        if ( idx === 0 ) {
+                            formattedData += prefix + `» ${ key }: ${ _.trim( line ) }` + EOL;
+                        } else {
+                            formattedData += prefix + `- ${ _.trim( line ) }` + EOL;
+                        }
                     } );
                 } else {
                     if ( _.isObjectLike( value ) ) {
-                        formattedData += prefix + `» ${ key }:` + EOL + Auditing.#formatConsoleData( value, "   " + prefix );
+                        formattedData += prefix + `» ${ key }:` + EOL + Auditing.#formatConsoleData( value, "   " + prefix, currentDepth + 1, maxDepth, visited ) + EOL;
                     } else {
                         formattedData += prefix + `» ${ key }: ${ value }` + EOL;
                     }
                 }
             } );
-        }
-        if ( formattedData.endsWith( EOL ) ) {
-            formattedData = formattedData.slice( 0, -EOL.length );
-        }
 
-        return formattedData;
+            if ( formattedData.endsWith( EOL ) ) {
+                formattedData = formattedData.slice( 0, -EOL.length );
+            }
+
+            return formattedData;
+        }
     }
 }
 

@@ -114,7 +114,8 @@ class TiWebServer extends ServiceConsumer {
     /**
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
-     * @param {TiWebServiceConfiguration} serviceConfig The JSON configuration for this service.
+     * @param {TiWebServiceConfiguration} serviceConfig The JSON configuration for this service. Note that the configuration provided will be merged with the default web server configuration, and it will override any conflicting properties.
+     * @throws {Exception.E_GEN_JS_INTERNAL_ERROR} If the web application manager cannot be loaded.
      */
     constructor( serviceDomainName, serviceConfig ) {
         super( serviceDomainName, _.merge( webServerConfig, ( _.isObjectLike( serviceConfig ) ) ? serviceConfig : {} ) );
@@ -135,8 +136,13 @@ class TiWebServer extends ServiceConsumer {
 
         // If there is a web application configuration, create the web application manager:
         if ( this.serviceConfig.application ) {
-            const webApplicationConstructor = require( path.join( process.cwd(), this.serviceConfig.application.classPath ) );
-            this.#webAppManager = new webApplicationConstructor();
+            try {
+                const webApplicationConstructor = require( path.join( process.cwd(), this.serviceConfig.application.classPath ) );
+                this.#webAppManager = new webApplicationConstructor();
+            } catch ( error ) {
+                logger.log( `Failed to load web application manager from '${ this.serviceConfig.application.classPath }'`, logger.logSeverity.ERROR, error );
+                throw exceptions.raise( error );
+            }
         }
     }
 
