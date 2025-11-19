@@ -19,18 +19,39 @@ const RE_CSP_NONCE = /^[A-Za-z0-9+\/=_-]{16,}$/;
 const TI_NESTED_FRAME_PLACEHOLDER = "ti-nested-frame-placeholder";
 
 /**
- * @class WebAppManager
+ * A generic web application manager that handles the rendering and behavior of web application views. It is designed to be extended by specific web application
+ * managers for each web application you want to implement with the ti-engine web framework.
+ * <br/>
+ * NOTE: You should not instantiate this class directly. Instead, extend it and override the abstract methods as needed. Additionally, you should configure your
+ * ti-engine web server 'TiWebApplicationConfig' settings by specifying the 'classPath' that corresponds to your web application manager. The path should be
+ * relative to the intended process's working directory.
+ *
+ * @class TiWebAppManager
+ * @abstract
  * @public
  */
-class WebAppManager {
+class TiWebAppManager {
 
-    #webAppIdentifier = null;
+    #webAppIdentifier;
     #fragments = {};
+    #staticFileCache = {};
+    #staticFileCacheEnabled;
 
+    /**
+     * @constructor
+     * @param {string} identifier The identifier for this web application. Should be unique and recognizable.
+     * @throws {Exception.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
+     */
     constructor( identifier ) {
-        this.#webAppIdentifier = identifier;
+        // Make sure this abstract class cannot be instantiated:
+        if ( new.target === TiWebAppManager ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_CLASS_INIT, { name: this.constructor.name } );
+        }
 
-        // TODO: All of this will be configurable later.
+        this.#webAppIdentifier = identifier;
+        this.#staticFileCacheEnabled = ( process.env.TI_WEB_APP_STATIC_CACHE_DISABLED !== "true" );
+
+        // Define the default HTML fragments for the application:
         this.#fragments[ 'home' ] = {
             path: "index.html",
             components: [ "component-notification-bar" ]
@@ -65,13 +86,52 @@ class WebAppManager {
     /* Public interface */
 
     /**
+     * Returns the identifier for this web application.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get webAppIdentifier() {
+        return this.#webAppIdentifier;
+    }
+
+    /**
+     * Adds a new HTML fragment to the web application.
+     * <br/>
+     * NOTE: This method should only be called during the initialization phase of your web application manager.
+     *
+     * @method
+     * @param {string} identifier
+     * @param {Object} fragment
+     * @throws {Exception.E_GEN_UNALLOWED_OVERRIDE} If a fragment with the same identifier already exists.
+     * @public
+     */
+    addFragment( identifier, fragment ) {
+        if ( this.#fragments[ identifier ] === undefined ) {
+            this.#fragments[ identifier ] = fragment;
+        } else {
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_UNALLOWED_OVERRIDE, { identifier: identifier } );
+        }
+    }
+
+    /**
+     * Used to clear the static file cache. This is useful for testing purposes to ensure that the web server is always serving fresh content.
+     *
+     * @method
+     * @public
+     */
+    clearStaticFileCache() {
+        this.#staticFileCache = {};
+    }
+
+    /**
      * Optional HTML transformation hook.
      * <br/>
      * NOTE: Override in subclasses to add nonces or other dynamic data to outgoing HTML.
      *
      * @method
      * @param {string} html
-     * @param {string} fullPublicPath
      * @param {Object} [options]
      * @param {string} [options.csrfToken] Optional CSRF token to inject into the HTML.
      * @param {boolean} [options.isHome] Optional flag to indicate whether the requested route is the home page.
@@ -81,7 +141,7 @@ class WebAppManager {
      * @virtual
      * @public
      */
-    transformHtml( html, fullPublicPath, options = {} ) {
+    transformHtml( html, options = {} ) {
         return new Promise( ( resolve, reject ) => {
             let transformedHtml = String( html );
 
@@ -115,17 +175,17 @@ class WebAppManager {
      *
      * @method
      * @param {Object} session
-     * @param {string} fullPublicPath
+     * @param {string[]} staticContentPaths
      * @param {string} route
      * @param {Object} [options]
      * @param {string} [options.csrfToken] Optional CSRF token to inject into the HTML.
      * @param {boolean} [options.isPartial] Optional flag to indicate whether the requested route is a partial load of a fragment.
      * @param {string} [options.view] Optional view name to load within this route.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
-     * @return {Promise<string>}
+     * @returns {Promise<string>}
      * @public
      */
-    assembleHtmlView( session, fullPublicPath, route, options = {} ) {
+    assembleHtmlView( session, staticContentPaths, route, options = {} ) {
         return new Promise( ( resolve, reject ) => {
             let fragment;
             let getHtmlPromises = [];
@@ -133,26 +193,31 @@ class WebAppManager {
 
             if ( route === "/" ) {
                 fragment = this.#fragments[ 'home' ];
-                getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, fragment, { ...localOptions, isHome: true } ) );
+                getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, fragment, { ...localOptions, isHome: true } ) );
             } else if ( route === "/app/error" ) {
-                throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_METHOD );
+                // TODO: This is for testing purposes only. Remove later.
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_METHOD ) );
             } else if ( route === "/app" || route === "/app/enter" ) {
                 fragment = ( session && session.user ) ? this.#fragments[ 'application-main' ] : this.#fragments[ 'login' ];
-                getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, fragment, localOptions ) );
+                getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, fragment, localOptions ) );
             } else if ( route === "/not-found" ) {
-                getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, this.#fragments[ 'home' ], { ...localOptions, isHome: true } ) );
-                getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, this.#fragments[ 'not-found' ], localOptions ) );
+                getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, this.#fragments[ 'home' ], { ...localOptions, isHome: true } ) );
+                getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, this.#fragments[ 'not-found' ], localOptions ) );
             } else {
                 fragment = this.#fragments[ options.view ];
                 if ( !fragment ) {
-                    throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI );
+                    // Abort execution if the requested view is not found:
+                    return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI ) );
                 } else {
                     // This handles application refreshes from nested frames:
                     if ( options.isPartial !== true ) {
-                        getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, this.#fragments[ 'home' ], { ...localOptions, isHome: true } ) );
-                        getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, this.#fragments[ 'application-main' ], localOptions ) );
+                        getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, this.#fragments[ 'home' ], {
+                            ...localOptions,
+                            isHome: true
+                        } ) );
+                        getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, this.#fragments[ 'application-main' ], localOptions ) );
                     }
-                    getHtmlPromises.push( this.#getHtmlFragment( session, fullPublicPath, fragment, localOptions ) );
+                    getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, fragment, localOptions ) );
                 }
             }
 
@@ -176,7 +241,7 @@ class WebAppManager {
      * @param {Object} session
      * @param {string} view
      * @param {Object} [options]
-     * @return {Promise<Object>}
+     * @returns {Promise<Object>}
      * @public
      */
     processDataRequest( session, view, options = {} ) {
@@ -198,24 +263,23 @@ class WebAppManager {
      *
      * @method
      * @param {Object} session
-     * @param {string} fullPublicPath
+     * @param {string[]} staticContentPaths
      * @param {Object} fragment
      * @param {Object} [options]
      * @param {string} [options.csrfToken] Optional CSRF token to inject into the HTML.
      * @param {boolean} [options.isHome] Optional flag to indicate whether the requested route is the home page.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
      * @returns {Promise<string>}
-     * @throws {Exception.E_WEB_INVALID_REQUEST_URI} If the provided route is not supported.
-     * @public
+     * @private
      */
-    #getHtmlFragment( session, fullPublicPath, fragment, options = {} ) {
+    #getHtmlFragment( session, staticContentPaths, fragment, options = {} ) {
         return new Promise( ( resolve, reject ) => {
             this.#verifyAccess( session, fragment ).then( () => {
-                return this.#loadHtmlFragment( path.join( fullPublicPath, fragment.path ) );
+                return this.#locateStaticFile( staticContentPaths, fragment.path );
             } ).then( ( fileData ) => {
-                return this.#replaceComponentPlaceholders( fileData, fullPublicPath, fragment.components );
+                return this.#replaceComponentPlaceholders( fileData, staticContentPaths, fragment.components );
             } ).then( ( fileData ) => {
-                return this.transformHtml( fileData, fullPublicPath, { ...options, title: fragment.title } );
+                return this.transformHtml( fileData, { ...options, title: fragment.title } );
             } ).then( ( fileData ) => {
                 resolve( fileData );
             } ).catch( ( error ) => {
@@ -225,21 +289,44 @@ class WebAppManager {
     }
 
     /**
-     * Loads the HTML fragment from the specified file path.
+     * Attempts to locate the requested static file in the provided static content paths.
      *
      * @method
-     * @param {string} filePath
+     * @param {string[]} staticContentPaths A list of directories to search for static content. If sent as expected by the web server, the first item in the array should be the system default path.
+     * @param {string} filePath Relative path to the static file to locate.
      * @returns {Promise<string>}
      * @private
      */
-    #loadHtmlFragment( filePath ) {
+    #locateStaticFile( staticContentPaths, filePath ) {
         return new Promise( ( resolve, reject ) => {
-            // TODO: Add caching layer here.
-            fs.promises.readFile( filePath, "utf8" ).then( ( fileData ) => {
-                resolve( fileData );
-            } ).catch( ( error ) => {
-                reject( exceptions.raise( error ) );
-            } );
+            if ( this.#staticFileCacheEnabled === true && this.#staticFileCache[ filePath ] !== undefined ) {
+                resolve( this.#staticFileCache[ filePath ] );
+            } else {
+                let fullFilePath;
+                // Search for the file in the static content paths in reverse order so that the default system path is checked last. This will ensure that
+                // any fragment overrides are loaded first (i.e., fragments with the same relative path):
+                for ( let idx = staticContentPaths.length - 1; idx >= 0; idx-- ) {
+                    const staticContentPath = staticContentPaths[ idx ];
+                    let potentialFilePath = path.join( staticContentPath, filePath );
+                    if ( fs.existsSync( potentialFilePath ) ) {
+                        fullFilePath = potentialFilePath;
+                        break;
+                    }
+                }
+
+                if ( fullFilePath !== undefined ) {
+                    fs.promises.readFile( fullFilePath, "utf8" ).then( ( fileData ) => {
+                        if ( this.#staticFileCacheEnabled === true ) {
+                            this.#staticFileCache[ filePath ] = fileData;
+                        }
+                        resolve( fileData );
+                    } ).catch( ( error ) => {
+                        reject( exceptions.raise( error ) );
+                    } );
+                } else {
+                    reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI ) );
+                }
+            }
         } );
     }
 
@@ -248,12 +335,12 @@ class WebAppManager {
      *
      * @method
      * @param {string} html
-     * @param {string} fullPublicPath
+     * @param {string[]} staticContentPaths
      * @param {Array<string>} components
      * @returns {Promise<string>}
      * @private
      */
-    #replaceComponentPlaceholders( html, fullPublicPath, components ) {
+    #replaceComponentPlaceholders( html, staticContentPaths, components ) {
         return new Promise( ( resolve, reject ) => {
             if ( components === undefined || components.length === 0 ) {
                 resolve( html );
@@ -262,7 +349,7 @@ class WebAppManager {
                 let promises = [];
                 const componentData = {};
                 tools.arrayUniques( components ).forEach( ( component ) => {
-                    promises.push( this.#loadHtmlFragment( path.join( fullPublicPath, `fragments/components/${ component }.html` ) ).then( ( fileData ) => {
+                    promises.push( this.#locateStaticFile( staticContentPaths, `fragments/components/${ component }.html` ).then( ( fileData ) => {
                         componentData[ component ] = fileData;
                     } ) );
                 } );
@@ -271,7 +358,6 @@ class WebAppManager {
                     components.forEach( ( component ) => {
                         transformedHtml = this.#replacePlaceholderElement( transformedHtml, `ti-${ component }-placeholder`, componentData[ component ] );
                     } );
-
                     resolve( transformedHtml );
                 } ).catch( ( error ) => {
                     reject( exceptions.raise( error ) );
@@ -287,7 +373,7 @@ class WebAppManager {
      * @param {string} html
      * @param {string} tagName
      * @param {string} replacement
-     * @return {string}
+     * @returns {string}
      * @private
      */
     #replacePlaceholderElement( html, tagName, replacement ) {
@@ -336,4 +422,4 @@ class WebAppManager {
 
 }
 
-module.exports = WebAppManager;
+module.exports = TiWebAppManager;

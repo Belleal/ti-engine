@@ -1,0 +1,69 @@
+{
+  "N": {
+    "name": "Intern",
+    "description": "An entry-level of the position where future specialists start to get familiar with the fundamentals of the subject matter. They work under the supervision of more experienced colleagues, focusing on the acquisition of foundational skills and knowledge. They may not yet have a higher education degree in the corresponding field, but should demonstrate a desire to learn and develop.",
+    "grade": 1,
+    "stages": 1,
+    "previous": [],
+    "next": [
+      "J"
+    ]
+  },
+  "J": {
+    "name": "Junior Specialist",
+    "description": "A specialist with limited experience in the position, who has already participated in various projects and tasks. They have foundational knowledge and skills that allow them to work independently on basic tasks with the occasional assistance of more experienced colleagues. They should be working towards a higher education degree in the corresponding field if they have not yet acquired such.",
+    "grade": 2,
+    "stages": 3,
+    "previous": [
+      "N"
+    ],
+    "next": [
+      "R"
+    ]
+  },
+  "R": {
+    "name": "Specialist",
+    "description": "A skilled specialist with accrued experience in various projects and tasks. They have wide knowledge and skills relevant to the position that allow them to work independently and efficiently. They have acquired a higher education degree in the corresponding field and may possess relevant professional certificates that complement their competences.",
+    "grade": 3,
+    "stages": 3,
+    "previous": [
+      "J"
+    ],
+    "next": [
+      "S"
+    ]
+  },
+  "S": {
+    "name": "Senior Specialist",
+    "description": "A highly skilled specialist who has participated in a large number of complex projects and tasks. They have deep knowledge and developed skills relevant to the position and can lead and coach a team of junior specialists. They have acquired a higher education degree in the corresponding field and possess relevant professional certificates that complement their competences.",
+    "grade": 4,
+    "stages": 3,
+    "previous": [
+      "R"
+    ],
+    "next": [
+      "X",
+      "T"
+    ]
+  },
+  "X": {
+    "name": "Expert",
+    "description": "A specialist with exceptionally rich experience and expert knowledge in one or more areas relevant to the position. They have worked on the most complex projects and tasks, demonstrating strategic thinking and leadership skills. They have acquired a higher education degree in the corresponding field and possess relevant professional certificates that differentiate them as an expert in their field.",
+    "grade": 5,
+    "stages": 1,
+    "previous": [
+      "S"
+    ],
+    "next": []
+  },
+  "T": {
+    "name": "Manager",
+    "description": "A professional with very rich experience in the position who acquired additional experience as a manager and leader of a team or a unit. They have successfully managed a multitude of complex projects and tasks, demonstrating skills for strategic planning and coordination. They have acquired a higher education degree in the corresponding field and possess relevant professional certificates that complement their competences both as a specialist and a manager.",
+    "grade": 5,
+    "stages": 1,
+    "previous": [
+      "S"
+    ],
+    "next": []
+  }
+}

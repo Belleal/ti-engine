@@ -19,15 +19,15 @@ const session = require( "express-session" );
 const cookieParser = require( "cookie-parser" );
 const webHandlers = require( "#web-handlers" );
 const SessionStore = require( "#session-store" );
-const WebAppManager = require( "#web-app-manager" );
 const AuthManager = require( "#auth-manager" );
 const authMethod = require( "#auth-manager" ).authMethod;
 
 /** @typedef {import("node:http").Server} NodeServer */
 
 /**
- * @typedef {ServiceConfiguration} WebServiceConfiguration
+ * @typedef {ServiceConfiguration} TiWebServiceConfiguration
  * @property {ApiConfig} api
+ * @property {TiWebApplicationConfig} application
  * @property {SettingsAuth} auth
  * @property {SettingsCookies} cookies
  * @property {string} host
@@ -41,7 +41,13 @@ const authMethod = require( "#auth-manager" ).authMethod;
  */
 
 /**
+ * @typedef {Object} TiWebApplicationConfig
+ * @property {string} classPath
+ */
+
+/**
  * @typedef {Object} ApiConfig
+ * @property {boolean} endpointEnabled
  * @property {ApiInventory} inventory
  * @property {number} requestTimeout
  */
@@ -78,10 +84,19 @@ const authMethod = require( "#auth-manager" ).authMethod;
  * @typedef {Record<string, Record<string, ServiceAddress>>} ApiInventory
  */
 
+const webServerConfig = require( "#web-server-config" );
+
 /**
  * A web server microservice based on the ti-engine.
+ * <br/>
+ * Note: The web server is fully functional and already comes with all the necessary fundamentals and security features. However, it is designed to be extended
+ * with custom logic and functionality to fit your specific needs. Here is a list of methods that you can override to customize the web server behavior:
+ * - {@link TiWebServer#defineWebApplicationRoutes} Override this to define custom web application routes. Remember to call the base method if you want to preserve the default behavior as well (recommended).
+ * - {@link TiWebServer#defineUnprotectedRoutes} Override this to define unprotected routes. Remember to call the base method if you want to preserve the default behavior as well (recommended).
+ * - {@link TiWebServer#verifySession} Override this to implement custom session verification logic.
  *
  * @class TiWebServer
+ * @extends ServiceConsumer
  * @public
  */
 class TiWebServer extends ServiceConsumer {
@@ -90,7 +105,7 @@ class TiWebServer extends ServiceConsumer {
     #netServer;
     #serverUrl = "";
     #isShuttingDown = false;
-    #fullPublicPath = "";
+    #staticContentPaths = [];
     #allowedHosts = [];
     #unprotectedRoutes = [];
     #webAppManager;
@@ -99,37 +114,36 @@ class TiWebServer extends ServiceConsumer {
     /**
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
-     * @param {WebServiceConfiguration} serviceConfig The JSON configuration for this service.
-     * @throws {Exception.E_GEN_INVALID_ARGUMENT_TYPE} If the service configuration for the public path is invalid.
+     * @param {TiWebServiceConfiguration} serviceConfig The JSON configuration for this service. Note that the configuration provided will be merged with the default web server configuration, and it will override any conflicting properties.
+     * @throws {Exception.E_GEN_JS_INTERNAL_ERROR} If the web application manager cannot be loaded.
      */
     constructor( serviceDomainName, serviceConfig ) {
-        super( serviceDomainName, serviceConfig );
+        super( serviceDomainName, _.merge( {}, webServerConfig, ( _.isObjectLike( serviceConfig ) ) ? serviceConfig : {} ) );
 
         // Include the current host in the list of allowed hosts:
         this.#allowedHosts.push( this.serviceConfig.host );
 
-        // Define the unprotected routes:
-        this.#unprotectedRoutes.push( "/" );
-        this.#unprotectedRoutes.push( "/not-found" );
-        this.#unprotectedRoutes.push( "/app" );
-        this.#unprotectedRoutes.push( "/app/enter" );
-        this.#unprotectedRoutes.push( "/app/config" );
-        this.#unprotectedRoutes.push( /^\/login\/[^\/]+$/i );
-        this.#unprotectedRoutes.push( "/logout" );
-        this.#unprotectedRoutes.push( /^\/static\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
-        this.#unprotectedRoutes.push( /^\/\.well-known\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
-
-        // Fast-fail if the public path is not provided:
-        if ( !this.serviceConfig.publicPath || typeof this.serviceConfig.publicPath !== "string" ) {
-            throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE );
-        }
-        this.#fullPublicPath = path.normalize( path.isAbsolute( this.serviceConfig.publicPath ) ? this.serviceConfig.publicPath : path.join( process.cwd(), this.serviceConfig.publicPath ) );
-        if ( fs.existsSync( this.#fullPublicPath ) === false ) {
-            logger.log( `Public path '${ this.#fullPublicPath }' does not exist. Static routes will resolve with 404 until path is created.`, logger.logSeverity.WARNING );
+        // Add the default and custom public paths to the list of static content:
+        this.#staticContentPaths.push( path.join( __dirname, "static" ) );
+        let customStaticContentPath = path.normalize( path.isAbsolute( this.serviceConfig.publicPath ) ? this.serviceConfig.publicPath : path.join( process.cwd(), this.serviceConfig.publicPath ) );
+        if ( fs.existsSync( customStaticContentPath ) === false ) {
+            logger.log( `Public path '${ customStaticContentPath }' does not exist. Static routes will resolve with 404 until path is created.`, logger.logSeverity.WARNING );
+        } else {
+            this.#staticContentPaths.push( customStaticContentPath );
         }
 
-        this.#webAppManager = new WebAppManager( "web-application" );
         this.#authManager = new AuthManager( this.serviceConfig.auth );
+
+        // If there is a web application configuration, create the web application manager:
+        if ( this.serviceConfig.application ) {
+            try {
+                const webApplicationConstructor = require( path.join( process.cwd(), this.serviceConfig.application.classPath ) );
+                this.#webAppManager = new webApplicationConstructor();
+            } catch ( error ) {
+                logger.log( `Failed to load web application manager from '${ this.serviceConfig.application.classPath }'`, logger.logSeverity.ERROR, error );
+                throw exceptions.raise( error );
+            }
+        }
     }
 
     /* Public interface */
@@ -138,7 +152,7 @@ class TiWebServer extends ServiceConsumer {
      * Property returning the service configuration JSON.
      *
      * @property
-     * @returns {WebServiceConfiguration}
+     * @returns {TiWebServiceConfiguration}
      * @override
      * @public
      */
@@ -158,14 +172,14 @@ class TiWebServer extends ServiceConsumer {
     }
 
     /**
-     * Property returning the full path to the public directory.
+     * Property returning the list of static content directories.
      *
      * @property
-     * @returns {string}
+     * @returns {string[]}
      * @public
      */
-    get fullPublicPath() {
-        return this.#fullPublicPath;
+    get staticContentPaths() {
+        return this.#staticContentPaths;
     }
 
     /**
@@ -180,10 +194,10 @@ class TiWebServer extends ServiceConsumer {
     }
 
     /**
-     * Property returning the {@link WebAppManager} instance.
+     * Property returning the {@link TiWebAppManager} instance.
      *
      * @property
-     * @returns {WebAppManager}
+     * @returns {TiWebAppManager}
      * @public
      */
     get webAppManager() {
@@ -195,7 +209,6 @@ class TiWebServer extends ServiceConsumer {
      *
      * @method
      * @returns {Promise}
-     * @throws {Exception.E_GEN_INVALID_ARGUMENT_TYPE} If the service configuration for the TLS key or cert paths is invalid.
      * @override
      * @public
      */
@@ -215,12 +228,13 @@ class TiWebServer extends ServiceConsumer {
                 const resolvedRequestTimeout = timeoutCandidates.length ? Math.max( ...timeoutCandidates ) : undefined;
                 if ( this.serviceConfig.useTLS === true ) {
                     if ( !this.serviceConfig.tlsKeyPath || !this.serviceConfig.tlsCertPath ) {
+                        // Abort initialization if there is something wrong with the TLS key or cert paths:
                         let exception = exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, {
                             tlsKeyPath: this.serviceConfig.tlsKeyPath,
                             tlsCertPath: this.serviceConfig.tlsCertPath
                         } );
                         exception.httpCode = exceptions.httpCode.C_500;
-                        throw exception;
+                        return reject( exception );
                     }
                     netServerOptions.key = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsKeyPath ) );
                     netServerOptions.cert = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsCertPath ) );
@@ -266,29 +280,27 @@ class TiWebServer extends ServiceConsumer {
                 // Set up the web server routes:
                 this.#webServer.use( webHandlers.onShutDownHandler( this ) );
                 this.#webServer.use( webHandlers.resourceProtectionHandler( this ) );
+                this.#webServer.use( "/.well-known", express.static( path.join( this.#staticContentPaths[ 0 ], ".well-known" ), { dotfiles: "allow" } ) );
 
-                this.#webServer.get( "/", webHandlers.webAppHandler( this ) );
-                this.#webServer.get( "/not-found", webHandlers.webAppHandler( this ) );
-                this.#webServer.use( "/.well-known", express.static( path.join( this.#fullPublicPath, ".well-known" ), { dotfiles: "allow" } ) );
-                this.#webServer.use( "/static", express.static( this.#fullPublicPath, { maxAge: "1y", immutable: true } ) );
+                // Static content routes are registered in reverse order to ensure that custom assets can override the default ones and be served first:
+                _.forEachRight( this.#staticContentPaths, ( staticContentPath ) => {
+                    this.#webServer.use( "/static", express.static( staticContentPath, { maxAge: "1y", immutable: true } ) );
+                } );
 
-                this.#webServer.get( "/app/:view", webHandlers.webAppHandler( this ) );
-                this.#webServer.get( "/login/:method", webHandlers.authenticationHandler( this ) );
-                this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
-                this.#webServer.post( "/logout", webHandlers.logoutHandler() );
-                this.#webServer.get( "/me", webHandlers.userInformationHandler() );
-                if ( this.#authManager.isAuthEnabled( authMethod.OPENID_GOOGLE ) ) {
-                    this.#webServer.get( this.#authManager.getOAuth2CallbackUrl( authMethod.OPENID_GOOGLE ), webHandlers.authorizedOAuth2CallbackHandler( this, authMethod.OPENID_GOOGLE ) );
-                }
-                if ( this.#authManager.isAuthEnabled( authMethod.OPENID_AZURE ) ) {
-                    this.#webServer.get( this.#authManager.getOAuth2CallbackUrl( authMethod.OPENID_AZURE ), webHandlers.authorizedOAuth2CallbackHandler( this, authMethod.OPENID_AZURE ) );
-                }
+                // Set up the web application routes:
+                this.defineWebApplicationRoutes();
 
                 // API service proxy route (protected by auth middleware):
-                this.#webServer.post( "/service/:version/:name", webHandlers.serviceCallHandler( this ) );
+                if ( this.serviceConfig.api.endpointEnabled === true ) {
+                    this.#webServer.post( "/service/:version/:name", webHandlers.serviceCallHandler( this ) );
+                }
 
+                // Set up error handling middleware:
                 this.#webServer.all( "*splat", webHandlers.invalidRouteHandler() );
                 this.#webServer.use( webHandlers.defaultErrorHandler() );
+
+                // Set up the unprotected routes:
+                this.defineUnprotectedRoutes();
 
                 return this.#authManager.initialize();
             } ).then( () => {
@@ -413,11 +425,18 @@ class TiWebServer extends ServiceConsumer {
     }
 
     /**
-     * Used to check if the specified route is unprotected (i.e., does not require authentication).
-     * Unprotected routes are:
+     * Used to check if the specified route is unprotected (i.e., does not require authentication). The default unprotected routes are:
      * - /
      * - /static/...
      * - /.well-known/...
+     * - /not-found
+     * - /app
+     * - /app/enter
+     * - /app/config
+     * - /logout
+     * - /login/:method
+     * <br/>
+     * NOTE: You can define custom unprotected routes by overriding the {@link TiWebServer#defineUnprotectedRoutes} method.
      *
      * @method
      * @param {string} route
@@ -441,6 +460,53 @@ class TiWebServer extends ServiceConsumer {
             }
         }
         return result;
+    }
+
+    /**
+     * Used to define the web application routes.
+     * <br/>
+     * NOTE: Override this to define custom web application routes. Remember to call the base method if you want to preserve the default behavior as well.
+     *
+     * @method
+     * @virtual
+     * @public
+     */
+    defineWebApplicationRoutes() {
+        this.#webServer.get( "/", webHandlers.webAppHandler( this ) );
+        this.#webServer.get( "/not-found", webHandlers.webAppHandler( this ) );
+        this.#webServer.get( "/app", webHandlers.webAppHandler( this ) );
+        this.#webServer.get( "/app/:view", webHandlers.webAppHandler( this ) );
+        this.#webServer.get( "/login/:method", webHandlers.authenticationHandler( this ) );
+        this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
+        this.#webServer.post( "/logout", webHandlers.logoutHandler() );
+        this.#webServer.get( "/me", webHandlers.userInformationHandler() );
+        if ( this.#authManager.isAuthEnabled( authMethod.OPENID_GOOGLE ) ) {
+            this.#webServer.get( this.#authManager.getOAuth2CallbackUrl( authMethod.OPENID_GOOGLE ), webHandlers.authorizedOAuth2CallbackHandler( this, authMethod.OPENID_GOOGLE ) );
+        }
+        if ( this.#authManager.isAuthEnabled( authMethod.OPENID_AZURE ) ) {
+            this.#webServer.get( this.#authManager.getOAuth2CallbackUrl( authMethod.OPENID_AZURE ), webHandlers.authorizedOAuth2CallbackHandler( this, authMethod.OPENID_AZURE ) );
+        }
+    }
+
+    /**
+     * Used to define the unprotected routes (i.e., routes that do not require authentication).
+     * <br/>
+     * NOTE: Override this to define custom unprotected routes. Remember to call the base method if you want to preserve the default behavior as well.
+     *
+     * @method
+     * @virtual
+     * @public
+     */
+    defineUnprotectedRoutes() {
+        this.#unprotectedRoutes.push( "/" );
+        this.#unprotectedRoutes.push( "/not-found" );
+        this.#unprotectedRoutes.push( "/app" );
+        this.#unprotectedRoutes.push( "/app/enter" );
+        this.#unprotectedRoutes.push( "/app/config" );
+        this.#unprotectedRoutes.push( /^\/login\/[^\/]+$/i );
+        this.#unprotectedRoutes.push( "/logout" );
+        this.#unprotectedRoutes.push( /^\/static\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
+        this.#unprotectedRoutes.push( /^\/\.well-known\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
     }
 
     /* Private interface */

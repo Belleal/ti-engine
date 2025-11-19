@@ -3,7 +3,7 @@
      class="ti-sidebar-flyout-container">
     <button x-on:click.stop="toggle()"
             x-on:ti-close-all-flyout="close()"
-            x-bind:aria-expanded="String(isOpen)"
+            x-bind:aria-expanded="isOpen"
             x-bind:aria-controls="$id('component-flyout')"
             x-bind:aria-label="menuTitle"
             x-ref="flyoutButton"

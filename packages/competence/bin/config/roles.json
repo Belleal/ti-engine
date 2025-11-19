@@ -1,0 +1,17 @@
+{
+  "EMPLOYEE": [
+    1,
+    "Employee",
+    "A general employee role without any additional privileges."
+  ],
+  "MANAGER": [
+    2,
+    "Manager",
+    "A manager role that is responsible for managing employees."
+  ],
+  "SUPERVISOR": [
+    3,
+    "Supervisor",
+    "A supervisor role that oversees the process but does not manage employees."
+  ]
+}

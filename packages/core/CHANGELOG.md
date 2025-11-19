@@ -2,6 +2,13 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.13
+
+* feat(exceptions): add new exception code `E_GEN_UNALLOWED_OVERRIDE` (1009) for detecting attempts to override protected or private methods/properties
+* feat(auditing): enhance console data formatting with recursive, depth-limited formatting (max depth: 5), circular reference detection and handling, improved readability for nested objects and multi-line strings, and proper indentation and prefixing for structured output
+* fix(start instance): modified `start-instance.js` to initialize serviceConfig as undefined instead of an empty object when `TI_INSTANCE_CONFIG` environment variable is not provided
+* build(npm): update npm dependencies to their latest versions
+
 ## Version 1.3.12
 
 * feat(exceptions): add new exception code `E_COM_SERVICE_EXEC_FAILED`

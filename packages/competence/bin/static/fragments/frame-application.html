@@ -4,11 +4,12 @@
             <span class="material-symbols-outlined">home</span>
         </a>
         <span class="ti-spacer-v-10"></span>
-        <button type="button" class="ti-sidebar-button ti-glass-btn-black">
-            <span class="material-symbols-outlined">radio_button_checked</span>
-        </button>
-        <button type="button" class="ti-sidebar-button ti-glass-btn-black">
-            <span class="material-symbols-outlined">radio_button_checked</span>
+        <button hx-get="/app/competence-evaluation?employeeID=1"
+                hx-target="#ti-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                type="button" class="ti-sidebar-flyout-item ti-glass-btn-black" aria-label="Competence Evaluation">
+            <span class="material-symbols-outlined">fact_check</span>
         </button>
     </div>
     <div id="ti-sidebar-menu-bottom" class="ti-sidebar-menu bottom">
