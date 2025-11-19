@@ -557,7 +557,7 @@ module.exports.webAppHandler = ( instance ) => {
                     const isPartial = isHtmxRequest( request );
                     const nonceHeader = request.get( "x-csp-nonce" ) || "";
                     const nonce = isPartial ? nonceHeader : ( request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce );
-                    instance.webAppManager.assembleHtmlView( request.session, instance.fullPublicPath, request.path, {
+                    instance.webAppManager.assembleHtmlView( request.session, instance.staticContentPaths, request.path, {
                         nonce: nonce,
                         isPartial: isPartial,
                         view: request.params.view,

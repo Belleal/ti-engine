@@ -3,5 +3,5 @@ node_modules/
 .idea/
 package-lock.json
 */package-lock.json
-/packages/web-framework/bin/tls/localhost+2.pem
-/packages/web-framework/bin/tls/localhost+2-key.pem
+/packages/competence/bin/tls/
+/packages/web-framework/bin/tls/

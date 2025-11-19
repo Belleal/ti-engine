@@ -28,6 +28,7 @@ const exceptionCodeEnum = tools.enum( {
     E_GEN_FEATURE_UNSUPPORTED: [ 1006, "feature unsupported", "The requested feature is not supported by current configuration or version." ],
     E_GEN_INVALID_ARGUMENT_TYPE: [ 1007, "invalid argument type", "The provided argument is not of the expected type." ],
     E_GEN_NOT_INITIALIZED: [ 1008, "not initialized", "The invoked framework component is not initialized." ],
+    E_GEN_UNALLOWED_OVERRIDE: [ 1009, "unallowed override", "Attempt to override a protected or private method or property detected." ],
     /** Security & Administration exceptions - codes under 2xxx */
     E_SEC_INVALID_AUTH_TOKEN: [ 2000, "invalid auth token", "Invalid authorization token provided." ],
     E_SEC_INVALID_EXPIRED_SESSION: [ 2001, "invalid or expired session", "Invalid or expired session encountered." ],
