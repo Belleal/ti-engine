@@ -31,6 +31,9 @@
       "1008": {
         "en": "The invoked framework component is not initialized."
       },
+      "1009": {
+        "en": "Attempt to override a protected or private method or property detected."
+      },
       "2000": {
         "en": "Invalid authorization token provided."
       },

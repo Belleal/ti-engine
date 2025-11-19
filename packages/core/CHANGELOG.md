@@ -2,6 +2,10 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.13
+
+
+
 ## Version 1.3.12
 
 * feat(exceptions): add new exception code `E_COM_SERVICE_EXEC_FAILED`

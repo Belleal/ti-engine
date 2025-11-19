@@ -1,19 +1,24 @@
 {
   "name": "@ti-engine/web-framework",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "A web-framework based on the ti-engine. It provides a customizable ready-to-use web-server microservice and a set of tools for creating web applications. NOTICE: This is still a work in progress and the full architecture, design, and functionality are not available!",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
+  "exports": {
+    "./web-application": "./bin/web-app-manager.js",
+    "./web-server": "./bin/web-server.js"
+  },
   "imports": {
-    "#auth-manager": "./server/auth-manager.js",
-    "#session-store": "./server/session-store.js",
-    "#user": "./server/user.js",
-    "#web-app-manager": "./server/web-app-manager.js",
-    "#web-handlers": "./server/web-handlers.js"
+    "#auth-manager": "./components/auth-manager.js",
+    "#session-store": "./components/session-store.js",
+    "#user": "./components/user.js",
+    "#web-app-manager": "./bin/web-app-manager.js",
+    "#web-handlers": "./components/web-handlers.js",
+    "#web-server": "./bin/web-server.js",
+    "#web-server-config": "./bin/web-server.json"
   },
   "dependencies": {
     "@ti-engine/core": "*",
-    "@alpinejs/csp": "^3.15.1",
     "cookie-parser": "^1.4.7",
     "express": "^5.1.0",
     "express-session": "^1.18.2",
@@ -22,9 +27,30 @@
     "openid-client": "^6.8.1"
   },
   "devDependencies": {
+    "@alpinejs/csp": "^3.15.2",
     "htmx.org": "^2.0.8"
   },
+  "files": [
+    "bin/",
+    "components/",
+    ".env",
+    "package.json",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Belleal/ti-engine.git",
+    "directory": "packages/web-framework"
+  },
+  "bugs": {
+    "url": "https://github.com/Belleal/ti-engine/issues"
+  },
+  "homepage": "https://github.com/Belleal/ti-engine/tree/master/packages/web-framework#readme",
   "engines": {
     "node": ">=18.0.0"
+  },
+  "scripts": {
+    "postinstall": "node ./bin/build/post-install.js"
   }
 }

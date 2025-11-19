@@ -4,8 +4,14 @@
   "description": "The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
+  "imports": {
+    "#config-position-levels": "./bin/config/positionLevels.json",
+    "#config-positions": "./bin/config/positions.json",
+    "#config-roles": "./bin/config/roles.json"
+  },
   "dependencies": {
     "@ti-engine/core": "*",
+    "@ti-engine/web-framework": "*",
     "postgres": "^3.4.7"
   },
   "engines": {

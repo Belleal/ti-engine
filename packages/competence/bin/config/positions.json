@@ -1,0 +1,17 @@
+{
+  "SOFTWARE_ENGINEER": [
+    1,
+    "Software Engineer",
+    "A general software engineer position without a focus on specific technology stack."
+  ],
+  "PROJECT_MANAGER": [
+    2,
+    "Project Manager",
+    "A standard project manager position that is responsible for managing projects."
+  ],
+  "BUSINESS_ANALYST": [
+    3,
+    "Business Analyst",
+    "A standard business analyst position that is responsible for analyzing business requirements and providing solutions."
+  ]
+}

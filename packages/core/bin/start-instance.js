@@ -124,7 +124,7 @@ try {
     const serviceConstructor = require( path.join( process.cwd(), process.env.TI_INSTANCE_CLASS ) );
     const serviceConfigPath = process.env.TI_INSTANCE_CONFIG;
     /** @type ServiceConfiguration */
-    let serviceConfig = {};
+    let serviceConfig;
     if ( serviceConfigPath ) {
         serviceConfig = require( path.join( process.cwd(), process.env.TI_INSTANCE_CONFIG ) );
     }

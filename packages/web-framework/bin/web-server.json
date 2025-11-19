@@ -1,5 +1,6 @@
 {
   "api": {
+    "endpointEnabled": true,
     "inventory": {
       "v1": {
         "test-1": {

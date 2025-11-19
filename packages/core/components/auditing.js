@@ -6,6 +6,7 @@
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+const { EOL } = require( "node:os" )
 const _ = require( "lodash" );
 const tools = require( "#tools" );
 const logger = require( "#logger" );
@@ -132,7 +133,7 @@ class Auditing {
         } else {
             console.log( Auditing.#formatConsoleMessage( logEntry ) );
             if ( !_.isEmpty( logEntry.data ) ) {
-                console.log( `   » ${ Auditing.#formatConsoleData( logEntry ) }` );
+                console.log( Auditing.#formatConsoleData( logEntry.data, "   " ) );
             }
         }
     }
@@ -154,12 +155,36 @@ class Auditing {
      * Used to format a log entry data payload for the Node console.
      *
      * @method
-     * @param {TiLogEntry} logEntry
+     * @param {Object} data
+     * @param {string} [prefix=""]
      * @returns {string}
      * @private
      */
-    static #formatConsoleData( logEntry ) {
-        return tools.stringifyJSON( logEntry.data );
+    static #formatConsoleData( data, prefix = "" ) {
+        let formattedData = "";
+
+        if ( _.isObjectLike( data ) ) {
+            _.forOwn( data, ( value, key ) => {
+                if ( key === "stack" ) {
+                    formattedData += prefix + `» exception stack:` + EOL;
+                    let stackLines = value.split( "\n" );
+                    _.forEach( stackLines, ( line, index ) => {
+                        formattedData += prefix + `- ${ _.trim( line ) }` + EOL;
+                    } );
+                } else {
+                    if ( _.isObjectLike( value ) ) {
+                        formattedData += prefix + `» ${ key }:` + EOL + Auditing.#formatConsoleData( value, "   " + prefix );
+                    } else {
+                        formattedData += prefix + `» ${ key }: ${ value }` + EOL;
+                    }
+                }
+            } );
+        }
+        if ( formattedData.endsWith( EOL ) ) {
+            formattedData = formattedData.slice( 0, -EOL.length );
+        }
+
+        return formattedData;
     }
 }
 

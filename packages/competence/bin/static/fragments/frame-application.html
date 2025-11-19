@@ -1,0 +1,26 @@
+<div id="ti-sidebar" class="ti-sidebar ti-glass-panel-black">
+    <div id="ti-sidebar-menu-top" class="ti-sidebar-menu top">
+        <a href="/" type="button" class="ti-sidebar-button ti-glass-btn-black" aria-label="Home">
+            <span class="material-symbols-outlined">home</span>
+        </a>
+        <span class="ti-spacer-v-10"></span>
+        <button hx-get="/app/competence-evaluation?employeeID=1"
+                hx-target="#ti-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                type="button" class="ti-sidebar-flyout-item ti-glass-btn-black">
+            <span class="material-symbols-outlined">fact_check</span>
+        </button>
+    </div>
+    <div id="ti-sidebar-menu-bottom" class="ti-sidebar-menu bottom">
+        <div x-data="$store.tiComponentsConfig.sidebarAdministrationMenu">
+            <ti-component-sidebar-flyout-placeholder/>
+        </div>
+        <div x-data="$store.tiComponentsConfig.sidebarUserMenu">
+            <ti-component-sidebar-flyout-placeholder/>
+        </div>
+    </div>
+</div>
+<div id="ti-content" class="ti-content">
+    <ti-nested-frame-placeholder hx-get="/app/dashboard" hx-trigger="load" hx-target="this" hx-swap="outerHTML" hx-push-url="true"/>
+</div>
