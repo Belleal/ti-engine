@@ -474,6 +474,7 @@ class TiWebServer extends ServiceConsumer {
     defineWebApplicationRoutes() {
         this.#webServer.get( "/", webHandlers.webAppHandler( this ) );
         this.#webServer.get( "/not-found", webHandlers.webAppHandler( this ) );
+        this.#webServer.get( "/app", webHandlers.webAppHandler( this ) );
         this.#webServer.get( "/app/:view", webHandlers.webAppHandler( this ) );
         this.#webServer.get( "/login/:method", webHandlers.authenticationHandler( this ) );
         this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
