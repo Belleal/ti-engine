@@ -118,7 +118,7 @@ class TiWebServer extends ServiceConsumer {
      * @throws {Exception.E_GEN_JS_INTERNAL_ERROR} If the web application manager cannot be loaded.
      */
     constructor( serviceDomainName, serviceConfig ) {
-        super( serviceDomainName, _.merge( webServerConfig, ( _.isObjectLike( serviceConfig ) ) ? serviceConfig : {} ) );
+        super( serviceDomainName, _.merge( {}, webServerConfig, ( _.isObjectLike( serviceConfig ) ) ? serviceConfig : {} ) );
 
         // Include the current host in the list of allowed hosts:
         this.#allowedHosts.push( this.serviceConfig.host );
@@ -281,7 +281,9 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.use( webHandlers.onShutDownHandler( this ) );
                 this.#webServer.use( webHandlers.resourceProtectionHandler( this ) );
                 this.#webServer.use( "/.well-known", express.static( path.join( this.#staticContentPaths[ 0 ], ".well-known" ), { dotfiles: "allow" } ) );
-                _.forEach( this.#staticContentPaths, ( staticContentPath ) => {
+
+                // Static content routes are registered in reverse order to ensure that custom assets can override the default ones and be served first:
+                _.forEachRight( this.#staticContentPaths, ( staticContentPath ) => {
                     this.#webServer.use( "/static", express.static( staticContentPath, { maxAge: "1y", immutable: true } ) );
                 } );
 
@@ -423,11 +425,18 @@ class TiWebServer extends ServiceConsumer {
     }
 
     /**
-     * Used to check if the specified route is unprotected (i.e., does not require authentication).
-     * Unprotected routes are:
+     * Used to check if the specified route is unprotected (i.e., does not require authentication). The default unprotected routes are:
      * - /
      * - /static/...
      * - /.well-known/...
+     * - /not-found
+     * - /app
+     * - /app/enter
+     * - /app/config
+     * - /logout
+     * - /login/:method
+     * <br/>
+     * NOTE: You can define custom unprotected routes by overriding the {@link TiWebServer#defineUnprotectedRoutes} method.
      *
      * @method
      * @param {string} route

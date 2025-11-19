@@ -116,6 +116,16 @@ class TiWebAppManager {
     }
 
     /**
+     * Used to clear the static file cache. This is useful for testing purposes to ensure that the web server is always serving fresh content.
+     *
+     * @method
+     * @public
+     */
+    clearStaticFileCache() {
+        this.#staticFileCache = {};
+    }
+
+    /**
      * Optional HTML transformation hook.
      * <br/>
      * NOTE: Override in subclasses to add nonces or other dynamic data to outgoing HTML.
@@ -260,7 +270,7 @@ class TiWebAppManager {
      * @param {boolean} [options.isHome] Optional flag to indicate whether the requested route is the home page.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
      * @returns {Promise<string>}
-     * @public
+     * @private
      */
     #getHtmlFragment( session, staticContentPaths, fragment, options = {} ) {
         return new Promise( ( resolve, reject ) => {

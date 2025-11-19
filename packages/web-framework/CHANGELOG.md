@@ -4,7 +4,34 @@ This document will contain the list of changes made to the framework. The format
 
 ## Version 1.5.0
 
-
+* feat(web-app)!: change `TiWebAppManager` to be an abstract class
+* feat(web-app): rename class `WebAppManager` to `TiWebAppManager` and add a static file caching mechanism
+* feat(web-app): add `addFragment` method with override protection for custom HTML fragment registration
+* feat(web-app): add `webAppIdentifier` getter to expose application identifier
+* feat(web-server): add support for dynamic web application instantiation from config via `classPath`
+* feat(web-server): add `defineWebApplicationRoutes` and `defineUnprotectedRoutes` extension points
+* feat(web-server): add `endpointEnabled` flag to conditionally enable API endpoint proxy
+* feat(web-server): add serving for `.well-known` directory for web standards compliance
+* feat(package): add public exports for `./web-application` and `./web-server` subpaths
+* feat(package): add `files` whitelist and repository metadata (homepage, bugs URL, git repository)
+* feat(package): add Node.js version requirement (>=18.0.0) via the `engines` field
+* feat(build): add a post-install script to vendor HTMX and Alpine.js CSP libraries locally
+* refactor(web-app): replace `fullPublicPath` with `staticContentPaths` array for multi-path static content resolution
+* refactor(web-app): add file location search algorithm with caching via `#locateStaticFile` method
+* refactor(web-app): update `transformHtml` signature to remove `fullPublicPath` parameter
+* refactor(web-app): update `assembleHtmlView` to accept `staticContentPaths` instead of `fullPublicPath`
+* refactor(web-server): replace the single static path with configurable `staticContentPaths` array
+* refactor(web-server): merge web server default config with the provided service config in constructor
+* refactor(web-server): load web server default config directly from the package JSON import instead of the ENV configuration
+* refactor(web-server): improve TLS initialization error handling to reject promise instead of throw
+* refactor(package): reorganize imports from `./server/...` to `./bin/...` and `./components/...` paths
+* refactor(package): move `@alpinejs/csp` from dependencies to devDependencies
+* build(static): replace CDN script references with local copies for HTMX and Alpine.js CSP
+* build(env): remove `TI_INSTANCE_CONFIG` and update `TI_LOCALIZATION_LABELS_PATH` to use `bin/localization/` path
+* build(env): add `TI_AUDITING_LOG_MIN_LEVEL` configuration variable
+* fix(ui): change `aria-expanded` binding from string to boolean in the sidebar flyout component
+* fix(ui): remove incorrect `type="button"` attribute from `Home` anchor element
+* docs: improve various documentation comments and class descriptions
 
 ## Version 1.4.0
 

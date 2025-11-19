@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/competences.json",
+  "title": "Competence Framework Configuration",
+  "description": "Hierarchical competence catalog with categories, subcategories, and detailed competence definitions including scope and relevancy scores.",
+  "type": "object",
+  "required": [
+    "categories",
+    "competences"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "categories": {
+      "type": "object",
+      "description": "Top-level competence categories",
+      "required": [
+        "E",
+        "I",
+        "C"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "E": {
+          "$ref": "#/$defs/category"
+        },
+        "I": {
+          "$ref": "#/$defs/category"
+        },
+        "C": {
+          "$ref": "#/$defs/category"
+        }
+      }
+    },
+    "competences": {
+      "type": "object",
+      "description": "Individual competence definitions keyed by competence ID",
+      "patternProperties": {
+        "^[EIC][1-3]-\\d+$": {
+          "$ref": "#/$defs/competence"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "category": {
+      "type": "object",
+      "description": "A category with localized name, description, and subcategories",
+      "required": [
+        "name",
+        "description",
+        "subcategories"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^category\\.name\\.[EIC]$",
+          "description": "Localization key for category name"
+        },
+        "description": {
+          "type": "string",
+          "pattern": "^category\\.description\\.[EIC]$",
+          "description": "Localization key for category description"
+        },
+        "subcategories": {
+          "type": "object",
+          "description": "Subcategories within this category",
+          "minProperties": 3,
+          "maxProperties": 3,
+          "patternProperties": {
+            "^[EIC][1-3]$": {
+              "$ref": "#/$defs/subcategory"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "subcategory": {
+      "type": "object",
+      "description": "A subcategory with localized name and description",
+      "required": [
+        "name",
+        "description"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^category\\.sub\\.name\\.[EIC][1-3]$",
+          "description": "Localization key for subcategory name"
+        },
+        "description": {
+          "type": "string",
+          "pattern": "^category\\.sub\\.description\\.[EIC][1-3]$",
+          "description": "Localization key for subcategory description"
+        }
+      }
+    },
+    "competence": {
+      "type": "object",
+      "description": "A single competence definition",
+      "required": [
+        "name",
+        "description",
+        "category",
+        "subcategory",
+        "scope",
+        "relevancy"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^competence\\.name\\.[EIC][1-3]-\\d+$",
+          "description": "Localization key for competence name"
+        },
+        "description": {
+          "type": "string",
+          "pattern": "^competence\\.description\\.[EIC][1-3]-\\d+$",
+          "description": "Localization key for competence description"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "E",
+            "I",
+            "C"
+          ],
+          "description": "Category code: E (Execution), I (Innovation), or C (Communication/Collaboration)"
+        },
+        "subcategory": {
+          "type": "string",
+          "pattern": "^[EIC][1-3]$",
+          "description": "Subcategory code matching the parent category"
+        },
+        "scope": {
+          "type": "object",
+          "description": "Scope descriptions per position level",
+          "required": [
+            "N",
+            "J",
+            "R",
+            "S",
+            "X",
+            "T"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "N": {
+              "type": "string",
+              "pattern": "^competence\\.scope\\.[EIC][1-3]-\\d+\\.N$",
+              "description": "Localization key for N-level scope"
+            },
+            "J": {
+              "type": "string",
+              "pattern": "^competence\\.scope\\.[EIC][1-3]-\\d+\\.J$",
+              "description": "Localization key for J-level scope"
+            },
+            "R": {
+              "type": "string",
+              "pattern": "^competence\\.scope\\.[EIC][1-3]-\\d+\\.R$",
+              "description": "Localization key for R-level scope"
+            },
+            "S": {
+              "type": "string",
+              "pattern": "^competence\\.scope\\.[EIC][1-3]-\\d+\\.S$",
+              "description": "Localization key for S-level scope"
+            },
+            "X": {
+              "type": "string",
+              "pattern": "^competence\\.scope\\.[EIC][1-3]-\\d+\\.X$",
+              "description": "Localization key for X-level scope"
+            },
+            "T": {
+              "type": "string",
+              "pattern": "^competence\\.scope\\.[EIC][1-3]-\\d+\\.T$",
+              "description": "Localization key for T-level scope"
+            }
+          }
+        },
+        "relevancy": {
+          "type": "object",
+          "description": "Relevancy scores per position tier",
+          "required": [
+            "N1",
+            "J1",
+            "J2",
+            "J3",
+            "R1",
+            "R2",
+            "R3",
+            "S1",
+            "S2",
+            "S3",
+            "X1",
+            "T1"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "N1": {
+              "$ref": "#/$defs/relevancyScore"
+            },
+            "J1": {
+              "$ref": "#/$defs/relevancyScore"
+            },
+            "J2": {
+              "$ref": "#/$defs/relevancyScore"
+            },
+            "J3": {
+              "$ref": "#/$defs/relevancyScore"
+            },
+            "R1": {
+              "$ref": "#/$defs/relevancyScore"
+            },
+            "R2": {
+              "$ref": "#/$defs/relevancyScore"
+            },
+            "R3": {
+              "$ref": "#/$defs/relevancyScore"
+            },
+            "S1": {
+              "$ref": "#/$defs/relevancyScore"
+            },
+            "S2": {
+              "$ref": "#/$defs/relevancyScore"
+            },
+            "S3": {
+              "$ref": "#/$defs/relevancyScore"
+            },
+            "X1": {
+              "$ref": "#/$defs/relevancyScore"
+            },
+            "T1": {
+              "$ref": "#/$defs/relevancyScore"
+            }
+          }
+        }
+      }
+    },
+    "relevancyScore": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10,
+      "description": "Relevancy score indicating importance (1-10 scale)"
+    }
+  }
+}
