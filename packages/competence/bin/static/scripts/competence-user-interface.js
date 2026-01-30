@@ -1,16 +1,16 @@
 let initial = {
     "personal": {
-        "name": "Boris Kostadinov",
-        "position": "Director of Software Integrations",
-        "department": "Software Integrations",
-        "manager": "The Boss",
-        "level": "X1",
-        "startingDate": "01.01.2020"
+        "name": "",
+        "position": "",
+        "department": "",
+        "manager": "",
+        "level": "",
+        "startingDate": ""
     },
     "evaluation": {
-        "cycle": "2026-1",
-        "cycleDate": "15.05.2026",
-        "interviewDate": "23.05.2026"
+        "cycle": "",
+        "cycleDate": "",
+        "interviewDate": ""
     },
     "competences": [
         {
@@ -99,10 +99,11 @@ let initial = {
 
 
 let configureCompetenceEvaluation = () => {
+    const clone = ( value ) => JSON.parse( JSON.stringify( value ) );
     return {
-        personal: initial.personal,
-        evaluation: initial.evaluation,
-        competences: initial.competences,
+        personal: clone( initial.personal ),
+        evaluation: clone( initial.evaluation ),
+        competences: clone( initial.competences ),
 
         reset() {
             const schemaEl = document.getElementById( 'competence-evaluation-schema' );
@@ -117,6 +118,27 @@ let configureCompetenceEvaluation = () => {
             if ( window.tiNotify ) {
                 window.tiNotify.success( 'Form state captured locally. Wire up persistence next.' );
             }
+        },
+
+        setInterviewDate( value ) {
+            this.evaluation.interviewDate = value;
+        },
+
+        getItemGrade( item, role ) {
+            if ( !item || !item.grades ) {
+                return "";
+            }
+            return item.grades[ role ] || "";
+        },
+
+        setItemGrade( item, role, value ) {
+            if ( !item ) {
+                return;
+            }
+            if ( !item.grades ) {
+                item.grades = {};
+            }
+            item.grades[ role ] = value;
         },
 
         // Compute summary for a category based on manager grades majority across all items.

@@ -7,7 +7,7 @@
 */
 
 const TiWebAppManager = require( "@ti-engine/web-framework/web-application" );
-const grades = require( "./config/grades.json" );
+const definitions = require( "#definitions" );
 
 /**
  * NOTE: This is still a work in progress.
@@ -66,7 +66,7 @@ class CompetenceWebApplication extends TiWebAppManager {
         if ( view === "config" ) {
             return super.processDataRequest( session, view, options ).then( ( result ) => ( {
                 ...result,
-                grades: grades
+                grades: definitions.frameworkGrades
             } ) );
         }
         return super.processDataRequest( session, view, options );

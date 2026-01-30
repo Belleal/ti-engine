@@ -312,7 +312,6 @@ let configureApplication = () => {
                 const config = result?.data || {};
                 this.labels = config.labels || {};
                 this.grades = config.grades || {};
-                //deepFreeze( this.labels );
                 this.isInitialized = true;
             } ).catch( ( error ) => {
                 error.message = `Failed to initialize the application: ${ error.message }`;

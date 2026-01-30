@@ -28,7 +28,8 @@
                 <div class="competence-data-value" x-text="evaluation.cycleDate"></div>
             </div>
             <div class="competence-label" x-text-label="interface.evaluation.appraisal.interview-date"></div>
-            <input class="competence-input" type="text" x-model="evaluation.interviewDate" placeholder="DD.MM.YYYY"/>
+            <input name="interviewDate" class="competence-input" type="date" x-bind:value="evaluation.interviewDate"
+                   x-on:input="setInterviewDate($event.target.value)"/>
         </div>
 
         <span class="ti-spacer-v-10"></span>
@@ -58,21 +59,24 @@
                                         <div class="competence-code" x-text="item.id"></div>
                                         <div class="competence-name" x-text="$store.tiApplication.getLabel(item.name, item.name)"></div>
                                     </div>
-                                    <select class="competence-input grade" x-model="item.grades.employee">
+                                    <select class="competence-input grade" x-bind:value="getItemGrade(item, 'employee')"
+                                            x-on:change="setItemGrade(item, 'employee', $event.target.value)">
                                         <option value="">-</option>
                                         <template x-for="(grade, gradeKey) in $store.tiApplication.grades" x-bind:key="gradeKey">
                                             <option x-bind:value="gradeKey"
                                                     x-text="($store.tiApplication.getLabel(grade.description || gradeKey, gradeKey) || gradeKey)"></option>
                                         </template>
                                     </select>
-                                    <select class="competence-input grade" x-model="item.grades.manager">
+                                    <select class="competence-input grade" x-bind:value="getItemGrade(item, 'manager')"
+                                            x-on:change="setItemGrade(item, 'manager', $event.target.value)">
                                         <option value="">-</option>
                                         <template x-for="(grade, gradeKey) in $store.tiApplication.grades" x-bind:key="gradeKey">
                                             <option x-bind:value="gradeKey"
                                                     x-text="($store.tiApplication.getLabel(grade.description || gradeKey, gradeKey) || gradeKey)"></option>
                                         </template>
                                     </select>
-                                    <select class="competence-input grade" x-model="item.grades.team">
+                                    <select class="competence-input grade" x-bind:value="getItemGrade(item, 'team')"
+                                            x-on:change="setItemGrade(item, 'team', $event.target.value)">
                                         <option value="">-</option>
                                         <template x-for="(grade, gradeKey) in $store.tiApplication.grades" x-bind:key="gradeKey">
                                             <option x-bind:value="gradeKey"

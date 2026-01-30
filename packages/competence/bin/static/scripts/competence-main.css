@@ -221,7 +221,15 @@
     text-align: center;
     text-align-last: center;
     font-size: 12px;
-    cursor: pointer;
+    cursor: text;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: none;
+}
+
+.competence-input.grade::-ms-expand {
+    display: none;
 }
 
 @media (max-width: var(--competence-appraisal-form-min-width)) {
@@ -235,5 +243,10 @@
 
     .competence-grid-value-group {
         grid-template-columns: 1fr;
+    }
+
+    .competence-row,
+    .competence-category {
+        min-width: 100%;
     }
 }

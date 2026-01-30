@@ -11,7 +11,9 @@ const tools = require( "@ti-engine/core/tools" );
 const organizationPositionCodeEnum = tools.enum( require( "#config-positions" ) );
 const organizationRoleCodeEnum = tools.enum( require( "#config-roles" ) );
 const organizationPositionLevelCode = require( "#config-position-levels" );
+const frameworkGrades = require( "#config-grades" );
 
 module.exports.organizationPositionCode = organizationPositionCodeEnum;
 module.exports.organizationRoleCode = organizationRoleCodeEnum;
 module.exports.organizationPositionLevelCode = organizationPositionLevelCode;
+module.exports.frameworkGrades = frameworkGrades;

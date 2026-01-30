@@ -5,9 +5,11 @@
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "imports": {
+    "#config-grades": "./bin/config/grades.json",
     "#config-position-levels": "./bin/config/positionLevels.json",
     "#config-positions": "./bin/config/positions.json",
-    "#config-roles": "./bin/config/roles.json"
+    "#config-roles": "./bin/config/roles.json",
+    "#definitions": "./application/definitions.js"
   },
   "dependencies": {
     "@ti-engine/core": "*",
@@ -15,6 +17,6 @@
     "postgres": "^3.4.8"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }
