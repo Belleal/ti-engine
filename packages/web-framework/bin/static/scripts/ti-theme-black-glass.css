@@ -49,6 +49,8 @@
     appearance: none;
     border: 0;
     background: transparent;
+    padding-inline: 0;
+    justify-content: center;
 
     /* Typography */
     color: var(--ti-sidebar-fg-dim);

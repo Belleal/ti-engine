@@ -7,6 +7,7 @@
 */
 
 const TiWebAppManager = require( "@ti-engine/web-framework/web-application" );
+const grades = require( "./config/grades.json" );
 
 /**
  * NOTE: This is still a work in progress.
@@ -48,6 +49,27 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     transformHtml( html, options ) {
         return super.transformHtml( html, options );
+    }
+
+    /**
+     * Used to process a request for a data resource.
+     *
+     * @method
+     * @override
+     * @param {Object} session
+     * @param {string} view
+     * @param {Object} [options]
+     * @returns {Promise<Object>}
+     * @public
+     */
+    processDataRequest( session, view, options = {} ) {
+        if ( view === "config" ) {
+            return super.processDataRequest( session, view, options ).then( ( result ) => ( {
+                ...result,
+                grades: grades
+            } ) );
+        }
+        return super.processDataRequest( session, view, options );
     }
 
 }

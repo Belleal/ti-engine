@@ -2290,5 +2290,87 @@
         }
       }
     }
+  },
+  "framework": {
+    "grades": {
+      "R": {
+        "en": "",
+        "bg": ""
+      },
+      "S": {
+        "en": "",
+        "bg": ""
+      },
+      "U": {
+        "en": "",
+        "bg": ""
+      }
+    }
+  },
+  "interface": {
+    "evaluation": {
+      "personal": {
+        "title": {
+          "en": "Personal Information",
+          "bg": ""
+        },
+        "name": {
+          "en": "Employee Name:",
+          "bg": ""
+        },
+        "position": {
+          "en": "Position & Level:",
+          "bg": ""
+        },
+        "department": {
+          "en": "Department:",
+          "bg": ""
+        },
+        "manager": {
+          "en": "Manager:",
+          "bg": ""
+        },
+        "starting-date": {
+          "en": "Employee Since:",
+          "bg": ""
+        }
+      },
+      "appraisal": {
+        "title": {
+          "en": "Performance Appraisal Form",
+          "bg": ""
+        },
+        "cycle": {
+          "en": "Performance Appraisal Cycle:",
+          "bg": ""
+        },
+        "interview-date": {
+          "en": "Performance Interview Date:",
+          "bg": ""
+        }
+      },
+      "competences": {
+        "title": {
+          "en": "Competences",
+          "bg": ""
+        },
+        "appraisals": {
+          "en": "Appraisals",
+          "bg": ""
+        },
+        "self": {
+          "en": "Self",
+          "bg": ""
+        },
+        "manager": {
+          "en": "Manager",
+          "bg": ""
+        },
+        "team": {
+          "en": "Team",
+          "bg": ""
+        }
+      }
+    }
   }
 }

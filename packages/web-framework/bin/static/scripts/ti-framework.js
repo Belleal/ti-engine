@@ -46,6 +46,27 @@ function deepMerge( base, source ) {
 }
 
 /**
+ * Used to deep-freeze an object.
+ *
+ * @method
+ * @param {Object} object
+ * @param {WeakSet} [seen]
+ * @return {Object}
+ * @public
+ */
+function deepFreeze( object, seen = new WeakSet() ) {
+    if ( object === null || typeof object !== "object" || seen.has( object ) ) {
+        return object;
+    } else {
+        seen.add( object );
+        Object.keys( object ).forEach( ( key ) => {
+            deepFreeze( object[ key ], seen );
+        } );
+        return Object.freeze( object );
+    }
+}
+
+/**
  * Used to get the visible box of the document.
  *
  * @method
@@ -279,6 +300,7 @@ let configureApplication = () => {
         isInitialized: false,
         user: undefined,
         labels: {},
+        grades: {},
         notificationIDCounter: 1,
         init() {
             document.addEventListener( "ti:error", ( event ) => {
@@ -287,7 +309,10 @@ let configureApplication = () => {
 
             this.sendRequest( "/app/config" ).then( ( result ) => {
                 // TODO: use result to initialize the application
-                this.labels = result?.data?.labels || {};
+                const config = result?.data || {};
+                this.labels = config.labels || {};
+                this.grades = config.grades || {};
+                //deepFreeze( this.labels );
                 this.isInitialized = true;
             } ).catch( ( error ) => {
                 error.message = `Failed to initialize the application: ${ error.message }`;
@@ -329,6 +354,19 @@ let configureApplication = () => {
                     timeout: data?.timeout || 60000
                 } );
             }
+        },
+        getLabel( label, fallback = "LABEL NOT FOUND" ) {
+            if ( !label ) return fallback;
+            const parts = label.split( "." ).filter( Boolean );
+            let current = this.labels;
+            for ( const key of parts ) {
+                if ( current && Object.prototype.hasOwnProperty.call( current, key ) ) {
+                    current = current[ key ];
+                } else {
+                    return fallback;
+                }
+            }
+            return ( current === undefined || current === null ) ? fallback : current;
         }
     };
 };
@@ -366,6 +404,21 @@ document.addEventListener( "htmx:responseError", ( event ) => {
  * Register on-initialization tasks for the Alpine.js framework.
  */
 document.addEventListener( "alpine:init", () => {
+    Alpine.directive( "text-label", ( element, { expression }, { effect } ) => {
+        effect( () => {
+            const tiApplication = Alpine.store( "tiApplication" );
+            if ( !tiApplication || typeof tiApplication.getLabel !== "function" ) return;
+            let path = ( expression || "" ).trim();
+            const fallback = element.textContent;
+            if (
+                ( path.startsWith( "'" ) && path.endsWith( "'" ) ) ||
+                ( path.startsWith( "\"" ) && path.endsWith( "\"" ) )
+            ) {
+                path = path.slice( 1, -1 );
+            }
+            element.textContent = tiApplication.getLabel( path, fallback );
+        } );
+    } );
     Alpine.store( "tiApplication", configureApplication() );
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );

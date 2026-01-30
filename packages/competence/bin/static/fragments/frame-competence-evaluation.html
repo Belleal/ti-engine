@@ -1,0 +1,94 @@
+<title id="ti-page-title" hx-swap-oob="outerHTML">{ti-title-placeholder}</title>
+<div class="ti-content pane" x-data="competenceEvaluation()">
+    <div class="ti-panel competence-sub-panel">
+        <div class="competence-sub-panel-title" x-text-label="interface.evaluation.personal.title"></div>
+        <div class="competence-grid">
+            <div class="competence-label" x-text-label="interface.evaluation.personal.name"></div>
+            <div class="competence-data-value" x-text="personal.name"></div>
+            <div class="competence-label" x-text-label="interface.evaluation.personal.position"></div>
+            <div class="competence-grid-value-group position-level">
+                <div class="competence-data-value compact-centered" x-text="personal.level"></div>
+                <div class="competence-data-value" x-text="personal.position"></div>
+            </div>
+            <div class="competence-label" x-text-label="interface.evaluation.personal.department"></div>
+            <div class="competence-data-value" x-text="personal.department"></div>
+            <div class="competence-label" x-text-label="interface.evaluation.personal.manager"></div>
+            <div class="competence-data-value" x-text="personal.manager"></div>
+            <div class="competence-label" x-text-label="interface.evaluation.personal.starting-date"></div>
+            <div class="competence-data-value" x-text="personal.startingDate"></div>
+        </div>
+    </div>
+
+    <div class="ti-panel competence-sub-panel">
+        <div class="competence-sub-panel-title" x-text-label="interface.evaluation.appraisal.title"></div>
+        <div class="competence-grid">
+            <div class="competence-label" x-text-label="interface.evaluation.appraisal.cycle"></div>
+            <div class="competence-grid-value-group appraisal-cycle">
+                <div class="competence-data-value compact-centered" x-text="evaluation.cycle"></div>
+                <div class="competence-data-value" x-text="evaluation.cycleDate"></div>
+            </div>
+            <div class="competence-label" x-text-label="interface.evaluation.appraisal.interview-date"></div>
+            <input class="competence-input" type="text" x-model="evaluation.interviewDate" placeholder="DD.MM.YYYY"/>
+        </div>
+
+        <span class="ti-spacer-v-10"></span>
+
+        <div class="competence-list">
+            <div class="competence-list-head">
+                <div class="competence-list-head-label title" x-text-label="interface.evaluation.competences.title"></div>
+                <div class="competence-list-head-label appraisals" x-text-label="interface.evaluation.competences.appraisals"></div>
+                <div class="competence-list-head-label self" x-text-label="interface.evaluation.competences.self"></div>
+                <div class="competence-list-head-label manager" x-text-label="interface.evaluation.competences.manager"></div>
+                <div class="competence-list-head-label team" x-text-label="interface.evaluation.competences.team"></div>
+            </div>
+
+            <template x-for="category in competences" x-bind:key="category.id">
+                <div class="competence-category">
+                    <div class="competence-category-header">
+                        <div class="competence-category-name" x-text="$store.tiApplication.getLabel(category.name, category.name)"></div>
+                        <div class="competence-category-description"
+                             x-text="category.description ? $store.tiApplication.getLabel(category.description, category.description) : ''"></div>
+                    </div>
+                    <template x-for="sub in category.subcategories" x-bind:key="sub.id">
+                        <div class="competence-subcategory">
+                            <div class="competence-subcategory-title" x-text="$store.tiApplication.getLabel(sub.name, sub.name)"></div>
+                            <template x-for="item in sub.items" x-bind:key="item.id">
+                                <div class="competence-row">
+                                    <div class="competence-info">
+                                        <div class="competence-code" x-text="item.id"></div>
+                                        <div class="competence-name" x-text="$store.tiApplication.getLabel(item.name, item.name)"></div>
+                                    </div>
+                                    <select class="competence-input grade" x-model="item.grades.employee">
+                                        <option value="">-</option>
+                                        <template x-for="(grade, gradeKey) in $store.tiApplication.grades" x-bind:key="gradeKey">
+                                            <option x-bind:value="gradeKey"
+                                                    x-text="($store.tiApplication.getLabel(grade.description || gradeKey, gradeKey) || gradeKey)"></option>
+                                        </template>
+                                    </select>
+                                    <select class="competence-input grade" x-model="item.grades.manager">
+                                        <option value="">-</option>
+                                        <template x-for="(grade, gradeKey) in $store.tiApplication.grades" x-bind:key="gradeKey">
+                                            <option x-bind:value="gradeKey"
+                                                    x-text="($store.tiApplication.getLabel(grade.description || gradeKey, gradeKey) || gradeKey)"></option>
+                                        </template>
+                                    </select>
+                                    <select class="competence-input grade" x-model="item.grades.team">
+                                        <option value="">-</option>
+                                        <template x-for="(grade, gradeKey) in $store.tiApplication.grades" x-bind:key="gradeKey">
+                                            <option x-bind:value="gradeKey"
+                                                    x-text="($store.tiApplication.getLabel(grade.description || gradeKey, gradeKey) || gradeKey)"></option>
+                                        </template>
+                                    </select>
+                                    <div class="competence-category-description"
+                                         x-text="$store.tiApplication.getLabel(item.description, item.description)"></div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </div>
+    </div>
+
+
+</div>
