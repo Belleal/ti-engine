@@ -4,7 +4,7 @@
       "employeeID": "1",
       "personal": {
         "name": "Geatrks Frkats",
-        "position": 1,
+        "position": "SOFTWARE_ENGINEER",
         "department": "Software Development",
         "manager": "Sdfaer Ltruajs",
         "level": "R",
@@ -16,7 +16,7 @@
       "employeeID": "2",
       "personal": {
         "name": "Mrkius Brhajas",
-        "position": 2,
+        "position": "PROJECT_MANAGER",
         "department": "Software Development",
         "manager": "Grasht Jraksj",
         "level": "J",

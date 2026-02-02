@@ -101,7 +101,7 @@ let configureCompetencyEvaluation = () => {
                 this.reset();
             } else {
                 this.employeeID = resolvedID;
-                const url = `/app/load-employee-competences?employeeID=${ encodeURIComponent( resolvedID ) }`;
+                const url = `/app/load-employee-competencies?employeeID=${ encodeURIComponent( resolvedID ) }`;
                 const tiApplication = Alpine.store( "tiApplication" );
                 tiApplication.sendRequest( url ).then( ( result ) => {
                     this.applyData( result?.data );

@@ -72,30 +72,9 @@ class CompetenceWebApplication extends TiWebAppManager {
                 grades: configuration.configEvaluationGrades
             } ) );
         }
-        if ( view === "load-employee-competences" ) {
+        if ( view === "load-employee-competencies" ) {
             const employeeID = String( options?.query?.employeeID || "" ).trim();
-            if ( !employeeID ) {
-                return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_QUERY ) );
-            }
-            const employee = dataLoader.instance.fetchEmployee( employeeID );
-            if ( !employee ) {
-                throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID: employeeID } );
-            }
-            const evaluations = dataLoader.instance.fetchEvaluations( employeeID );
-            const lastEvaluation = ( evaluations || [] )
-                .slice()
-                .sort( ( a, b ) =>
-                    new Date( b.interviewDate || b.cycleDate ) - new Date( a.interviewDate || a.cycleDate )
-                )[ 0 ] || {};
-            return Promise.resolve( {
-                employeeID: employeeID,
-                personal: {
-                    ...employee.personal,
-                    positionName: configuration.organizationPositionCode.name( employee.personal.position )
-                },
-                evaluation: lastEvaluation,
-                competencies: this.#buildCompetenciesTree( configuration.configCompetencies, lastEvaluation.grades || {}, session?.language )
-            } );
+            return this.#loadEmployeeCompetencies( session, employeeID );
         }
         return super.processDataRequest( session, view, options );
     }
@@ -103,12 +82,61 @@ class CompetenceWebApplication extends TiWebAppManager {
     /* Private interface */
 
 
-    #buildCompetenciesTree( competenceConfig, gradesByCode, language ) {
+    #loadEmployeeCompetencies( session, employeeID ) {
+        if ( !employeeID ) {
+            throw exceptions.raise( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_QUERY ) );
+        }
+        const employee = dataLoader.instance.fetchEmployee( employeeID );
+        if ( !employee ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID: employeeID } );
+        }
+        const evaluations = dataLoader.instance.fetchEvaluations( employeeID );
+        const lastEvaluation = ( evaluations || [] )
+            .slice()
+            .sort( ( a, b ) =>
+                new Date( b.interviewDate || b.cycleDate ) - new Date( a.interviewDate || a.cycleDate )
+            )[ 0 ] || {};
+        const positionKey = String( employee.personal?.position ?? "" ).trim();
+        const cycleID = String( lastEvaluation?.cycleID ?? "" ).trim();
+        const positionCompetencies = configuration.configEvaluationPositionCompetencies || {};
+        const positionEntry = Object.prototype.hasOwnProperty.call( positionCompetencies, positionKey )
+            ? positionCompetencies[ positionKey ]
+            : null;
+        let allowedCompetencyCodes = null;
+        if ( Array.isArray( positionEntry ) ) {
+            allowedCompetencyCodes = positionEntry;
+        } else if ( positionEntry && typeof positionEntry === "object" ) {
+            allowedCompetencyCodes = Object.prototype.hasOwnProperty.call( positionEntry, cycleID )
+                ? positionEntry[ cycleID ]
+                : [];
+        }
+        return Promise.resolve( {
+            employeeID: employeeID,
+            personal: {
+                ...employee.personal,
+                positionName: configuration.organizationPositionCode.name( employee.personal.position )
+            },
+            evaluation: lastEvaluation,
+            competencies: this.#buildCompetenciesTree(
+                configuration.configCompetencies,
+                lastEvaluation.grades || {},
+                session?.language,
+                allowedCompetencyCodes
+            )
+        } );
+    }
+
+    #buildCompetenciesTree( competenceConfig, gradesByCode, language, allowedCompetencyCodes = null ) {
         const categories = competenceConfig?.categories || {};
         const competencies = competenceConfig?.competencies || {};
         const itemsByCategory = {};
+        const filterByPosition = allowedCompetencyCodes !== null;
+        const allowedCompetencySet = filterByPosition
+            ? new Set( Array.isArray( allowedCompetencyCodes ) ? allowedCompetencyCodes : [] )
+            : null;
 
         Object.entries( competencies ).forEach( ( [ code, competency ] ) => {
+            if ( filterByPosition && !allowedCompetencySet.has( code ) ) return;
             if ( !competency || !competency.category || !competency.subcategory ) return;
             if ( !itemsByCategory[ competency.category ] ) {
                 itemsByCategory[ competency.category ] = {};
@@ -140,13 +168,19 @@ class CompetenceWebApplication extends TiWebAppManager {
                     items: itemsByCategory?.[ categoryId ]?.[ subId ] || []
                 };
             } );
+            const filteredSubcategories = filterByPosition
+                ? subcategories.filter( ( subcategory ) => subcategory.items.length > 0 )
+                : subcategories;
+            if ( filterByPosition && filteredSubcategories.length === 0 ) {
+                return null;
+            }
             return {
                 id: categoryId,
                 name: localization.getLabel( category.name, language ),
                 description: localization.getLabel( category.description, language ),
-                subcategories
+                subcategories: filteredSubcategories
             };
-        } );
+        } ).filter( Boolean );
     }
 
     #normalizeGrades( gradesByCode, code ) {
