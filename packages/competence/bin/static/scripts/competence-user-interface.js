@@ -1,123 +1,131 @@
-let initial = {
-    "personal": {
-        "name": "",
-        "position": "",
-        "department": "",
-        "manager": "",
-        "level": "",
-        "startingDate": ""
-    },
-    "evaluation": {
-        "cycle": "",
-        "cycleDate": "",
-        "interviewDate": ""
-    },
-    "competences": [
-        {
-            "id": "E",
-            "name": "Expertise",
-            "subcategories": [
-                {
-                    "id": "E1",
-                    "name": "Theoretical knowledge",
-                    "items": [
-                        {
-                            "id": "E1.1",
-                            "name": "Foundations",
-                            "description": "Understands core principles and concepts.",
-                            "grades": { "manager": "", "employee": "", "team": "" }
-                        },
-                        {
-                            "id": "E1.2",
-                            "name": "Methodologies",
-                            "description": "Understands methodologies and patterns.",
-                            "grades": { "manager": "", "employee": "", "team": "" }
-                        }
-                    ]
-                },
-                {
-                    "id": "E2",
-                    "name": "Applied skills",
-                    "items": [
-                        {
-                            "id": "E2.1",
-                            "name": "Coding",
-                            "description": "Applies knowledge in code.",
-                            "grades": { "manager": "", "employee": "", "team": "" }
-                        },
-                        {
-                            "id": "E2.2",
-                            "name": "Debugging",
-                            "description": "Finds and fixes defects effectively.",
-                            "grades": { "manager": "", "employee": "", "team": "" }
-                        }
-                    ]
-                }
-            ],
-            "feedback": { "manager": "", "employee": "" }
+/**
+ * Initialization data models for the various Competence screens.
+ *
+ * @constant
+ */
+const initialDataModels = {
+    "competencyEvaluation": {
+        "personal": {
+            "name": "",
+            "position": "",
+            "department": "",
+            "manager": "",
+            "level": "",
+            "stage": "",
+            "startingDate": ""
         },
-        {
-            "id": "I",
-            "name": "Impact",
-            "subcategories": [
-                {
-                    "id": "I1",
-                    "name": "Delivery",
-                    "items": [
-                        {
-                            "id": "I1.1",
-                            "name": "Execution",
-                            "description": "Delivers on commitments.",
-                            "grades": { "manager": "", "employee": "", "team": "" }
-                        }
-                    ]
-                }
-            ],
-            "feedback": { "manager": "", "employee": "" }
+        "evaluation": {
+            "cycle": "",
+            "cycleDate": "",
+            "interviewDate": ""
         },
-        {
-            "id": "C",
-            "name": "Collaboration",
-            "subcategories": [
-                {
-                    "id": "C1",
-                    "name": "Teamwork",
-                    "items": [
-                        {
-                            "id": "C1.1",
-                            "name": "Code reviews",
-                            "description": "Participates constructively in reviews.",
-                            "grades": { "manager": "", "employee": "", "team": "" }
-                        }
-                    ]
-                }
-            ],
-            "feedback": { "manager": "", "employee": "" }
-        }
-    ]
+        "competencies": [
+            {
+                "id": "E",
+                "name": "Expertise",
+                "subcategories": [
+                    {
+                        "id": "E1",
+                        "name": "Theoretical knowledge",
+                        "items": []
+                    },
+                    {
+                        "id": "E2",
+                        "name": "Applied skills",
+                        "items": []
+                    }
+                ]
+            },
+            {
+                "id": "I",
+                "name": "Impact",
+                "subcategories": [
+                    {
+                        "id": "I1",
+                        "name": "Delivery",
+                        "items": []
+                    }
+                ]
+            },
+            {
+                "id": "C",
+                "name": "Collaboration",
+                "subcategories": [
+                    {
+                        "id": "C1",
+                        "name": "Teamwork",
+                        "items": []
+                    }
+                ]
+            }
+        ]
+    }
 };
 
-
-let configureCompetenceEvaluation = () => {
+/**
+ * Returns a configuration object for the competency evaluation screen.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+let configureCompetencyEvaluation = () => {
     const clone = ( value ) => JSON.parse( JSON.stringify( value ) );
+
+    const getEmployeeIdFromUrl = () => {
+        const params = new URLSearchParams( window.location.search );
+        return params.get( "employeeID" );
+    };
+
     return {
-        personal: clone( initial.personal ),
-        evaluation: clone( initial.evaluation ),
-        competences: clone( initial.competences ),
+        employeeID: null,
+        personal: clone( initialDataModels.competencyEvaluation.personal ),
+        evaluation: clone( initialDataModels.competencyEvaluation.evaluation ),
+        competencies: clone( initialDataModels.competencyEvaluation.competencies ),
+
+        init() {
+            this.employeeID = getEmployeeIdFromUrl();
+            this.loadEmployee( this.employeeID );
+        },
+
+        applyData( data ) {
+            const fresh = ( data && typeof data === "object" ) ? data : {};
+            this.personal = clone( fresh.personal || initialDataModels.competencyEvaluation.personal );
+            this.evaluation = clone( fresh.evaluation || initialDataModels.competencyEvaluation.evaluation );
+            this.competencies = clone( fresh.competencies || initialDataModels.competencyEvaluation.competencies );
+        },
+
+        loadEmployee( employeeID ) {
+            const resolvedID = String( employeeID || "" ).trim();
+            if ( !resolvedID ) {
+                this.reset();
+            } else {
+                this.employeeID = resolvedID;
+                const url = `/app/load-employee-competences?employeeID=${ encodeURIComponent( resolvedID ) }`;
+                const tiApplication = Alpine.store( "tiApplication" );
+                tiApplication.sendRequest( url ).then( ( result ) => {
+                    this.applyData( result?.data );
+                } ).catch( ( error ) => {
+                    this.applyData( initialDataModels.competencyEvaluation );
+                    tiApplication.notify( { message: `Failed to load competence evaluation: ${ error.message }`, timeout: 60000 } );
+                } );
+            }
+        },
 
         reset() {
-            const schemaEl = document.getElementById( 'competence-evaluation-schema' );
-            const fresh = schemaEl ? JSON.parse( schemaEl.textContent || '{}' ) : { personal: {}, evaluation: {}, competences: [] };
-            this.personal = JSON.parse( JSON.stringify( fresh.personal ) );
-            this.evaluation = JSON.parse( JSON.stringify( fresh.evaluation || initial.evaluation ) );
-            this.competences = JSON.parse( JSON.stringify( fresh.competences ) );
+            const schema = document.getElementById( "competency-evaluation-schema" );
+            if ( schema ) {
+                const initial = JSON.parse( schema.textContent || '{}' );
+                this.applyData( initial );
+            } else if ( this.employeeID ) {
+                this.loadEmployee( this.employeeID );
+            } else {
+                this.applyData( initialDataModels.competencyEvaluation );
+            }
         },
 
         save() {
-            // Placeholder: integrate with backend via HTMX or service call.
-            if ( window.tiNotify ) {
-                window.tiNotify.success( 'Form state captured locally. Wire up persistence next.' );
-            }
+            // TODO: implement this!
         },
 
         setInterviewDate( value ) {
@@ -141,6 +149,10 @@ let configureCompetenceEvaluation = () => {
             item.grades[ role ] = value;
         },
 
+        formatDate( string ) {
+            return string ? new Date( string ).toLocaleDateString() : "";
+        },
+
         // Compute summary for a category based on manager grades majority across all items.
         categorySummary( category ) {
             const counts = { U: 0, R: 0, S: 0 };
@@ -156,7 +168,7 @@ let configureCompetenceEvaluation = () => {
 
         totalSummary() {
             const counts = { U: 0, R: 0, S: 0 };
-            for ( const cat of this.competences ) {
+            for ( const cat of this.competencies ) {
                 for ( const sub of cat.subcategories ) {
                     for ( const item of sub.items ) {
                         const g = ( item.grades?.manager || '' ).toUpperCase();
@@ -184,5 +196,5 @@ let configureCompetenceEvaluation = () => {
 };
 
 document.addEventListener( "alpine:init", () => {
-    Alpine.data( "competenceEvaluation", configureCompetenceEvaluation );
+    Alpine.data( "competencyEvaluation", configureCompetencyEvaluation );
 } );

@@ -8,12 +8,14 @@
 
 const tools = require( "@ti-engine/core/tools" );
 
-const organizationPositionCodeEnum = tools.enum( require( "#config-positions" ) );
-const organizationRoleCodeEnum = tools.enum( require( "#config-roles" ) );
-const organizationPositionLevelCode = require( "#config-position-levels" );
-const frameworkGrades = require( "#config-grades" );
+const configOrganizationPositionsEnum = tools.enum( require( "#config-positions" ) );
+const configOrganizationRoleEnum = tools.enum( require( "#config-roles" ) );
+const configCompetencies = require( "#config-competencies" );
+const configEvaluationGrades = require( "#config-grades" );
+const configEvaluationLevels = require( "#config-position-levels" );
 
-module.exports.organizationPositionCode = organizationPositionCodeEnum;
-module.exports.organizationRoleCode = organizationRoleCodeEnum;
-module.exports.organizationPositionLevelCode = organizationPositionLevelCode;
-module.exports.frameworkGrades = frameworkGrades;
+module.exports.organizationPositionCode = configOrganizationPositionsEnum;
+module.exports.organizationRoleCode = configOrganizationRoleEnum;
+module.exports.configEvaluationLevels = tools.deepFreeze( configEvaluationLevels );
+module.exports.configCompetencies = tools.deepFreeze( configCompetencies );
+module.exports.configEvaluationGrades = tools.deepFreeze( configEvaluationGrades );

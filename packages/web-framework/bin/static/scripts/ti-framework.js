@@ -296,22 +296,38 @@ let configureComponentNotificationBar = () => {
  * @public
  */
 let configureApplication = () => {
+    /**
+     * Used to extract a label from a nested labels object.
+     *
+     * @method
+     * @param {Object} labels
+     * @param {String[]} keys
+     * @param {String} fallback
+     * @return {String}
+     * @private
+     */
+    const extractLabel = ( labels, keys, fallback ) => {
+        let key = keys.shift();
+        if ( labels && typeof labels === "object" && key && Object.prototype.hasOwnProperty.call( labels, key ) ) {
+            return ( typeof labels[ key ] === "string" ) ? labels[ key ] : extractLabel( labels[ key ], keys, fallback );
+        } else {
+            return fallback;
+        }
+    };
+
     return {
         isInitialized: false,
         user: undefined,
-        labels: {},
-        grades: {},
+        configuration: {},
         notificationIDCounter: 1,
         init() {
             document.addEventListener( "ti:error", ( event ) => {
                 this.notify( event.detail );
             } );
 
+            // Use application settings to configure the application at load-time:
             this.sendRequest( "/app/config" ).then( ( result ) => {
-                // TODO: use result to initialize the application
-                const config = result?.data || {};
-                this.labels = config.labels || {};
-                this.grades = config.grades || {};
+                this.configuration = result?.data || {};
                 this.isInitialized = true;
             } ).catch( ( error ) => {
                 error.message = `Failed to initialize the application: ${ error.message }`;
@@ -333,8 +349,8 @@ let configureApplication = () => {
                     const contentType = ( response.headers.get( "content-type" ) || "" ).toLowerCase();
                     return ( contentType.includes( "application/json" ) ) ? response.json() : { isSuccessful: response.ok, message: response.statusText };
                 } ).then( ( result ) => {
-                    if ( result && result.isSuccessful === false ) {
-                        reject( result );
+                    if ( !result || result.isSuccessful === false ) {
+                        reject( result || {} );
                     } else {
                         resolve( result );
                     }
@@ -355,17 +371,11 @@ let configureApplication = () => {
             }
         },
         getLabel( label, fallback = "LABEL NOT FOUND" ) {
-            if ( !label ) return fallback;
-            const parts = label.split( "." ).filter( Boolean );
-            let current = this.labels;
-            for ( const key of parts ) {
-                if ( current && Object.prototype.hasOwnProperty.call( current, key ) ) {
-                    current = current[ key ];
-                } else {
-                    return fallback;
-                }
+            if ( !label ) {
+                return fallback;
+            } else {
+                return extractLabel( this.configuration.labels || {}, label.split( "." ).filter( Boolean ), fallback );
             }
-            return ( current === undefined || current === null ) ? fallback : current;
         }
     };
 };

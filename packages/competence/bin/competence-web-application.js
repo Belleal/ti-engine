@@ -7,7 +7,10 @@
 */
 
 const TiWebAppManager = require( "@ti-engine/web-framework/web-application" );
+const exceptions = require( "@ti-engine/core/exceptions" );
+const localization = require( "@ti-engine/core/localization" );
 const definitions = require( "#definitions" );
+const dataLoader = require( "#data-loader" );
 
 /**
  * NOTE: This is still a work in progress.
@@ -66,10 +69,89 @@ class CompetenceWebApplication extends TiWebAppManager {
         if ( view === "config" ) {
             return super.processDataRequest( session, view, options ).then( ( result ) => ( {
                 ...result,
-                grades: definitions.frameworkGrades
+                grades: definitions.configEvaluationGrades
             } ) );
         }
+        if ( view === "load-employee-competences" ) {
+            const employeeID = String( options?.query?.employeeID || "" ).trim();
+            if ( !employeeID ) {
+                return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_QUERY ) );
+            }
+            const employee = dataLoader.instance.fetchEmployee( employeeID );
+            if ( !employee ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID: employeeID } );
+            }
+            const evaluations = dataLoader.instance.fetchEvaluations( employeeID );
+            const lastEvaluation = ( evaluations && evaluations.length > 0 ) ? evaluations[ 0 ] : {};
+            return Promise.resolve( {
+                employeeID: employeeID,
+                personal: {
+                    ...employee.personal,
+                    positionName: definitions.organizationPositionCode.name( employee.personal.position )
+                },
+                evaluation: lastEvaluation,
+                competencies: this.#buildCompetenciesTree( definitions.configCompetencies, lastEvaluation.grades || {}, session?.language )
+            } );
+        }
         return super.processDataRequest( session, view, options );
+    }
+
+    /* Private interface */
+
+
+    #buildCompetenciesTree( competenceConfig, gradesByCode, language ) {
+        const categories = competenceConfig?.categories || {};
+        const competencies = competenceConfig?.competencies || {};
+        const itemsByCategory = {};
+
+        Object.entries( competencies ).forEach( ( [ code, competency ] ) => {
+            if ( !competency || !competency.category || !competency.subcategory ) return;
+            if ( !itemsByCategory[ competency.category ] ) {
+                itemsByCategory[ competency.category ] = {};
+            }
+            if ( !itemsByCategory[ competency.category ][ competency.subcategory ] ) {
+                itemsByCategory[ competency.category ][ competency.subcategory ] = [];
+            }
+
+            itemsByCategory[ competency.category ][ competency.subcategory ].push( {
+                id: code,
+                name: localization.getLabel( competency.name, language ),
+                description: localization.getLabel( competency.description, language ),
+                grades: this.#normalizeGrades( gradesByCode, code )
+            } );
+        } );
+
+        Object.values( itemsByCategory ).forEach( ( subcategories ) => {
+            Object.values( subcategories ).forEach( ( items ) => {
+                items.sort( ( a, b ) => a.id.localeCompare( b.id, undefined, { numeric: true } ) );
+            } );
+        } );
+
+        return Object.entries( categories ).map( ( [ categoryId, category ] ) => {
+            const subcategories = Object.entries( category.subcategories || {} ).map( ( [ subId, subcategory ] ) => {
+                return {
+                    id: subId,
+                    name: localization.getLabel( subcategory.name, language ),
+                    description: localization.getLabel( subcategory.description, language ),
+                    items: itemsByCategory?.[ categoryId ]?.[ subId ] || []
+                };
+            } );
+            return {
+                id: categoryId,
+                name: localization.getLabel( category.name, language ),
+                description: localization.getLabel( category.description, language ),
+                subcategories
+            };
+        } );
+    }
+
+    #normalizeGrades( gradesByCode, code ) {
+        const grade = ( gradesByCode && gradesByCode[ code ] ) || {};
+        return {
+            employee: grade.employee || "",
+            manager: grade.manager || "",
+            team: grade.team || ""
+        };
     }
 
 }

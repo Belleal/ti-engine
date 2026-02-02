@@ -107,7 +107,7 @@
       }
     }
   },
-  "competence": {
+  "competency": {
     "name": {
       "E1-1": {
         "en": "Knowledge of relational databases (SQL, PostgresSQL, MySQL and others)",
@@ -2349,9 +2349,9 @@
           "bg": ""
         }
       },
-      "competences": {
+      "competencies": {
         "title": {
-          "en": "Competences",
+          "en": "Competencies",
           "bg": ""
         },
         "appraisals": {

@@ -5,10 +5,14 @@
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "imports": {
+    "#config-competencies": "./bin/config/competencies.json",
     "#config-grades": "./bin/config/grades.json",
     "#config-position-levels": "./bin/config/positionLevels.json",
     "#config-positions": "./bin/config/positions.json",
     "#config-roles": "./bin/config/roles.json",
+    "#data-employees": "./bin/data/employees.json",
+    "#data-evaluations": "./bin/data/evaluations.json",
+    "#data-loader": "./application/data-loader.js",
     "#definitions": "./application/definitions.js"
   },
   "dependencies": {

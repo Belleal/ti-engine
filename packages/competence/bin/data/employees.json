@@ -1,0 +1,28 @@
+{
+  "employees": [
+    {
+      "employeeID": "1",
+      "personal": {
+        "name": "Geatrks Frkats",
+        "position": 1,
+        "department": "Software Development",
+        "manager": "Sdfaer Ltruajs",
+        "level": "R",
+        "stage": 2,
+        "startingDate": "2022-03-14"
+      }
+    },
+    {
+      "employeeID": "2",
+      "personal": {
+        "name": "Mrkius Brhajas",
+        "position": 2,
+        "department": "Software Development",
+        "manager": "Grasht Jraksj",
+        "level": "J",
+        "stage": 3,
+        "startingDate": "2020-11-02"
+      }
+    }
+  ]
+}

@@ -1,18 +1,18 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ti-engine.dev/schemas/competence/competences.json",
-  "title": "Competence Framework Configuration",
-  "description": "Hierarchical competence catalog with categories, subcategories, and detailed competence definitions including scope and relevancy scores.",
+  "$id": "https://ti-engine.dev/schemas/competence/competencies.json",
+  "title": "Competency Framework Configuration",
+  "description": "Hierarchical competencies catalog with categories, subcategories, and detailed competency definitions including scope and relevancy scores.",
   "type": "object",
   "required": [
     "categories",
-    "competences"
+    "competencies"
   ],
   "additionalProperties": false,
   "properties": {
     "categories": {
       "type": "object",
-      "description": "Top-level competence categories",
+      "description": "Top-level competency categories",
       "required": [
         "E",
         "I",
@@ -31,12 +31,12 @@
         }
       }
     },
-    "competences": {
+    "competencies": {
       "type": "object",
-      "description": "Individual competence definitions keyed by competence ID",
+      "description": "Individual competency definitions keyed by competency ID",
       "patternProperties": {
         "^[EIC][1-3]-\\d+$": {
-          "$ref": "#/$defs/competence"
+          "$ref": "#/$defs/competency"
         }
       },
       "additionalProperties": false
@@ -98,9 +98,9 @@
         }
       }
     },
-    "competence": {
+    "competency": {
       "type": "object",
-      "description": "A single competence definition",
+      "description": "A single competency definition",
       "required": [
         "name",
         "description",
@@ -113,13 +113,13 @@
       "properties": {
         "name": {
           "type": "string",
-          "pattern": "^competence\\.name\\.[EIC][1-3]-\\d+$",
-          "description": "Localization key for competence name"
+          "pattern": "^competency\\.name\\.[EIC][1-3]-\\d+$",
+          "description": "Localization key for competency name"
         },
         "description": {
           "type": "string",
-          "pattern": "^competence\\.description\\.[EIC][1-3]-\\d+$",
-          "description": "Localization key for competence description"
+          "pattern": "^competency\\.description\\.[EIC][1-3]-\\d+$",
+          "description": "Localization key for competency description"
         },
         "category": {
           "type": "string",
@@ -150,32 +150,32 @@
           "properties": {
             "N": {
               "type": "string",
-              "pattern": "^competence\\.scope\\.[EIC][1-3]-\\d+\\.N$",
+              "pattern": "^competency\\.scope\\.[EIC][1-3]-\\d+\\.N$",
               "description": "Localization key for N-level scope"
             },
             "J": {
               "type": "string",
-              "pattern": "^competence\\.scope\\.[EIC][1-3]-\\d+\\.J$",
+              "pattern": "^competency\\.scope\\.[EIC][1-3]-\\d+\\.J$",
               "description": "Localization key for J-level scope"
             },
             "R": {
               "type": "string",
-              "pattern": "^competence\\.scope\\.[EIC][1-3]-\\d+\\.R$",
+              "pattern": "^competency\\.scope\\.[EIC][1-3]-\\d+\\.R$",
               "description": "Localization key for R-level scope"
             },
             "S": {
               "type": "string",
-              "pattern": "^competence\\.scope\\.[EIC][1-3]-\\d+\\.S$",
+              "pattern": "^competency\\.scope\\.[EIC][1-3]-\\d+\\.S$",
               "description": "Localization key for S-level scope"
             },
             "X": {
               "type": "string",
-              "pattern": "^competence\\.scope\\.[EIC][1-3]-\\d+\\.X$",
+              "pattern": "^competency\\.scope\\.[EIC][1-3]-\\d+\\.X$",
               "description": "Localization key for X-level scope"
             },
             "T": {
               "type": "string",
-              "pattern": "^competence\\.scope\\.[EIC][1-3]-\\d+\\.T$",
+              "pattern": "^competency\\.scope\\.[EIC][1-3]-\\d+\\.T$",
               "description": "Localization key for T-level scope"
             }
           }
