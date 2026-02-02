@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -9,7 +9,7 @@
 const TiWebAppManager = require( "@ti-engine/web-framework/web-application" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const localization = require( "@ti-engine/core/localization" );
-const definitions = require( "#definitions" );
+const configuration = require( "#configuration-loader" );
 const dataLoader = require( "#data-loader" );
 
 /**
@@ -69,7 +69,7 @@ class CompetenceWebApplication extends TiWebAppManager {
         if ( view === "config" ) {
             return super.processDataRequest( session, view, options ).then( ( result ) => ( {
                 ...result,
-                grades: definitions.configEvaluationGrades
+                grades: configuration.configEvaluationGrades
             } ) );
         }
         if ( view === "load-employee-competences" ) {
@@ -82,15 +82,19 @@ class CompetenceWebApplication extends TiWebAppManager {
                 throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID: employeeID } );
             }
             const evaluations = dataLoader.instance.fetchEvaluations( employeeID );
-            const lastEvaluation = ( evaluations && evaluations.length > 0 ) ? evaluations[ 0 ] : {};
+            const lastEvaluation = ( evaluations || [] )
+                .slice()
+                .sort( ( a, b ) =>
+                    new Date( b.interviewDate || b.cycleDate ) - new Date( a.interviewDate || a.cycleDate )
+                )[ 0 ] || {};
             return Promise.resolve( {
                 employeeID: employeeID,
                 personal: {
                     ...employee.personal,
-                    positionName: definitions.organizationPositionCode.name( employee.personal.position )
+                    positionName: configuration.organizationPositionCode.name( employee.personal.position )
                 },
                 evaluation: lastEvaluation,
-                competencies: this.#buildCompetenciesTree( definitions.configCompetencies, lastEvaluation.grades || {}, session?.language )
+                competencies: this.#buildCompetenciesTree( configuration.configCompetencies, lastEvaluation.grades || {}, session?.language )
             } );
         }
         return super.processDataRequest( session, view, options );

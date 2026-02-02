@@ -7,13 +7,14 @@
   "imports": {
     "#config-competencies": "./bin/config/competencies.json",
     "#config-grades": "./bin/config/grades.json",
+    "#config-position-competencies": "./bin/config/positionCompetencies.json",
     "#config-position-levels": "./bin/config/positionLevels.json",
     "#config-positions": "./bin/config/positions.json",
     "#config-roles": "./bin/config/roles.json",
+    "#configuration-loader": "./application/configuration-loader.js",
     "#data-employees": "./bin/data/employees.json",
     "#data-evaluations": "./bin/data/evaluations.json",
-    "#data-loader": "./application/data-loader.js",
-    "#definitions": "./application/definitions.js"
+    "#data-loader": "./application/data-loader.js"
   },
   "dependencies": {
     "@ti-engine/core": "*",

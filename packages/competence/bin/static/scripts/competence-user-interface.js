@@ -149,8 +149,12 @@ let configureCompetencyEvaluation = () => {
             item.grades[ role ] = value;
         },
 
-        formatDate( string ) {
-            return string ? new Date( string ).toLocaleDateString() : "";
+        formatDate( value ) {
+            if ( !value ) return "";
+            const normalized = /^\d{4}-\d{2}-\d{2}$/.test( value )
+                ? `${ value }T00:00:00Z`
+                : value;
+            return new Date( normalized ).toLocaleDateString();
         },
 
         // Compute summary for a category based on manager grades majority across all items.

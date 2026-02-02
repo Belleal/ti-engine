@@ -63,6 +63,11 @@
     transition: box-shadow 160ms ease, color 160ms ease, transform 120ms ease, background-color 160ms ease;
 }
 
+.ti-glass-btn-black.large {
+    justify-content: left;
+    padding-inline: var(--ti-padding);
+}
+
 /* Icon sizing (Material Symbols inherit currentColor) */
 .ti-glass-btn-black.material-symbols-outlined {
     font-size: 22px;

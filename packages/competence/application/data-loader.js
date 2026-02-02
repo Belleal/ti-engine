@@ -55,7 +55,11 @@ class DataLoader {
     fetchEvaluations( employeeID, evaluationID = undefined ) {
         const evaluations = require( "#data-evaluations" ).evaluations;
         const employeeEvaluations = evaluations.filter( ( evaluation ) => evaluation.employeeID === employeeID );
-        return ( evaluationID ) ? [ employeeEvaluations.find( ( evaluation ) => evaluation.evaluationID === evaluationID ) ] : employeeEvaluations;
+        if ( evaluationID ) {
+            const match = employeeEvaluations.find( ( evaluation ) => evaluation.evaluationID === evaluationID );
+            return match ? [ match ] : [];
+        }
+        return employeeEvaluations;
     }
 
 }

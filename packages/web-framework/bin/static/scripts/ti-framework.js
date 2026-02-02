@@ -309,10 +309,15 @@ let configureApplication = () => {
     const extractLabel = ( labels, keys, fallback ) => {
         let key = keys.shift();
         if ( labels && typeof labels === "object" && key && Object.prototype.hasOwnProperty.call( labels, key ) ) {
-            return ( typeof labels[ key ] === "string" ) ? labels[ key ] : extractLabel( labels[ key ], keys, fallback );
-        } else {
-            return fallback;
+            const value = labels[ key ];
+            if ( typeof value === "string" ) {
+                return keys.length === 0 ? value : fallback;
+            }
+            if ( value && typeof value === "object" ) {
+                return extractLabel( value, keys, fallback );
+            }
         }
+        return fallback;
     };
 
     return {

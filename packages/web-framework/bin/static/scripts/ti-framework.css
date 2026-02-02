@@ -192,6 +192,7 @@ body {
     appearance: none;
     width: 100%;
     height: var(--ti-button-size);
+    box-sizing: border-box;
     border: 0;
     background: transparent;
     color: var(--ti-sidebar-fg);
