@@ -82,10 +82,26 @@ let configureCompetencyEvaluation = () => {
         personal: clone( initialDataModels.competencyEvaluation.personal ),
         evaluation: clone( initialDataModels.competencyEvaluation.evaluation ),
         competencies: clone( initialDataModels.competencyEvaluation.competencies ),
+        grades: {},
 
         init() {
-            this.employeeID = getEmployeeIdFromUrl();
-            this.loadEmployee( this.employeeID );
+            const tiApplication = Alpine.store( "tiApplication" );
+
+            const onInitialized = () => {
+                this.grades = tiApplication.configuration.grades;
+                this.employeeID = getEmployeeIdFromUrl();
+                this.loadEmployee( this.employeeID );
+            };
+
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
         },
 
         applyData( data ) {
@@ -132,21 +148,18 @@ let configureCompetencyEvaluation = () => {
             this.evaluation.interviewDate = value;
         },
 
-        getItemGrade( item, role ) {
-            if ( !item || !item.grades ) {
-                return "";
+        getItemGrade( competencyCode, role ) {
+            let grade = "";
+            if ( competencyCode ) {
+                grade = this.evaluation.grades?.[ competencyCode ]?.[ role ];
             }
-            return item.grades[ role ] || "";
+            return grade || "";
         },
 
-        setItemGrade( item, role, value ) {
-            if ( !item ) {
-                return;
-            }
-            if ( !item.grades ) {
-                item.grades = {};
-            }
-            item.grades[ role ] = value;
+        setItemGrade( competencyCode, role, value ) {
+            this.evaluation.grades = this.evaluation.grades || {};
+            this.evaluation.grades[ competencyCode ] = this.evaluation.grades[ competencyCode ] || {};
+            this.evaluation.grades[ competencyCode ][ role ] = value;
         },
 
         formatDate( value ) {

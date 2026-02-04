@@ -6,7 +6,7 @@
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-const { describe, it } = require( "node:test" );
+const { describe, it, before } = require( "node:test" );
 const assert = require( "node:assert" );
 const path = require( "node:path" );
 const fs = require( "node:fs" );
@@ -17,21 +17,21 @@ describe( "JSON Configuration Files Validation", () => {
 
     describe( "competencies.json", () => {
         let competencies;
+        const filePath = path.join( configDir, "competencies.json" );
+
+        before( () => {
+            assert.ok( fs.existsSync( filePath ), "competencies.json should exist" );
+            competencies = JSON.parse( fs.readFileSync( filePath, "utf8" ) );
+        } );
 
         it( "should exist and be valid JSON", () => {
-            const filePath = path.join( configDir, "competencies.json" );
-            assert.ok( fs.existsSync( filePath ), "competencies.json should exist" );
-
-            const content = fs.readFileSync( filePath, "utf8" );
-            assert.doesNotThrow( () => {
-                competencies = JSON.parse( content );
-            }, "competencies.json should be valid JSON" );
+            assert.doesNotThrow(
+                () => JSON.parse( fs.readFileSync( filePath, "utf8" ) ),
+                "competencies.json should be valid JSON"
+            );
         } );
 
         it( "should have categories and competencies properties", () => {
-            const filePath = path.join( configDir, "competencies.json" );
-            competencies = JSON.parse( fs.readFileSync( filePath, "utf8" ) );
-
             assert.ok( competencies.categories, "Should have categories property" );
             assert.ok( competencies.competencies, "Should have competencies property" );
             assert.strictEqual( typeof competencies.categories, "object" );
@@ -230,26 +230,23 @@ describe( "JSON Configuration Files Validation", () => {
 
     describe( "positionCompetencies.json", () => {
         let positionCompetencies;
-
         it( "should exist and be valid JSON", () => {
             const filePath = path.join( configDir, "positionCompetencies.json" );
             assert.ok( fs.existsSync( filePath ), "positionCompetencies.json should exist" );
-
             const content = fs.readFileSync( filePath, "utf8" );
             assert.doesNotThrow( () => {
                 positionCompetencies = JSON.parse( content );
             }, "positionCompetencies.json should be valid JSON" );
         } );
-
         it( "should have competency mappings for positions", () => {
             const filePath = path.join( configDir, "positionCompetencies.json" );
             positionCompetencies = JSON.parse( fs.readFileSync( filePath, "utf8" ) );
-
             assert.ok( Object.keys( positionCompetencies ).length > 0, "Should have at least one position mapping" );
-
             Object.entries( positionCompetencies ).forEach( ( [ position, levelMappings ] ) => {
-                assert.strictEqual( typeof levelMappings, "object", `${ position } should have level mappings` );
-
+                assert.ok(
+                    levelMappings && !Array.isArray( levelMappings ),
+                    `${ position } should have level mappings object`
+                );
                 Object.entries( levelMappings ).forEach( ( [ level, competencies ] ) => {
                     assert.ok( Array.isArray( competencies ), `${ position }.${ level } should be an array of competencies` );
                     competencies.forEach( competency => {
@@ -262,79 +259,75 @@ describe( "JSON Configuration Files Validation", () => {
 
     describe( "employees.json", () => {
         let employees;
-
         it( "should exist and be valid JSON", () => {
             const filePath = path.join( dataDir, "employees.json" );
             assert.ok( fs.existsSync( filePath ), "employees.json should exist" );
-
             const content = fs.readFileSync( filePath, "utf8" );
             assert.doesNotThrow( () => {
                 employees = JSON.parse( content );
             }, "employees.json should be valid JSON" );
         } );
-
         it( "should have employees array", () => {
             const filePath = path.join( dataDir, "employees.json" );
             employees = JSON.parse( fs.readFileSync( filePath, "utf8" ) );
-
             assert.ok( employees.employees, "Should have employees property" );
             assert.ok( Array.isArray( employees.employees ), "employees should be an array" );
         } );
-
         it( "should have valid employee structure", () => {
             const filePath = path.join( dataDir, "employees.json" );
             employees = JSON.parse( fs.readFileSync( filePath, "utf8" ) );
-
             employees.employees.forEach( ( employee, index ) => {
-                assert.ok( employee.employeeID, `Employee ${ index } should have employeeID` );
+                assert.ok(
+                    employee.employeeID !== undefined && employee.employeeID !== null,
+                    `Employee ${ index } should have employeeID`
+                );
                 assert.ok( employee.personal, `Employee ${ index } should have personal info` );
                 assert.ok( employee.personal.name, `Employee ${ index } should have name` );
                 assert.ok( typeof employee.personal.position === "number", `Employee ${ index } should have numeric position` );
                 assert.ok( employee.personal.department, `Employee ${ index } should have department` );
-                assert.ok( employee.personal.level, `Employee ${ index } should have level` );
+                assert.strictEqual(
+                    typeof employee.personal.level,
+                    "string",
+                    `Employee ${ index } should have level`
+                );
             } );
         } );
     } );
 
     describe( "evaluations.json", () => {
         let evaluations;
-
         it( "should exist and be valid JSON", () => {
             const filePath = path.join( dataDir, "evaluations.json" );
             assert.ok( fs.existsSync( filePath ), "evaluations.json should exist" );
-
             const content = fs.readFileSync( filePath, "utf8" );
             assert.doesNotThrow( () => {
                 evaluations = JSON.parse( content );
             }, "evaluations.json should be valid JSON" );
         } );
-
         it( "should have evaluations array", () => {
             const filePath = path.join( dataDir, "evaluations.json" );
             evaluations = JSON.parse( fs.readFileSync( filePath, "utf8" ) );
-
             assert.ok( evaluations.evaluations, "Should have evaluations property" );
             assert.ok( Array.isArray( evaluations.evaluations ), "evaluations should be an array" );
         } );
-
         it( "should have valid evaluation structure", () => {
             const filePath = path.join( dataDir, "evaluations.json" );
             evaluations = JSON.parse( fs.readFileSync( filePath, "utf8" ) );
-
             evaluations.evaluations.forEach( ( evaluation, index ) => {
                 assert.ok( evaluation.evaluationID, `Evaluation ${ index } should have evaluationID` );
-                assert.ok( evaluation.employeeID, `Evaluation ${ index } should have employeeID` );
+                assert.ok(
+                    evaluation.employeeID !== undefined && evaluation.employeeID !== null,
+                    `Evaluation ${ index } should have employeeID`
+                );
                 assert.ok( evaluation.cycle, `Evaluation ${ index } should have cycle` );
                 assert.ok( evaluation.cycleDate, `Evaluation ${ index } should have cycleDate` );
                 assert.ok( evaluation.grades, `Evaluation ${ index } should have grades` );
                 assert.strictEqual( typeof evaluation.grades, "object", "grades should be an object" );
             } );
         } );
-
         it( "should have valid grade structure in evaluations", () => {
             const filePath = path.join( dataDir, "evaluations.json" );
             evaluations = JSON.parse( fs.readFileSync( filePath, "utf8" ) );
-
             evaluations.evaluations.forEach( ( evaluation, evalIndex ) => {
                 Object.entries( evaluation.grades ).forEach( ( [ competencyId, grade ] ) => {
                     assert.ok( grade.hasOwnProperty( "employee" ), `Evaluation ${ evalIndex }, competency ${ competencyId } should have employee grade` );

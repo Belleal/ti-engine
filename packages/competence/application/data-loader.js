@@ -6,6 +6,8 @@
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+const exceptions = require( "@ti-engine/core/exceptions" );
+
 /**
  * Used to create and/or return a Data Loader singleton instance.
  *
@@ -33,12 +35,19 @@ class DataLoader {
      *
      * @method
      * @param {string} employeeID
-     * @return {Object|undefined} Returns the employee data object or undefined if the employee is not found.
+     * @returns {Promise<Object>} Returns the employee data object.
      * @public
      */
     fetchEmployee( employeeID ) {
-        const employees = require( "#data-employees" ).employees;
-        return employees.find( ( employee ) => employee.employeeID === employeeID );
+        return new Promise( ( resolve, reject ) => {
+            const employees = require( "#data-employees" ).employees;
+            const employee = employees.find( ( employee ) => employee.employeeID === employeeID );
+            if ( !employee ) {
+                reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID: employeeID } ) );
+            } else {
+                resolve( employee );
+            }
+        } );
     }
 
     /**
@@ -48,18 +57,37 @@ class DataLoader {
      *
      * @method
      * @param employeeID
-     * @param evaluationID
-     * @return {Array<Object>|undefined} Returns an array of evaluation data objects or undefined if no employee evaluations are not found.
+     * @returns {Promise<Array<Object>>} Returns an array of evaluation data objects or empty array if there are no evaluations for the specified employee ID.
      * @public
      */
-    fetchEvaluations( employeeID, evaluationID = undefined ) {
-        const evaluations = require( "#data-evaluations" ).evaluations;
-        const employeeEvaluations = evaluations.filter( ( evaluation ) => evaluation.employeeID === employeeID );
-        if ( evaluationID ) {
-            const match = employeeEvaluations.find( ( evaluation ) => evaluation.evaluationID === evaluationID );
-            return match ? [ match ] : [];
-        }
-        return employeeEvaluations;
+    fetchEvaluations( employeeID ) {
+        return new Promise( ( resolve, reject ) => {
+            const evaluations = require( "#data-evaluations" ).evaluations;
+            let employeeEvaluations = evaluations.filter( ( evaluation ) => evaluation.employeeID === employeeID );
+            resolve( ( !employeeEvaluations || employeeEvaluations.length === 0 ) ? [] : employeeEvaluations );
+        } );
+    }
+
+    /**
+     * Used to fetch the evaluation data from the data file.
+     * <br/>
+     * NOTE: This specifically does not cache the data! It is a temporary implementation for development purposes only.
+     *
+     * @method
+     * @param {string} evaluationID
+     * @returns {Promise<Object>} Returns the evaluation data object.
+     * @public
+     */
+    fetchEvaluation( evaluationID ) {
+        return new Promise( ( resolve, reject ) => {
+            const evaluations = require( "#data-evaluations" ).evaluations;
+            const evaluation = evaluations.find( ( evaluation ) => evaluation.evaluationID === evaluationID );
+            if ( !evaluation ) {
+                reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID: evaluationID } ) );
+            } else {
+                resolve( evaluation );
+            }
+        } );
     }
 
 }

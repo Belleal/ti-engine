@@ -5,6 +5,7 @@ This directory contains comprehensive tests for the ti-engine competence package
 ## Test Files
 
 ### 1. json-config-validation.test.js
+
 **Status:** ✅ All tests passing (28 tests)
 
 Validates the structure and consistency of all JSON configuration and data files:
@@ -19,6 +20,7 @@ Validates the structure and consistency of all JSON configuration and data files
 - **Cross-file validation**: Ensures data consistency across files
 
 ### 2. configuration-loader.test.js
+
 **Status:** ⚠️ Requires dependencies
 
 Comprehensive unit tests for the configuration loader module:
@@ -37,6 +39,7 @@ Comprehensive unit tests for the configuration loader module:
 - Edge cases and boundary conditions
 
 ### 3. data-loader.test.js
+
 **Status:** ⚠️ Requires dependencies
 
 Comprehensive unit tests for the data loader singleton:
@@ -54,6 +57,7 @@ Comprehensive unit tests for the data loader singleton:
 - Data integrity and consistency validation
 
 ### 4. competence-web-application.test.js
+
 **Status:** ⚠️ Requires dependencies
 
 Comprehensive unit tests for the CompetenceWebApplication class:
@@ -73,6 +77,7 @@ Comprehensive unit tests for the CompetenceWebApplication class:
 - Integration with configuration and data loaders
 
 ### 5. competence-web-server.test.js
+
 **Status:** ⚠️ Requires dependencies
 
 Comprehensive unit tests for the CompetenceWebServer class:
@@ -93,16 +98,19 @@ Comprehensive unit tests for the CompetenceWebServer class:
 ## Running Tests
 
 ### Run all JSON validation tests (no dependencies required):
+
 ```bash
 npm run test:json
 ```
 
 ### Run all tests (requires dependencies):
+
 ```bash
 npm test
 ```
 
 ### Run a specific test file:
+
 ```bash
 node --test test/json-config-validation.test.js
 node --test test/configuration-loader.test.js
@@ -112,6 +120,7 @@ node --test test/competence-web-server.test.js
 ```
 
 ### Run with coverage (Node.js 20+):
+
 ```bash
 node --test --experimental-test-coverage test/*.test.js
 ```

@@ -58,7 +58,7 @@ describe( "DataLoader", () => {
             const employee = dataLoader.instance.fetchEmployee( "1" );
             assert.ok( employee.personal );
             assert.ok( employee.personal.name );
-            assert.ok( typeof employee.personal.position === "number" );
+            assert.ok( typeof employee.personal.position === "string" );
             assert.ok( employee.personal.department );
             assert.ok( employee.personal.manager );
             assert.ok( employee.personal.level );
@@ -93,7 +93,7 @@ describe( "DataLoader", () => {
         } );
 
         it( "should handle numeric employeeID (implicit string conversion)", () => {
-            const employee = dataLoader.instance.fetchEmployee( "1" );
+            const employee = dataLoader.instance.fetchEmployee( 1 );
             assert.ok( employee );
             assert.strictEqual( employee.employeeID, "1" );
         } );
@@ -123,7 +123,7 @@ describe( "DataLoader", () => {
                 const evaluation = evaluations[ 0 ];
                 assert.ok( evaluation.evaluationID );
                 assert.ok( evaluation.employeeID );
-                assert.ok( evaluation.cycle );
+                assert.ok( evaluation.cycleID );
                 assert.ok( evaluation.cycleDate );
                 assert.ok( evaluation.interviewDate );
                 assert.ok( evaluation.grades );

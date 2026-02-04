@@ -48,7 +48,7 @@
         },
         "I2": {
           "en": "Planning",
-          "bg": "Паниране"
+          "bg": "Планиране"
         },
         "I3": {
           "en": "Estimation",
@@ -255,7 +255,7 @@
       },
       "I1-5": {
         "en": "Understanding and transforming functional and non-functional requirements",
-        "bg": "Разбиране и трансформиране на функционални и нефункционални изиквания"
+        "bg": "Разбиране и трансформиране на функционални и нефункционални изисквания"
       },
       "I1-6": {
         "en": "Adhering to rules for documenting changes in program code (conventional commits)",
@@ -696,7 +696,7 @@
         },
         "X": {
           "en": "Possesses expert-level understanding of programming concepts and uses them in developing complex systems. Can define programming standards and practices for the entire team to follow.",
-          "bg": "\"Притежава експертно ниво на разбиране на програмните концепции и ги използва при разработката на комплексни системи. Може да дефинира програмни стандарти и практики, които да бъдат следвани от целият екип."
+          "bg": "Притежава експертно ниво на разбиране на програмните концепции и ги използва при разработката на комплексни системи. Може да дефинира програмни стандарти и практики, които да бъдат следвани от целият екип."
         },
         "T": {
           "en": "Applies programming concepts when making strategic technical decisions. Leads the team in applying proper programming practices, ensuring quality code and software.",
@@ -2312,63 +2312,63 @@
       "personal": {
         "title": {
           "en": "Personal Information",
-          "bg": ""
+          "bg": "Лична Информация"
         },
         "name": {
           "en": "Employee Name:",
-          "bg": ""
+          "bg": "Име на служителя:"
         },
         "position": {
           "en": "Position & Level:",
-          "bg": ""
+          "bg": "Позиция & Ниво:"
         },
         "department": {
           "en": "Department:",
-          "bg": ""
+          "bg": "Отдел:"
         },
         "manager": {
           "en": "Manager:",
-          "bg": ""
+          "bg": "Мениджър:"
         },
         "starting-date": {
           "en": "Employee Since:",
-          "bg": ""
+          "bg": "Стартова дата:"
         }
       },
       "appraisal": {
         "title": {
           "en": "Performance Appraisal Form",
-          "bg": ""
+          "bg": "Форма за Оценка на Представянето"
         },
         "cycle": {
           "en": "Performance Appraisal Cycle:",
-          "bg": ""
+          "bg": "Цикъл на Оценка на Представянето:"
         },
         "interview-date": {
           "en": "Performance Interview Date:",
-          "bg": ""
+          "bg": "Дата на среща за дискусия:"
         }
       },
       "competencies": {
         "title": {
           "en": "Competencies",
-          "bg": ""
+          "bg": "Компетенции"
         },
         "appraisals": {
           "en": "Appraisals",
-          "bg": ""
+          "bg": "Оценки"
         },
         "self": {
           "en": "Self",
-          "bg": ""
+          "bg": "Самостоятелна"
         },
         "manager": {
           "en": "Manager",
-          "bg": ""
+          "bg": "Мениджър"
         },
         "team": {
           "en": "Team",
-          "bg": ""
+          "bg": "Екип"
         }
       }
     }

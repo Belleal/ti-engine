@@ -83,50 +83,56 @@ class CompetenceWebApplication extends TiWebAppManager {
 
 
     #loadEmployeeCompetencies( session, employeeID ) {
-        if ( !employeeID ) {
-            throw exceptions.raise( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_QUERY ) );
-        }
-        const employee = dataLoader.instance.fetchEmployee( employeeID );
-        if ( !employee ) {
-            throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID: employeeID } );
-        }
-        const evaluations = dataLoader.instance.fetchEvaluations( employeeID );
-        const lastEvaluation = ( evaluations || [] )
-            .slice()
-            .sort( ( a, b ) =>
-                new Date( b.interviewDate || b.cycleDate ) - new Date( a.interviewDate || a.cycleDate )
-            )[ 0 ] || {};
-        const positionKey = String( employee.personal?.position ?? "" ).trim();
-        const cycleID = String( lastEvaluation?.cycleID ?? "" ).trim();
-        const positionCompetencies = configuration.configEvaluationPositionCompetencies || {};
-        const positionEntry = Object.prototype.hasOwnProperty.call( positionCompetencies, positionKey )
-            ? positionCompetencies[ positionKey ]
-            : null;
-        let allowedCompetencyCodes = null;
-        if ( Array.isArray( positionEntry ) ) {
-            allowedCompetencyCodes = positionEntry;
-        } else if ( positionEntry && typeof positionEntry === "object" ) {
-            allowedCompetencyCodes = Object.prototype.hasOwnProperty.call( positionEntry, cycleID )
-                ? positionEntry[ cycleID ]
-                : [];
-        }
-        return Promise.resolve( {
-            employeeID: employeeID,
-            personal: {
-                ...employee.personal,
-                positionName: configuration.organizationPositionCode.name( employee.personal.position )
-            },
-            evaluation: lastEvaluation,
-            competencies: this.#buildCompetenciesTree(
-                configuration.configCompetencies,
-                lastEvaluation.grades || {},
-                session?.language,
-                allowedCompetencyCodes
-            )
+        return new Promise( ( resolve, reject ) => {
+            let employee = null;
+            dataLoader.instance.fetchEmployee( employeeID ).then( ( employeeData ) => {
+                employee = employeeData;
+                return dataLoader.instance.fetchEvaluations( employee.employeeID );
+            } ).then( ( evaluations ) => {
+                const lastEvaluation = evaluations.slice()
+                    .sort( ( a, b ) =>
+                        new Date( b.interviewDate || b.cycleDate ) - new Date( a.interviewDate || a.cycleDate )
+                    )[ 0 ] || {};
+                const positionKey = String( employee.personal?.position ?? "" ).trim();
+                const cycleID = String( lastEvaluation?.cycleID ?? "" ).trim();
+                const positionCompetencies = configuration.configEvaluationPositionCompetencies || {};
+                const positionEntry = Object.prototype.hasOwnProperty.call( positionCompetencies, positionKey )
+                    ? positionCompetencies[ positionKey ]
+                    : null;
+                let allowedCompetencyCodes = null;
+                if ( Array.isArray( positionEntry ) ) {
+                    allowedCompetencyCodes = positionEntry;
+                } else if ( positionEntry && typeof positionEntry === "object" ) {
+                    allowedCompetencyCodes = Object.prototype.hasOwnProperty.call( positionEntry, cycleID )
+                        ? positionEntry[ cycleID ]
+                        : [];
+                }
+                for ( const competencyCode of allowedCompetencyCodes ) {
+                    lastEvaluation.grades = lastEvaluation.grades || {};
+                    lastEvaluation.grades[ competencyCode ] = lastEvaluation.grades[ competencyCode ] || {};
+                    lastEvaluation.grades[ competencyCode ] = this.#normalizeGrades( lastEvaluation.grades, competencyCode );
+                }
+                resolve( {
+                    employeeID: employeeID,
+                    personal: {
+                        ...employee.personal,
+                        positionName: configuration.organizationPositionCode.name( employee.personal.position )
+                    },
+                    evaluation: lastEvaluation,
+                    competencies: this.#buildCompetenciesTree(
+                        configuration.configCompetencies,
+                        session?.language,
+                        allowedCompetencyCodes
+                    )
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
         } );
     }
 
-    #buildCompetenciesTree( competenceConfig, gradesByCode, language, allowedCompetencyCodes = null ) {
+
+    #buildCompetenciesTree( competenceConfig, language, allowedCompetencyCodes = null ) {
         const categories = competenceConfig?.categories || {};
         const competencies = competenceConfig?.competencies || {};
         const itemsByCategory = {};
@@ -148,8 +154,7 @@ class CompetenceWebApplication extends TiWebAppManager {
             itemsByCategory[ competency.category ][ competency.subcategory ].push( {
                 id: code,
                 name: localization.getLabel( competency.name, language ),
-                description: localization.getLabel( competency.description, language ),
-                grades: this.#normalizeGrades( gradesByCode, code )
+                description: localization.getLabel( competency.description, language )
             } );
         } );
 
@@ -183,8 +188,9 @@ class CompetenceWebApplication extends TiWebAppManager {
         } ).filter( Boolean );
     }
 
-    #normalizeGrades( gradesByCode, code ) {
-        const grade = ( gradesByCode && gradesByCode[ code ] ) || {};
+
+    #normalizeGrades( gradesByCode, competencyCode ) {
+        const grade = ( gradesByCode && gradesByCode[ competencyCode ] ) || {};
         return {
             employee: grade.employee || "",
             manager: grade.manager || "",
