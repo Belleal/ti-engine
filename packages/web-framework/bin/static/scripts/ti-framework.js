@@ -11,6 +11,18 @@ function isPlainObject( value ) {
 }
 
 /**
+ * Used to check if a value is a valid Date object.
+ *
+ * @method
+ * @param {*} value
+ * @returns {boolean}
+ * @public
+ */
+function isValidDate( value ) {
+    return value instanceof Date && !isNaN( value );
+}
+
+/**
  * Used to perform a deep merge of two objects. 'base' is the object that will be modified.
  * <br/>
  * NOTE: If 'structuredClone' is not available, fall back to JSON.parse/JSON.stringify. The later will not preserve non-JSON-serializable

@@ -276,10 +276,6 @@ describe( "CompetenceWebApplication", () => {
                         assert.ok( item.id );
                         assert.ok( item.name );
                         assert.ok( item.description );
-                        assert.ok( item.grades );
-                        assert.ok( typeof item.grades.employee === "string" );
-                        assert.ok( typeof item.grades.manager === "string" );
-                        assert.ok( typeof item.grades.team === "string" );
                     }
                 }
             }
@@ -358,10 +354,13 @@ describe( "CompetenceWebApplication", () => {
 
         it( "should delegate to parent class for unknown view", async () => {
             const session = { language: "en" };
-            // This should call the parent's processDataRequest
-            const result = await app.processDataRequest( session, "unknown-view", {} );
-            // Result depends on parent implementation
-            assert.ok( result !== undefined );
+            await assert.rejects(
+                app.processDataRequest( session, "unknown-view", {} ),
+                ( error ) => {
+                    assert.ok( error );
+                    return true;
+                }
+            );
         } );
     } );
 

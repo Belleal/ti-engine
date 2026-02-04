@@ -39,9 +39,6 @@ describe( "JSON Configuration Files Validation", () => {
         } );
 
         it( "should have valid category structure", () => {
-            const filePath = path.join( configDir, "competencies.json" );
-            competencies = JSON.parse( fs.readFileSync( filePath, "utf8" ) );
-
             Object.entries( competencies.categories ).forEach( ( [ categoryId, category ] ) => {
                 assert.ok( category.name, `Category ${ categoryId } should have name` );
                 assert.ok( category.description, `Category ${ categoryId } should have description` );
@@ -194,7 +191,7 @@ describe( "JSON Configuration Files Validation", () => {
             Object.entries( positions ).forEach( ( [ positionKey, positionData ] ) => {
                 assert.ok( Array.isArray( positionData ), `Position ${ positionKey } should be an array` );
                 assert.strictEqual( positionData.length, 3, `Position ${ positionKey } should have 3 elements` );
-                assert.ok( typeof positionData[ 0 ] === "number", "First element should be position ID number" );
+                assert.ok( typeof positionData[ 0 ] === "string", "First element should be position ID number" );
                 assert.ok( typeof positionData[ 1 ] === "string", "Second element should be position name" );
                 assert.ok( typeof positionData[ 2 ] === "string", "Third element should be position description" );
             } );
@@ -283,8 +280,12 @@ describe( "JSON Configuration Files Validation", () => {
                 );
                 assert.ok( employee.personal, `Employee ${ index } should have personal info` );
                 assert.ok( employee.personal.name, `Employee ${ index } should have name` );
-                assert.ok( typeof employee.personal.position === "number", `Employee ${ index } should have numeric position` );
+                assert.ok( typeof employee.personal.position === "string", `Employee ${ index } should have enum position` );
                 assert.ok( employee.personal.department, `Employee ${ index } should have department` );
+                assert.ok( employee.personal.manager, `Employee ${ index } should have manager` );
+                assert.ok( employee.personal.level, `Employee ${ index } should have level` );
+                assert.ok( typeof employee.personal.stage === "number", `Employee ${ index } should have number stage` );
+                assert.ok( new Date( employee.personal.startingDate ) instanceof Date, `Employee ${ index } should have proper starting date` );
                 assert.strictEqual(
                     typeof employee.personal.level,
                     "string",
@@ -319,7 +320,7 @@ describe( "JSON Configuration Files Validation", () => {
                     evaluation.employeeID !== undefined && evaluation.employeeID !== null,
                     `Evaluation ${ index } should have employeeID`
                 );
-                assert.ok( evaluation.cycle, `Evaluation ${ index } should have cycle` );
+                assert.ok( evaluation.cycleID, `Evaluation ${ index } should have cycleID` );
                 assert.ok( evaluation.cycleDate, `Evaluation ${ index } should have cycleDate` );
                 assert.ok( evaluation.grades, `Evaluation ${ index } should have grades` );
                 assert.strictEqual( typeof evaluation.grades, "object", "grades should be an object" );

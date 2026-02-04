@@ -167,7 +167,8 @@ let configureCompetencyEvaluation = () => {
             const normalized = /^\d{4}-\d{2}-\d{2}$/.test( value )
                 ? `${ value }T00:00:00Z`
                 : value;
-            return new Date( normalized ).toLocaleDateString();
+            const dateValue = new Date( normalized );
+            return isValidDate( dateValue ) ? dateValue.toLocaleDateString() : "";
         },
 
         // Compute summary for a category based on manager grades majority across all items.

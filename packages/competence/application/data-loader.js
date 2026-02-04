@@ -7,6 +7,7 @@
 */
 
 const exceptions = require( "@ti-engine/core/exceptions" );
+const _ = require( "lodash" );
 
 /**
  * Used to create and/or return a Data Loader singleton instance.
@@ -41,11 +42,11 @@ class DataLoader {
     fetchEmployee( employeeID ) {
         return new Promise( ( resolve, reject ) => {
             const employees = require( "#data-employees" ).employees;
-            const employee = employees.find( ( employee ) => employee.employeeID === employeeID );
+            const employee = employees.find( ( employee ) => employee.employeeID === String( employeeID ) );
             if ( !employee ) {
                 reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID: employeeID } ) );
             } else {
-                resolve( employee );
+                resolve( _.cloneDeep( employee ) );
             }
         } );
     }
@@ -64,7 +65,7 @@ class DataLoader {
         return new Promise( ( resolve, reject ) => {
             const evaluations = require( "#data-evaluations" ).evaluations;
             let employeeEvaluations = evaluations.filter( ( evaluation ) => evaluation.employeeID === employeeID );
-            resolve( ( !employeeEvaluations || employeeEvaluations.length === 0 ) ? [] : employeeEvaluations );
+            resolve( ( !employeeEvaluations || employeeEvaluations.length === 0 ) ? [] : _.cloneDeep( employeeEvaluations ) );
         } );
     }
 
@@ -85,7 +86,7 @@ class DataLoader {
             if ( !evaluation ) {
                 reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID: evaluationID } ) );
             } else {
-                resolve( evaluation );
+                resolve( _.cloneDeep( evaluation ) );
             }
         } );
     }

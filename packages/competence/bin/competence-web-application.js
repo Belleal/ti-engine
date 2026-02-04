@@ -107,7 +107,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                         ? positionEntry[ cycleID ]
                         : [];
                 }
-                for ( const competencyCode of allowedCompetencyCodes ) {
+                for ( const competencyCode of allowedCompetencyCodes || [] ) {
                     lastEvaluation.grades = lastEvaluation.grades || {};
                     lastEvaluation.grades[ competencyCode ] = lastEvaluation.grades[ competencyCode ] || {};
                     lastEvaluation.grades[ competencyCode ] = this.#normalizeGrades( lastEvaluation.grades, competencyCode );
@@ -116,7 +116,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     employeeID: employeeID,
                     personal: {
                         ...employee.personal,
-                        positionName: configuration.organizationPositionCode.name( employee.personal.position )
+                        positionName: configuration.organizationPositionCode.name( employee.personal?.position )
                     },
                     evaluation: lastEvaluation,
                     competencies: this.#buildCompetenciesTree(

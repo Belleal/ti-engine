@@ -147,12 +147,14 @@ node --test --experimental-test-coverage test/*.test.js
 ## Dependencies Required for Full Test Suite
 
 To run all tests, ensure workspace dependencies are installed:
+
 ```bash
-cd /home/jailuser/git
+# From the repository root:
 npm install
 ```
 
 This will install:
+
 - `@ti-engine/core`
 - `@ti-engine/web-framework`
 - Other workspace packages
