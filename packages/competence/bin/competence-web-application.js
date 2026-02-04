@@ -81,7 +81,15 @@ class CompetenceWebApplication extends TiWebAppManager {
 
     /* Private interface */
 
-
+    /**
+     * Used to load the data for the competence evaluation screen for a specific employee.
+     *
+     * @method
+     * @param {Object} session
+     * @param {string} employeeID
+     * @returns {Promise<Object>}
+     * @private
+     */
     #loadEmployeeCompetencies( session, employeeID ) {
         return new Promise( ( resolve, reject ) => {
             let employee = null;
@@ -131,7 +139,19 @@ class CompetenceWebApplication extends TiWebAppManager {
         } );
     }
 
-
+    /**
+     * Used to build a tree of competencies based on the provided configuration.
+     * <br/>
+     * NOTE: If the 'allowedCompetencyCodes' parameter is provided, only competencies with codes that are present in the array will be included in the tree.
+     * Otherwise, all competencies will be included.
+     *
+     * @method
+     * @param {Object} competenceConfig
+     * @param {TiLocalizationLanguage} language
+     * @param {Array<string>} allowedCompetencyCodes
+     * @return {Array<Object>}
+     * @private
+     */
     #buildCompetenciesTree( competenceConfig, language, allowedCompetencyCodes = null ) {
         const categories = competenceConfig?.categories || {};
         const competencies = competenceConfig?.competencies || {};
@@ -188,7 +208,17 @@ class CompetenceWebApplication extends TiWebAppManager {
         } ).filter( Boolean );
     }
 
-
+    /**
+     * Used to normalize the grade data for a specific competency.
+     * <br/>
+     * NOTE: If the grade data is not present for the specified competency, an empty object will be returned.
+     *
+     * @method
+     * @param {Object} gradesByCode
+     * @param {string} competencyCode
+     * @returns {Object}
+     * @private
+     */
     #normalizeGrades( gradesByCode, competencyCode ) {
         const grade = ( gradesByCode && gradesByCode[ competencyCode ] ) || {};
         return {

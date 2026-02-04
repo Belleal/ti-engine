@@ -6,16 +6,18 @@
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-const { describe, it } = require( "node:test" );
+const { describe, it, before } = require( "node:test" );
 const assert = require( "node:assert" );
 
 describe( "DataLoader", () => {
     let dataLoader;
 
+    before( () => {
+        dataLoader = require( "#data-loader" );
+    } );
+
     it( "should load DataLoader module without errors", () => {
-        assert.doesNotThrow( () => {
-            dataLoader = require( "#data-loader" );
-        } );
+        assert.ok( dataLoader );
     } );
 
     describe( "Singleton Pattern", () => {

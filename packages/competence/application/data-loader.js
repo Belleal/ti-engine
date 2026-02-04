@@ -35,14 +35,15 @@ class DataLoader {
      * NOTE: This specifically does not cache the data! It is a temporary implementation for development purposes only.
      *
      * @method
-     * @param {string} employeeID
+     * @param {string|number} employeeID
      * @returns {Promise<Object>} Returns the employee data object.
      * @public
      */
     fetchEmployee( employeeID ) {
         return new Promise( ( resolve, reject ) => {
+            const resolvedEmployeeID = String( employeeID );
             const employees = require( "#data-employees" ).employees;
-            const employee = employees.find( ( employee ) => employee.employeeID === String( employeeID ) );
+            const employee = employees.find( ( employee ) => employee.employeeID === resolvedEmployeeID );
             if ( !employee ) {
                 reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID: employeeID } ) );
             } else {
@@ -57,14 +58,15 @@ class DataLoader {
      * NOTE: This specifically does not cache the data! It is a temporary implementation for development purposes only.
      *
      * @method
-     * @param employeeID
+     * @param {string|number} employeeID
      * @returns {Promise<Array<Object>>} Returns an array of evaluation data objects or empty array if there are no evaluations for the specified employee ID.
      * @public
      */
     fetchEvaluations( employeeID ) {
         return new Promise( ( resolve, reject ) => {
+            const resolvedEmployeeID = String( employeeID );
             const evaluations = require( "#data-evaluations" ).evaluations;
-            let employeeEvaluations = evaluations.filter( ( evaluation ) => evaluation.employeeID === employeeID );
+            let employeeEvaluations = evaluations.filter( ( evaluation ) => evaluation.employeeID === resolvedEmployeeID );
             resolve( ( !employeeEvaluations || employeeEvaluations.length === 0 ) ? [] : _.cloneDeep( employeeEvaluations ) );
         } );
     }

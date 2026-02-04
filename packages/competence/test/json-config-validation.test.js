@@ -285,7 +285,11 @@ describe( "JSON Configuration Files Validation", () => {
                 assert.ok( employee.personal.manager, `Employee ${ index } should have manager` );
                 assert.ok( employee.personal.level, `Employee ${ index } should have level` );
                 assert.ok( typeof employee.personal.stage === "number", `Employee ${ index } should have number stage` );
-                assert.ok( new Date( employee.personal.startingDate ) instanceof Date, `Employee ${ index } should have proper starting date` );
+                const startingDate = new Date( employee.personal.startingDate );
+                assert.ok(
+                    !Number.isNaN( startingDate.getTime() ),
+                    `Employee ${ index } should have proper starting date`
+                );
                 assert.strictEqual(
                     typeof employee.personal.level,
                     "string",

@@ -242,10 +242,10 @@ describe( "CompetenceWebApplication", () => {
             const result = await app.processDataRequest( session, "load-employee-competencies", options );
 
             assert.ok( result.evaluation );
-            // If there are evaluations, verify structure
+            // If there are evaluations, verify the structure
             if ( result.evaluation.evaluationID ) {
                 assert.ok( result.evaluation.employeeID );
-                assert.ok( result.evaluation.cycle );
+                assert.ok( result.evaluation.cycleID );
                 assert.ok( result.evaluation.grades );
             }
         } );

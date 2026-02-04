@@ -70,7 +70,7 @@ const initialDataModels = {
  * @public
  */
 let configureCompetencyEvaluation = () => {
-    const clone = ( value ) => JSON.parse( JSON.stringify( value ) );
+    const cloneConfiguration = ( value ) => JSON.parse( JSON.stringify( value ) );
 
     const getEmployeeIdFromUrl = () => {
         const params = new URLSearchParams( window.location.search );
@@ -79,9 +79,9 @@ let configureCompetencyEvaluation = () => {
 
     return {
         employeeID: null,
-        personal: clone( initialDataModels.competencyEvaluation.personal ),
-        evaluation: clone( initialDataModels.competencyEvaluation.evaluation ),
-        competencies: clone( initialDataModels.competencyEvaluation.competencies ),
+        personal: cloneConfiguration( initialDataModels.competencyEvaluation.personal ),
+        evaluation: cloneConfiguration( initialDataModels.competencyEvaluation.evaluation ),
+        competencies: cloneConfiguration( initialDataModels.competencyEvaluation.competencies ),
         grades: {},
 
         init() {
@@ -106,9 +106,9 @@ let configureCompetencyEvaluation = () => {
 
         applyData( data ) {
             const fresh = ( data && typeof data === "object" ) ? data : {};
-            this.personal = clone( fresh.personal || initialDataModels.competencyEvaluation.personal );
-            this.evaluation = clone( fresh.evaluation || initialDataModels.competencyEvaluation.evaluation );
-            this.competencies = clone( fresh.competencies || initialDataModels.competencyEvaluation.competencies );
+            this.personal = cloneConfiguration( fresh.personal || initialDataModels.competencyEvaluation.personal );
+            this.evaluation = cloneConfiguration( fresh.evaluation || initialDataModels.competencyEvaluation.evaluation );
+            this.competencies = cloneConfiguration( fresh.competencies || initialDataModels.competencyEvaluation.competencies );
         },
 
         loadEmployee( employeeID ) {
