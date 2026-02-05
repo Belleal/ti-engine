@@ -334,9 +334,10 @@ let configureApplication = () => {
 
     return {
         isInitialized: false,
-        user: undefined,
+        user: null,
         configuration: {},
         notificationIDCounter: 1,
+
         init() {
             document.addEventListener( "ti:error", ( event ) => {
                 this.notify( event.detail );
@@ -345,12 +346,18 @@ let configureApplication = () => {
             // Use application settings to configure the application at load-time:
             this.sendRequest( "/app/config" ).then( ( result ) => {
                 this.configuration = result?.data || {};
+                return ( this.configuration?.auth?.isAuthenticated ) ? this.sendRequest( "/me" ) : {};
+            } ).then( ( result ) => {
+                this.user = result?.data?.user || null;
                 this.isInitialized = true;
             } ).catch( ( error ) => {
+                this.user = null;
+                this.isInitialized = false;
                 error.message = `Failed to initialize the application: ${ error.message }`;
                 this.notify( error );
             } );
         },
+
         sendRequest( url, method = "GET" ) {
             return new Promise( ( resolve, reject ) => {
                 const xsrf = getCookie( "ti-xsrf-token" ) || "";
@@ -376,6 +383,7 @@ let configureApplication = () => {
                 } );
             } );
         },
+
         notify( data ) {
             const notificationBar = document.querySelector( "#ti-notifications" );
             if ( notificationBar ) {
@@ -387,6 +395,7 @@ let configureApplication = () => {
                 } );
             }
         },
+
         getLabel( label, fallback = "LABEL NOT FOUND" ) {
             if ( !label ) {
                 return fallback;

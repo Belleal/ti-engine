@@ -39,8 +39,8 @@
                 <div class="competence-list-head-label title" x-text-label="interface.evaluation.competencies.title"></div>
                 <div class="competence-list-head-label appraisals" x-text-label="interface.evaluation.competencies.appraisals"></div>
                 <div class="competence-list-head-label self" x-text-label="interface.evaluation.competencies.self"></div>
-                <div class="competence-list-head-label manager" x-text-label="interface.evaluation.competencies.manager"></div>
-                <div class="competence-list-head-label team" x-text-label="interface.evaluation.competencies.team"></div>
+                <div class="competence-list-head-label manager" x-text-label="interface.evaluation.competencies.manager" x-show="isEmployeeManager()"></div>
+                <div class="competence-list-head-label team" x-text-label="interface.evaluation.competencies.team" x-show="isEmployeeManager()"></div>
             </div>
 
             <template x-for="category in competencies" x-bind:key="category.id">
@@ -58,24 +58,23 @@
                                         <div class="competence-code" x-text="item.id"></div>
                                         <div class="competence-name" x-text="item.name"></div>
                                     </div>
-                                    <select class="competence-input grade" x-on:change="setItemGrade(item.id, 'employee', $event.target.value)">
+                                    <select class="competence-input grade" x-on:change="setItemGrade(item.id, 'employee', $event.target.value)"
+                                            x-bind:disabled="!isEmployee()">
                                         <option value="" x-bind:selected="!getItemGrade(item.id, 'employee')">-</option>
                                         <template x-for="(grade, gradeKey) in grades" x-bind:key="gradeKey">
-                                            <option x-bind:value="gradeKey" x-text="gradeKey" x-bind:selected="getItemGrade(item.id, 'employee') == gradeKey"></option>
+                                            <option x-bind:value="gradeKey" x-text="gradeKey"
+                                                    x-bind:selected="getItemGrade(item.id, 'employee') == gradeKey"></option>
                                         </template>
                                     </select>
-                                    <select class="competence-input grade" x-on:change="setItemGrade(item.id, 'manager', $event.target.value)">
+                                    <select class="competence-input grade" x-on:change="setItemGrade(item.id, 'manager', $event.target.value)"
+                                            x-show="isEmployeeManager()">
                                         <option value="" x-bind:selected="!getItemGrade(item.id, 'manager')">-</option>
                                         <template x-for="(grade, gradeKey) in grades" x-bind:key="gradeKey">
-                                            <option x-bind:value="gradeKey" x-text="gradeKey" x-bind:selected="getItemGrade(item.id, 'manager') == gradeKey"></option>
+                                            <option x-bind:value="gradeKey" x-text="gradeKey"
+                                                    x-bind:selected="getItemGrade(item.id, 'manager') == gradeKey"></option>
                                         </template>
                                     </select>
-                                    <select class="competence-input grade" x-on:change="setItemGrade(item.id, 'team', $event.target.value)">
-                                        <option value="" x-bind:selected="!getItemGrade(item.id, 'team')">-</option>
-                                        <template x-for="(grade, gradeKey) in grades" x-bind:key="gradeKey">
-                                            <option x-bind:value="gradeKey" x-text="gradeKey" x-bind:selected="getItemGrade(item.id, 'team') == gradeKey"></option>
-                                        </template>
-                                    </select>
+                                    <div class="competence-data-value compact-centered" x-text="getItemGrade(item.id, 'team')" x-show="isEmployeeManager()"></div>
                                     <div class="competence-category-description" x-text="item.description"></div>
                                 </div>
                             </template>

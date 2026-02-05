@@ -160,7 +160,7 @@ describe( "DataLoader", () => {
             } );
         } );
 
-        it( "should return empty array when evaluationID does not match", async () => {
+        it( "should return empty array for non-existent employeeID string", async () => {
             const evaluations = await dataLoader.instance.fetchEvaluations( "non-existent-id" );
             assert.ok( Array.isArray( evaluations ) );
             assert.strictEqual( evaluations.length, 0 );

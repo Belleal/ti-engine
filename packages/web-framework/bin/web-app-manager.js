@@ -248,7 +248,10 @@ class TiWebAppManager {
         return new Promise( ( resolve, reject ) => {
             if ( view === "config" ) {
                 resolve( {
-                    labels: localization.getAllLabels( session?.language )
+                    labels: localization.getAllLabels( session?.language ),
+                    auth: {
+                        isAuthenticated: Boolean( session && session.user )
+                    }
                 } );
             } else {
                 reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI ) );

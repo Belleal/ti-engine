@@ -44,6 +44,7 @@
 .competence-data-value {
     background-color: #b9b9b9;
     font-size: var(--competence-label-font-size);
+    font-weight: normal;
     color: #111111;
     padding: var(--competence-datafield-padding-v) var(--competence-datafield-padding-h);
     min-height: var(--competence-data-field-height);
@@ -81,7 +82,9 @@
     border: 1px solid #a6a6a6;
     border-radius: 2px;
     padding: var(--competence-datafield-padding-v) var(--competence-datafield-padding-h);
+    font-family: var(--ti-font-famlily), system-ui;
     font-size: var(--competence-label-font-size);
+    line-height: calc(var(--competence-data-field-height) - 2px);
     min-height: var(--competence-data-field-height);
     width: 100%;
     box-sizing: border-box;
@@ -220,7 +223,7 @@
 .competence-input.grade {
     text-align: center;
     text-align-last: center;
-    font-size: 12px;
+    font-size: 14px;
     cursor: text;
     -webkit-appearance: none;
     -moz-appearance: none;

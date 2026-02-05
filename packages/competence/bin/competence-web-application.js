@@ -9,7 +9,7 @@
 const TiWebAppManager = require( "@ti-engine/web-framework/web-application" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const localization = require( "@ti-engine/core/localization" );
-const configuration = require( "#configuration-loader" );
+const configurationLoader = require( "#configuration-loader" );
 const dataLoader = require( "#data-loader" );
 
 /**
@@ -69,7 +69,7 @@ class CompetenceWebApplication extends TiWebAppManager {
         if ( view === "config" ) {
             return super.processDataRequest( session, view, options ).then( ( result ) => ( {
                 ...result,
-                grades: configuration.configEvaluationGrades
+                grades: configurationLoader.configEvaluationGrades
             } ) );
         }
         if ( view === "load-employee-competencies" ) {
@@ -103,7 +103,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     )[ 0 ] || {};
                 const positionKey = String( employee.personal?.position ?? "" ).trim();
                 const cycleID = String( lastEvaluation?.cycleID ?? "" ).trim();
-                const positionCompetencies = configuration.configEvaluationPositionCompetencies || {};
+                const positionCompetencies = configurationLoader.configEvaluationPositionCompetencies || {};
                 const positionEntry = Object.prototype.hasOwnProperty.call( positionCompetencies, positionKey )
                     ? positionCompetencies[ positionKey ]
                     : null;
@@ -124,11 +124,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                     employeeID: employeeID,
                     personal: {
                         ...employee.personal,
-                        positionName: configuration.organizationPositionCode.name( employee.personal?.position )
+                        positionName: configurationLoader.organizationPositionCode.name( employee.personal?.position )
                     },
                     evaluation: lastEvaluation,
                     competencies: this.#buildCompetenciesTree(
-                        configuration.configCompetencies,
+                        configurationLoader.configCompetencies,
                         session?.language,
                         allowedCompetencyCodes
                     )

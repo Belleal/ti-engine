@@ -7,6 +7,7 @@
         "position": "SOFTWARE_ENGINEER",
         "department": "Software Development",
         "manager": "Sdfaer Ltruajs",
+        "managerID": "3",
         "level": "R",
         "stage": 2,
         "startingDate": "2022-03-14"
@@ -19,6 +20,7 @@
         "position": "PROJECT_MANAGER",
         "department": "Software Development",
         "manager": "Grasht Jraksj",
+        "managerID": "4",
         "level": "J",
         "stage": 3,
         "startingDate": "2020-11-02"

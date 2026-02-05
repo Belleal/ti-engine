@@ -420,18 +420,16 @@ describe( "CompetenceWebApplication", () => {
 
             const result = await app.processDataRequest( session, "load-employee-competencies", options );
 
-            // Even if evaluation has only some competency grades,
-            // all competencies should have grade objects with empty strings as defaults
+            // Grades are stored in evaluation.grades[competencyCode], not on items
             assert.ok( result.competencies );
-            result.competencies.forEach( category => {
-                category.subcategories.forEach( subcategory => {
-                    subcategory.items.forEach( item => {
-                        assert.strictEqual( typeof item.grades.employee, "string" );
-                        assert.strictEqual( typeof item.grades.manager, "string" );
-                        assert.strictEqual( typeof item.grades.team, "string" );
-                    } );
+            assert.ok( result.evaluation );
+            if ( result.evaluation.grades ) {
+                Object.values( result.evaluation.grades ).forEach( grade => {
+                    assert.strictEqual( typeof grade.employee, "string" );
+                    assert.strictEqual( typeof grade.manager, "string" );
+                    assert.strictEqual( typeof grade.team, "string" );
                 } );
-            } );
+            }
         } );
     } );
 

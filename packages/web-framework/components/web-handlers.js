@@ -337,7 +337,12 @@ module.exports.logoutHandler = () => {
 module.exports.userInformationHandler = () => {
     return ( request, response, next ) => {
         if ( request.session && request.session.user ) {
-            response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, user: request.session.user } );
+            // TODO: This part is for testing purposes only! Normally, the employeeID (if any) and roles should come from the AD response.
+            let user = request.session.user;
+            user.employeeID = user.employeeID || "3";
+            user.roles = [ 1, 2 ];
+
+            response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, data: { user: user } } );
         } else {
             let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
             exception.httpCode = exceptions.httpCode.C_401;

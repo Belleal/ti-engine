@@ -10,6 +10,7 @@ const initialDataModels = {
             "position": "",
             "department": "",
             "manager": "",
+            "managerID": "",
             "level": "",
             "stage": "",
             "startingDate": ""
@@ -70,7 +71,9 @@ const initialDataModels = {
  * @public
  */
 let configureCompetencyEvaluation = () => {
-    const cloneConfiguration = ( value ) => JSON.parse( JSON.stringify( value ) );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    const clone = ( value ) => JSON.parse( JSON.stringify( value ) );
 
     const getEmployeeIdFromUrl = () => {
         const params = new URLSearchParams( window.location.search );
@@ -79,14 +82,12 @@ let configureCompetencyEvaluation = () => {
 
     return {
         employeeID: null,
-        personal: cloneConfiguration( initialDataModels.competencyEvaluation.personal ),
-        evaluation: cloneConfiguration( initialDataModels.competencyEvaluation.evaluation ),
-        competencies: cloneConfiguration( initialDataModels.competencyEvaluation.competencies ),
+        personal: clone( initialDataModels.competencyEvaluation.personal ),
+        evaluation: clone( initialDataModels.competencyEvaluation.evaluation ),
+        competencies: clone( initialDataModels.competencyEvaluation.competencies ),
         grades: {},
 
         init() {
-            const tiApplication = Alpine.store( "tiApplication" );
-
             const onInitialized = () => {
                 this.grades = tiApplication.configuration.grades;
                 this.employeeID = getEmployeeIdFromUrl();
@@ -106,9 +107,9 @@ let configureCompetencyEvaluation = () => {
 
         applyData( data ) {
             const fresh = ( data && typeof data === "object" ) ? data : {};
-            this.personal = cloneConfiguration( fresh.personal || initialDataModels.competencyEvaluation.personal );
-            this.evaluation = cloneConfiguration( fresh.evaluation || initialDataModels.competencyEvaluation.evaluation );
-            this.competencies = cloneConfiguration( fresh.competencies || initialDataModels.competencyEvaluation.competencies );
+            this.personal = clone( fresh.personal || initialDataModels.competencyEvaluation.personal );
+            this.evaluation = clone( fresh.evaluation || initialDataModels.competencyEvaluation.evaluation );
+            this.competencies = clone( fresh.competencies || initialDataModels.competencyEvaluation.competencies );
         },
 
         loadEmployee( employeeID ) {
@@ -118,7 +119,6 @@ let configureCompetencyEvaluation = () => {
             } else {
                 this.employeeID = resolvedID;
                 const url = `/app/load-employee-competencies?employeeID=${ encodeURIComponent( resolvedID ) }`;
-                const tiApplication = Alpine.store( "tiApplication" );
                 tiApplication.sendRequest( url ).then( ( result ) => {
                     this.applyData( result?.data );
                 } ).catch( ( error ) => {
@@ -167,8 +167,8 @@ let configureCompetencyEvaluation = () => {
             const normalized = /^\d{4}-\d{2}-\d{2}$/.test( value )
                 ? `${ value }T00:00:00Z`
                 : value;
-            const dateValue = new Date( normalized );
-            return isValidDate( dateValue ) ? dateValue.toLocaleDateString() : "";
+            const date = new Date( normalized );
+            return isValidDate( date ) ? date.toLocaleDateString() : "";
         },
 
         // Compute summary for a category based on manager grades majority across all items.
@@ -209,6 +209,14 @@ let configureCompetencyEvaluation = () => {
                 default:
                     return 'ti-badge';
             }
+        },
+
+        isEmployeeManager() {
+            return tiApplication.user && tiApplication.user.roles && tiApplication.user.roles.includes( 2 ) && this.personal.managerID === tiApplication.user.employeeID;
+        },
+
+        isEmployee() {
+            return tiApplication.user && tiApplication.user.roles && tiApplication.user.roles.includes( 1 ) && this.personal.employeeID === tiApplication.user.employeeID;
         }
     };
 };
