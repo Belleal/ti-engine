@@ -148,12 +148,12 @@ let configureCompetencyEvaluation = () => {
             this.evaluation.interviewDate = value;
         },
 
-        getItemGrade( competencyCode, role ) {
-            let grade = "";
+        getItemGrade( competencyCode, role, defaultValue = "" ) {
+            let grade;
             if ( competencyCode ) {
                 grade = this.evaluation.grades?.[ competencyCode ]?.[ role ];
             }
-            return grade || "";
+            return grade || defaultValue;
         },
 
         setItemGrade( competencyCode, role, value ) {
@@ -216,7 +216,7 @@ let configureCompetencyEvaluation = () => {
         },
 
         isEmployee() {
-            return tiApplication.user && tiApplication.user.roles && tiApplication.user.roles.includes( 1 ) && this.personal.employeeID === tiApplication.user.employeeID;
+            return tiApplication.user && tiApplication.user.roles && tiApplication.user.roles.includes( 1 ) && this.employeeID === tiApplication.user.employeeID;
         }
     };
 };

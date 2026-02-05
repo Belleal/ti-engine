@@ -11,6 +11,7 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const localization = require( "@ti-engine/core/localization" );
 const { randomBytes, timingSafeEqual } = require( "node:crypto" );
 const URL = require( "node:url" ).URL;
+const _ = require( "lodash" );
 const helmet = require( "helmet" );
 const authMethod = require( "#auth-manager" ).authMethod;
 
@@ -338,7 +339,7 @@ module.exports.userInformationHandler = () => {
     return ( request, response, next ) => {
         if ( request.session && request.session.user ) {
             // TODO: This part is for testing purposes only! Normally, the employeeID (if any) and roles should come from the AD response.
-            let user = request.session.user;
+            let user = _.cloneDeep( request.session.user );
             user.employeeID = user.employeeID || "3";
             user.roles = [ 1, 2 ];
 

@@ -393,6 +393,7 @@ class TiWebAppManager {
         while ( p > start && /\s/.test( html[ p ] ) ) p--;
         const isSelfClosing = html[ p ] === "/";
         let end;
+        let inner = "";
         if ( isSelfClosing ) {
             end = gt + 1;
         } else {
@@ -401,10 +402,21 @@ class TiWebAppManager {
             if ( end === -1 ) {
                 return html;
             }
+            inner = html.slice( gt + 1, end );
             end += close.length;
         }
 
-        return html.slice( 0, start ) + replacement + html.slice( end );
+        let replacementWithInner = replacement;
+        if ( inner ) {
+            const insertAt = replacement.lastIndexOf( "</" );
+            if ( insertAt !== -1 ) {
+                replacementWithInner = replacement.slice( 0, insertAt ) + inner + replacement.slice( insertAt );
+            } else {
+                replacementWithInner = replacement + inner;
+            }
+        }
+
+        return html.slice( 0, start ) + replacementWithInner + html.slice( end );
     }
 
     /**

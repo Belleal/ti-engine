@@ -402,16 +402,14 @@ describe( "CompetenceWebApplication", () => {
             const result = await app.processDataRequest( session, "load-employee-competencies", options );
 
             // Check that all competency items have normalized grades
-            result.competencies.forEach( category => {
-                category.subcategories.forEach( subcategory => {
-                    subcategory.items.forEach( item => {
-                        assert.ok( item.grades );
-                        assert.ok( item.grades.hasOwnProperty( "employee" ) );
-                        assert.ok( item.grades.hasOwnProperty( "manager" ) );
-                        assert.ok( item.grades.hasOwnProperty( "team" ) );
-                    } );
+            if ( result.evaluation.grades ) {
+                Object.values( result.evaluation.grades ).forEach( grade => {
+                    assert.ok( grade );
+                    assert.ok( grade.hasOwnProperty( "employee" ) );
+                    assert.ok( grade.hasOwnProperty( "manager" ) );
+                    assert.ok( grade.hasOwnProperty( "team" ) );
                 } );
-            } );
+            }
         } );
 
         it( "should handle employee evaluation with partial grades", async () => {

@@ -46,10 +46,11 @@
     font-size: var(--competence-label-font-size);
     font-weight: normal;
     color: #111111;
-    padding: var(--competence-datafield-padding-v) var(--competence-datafield-padding-h);
+    padding: calc(var(--competence-datafield-padding-v) - 1px) var(--competence-datafield-padding-h) calc(var(--competence-datafield-padding-v) + 1px);
     min-height: var(--competence-data-field-height);
     display: flex;
     align-items: center;
+    border: 1px solid #b9b9b9;
     border-radius: 2px;
 }
 
@@ -82,9 +83,9 @@
     border: 1px solid #a6a6a6;
     border-radius: 2px;
     padding: var(--competence-datafield-padding-v) var(--competence-datafield-padding-h);
-    font-family: var(--ti-font-famlily), system-ui;
+    font-family: var(--ti-font-family);
     font-size: var(--competence-label-font-size);
-    line-height: calc(var(--competence-data-field-height) - 2px);
+    line-height: var(--competence-data-field-height);
     min-height: var(--competence-data-field-height);
     width: 100%;
     box-sizing: border-box;
@@ -235,7 +236,7 @@
     display: none;
 }
 
-@media (max-width: var(--competence-appraisal-form-min-width)) {
+@media (max-width: 720px) {
     .competence-sub-panel {
         max-width: 100%;
     }

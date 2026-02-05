@@ -5,11 +5,11 @@
     --ti-padding: 10px;
     --ti-margin: 10px;
     --ti-notification-top: 50px;
-    --ti-font-famlily: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    --ti-font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
 body {
-    font-family: var(--ti-font-famlily), system-ui;
+    font-family: var(--ti-font-family), system-ui;
     position: absolute;
     width: 100%;
     height: 100%;
@@ -216,4 +216,36 @@ body {
     border: 0;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
     margin: 6px 4px;
+}
+
+.ti-tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.ti-tooltip-bubble {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 8px;
+    padding: 6px 12px;
+    background-color: rgba(0, 0, 0, 0.85);
+    color: white;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.ti-tooltip-bubble::before {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.85);
 }

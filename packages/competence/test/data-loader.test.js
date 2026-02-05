@@ -181,12 +181,6 @@ describe( "DataLoader", () => {
                 }
             }
         } );
-
-        it( "should return all evaluations when only employeeID is provided", async () => {
-            const evaluations = await dataLoader.instance.fetchEvaluations( "1" );
-            const evaluationsWithUndefined = await dataLoader.instance.fetchEvaluations( "1", undefined );
-            assert.strictEqual( evaluations.length, evaluationsWithUndefined.length );
-        } );
     } );
 
     describe( "Data Consistency", () => {

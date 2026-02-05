@@ -58,14 +58,17 @@
                                         <div class="competence-code" x-text="item.id"></div>
                                         <div class="competence-name" x-text="item.name"></div>
                                     </div>
-                                    <select class="competence-input grade" x-on:change="setItemGrade(item.id, 'employee', $event.target.value)"
-                                            x-bind:disabled="!isEmployee()">
-                                        <option value="" x-bind:selected="!getItemGrade(item.id, 'employee')">-</option>
-                                        <template x-for="(grade, gradeKey) in grades" x-bind:key="gradeKey">
-                                            <option x-bind:value="gradeKey" x-text="gradeKey"
-                                                    x-bind:selected="getItemGrade(item.id, 'employee') == gradeKey"></option>
-                                        </template>
-                                    </select>
+                                    <ti-component-tooltip-placeholder>
+                                        <select class="competence-input grade" x-on:change="setItemGrade(item.id, 'employee', $event.target.value)"
+                                                x-bind:disabled="!isEmployee()" x-bind:aria-disabled="!isEmployee()"
+                                                x-bind:data-ti-tooltip="item.description">
+                                            <option value="" x-bind:selected="!getItemGrade(item.id, 'employee')">-</option>
+                                            <template x-for="(grade, gradeKey) in grades" x-bind:key="gradeKey">
+                                                <option x-bind:value="gradeKey" x-text="gradeKey"
+                                                        x-bind:selected="getItemGrade(item.id, 'employee') == gradeKey"></option>
+                                            </template>
+                                        </select>
+                                    </ti-component-tooltip-placeholder>
                                     <select class="competence-input grade" x-on:change="setItemGrade(item.id, 'manager', $event.target.value)"
                                             x-show="isEmployeeManager()">
                                         <option value="" x-bind:selected="!getItemGrade(item.id, 'manager')">-</option>
@@ -74,7 +77,8 @@
                                                     x-bind:selected="getItemGrade(item.id, 'manager') == gradeKey"></option>
                                         </template>
                                     </select>
-                                    <div class="competence-data-value compact-centered" x-text="getItemGrade(item.id, 'team')" x-show="isEmployeeManager()"></div>
+                                    <div class="competence-data-value compact-centered" x-text="getItemGrade(item.id, 'team', '-')"
+                                         x-show="isEmployeeManager()"></div>
                                     <div class="competence-category-description" x-text="item.description"></div>
                                 </div>
                             </template>

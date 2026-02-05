@@ -1,0 +1,11 @@
+<div x-data="tiComponentTooltip()"
+     x-on:mouseover="handleEnter($event)"
+     x-on:mouseout="handleLeave($event)"
+     x-on:focusin="handleEnter($event)"
+     x-on:focusout="handleLeave($event)"
+     class="ti-tooltip">
+    <div x-show="isVisible"
+         x-text="text"
+         x-transition
+         class="ti-tooltip-bubble"></div>
+</div>

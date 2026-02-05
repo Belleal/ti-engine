@@ -30,7 +30,8 @@ class CompetenceWebApplication extends TiWebAppManager {
 
         this.addFragment( "competence-evaluation", {
             title: "Competence Evaluation",
-            path: "fragments/frame-competence-evaluation.html"
+            path: "fragments/frame-competence-evaluation.html",
+            components: [ "component-tooltip" ]
         } );
     }
 

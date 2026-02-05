@@ -300,6 +300,39 @@ let configureComponentNotificationBar = () => {
     };
 };
 
+
+function configureComponentTooltip() {
+    return {
+        isVisible: false,
+        text: "This is a default tooltip. To change that, define a ",
+        getTooltipMessage( target ) {
+            if ( !target || typeof target.closest !== "function" ) return "";
+            const selector = "[data-ti-tooltip], [data-tooltip]";
+            const element = target.closest( selector );
+            if ( !element || !this.$el.contains( element ) ) return "";
+            return element.getAttribute( "data-ti-tooltip" ) || element.getAttribute( "data-tooltip" ) || "";
+        },
+        handleEnter( event ) {
+            const message = this.getTooltipMessage( event?.target );
+            if ( message ) {
+                this.showTooltip( message );
+            }
+        },
+        handleLeave( event ) {
+            const related = event?.relatedTarget;
+            if ( related && this.$el.contains( related ) ) return;
+            this.hideTooltip();
+        },
+        showTooltip( message ) {
+            this.text = message;
+            this.isVisible = true;
+        },
+        hideTooltip() {
+            this.isVisible = false;
+        }
+    };
+}
+
 /**
  * Returns a configuration object for the application management instance.
  *
@@ -371,7 +404,14 @@ let configureApplication = () => {
                     cache: "no-store",
                 } ).then( ( response ) => {
                     const contentType = ( response.headers.get( "content-type" ) || "" ).toLowerCase();
-                    return ( contentType.includes( "application/json" ) ) ? response.json() : { isSuccessful: response.ok, message: response.statusText };
+                    if ( contentType.includes( "application/json" ) ) {
+                        return response.json().then( ( body ) => ( {
+                            isSuccessful: response.ok,
+                            ...body
+                        } ) );
+                    } else {
+                        return { isSuccessful: response.ok, message: response.statusText };
+                    }
                 } ).then( ( result ) => {
                     if ( !result || result.isSuccessful === false ) {
                         reject( result || {} );
@@ -457,4 +497,5 @@ document.addEventListener( "alpine:init", () => {
     Alpine.store( "tiApplication", configureApplication() );
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
+    Alpine.data( "tiComponentTooltip", configureComponentTooltip );
 } );
