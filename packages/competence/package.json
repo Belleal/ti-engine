@@ -1,20 +1,31 @@
 {
   "name": "@ti-engine/competence",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "imports": {
+    "#config-competencies": "./bin/config/competencies.json",
+    "#config-grades": "./bin/config/grades.json",
+    "#config-position-competencies": "./bin/config/positionCompetencies.json",
     "#config-position-levels": "./bin/config/positionLevels.json",
     "#config-positions": "./bin/config/positions.json",
-    "#config-roles": "./bin/config/roles.json"
+    "#config-roles": "./bin/config/roles.json",
+    "#configuration-loader": "./application/configuration-loader.js",
+    "#data-employees": "./bin/data/employees.json",
+    "#data-evaluations": "./bin/data/evaluations.json",
+    "#data-loader": "./application/data-loader.js"
   },
   "dependencies": {
     "@ti-engine/core": "*",
     "@ti-engine/web-framework": "*",
-    "postgres": "^3.4.7"
+    "postgres": "^3.4.8"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:json": "node --test test/json-config-validation.test.js"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }

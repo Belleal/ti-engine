@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/web-framework",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "A web-framework based on the ti-engine. It provides a customizable ready-to-use web-server microservice and a set of tools for creating web applications. NOTICE: This is still a work in progress and the full architecture, design, and functionality are not available!",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
@@ -20,14 +20,14 @@
   "dependencies": {
     "@ti-engine/core": "*",
     "cookie-parser": "^1.4.7",
-    "express": "^5.1.0",
-    "express-session": "^1.18.2",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
     "helmet": "^8.1.0",
-    "lodash": "^4.17.21",
-    "openid-client": "^6.8.1"
+    "lodash": "^4.17.23",
+    "openid-client": "^6.8.2"
   },
   "devDependencies": {
-    "@alpinejs/csp": "^3.15.2",
+    "@alpinejs/csp": "^3.15.8",
     "htmx.org": "^2.0.8"
   },
   "files": [
@@ -48,7 +48,7 @@
   },
   "homepage": "https://github.com/Belleal/ti-engine/tree/master/packages/web-framework#readme",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "scripts": {
     "postinstall": "node ./bin/build/post-install.js"

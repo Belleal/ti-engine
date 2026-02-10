@@ -11,6 +11,18 @@ function isPlainObject( value ) {
 }
 
 /**
+ * Used to check if a value is a valid Date object.
+ *
+ * @method
+ * @param {*} value
+ * @returns {boolean}
+ * @public
+ */
+function isValidDate( value ) {
+    return value instanceof Date && !isNaN( value );
+}
+
+/**
  * Used to perform a deep merge of two objects. 'base' is the object that will be modified.
  * <br/>
  * NOTE: If 'structuredClone' is not available, fall back to JSON.parse/JSON.stringify. The later will not preserve non-JSON-serializable
@@ -42,6 +54,27 @@ function deepMerge( base, source ) {
             }
         }
         return out;
+    }
+}
+
+/**
+ * Used to deep-freeze an object.
+ *
+ * @method
+ * @param {Object} object
+ * @param {WeakSet} [seen]
+ * @return {Object}
+ * @public
+ */
+function deepFreeze( object, seen = new WeakSet() ) {
+    if ( object === null || typeof object !== "object" || seen.has( object ) ) {
+        return object;
+    } else {
+        seen.add( object );
+        Object.keys( object ).forEach( ( key ) => {
+            deepFreeze( object[ key ], seen );
+        } );
+        return Object.freeze( object );
     }
 }
 
@@ -268,6 +301,45 @@ let configureComponentNotificationBar = () => {
 };
 
 /**
+ * Returns a configuration object for the tooltip component "component-tooltip.html".
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+function configureComponentTooltip() {
+    return {
+        isVisible: false,
+        text: "This is a default tooltip. To change that, define a 'x-bind:data-ti-tooltip' attribute in the target element to set the tooltip text.",
+        getTooltipMessage( target ) {
+            if ( !target || typeof target.closest !== "function" ) return "";
+            const selector = "[data-ti-tooltip], [data-tooltip]";
+            const element = target.closest( selector );
+            if ( !element || !this.$el.contains( element ) ) return "";
+            return element.getAttribute( "data-ti-tooltip" ) || element.getAttribute( "data-tooltip" ) || "";
+        },
+        handleEnter( event ) {
+            const message = this.getTooltipMessage( event?.target );
+            if ( message ) {
+                this.showTooltip( message );
+            }
+        },
+        handleLeave( event ) {
+            const related = event?.relatedTarget;
+            if ( related && this.$el.contains( related ) ) return;
+            this.hideTooltip();
+        },
+        showTooltip( message ) {
+            this.text = message;
+            this.isVisible = true;
+        },
+        hideTooltip() {
+            this.isVisible = false;
+        }
+    };
+}
+
+/**
  * Returns a configuration object for the application management instance.
  *
  * @method
@@ -275,50 +347,115 @@ let configureComponentNotificationBar = () => {
  * @public
  */
 let configureApplication = () => {
+    /**
+     * Used to extract a label from a nested labels object.
+     *
+     * @method
+     * @param {Object} labels
+     * @param {String[]} keys
+     * @param {String} fallback
+     * @return {String}
+     * @private
+     */
+    const extractLabel = ( labels, keys, fallback ) => {
+        let key = keys.shift();
+        if ( labels && typeof labels === "object" && key && Object.prototype.hasOwnProperty.call( labels, key ) ) {
+            const value = labels[ key ];
+            if ( typeof value === "string" ) {
+                return keys.length === 0 ? value : fallback;
+            }
+            if ( value && typeof value === "object" ) {
+                return extractLabel( value, keys, fallback );
+            }
+        }
+        return fallback;
+    };
+
     return {
         isInitialized: false,
-        user: undefined,
-        labels: {},
+        user: null,
+        configuration: {},
         notificationIDCounter: 1,
+        requestControllers: new Map(),
+
         init() {
             document.addEventListener( "ti:error", ( event ) => {
                 this.notify( event.detail );
             } );
 
+            // Use application settings to configure the application at load-time:
             this.sendRequest( "/app/config" ).then( ( result ) => {
-                // TODO: use result to initialize the application
-                this.labels = result?.data?.labels || {};
+                this.configuration = result?.data || {};
+                return ( this.configuration?.auth?.isAuthenticated ) ? this.sendRequest( "/me" ) : {};
+            } ).then( ( result ) => {
+                this.user = result?.data?.user || null;
                 this.isInitialized = true;
             } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) return;
+
+                this.user = null;
+                this.isInitialized = false;
                 error.message = `Failed to initialize the application: ${ error.message }`;
                 this.notify( error );
             } );
         },
+
         sendRequest( url, method = "GET" ) {
             return new Promise( ( resolve, reject ) => {
                 const xsrf = getCookie( "ti-xsrf-token" ) || "";
+                const normalizedMethod = String( method || "GET" ).toUpperCase();
+                const requestKey = `${ normalizedMethod } ${ String( url || "" ).split( "?" )[ 0 ] }`;
+                const abortController = ( typeof AbortController === "function" ) ? new AbortController() : null;
+
+                if ( abortController ) {
+                    const existing = this.requestControllers.get( requestKey );
+                    if ( existing ) {
+                        existing.abort();
+                    }
+                    this.requestControllers.set( requestKey, abortController );
+                }
+
+                const cleanup = () => {
+                    if ( !abortController ) return;
+                    const active = this.requestControllers.get( requestKey );
+                    if ( active === abortController ) {
+                        this.requestControllers.delete( requestKey );
+                    }
+                };
+
                 fetch( url, {
-                    method: method,
+                    method: normalizedMethod,
                     headers: {
                         "Accept": "application/json",
                         "x-xsrf-token": xsrf
                     },
                     credentials: "same-origin",
                     cache: "no-store",
+                    signal: abortController?.signal,
                 } ).then( ( response ) => {
                     const contentType = ( response.headers.get( "content-type" ) || "" ).toLowerCase();
-                    return ( contentType.includes( "application/json" ) ) ? response.json() : { isSuccessful: response.ok, message: response.statusText };
+                    if ( contentType.includes( "application/json" ) ) {
+                        return response.json().then( ( body ) => ( {
+                            isSuccessful: response.ok,
+                            ...body
+                        } ) );
+                    } else {
+                        return { isSuccessful: response.ok, message: response.statusText };
+                    }
                 } ).then( ( result ) => {
-                    if ( result && result.isSuccessful === false ) {
-                        reject( result );
+                    if ( !result || result.isSuccessful === false ) {
+                        reject( result || {} );
                     } else {
                         resolve( result );
                     }
                 } ).catch( ( error ) => {
                     reject( error );
+                } ).finally( () => {
+                    cleanup();
                 } );
             } );
         },
+
         notify( data ) {
             const notificationBar = document.querySelector( "#ti-notifications" );
             if ( notificationBar ) {
@@ -328,6 +465,14 @@ let configureApplication = () => {
                     message: data?.message || "Unexpected application error.",
                     timeout: data?.timeout || 60000
                 } );
+            }
+        },
+
+        getLabel( label, fallback = "LABEL NOT FOUND" ) {
+            if ( !label ) {
+                return fallback;
+            } else {
+                return extractLabel( this.configuration.labels || {}, label.split( "." ).filter( Boolean ), fallback );
             }
         }
     };
@@ -366,7 +511,23 @@ document.addEventListener( "htmx:responseError", ( event ) => {
  * Register on-initialization tasks for the Alpine.js framework.
  */
 document.addEventListener( "alpine:init", () => {
+    Alpine.directive( "text-label", ( element, { expression }, { effect } ) => {
+        effect( () => {
+            const tiApplication = Alpine.store( "tiApplication" );
+            if ( !tiApplication || typeof tiApplication.getLabel !== "function" ) return;
+            let path = ( expression || "" ).trim();
+            const fallback = element.textContent;
+            if (
+                ( path.startsWith( "'" ) && path.endsWith( "'" ) ) ||
+                ( path.startsWith( "\"" ) && path.endsWith( "\"" ) )
+            ) {
+                path = path.slice( 1, -1 );
+            }
+            element.textContent = tiApplication.getLabel( path, fallback );
+        } );
+    } );
     Alpine.store( "tiApplication", configureApplication() );
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
+    Alpine.data( "tiComponentTooltip", configureComponentTooltip );
 } );

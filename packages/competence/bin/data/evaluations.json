@@ -1,0 +1,34 @@
+{
+  "evaluations": [
+    {
+      "evaluationID": "adef433c-9a9d-42d4-abdc-26ca3a48827e",
+      "employeeID": "1",
+      "cycleID": "2025.H1",
+      "cycleDate": "2025-06-30",
+      "interviewDate": "2025-06-15",
+      "status": "Open",
+      "grades": {
+        "E1-1": { "employee": "S", "manager": "R", "team": "S" },
+        "E1-2": { "employee": "R", "manager": "R", "team": "R" },
+        "E2-1": { "employee": "S", "manager": "S", "team": "R" },
+        "I1-1": { "employee": "R", "manager": "R", "team": "R" },
+        "C1-1": { "employee": "S", "manager": "R", "team": "S" }
+      }
+    },
+    {
+      "evaluationID": "1735bb0a-62c5-415a-b37d-06a26c9939e3",
+      "employeeID": "2",
+      "cycleID": "2025.H1",
+      "cycleDate": "2025-06-30",
+      "interviewDate": "2025-06-17",
+      "status": "Open",
+      "grades": {
+        "E1-1": { "employee": "R", "manager": "R", "team": "R" },
+        "E1-2": { "employee": "R", "manager": "S", "team": "R" },
+        "E2-1": { "employee": "R", "manager": "R", "team": "R" },
+        "I1-1": { "employee": "S", "manager": "R", "team": "R" },
+        "C1-1": { "employee": "R", "manager": "R", "team": "S" }
+      }
+    }
+  ]
+}

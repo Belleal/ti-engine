@@ -11,6 +11,7 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const localization = require( "@ti-engine/core/localization" );
 const { randomBytes, timingSafeEqual } = require( "node:crypto" );
 const URL = require( "node:url" ).URL;
+const _ = require( "lodash" );
 const helmet = require( "helmet" );
 const authMethod = require( "#auth-manager" ).authMethod;
 
@@ -166,6 +167,18 @@ let isAcceptingResponseType = ( request, type ) => {
 };
 
 /**
+ * Safely convert a URI to a string.
+ *
+ * @method
+ * @param {URL|string} uri
+ * @return {string}
+ * @private
+ */
+let convertUriToString = ( uri ) => {
+    return ( typeof uri === "string" ) ? uri : ( uri && typeof uri.toString === "function" ) ? uri.toString() : "/";
+};
+
+/**
  * Handler for requests that are received while the web server is shutting down.
  *
  * @method
@@ -202,7 +215,7 @@ module.exports.resourceProtectionHandler = ( instance ) => {
                 response.set( "HX-Redirect", redirectTo );
                 response.status( exceptions.httpCode.C_204 ).end();
             } else if ( isAcceptingResponseType( request, "html" ) ) {
-                response.redirect( exceptions.httpCode.C_303, redirectTo );
+                response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
             } else {
                 response.status( exceptions.httpCode.C_401 ).end();
             }
@@ -233,7 +246,7 @@ module.exports.authenticationHandler = ( instance ) => {
                     return session;
                 } );
             } ).then( ( redirectTo ) => {
-                response.redirect( exceptions.httpCode.C_303, redirectTo );
+                response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
             } ).catch( ( error ) => {
                 let exception = exceptions.raise( error );
                 exception.httpCode = exceptions.httpCode.C_401;
@@ -246,7 +259,7 @@ module.exports.authenticationHandler = ( instance ) => {
                     return session;
                 } );
             } ).then( ( redirectTo ) => {
-                response.redirect( exceptions.httpCode.C_303, redirectTo );
+                response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
             } ).catch( ( error ) => {
                 let exception = exceptions.raise( error );
                 exception.httpCode = exceptions.httpCode.C_401;
@@ -285,7 +298,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
                     return session;
                 } );
             } ).then( ( redirectTo ) => {
-                response.redirect( exceptions.httpCode.C_303, redirectTo );
+                response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
             } ).catch( ( error ) => {
                 let exception = exceptions.raise( error );
                 exception.httpCode = exceptions.httpCode.C_401;
@@ -325,7 +338,12 @@ module.exports.logoutHandler = () => {
 module.exports.userInformationHandler = () => {
     return ( request, response, next ) => {
         if ( request.session && request.session.user ) {
-            response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, user: request.session.user } );
+            // TODO: This part is for testing purposes only! Normally, the employeeID (if any) and roles should come from the AD response.
+            let user = _.cloneDeep( request.session.user );
+            user.employeeID = user.employeeID || "3";
+            user.roles = [ 1, 2 ];
+
+            response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, data: { user: user } } );
         } else {
             let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
             exception.httpCode = exceptions.httpCode.C_401;
@@ -355,7 +373,7 @@ module.exports.httpRedirectHandler = ( instance ) => {
                 const host = request.get ? request.get( "host" ) : request.headers.host;
                 const location = new URL( request.url, "https://" + host );
                 response.set( "Cache-Control", "no-store" );
-                response.redirect( exceptions.httpCode.C_308, location );
+                response.redirect( exceptions.httpCode.C_308, convertUriToString( location ) );
             }
         }
     }
@@ -577,7 +595,14 @@ module.exports.webAppHandler = ( instance ) => {
                     } );
                 }
             } else if ( isAcceptingResponseType( request, "json" ) ) {
-                instance.webAppManager.processDataRequest( request.session, request.params?.view ).then( ( result ) => {
+                const requestContext = {
+                    query: request.query,
+                    params: request.params,
+                    headers: request.headers,
+                    url: request.originalUrl,
+                    method: request.method
+                };
+                instance.webAppManager.processDataRequest( request.session, request.params?.view, requestContext ).then( ( result ) => {
                     response.set( "Cache-Control", "no-store" );
                     response.set( "Content-Type", "application/json; charset=utf-8" );
                     response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, data: result } );

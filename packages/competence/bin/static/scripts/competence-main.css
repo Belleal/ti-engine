@@ -1,0 +1,256 @@
+:root {
+    --competence-panel-padding: 12px;
+    --competence-datafield-padding-v: 6px;
+    --competence-datafield-padding-h: 12px;
+    --competence-grid-gap: 6px;
+    --competence-title-font-size: 14px;
+    --competence-label-font-size: 14px;
+    --competence-border-radius: 4px;
+    --competence-title-color: #1d1d1d;
+    --competence-label-color: #1f1f1f;
+    --competence-description-color: #353535;
+    --competence-row-code-width: 60px;
+    --competence-row-name-width: 180px;
+    --competence-row-grade-width: 60px;
+    --competence-row-desc-width: 240px;
+    --competence-data-field-height: 20px;
+    --competence-appraisal-form-min-width: 720px;
+    /* Ti Style Overrides: */
+    --ti-padding: 12px;
+    --ti-margin: 12px;
+    --ti-gap: 12px;
+}
+
+.competence-sub-panel {
+    background-color: #d9d9d9;
+    padding: var(--competence-panel-padding);
+    gap: var(--competence-grid-gap);
+    border-radius: var(--competence-border-radius);
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.competence-sub-panel-title {
+    font-size: var(--competence-title-font-size);
+    font-weight: 600;
+    color: var(--competence-title-color);
+}
+
+.competence-label {
+    font-size: var(--competence-label-font-size);
+    color: var(--competence-label-color);
+}
+
+.competence-data-value {
+    background-color: #b9b9b9;
+    font-size: var(--competence-label-font-size);
+    font-weight: normal;
+    color: #111111;
+    padding: calc(var(--competence-datafield-padding-v) - 1px) var(--competence-datafield-padding-h) calc(var(--competence-datafield-padding-v) + 1px);
+    min-height: var(--competence-data-field-height);
+    display: flex;
+    align-items: center;
+    border: 1px solid #b9b9b9;
+    border-radius: 2px;
+}
+
+.competence-data-value.compact-centered {
+    justify-content: center;
+}
+
+.competence-grid {
+    display: grid;
+    grid-template-columns: 220px minmax(220px, 1fr);
+    gap: var(--competence-grid-gap);
+    align-items: center;
+}
+
+.competence-grid-value-group {
+    display: grid;
+    gap: var(--competence-grid-gap);
+}
+
+.competence-grid-value-group.position-level {
+    grid-template-columns: 40px minmax(200px, 1fr);
+}
+
+.competence-grid-value-group.appraisal-cycle {
+    grid-template-columns: 80px minmax(200px, 1fr);
+}
+
+.competence-input {
+    background-color: #ffffff;
+    border: 1px solid #a6a6a6;
+    border-radius: 2px;
+    padding: var(--competence-datafield-padding-v) var(--competence-datafield-padding-h);
+    font-family: var(--ti-font-family);
+    font-size: var(--competence-label-font-size);
+    line-height: var(--competence-data-field-height);
+    min-height: var(--competence-data-field-height);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.competence-input:focus,
+.competence-input:focus-visible {
+    outline: 1px solid #8ba0e3;
+    outline-offset: -1px;
+    box-shadow: 0 0 4px 2px rgba(74, 110, 219, 0.2);
+}
+
+.competence-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--competence-grid-gap);
+    overflow: visible;
+}
+
+.competence-row,
+.competence-list-head {
+    display: grid;
+    grid-template-columns:
+        var(--competence-row-code-width)
+        minmax(var(--competence-row-name-width), 1fr)
+        var(--competence-row-grade-width)
+        var(--competence-row-grade-width)
+        var(--competence-row-grade-width)
+        minmax(var(--competence-row-desc-width), 1fr);
+    grid-template-rows: auto auto;
+    gap: var(--competence-grid-gap);
+    align-items: end;
+    width: 100%;
+    min-width: var(--competence-appraisal-form-min-width);
+}
+
+.competence-list-head-label {
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--competence-title-color);
+}
+
+.competence-list-head-label.title {
+    grid-column: 1 / span 2;
+    grid-row: 1 / span 2;
+    text-align: left;
+}
+
+.competence-list-head-label.appraisals {
+    grid-column: 3 / span 3;
+    grid-row: 1;
+}
+
+.competence-list-head-label.self {
+    grid-row: 2;
+    grid-column: 3;
+}
+
+.competence-list-head-label.manager {
+    grid-row: 2;
+    grid-column: 4;
+}
+
+.competence-list-head-label.team {
+    grid-row: 2;
+    grid-column: 5;
+}
+
+.competence-category {
+    display: flex;
+    flex-direction: column;
+    gap: var(--competence-grid-gap);
+    width: 100%;
+    min-width: var(--competence-appraisal-form-min-width);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--competence-label-color);
+}
+
+.competence-category-header {
+    display: grid;
+    grid-template-columns: 1fr minmax(var(--competence-row-name-width), 1fr);
+    gap: var(--competence-grid-gap);
+    align-items: baseline;
+}
+
+.competence-category-name {
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.04em;
+}
+
+.competence-category-description {
+    font-weight: 500;
+    font-style: italic;
+    text-align: left;
+    color: var(--competence-description-color);
+}
+
+.competence-category-description:empty {
+    display: none;
+}
+
+.competence-subcategory {
+    display: flex;
+    flex-direction: column;
+    gap: var(--competence-grid-gap);
+}
+
+.competence-subcategory-title {
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.04em;
+}
+
+.competence-row {
+    align-items: center;
+}
+
+.competence-info {
+    grid-column: 1 / span 2;
+    display: grid;
+    grid-template-columns: var(--competence-row-code-width) minmax(var(--competence-row-name-width), 1fr);
+    gap: var(--competence-grid-gap);
+    align-items: center;
+    background-color: #c9c9c9;
+    border-radius: 2px;
+    padding: var(--competence-datafield-padding-v) var(--competence-datafield-padding-h);
+    box-sizing: border-box;
+}
+
+.competence-code,
+.competence-name {
+    font-weight: 500;
+}
+
+.competence-input.grade {
+    text-align: center;
+    text-align-last: center;
+    font-size: 14px;
+    cursor: text;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: none;
+}
+
+.competence-input.grade::-ms-expand {
+    display: none;
+}
+
+@media (max-width: 720px) {
+    .competence-sub-panel {
+        max-width: 100%;
+    }
+
+    .competence-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .competence-grid-value-group {
+        grid-template-columns: 1fr;
+    }
+
+    .competence-row,
+    .competence-category {
+        min-width: 100%;
+    }
+}

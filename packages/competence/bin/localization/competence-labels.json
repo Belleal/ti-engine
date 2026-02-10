@@ -3,15 +3,15 @@
     "name": {
       "E": {
         "en": "Expertise",
-        "bg": ""
+        "bg": "Експертиза"
       },
       "I": {
         "en": "Insight",
-        "bg": ""
+        "bg": "Вникване"
       },
       "C": {
         "en": "Commitment",
-        "bg": ""
+        "bg": "Ангажираност"
       }
     },
     "description": {
@@ -32,82 +32,82 @@
       "name": {
         "E1": {
           "en": "Theoretical knowledge",
-          "bg": ""
+          "bg": "Теоретични познания"
         },
         "E2": {
           "en": "Applied skills",
-          "bg": ""
+          "bg": "Приложни умения"
         },
         "E3": {
           "en": "Practical experience",
-          "bg": ""
+          "bg": "Практически опит"
         },
         "I1": {
-          "en": "",
-          "bg": ""
+          "en": "Processes",
+          "bg": "Процеси"
         },
         "I2": {
-          "en": "",
-          "bg": ""
+          "en": "Planning",
+          "bg": "Планиране"
         },
         "I3": {
-          "en": "",
-          "bg": ""
+          "en": "Estimation",
+          "bg": "Оценка"
         },
         "C1": {
-          "en": "",
-          "bg": ""
+          "en": "Responsibility",
+          "bg": "Отговорност"
         },
         "C2": {
-          "en": "",
-          "bg": ""
+          "en": "Communication",
+          "bg": "Комуникация"
         },
         "C3": {
-          "en": "",
-          "bg": ""
+          "en": "Mentorship",
+          "bg": "Менторство"
         }
       },
       "description": {
         "E1": {
-          "en": "Encompasses the foundational knowledge and understanding of core concepts, principles, and methodologies essential for the Software Engineer role. This includes theoretical understanding that supports practical skills and enables effective problem-solving and application of technologies in the field.",
-          "bg": ""
+          "en": "Encompasses the foundational knowledge and understanding of core concepts, principles, and methodologies essential for the role. This includes theoretical understanding that supports practical skills and enables effective problem-solving and application of expertise in the field.",
+          "bg": "Обхваща основополагащите знания и разбиране на ключови концепции, принципи и методологии, които са съществени за ролята. Това включва теоретично разбиране, което подкрепя практическите умения и позволява ефективно решаване на проблеми и прилагане на експертиза в областта."
         },
         "E2": {
           "en": "Applied skills refer to the technical or functional abilities that an individual develops and actively uses to perform specific tasks or solve problems in their field. These skills are often acquired through learning and can be demonstrated in various contexts. They are task-oriented and relate to how well a person applies their knowledge to perform specific functions or activities in their role.",
-          "bg": ""
+          "bg": "Приложните умения се отнасят до техническите или функционалните способности, които човек развива и активно използва за изпълнение на конкретни задачи или решаване на проблеми в своята област. Тези умения често се придобиват чрез учене и могат да бъдат демонстрирани в различни контексти. Те са ориентирани към изпълнение на задачи и са свързани с това колко добре човек прилага своите знания за изпълнение на специфични функции или дейности в своята роля."
         },
         "E3": {
           "en": "Practical experience refers to cumulative participation in real-world situations where an individual applies their skills and knowledge to solve problems, overcome challenges, and improve over time. It is directly related to the scope of hands-on work in a professional environment and reflects the extent to which one has encountered real challenges and learned from them.",
-          "bg": ""
+          "bg": "Практическият опит се отнася до кумулативното участие в реални ситуации, където човек прилага своите умения и знания за решаване на проблеми, преодоляване на предизвикателства и усъвършенстване с течение на времето. Той е пряко свързан с обхвата на практическата работа в професионална среда и отразява до каква степен човек е срещнал реални предизвикателства и се е учил от тях."
         },
         "I1": {
-          "en": "",
-          "bg": ""
+          "en": "Encompasses the ability to understand, follow, and contribute to the processes and standards implemented in the organization. This includes adherence to workflows, established practices, and effective task execution in accordance with requirements.",
+          "bg": "Обхваща способността да разбира, следва и допринася към процесите и стандартите, внедрени в организацията. Това включва спазване на работните процеси, установените практики и ефективното изпълнение на задачите в съответствие с изискванията."
         },
         "I2": {
-          "en": "",
-          "bg": ""
+          "en": "Encompasses skills related to the effective management of the personal workflow. Mastery of this area increases productivity and ensures that individual contribution aligns with project and organizational goals.",
+          "bg": "Обхваща уменията, свързани с ефективното управление на личния работен процес. Овладяването на тази област повишава продуктивността и гарантира, че индивидуалният принос е в съответствие с целите на проекта и организацията."
         },
         "I3": {
-          "en": "",
-          "bg": ""
+          "en": "Encompasses abilities related to accurate task estimation and resource planning. Mastery of this area ensures increased efficiency, contributing to project success and efficient resource utilization.",
+          "bg": "Обхваща способностите, свързани с точното оценяване на задачи и планиране на ресурси. Овладяването на тази област гарантира повишаване на ефективността, допринасяйки за успеха на проектите и ефикасното използване на ресурсите."
         },
         "C1": {
-          "en": "",
-          "bg": ""
+          "en": "Encompasses commitment to personal and professional development, adherence to work ethics, and application of best practices.",
+          "bg": "Обхваща ангажираността към личното и професионално развитие, спазването на работната етика и прилагането на добри практики."
         },
         "C2": {
-          "en": "",
-          "bg": ""
+          "en": "Encompasses adherence to professional communication and coordination at various levels, including within the team, between teams, with stakeholders, and with external parties.",
+          "bg": "Обхваща спазването на професионална комуникация и координация на различни нива, включително в рамките на екипа, между екипите, със заинтересовани страни и с външни лица."
         },
         "C3": {
-          "en": "",
-          "bg": ""
+          "en": "Encompasses commitment to collaboration, knowledge sharing, and support for the development and motivation of colleagues.",
+          "bg": "Обхваща ангажираността към сътрудничество, споделяне на знания и подкрепа за развитието и мотивацията на колегите."
         }
       }
     }
   },
-  "competence": {
+  "competency": {
     "name": {
       "E1-1": {
         "en": "Knowledge of relational databases (SQL, PostgresSQL, MySQL and others)",
@@ -255,7 +255,7 @@
       },
       "I1-5": {
         "en": "Understanding and transforming functional and non-functional requirements",
-        "bg": "Разбиране и трансформиране на функционални и нефункционални изиквания"
+        "bg": "Разбиране и трансформиране на функционални и нефункционални изисквания"
       },
       "I1-6": {
         "en": "Adhering to rules for documenting changes in program code (conventional commits)",
@@ -696,7 +696,7 @@
         },
         "X": {
           "en": "Possesses expert-level understanding of programming concepts and uses them in developing complex systems. Can define programming standards and practices for the entire team to follow.",
-          "bg": "\"Притежава експертно ниво на разбиране на програмните концепции и ги използва при разработката на комплексни системи. Може да дефинира програмни стандарти и практики, които да бъдат следвани от целият екип."
+          "bg": "Притежава експертно ниво на разбиране на програмните концепции и ги използва при разработката на комплексни системи. Може да дефинира програмни стандарти и практики, които да бъдат следвани от целият екип."
         },
         "T": {
           "en": "Applies programming concepts when making strategic technical decisions. Leads the team in applying proper programming practices, ensuring quality code and software.",
@@ -2287,6 +2287,88 @@
         "T": {
           "en": "Leads the team in providing support and enhancing motivation. Identifies motivational challenges, implements initiatives to address them, and ensures a positive and productive team environment.",
           "bg": "Ръководи екипа в предоставянето на подкрепа и повишаване на мотивацията. Идентифицира мотивационни предизвикателства, прилага инициативи за тяхното адресиране и осигурява положителна и продуктивна екипна среда."
+        }
+      }
+    }
+  },
+  "framework": {
+    "grades": {
+      "R": {
+        "en": "The employee meets the expected standards for this competency at the current level. Performs tasks competently and consistently, demonstrating adequate understanding and skills in this area.",
+        "bg": "Служителят отговаря на очакваните стандарти за тази компетентност на текущото ниво. Изпълнява задачите си компетентно и последователно, демонстрирайки адекватно разбиране и умения в тази област."
+      },
+      "S": {
+        "en": "The employee exceeds expectations for this competency at the current level. Demonstrates exceptional skills, proactivity, and in-depth understanding, contributing significantly to the team's success in this area.",
+        "bg": "Служителят надхвърля очакванията за тази компетентност на текущото ниво. Демонстрира изключителни умения, проактивност и задълбочено разбиране, като допринася значително към успеха на екипа в тази област."
+      },
+      "U": {
+        "en": "The employee shows skills below the expected standards for this competency at the current level. There are noticeable gaps in the application of knowledge or skills, requiring improvement and additional support or training.",
+        "bg": "Служителят показва умения под очакваните стандарти за тази компетентност на текущото ниво. Има забележими пропуски в прилагането на знанията или уменията, което изисква подобрение и допълнителна подкрепа или обучение."
+      }
+    }
+  },
+  "interface": {
+    "evaluation": {
+      "personal": {
+        "title": {
+          "en": "Personal Information",
+          "bg": "Лична Информация"
+        },
+        "name": {
+          "en": "Employee Name:",
+          "bg": "Име на служителя:"
+        },
+        "position": {
+          "en": "Position & Level:",
+          "bg": "Позиция & Ниво:"
+        },
+        "department": {
+          "en": "Department:",
+          "bg": "Отдел:"
+        },
+        "manager": {
+          "en": "Manager:",
+          "bg": "Мениджър:"
+        },
+        "starting-date": {
+          "en": "Employee Since:",
+          "bg": "Стартова дата:"
+        }
+      },
+      "appraisal": {
+        "title": {
+          "en": "Performance Appraisal Form",
+          "bg": "Форма за Оценка на Представянето"
+        },
+        "cycle": {
+          "en": "Performance Appraisal Cycle:",
+          "bg": "Цикъл на Оценка на Представянето:"
+        },
+        "interview-date": {
+          "en": "Performance Interview Date:",
+          "bg": "Дата на среща за дискусия:"
+        }
+      },
+      "competencies": {
+        "title": {
+          "en": "Competencies",
+          "bg": "Компетенции"
+        },
+        "appraisals": {
+          "en": "Appraisals",
+          "bg": "Оценки"
+        },
+        "self": {
+          "en": "Self",
+          "bg": "Самостоятелна"
+        },
+        "manager": {
+          "en": "Manager",
+          "bg": "Мениджър"
+        },
+        "team": {
+          "en": "Team",
+          "bg": "Екип"
         }
       }
     }
