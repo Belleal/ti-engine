@@ -101,7 +101,7 @@ body {
 }
 
 .ti-error {
-    color: #811010;
+    color: var(--ti-error-color, #811010);
 }
 
 .ti-spacer-v-10 {
@@ -200,21 +200,21 @@ body {
     text-align: left;
     padding: var(--ti-padding);
     border-radius: 10px;
-    box-shadow: inset 5px 5px 10px rgba(0, 0, 0, 0.35), inset -5px -5px 10px rgba(255, 255, 255, 0.03);
+    box-shadow: var(--ti-flyout-item-shadow, inset 5px 5px 10px rgba(0, 0, 0, 0.35), inset -5px -5px 10px rgba(255, 255, 255, 0.03));
     transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
 
 .ti-sidebar-flyout-item:hover {
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: var(--ti-flyout-item-hover-bg, rgba(255, 255, 255, 0.03));
 }
 
 .ti-sidebar-flyout-item:active {
-    box-shadow: inset 8px 8px 16px rgba(0, 0, 0, 0.55), inset -8px -8px 16px rgba(255, 255, 255, 0.02);
+    box-shadow: var(--ti-flyout-item-active-shadow, inset 8px 8px 16px rgba(0, 0, 0, 0.55), inset -8px -8px 16px rgba(255, 255, 255, 0.02));
 }
 
 .ti-sidebar-flyout-sep {
     border: 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid var(--ti-flyout-sep-color, rgba(255, 255, 255, 0.06));
     margin: 6px 4px;
 }
 
@@ -228,14 +228,18 @@ body {
     bottom: 100%;
     left: 50%;
     transform: translateX(-50%);
-    margin-bottom: 8px;
-    padding: 6px 12px;
-    background-color: rgba(0, 0, 0, 0.85);
-    color: white;
-    font-size: 0.875rem;
-    line-height: 1.4;
-    border-radius: 4px;
-    white-space: nowrap;
+    margin-bottom: var(--ti-tooltip-gap, 8px);
+    padding: var(--ti-tooltip-padding, 6px 12px);
+    background-color: var(--ti-tooltip-bg-color, rgba(0, 0, 0, 0.85));
+    color: var(--ti-tooltip-fg-color, white);
+    font-size: var(--ti-tooltip-font-size, 0.875rem);
+    line-height: var(--ti-tooltip-line-height, 1.4);
+    border-radius: var(--ti-tooltip-border-radius, 4px);
+    width: max-content;
+    max-width: var(--ti-tooltip-max-width, min(80vw, 320px));
+    white-space: normal;
+    overflow-wrap: break-word;
+    box-shadow: var(--ti-tooltip-shadow, none);
     z-index: 1000;
     pointer-events: none;
 }
@@ -246,6 +250,6 @@ body {
     top: 100%;
     left: 50%;
     transform: translateX(-50%);
-    border: 5px solid transparent;
-    border-top-color: rgba(0, 0, 0, 0.85);
+    border: var(--ti-tooltip-arrow-size, 5px) solid transparent;
+    border-top-color: var(--ti-tooltip-bg-color, rgba(0, 0, 0, 0.85));
 }

@@ -102,7 +102,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--competence-grid-gap);
-    overflow-x: auto;
+    overflow: visible;
 }
 
 .competence-row,

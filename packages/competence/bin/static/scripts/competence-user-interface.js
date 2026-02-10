@@ -17,6 +17,7 @@ const initialDataModels = {
         },
         "evaluation": {
             "cycle": "",
+            "cycleID": "",
             "cycleDate": "",
             "interviewDate": ""
         },

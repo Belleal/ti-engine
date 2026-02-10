@@ -300,11 +300,17 @@ let configureComponentNotificationBar = () => {
     };
 };
 
-
+/**
+ * Returns a configuration object for the tooltip component "component-tooltip.html".
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
 function configureComponentTooltip() {
     return {
         isVisible: false,
-        text: "This is a default tooltip. To change that, define a ",
+        text: "This is a default tooltip. To change that, define a 'x-bind:data-ti-tooltip' attribute in the target element to set the tooltip text.",
         getTooltipMessage( target ) {
             if ( !target || typeof target.closest !== "function" ) return "";
             const selector = "[data-ti-tooltip], [data-tooltip]";
