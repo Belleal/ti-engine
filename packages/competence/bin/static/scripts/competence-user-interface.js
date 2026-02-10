@@ -123,6 +123,8 @@ let configureCompetencyEvaluation = () => {
                 tiApplication.sendRequest( url ).then( ( result ) => {
                     this.applyData( result?.data );
                 } ).catch( ( error ) => {
+                    if ( error?.name === "AbortError" || error?.isAborted ) return;
+
                     this.applyData( initialDataModels.competencyEvaluation );
                     tiApplication.notify( { message: `Failed to load competence evaluation: ${ error.message }`, timeout: 60000 } );
                 } );
@@ -170,46 +172,6 @@ let configureCompetencyEvaluation = () => {
                 : value;
             const date = new Date( normalized );
             return isValidDate( date ) ? date.toLocaleDateString() : "";
-        },
-
-        // Compute summary for a category based on manager grades majority across all items.
-        categorySummary( category ) {
-            const counts = { U: 0, R: 0, S: 0 };
-            for ( const sub of category.subcategories ) {
-                for ( const item of sub.items ) {
-                    const g = ( item.grades?.manager || '' ).toUpperCase();
-                    if ( g === 'U' || g === 'R' || g === 'S' ) counts[ g ]++;
-                }
-            }
-            const best = Object.entries( counts ).sort( ( a, b ) => b[ 1 ] - a[ 1 ] )[ 0 ];
-            return ( best && best[ 1 ] > 0 ) ? best[ 0 ] : '-';
-        },
-
-        totalSummary() {
-            const counts = { U: 0, R: 0, S: 0 };
-            for ( const cat of this.competencies ) {
-                for ( const sub of cat.subcategories ) {
-                    for ( const item of sub.items ) {
-                        const g = ( item.grades?.manager || '' ).toUpperCase();
-                        if ( g === 'U' || g === 'R' || g === 'S' ) counts[ g ]++;
-                    }
-                }
-            }
-            const best = Object.entries( counts ).sort( ( a, b ) => b[ 1 ] - a[ 1 ] )[ 0 ];
-            return ( best && best[ 1 ] > 0 ) ? best[ 0 ] : '-';
-        },
-
-        badgeClass( val ) {
-            switch ( val ) {
-                case 'S':
-                    return 'ti-badge-success';
-                case 'R':
-                    return 'ti-badge-warning';
-                case 'U':
-                    return 'ti-badge-danger';
-                default:
-                    return 'ti-badge';
-            }
         },
 
         isEmployeeManager() {

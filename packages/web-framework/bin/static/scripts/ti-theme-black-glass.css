@@ -85,7 +85,7 @@
 }
 
 .ti-glass-btn-black.large {
-    justify-content: left;
+    justify-content: flex-start;
     padding-inline: var(--ti-padding);
 }
 

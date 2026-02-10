@@ -376,6 +376,7 @@ let configureApplication = () => {
         user: null,
         configuration: {},
         notificationIDCounter: 1,
+        requestControllers: new Map(),
 
         init() {
             document.addEventListener( "ti:error", ( event ) => {
@@ -390,6 +391,8 @@ let configureApplication = () => {
                 this.user = result?.data?.user || null;
                 this.isInitialized = true;
             } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) return;
+
                 this.user = null;
                 this.isInitialized = false;
                 error.message = `Failed to initialize the application: ${ error.message }`;
@@ -400,14 +403,35 @@ let configureApplication = () => {
         sendRequest( url, method = "GET" ) {
             return new Promise( ( resolve, reject ) => {
                 const xsrf = getCookie( "ti-xsrf-token" ) || "";
+                const normalizedMethod = String( method || "GET" ).toUpperCase();
+                const requestKey = `${ normalizedMethod } ${ String( url || "" ).split( "?" )[ 0 ] }`;
+                const abortController = ( typeof AbortController === "function" ) ? new AbortController() : null;
+
+                if ( abortController ) {
+                    const existing = this.requestControllers.get( requestKey );
+                    if ( existing ) {
+                        existing.abort();
+                    }
+                    this.requestControllers.set( requestKey, abortController );
+                }
+
+                const cleanup = () => {
+                    if ( !abortController ) return;
+                    const active = this.requestControllers.get( requestKey );
+                    if ( active === abortController ) {
+                        this.requestControllers.delete( requestKey );
+                    }
+                };
+
                 fetch( url, {
-                    method: method,
+                    method: normalizedMethod,
                     headers: {
                         "Accept": "application/json",
                         "x-xsrf-token": xsrf
                     },
                     credentials: "same-origin",
                     cache: "no-store",
+                    signal: abortController?.signal,
                 } ).then( ( response ) => {
                     const contentType = ( response.headers.get( "content-type" ) || "" ).toLowerCase();
                     if ( contentType.includes( "application/json" ) ) {
@@ -426,6 +450,8 @@ let configureApplication = () => {
                     }
                 } ).catch( ( error ) => {
                     reject( error );
+                } ).finally( () => {
+                    cleanup();
                 } );
             } );
         },
