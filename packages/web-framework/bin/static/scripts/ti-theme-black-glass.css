@@ -136,3 +136,61 @@
 .ti-glass-back-pane {
     background-color: var(--ti-back-pane-bg, rgba(156, 156, 156, 0.72));
 }
+
+/* Solid Button Styles matching the Black Glass theme */
+.ti-button {
+    background-color: #50505f; /* Solid dark color matching the glass tint */
+    color: var(--ti-sidebar-fg-dim);
+    font-weight: 500;
+    justify-content: center;
+    transition: all 0.2s ease;
+
+    /* Carved/Recessed look similar to .ti-glass-btn-black */
+    box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.7),
+    inset -2px -2px 6px rgba(255, 255, 255, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.ti-button:hover {
+    color: var(--ti-sidebar-fg);
+
+    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.6),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.12),
+    0 4px 8px rgba(0, 0, 0, 0.25);
+    transform: translateY(-1px);
+}
+
+.ti-button:active {
+    transform: translateY(1px);
+    box-shadow: inset 5px 5px 10px rgba(0, 0, 0, 0.85),
+    inset -5px -5px 10px rgba(255, 255, 255, 0.05);
+}
+
+.ti-button:focus-visible {
+    outline: none;
+    box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.7),
+    inset -2px -2px 6px rgba(255, 255, 255, 0.08),
+    0 0 0 2px var(--ti-accent);
+}
+
+.ti-button.primary {
+    background-color: #6193c8;
+    color: #1f1f1f;
+    /* Primary buttons keep the carved aesthetic but with the accent color */
+    box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.2),
+    inset -2px -2px 4px rgba(255, 255, 255, 0.25),
+    0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.ti-button.primary:hover {
+    filter: brightness(1.1);
+    color: #2b2b33;
+    box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.2),
+    inset -1px -1px 3px rgba(255, 255, 255, 0.35),
+    0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+.ti-button.primary:active {
+    box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.25),
+    inset -4px -4px 8px rgba(255, 255, 255, 0.1);
+}

@@ -76,9 +76,14 @@ let configureCompetencyEvaluation = () => {
 
     const clone = ( value ) => JSON.parse( JSON.stringify( value ) );
 
-    const getEmployeeIdFromUrl = () => {
+    const getEmployeeIDFromUrl = () => {
         const params = new URLSearchParams( window.location.search );
         return params.get( "employeeID" );
+    };
+
+    const getEvaluationIDFromUrl = () => {
+        const params = new URLSearchParams( window.location.search );
+        return params.get( "evaluationID" );
     };
 
     return {
@@ -87,11 +92,12 @@ let configureCompetencyEvaluation = () => {
         evaluation: clone( initialDataModels.competencyEvaluation.evaluation ),
         competencies: clone( initialDataModels.competencyEvaluation.competencies ),
         grades: {},
+        showEvaluationForm: false,
 
         init() {
             const onInitialized = () => {
                 this.grades = tiApplication.configuration.grades;
-                this.employeeID = getEmployeeIdFromUrl();
+                this.employeeID = getEmployeeIDFromUrl();
                 this.loadEmployee( this.employeeID );
             };
 
@@ -119,8 +125,10 @@ let configureCompetencyEvaluation = () => {
                 this.reset();
             } else {
                 this.employeeID = resolvedID;
-                const url = `/app/load-employee-competencies?employeeID=${ encodeURIComponent( resolvedID ) }`;
+                const evaluationID = getEvaluationIDFromUrl();
+                const url = `/app/load-employee-competencies?employeeID=${ encodeURIComponent( resolvedID ) }${ evaluationID ? `&evaluationID=${ encodeURIComponent( evaluationID ) }` : "" }`;
                 tiApplication.sendRequest( url ).then( ( result ) => {
+                    this.showEvaluationForm = true;
                     this.applyData( result?.data );
                 } ).catch( ( error ) => {
                     if ( error?.name === "AbortError" || error?.isAborted ) return;
@@ -143,8 +151,34 @@ let configureCompetencyEvaluation = () => {
             }
         },
 
-        save() {
-            // TODO: implement this!
+        saveDraft() {
+            tiApplication.sendRequest( "/app/save-evaluation-draft", "POST", this.evaluation ).then( () => {
+                tiApplication.notify( { message: tiApplication.getLabel( "interface.evaluation.messages.draft-saved", "Draft saved successfully." ), timeout: 3000 } );
+            } ).catch( ( error ) => {
+                tiApplication.notify( { message: error.message } );
+            } );
+        },
+
+        submitEvaluation() {
+            if ( confirm( tiApplication.getLabel( "interface.evaluation.messages.confirm-submit", "Are you sure you want to submit the evaluation?" ) ) ) {
+                tiApplication.sendRequest( "/app/submit-evaluation", "POST", this.evaluation ).then( () => {
+                    tiApplication.notify( { message: tiApplication.getLabel( "interface.evaluation.messages.submitted", "Evaluation submitted successfully." ), timeout: 5000 } );
+                    this.loadEmployee( this.employeeID );
+                } ).catch( ( error ) => {
+                    tiApplication.notify( { message: error.message } );
+                } );
+            }
+        },
+
+        resetGrades() {
+            const role = this.isEmployee() ? "employee" : ( this.isEmployeeManager() ? "manager" : null );
+            if ( role && this.evaluation && this.evaluation.grades ) {
+                Object.keys( this.evaluation.grades ).forEach( ( key ) => {
+                    if ( this.evaluation.grades[ key ] ) {
+                        this.evaluation.grades[ key ][ role ] = "";
+                    }
+                } );
+            }
         },
 
         setInterviewDate( value ) {

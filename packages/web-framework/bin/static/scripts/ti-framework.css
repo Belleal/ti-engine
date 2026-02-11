@@ -51,6 +51,17 @@ body {
     align-items: flex-end;
 }
 
+.ti-button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    height: var(--ti-button-size);
+    width: fit-content;
+    border-radius: var(--ti-button-radius);
+    padding-inline: var(--ti-padding);
+}
+
 .ti-sidebar-button {
     width: var(--ti-button-size);
     height: var(--ti-button-size);
@@ -117,6 +128,14 @@ body {
     width: 100%;
 }
 
+.ti-button-bar {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: var(--ti-gap);
+    width: 100%;
+}
+
 .ti-notifications {
     position: fixed;
     top: calc(env(safe-area-inset-top, 0px) + var(--ti-notification-top));
@@ -144,6 +163,10 @@ body {
     pointer-events: auto;
     padding: var(--ti-padding);
     border-radius: 12px;
+    max-width: 60%;
+    width: fit-content; /* Ensures the container shrinks to fit content if text is short */
+    margin-left: auto; /* Centers the container if it has relative positioning */
+    margin-right: auto;
 }
 
 .ti-notification:focus-visible {
@@ -252,4 +275,12 @@ body {
     transform: translateX(-50%);
     border: var(--ti-tooltip-arrow-size, 5px) solid transparent;
     border-top-color: var(--ti-tooltip-bg-color, rgba(0, 0, 0, 0.85));
+}
+
+/* Mobile devices (tablets and phones) */
+@media screen and (max-width: 720px) {
+    .ti-notification {
+        max-width: 90%; /* Allows more space on smaller screens */
+        width: 90%; /* Ensures consistent width on very small screens */
+    }
 }

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/employees.json",
+  "title": "Employees Registry",
+  "description": "Registry of all employees.",
+  "type": "object",
+  "required": [
+    "employees"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "employees": {
+      "type": "array",
+      "description": "List of employee records",
+      "items": {
+        "$ref": "employee.schema.json"
+      }
+    }
+  }
+}

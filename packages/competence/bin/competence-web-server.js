@@ -7,6 +7,10 @@
 */
 
 const TiWebServer = require( "@ti-engine/web-framework/web-server" );
+const logger = require( "@ti-engine/core/logger" );
+const exceptions = require( "@ti-engine/core/exceptions" );
+const ServiceConsumer = require( "@ti-engine/core/service-consumer" );
+const dataManager = require( "#data-manager" );
 
 /**
  * NOTE: This is still a work in progress.
@@ -27,6 +31,27 @@ class CompetenceWebServer extends TiWebServer {
     }
 
     /* Public interface */
+
+    /**
+     * Starts the web server.
+     *
+     * @method
+     * @returns {Promise}
+     * @override
+     * @public
+     */
+    onStart() {
+        return new Promise( ( resolve, reject ) => {
+            super.onStart().then( () => {
+                return dataManager.instance.initialize( true );
+            } ).then( () => {
+                resolve();
+            } ).catch( ( error ) => {
+                logger.log( `Error while trying to start competence web server within instance '${ ServiceConsumer.instanceID }'!`, logger.logSeverity.ERROR, error );
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
 
     /**
      * Used to define the unprotected routes (i.e., routes that do not require authentication).

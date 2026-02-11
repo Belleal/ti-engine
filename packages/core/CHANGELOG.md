@@ -2,6 +2,14 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.14
+
+* build(deps): update `@dotenvx/dotenvx` from ^1.51.1 to ^1.52.0
+* build(deps): update blake2 from ^5.0.0 to ^5.0.1
+* build(deps): update ioredis from ^5.8.2 to ^5.9.2
+* build(deps): update lodash from ^4.17.21 to ^4.17.23
+* build(engines): update Node.js requirement from >=18.0.0 to >=20.0.0
+
 ## Version 1.3.13
 
 * feat(exceptions): add new exception code `E_GEN_UNALLOWED_OVERRIDE` (1009) for detecting attempts to override protected or private methods/properties

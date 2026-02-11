@@ -236,7 +236,7 @@
     display: none;
 }
 
-@media (max-width: 720px) {
+@media screen and (max-width: 720px) {
     .competence-sub-panel {
         max-width: 100%;
     }

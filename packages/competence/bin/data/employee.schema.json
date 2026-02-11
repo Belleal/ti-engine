@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/employee.json",
+  "title": "Employee Profile",
+  "description": "A single employee record containing personal and professional details.",
+  "type": "object",
+  "required": [
+    "employeeID",
+    "name",
+    "level",
+    "stage"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "employeeID": {
+      "type": "string",
+      "description": "Unique identifier for the employee"
+    },
+    "name": {
+      "type": "string",
+      "description": "Full name of the employee"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Corporate email address"
+    },
+    "position": {
+      "type": "string",
+      "description": "Job title or position"
+    },
+    "department": {
+      "type": "string",
+      "description": "Department name"
+    },
+    "manager": {
+      "type": "string",
+      "description": "Name of the direct manager"
+    },
+    "managerID": {
+      "type": "string",
+      "description": "Employee ID of the direct manager"
+    },
+    "level": {
+      "type": "string",
+      "enum": [
+        "N",
+        "J",
+        "R",
+        "S",
+        "X",
+        "T"
+      ],
+      "description": "Competency level: N (Novice), J (Junior), R (Regular), S (Senior), X (Expert), T (Team Leader)"
+    },
+    "stage": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3,
+      "description": "Progression stage within the level (1-3)"
+    },
+    "startingDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of joining the company"
+    }
+  }
+}

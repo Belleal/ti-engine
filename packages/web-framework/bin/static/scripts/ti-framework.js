@@ -311,6 +311,15 @@ function configureComponentTooltip() {
     return {
         isVisible: false,
         text: "This is a default tooltip. To change that, define a 'x-bind:data-ti-tooltip' attribute in the target element to set the tooltip text.",
+
+        /**
+         * Used to get the tooltip message from the target element.
+         *
+         * @method
+         * @param {HTMLElement} target
+         * @returns {string}
+         * @public
+         */
         getTooltipMessage( target ) {
             if ( !target || typeof target.closest !== "function" ) return "";
             const selector = "[data-ti-tooltip], [data-tooltip]";
@@ -318,21 +327,52 @@ function configureComponentTooltip() {
             if ( !element || !this.$el.contains( element ) ) return "";
             return element.getAttribute( "data-ti-tooltip" ) || element.getAttribute( "data-tooltip" ) || "";
         },
+
+        /**
+         * Used to handle mouse enter events on the target element.
+         *
+         * @method
+         * @param {MouseEvent} event
+         * @public
+         */
         handleEnter( event ) {
             const message = this.getTooltipMessage( event?.target );
             if ( message ) {
                 this.showTooltip( message );
             }
         },
+
+        /**
+         * Used to handle mouse leave events on the target element.
+         *
+         * @method
+         * @param {MouseEvent} event
+         * @public
+         */
         handleLeave( event ) {
             const related = event?.relatedTarget;
             if ( related && this.$el.contains( related ) ) return;
             this.hideTooltip();
         },
+
+        /**
+         * Used to show the tooltip.
+         *
+         * @method
+         * @param {string} message
+         * @public
+         */
         showTooltip( message ) {
             this.text = message;
             this.isVisible = true;
         },
+
+        /**
+         * Used to hide the tooltip.
+         *
+         * @method
+         * @public
+         */
         hideTooltip() {
             this.isVisible = false;
         }
@@ -378,6 +418,9 @@ let configureApplication = () => {
         notificationIDCounter: 1,
         requestControllers: new Map(),
 
+        /**
+         * Used to initialize the web application.
+         */
         init() {
             document.addEventListener( "ti:error", ( event ) => {
                 this.notify( event.detail );
@@ -400,7 +443,17 @@ let configureApplication = () => {
             } );
         },
 
-        sendRequest( url, method = "GET" ) {
+        /**
+         * Used to send a request to the application server.
+         *
+         * @method
+         * @param {string} url
+         * @param {"POST"|"GET"|"PUT"|"DELETE"} [method="GET"]
+         * @param {Object} [data=null]
+         * @returns {Promise<Object>}
+         * @public
+         */
+        sendRequest( url, method = "GET", data = null ) {
             return new Promise( ( resolve, reject ) => {
                 const xsrf = getCookie( "ti-xsrf-token" ) || "";
                 const normalizedMethod = String( method || "GET" ).toUpperCase();
@@ -423,7 +476,7 @@ let configureApplication = () => {
                     }
                 };
 
-                fetch( url, {
+                const options = {
                     method: normalizedMethod,
                     headers: {
                         "Accept": "application/json",
@@ -432,7 +485,14 @@ let configureApplication = () => {
                     credentials: "same-origin",
                     cache: "no-store",
                     signal: abortController?.signal,
-                } ).then( ( response ) => {
+                };
+
+                if ( data ) {
+                    options.headers[ "Content-Type" ] = "application/json";
+                    options.body = JSON.stringify( data );
+                }
+
+                fetch( url, options ).then( ( response ) => {
                     const contentType = ( response.headers.get( "content-type" ) || "" ).toLowerCase();
                     if ( contentType.includes( "application/json" ) ) {
                         return response.json().then( ( body ) => ( {
@@ -456,6 +516,13 @@ let configureApplication = () => {
             } );
         },
 
+        /**
+         * Used to display a notification in the notification bar.
+         *
+         * @method
+         * @param {Object} data
+         * @public
+         */
         notify( data ) {
             const notificationBar = document.querySelector( "#ti-notifications" );
             if ( notificationBar ) {
@@ -468,6 +535,15 @@ let configureApplication = () => {
             }
         },
 
+        /**
+         * Used to extract a label from the application configuration.
+         *
+         * @method
+         * @param {string} label
+         * @param {string} fallback
+         * @returns {string}
+         * @public
+         */
         getLabel( label, fallback = "LABEL NOT FOUND" ) {
             if ( !label ) {
                 return fallback;

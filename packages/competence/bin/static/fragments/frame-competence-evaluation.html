@@ -19,7 +19,13 @@
         </div>
     </div>
 
-    <div class="ti-panel competence-sub-panel">
+    <div x-show="showEvaluationForm && (isEmployee() || isEmployeeManager())" class="ti-button-bar competence-sub-panel">
+        <button type="button" class="ti-button" x-on:click="saveDraft()" x-text-label="interface.evaluation.actions.save-draft"></button>
+        <button type="button" class="ti-button" x-on:click="resetGrades()" x-text-label="interface.evaluation.actions.reset"></button>
+        <button type="button" class="ti-button primary" x-on:click="submitEvaluation()" x-text-label="interface.evaluation.actions.submit"></button>
+    </div>
+
+    <div x-show="showEvaluationForm" class="ti-panel competence-sub-panel">
         <div class="competence-sub-panel-title" x-text-label="interface.evaluation.appraisal.title"></div>
         <div class="competence-grid">
             <div class="competence-label" x-text-label="interface.evaluation.appraisal.cycle"></div>
@@ -28,7 +34,7 @@
                 <div class="competence-data-value" x-text="formatDate( evaluation.cycleDate )"></div>
             </div>
             <div class="competence-label" x-text-label="interface.evaluation.appraisal.interview-date"></div>
-            <input name="interviewDate" class="competence-input" type="date" x-bind:value="evaluation.interviewDate"
+            <input name="interview-date" class="competence-input" type="date" x-bind:value="evaluation.interviewDate"
                    x-on:input="setInterviewDate($event.target.value)"/>
         </div>
 
@@ -59,7 +65,8 @@
                                         <div class="competence-name" x-text="item.name"></div>
                                     </div>
                                     <ti-component-tooltip-placeholder>
-                                        <select class="competence-input grade" x-on:change="setItemGrade(item.id, 'employee', $event.target.value)"
+                                        <select x-bind:name="'grade-employee-' + item.id" class="competence-input grade"
+                                                x-on:change="setItemGrade(item.id, 'employee', $event.target.value)"
                                                 x-bind:disabled="!isEmployee()" x-bind:aria-disabled="!isEmployee()"
                                                 x-bind:data-ti-tooltip="item.description">
                                             <option value="" x-bind:selected="!getItemGrade(item.id, 'employee')">-</option>
@@ -69,7 +76,8 @@
                                             </template>
                                         </select>
                                     </ti-component-tooltip-placeholder>
-                                    <select class="competence-input grade" x-on:change="setItemGrade(item.id, 'manager', $event.target.value)"
+                                    <select x-bind:name="'grade-manager-' + item.id" class="competence-input grade"
+                                            x-on:change="setItemGrade(item.id, 'manager', $event.target.value)"
                                             x-show="isEmployeeManager()">
                                         <option value="" x-bind:selected="!getItemGrade(item.id, 'manager')">-</option>
                                         <template x-for="(grade, gradeKey) in grades" x-bind:key="gradeKey">

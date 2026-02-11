@@ -34,6 +34,8 @@ let cacheCommandsEnum = tools.enum( {
     IS_SET_MEMBER: [ "sismember", "", "https://redis.io/docs/latest/commands/sismember/" ],
     JSON_ARRAY_APPEND: [ "json.arrappend", "", "https://redis.io/docs/latest/commands/json.arrappend/" ],
     JSON_GET: [ "json.get", "", "https://redis.io/docs/latest/commands/json.get/" ],
+    JSON_MERGE: [ "json.merge", "", "https://redis.io/docs/latest/commands/json.merge/" ],
+    JSON_MGET: [ "json.mget", "", "https://redis.io/docs/latest/commands/json.mget/" ],
     JSON_SET: [ "json.set", "", "https://redis.io/docs/latest/commands/json.set/" ],
     KEYS: [ "keys", "(warning: O(N), use SCAN where possible)", "https://redis.io/docs/latest/commands/keys/" ],
     LIST_PUSH: [ "lpush", "list push", "https://redis.io/docs/latest/commands/lpush/" ],

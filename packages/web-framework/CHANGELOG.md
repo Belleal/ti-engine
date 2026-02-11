@@ -2,6 +2,38 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.5.2
+
+## Version 1.5.1
+
+* feat(framework): add `isValidDate` utility function for validating Date instances
+* feat(framework): add `deepFreeze` utility function for recursive object freezing
+* feat(framework): add `getLabel` method on application configuration for nested label resolution with dot notation
+* feat(framework): add Alpine.js directive `x-text-label` for runtime label translation
+* feat(framework): add configuration object to replace labels object with enhanced structure
+* feat(config): add authentication state (`auth.isAuthenticated`) to config endpoint response
+* feat(placeholder): add inner content capture and injection for placeholder replacement
+* feat(tooltip): add new tooltip component with Alpine.js integration and positioning
+* feat(css): add CSS custom properties for padding, margin, and font-family
+* feat(css): add tooltip styling variables (background, foreground, size, shadow, arrow)
+* feat(css): add `.ti-content.pane` block with flex layout and overflow handling
+* feat(css): add error color, flyout item shadows, and separator color variables
+* feat(css): add `.ti-glass-btn-black.large` variant with left-justified content
+* refactor(framework): change user initialization from `undefined` to `null`
+* refactor(framework): improve request failure handling with proper error rejection
+* refactor(css): replace hard-coded spacing with CSS variables across components
+* refactor(css): add `overflow: hidden` to body and `.ti-main` for better layout control
+* refactor(css): convert color and styling values to CSS variables throughout
+* refactor(handlers): add `convertUriToString` helper for safe URI object stringification
+* refactor(handlers): add request context object (query, params, headers, url, method) to JSON responses
+* refactor(handlers): augment user data with default employeeID and roles in user information handler
+* build(deps): update express from ^5.1.0 to ^5.2.1
+* build(deps): update express-session from ^1.18.2 to ^1.19.0
+* build(deps): update lodash from ^4.17.21 to ^4.17.23
+* build(deps): update openid-client from ^6.8.1 to ^6.8.2
+* build(deps): update `@alpinejs/csp` from ^3.15.2 to ^3.15.8
+* build(engines): update Node.js requirement from >=18.0.0 to >=20.0.0
+
 ## Version 1.5.0
 
 * feat(web-app)!: change `TiWebAppManager` to be an abstract class

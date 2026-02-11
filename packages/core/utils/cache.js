@@ -677,7 +677,41 @@ class CommonMemoryCache extends ConnectionObserver {
                 if ( this.#redisClient.isJSONSupported ) {
                     let commandArguments = [ redis.cacheCommands.JSON_GET, key, path ];
                     this.#redisClient.callCommand( commandArguments ).then( ( result ) => {
-                        resolve( tools.parseJSON( result ) );
+                        resolve( tools.parseJSON( String( result ) ) );
+                    } ).catch( ( error ) => {
+                        reject( error );
+                    } );
+                } else {
+                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED ), { details: "No RedisJSON module installed on server." } );
+                }
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
+        } );
+    }
+
+    /**
+     * Used to update/edit an existing JSON variable.
+     * <br/>
+     * NOTE: Requires ReJSON module installed on server to work.
+     *
+     * @method
+     * @param {string} key
+     * @param {Object} value
+     * @param {string} [path='&']
+     * @returns {Promise}
+     * @public
+     */
+    editJSON( key, value, path = "$" ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( this.#isOperational === true ) {
+                if ( this.#redisClient.isJSONSupported ) {
+                    if ( path !== "$" && path.startsWith( "$." ) === false ) {
+                        path = "$." + path;
+                    }
+                    let commandArguments = [ redis.cacheCommands.JSON_MERGE, key, path, tools.stringifyJSON( value ) ];
+                    this.#redisClient.callCommand( commandArguments ).then( () => {
+                        resolve();
                     } ).catch( ( error ) => {
                         reject( error );
                     } );
