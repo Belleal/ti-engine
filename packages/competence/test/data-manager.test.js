@@ -239,10 +239,10 @@ describe( "dataManager", () => {
 
     describe( "Negative Tests", () => {
         it( "should not allow direct instantiation", () => {
-            // The dataManager class is not exported, only the instance
+            // The DataManager class is not exported, only the instance
             assert.throws( () => {
-                const dataManager = require( "#data-manager" ).DataManager;
-                new dataManager();
+                const DataManagerClass = require( "#data-manager" ).DataManager;
+                new DataManagerClass();
             } );
         } );
 

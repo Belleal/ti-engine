@@ -8,6 +8,7 @@
     "evaluationID",
     "employeeID",
     "cycleID",
+    "cycleDate",
     "status",
     "grades"
   ],

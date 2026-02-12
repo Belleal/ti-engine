@@ -460,7 +460,7 @@ let configureApplication = () => {
                 const requestKey = `${ normalizedMethod } ${ String( url || "" ).split( "?" )[ 0 ] }`;
                 const abortController = ( typeof AbortController === "function" ) ? new AbortController() : null;
 
-                if ( abortController ) {
+                if ( abortController && normalizedMethod === "GET" ) {
                     const existing = this.requestControllers.get( requestKey );
                     if ( existing ) {
                         existing.abort();
@@ -469,7 +469,7 @@ let configureApplication = () => {
                 }
 
                 const cleanup = () => {
-                    if ( !abortController ) return;
+                    if ( !abortController || normalizedMethod !== "GET" ) return;
                     const active = this.requestControllers.get( requestKey );
                     if ( active === abortController ) {
                         this.requestControllers.delete( requestKey );

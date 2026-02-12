@@ -131,7 +131,7 @@ node --test --experimental-test-coverage test/*.test.js
 |------------------------|------------|--------------------|-------------------|
 | JSON Config Validation | 28         | ✅ Passing          | 100%              |
 | Configuration Loader   | 70+        | ⚠️ Pending deps    | High              |
-| Data Loader            | 40+        | ⚠️ Pending deps    | High              |
+| Data Manager           | 40+        | ⚠️ Pending deps    | High              |
 | Web Application        | 50+        | ⚠️ Pending deps    | High              |
 | Web Server             | 70+        | ⚠️ Pending deps    | High              |
 | **Total**              | **250+**   | **28/250 passing** | **Comprehensive** |

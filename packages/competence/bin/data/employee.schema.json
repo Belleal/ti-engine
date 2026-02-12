@@ -14,10 +14,12 @@
   "properties": {
     "employeeID": {
       "type": "string",
+      "minLength": 1,
       "description": "Unique identifier for the employee"
     },
     "name": {
       "type": "string",
+      "minLength": 1,
       "description": "Full name of the employee"
     },
     "email": {

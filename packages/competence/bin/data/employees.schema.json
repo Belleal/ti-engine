@@ -13,7 +13,7 @@
       "type": "array",
       "description": "List of employee records",
       "items": {
-        "$ref": "employee.schema.json"
+        "$ref": "https://ti-engine.dev/schemas/competence/employee.json"
       }
     }
   }

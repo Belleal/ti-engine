@@ -43,7 +43,7 @@ class DataManager {
         promises.push( cache.instance.setJSON( `ti:competence:data:employees`, {} ) );
         promises.push( cache.instance.setJSON( `ti:competence:data:evaluations`, {} ) );
 
-        if ( preloadData === true && cache.instance.isOperational ) {
+        if ( preloadData === true ) {
             const employees = require( "#data-employees" ).employees;
             employees.forEach( ( employee ) => {
                 promises.push( cache.instance.editJSON( `ti:competence:data:employees`, { [ employee.employeeID ]: employee } ) );
@@ -119,7 +119,7 @@ class DataManager {
                             statusFilter.push( "Closed" );
                         }
                         let employeeEvaluations = _.filter( ( result instanceof Array ) ? result[ 0 ] : result, ( evaluation ) => ( statusFilter.indexOf( evaluation.status ) < 0 ) );
-                        resolve( ( !employeeEvaluations || employeeEvaluations.length === 0 ) ? [] : employeeEvaluations );
+                        resolve( ( !employeeEvaluations || employeeEvaluations.length === 0 ) ? [] : _.cloneDeep( employeeEvaluations ) );
                     }
                 } ).catch( ( error ) => {
                     reject( error );
@@ -145,20 +145,20 @@ class DataManager {
      */
     fetchEvaluation( evaluationID ) {
         return new Promise( ( resolve, reject ) => {
-            const evaluations = require( "#data-evaluations" ).evaluations;
-
             if ( cache.instance.isOperational ) {
                 cache.instance.getJSON( `ti:competence:data:evaluations`, `*.${ evaluationID }` ).then( ( result ) => {
-                    if ( !result || result.length === 0 || result.status === "Deleted" || result[ 0 ].status === "Deleted" ) {
+                    const evaluation = _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result );
+                    if ( !evaluation || evaluation.status === "Deleted" ) {
                         reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID: evaluationID } ) );
                     } else {
-                        resolve( _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result ) );
+                        resolve( evaluation );
                     }
                 } ).catch( ( error ) => {
                     reject( error );
                 } );
             } else {
                 // NOTE: Only for development purposes. The system expects an actual DB to function properly.
+                const evaluations = require( "#data-evaluations" ).evaluations;
                 const evaluation = evaluations.find( ( evaluation ) => evaluation.evaluationID === evaluationID );
                 if ( !evaluation ) {
                     reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID: evaluationID } ) );
@@ -178,6 +178,9 @@ class DataManager {
      * @public
      */
     saveEvaluation( evaluation ) {
+        if ( !evaluation?.employeeID || !evaluation?.evaluationID ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluation } ) );
+        }
         return cache.instance.editJSON( `ti:competence:data:evaluations`, { [ evaluation.employeeID ]: { [ evaluation.evaluationID ]: evaluation } } );
     }
 

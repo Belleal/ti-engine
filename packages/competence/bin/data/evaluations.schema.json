@@ -13,7 +13,7 @@
       "type": "array",
       "description": "List of evaluation records",
       "items": {
-        "$ref": "evaluation.schema.json"
+        "$ref": "https://ti-engine.dev/schemas/competence/evaluation.json"
       }
     }
   }

@@ -632,7 +632,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @method
      * @param {string} key
      * @param {Object} value
-     * @param {string} [path='&']
+     * @param {string} [path='$']
      * @param {number} [overrideMode=0] By default this allows full override for existing keys.
      * Option 1 will set the key only if it doesn't already exist. Option 2 will set it only if it already exists.
      * @returns {Promise}
@@ -652,7 +652,7 @@ class CommonMemoryCache extends ConnectionObserver {
                         reject( error );
                     } );
                 } else {
-                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED ), { details: "No RedisJSON module installed on server." } );
+                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, { details: "No RedisJSON module installed on server." } ) );
                 }
             } else {
                 reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
@@ -667,7 +667,7 @@ class CommonMemoryCache extends ConnectionObserver {
      *
      * @method
      * @param {string} key
-     * @param {string} path
+     * @param {string} [path='$']
      * @returns {Promise<Object>}
      * @public
      */
@@ -677,12 +677,12 @@ class CommonMemoryCache extends ConnectionObserver {
                 if ( this.#redisClient.isJSONSupported ) {
                     let commandArguments = [ redis.cacheCommands.JSON_GET, key, path ];
                     this.#redisClient.callCommand( commandArguments ).then( ( result ) => {
-                        resolve( tools.parseJSON( String( result ) ) );
+                        resolve( result != null ? tools.parseJSON( String( result ) ) : null );
                     } ).catch( ( error ) => {
                         reject( error );
                     } );
                 } else {
-                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED ), { details: "No RedisJSON module installed on server." } );
+                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, { details: "No RedisJSON module installed on server." } ) );
                 }
             } else {
                 reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
@@ -698,7 +698,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @method
      * @param {string} key
      * @param {Object} value
-     * @param {string} [path='&']
+     * @param {string} [path='$']
      * @returns {Promise}
      * @public
      */
@@ -716,7 +716,7 @@ class CommonMemoryCache extends ConnectionObserver {
                         reject( error );
                     } );
                 } else {
-                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED ), { details: "No RedisJSON module installed on server." } );
+                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, { details: "No RedisJSON module installed on server." } ) );
                 }
             } else {
                 reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
@@ -732,7 +732,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @method
      * @param {string} key
      * @param {Object} value
-     * @param {string} path
+     * @param {string} [path='$']
      * @returns {Promise}
      * @public
      */
@@ -747,7 +747,7 @@ class CommonMemoryCache extends ConnectionObserver {
                         reject( error );
                     } );
                 } else {
-                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED ), { details: "No RedisJSON module installed on server." } );
+                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, { details: "No RedisJSON module installed on server." } ) );
                 }
             } else {
                 reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
