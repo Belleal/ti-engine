@@ -38,12 +38,6 @@
     inset 0 1px 0 rgb(255 255 255 / 6%);
 }
 
-@media (prefers-color-scheme: dark) {
-    :root {
-        /* --ti-back-pane-bg: rgb(24 24 24 / 72%); */
-    }
-}
-
 .ti-glass-panel-black {
     /* Typography */
     color: var(--ti-sidebar-fg);

@@ -108,16 +108,17 @@ class DataManager {
     fetchEvaluations( employeeID, filterClosed = false ) {
         return new Promise( ( resolve, reject ) => {
             const resolvedEmployeeID = String( employeeID );
+            let statusFilter = [ "Deleted" ];
+            if ( filterClosed === true ) {
+                statusFilter.push( "Closed" );
+            }
 
             if ( cache.instance.isOperational ) {
                 cache.instance.getJSON( `ti:competence:data:evaluations`, `${ resolvedEmployeeID }` ).then( ( result ) => {
                     if ( !result || result.length === 0 ) {
                         resolve( [] );
                     } else {
-                        let statusFilter = [ "Deleted" ];
-                        if ( filterClosed === true ) {
-                            statusFilter.push( "Closed" );
-                        }
+
                         let employeeEvaluations = _.filter( ( result instanceof Array ) ? result[ 0 ] : result, ( evaluation ) => ( statusFilter.indexOf( evaluation.status ) < 0 ) );
                         resolve( ( !employeeEvaluations || employeeEvaluations.length === 0 ) ? [] : _.cloneDeep( employeeEvaluations ) );
                     }
@@ -127,7 +128,7 @@ class DataManager {
             } else {
                 // NOTE: Only for development purposes. The system expects an actual DB to function properly.
                 const evaluations = require( "#data-evaluations" ).evaluations;
-                let employeeEvaluations = evaluations.filter( ( evaluation ) => evaluation.employeeID === resolvedEmployeeID );
+                let employeeEvaluations = evaluations.filter( ( evaluation ) => evaluation.employeeID === resolvedEmployeeID && statusFilter.indexOf( evaluation.status ) < 0 );
                 resolve( ( !employeeEvaluations || employeeEvaluations.length === 0 ) ? [] : _.cloneDeep( employeeEvaluations ) );
             }
         } );

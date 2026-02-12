@@ -9,6 +9,7 @@
 const TiWebAppManager = require( "@ti-engine/web-framework/web-application" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const localization = require( "@ti-engine/core/localization" );
+const tools = require( "@ti-engine/core/tools" );
 const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
 
@@ -104,11 +105,13 @@ class CompetenceWebApplication extends TiWebAppManager {
                 let currentEvaluation;
                 if ( evaluationID ) {
                     currentEvaluation = evaluations.find( ( evaluation ) => evaluation.evaluationID === evaluationID );
+                    if ( !currentEvaluation ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID: evaluationID } );
+                    }
                 } else if ( evaluations.length > 0 ) {
                     currentEvaluation = evaluations.slice().sort( ( a, b ) => new Date( b.cycleDate ) - new Date( a.cycleDate ) )[ 0 ];
-                }
-                if ( !currentEvaluation ) {
-                    throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID: evaluationID } );
+                } else {
+                    currentEvaluation = this.#createNewEvaluation( employeeID );
                 }
 
                 const positionKey = String( employee.personal?.position ?? "" ).trim();
@@ -215,6 +218,25 @@ class CompetenceWebApplication extends TiWebAppManager {
                 subcategories: filteredSubcategories
             };
         } ).filter( Boolean );
+    }
+
+    /**
+     * Used to create a new Evaluation object.
+     *
+     * @method
+     * @param employeeID
+     * @returns {Evaluation}
+     * @private
+     */
+    #createNewEvaluation( employeeID ) {
+        return {
+            evaluationID: tools.getUUID(),
+            employeeID: employeeID,
+            cycleID: "2025.H1", // TODO: Get cycleID from current cycle!
+            cycleDate: "2025-06-30", // TODO: Get cycleDate from current cycle!
+            status: "Open",
+            grades: {}
+        };
     }
 
     /**
