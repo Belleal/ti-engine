@@ -5,6 +5,7 @@
     /* Adjust these to tune the look */
     --ti-glass-tint: rgb(8 8 12 / 78%);
     --ti-glass-tint-strong: rgb(8 8 12 / 90%);
+    --ti-glass-tint-primary: rgb(77, 109, 143);
     --ti-glass-border: rgb(255 255 255 / 8%);
     --ti-glass-highlight: rgb(255 255 255 / 6%);
     --ti-glass-shadow: rgb(0 0 0 / 60%);
@@ -72,8 +73,8 @@
 
     /* Effects */
     /* "Carved into glass" look: strong inner shadows + subtle highlight */
-    box-shadow: inset 6px 6px 12px rgb(0 0 0 / 65%),
-    inset -6px -6px 12px rgb(255 255 255 / 4%),
+    box-shadow: inset 2px 2px 6px rgb(0 0 0 / 65%),
+    inset -2px -2px 6px rgb(255 255 255 / 4%),
     0 0 0 1px rgb(255 255 255 / 3%);
     transition: box-shadow 160ms ease, color 160ms ease, transform 120ms ease, background-color 160ms ease;
 }
@@ -81,6 +82,21 @@
 .ti-glass-btn-black.large {
     justify-content: flex-start;
     padding-inline: var(--ti-padding);
+}
+
+.ti-glass-btn-black.on-screen {
+    background-image: linear-gradient(0deg, var(--ti-glass-tint), var(--ti-glass-tint)),
+    linear-gradient(180deg, rgb(255 255 255 / 4%), rgb(255 255 255 / 1%)),
+    linear-gradient(180deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 3%));
+    background-blend-mode: normal, overlay, soft-light;
+    background-color: transparent;
+    background-clip: padding-box;
+}
+
+.ti-glass-btn-black.primary {
+    background-image: linear-gradient(0deg, var(--ti-glass-tint-primary), var(--ti-glass-tint-primary)),
+    linear-gradient(180deg, rgb(255 255 255 / 4%), rgb(255 255 255 / 1%)),
+    linear-gradient(180deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 3%));
 }
 
 /* Icon sizing (Material Symbols inherit currentColor) */
@@ -94,16 +110,16 @@
 /* Hover: brighten and add a subtle outer glow to suggest interactivity */
 .ti-glass-btn-black:hover {
     color: var(--ti-sidebar-fg);
-    box-shadow: inset 5px 5px 10px rgb(0 0 0 / 58%),
-    inset -5px -5px 10px rgb(255 255 255 / 5%),
+    box-shadow: inset 1px 1px 4px rgb(0 0 0 / 58%),
+    inset -1px -1px 4px rgb(255 255 255 / 5%),
     0 0 0 1px rgb(255 255 255 / 4%);
 }
 
 /* Active/pressed: deepen the carve and nudge inward */
 .ti-glass-btn-black:active {
     transform: translateY(1px);
-    box-shadow: inset 8px 8px 16px rgb(0 0 0 / 75%),
-    inset -8px -8px 16px rgb(255 255 255 / 3%),
+    box-shadow: inset 3px 3px 8px rgb(0 0 0 / 75%),
+    inset -3px -3px 8px rgb(255 255 255 / 3%),
     0 0 0 1px rgb(255 255 255 / 2%);
 }
 
@@ -112,8 +128,8 @@
     outline: none;
 
     color: var(--ti-sidebar-fg);
-    box-shadow: inset 5px 5px 10px rgb(0 0 0 / 60%),
-    inset -5px -5px 10px rgb(255 255 255 / 5%),
+    box-shadow: inset 1px 1px 4px rgb(0 0 0 / 60%),
+    inset -1px -1px 4px rgb(255 255 255 / 5%),
     0 0 0 1px rgb(255 255 255 / 9%),
     0 0 0 3px color-mix(in oklab, var(--ti-accent) 40%, transparent);
 }
@@ -122,69 +138,11 @@
 .ti-glass-btn-black.is-active {
     color: var(--ti-sidebar-fg);
     background-color: rgb(255 255 255 / 2%);
-    box-shadow: inset 10px 10px 18px rgb(0 0 0 / 75%),
-    inset -10px -10px 18px rgb(255 255 255 / 3%),
+    box-shadow: inset 3px 3px 8px rgb(0 0 0 / 75%),
+    inset -3px -3px 8px rgb(255 255 255 / 3%),
     0 0 0 1px rgb(255 255 255 / 5%);
 }
 
 .ti-glass-back-pane {
     background-color: var(--ti-back-pane-bg, rgb(156 156 156 / 72%));
-}
-
-/* Solid Button Styles matching the Black Glass theme */
-.ti-button {
-    background-color: #50505f; /* Solid dark color matching the glass tint */
-    color: var(--ti-sidebar-fg-dim);
-    font-weight: 500;
-    justify-content: center;
-    transition: box-shadow 200ms ease, color 200ms ease, transform 120ms ease, background-color 200ms ease, filter 200ms ease;
-
-    /* Carved/Recessed look similar to .ti-glass-btn-black */
-    box-shadow: inset 3px 3px 6px rgb(0 0 0 / 70%),
-    inset -2px -2px 6px rgb(255 255 255 / 8%),
-    0 2px 4px rgb(0 0 0 / 20%);
-}
-
-.ti-button:hover {
-    color: var(--ti-sidebar-fg);
-
-    box-shadow: inset 2px 2px 5px rgb(0 0 0 / 60%),
-    inset -2px -2px 5px rgb(255 255 255 / 12%),
-    0 4px 8px rgb(0 0 0 / 25%);
-    transform: translateY(-1px);
-}
-
-.ti-button:active {
-    transform: translateY(1px);
-    box-shadow: inset 5px 5px 10px rgb(0 0 0 / 85%),
-    inset -5px -5px 10px rgb(255 255 255 / 5%);
-}
-
-.ti-button:focus-visible {
-    outline: none;
-    box-shadow: inset 3px 3px 6px rgb(0 0 0 / 70%),
-    inset -2px -2px 6px rgb(255 255 255 / 8%),
-    0 0 0 2px var(--ti-accent);
-}
-
-.ti-button.primary {
-    background-color: #6193c8;
-    color: #1f1f1f;
-    /* Primary buttons keep the carved aesthetic but with the accent color */
-    box-shadow: inset 2px 2px 4px rgb(0 0 0 / 20%),
-    inset -2px -2px 4px rgb(255 255 255 / 25%),
-    0 4px 8px rgb(0 0 0 / 15%);
-}
-
-.ti-button.primary:hover {
-    filter: brightness(1.1);
-    color: #2b2b33;
-    box-shadow: inset 1px 1px 3px rgb(0 0 0 / 20%),
-    inset -1px -1px 3px rgb(255 255 255 / 35%),
-    0 6px 12px rgb(0 0 0 / 20%);
-}
-
-.ti-button.primary:active {
-    box-shadow: inset 4px 4px 8px rgb(0 0 0 / 25%),
-    inset -4px -4px 8px rgb(255 255 255 / 10%);
 }

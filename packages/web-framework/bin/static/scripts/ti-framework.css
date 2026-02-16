@@ -1,11 +1,12 @@
 :root {
     --ti-button-size: 44px;
-    --ti-button-radius: 12px;
+    --ti-button-radius: 10px;
     --ti-gap: 10px;
     --ti-padding: 10px;
     --ti-margin: 10px;
     --ti-notification-top: 50px;
     --ti-font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    --ti-font-size: 14px;
 }
 
 body {
@@ -55,8 +56,10 @@ body {
     appearance: none;
     border: 0;
     background: transparent;
+    align-items: center;
     cursor: pointer;
-    font: inherit;
+    font-family: var(--ti-font-family), system-ui;
+    font-size: var(--ti-font-size);
     color: inherit;
     height: var(--ti-button-size);
     width: fit-content;
@@ -68,7 +71,6 @@ body {
     width: var(--ti-button-size);
     height: var(--ti-button-size);
     border-radius: var(--ti-button-radius);
-
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -213,7 +215,8 @@ body {
     flex-direction: row;
     cursor: pointer;
     gap: 5px;
-
+    font-family: var(--ti-font-family), system-ui;
+    font-size: var(--ti-font-size);
     -webkit-tap-highlight-color: transparent;
     appearance: none;
     width: 100%;
@@ -224,7 +227,7 @@ body {
     color: var(--ti-sidebar-fg);
     text-align: left;
     padding: var(--ti-padding);
-    border-radius: 10px;
+    border-radius: var(--ti-button-radius);
     box-shadow: var(--ti-flyout-item-shadow, inset 5px 5px 10px rgba(0, 0, 0, 0.35), inset -5px -5px 10px rgba(255, 255, 255, 0.03));
     transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }

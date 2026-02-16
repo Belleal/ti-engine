@@ -20,9 +20,12 @@
     </div>
 
     <div x-show="showEvaluationForm && (isEmployee() || isEmployeeManager())" class="ti-button-bar competence-sub-panel">
-        <button type="button" class="ti-button" x-on:click="saveDraft()" x-text-label="interface.evaluation.actions.save-draft"></button>
-        <button type="button" class="ti-button" x-on:click="resetGrades()" x-text-label="interface.evaluation.actions.reset"></button>
-        <button type="button" class="ti-button primary" x-on:click="submitEvaluation()" x-text-label="interface.evaluation.actions.submit"></button>
+        <button type="button" class="ti-button ti-glass-btn-black large on-screen" x-on:click="saveDraft()"
+                x-text-label="interface.evaluation.actions.save-draft"></button>
+        <button type="button" class="ti-button ti-glass-btn-black large on-screen" x-on:click="resetGrades()"
+                x-text-label="interface.evaluation.actions.reset"></button>
+        <button type="button" class="ti-button ti-glass-btn-black large on-screen primary" x-on:click="submitEvaluation()"
+                x-text-label="interface.evaluation.actions.submit"></button>
     </div>
 
     <div x-show="showEvaluationForm" class="ti-panel competence-sub-panel">
