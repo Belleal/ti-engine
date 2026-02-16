@@ -5,7 +5,17 @@
       "employeeID": "1",
       "cycleID": "2025.H1",
       "cycleDate": "2025-06-30",
-      "interviewDate": "2025-06-15",
+      "status": "Deleted",
+      "grades": {
+        "E1-1": { "employee": "", "manager": "", "team": "" },
+        "E1-2": { "employee": "", "manager": "", "team": "" }
+      }
+    },
+    {
+      "evaluationID": "d43d14e1-dc96-48de-92f5-adb16586c178",
+      "employeeID": "1",
+      "cycleID": "2025.H1",
+      "cycleDate": "2025-06-30",
       "status": "Open",
       "grades": {
         "E1-1": { "employee": "S", "manager": "R", "team": "S" },

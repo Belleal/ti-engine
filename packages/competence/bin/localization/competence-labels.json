@@ -2370,6 +2370,20 @@
           "en": "Team",
           "bg": "Екип"
         }
+      },
+      "actions": {
+        "save-draft": {
+          "en": "Save Draft",
+          "bg": "Запази Драфт"
+        },
+        "reset": {
+          "en": "Reset",
+          "bg": "Изчисти"
+        },
+        "submit": {
+          "en": "Submit",
+          "bg": "Завърши"
+        }
       }
     }
   }

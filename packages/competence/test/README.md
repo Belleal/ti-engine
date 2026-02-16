@@ -38,11 +38,11 @@ Comprehensive unit tests for the configuration loader module:
 - Tests for frozen/immutable configurations
 - Edge cases and boundary conditions
 
-### 3. data-loader.test.js
+### 3. data-manager.test.js
 
 **Status:** ⚠️ Requires dependencies
 
-Comprehensive unit tests for the data loader singleton:
+Comprehensive unit tests for the data manager singleton:
 - Singleton pattern validation
 - `fetchEmployee()` method with various inputs
 - `fetchEvaluations()` method with filtering
@@ -114,7 +114,7 @@ npm test
 ```bash
 node --test test/json-config-validation.test.js
 node --test test/configuration-loader.test.js
-node --test test/data-loader.test.js
+node --test test/data-manager.test.js
 node --test test/competence-web-application.test.js
 node --test test/competence-web-server.test.js
 ```
@@ -131,7 +131,7 @@ node --test --experimental-test-coverage test/*.test.js
 |------------------------|------------|--------------------|-------------------|
 | JSON Config Validation | 28         | ✅ Passing          | 100%              |
 | Configuration Loader   | 70+        | ⚠️ Pending deps    | High              |
-| Data Loader            | 40+        | ⚠️ Pending deps    | High              |
+| Data Manager           | 40+        | ⚠️ Pending deps    | High              |
 | Web Application        | 50+        | ⚠️ Pending deps    | High              |
 | Web Server             | 70+        | ⚠️ Pending deps    | High              |
 | **Total**              | **250+**   | **28/250 passing** | **Comprehensive** |

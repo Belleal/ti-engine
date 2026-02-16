@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/evaluations.json",
+  "title": "Competency Evaluations Registry",
+  "description": "Registry of all employee competency evaluations including cycle information and detailed grading.",
+  "type": "object",
+  "required": [
+    "evaluations"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "evaluations": {
+      "type": "array",
+      "description": "List of evaluation records",
+      "items": {
+        "$ref": "https://ti-engine.dev/schemas/competence/evaluation.json"
+      }
+    }
+  }
+}

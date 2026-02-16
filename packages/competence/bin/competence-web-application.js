@@ -9,8 +9,9 @@
 const TiWebAppManager = require( "@ti-engine/web-framework/web-application" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const localization = require( "@ti-engine/core/localization" );
+const tools = require( "@ti-engine/core/tools" );
 const configurationLoader = require( "#configuration-loader" );
-const dataLoader = require( "#data-loader" );
+const dataManager = require( "#data-manager" );
 
 /**
  * NOTE: This is still a work in progress.
@@ -75,7 +76,8 @@ class CompetenceWebApplication extends TiWebAppManager {
         }
         if ( view === "load-employee-competencies" ) {
             const employeeID = String( options?.query?.employeeID || "" ).trim();
-            return this.#loadEmployeeCompetencies( session, employeeID );
+            const evaluationID = String( options?.query?.evaluationID || "" ).trim();
+            return this.#loadEmployeeCompetencies( session, employeeID, evaluationID );
         }
         return super.processDataRequest( session, view, options );
     }
@@ -88,22 +90,32 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @method
      * @param {Object} session
      * @param {string} employeeID
+     * @param {string|null} [evaluationID] Optional evaluation ID to load. If not provided, the most recent evaluation will be loaded.
      * @returns {Promise<Object>}
      * @private
      */
-    #loadEmployeeCompetencies( session, employeeID ) {
+    #loadEmployeeCompetencies( session, employeeID, evaluationID = null ) {
         return new Promise( ( resolve, reject ) => {
             let employee = null;
-            dataLoader.instance.fetchEmployee( employeeID ).then( ( employeeData ) => {
+            dataManager.instance.fetchEmployee( employeeID ).then( ( employeeData ) => {
                 employee = employeeData;
-                return dataLoader.instance.fetchEvaluations( employee.employeeID );
+                return dataManager.instance.fetchEvaluations( employee.employeeID, true );
             } ).then( ( evaluations ) => {
-                const lastEvaluation = evaluations.slice()
-                    .sort( ( a, b ) =>
-                        new Date( b.interviewDate || b.cycleDate ) - new Date( a.interviewDate || a.cycleDate )
-                    )[ 0 ] || {};
+                // Load the current evaluation - either by the specified evaluation ID or by the most recent evaluation in the list:
+                let currentEvaluation;
+                if ( evaluationID ) {
+                    currentEvaluation = evaluations.find( ( evaluation ) => evaluation.evaluationID === evaluationID );
+                    if ( !currentEvaluation ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID: evaluationID } );
+                    }
+                } else if ( evaluations.length > 0 ) {
+                    currentEvaluation = evaluations.slice().sort( ( a, b ) => new Date( b.cycleDate ) - new Date( a.cycleDate ) )[ 0 ];
+                } else {
+                    currentEvaluation = this.#createNewEvaluation( employeeID );
+                }
+
                 const positionKey = String( employee.personal?.position ?? "" ).trim();
-                const cycleID = String( lastEvaluation?.cycleID ?? "" ).trim();
+                const cycleID = String( currentEvaluation?.cycleID ?? "" ).trim();
                 const positionCompetencies = configurationLoader.configEvaluationPositionCompetencies || {};
                 const positionEntry = Object.prototype.hasOwnProperty.call( positionCompetencies, positionKey )
                     ? positionCompetencies[ positionKey ]
@@ -112,22 +124,21 @@ class CompetenceWebApplication extends TiWebAppManager {
                 if ( Array.isArray( positionEntry ) ) {
                     allowedCompetencyCodes = positionEntry;
                 } else if ( positionEntry && typeof positionEntry === "object" ) {
-                    allowedCompetencyCodes = Object.prototype.hasOwnProperty.call( positionEntry, cycleID )
-                        ? positionEntry[ cycleID ]
-                        : [];
+                    allowedCompetencyCodes = Object.prototype.hasOwnProperty.call( positionEntry, cycleID ) ? positionEntry[ cycleID ] : [];
                 }
                 for ( const competencyCode of allowedCompetencyCodes || [] ) {
-                    lastEvaluation.grades = lastEvaluation.grades || {};
-                    lastEvaluation.grades[ competencyCode ] = lastEvaluation.grades[ competencyCode ] || {};
-                    lastEvaluation.grades[ competencyCode ] = this.#normalizeGrades( lastEvaluation.grades, competencyCode );
+                    currentEvaluation.grades = currentEvaluation.grades || {};
+                    currentEvaluation.grades[ competencyCode ] = currentEvaluation.grades[ competencyCode ] || {};
+                    currentEvaluation.grades[ competencyCode ] = this.#normalizeGrades( currentEvaluation.grades, competencyCode );
                 }
+
                 resolve( {
                     employeeID: employeeID,
                     personal: {
                         ...employee.personal,
                         positionName: configurationLoader.organizationPositionCode.name( employee.personal?.position )
                     },
-                    evaluation: lastEvaluation,
+                    evaluation: currentEvaluation,
                     competencies: this.#buildCompetenciesTree(
                         configurationLoader.configCompetencies,
                         session?.language,
@@ -210,14 +221,33 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
+     * Used to create a new Evaluation object.
+     *
+     * @method
+     * @param employeeID
+     * @returns {Evaluation}
+     * @private
+     */
+    #createNewEvaluation( employeeID ) {
+        return {
+            evaluationID: tools.getUUID(),
+            employeeID: employeeID,
+            cycleID: "2025.H1", // TODO: Get cycleID from current cycle!
+            cycleDate: "2025-06-30", // TODO: Get cycleDate from current cycle!
+            status: "Open",
+            grades: {}
+        };
+    }
+
+    /**
      * Used to normalize the grade data for a specific competency.
      * <br/>
      * NOTE: If the grade data is not present for the specified competency, an empty object will be returned.
      *
      * @method
-     * @param {Object} gradesByCode
+     * @param {Object.<string, EvaluationGradeEntry>|Object} gradesByCode
      * @param {string} competencyCode
-     * @returns {Object}
+     * @returns {EvaluationGradeEntry}
      * @private
      */
     #normalizeGrades( gradesByCode, competencyCode ) {

@@ -632,7 +632,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @method
      * @param {string} key
      * @param {Object} value
-     * @param {string} [path='&']
+     * @param {string} [path="$"]
      * @param {number} [overrideMode=0] By default this allows full override for existing keys.
      * Option 1 will set the key only if it doesn't already exist. Option 2 will set it only if it already exists.
      * @returns {Promise}
@@ -642,7 +642,7 @@ class CommonMemoryCache extends ConnectionObserver {
         return new Promise( ( resolve, reject ) => {
             if ( this.#isOperational === true ) {
                 if ( this.#redisClient.isJSONSupported ) {
-                    let commandArguments = [ redis.cacheCommands.JSON_SET, key, path, tools.stringifyJSON( value ) ];
+                    let commandArguments = [ redis.cacheCommands.JSON_SET, key, this.#normalizeJSONPath( path ), tools.stringifyJSON( value ) ];
                     if ( overrideMode !== 0 ) {
                         commandArguments.push( overrideMode === 1 ? redis.cacheOverrideMode.NX : redis.cacheOverrideMode.XX );
                     }
@@ -652,7 +652,7 @@ class CommonMemoryCache extends ConnectionObserver {
                         reject( error );
                     } );
                 } else {
-                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED ), { details: "No RedisJSON module installed on server." } );
+                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, { details: "No RedisJSON module installed on server." } ) );
                 }
             } else {
                 reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
@@ -667,7 +667,7 @@ class CommonMemoryCache extends ConnectionObserver {
      *
      * @method
      * @param {string} key
-     * @param {string} path
+     * @param {string} [path="$"]
      * @returns {Promise<Object>}
      * @public
      */
@@ -675,14 +675,45 @@ class CommonMemoryCache extends ConnectionObserver {
         return new Promise( ( resolve, reject ) => {
             if ( this.#isOperational === true ) {
                 if ( this.#redisClient.isJSONSupported ) {
-                    let commandArguments = [ redis.cacheCommands.JSON_GET, key, path ];
+                    let commandArguments = [ redis.cacheCommands.JSON_GET, key, this.#normalizeJSONPath( path ) ];
                     this.#redisClient.callCommand( commandArguments ).then( ( result ) => {
-                        resolve( tools.parseJSON( result ) );
+                        resolve( result != null ? tools.parseJSON( String( result ) ) : null );
                     } ).catch( ( error ) => {
                         reject( error );
                     } );
                 } else {
-                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED ), { details: "No RedisJSON module installed on server." } );
+                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, { details: "No RedisJSON module installed on server." } ) );
+                }
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
+            }
+        } );
+    }
+
+    /**
+     * Used to update/edit an existing JSON variable.
+     * <br/>
+     * NOTE: Requires ReJSON module installed on server to work.
+     *
+     * @method
+     * @param {string} key
+     * @param {Object} value
+     * @param {string} [path="$"]
+     * @returns {Promise}
+     * @public
+     */
+    editJSON( key, value, path = "$" ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( this.#isOperational === true ) {
+                if ( this.#redisClient.isJSONSupported ) {
+                    let commandArguments = [ redis.cacheCommands.JSON_MERGE, key, this.#normalizeJSONPath( path ), tools.stringifyJSON( value ) ];
+                    this.#redisClient.callCommand( commandArguments ).then( () => {
+                        resolve();
+                    } ).catch( ( error ) => {
+                        reject( error );
+                    } );
+                } else {
+                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, { details: "No RedisJSON module installed on server." } ) );
                 }
             } else {
                 reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
@@ -698,7 +729,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @method
      * @param {string} key
      * @param {Object} value
-     * @param {string} path
+     * @param {string} [path="$"]
      * @returns {Promise}
      * @public
      */
@@ -706,19 +737,33 @@ class CommonMemoryCache extends ConnectionObserver {
         return new Promise( ( resolve, reject ) => {
             if ( this.#isOperational === true ) {
                 if ( this.#redisClient.isJSONSupported ) {
-                    let commandArguments = [ redis.cacheCommands.JSON_ARRAY_APPEND, key, path, tools.stringifyJSON( value ) ];
+                    let commandArguments = [ redis.cacheCommands.JSON_ARRAY_APPEND, key, this.#normalizeJSONPath( path ), tools.stringifyJSON( value ) ];
                     this.#redisClient.callCommand( commandArguments ).then( () => {
                         resolve();
                     } ).catch( ( error ) => {
                         reject( error );
                     } );
                 } else {
-                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED ), { details: "No RedisJSON module installed on server." } );
+                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, { details: "No RedisJSON module installed on server." } ) );
                 }
             } else {
                 reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
             }
         } );
+    }
+
+    /* Private interface */
+
+    /**
+     * Used to normalize a JSON path.
+     *
+     * @method
+     * @param {string} path
+     * @returns {string}
+     * @private
+     */
+    #normalizeJSONPath( path ) {
+        return ( path.startsWith( "$" ) === false ) ? ( "$." + path ) : path;
     }
 
 }

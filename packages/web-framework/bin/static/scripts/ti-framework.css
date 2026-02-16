@@ -1,11 +1,12 @@
 :root {
     --ti-button-size: 44px;
-    --ti-button-radius: 12px;
+    --ti-button-radius: 10px;
     --ti-gap: 10px;
     --ti-padding: 10px;
     --ti-margin: 10px;
     --ti-notification-top: 50px;
     --ti-font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    --ti-font-size: 14px;
 }
 
 body {
@@ -51,11 +52,25 @@ body {
     align-items: flex-end;
 }
 
+.ti-button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    align-items: center;
+    cursor: pointer;
+    font-family: var(--ti-font-family), system-ui;
+    font-size: var(--ti-font-size);
+    color: inherit;
+    height: var(--ti-button-size);
+    width: fit-content;
+    border-radius: var(--ti-button-radius);
+    padding-inline: var(--ti-padding);
+}
+
 .ti-sidebar-button {
     width: var(--ti-button-size);
     height: var(--ti-button-size);
     border-radius: var(--ti-button-radius);
-
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -117,6 +132,14 @@ body {
     width: 100%;
 }
 
+.ti-button-bar {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: var(--ti-gap);
+    width: 100%;
+}
+
 .ti-notifications {
     position: fixed;
     top: calc(env(safe-area-inset-top, 0px) + var(--ti-notification-top));
@@ -144,6 +167,10 @@ body {
     pointer-events: auto;
     padding: var(--ti-padding);
     border-radius: 12px;
+    max-width: 60%;
+    width: fit-content; /* Ensures the container shrinks to fit content if text is short */
+    margin-left: auto; /* Centers the container if it has relative positioning */
+    margin-right: auto;
 }
 
 .ti-notification:focus-visible {
@@ -188,7 +215,8 @@ body {
     flex-direction: row;
     cursor: pointer;
     gap: 5px;
-
+    font-family: var(--ti-font-family), system-ui;
+    font-size: var(--ti-font-size);
     -webkit-tap-highlight-color: transparent;
     appearance: none;
     width: 100%;
@@ -199,7 +227,7 @@ body {
     color: var(--ti-sidebar-fg);
     text-align: left;
     padding: var(--ti-padding);
-    border-radius: 10px;
+    border-radius: var(--ti-button-radius);
     box-shadow: var(--ti-flyout-item-shadow, inset 5px 5px 10px rgba(0, 0, 0, 0.35), inset -5px -5px 10px rgba(255, 255, 255, 0.03));
     transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
@@ -252,4 +280,12 @@ body {
     transform: translateX(-50%);
     border: var(--ti-tooltip-arrow-size, 5px) solid transparent;
     border-top-color: var(--ti-tooltip-bg-color, rgba(0, 0, 0, 0.85));
+}
+
+/* Mobile devices (tablets and phones) */
+@media screen and (width <= 720px) {
+    .ti-notification {
+        max-width: 90%; /* Allows more space on smaller screens */
+        width: 90%; /* Ensures consistent width on very small screens */
+    }
 }

@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/evaluation.json",
+  "title": "Competency Evaluation",
+  "description": "A single employee competency evaluation record.",
+  "type": "object",
+  "required": [
+    "evaluationID",
+    "employeeID",
+    "cycleID",
+    "cycleDate",
+    "status",
+    "grades"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "evaluationID": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for the evaluation"
+    },
+    "employeeID": {
+      "type": "string",
+      "description": "ID of the employee being evaluated"
+    },
+    "cycleID": {
+      "type": "string",
+      "description": "Identifier of the evaluation cycle (e.g., 2025.H1)"
+    },
+    "cycleDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Official date of the cycle closing"
+    },
+    "interviewDate": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date",
+      "description": "Date when the evaluation interview took place"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Open",
+        "In Review",
+        "Closed",
+        "Deleted"
+      ],
+      "description": "Current status of the evaluation (e.g., Open, Closed)"
+    },
+    "grades": {
+      "type": "object",
+      "description": "Collection of grades keyed by competency ID",
+      "patternProperties": {
+        "^[EIC][1-3]-\\d+$": {
+          "$ref": "#/$defs/gradeEntry"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "gradeEntry": {
+      "type": "object",
+      "description": "Grades assigned by different roles",
+      "additionalProperties": false,
+      "properties": {
+        "employee": {
+          "$ref": "#/$defs/gradeValue"
+        },
+        "manager": {
+          "$ref": "#/$defs/gradeValue"
+        },
+        "team": {
+          "$ref": "#/$defs/gradeValue"
+        }
+      }
+    },
+    "gradeValue": {
+      "type": "string",
+      "enum": [
+        "U",
+        "R",
+        "S",
+        ""
+      ],
+      "description": "Competency level: U (Under-Performance), R (Regular/Expected Performance), S (Superior Performance)"
+    }
+  }
+}
