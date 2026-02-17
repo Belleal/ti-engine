@@ -2,6 +2,13 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.0.2
+
+* feat(data manager): replace `data-loader` with `data-manager` that supports data storage and retrival from Redis Cache
+* feat(definitions): add typedefs for `Employee` and `Evaluation` with corresponding JSON Schemas
+* feat(web-server): change `onStart` sequence to also initialize the new data manager
+* feat(ui): add button bar to the evaluation screen with `save draft`, `reset`, and `submit` actions
+
 ## Version 1.0.1
 
 * feat(config): add new position competencies mapping file `bin/config/positionCompetencies.json`
@@ -9,11 +16,11 @@ This document contains the list of changes made to the competence package. The f
 * feat(config): add comprehensive competency mappings for SOFTWARE_ENGINEER, PROJECT_MANAGER, and BUSINESS_ANALYST across all levels (N1-T1)
 * feat(data): add employee data file `bin/data/employees.json` with sample employee records
 * feat(data): add evaluation data file `bin/data/evaluations.json` with sample evaluation records
-* feat(loader): add configuration loader module for centralized configuration access with immutability guarantees
+* feat(loader): add a configuration loader module for centralized configuration access with immutability guarantees
 * feat(loader): add data loader singleton for employee and evaluation data retrieval
 * feat(web-app): add `processDataRequest` method for handling data view requests
 * feat(web-app): add config view support with augmented grades configuration
-* feat(web-app): add load-employee-competencies view with comprehensive data assembly
+* feat(web-app): add a load-employee-competencies view with comprehensive data assembly
 * feat(web-app): add competencies tree building with localization and position-based filtering
 * feat(web-app): add grade normalization for employee, manager, and team evaluations
 * feat(ui): add competence evaluation HTML fragment with Alpine.js integration

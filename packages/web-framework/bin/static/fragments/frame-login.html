@@ -1,21 +1,28 @@
 <title id="ti-page-title" hx-swap-oob="outerHTML">{ti-title-placeholder}</title>
-<div id="ti-login" class="ti-content login">
-    <h2>Sign in</h2>
-    <div id="ti-error" class="ti-error"></div>
-    <form id="ti-login-form" action="/login/local" method="post">
-        <input type="hidden" name="_csrf" value='{ti-csrf-placeholder}'>
-        <div>
-            <label for="ti-username">Username</label>
-            <input id="ti-username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required/>
+<div id="ti-login" class="ti-content">
+    <div class="ti-panel login ti-sub-panel">
+        <div class="ti-panel-title">Sign In</div>
+        <div id="ti-error" class="ti-error"></div>
+        <form id="ti-login-form" action="/login/local" method="post" class="ti-form-grid login">
+            <input type="hidden" name="_csrf" value='{ti-csrf-placeholder}'>
+            <label class="ti-label" x-text-label="interface.default.login.username" for="ti-username"></label>
+            <input id="ti-username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required class="ti-input"/>
+            <label class="ti-label" x-text-label="interface.default.login.password" for="ti-password">Password</label>
+            <input id="ti-password" name="password" type="password" autocomplete="current-password" enterkeyhint="go" required class="ti-input"/>
+            <button type="submit" class="ti-button login ti-glass-btn-black large on-screen">
+                <span class="material-symbols-outlined">login</span><span x-text-label="interface.default.login.sign-in"></span>
+            </button>
+        </form>
+
+        <span class="ti-spacer-v-10"></span>
+
+        <div class="ti-button-bar">
+            <a href="/login/openid-google" class="ti-button ti-glass-btn-black large on-screen">
+                <span class="material-symbols-outlined">captive_portal</span><span x-text-label="interface.default.login.sign-in-google"></span>
+            </a>
+            <a href="/login/openid-azure" class="ti-button ti-glass-btn-black large on-screen">
+                <span class="material-symbols-outlined">captive_portal</span><span x-text-label="interface.default.login.sign-in-azure"></span>
+            </a>
         </div>
-        <div>
-            <label for="ti-password">Password</label>
-            <input id="ti-password" name="password" type="password" autocomplete="current-password" enterkeyhint="go" required/>
-        </div>
-        <div>
-            <button type="submit">Sign in</button>
-        </div>
-    </form>
-    <a href="/login/openid-google">Sign in with Google</a>
-    <a href="/login/openid-azure">Sign in with Azure</a>
+    </div>
 </div>

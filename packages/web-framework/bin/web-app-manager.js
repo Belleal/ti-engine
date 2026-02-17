@@ -15,7 +15,7 @@ const fs = require( "node:fs" );
 const RE_NONCE_ATTR = /\{ti-nonce-placeholder}/g;
 const RE_CSRF_ATTR = /\{ti-csrf-placeholder}/g;
 const RE_HTMX_CONFIG = /\{ti-htmx-config-placeholder}/g;
-const RE_CSP_NONCE = /^[A-Za-z0-9+\/=_-]{16,}$/;
+const RE_CSP_NONCE = /^[A-Za-z0-9+/=_-]{16,}$/;
 const TI_NESTED_FRAME_PLACEHOLDER = "ti-nested-frame-placeholder";
 
 /**
@@ -242,6 +242,7 @@ class TiWebAppManager {
      * @param {string} view
      * @param {Object} [options]
      * @returns {Promise<Object>}
+     * @virtual
      * @public
      */
     processDataRequest( session, view, options = {} ) {
@@ -254,8 +255,25 @@ class TiWebAppManager {
                     }
                 } );
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI, { view: view } ) );
             }
+        } );
+    }
+
+    /**
+     * Used to process an application service request.
+     *
+     * @method
+     * @param {Object} session
+     * @param {string} service
+     * @param {Object} params
+     * @returns {Promise<Object>}
+     * @virtual
+     * @public
+     */
+    processServiceRequest( session, service, params ) {
+        return new Promise( ( resolve, reject ) => {
+            reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI, { service: service } ) );
         } );
     }
 

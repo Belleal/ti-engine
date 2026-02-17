@@ -560,9 +560,16 @@ module.exports.cspHeaderHandler = () => {
  */
 module.exports.webAppHandler = ( instance ) => {
     return ( request, response, next ) => {
-        if ( request.method !== "GET" && request.method !== "HEAD" ) {
-            next();
-        } else {
+        const formatException = ( exception ) => {
+            exception.httpCode = exception.httpCode || (
+                exception.code === exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI
+                    ? exceptions.httpCode.C_404
+                    : exceptions.httpCode.C_500
+            );
+            return exception;
+        };
+
+        if ( request.method === "GET" || request.method === "HEAD" ) {
             if ( isAcceptingResponseType( request, "html" ) ) {
                 // HEAD: set headers only:
                 if ( request.method === "HEAD" ) {
@@ -585,13 +592,7 @@ module.exports.webAppHandler = ( instance ) => {
                         response.set( "Content-Type", "text/html; charset=utf-8" );
                         response.status( exceptions.httpCode.C_200 ).send( html );
                     } ).catch( ( error ) => {
-                        let exception = exceptions.raise( error );
-                        exception.httpCode = exception.httpCode || (
-                            exception.code === exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI
-                                ? exceptions.httpCode.C_404
-                                : exceptions.httpCode.C_500
-                        );
-                        next( exception );
+                        next( formatException( exceptions.raise( error ) ) );
                     } );
                 }
             } else if ( isAcceptingResponseType( request, "json" ) ) {
@@ -607,11 +608,21 @@ module.exports.webAppHandler = ( instance ) => {
                     response.set( "Content-Type", "application/json; charset=utf-8" );
                     response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, data: result } );
                 } ).catch( ( error ) => {
-                    next( exceptions.raise( error ) );
+                    next( formatException( exceptions.raise( error ) ) );
                 } );
             } else {
                 next();
             }
+        } else if ( request.method === "POST" ) {
+            instance.webAppManager.processServiceRequest( request.session, request.params?.service, request.body || {} ).then( ( result ) => {
+                response.set( "Cache-Control", "no-store" );
+                response.set( "Content-Type", "application/json; charset=utf-8" );
+                response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, data: result } );
+            } ).catch( ( error ) => {
+                next( formatException( exceptions.raise( error ) ) );
+            } );
+        } else {
+            next();
         }
     };
 };

@@ -4,6 +4,13 @@ This document will contain the list of changes made to the framework. The format
 
 ## Version 1.3.15
 
+* feat(redis integration): implement support for `JSON.MERGE` and `JSON.MGET` commands
+* feat(cache): add `editJSON` method
+* feat(cache): implement consistent RedisJSON path handling and uniform error wrapping
+* feat(exceptions): add new exception code `E_GEN_NOT_IMPLEMENTED`
+* fix(cache): fix a bug where RedisJSON methods would return `E_GEN_FEATURE_UNSUPPORTED` error while discarding the details of that error
+* fix(config): fix the env `TI_LOCALIZATION_LABELS_PATH` to properly support multiple paths to label files
+
 ## Version 1.3.14
 
 * build(deps): update `@dotenvx/dotenvx` from ^1.51.1 to ^1.52.0

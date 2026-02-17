@@ -476,6 +476,7 @@ class TiWebServer extends ServiceConsumer {
         this.#webServer.get( "/not-found", webHandlers.webAppHandler( this ) );
         this.#webServer.get( "/app", webHandlers.webAppHandler( this ) );
         this.#webServer.get( "/app/:view", webHandlers.webAppHandler( this ) );
+        this.#webServer.post( "/app/:service", webHandlers.webAppHandler( this ) );
         this.#webServer.get( "/login/:method", webHandlers.authenticationHandler( this ) );
         this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
         this.#webServer.post( "/logout", webHandlers.logoutHandler() );

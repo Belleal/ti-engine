@@ -34,6 +34,9 @@
       "1009": {
         "en": "Attempt to override a protected or private method or property detected."
       },
+      "1010": {
+        "en": "The requested functionality is not yet implemented."
+      },
       "2000": {
         "en": "Invalid authorization token provided."
       },

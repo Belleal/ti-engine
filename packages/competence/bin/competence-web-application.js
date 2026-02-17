@@ -65,6 +65,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @param {string} view
      * @param {Object} [options]
      * @returns {Promise<Object>}
+     * @override
      * @public
      */
     processDataRequest( session, view, options = {} ) {
@@ -73,13 +74,34 @@ class CompetenceWebApplication extends TiWebAppManager {
                 ...result,
                 grades: configurationLoader.configEvaluationGrades
             } ) );
-        }
-        if ( view === "load-employee-competencies" ) {
+        } else if ( view === "load-employee-competencies" ) {
             const employeeID = String( options?.query?.employeeID || "" ).trim();
             const evaluationID = String( options?.query?.evaluationID || "" ).trim();
             return this.#loadEmployeeCompetencies( session, employeeID, evaluationID );
+        } else {
+            return super.processDataRequest( session, view, options );
         }
-        return super.processDataRequest( session, view, options );
+    }
+
+    /**
+     * Used to process an application service request.
+     *
+     * @method
+     * @param {Object} session
+     * @param {string} service
+     * @param {Object} params
+     * @returns {Promise<Object>}
+     * @override
+     * @public
+     */
+    processServiceRequest( session, service, params ) {
+        if ( service === "save-evaluation-draft" ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_NOT_IMPLEMENTED );
+        } else if ( service === "submit-evaluation" ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_NOT_IMPLEMENTED );
+        } else {
+            return super.processServiceRequest( session, service, params );
+        }
     }
 
     /* Private interface */

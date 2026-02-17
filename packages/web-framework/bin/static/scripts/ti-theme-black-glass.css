@@ -5,7 +5,7 @@
     /* Adjust these to tune the look */
     --ti-glass-tint: rgb(8 8 12 / 78%);
     --ti-glass-tint-strong: rgb(8 8 12 / 90%);
-    --ti-glass-tint-primary: rgb(77, 109, 143);
+    --ti-glass-tint-primary: rgb(77 109 143);
     --ti-glass-border: rgb(255 255 255 / 8%);
     --ti-glass-highlight: rgb(255 255 255 / 6%);
     --ti-glass-shadow: rgb(0 0 0 / 60%);
@@ -16,8 +16,6 @@
     --ti-sidebar-fg: rgb(240 242 248 / 92%); /* text/icon color on glass */
     --ti-sidebar-fg-dim: rgb(240 242 248 / 65%);
     --ti-accent: #4da3ff; /* hover/focus accent */
-
-    --ti-error-color: rgb(230 96 96 / 95%);
 
     --ti-flyout-item-shadow: inset 6px 6px 12px rgb(0 0 0 / 65%),
     inset -6px -6px 12px rgb(255 255 255 / 4%);
@@ -97,6 +95,9 @@
     background-image: linear-gradient(0deg, var(--ti-glass-tint-primary), var(--ti-glass-tint-primary)),
     linear-gradient(180deg, rgb(255 255 255 / 4%), rgb(255 255 255 / 1%)),
     linear-gradient(180deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 3%));
+    background-blend-mode: normal, overlay, soft-light;
+    background-color: transparent;
+    background-clip: padding-box;
 }
 
 /* Icon sizing (Material Symbols inherit currentColor) */
@@ -126,7 +127,6 @@
 /* Focus visible: accessible outline that fits the glass aesthetic */
 .ti-glass-btn-black:focus-visible {
     outline: none;
-
     color: var(--ti-sidebar-fg);
     box-shadow: inset 1px 1px 4px rgb(0 0 0 / 60%),
     inset -1px -1px 4px rgb(255 255 255 / 5%),
