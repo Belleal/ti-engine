@@ -23,6 +23,10 @@
       "type": "string",
       "description": "ID of the employee being evaluated"
     },
+    "managerID": {
+      "type": "string",
+      "description": "ID of the manager who reviews the evaluation"
+    },
     "cycleID": {
       "type": "string",
       "description": "Identifier of the evaluation cycle (e.g., 2025.H1)"
@@ -45,6 +49,7 @@
       "enum": [
         "Open",
         "In Review",
+        "Ready",
         "Closed",
         "Deleted"
       ],
@@ -59,6 +64,87 @@
         }
       },
       "additionalProperties": false
+    },
+    "comment": {
+      "type": "string",
+      "description": "Comment submitted by the employee"
+    },
+    "feedback": {
+      "type": "object",
+      "description": "Feedback attached to the evaluation",
+      "additionalProperties": false,
+      "properties": {
+        "managerComment": {
+          "type": "string",
+          "description": "Comment submitted by the manager"
+        },
+        "teamComments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Comments submitted by the team members"
+        }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "description": "System workflow state for the evaluation",
+      "additionalProperties": false,
+      "properties": {
+        "currentStep": {
+          "type": "string",
+          "enum": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8"
+          ],
+          "description": "Current step in the workflow"
+        },
+        "selfEvaluationCompleted": {
+          "type": "boolean",
+          "description": "Indicates if self-evaluation has been completed"
+        },
+        "selfEvaluationDeadline": {
+          "type": "string",
+          "format": "date",
+          "description": "Deadline for self-evaluation submission"
+        },
+        "teamEvaluationCompleted": {
+          "type": "boolean",
+          "description": "Indicates if team-evaluation has been completed"
+        },
+        "teamEvaluationDeadline": {
+          "type": "string",
+          "format": "date",
+          "description": "Deadline for team-evaluation submission"
+        },
+        "managerEvaluationCompleted": {
+          "type": "boolean",
+          "description": "Indicates if manager-evaluation has been completed"
+        },
+        "managerEvaluationDeadline": {
+          "type": "string",
+          "format": "date",
+          "description": "Deadline for manager-evaluation submission"
+        },
+        "teamEvaluationsSubmitted": {
+          "type": "integer",
+          "description": "Number of team evaluations submitted"
+        },
+        "team": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of employee IDs of the team members to provide team-evaluation"
+        }
+      }
     }
   },
   "$defs": {
@@ -74,7 +160,20 @@
           "$ref": "#/$defs/gradeValue"
         },
         "team": {
-          "$ref": "#/$defs/gradeValue"
+          "type": "object",
+          "description": "Team evaluation grades",
+          "additionalProperties": false,
+          "properties": {
+            "cumulative": {
+              "$ref": "#/$defs/gradeValue"
+            },
+            "individual": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/gradeValue"
+              }
+            }
+          }
         }
       }
     },

@@ -6,9 +6,7 @@
   "type": "object",
   "required": [
     "employeeID",
-    "name",
-    "level",
-    "stage"
+    "personal"
   ],
   "additionalProperties": false,
   "properties": {
@@ -17,54 +15,76 @@
       "minLength": 1,
       "description": "Unique identifier for the employee"
     },
-    "name": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Full name of the employee"
-    },
-    "email": {
-      "type": "string",
-      "format": "email",
-      "description": "Corporate email address"
-    },
-    "position": {
-      "type": "string",
-      "description": "Job title or position"
-    },
-    "department": {
-      "type": "string",
-      "description": "Department name"
+    "personal": {
+      "type": "object",
+      "description": "Personal information about the employee",
+      "required": [
+        "name",
+        "level",
+        "stage"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Full name of the employee"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Corporate email address"
+        },
+        "position": {
+          "type": "string",
+          "description": "Job title or position"
+        },
+        "department": {
+          "type": "string",
+          "description": "Department name"
+        },
+        "level": {
+          "type": "string",
+          "enum": [
+            "N",
+            "J",
+            "R",
+            "S",
+            "X",
+            "T"
+          ],
+          "description": "Competency level: N (Novice), J (Junior), R (Regular), S (Senior), X (Expert), T (Team Leader)"
+        },
+        "stage": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3,
+          "description": "Progression stage within the level (1-3)"
+        },
+        "startingDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of joining the company"
+        }
+      }
     },
     "manager": {
-      "type": "string",
-      "description": "Name of the direct manager"
-    },
-    "managerID": {
-      "type": "string",
-      "description": "Employee ID of the direct manager"
-    },
-    "level": {
-      "type": "string",
-      "enum": [
-        "N",
-        "J",
-        "R",
-        "S",
-        "X",
-        "T"
+      "type": "object",
+      "description": "Information about the direct manager",
+      "required": [
+        "managerID"
       ],
-      "description": "Competency level: N (Novice), J (Junior), R (Regular), S (Senior), X (Expert), T (Team Leader)"
-    },
-    "stage": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 3,
-      "description": "Progression stage within the level (1-3)"
-    },
-    "startingDate": {
-      "type": "string",
-      "format": "date",
-      "description": "Date of joining the company"
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the direct manager"
+        },
+        "managerID": {
+          "type": "string",
+          "description": "Employee ID of the direct manager"
+        }
+      }
     }
   }
 }

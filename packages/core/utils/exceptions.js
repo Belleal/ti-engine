@@ -59,6 +59,7 @@ const exceptionCodeEnum = tools.enum( {
     E_WEB_INVALID_REQUEST_CONTENT_LENGTH: [ 4008, "invalid request content length", "The request content length is not recognized or not supported." ],
     E_WEB_INVALID_REQUEST_CONTENT_ENCODING: [ 4009, "invalid request content encoding", "The request content encoding is not recognized or not supported." ],
     /** Application exceptions - codes under 5xxx */
+    E_APP_RESOURCE_NOT_FOUND: [ 5004, "resource not found", "The requested resource cannot be found. See details for more information." ],
     E_APP_SERVICE_ERROR: [ 5005, "app service error", "The application service encountered and error. See details for more information." ]
 } );
 

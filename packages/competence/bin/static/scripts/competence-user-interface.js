@@ -4,59 +4,61 @@
  * @constant
  */
 const initialDataModels = {
-    "competencyEvaluation": {
-        "personal": {
-            "name": "",
-            "position": "",
-            "department": "",
-            "manager": "",
-            "managerID": "",
-            "level": "",
-            "stage": "",
-            "startingDate": ""
+    competencyEvaluation: {
+        personal: {
+            name: "",
+            position: "",
+            department: "",
+            level: "",
+            stage: "",
+            startingDate: ""
         },
-        "evaluation": {
-            "cycle": "",
-            "cycleID": "",
-            "cycleDate": "",
-            "interviewDate": ""
+        manager: {
+            name: "",
+            managerID: ""
         },
-        "competencies": [
+        evaluation: {
+            cycle: "",
+            cycleID: "",
+            cycleDate: "",
+            interviewDate: ""
+        },
+        competencies: [
             {
-                "id": "E",
-                "name": "Expertise",
-                "subcategories": [
+                id: "E",
+                name: "Expertise",
+                subcategories: [
                     {
-                        "id": "E1",
-                        "name": "Theoretical knowledge",
-                        "items": []
+                        id: "E1",
+                        name: "Theoretical knowledge",
+                        items: []
                     },
                     {
-                        "id": "E2",
-                        "name": "Applied skills",
-                        "items": []
+                        id: "E2",
+                        name: "Applied skills",
+                        items: []
                     }
                 ]
             },
             {
-                "id": "I",
-                "name": "Impact",
-                "subcategories": [
+                id: "I",
+                name: "Impact",
+                subcategories: [
                     {
-                        "id": "I1",
-                        "name": "Delivery",
-                        "items": []
+                        id: "I1",
+                        name: "Delivery",
+                        items: []
                     }
                 ]
             },
             {
-                "id": "C",
-                "name": "Collaboration",
-                "subcategories": [
+                id: "C",
+                name: "Collaboration",
+                subcategories: [
                     {
-                        "id": "C1",
-                        "name": "Teamwork",
-                        "items": []
+                        id: "C1",
+                        name: "Teamwork",
+                        items: []
                     }
                 ]
             }
@@ -88,6 +90,7 @@ let configureCompetencyEvaluation = () => {
 
     return {
         employeeID: null,
+        manager: {},
         personal: clone( initialDataModels.competencyEvaluation.personal ),
         evaluation: clone( initialDataModels.competencyEvaluation.evaluation ),
         competencies: clone( initialDataModels.competencyEvaluation.competencies ),
@@ -115,6 +118,7 @@ let configureCompetencyEvaluation = () => {
         applyData( data ) {
             const fresh = ( data && typeof data === "object" ) ? data : {};
             this.personal = clone( fresh.personal || initialDataModels.competencyEvaluation.personal );
+            this.manager = clone( fresh.manager || initialDataModels.competencyEvaluation.manager );
             this.evaluation = clone( fresh.evaluation || initialDataModels.competencyEvaluation.evaluation );
             this.competencies = clone( fresh.competencies || initialDataModels.competencyEvaluation.competencies );
         },
@@ -154,7 +158,7 @@ let configureCompetencyEvaluation = () => {
         },
 
         saveDraft() {
-            tiApplication.sendRequest( "/app/save-evaluation-draft", "POST", this.evaluation ).then( () => {
+            tiApplication.sendRequest( "/app/save-evaluation-draft", "POST", { evaluation: this.evaluation } ).then( () => {
                 tiApplication.notify( {
                     message: tiApplication.getLabel( "interface.evaluation.messages.draft-saved", "Draft saved successfully." ),
                     timeout: 3000
@@ -196,7 +200,7 @@ let configureCompetencyEvaluation = () => {
         getItemGrade( competencyCode, role, defaultValue = "" ) {
             let grade;
             if ( competencyCode ) {
-                grade = this.evaluation.grades?.[ competencyCode ]?.[ role ];
+                grade = ( role !== "team" ) ? this.evaluation.grades?.[ competencyCode ]?.[ role ] : this.evaluation.grades?.[ competencyCode ]?.team?.cumulative;
             }
             return grade || defaultValue;
         },
@@ -204,7 +208,12 @@ let configureCompetencyEvaluation = () => {
         setItemGrade( competencyCode, role, value ) {
             this.evaluation.grades = this.evaluation.grades || {};
             this.evaluation.grades[ competencyCode ] = this.evaluation.grades[ competencyCode ] || {};
-            this.evaluation.grades[ competencyCode ][ role ] = value;
+            if ( role !== "team" ) {
+                this.evaluation.grades[ competencyCode ][ role ] = value;
+            } else {
+                this.evaluation.grades[ competencyCode ].team = this.evaluation.grades[ competencyCode ].team || {};
+                this.evaluation.grades[ competencyCode ].team.cumulative = value;
+            }
         },
 
         formatDate( value ) {
@@ -217,7 +226,7 @@ let configureCompetencyEvaluation = () => {
         },
 
         isEmployeeManager() {
-            return tiApplication.user && tiApplication.user.roles && tiApplication.user.roles.includes( 2 ) && this.personal.managerID === tiApplication.user.employeeID;
+            return tiApplication.user && tiApplication.user.roles && tiApplication.user.roles.includes( 2 ) && this.manager.managerID === tiApplication.user.employeeID;
         },
 
         isEmployee() {

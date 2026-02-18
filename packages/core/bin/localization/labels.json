@@ -112,6 +112,9 @@
       "4009": {
         "en": "The request content encoding is not recognized or not supported."
       },
+      "5004": {
+        "en": "The requested resource cannot be found. See details for more information."
+      },
       "5005": {
         "en": "The application service encountered and error. See details for more information."
       }

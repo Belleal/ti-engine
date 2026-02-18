@@ -13,7 +13,7 @@
             <div class="ti-label" x-text-label="interface.evaluation.personal.department"></div>
             <div class="ti-data-value" x-text="personal.department"></div>
             <div class="ti-label" x-text-label="interface.evaluation.personal.manager"></div>
-            <div class="ti-data-value" x-text="personal.manager"></div>
+            <div class="ti-data-value" x-text="manager.name"></div>
             <div class="ti-label" x-text-label="interface.evaluation.personal.starting-date"></div>
             <div class="ti-data-value" x-text="formatDate( personal.startingDate )"></div>
         </div>
@@ -90,8 +90,7 @@
                                                     x-bind:selected="getItemGrade(item.id, 'manager') == gradeKey"></option>
                                         </template>
                                     </select>
-                                    <div class="ti-data-value compact-centered" x-text="getItemGrade(item.id, 'team', '-')"
-                                         x-show="isEmployeeManager()"></div>
+                                    <div class="ti-data-value compact-centered" x-text="getItemGrade(item.id, 'team', '-')" x-show="isEmployeeManager()"></div>
                                     <div class="competence-category-description" x-text="item.description"></div>
                                 </div>
                             </template>

@@ -33,6 +33,12 @@
  */
 
 /**
+ * @typedef {Object} EvaluationFeedback
+ * @property {string} [managerComment] - Comment submitted by the manager.
+ * @property {string[]} [teamComments] - Comments submitted by the team members.
+ */
+
+/**
  * @typedef {Object} Evaluation
  * @property {string} evaluationID - Unique identifier for the evaluation (UUID).
  * @property {string} employeeID - ID of the employee being evaluated.
@@ -42,19 +48,71 @@
  * @property {string|null} [interviewDate] - Date when the evaluation interview took place (YYYY-MM-DD).
  * @property {"Open"|"In Review"|"Ready"|"Closed"|"Deleted"} status - Current status of the evaluation.
  * @property {Object.<string, EvaluationGradeEntry>} [grades] - Collection of grades keyed by competency ID.
+ * @property {string} [comment] - Comment submitted by the employee.
+ * @property {EvaluationFeedback} [feedback] - Feedback attached to the evaluation.
  * @property {EvaluationWorkflow} [workflow] - System workflow state for the evaluation.
+ */
+
+/**
+ * @typedef {Object} EmployeePersonalInformation
+ * @property {string} name - Full name of the employee.
+ * @property {string} [email] - Corporate email address.
+ * @property {string} [position] - Job title or position.
+ * @property {string} [department] - Department name.
+ * @property {"N"|"J"|"R"|"S"|"X"|"T"} level - Competency level.
+ * @property {1|2|3} stage - Progression stage within the level.
+ * @property {string} [startingDate] - Date of joining the company (YYYY-MM-DD).
+ */
+
+/**
+ * @typedef {Object} EmployeeManagerInformation
+ * @property {string} [name] - Name of the direct manager.
+ * @property {string} managerID - Employee ID of the direct manager.
  */
 
 /**
  * @typedef {Object} Employee
  * @property {string} employeeID - Unique identifier for the employee.
- * @property {string} name - Full name of the employee.
- * @property {string} [email] - Corporate email address.
- * @property {string} [position] - Job title or position.
- * @property {string} [department] - Department name.
- * @property {string} [manager] - Name of the direct manager.
- * @property {string} [managerID] - Employee ID of the direct manager.
- * @property {"N"|"J"|"R"|"S"|"X"|"T"} level - Competency level.
- * @property {1|2|3} stage - Progression stage within the level.
- * @property {string} [startingDate] - Date of joining the company (YYYY-MM-DD).
+ * @property {EmployeePersonalInformation} personal - Personal information about the employee.
+ * @property {EmployeeManagerInformation} manager - Name of the direct manager.
+ */
+
+/**
+ * @typedef {Object} CompetencyScope
+ * @property {string} N - Localization key for N-level scope.
+ * @property {string} J - Localization key for J-level scope.
+ * @property {string} R - Localization key for R-level scope.
+ * @property {string} S - Localization key for S-level scope.
+ * @property {string} X - Localization key for X-level scope.
+ * @property {string} T - Localization key for T-level scope.
+ */
+
+/**
+ * @typedef {Object} CompetencyRelevancy
+ * @property {number} N1 - Relevancy score for N1 (1-10).
+ * @property {number} J1 - Relevancy score for J1 (1-10).
+ * @property {number} J2 - Relevancy score for J2 (1-10).
+ * @property {number} J3 - Relevancy score for J3 (1-10).
+ * @property {number} R1 - Relevancy score for R1 (1-10).
+ * @property {number} R2 - Relevancy score for R2 (1-10).
+ * @property {number} R3 - Relevancy score for R3 (1-10).
+ * @property {number} S1 - Relevancy score for S1 (1-10).
+ * @property {number} S2 - Relevancy score for S2 (1-10).
+ * @property {number} S3 - Relevancy score for S3 (1-10).
+ * @property {number} X1 - Relevancy score for X1 (1-10).
+ * @property {number} T1 - Relevancy score for T1 (1-10).
+ */
+
+/**
+ * @typedef {"E"|"I"|"C"} CompetencyCategory
+ */
+
+/**
+ * @typedef {Object} Competency
+ * @property {string} name - Localization key for competency name.
+ * @property {string} description - Localization key for competency description.
+ * @property {CompetencyCategory} category - Category code: E (Expertise), I (Insight), or C (Commitment).
+ * @property {string} subcategory - Subcategory code matching the parent category.
+ * @property {CompetencyScope} scope - Scope descriptions per position level.
+ * @property {CompetencyRelevancy} relevancy - Relevancy scores per position tier.
  */
