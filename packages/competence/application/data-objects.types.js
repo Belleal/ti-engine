@@ -10,7 +10,9 @@
  * @typedef {Object} EvaluationGradeEntry
  * @property {EvaluationGradeValue} [employee]
  * @property {EvaluationGradeValue} [manager]
- * @property {EvaluationGradeValue} [team]
+ * @property {Object} [team]
+ * @property {EvaluationGradeValue} [team.cumulative]
+ * @property {EvaluationGradeValue[]} [team.individual]
  */
 
 /**
@@ -18,14 +20,29 @@
  */
 
 /**
+ * @typedef {Object} EvaluationWorkflow
+ * @property {"1"|"2"|"3"|"4"|"5"|"6"|"7"|"8"} currentStep - Current step in the workflow.
+ * @property {boolean} [selfEvaluationCompleted=false] - Indicates if self-evaluation has been completed.
+ * @property {string} [selfEvaluationDeadline] - Deadline for self-evaluation submission (YYYY-MM-DD).
+ * @property {boolean} [teamEvaluationCompleted=false] - Indicates if team-evaluation has been completed.
+ * @property {string} [teamEvaluationDeadline] - Deadline for team-evaluation submission (YYYY-MM-DD).
+ * @property {boolean} [managerEvaluationCompleted=false] - Indicates if manager-evaluation has been completed.
+ * @property {string} [managerEvaluationDeadline] - Deadline for manager-evaluation submission (YYYY-MM-DD).
+ * @property {number} [teamEvaluationsSubmitted=0] - Number of team evaluations submitted.
+ * @property {string[]} [team] - A list of employee IDs of the team members to provide team-evaluation. IDs will be removed from the list once the corresponding evaluation has been submitted.
+ */
+
+/**
  * @typedef {Object} Evaluation
  * @property {string} evaluationID - Unique identifier for the evaluation (UUID).
  * @property {string} employeeID - ID of the employee being evaluated.
+ * @property {string} [managerID] - ID of the manager who reviews the evaluation.
  * @property {string} cycleID - Identifier of the evaluation cycle (e.g., 2025.H1).
  * @property {string} cycleDate - Official date of the evaluation cycle starting (YYYY-MM-DD).
  * @property {string|null} [interviewDate] - Date when the evaluation interview took place (YYYY-MM-DD).
- * @property {"Open"|"In Review"|"Closed"|"Deleted"} status - Current status of the evaluation.
+ * @property {"Open"|"In Review"|"Ready"|"Closed"|"Deleted"} status - Current status of the evaluation.
  * @property {Object.<string, EvaluationGradeEntry>} [grades] - Collection of grades keyed by competency ID.
+ * @property {EvaluationWorkflow} [workflow] - System workflow state for the evaluation.
  */
 
 /**

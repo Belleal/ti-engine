@@ -2291,6 +2291,14 @@
       }
     }
   },
+  "errors": {
+    "evaluation": {
+      "invalid-draft-status": {
+        "en": "The Evaluation status must be 'Open' in order to save it as a draft.",
+        "bg": ""
+      }
+    }
+  },
   "framework": {
     "grades": {
       "R": {
