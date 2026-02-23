@@ -13,6 +13,12 @@ const tools = require( "@ti-engine/core/tools" );
 const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
 
+let gradeWeights = {};
+gradeWeights[ configurationLoader.evaluationGrade.S ] = 1.3;
+gradeWeights[ configurationLoader.evaluationGrade.R ] = 1.0;
+gradeWeights[ configurationLoader.evaluationGrade.U ] = 0.6;
+tools.deepFreeze( gradeWeights );
+
 /**
  * NOTE: This is still a work in progress.
  *
@@ -98,13 +104,125 @@ class CompetenceWebApplication extends TiWebAppManager {
         if ( service === "save-evaluation-draft" ) {
             return this.#saveEvaluationDraft( session, params.evaluation );
         } else if ( service === "submit-evaluation" ) {
-            throw exceptions.raise( exceptions.exceptionCode.E_GEN_NOT_IMPLEMENTED );
+            return this.#submitEvaluation( session, params.evaluation );
         } else {
             return super.processServiceRequest( session, service, params );
         }
     }
 
     /* Private interface */
+
+    /**
+     * Used to submit the evaluation.
+     *
+     * @param {Object} session
+     * @param {Evaluation} evaluation
+     * @returns {Promise<Evaluation>}
+     * @throws {Exception.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
+     * @throws {Exception.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
+     * @private
+     */
+    #submitEvaluation( session, evaluation ) {
+        return new Promise( ( resolve, reject ) => {
+            const userID = session?.user?.employeeID;
+            if ( !userID ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
+            }
+
+            let existingEvaluation = null;
+            let isEmployee = false;
+            let isTeamMember = false;
+
+            dataManager.instance.fetchEvaluation( evaluation.evaluationID ).then( ( storedEvaluation ) => {
+                existingEvaluation = storedEvaluation;
+                isEmployee = existingEvaluation.employeeID === userID;
+                isTeamMember = Array.isArray( existingEvaluation.workflow?.team ) && existingEvaluation.workflow.team.includes( userID ) && !isEmployee;
+
+                return this.#canManagerModifyEvaluation( userID, existingEvaluation );
+            } ).then( ( isManager ) => {
+                const today = new Date().toISOString().split( "T" )[ 0 ];
+
+                if ( isEmployee ) {
+                    if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Evaluation is not Open." } );
+                    }
+                    if ( existingEvaluation.workflow.selfEvaluationCompleted ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Self-evaluation already completed." } );
+                    }
+                    if ( existingEvaluation.workflow.selfEvaluationDeadline && today > existingEvaluation.workflow.selfEvaluationDeadline ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Self-evaluation deadline has passed." } );
+                    }
+
+                    if ( evaluation.comment !== undefined ) {
+                        existingEvaluation.comment = evaluation.comment;
+                    }
+                    this.#updateSelfEvaluationGrades( existingEvaluation, evaluation.grades );
+
+                    existingEvaluation.workflow.selfEvaluationCompleted = true;
+                } else if ( isTeamMember ) {
+                    if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Evaluation is not Open." } );
+                    }
+                    if ( existingEvaluation.workflow.teamEvaluationDeadline && today > existingEvaluation.workflow.teamEvaluationDeadline ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Team evaluation deadline has passed." } );
+                    }
+
+                    this.#updateTeamEvaluationGrades( existingEvaluation, evaluation.grades );
+
+                    if ( evaluation.feedback && evaluation.feedback.teamComments ) {
+                        existingEvaluation.feedback = existingEvaluation.feedback || {};
+                        existingEvaluation.feedback.teamComments = existingEvaluation.feedback.teamComments || [];
+                        const comments = evaluation.feedback.teamComments;
+                        if ( Array.isArray( comments ) ) {
+                            existingEvaluation.feedback.teamComments.push( ...comments );
+                        } else if ( typeof comments === "string" && comments.trim() ) {
+                            existingEvaluation.feedback.teamComments.push( comments );
+                        }
+                    }
+
+                    existingEvaluation.workflow.teamEvaluationsSubmitted = ( existingEvaluation.workflow.teamEvaluationsSubmitted || 0 ) + 1;
+                    existingEvaluation.workflow.team = existingEvaluation.workflow.team.filter( ( id ) => id !== userID );
+
+                    if ( existingEvaluation.workflow.team.length === 0 ) {
+                        existingEvaluation.workflow.teamEvaluationCompleted = true;
+                        this.#calculateTeamCumulativeGrades( existingEvaluation );
+                    }
+                } else if ( isManager ) {
+                    if ( existingEvaluation.status !== configurationLoader.evaluationStatus.IN_REVIEW ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Evaluation is not In Review." } );
+                    }
+                    if ( existingEvaluation.workflow.managerEvaluationDeadline && today > existingEvaluation.workflow.managerEvaluationDeadline ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Manager evaluation deadline has passed." } );
+                    }
+
+                    if ( evaluation.feedback && evaluation.feedback.managerComment !== undefined ) {
+                        existingEvaluation.feedback = existingEvaluation.feedback || {};
+                        existingEvaluation.feedback.managerComment = evaluation.feedback.managerComment;
+                    }
+                    this.#updateManagerEvaluationGrades( existingEvaluation, evaluation.grades );
+
+                    existingEvaluation.workflow.managerEvaluationCompleted = true;
+                    existingEvaluation.status = configurationLoader.evaluationStatus.READY;
+                } else {
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
+                }
+
+                if ( existingEvaluation.status === configurationLoader.evaluationStatus.OPEN ) {
+                    const teamDone = existingEvaluation.workflow.teamEvaluationCompleted
+                        || ( !existingEvaluation.workflow.team || existingEvaluation.workflow.team.length === 0 );
+                    if ( existingEvaluation.workflow.selfEvaluationCompleted && teamDone ) {
+                        existingEvaluation.status = configurationLoader.evaluationStatus.IN_REVIEW;
+                    }
+                }
+
+                return dataManager.instance.saveEvaluation( existingEvaluation );
+            } ).then( ( savedEvaluation ) => {
+                resolve( savedEvaluation );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
 
     /**
      * Used to save a draft of the evaluation.
@@ -126,16 +244,16 @@ class CompetenceWebApplication extends TiWebAppManager {
 
             let existingEvaluation = null;
             let isEmployee = false;
-            dataManager.instance.fetchEvaluation( evaluation.evaluationID ).then( ( evaluation ) => {
-                isEmployee = evaluation.employeeID === userID;
-                existingEvaluation = evaluation;
+            dataManager.instance.fetchEvaluation( evaluation.evaluationID ).then( ( storedEvaluation ) => {
+                isEmployee = storedEvaluation.employeeID === userID;
+                existingEvaluation = storedEvaluation;
 
                 return this.#canManagerModifyEvaluation( userID, existingEvaluation );
             } ).then( ( isManager ) => {
                 const today = new Date().toISOString().split( "T" )[ 0 ];
 
                 if ( isEmployee ) {
-                    if ( existingEvaluation.status !== "Open" ) {
+                    if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Evaluation is not Open." } );
                     }
                     if ( existingEvaluation.workflow?.selfEvaluationDeadline && today > existingEvaluation.workflow.selfEvaluationDeadline ) {
@@ -145,20 +263,9 @@ class CompetenceWebApplication extends TiWebAppManager {
                     if ( evaluation.comment !== undefined ) {
                         existingEvaluation.comment = evaluation.comment;
                     }
-                    if ( evaluation.grades ) {
-                        Object.keys( evaluation.grades ).forEach( ( competencyCode ) => {
-                            existingEvaluation.grades[ competencyCode ] = existingEvaluation.grades[ competencyCode ] || {
-                                employee: "",
-                                manager: "",
-                                team: { cumulative: "", individual: [] }
-                            };
-                            if ( evaluation.grades[ competencyCode ]?.employee !== undefined ) {
-                                existingEvaluation.grades[ competencyCode ].employee = evaluation.grades[ competencyCode ].employee;
-                            }
-                        } );
-                    }
+                    this.#updateSelfEvaluationGrades( existingEvaluation, evaluation.grades );
                 } else if ( isManager ) {
-                    if ( existingEvaluation.status !== "In Review" ) {
+                    if ( existingEvaluation.status !== configurationLoader.evaluationStatus.IN_REVIEW ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Evaluation is not In Review." } );
                     }
                     if ( existingEvaluation.workflow?.managerEvaluationDeadline && today > existingEvaluation.workflow.managerEvaluationDeadline ) {
@@ -169,13 +276,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                         existingEvaluation.feedback = existingEvaluation.feedback || {};
                         existingEvaluation.feedback.managerComment = evaluation.feedback.managerComment;
                     }
-                    if ( evaluation.grades ) {
-                        Object.keys( evaluation.grades ).forEach( ( competencyCode ) => {
-                            if ( evaluation.grades[ competencyCode ].manager !== undefined ) {
-                                existingEvaluation.grades[ competencyCode ].manager = evaluation.grades[ competencyCode ].manager;
-                            }
-                        } );
-                    }
+                    this.#updateManagerEvaluationGrades( existingEvaluation, evaluation.grades );
                 } else {
                     throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
                 }
@@ -333,6 +434,124 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
+     * Used to calculate the cumulative grades for the team evaluation.
+     * <br/>
+     * NOTE: This method mutates the passed Evaluation object!
+     *
+     * @method
+     * @param {Evaluation} evaluation
+     * @private
+     */
+    #calculateTeamCumulativeGrades( evaluation ) {
+        if ( evaluation.grades ) {
+            Object.values( evaluation.grades ).forEach( ( gradeEntry ) => {
+                if ( gradeEntry.team && gradeEntry.team.individual && gradeEntry.team.individual.length > 0 ) {
+                    let sum = 0;
+                    let count = 0;
+                    gradeEntry.team.individual.forEach( ( grade ) => {
+                        if ( gradeWeights[ grade ] ) {
+                            sum += gradeWeights[ grade ];
+                            count++;
+                        }
+                    } );
+                    if ( count > 0 ) {
+                        const average = sum / count;
+                        let closestGrade = "";
+                        let minDiff = Number.MAX_VALUE;
+
+                        Object.keys( gradeWeights ).forEach( ( grade ) => {
+                            const diff = Math.abs( average - gradeWeights[ grade ] );
+                            if ( diff < minDiff ) {
+                                minDiff = diff;
+                                closestGrade = grade;
+                            }
+                        } );
+
+                        gradeEntry.team.cumulative = closestGrade;
+                    }
+                }
+            } );
+        }
+    }
+
+    /**
+     * Used to update the self-evaluation grades in the evaluation object.
+     * <br/>
+     * NOTE: This method mutates the passed Evaluation object!
+     *
+     * @method
+     * @param {Evaluation} evaluation
+     * @param {Object.<string, EvaluationGradeEntry>} grades
+     * @private
+     */
+    #updateSelfEvaluationGrades( evaluation, grades ) {
+        if ( grades ) {
+            Object.keys( grades ).forEach( ( competencyCode ) => {
+                evaluation.grades[ competencyCode ] = evaluation.grades[ competencyCode ] || {
+                    employee: "",
+                    manager: "",
+                    team: { cumulative: "", individual: [] }
+                };
+                if ( grades[ competencyCode ]?.employee !== undefined ) {
+                    evaluation.grades[ competencyCode ].employee = grades[ competencyCode ].employee;
+                }
+            } );
+        }
+    }
+
+    /**
+     * Used to update the team evaluation grades in the evaluation object.
+     * <br/>
+     * NOTE: This method mutates the passed Evaluation object!
+     *
+     * @method
+     * @param {Evaluation} evaluation
+     * @param {Object.<string, EvaluationGradeEntry>} grades
+     * @private
+     */
+    #updateTeamEvaluationGrades( evaluation, grades ) {
+        if ( grades ) {
+            Object.keys( grades ).forEach( ( competencyCode ) => {
+                evaluation.grades[ competencyCode ] = evaluation.grades[ competencyCode ] || {
+                    employee: "",
+                    manager: "",
+                    team: { cumulative: "", individual: [] }
+                };
+                const teamEntry = evaluation.grades[ competencyCode ].team = evaluation.grades[ competencyCode ].team || {
+                    cumulative: "",
+                    individual: []
+                };
+                teamEntry.individual = teamEntry.individual || [];
+
+                const submittedGrade = grades[ competencyCode ]?.team?.cumulative;
+                if ( submittedGrade ) {
+                    teamEntry.individual.push( submittedGrade );
+                }
+            } );
+        }
+    }
+
+    /**
+     * Used to update the manager evaluation grades in the evaluation object.
+     * <br/>
+     * NOTE: This method mutates the passed Evaluation object!
+     *
+     * @method
+     * @param {Evaluation} evaluation
+     * @param {Object.<string, EvaluationGradeEntry>} grades
+     * @private
+     */
+    #updateManagerEvaluationGrades( evaluation, grades ) {
+        if ( grades ) {
+            Object.keys( grades ).forEach( ( competencyCode ) => {
+                if ( grades[ competencyCode ]?.manager !== undefined ) {
+                    evaluation.grades[ competencyCode ].manager = grades[ competencyCode ].manager;
+                }
+            } );
+        }
+    }
+
+    /**
      * Used to create a new Evaluation object.
      *
      * @method
@@ -346,7 +565,7 @@ class CompetenceWebApplication extends TiWebAppManager {
             employeeID: employeeID,
             cycleID: "2025.H1", // TODO: Get cycleID from current cycle!
             cycleDate: "2025-06-30", // TODO: Get cycleDate from current cycle!
-            status: "Open",
+            status: configurationLoader.evaluationStatus.OPEN,
             grades: {},
             comment: "",
             feedback: {

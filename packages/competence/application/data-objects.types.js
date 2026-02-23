@@ -20,6 +20,10 @@
  */
 
 /**
+ * @typedef {"Open"|"In Review"|"Ready"|"Closed"|"Deleted"} EvaluationStatusValue
+ */
+
+/**
  * @typedef {Object} EvaluationWorkflow
  * @property {"1"|"2"|"3"|"4"|"5"|"6"|"7"|"8"} currentStep - Current step in the workflow.
  * @property {boolean} [selfEvaluationCompleted=false] - Indicates if self-evaluation has been completed.
@@ -46,7 +50,7 @@
  * @property {string} cycleID - Identifier of the evaluation cycle (e.g., 2025.H1).
  * @property {string} cycleDate - Official date of the evaluation cycle starting (YYYY-MM-DD).
  * @property {string|null} [interviewDate] - Date when the evaluation interview took place (YYYY-MM-DD).
- * @property {"Open"|"In Review"|"Ready"|"Closed"|"Deleted"} status - Current status of the evaluation.
+ * @property {EvaluationStatusValue} status - Current status of the evaluation.
  * @property {Object.<string, EvaluationGradeEntry>} [grades] - Collection of grades keyed by competency ID.
  * @property {string} [comment] - Comment submitted by the employee.
  * @property {EvaluationFeedback} [feedback] - Feedback attached to the evaluation.

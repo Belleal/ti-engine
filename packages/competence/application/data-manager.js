@@ -9,6 +9,7 @@
 const cache = require( "@ti-engine/core/cache" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const _ = require( "lodash" );
+const configurationLoader = require( "#configuration-loader" );
 
 /**
  * Used to create and/or return a Data Manager singleton instance.
@@ -108,9 +109,10 @@ class DataManager {
     fetchEvaluations( employeeID, filterClosed = false ) {
         return new Promise( ( resolve, reject ) => {
             const resolvedEmployeeID = String( employeeID );
-            let statusFilter = [ "Deleted" ];
+            let statusFilter = [];
+            statusFilter.push( configurationLoader.evaluationStatus.DELETED );
             if ( filterClosed === true ) {
-                statusFilter.push( "Closed" );
+                statusFilter.push( configurationLoader.evaluationStatus.CLOSED );
             }
 
             if ( cache.instance.isOperational ) {

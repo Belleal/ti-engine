@@ -21,3 +21,33 @@ module.exports.configCompetencies = tools.deepFreeze( configCompetencies );
 module.exports.configEvaluationGrades = tools.deepFreeze( configEvaluationGrades );
 module.exports.configEvaluationLevels = tools.deepFreeze( configEvaluationLevels );
 module.exports.configEvaluationPositionCompetencies = tools.deepFreeze( configEvaluationPositionCompetencies );
+
+/**
+ * Enum for the evaluation status values.
+ *
+ * @readonly
+ * @enum {EvaluationStatus}
+ * @typedef {EvaluationStatusValue} EvaluationStatus
+ */
+const evaluationStatusEnum = tools.enum( {
+    OPEN: [ "Open", "Open", "The evaluation form is open for self and team submissions." ],
+    IN_REVIEW: [ "In Review", "In Review", "The evaluation form is in review by the manager." ],
+    READY: [ "Ready", "Ready", "The evaluation form was reviewed and is now ready for interview scheduling." ],
+    CLOSED: [ "Closed", "Closed", "The evaluation form is closed and the evaluation cannot be modified." ],
+    DELETED: [ "Deleted", "Deleted", "The evaluation form has been deleted and cannot be accessed." ]
+} );
+module.exports.evaluationStatus = evaluationStatusEnum;
+
+/**
+ * Enum for the evaluation grade values.
+ *
+ * @readonly
+ * @enum {EvaluationGrade}
+ * @typedef {EvaluationGradeValue} EvaluationGrade
+ */
+const evaluationGradeEnum = tools.enum( {
+    S: [ "S", "Superior", "TThe employee exceeds expectations for this competency at the current level." ],
+    R: [ "R", "Regular", "The employee meets the expected standards for this competency at the current level." ],
+    U: [ "U", "Unsatisfactory", "The employee shows skills below the expected standards for this competency at the current level." ]
+} );
+module.exports.evaluationGrade = evaluationGradeEnum;
