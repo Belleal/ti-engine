@@ -80,10 +80,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                 ...result,
                 grades: configurationLoader.configEvaluationGrades
             } ) );
-        } else if ( view === "load-employee-competencies" ) {
+        } else if ( view === "load-evaluation" ) {
             const employeeID = String( options?.query?.employeeID || "" ).trim();
             const evaluationID = String( options?.query?.evaluationID || "" ).trim();
-            return this.#loadEmployeeCompetencies( session, employeeID, evaluationID );
+            return this.#loadEvaluation( session, employeeID, evaluationID );
         } else {
             return super.processDataRequest( session, view, options );
         }
@@ -144,13 +144,13 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 if ( isEmployee ) {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Evaluation is not Open." } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-open" } );
                     }
                     if ( existingEvaluation.workflow.selfEvaluationCompleted ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Self-evaluation already completed." } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.already-completed-self-evaluation" } );
                     }
                     if ( existingEvaluation.workflow.selfEvaluationDeadline && today > existingEvaluation.workflow.selfEvaluationDeadline ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Self-evaluation deadline has passed." } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-self-evaluation" } );
                     }
 
                     if ( evaluation.comment !== undefined ) {
@@ -161,10 +161,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                     existingEvaluation.workflow.selfEvaluationCompleted = true;
                 } else if ( isTeamMember ) {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Evaluation is not Open." } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-open" } );
                     }
                     if ( existingEvaluation.workflow.teamEvaluationDeadline && today > existingEvaluation.workflow.teamEvaluationDeadline ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Team evaluation deadline has passed." } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-team-evaluation" } );
                     }
 
                     this.#updateTeamEvaluationGrades( existingEvaluation, evaluation.grades );
@@ -189,10 +189,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                     }
                 } else if ( isManager ) {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.IN_REVIEW ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Evaluation is not In Review." } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-in-review" } );
                     }
                     if ( existingEvaluation.workflow.managerEvaluationDeadline && today > existingEvaluation.workflow.managerEvaluationDeadline ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Manager evaluation deadline has passed." } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-manager-evaluation" } );
                     }
 
                     if ( evaluation.feedback && evaluation.feedback.managerComment !== undefined ) {
@@ -254,10 +254,10 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 if ( isEmployee ) {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Evaluation is not Open." } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-draft-status-open" } );
                     }
                     if ( existingEvaluation.workflow?.selfEvaluationDeadline && today > existingEvaluation.workflow.selfEvaluationDeadline ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Self-evaluation deadline has passed." } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-self-evaluation" } );
                     }
 
                     if ( evaluation.comment !== undefined ) {
@@ -266,10 +266,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                     this.#updateSelfEvaluationGrades( existingEvaluation, evaluation.grades );
                 } else if ( isManager ) {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.IN_REVIEW ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Evaluation is not In Review." } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-draft-status-in-review" } );
                     }
                     if ( existingEvaluation.workflow?.managerEvaluationDeadline && today > existingEvaluation.workflow.managerEvaluationDeadline ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Manager evaluation deadline has passed." } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-manager-evaluation" } );
                     }
 
                     if ( evaluation.feedback && evaluation.feedback.managerComment !== undefined ) {
@@ -291,7 +291,7 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
-     * Used to load the data for the competence evaluation screen for a specific employee.
+     * Used to load the data for the competence evaluation form for a specific employee.
      *
      * @method
      * @param {Object} session
@@ -300,7 +300,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @returns {Promise<Object>}
      * @private
      */
-    #loadEmployeeCompetencies( session, employeeID, evaluationID = null ) {
+    #loadEvaluation( session, employeeID, evaluationID = null ) {
         return new Promise( ( resolve, reject ) => {
             let employee = null;
             let allowedCompetencyCodes = null;

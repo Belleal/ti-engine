@@ -442,7 +442,7 @@ module.exports.defaultErrorHandler = () => {
         const exception = exceptions.raise( error );
         const payload = {
             isSuccessful: false,
-            exception: exception.asJSON( false ),
+            exception: exception.asJSON(),
             message: localization.getLabel( exception.label, request.session?.language )
         };
 

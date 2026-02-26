@@ -2291,10 +2291,48 @@
       }
     }
   },
-  "errors": {
+  "error": {
+    "application": {
+      "init-failed": {
+        "en": "Failed to initialize the application: ",
+        "bg": ""
+      },
+      "unexpected": {
+        "en": "Unexpected application error encountered.",
+        "bg": ""
+      }
+    },
     "evaluation": {
-      "invalid-draft-status": {
+      "already-completed-self-evaluation": {
+        "en": "The self-evaluation for this Evaluation was already completed.",
+        "bg": ""
+      },
+      "deadline-over-manager-evaluation": {
+        "en": "The manager evaluation deadline for this Evaluation has passed.",
+        "bg": ""
+      },
+      "deadline-over-self-evaluation": {
+        "en": "The self-evaluation deadline for this Evaluation has passed.",
+        "bg": ""
+      },
+      "deadline-over-team-evaluation": {
+        "en": "The team evaluation deadline for this Evaluation has passed.",
+        "bg": ""
+      },
+      "invalid-draft-status-in-review": {
+        "en": "The Evaluation status must be 'In Review' in order to save it as a draft.",
+        "bg": ""
+      },
+      "invalid-draft-status-open": {
         "en": "The Evaluation status must be 'Open' in order to save it as a draft.",
+        "bg": ""
+      },
+      "invalid-submit-status-in-review": {
+        "en": "The Evaluation status must be 'In Review' in order to submit it.",
+        "bg": ""
+      },
+      "invalid-submit-status-open": {
+        "en": "The Evaluation status must be 'Open' in order to submit it.",
         "bg": ""
       }
     }

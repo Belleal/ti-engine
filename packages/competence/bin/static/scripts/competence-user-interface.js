@@ -131,16 +131,18 @@ let configureCompetencyEvaluation = () => {
             } else {
                 this.employeeID = resolvedID;
                 const evaluationID = getEvaluationIDFromUrl();
-                const url = `/app/load-employee-competencies?employeeID=${ encodeURIComponent( resolvedID ) }${ evaluationID ? `&evaluationID=${ encodeURIComponent( evaluationID ) }` : "" }`;
+                const url = `/app/load-evaluation?employeeID=${ encodeURIComponent( resolvedID ) }${ evaluationID ? `&evaluationID=${ encodeURIComponent( evaluationID ) }` : "" }`;
                 tiApplication.sendRequest( url ).then( ( result ) => {
                     this.showEvaluationForm = true;
                     this.applyData( result?.data );
                 } ).catch( ( error ) => {
-                    if ( error?.name === "AbortError" || error?.isAborted ) return;
+                    if ( error?.name === "AbortError" || error?.isAborted ) {
+                        return;
+                    }
 
                     this.showEvaluationForm = false;
                     this.applyData( initialDataModels.competencyEvaluation );
-                    tiApplication.notify( { message: `Failed to load competence evaluation: ${ error.message }`, timeout: 60000 } );
+                    tiApplication.notify( tiApplication.formatException( error ) );
                 } );
             }
         },
@@ -159,25 +161,19 @@ let configureCompetencyEvaluation = () => {
 
         saveDraft() {
             tiApplication.sendRequest( "/app/save-evaluation-draft", "POST", { evaluation: this.evaluation } ).then( () => {
-                tiApplication.notify( {
-                    message: tiApplication.getLabel( "interface.evaluation.messages.draft-saved", "Draft saved successfully." ),
-                    timeout: 3000
-                } );
+                tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.draft-saved" ) );
             } ).catch( ( error ) => {
-                tiApplication.notify( { message: error.message } );
+                tiApplication.notify( tiApplication.formatException( error ) );
             } );
         },
 
         submitEvaluation() {
             if ( confirm( tiApplication.getLabel( "interface.evaluation.messages.confirm-submit", "Are you sure you want to submit the evaluation?" ) ) ) {
-                tiApplication.sendRequest( "/app/submit-evaluation", "POST", this.evaluation ).then( () => {
-                    tiApplication.notify( {
-                        message: tiApplication.getLabel( "interface.evaluation.messages.submitted", "Evaluation submitted successfully." ),
-                        timeout: 5000
-                    } );
+                tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: this.evaluation } ).then( () => {
+                    tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.submitted" ) );
                     this.loadEmployee( this.employeeID );
                 } ).catch( ( error ) => {
-                    tiApplication.notify( { message: error.message } );
+                    tiApplication.notify( tiApplication.formatException( error ) );
                 } );
             }
         },
