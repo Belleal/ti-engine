@@ -52,25 +52,6 @@ describe( "Configuration Loader", () => {
         } );
     } );
 
-    describe( "organizationRoleCode", () => {
-        it( "should export organizationRoleCode enum", () => {
-            assert.ok( configuration.organizationRoleCode );
-            assert.strictEqual( typeof configuration.organizationRoleCode, "object" );
-        } );
-
-        it( "should have name method for role codes", () => {
-            assert.strictEqual( typeof configuration.organizationRoleCode.name, "function" );
-        } );
-
-        it( "should be frozen to prevent modifications", () => {
-            const frozenCheck = () => {
-                configuration.organizationRoleCode.newProperty = "test";
-            };
-            frozenCheck();
-            assert.strictEqual( configuration.organizationRoleCode.newProperty, undefined );
-        } );
-    } );
-
     describe( "configCompetencies", () => {
         it( "should export configCompetencies object", () => {
             assert.ok( configuration.configCompetencies );

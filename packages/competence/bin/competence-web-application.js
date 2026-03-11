@@ -126,20 +126,21 @@ class CompetenceWebApplication extends TiWebAppManager {
         return new Promise( ( resolve, reject ) => {
             const userID = session?.user?.employeeID;
             if ( !userID ) {
-                throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS ) );
             }
 
             let existingEvaluation = null;
             let isEmployee = false;
+            let isManager = false;
             let isTeamMember = false;
-
             dataManager.instance.fetchEvaluation( evaluation.evaluationID ).then( ( storedEvaluation ) => {
                 existingEvaluation = storedEvaluation;
                 isEmployee = existingEvaluation.employeeID === userID;
                 isTeamMember = Array.isArray( existingEvaluation.workflow?.team ) && existingEvaluation.workflow.team.includes( userID ) && !isEmployee;
 
                 return this.#canManagerModifyEvaluation( userID, existingEvaluation );
-            } ).then( ( isManager ) => {
+            } ).then( ( isManagerResult ) => {
+                isManager = isManagerResult;
                 const today = new Date().toISOString().split( "T" )[ 0 ];
 
                 if ( isEmployee ) {
@@ -217,6 +218,21 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 return dataManager.instance.saveEvaluation( existingEvaluation );
             } ).then( ( savedEvaluation ) => {
+                let userRole;
+                if ( isTeamMember ) {
+                    userRole = configurationLoader.roleCode.TEAM_MEMBER;
+                } else if ( isEmployee ) {
+                    userRole = configurationLoader.roleCode.EMPLOYEE;
+                } else if ( isManager ) {
+                    userRole = configurationLoader.roleCode.MANAGER;
+                }
+
+                // NOTE: Remove information that should not be exposed to some roles:
+                this.#anonymizeEvaluationGrades( savedEvaluation, userRole );
+
+                // NOTE: Make sure to delete the workflow system information:
+                delete savedEvaluation.workflow;
+
                 resolve( savedEvaluation );
             } ).catch( ( error ) => {
                 reject( error );
@@ -239,17 +255,19 @@ class CompetenceWebApplication extends TiWebAppManager {
         return new Promise( ( resolve, reject ) => {
             const userID = session?.user?.employeeID;
             if ( !userID ) {
-                throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS ) );
             }
 
             let existingEvaluation = null;
             let isEmployee = false;
+            let isManager = false;
             dataManager.instance.fetchEvaluation( evaluation.evaluationID ).then( ( storedEvaluation ) => {
                 isEmployee = storedEvaluation.employeeID === userID;
                 existingEvaluation = storedEvaluation;
 
                 return this.#canManagerModifyEvaluation( userID, existingEvaluation );
-            } ).then( ( isManager ) => {
+            } ).then( ( isManagerResult ) => {
+                isManager = isManagerResult;
                 const today = new Date().toISOString().split( "T" )[ 0 ];
 
                 if ( isEmployee ) {
@@ -283,6 +301,19 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 return dataManager.instance.saveEvaluation( existingEvaluation );
             } ).then( ( savedEvaluation ) => {
+                let userRole;
+                if ( isEmployee ) {
+                    userRole = configurationLoader.roleCode.EMPLOYEE;
+                } else if ( isManager ) {
+                    userRole = configurationLoader.roleCode.MANAGER;
+                }
+
+                // NOTE: Remove information that should not be exposed to some roles:
+                this.#anonymizeEvaluationGrades( savedEvaluation, userRole );
+
+                // NOTE: Make sure to delete the workflow system information:
+                delete savedEvaluation.workflow;
+
                 resolve( savedEvaluation );
             } ).catch( ( error ) => {
                 reject( error );
@@ -302,14 +333,21 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #loadEvaluation( session, employeeID, evaluationID = null ) {
         return new Promise( ( resolve, reject ) => {
+            const userID = session?.user?.employeeID;
+            if ( !userID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS ) );
+            }
+
+            let currentEvaluation = null;
             let employee = null;
             let allowedCompetencyCodes = null;
+            let isEmployee = false;
+            let isTeamMember = false;
             dataManager.instance.fetchEmployee( employeeID ).then( ( employeeData ) => {
                 employee = employeeData;
                 return dataManager.instance.fetchEvaluations( employee.employeeID, true );
             } ).then( ( evaluations ) => {
                 // Load the current evaluation - either by the specified evaluation ID or by the most recent evaluation in the list:
-                let currentEvaluation;
                 if ( evaluationID ) {
                     currentEvaluation = evaluations.find( ( evaluation ) => evaluation.evaluationID === evaluationID );
                     if ( !currentEvaluation ) {
@@ -341,8 +379,25 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 return dataManager.instance.saveEvaluation( currentEvaluation );
             } ).then( ( evaluation ) => {
+                isEmployee = evaluation.employeeID === userID && session?.user?.roles?.includes( 1 );
+                isTeamMember = Array.isArray( evaluation.workflow?.team ) && evaluation.workflow.team.includes( userID ) && !isEmployee;
+
+                return this.#canManagerModifyEvaluation( userID, evaluation );
+            } ).then( ( isManager ) => {
+                let userRole;
+                if ( isTeamMember ) {
+                    userRole = configurationLoader.roleCode.TEAM_MEMBER;
+                } else if ( isEmployee ) {
+                    userRole = configurationLoader.roleCode.EMPLOYEE;
+                } else if ( isManager ) {
+                    userRole = configurationLoader.roleCode.MANAGER;
+                }
+
+                // NOTE: Remove information that should not be exposed to some roles:
+                this.#anonymizeEvaluationGrades( currentEvaluation, userRole );
+
                 // NOTE: Make sure to delete the workflow system information:
-                delete evaluation.workflow;
+                delete currentEvaluation.workflow;
 
                 resolve( {
                     employeeID: employeeID,
@@ -351,7 +406,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                         positionName: configurationLoader.organizationPositionCode.name( employee.personal?.position )
                     },
                     manager: employee.manager,
-                    evaluation: evaluation,
+                    evaluation: currentEvaluation,
+                    userRole: userRole,
                     competencies: this.#buildCompetenciesTree(
                         configurationLoader.configCompetencies,
                         session?.language,
@@ -472,6 +528,31 @@ class CompetenceWebApplication extends TiWebAppManager {
                 }
             } );
         }
+    }
+
+    /**
+     * Used to anonymize the evaluation grades based on the user role.
+     * <br/>
+     * NOTE: This method mutates the passed Evaluation object!
+     *
+     * @method
+     * @param {Evaluation} evaluation
+     * @param {RoleCodeValue} userRole
+     * @private
+     */
+    #anonymizeEvaluationGrades( evaluation, userRole ) {
+        Object.keys( evaluation.grades ).forEach( ( competencyCode ) => {
+            if ( userRole === configurationLoader.roleCode.EMPLOYEE ) {
+                delete evaluation.grades[ competencyCode ].manager;
+                delete evaluation.grades[ competencyCode ].team;
+            } else if ( userRole === configurationLoader.roleCode.TEAM_MEMBER ) {
+                delete evaluation.grades[ competencyCode ].employee;
+                delete evaluation.grades[ competencyCode ].manager;
+                evaluation.grades[ competencyCode ].team = { cumulative: "" };
+            } else {
+                delete evaluation.grades[ competencyCode ].team.individual;
+            }
+        } );
     }
 
     /**

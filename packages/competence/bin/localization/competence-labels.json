@@ -2454,6 +2454,16 @@
           "en": "Submit",
           "bg": "Завърши"
         }
+      },
+      "messages": {
+        "draft-saved": {
+          "en": "The Evaluation draft was saved successfully.",
+          "bg": ""
+        },
+        "submitted": {
+          "en": "The Evaluation was submitted successfully.",
+          "bg": ""
+        }
       }
     }
   }

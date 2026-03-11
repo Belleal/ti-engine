@@ -120,3 +120,7 @@
  * @property {CompetencyScope} scope - Scope descriptions per position level.
  * @property {CompetencyRelevancy} relevancy - Relevancy scores per position tier.
  */
+
+/**
+ * @typedef {1|2|3} RoleCodeValue
+ */

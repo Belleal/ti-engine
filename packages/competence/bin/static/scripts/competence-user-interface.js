@@ -90,6 +90,7 @@ let configureCompetencyEvaluation = () => {
 
     return {
         employeeID: null,
+        userRole: null,
         manager: {},
         personal: clone( initialDataModels.competencyEvaluation.personal ),
         evaluation: clone( initialDataModels.competencyEvaluation.evaluation ),
@@ -101,7 +102,7 @@ let configureCompetencyEvaluation = () => {
             const onInitialized = () => {
                 this.grades = tiApplication.configuration.grades;
                 this.employeeID = getEmployeeIDFromUrl();
-                this.loadEmployee( this.employeeID );
+                this.loadEmployeeEvaluation( this.employeeID );
             };
 
             if ( tiApplication.isInitialized ) {
@@ -119,11 +120,12 @@ let configureCompetencyEvaluation = () => {
             const fresh = ( data && typeof data === "object" ) ? data : {};
             this.personal = clone( fresh.personal || initialDataModels.competencyEvaluation.personal );
             this.manager = clone( fresh.manager || initialDataModels.competencyEvaluation.manager );
+            this.userRole = fresh.userRole;
             this.evaluation = clone( fresh.evaluation || initialDataModels.competencyEvaluation.evaluation );
             this.competencies = clone( fresh.competencies || initialDataModels.competencyEvaluation.competencies );
         },
 
-        loadEmployee( employeeID ) {
+        loadEmployeeEvaluation( employeeID ) {
             const resolvedID = String( employeeID || "" ).trim();
             if ( !resolvedID ) {
                 this.showEvaluationForm = false;
@@ -153,7 +155,7 @@ let configureCompetencyEvaluation = () => {
                 const initial = JSON.parse( schema.textContent || '{}' );
                 this.applyData( initial );
             } else if ( this.employeeID ) {
-                this.loadEmployee( this.employeeID );
+                this.loadEmployeeEvaluation( this.employeeID );
             } else {
                 this.applyData( initialDataModels.competencyEvaluation );
             }
@@ -171,7 +173,7 @@ let configureCompetencyEvaluation = () => {
             if ( confirm( tiApplication.getLabel( "interface.evaluation.messages.confirm-submit", "Are you sure you want to submit the evaluation?" ) ) ) {
                 tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: this.evaluation } ).then( () => {
                     tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.submitted" ) );
-                    this.loadEmployee( this.employeeID );
+                    this.loadEmployeeEvaluation( this.employeeID );
                 } ).catch( ( error ) => {
                     tiApplication.notify( tiApplication.formatException( error ) );
                 } );
@@ -219,15 +221,8 @@ let configureCompetencyEvaluation = () => {
                 : value;
             const date = new Date( normalized );
             return isValidDate( date ) ? date.toLocaleDateString() : "";
-        },
-
-        isEmployeeManager() {
-            return tiApplication.user && tiApplication.user.roles && tiApplication.user.roles.includes( 2 ) && this.manager.managerID === tiApplication.user.employeeID;
-        },
-
-        isEmployee() {
-            return tiApplication.user && tiApplication.user.roles && tiApplication.user.roles.includes( 1 ) && this.employeeID === tiApplication.user.employeeID;
         }
+
     };
 };
 
