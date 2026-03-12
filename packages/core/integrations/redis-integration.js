@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -18,6 +18,7 @@ const _ = require( "lodash" );
  *
  * @readonly
  * @enum {string}
+ * @typedef {string} TiRedisCommand
  */
 let cacheCommandsEnum = tools.enum( {
     ADD_TO_SET: [ "sadd", "add to set", "https://redis.io/docs/latest/commands/sadd/" ],
@@ -45,12 +46,14 @@ let cacheCommandsEnum = tools.enum( {
     SET_VALUE: [ "set", "set value", "https://redis.io/docs/latest/commands/set/" ],
     UNION_OF_SETS: [ "sunion", "union of sets", "https://redis.io/docs/latest/commands/sunion/" ]
 } );
+module.exports.cacheCommands = cacheCommandsEnum;
 
 /**
  * Enum for listing all client statuses.
  *
  * @readonly
  * @enum {number}
+ * @typedef {number} TiRedisClientStatus
  */
 let clientStatusEnum = tools.enum( {
     UNINITIALIZED: [ 0, "uninitialized", "Redis client is offline and not yet initialized." ],
@@ -60,31 +63,21 @@ let clientStatusEnum = tools.enum( {
     SHUTTING_DOWN: [ 4, "shutting down", "Redis client is shutting down." ],
     DISCONNECTED: [ 5, "disconnected", "Redis client is permanently disconnected from server." ]
 } );
+module.exports.clientStatus = clientStatusEnum;
 
 /**
  * Enum for listing the Redis key override modes.
  *
  * @readonly
  * @enum {string}
+ * @typedef {string} TiRedisOverrideMode
  */
 let cacheOverrideModeEnum = tools.enum( {
     DEFAULT: [ "", "default", "Standard Redis behaviour when setting new key." ],
     NX: [ "nx", "nx", "Sets the key only if it does not already exist." ],
     XX: [ "xx", "xx", "Sets the key only if it already exists." ]
 } );
-
-/**
- * @typedef {string} TiRedisCommand
- */
-module.exports.cacheCommands = cacheCommandsEnum;
-/**
- * @typedef {string} TiRedisOverrideMode
- */
 module.exports.cacheOverrideMode = cacheOverrideModeEnum;
-/**
- * @typedef {number} TiRedisClientStatus
- */
-module.exports.clientStatus = clientStatusEnum;
 
 /**
  * Used to create a Redis Cache client.

@@ -118,8 +118,8 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @param {Object} session
      * @param {Evaluation} evaluation
      * @returns {Promise<Evaluation>}
-     * @throws {Exception.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
-     * @throws {Exception.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
+     * @throws {TiException.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
+     * @throws {TiException.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
      * @private
      */
     #submitEvaluation( session, evaluation ) {
@@ -145,13 +145,13 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 if ( isEmployee ) {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-open" } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-open" }, exceptions.httpCode.C_422 );
                     }
                     if ( existingEvaluation.workflow.selfEvaluationCompleted ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.already-completed-self-evaluation" } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.already-completed-self-evaluation" }, exceptions.httpCode.C_422 );
                     }
                     if ( existingEvaluation.workflow.selfEvaluationDeadline && today > existingEvaluation.workflow.selfEvaluationDeadline ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-self-evaluation" } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-self-evaluation" }, exceptions.httpCode.C_422 );
                     }
 
                     if ( evaluation.comment !== undefined ) {
@@ -162,10 +162,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                     existingEvaluation.workflow.selfEvaluationCompleted = true;
                 } else if ( isTeamMember ) {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-open" } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-open" }, exceptions.httpCode.C_422 );
                     }
                     if ( existingEvaluation.workflow.teamEvaluationDeadline && today > existingEvaluation.workflow.teamEvaluationDeadline ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-team-evaluation" } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-team-evaluation" }, exceptions.httpCode.C_422 );
                     }
 
                     this.#updateTeamEvaluationGrades( existingEvaluation, evaluation.grades );
@@ -190,10 +190,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                     }
                 } else if ( isManager ) {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.IN_REVIEW ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-in-review" } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-in-review" }, exceptions.httpCode.C_422 );
                     }
                     if ( existingEvaluation.workflow.managerEvaluationDeadline && today > existingEvaluation.workflow.managerEvaluationDeadline ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-manager-evaluation" } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-manager-evaluation" }, exceptions.httpCode.C_422 );
                     }
 
                     if ( evaluation.feedback && evaluation.feedback.managerComment !== undefined ) {
@@ -247,8 +247,8 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @param {Object} session
      * @param {Evaluation} evaluation
      * @returns {Promise<Evaluation>}
-     * @throws {Exception.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
-     * @throws {Exception.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
+     * @throws {TiException.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
+     * @throws {TiException.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
      * @private
      */
     #saveEvaluationDraft( session, evaluation ) {
@@ -272,10 +272,10 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 if ( isEmployee ) {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-draft-status-open" } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-draft-status-open" }, exceptions.httpCode.C_422 );
                     }
                     if ( existingEvaluation.workflow?.selfEvaluationDeadline && today > existingEvaluation.workflow.selfEvaluationDeadline ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-self-evaluation" } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-self-evaluation" }, exceptions.httpCode.C_422 );
                     }
 
                     if ( evaluation.comment !== undefined ) {
@@ -284,10 +284,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                     this.#updateSelfEvaluationGrades( existingEvaluation, evaluation.grades );
                 } else if ( isManager ) {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.IN_REVIEW ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-draft-status-in-review" } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-draft-status-in-review" }, exceptions.httpCode.C_422 );
                     }
                     if ( existingEvaluation.workflow?.managerEvaluationDeadline && today > existingEvaluation.workflow.managerEvaluationDeadline ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-manager-evaluation" } );
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-manager-evaluation" }, exceptions.httpCode.C_422 );
                     }
 
                     if ( evaluation.feedback && evaluation.feedback.managerComment !== undefined ) {
@@ -296,7 +296,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     }
                     this.#updateManagerEvaluationGrades( existingEvaluation, evaluation.grades );
                 } else {
-                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.no-draft-saving-possible" }, exceptions.httpCode.C_422 );
                 }
 
                 return dataManager.instance.saveEvaluation( existingEvaluation );

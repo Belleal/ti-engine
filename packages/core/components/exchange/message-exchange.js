@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2023 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -12,33 +12,9 @@ const exceptions = require( "#exceptions" );
 const messageTracer = require( "#message-tracer" );
 
 /**
- * @typedef {Object} MessageDestination
- * @property {string|undefined} [instanceID] The instance ID of the message exchange by which the message was received (available after acceptance).
- * @property {string} route The route to destination for the message. Exact structure will depend on the implementation of the message exchange.
- */
-
-/**
- * @typedef {Object} MessageSource
- * @property {string} instanceID The instance ID of the message exchange from which the service call originated.
- * @property {string} route The route from source of the message. Exact structure will depend on the implementation of the message exchange.
- */
-
-/**
- * @typedef {Object} Message
- * @property {string} chainID Unique identifier of the message chain if the message is part of one.
- * @property {number} chainLevel The node level of this message in the message chain tree.
- * @property {MessageDestination} destination The destination of the message.
- * @property {string} [hash] Security hash for the message if the mechanism is enabled.
- * @property {string} messageID Unique message identifier.
- * @property {Object|string|undefined} payload The message contents to be processed in destination. If string it is ID of the payload in the memory cache instead.
- * Note that if this is not an Object or a string, there is no guarantee that it will be delivered in the same/proper format!
- * @property {MessageSource} source The source of the message.
- */
-
-/**
  * An abstract class that defines a message exchange behavior.
  * <br/>
- * NOTE: While this sets the basis frame for the message based communication between microservices, it has to be inherited and
+ * NOTE: While this sets the basis frame for the message-based communication between microservices, it has to be inherited and
  * extended with additional logic that is NOT implemented here. For a working example please see {@link DefaultMessageExchange} class.
  * <br/>
  * NOTE: This class and its children are designed to be used internally by the {@link MessageDispatcher} and its related classes.
@@ -72,7 +48,7 @@ class MessageExchange extends MessageObserver {
      * @constructor
      * @param {string} instanceID The unique identifier of the microservice instance using the message exchange.
      * @param {string} serviceDomainName The domain name of the microservice using the message exchange.
-     * @throws {Exception.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
+     * @throws {TiException.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
      */
     constructor( instanceID, serviceDomainName ) {
         super( 9 );
@@ -408,7 +384,7 @@ class MessageExchange extends MessageObserver {
     }
 
     /**
-     * Used only for the purposes of the message tracer.
+     * Used only for the message tracer.
      *
      * @method
      * @param {string} identifier The identifier of the observed connection.
@@ -443,7 +419,7 @@ class MessageExchange extends MessageObserver {
 
     /**
      * Used to send a message request. Override of this method assumes that the message itself contains enough
-     * information to determine the send destination.
+     * information to determine the sending destination.
      *
      * @method
      * @param {Message} message The message request to send.
@@ -457,7 +433,7 @@ class MessageExchange extends MessageObserver {
 
     /**
      * Used to send a message response. Override of this method assumes that the message itself contains enough
-     * information to determine the send destination.
+     * information to determine the sending destination.
      *
      * @method
      * @param {Message} message The message response to send.

@@ -40,7 +40,7 @@ class TiWebAppManager {
     /**
      * @constructor
      * @param {string} identifier The identifier for this web application. Should be unique and recognizable.
-     * @throws {Exception.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
+     * @throws {TiException.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
      */
     constructor( identifier ) {
         // Make sure this abstract class cannot be instantiated:
@@ -104,7 +104,7 @@ class TiWebAppManager {
      * @method
      * @param {string} identifier
      * @param {Object} fragment
-     * @throws {Exception.E_GEN_UNALLOWED_OVERRIDE} If a fragment with the same identifier already exists.
+     * @throws {TiException.E_GEN_UNALLOWED_OVERRIDE} If a fragment with the same identifier already exists.
      * @public
      */
     addFragment( identifier, fragment ) {

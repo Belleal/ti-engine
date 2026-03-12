@@ -248,9 +248,7 @@ module.exports.authenticationHandler = ( instance ) => {
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
             } ).catch( ( error ) => {
-                let exception = exceptions.raise( error );
-                exception.httpCode = exceptions.httpCode.C_401;
-                next( exception );
+                next( exceptions.raise( error, null, exceptions.httpCode.C_401 ) );
             } );
         } else if ( method === authMethod.OPENID_GOOGLE || method === authMethod.OPENID_AZURE ) {
             instance.authenticate( method, { baseUrl: getBaseUrl( request ) } ).then( ( result ) => {
@@ -261,9 +259,7 @@ module.exports.authenticationHandler = ( instance ) => {
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
             } ).catch( ( error ) => {
-                let exception = exceptions.raise( error );
-                exception.httpCode = exceptions.httpCode.C_401;
-                next( exception );
+                next( exceptions.raise( error, null, exceptions.httpCode.C_401 ) );
             } );
         } else {
             next();
@@ -296,7 +292,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
                     session.language = user.language || instance.serviceConfig.language;
 
                     // TODO: This part is for testing purposes only! Normally, the employeeID (if any) and roles should come from the AD response.
-                    session.user.employeeID = session.user.employeeID || "3";
+                    session.user.employeeID = session.user.employeeID || "2";
                     session.user.roles = [ 1, 2 ];
 
                     delete session.oidc;
@@ -305,9 +301,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
             } ).catch( ( error ) => {
-                let exception = exceptions.raise( error );
-                exception.httpCode = exceptions.httpCode.C_401;
-                next( exception );
+                next( exceptions.raise( error, null, exceptions.httpCode.C_401 ) );
             } );
         }
     };
@@ -345,9 +339,7 @@ module.exports.userInformationHandler = () => {
         if ( request.session && request.session.user ) {
             response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, data: { user: _.cloneDeep( request.session.user ) } } );
         } else {
-            let exception = exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
-            exception.httpCode = exceptions.httpCode.C_401;
-            next( exception );
+            next( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
         }
     };
 };
@@ -393,18 +385,14 @@ module.exports.serviceCallHandler = ( instance ) => {
     return ( request, response, next ) => {
         let serviceAddress = instance.getServiceAddress( request.params.version, request.params.name );
         if ( !serviceAddress ) {
-            let exception = exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI );
-            exception.httpCode = exceptions.httpCode.C_404;
-            next( exception );
+            next( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI, null, exceptions.httpCode.C_404 ) );
         } else {
             request.setTimeout( instance.serviceConfig.api.requestTimeout );
             instance.callService( serviceAddress, request.body || {}, {
                 authToken: request.sessionID,
             } ).then( ( result ) => {
                 if ( result.isSuccessful !== true ) {
-                    let exception = exceptions.raise( result.exception || exceptions.exceptionCode.E_COM_SERVICE_EXEC_FAILED );
-                    exception.httpCode = exception.httpCode || exceptions.httpCode.C_400;
-                    next( exception );
+                    next( exceptions.raise( result.exception || exceptions.exceptionCode.E_COM_SERVICE_EXEC_FAILED, null, result.exception?.httpCode || exceptions.httpCode.C_400 ) );
                 } else {
                     response.status( exceptions.httpCode.C_200 ).send( result );
                 }
@@ -424,9 +412,7 @@ module.exports.serviceCallHandler = ( instance ) => {
  */
 module.exports.invalidRouteHandler = () => {
     return ( request, response, next ) => {
-        let exception = exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI );
-        exception.httpCode = exceptions.httpCode.C_404;
-        next( exception );
+        next( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI, null, exceptions.httpCode.C_404 ) );
     };
 };
 
@@ -560,6 +546,10 @@ module.exports.cspHeaderHandler = () => {
  */
 module.exports.webAppHandler = ( instance ) => {
     return ( request, response, next ) => {
+        /**
+         * @param {TiException} exception
+         * @return {TiException}
+         */
         const formatException = ( exception ) => {
             exception.httpCode = exception.httpCode || (
                 exception.code === exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI
@@ -645,9 +635,7 @@ module.exports.originRefererValidationHandler = () => {
             // If the browser didn’t send Origin/Referer (normal for same-origin form POSTs), let CSRF middleware handle protection instead of blocking here:
             if ( providedOrigin && String( providedOrigin ).trim().toLowerCase() !== String( expectedOrigin ).trim().toLowerCase() ) {
                 logger.log( `Issue identified with origin/referer mismatch. Expected '${ expectedOrigin }', received '${ providedOrigin }'.`, logger.logSeverity.WARNING );
-                let exception = exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS );
-                exception.httpCode = exceptions.httpCode.C_403;
-                next( exception );
+                next( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, null, exceptions.httpCode.C_403 ) );
             } else {
                 next();
             }
@@ -694,9 +682,7 @@ module.exports.csrfInitHandler = ( instance ) => {
                 }
                 next();
             } catch ( error ) {
-                let exception = exceptions.raise( error );
-                exception.httpCode = exceptions.httpCode.C_400;
-                next( exception );
+                next( exceptions.raise( error, null, exceptions.httpCode.C_400 ) );
             }
         }
     };
@@ -718,9 +704,7 @@ module.exports.csrfProtectionHandler = () => {
         } else {
             const expected = request.session && request.session.csrfToken;
             if ( !expected ) {
-                let exception = exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_HEADERS );
-                exception.httpCode = exceptions.httpCode.C_403;
-                next( exception );
+                next( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_HEADERS, null, exceptions.httpCode.C_403 ) );
             } else {
                 // Try to locate the CSRF token in the request:
                 const provided =
@@ -730,9 +714,7 @@ module.exports.csrfProtectionHandler = () => {
                     ( request.query && ( request.query.csrfToken || request.query._csrf ) );
                 if ( !safeEquals( provided, expected ) ) {
                     logger.log( "Issue identified with CSRF token validation fail.", logger.logSeverity.WARNING );
-                    let exception = exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_HEADERS );
-                    exception.httpCode = exceptions.httpCode.C_403;
-                    next( exception );
+                    next( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_HEADERS, null, exceptions.httpCode.C_403 ) );
                 } else {
                     next();
                 }

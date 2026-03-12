@@ -38,7 +38,7 @@ class SessionStore extends session.Store {
      * @method
      * @param {string} sessionID
      * @param {Object} session
-     * @param {function( (Error|Exception|null)= )} callback
+     * @param {function( (Error|TiException|null)= )} callback
      * @public
      */
     set( sessionID, session, callback ) {
@@ -62,7 +62,7 @@ class SessionStore extends session.Store {
      *
      * @method
      * @param {string} sessionID
-     * @param {function( (Error|Exception|null)=, (Object)= )} callback
+     * @param {function( (Error|TiException|null)=, (Object)= )} callback
      * @public
      */
     get( sessionID, callback ) {
@@ -79,7 +79,7 @@ class SessionStore extends session.Store {
      *
      * @method
      * @param {string} sessionID
-     * @param {function( (Error|Exception|null)= )} callback
+     * @param {function( (Error|TiException|null)= )} callback
      * @public
      */
     destroy( sessionID, callback ) {
@@ -97,7 +97,7 @@ class SessionStore extends session.Store {
      * @method
      * @param {string} sessionID
      * @param {Object} session
-     * @param {function( (Error|Exception|null)= )} callback
+     * @param {function( (Error|TiException|null)= )} callback
      * @public
      */
     touch( sessionID, session, callback ) {

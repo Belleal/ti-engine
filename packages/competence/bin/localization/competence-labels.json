@@ -2334,6 +2334,10 @@
       "invalid-submit-status-open": {
         "en": "The Evaluation status must be 'Open' in order to submit it.",
         "bg": ""
+      },
+      "no-draft-saving-possible": {
+        "en": "Not possible to save a draft for team evaluation. Please submit all grades to proceed.",
+        "bg": ""
       }
     }
   },

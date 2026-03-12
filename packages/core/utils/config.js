@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -8,104 +8,6 @@
 
 const _ = require( "lodash" );
 const tools = require( "#tools" );
-
-/**
- * @typedef {string} EnvironmentVariable
- */
-
-/**
- * @typedef {NodeJS.Process} Environment
- * @property {ProcessEnv} env
- * @property {EnvironmentVariable} env.TI_GCLOUD_API_KEY
- * @property {EnvironmentVariable} env.TI_GCLOUD_ENABLED
- * @property {EnvironmentVariable} env.TI_GCLOUD_PROJECT_ID
- * @property {EnvironmentVariable} env.TI_INSTANCE_CLASS
- * @property {EnvironmentVariable} env.TI_INSTANCE_CONFIG
- * @property {EnvironmentVariable} env.TI_INSTANCE_ID
- * @property {EnvironmentVariable} env.TI_INSTANCE_NAME
- * @property {EnvironmentVariable} env.TI_AUDITING_LOG_CONSOLE_ENABLED
- * @property {EnvironmentVariable} env.TI_AUDITING_LOG_DETAILS
- * @property {EnvironmentVariable} env.TI_AUDITING_LOG_MIN_LEVEL
- * @property {EnvironmentVariable} env.TI_AUDITING_LOG_USES_JSON
- * @property {EnvironmentVariable} env.TI_LOCALIZATION_LABELS_PATH
- * @property {EnvironmentVariable} env.TI_LOCALIZATION_LANGUAGE
- * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_AUTH_KEY
- * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_REDIS_DB
- * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_REDIS_HOST
- * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_REDIS_PORT
- * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_RETRY_MAX_ATTEMPTS
- * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL
- * @property {EnvironmentVariable} env.TI_MEMORY_CACHE_USER
- * @property {EnvironmentVariable} env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED
- * @property {EnvironmentVariable} env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY
- * @property {EnvironmentVariable} env.TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED
- */
-
-/**
- * @typedef {string} CronString
- */
-
-/**
- * @typedef {Object} SettingsMain
- * @property {SettingsAuditing} auditing
- * @property {SettingsGcloudIntegration} gcloudIntegration
- * @property {SettingsLocalization} localization
- * @property {SettingsMemoryCache} memoryCache
- * @property {SettingsMessageExchange} messageExchange
- * @property {SettingsServiceConfig} serviceConfig
- * @property {string} operationMode
- */
-
-/**
- * @typedef {Object} SettingsAuditing
- * @property {boolean} logConsoleEnabled
- * @property {boolean} logDetails
- * @property {TiLogSeverity} logMinLevel
- * @property {boolean} logUsesJSON
- */
-
-/**
- * @typedef {Object} SettingsGcloudIntegration
- * @property {string} apiKey
- * @property {string} projectID
- */
-
-/**
- * @typedef {Object} SettingsLocalization
- * @property {Array<string>} labelsPath
- * @property {TiLocalizationLanguage} language
- */
-
-/**
- * @typedef {Object} SettingsMemoryCache
- * @property {string} authKey
- * @property {number} redisDB
- * @property {string} redisHost
- * @property {number} redisPort
- * @property {number} retryMaxAttempts
- * @property {number} retryMaxInterval
- * @property {string} user
- */
-
-/**
- * @typedef {Object} SettingsMessageExchange
- * @property {string} messageQueuePrefix
- * @property {string} messageStore
- * @property {boolean} securityHashEnabled
- * @property {string} securityHashKey
- * @property {number} traceExpirationTime
- * @property {boolean} traceLogEnabled
- * @property {string} traceRepository
- */
-
-/**
- * @typedef {Object} SettingsServiceConfig
- * @property {number} executionTimeout
- * @property {string} healthCheckAddress
- * @property {CronString} healthCheckInterval
- * @property {number} healthCheckTimeout
- * @property {string} serviceRegistryAddress
- */
 
 /**
  * Enum for listing all system settings.
@@ -144,7 +46,6 @@ const settingsEnum = tools.enum( {
     SERVICE_REGISTRY_ADDRESS: [ "serviceConfig.serviceRegistryAddress", "serviceRegistryAddress", "" ],
     OPERATION_MODE: [ "operationMode", "operationMode", "" ]
 } );
-
 module.exports.setting = settingsEnum;
 
 /** @type {SettingsMain} */

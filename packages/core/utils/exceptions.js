@@ -62,7 +62,6 @@ const exceptionCodeEnum = tools.enum( {
     E_APP_RESOURCE_NOT_FOUND: [ 5004, "resource not found", "The requested resource cannot be found. See details for more information." ],
     E_APP_SERVICE_ERROR: [ 5005, "app service error", "The application service encountered and error. See details for more information." ]
 } );
-
 module.exports.exceptionCode = exceptionCodeEnum;
 
 /**
@@ -138,18 +137,17 @@ const httpCodeEnum = tools.enum( {
     C_510: [ 510, "Not Extended", "Further extensions to the request are required for the server to fulfil it." ],
     C_511: [ 511, "Network Authentication Required", "The client needs to authenticate to gain network access. Intended for use by intercepting proxies used to control access to the network." ]
 } );
-
 module.exports.httpCode = httpCodeEnum;
 
 const labelPath = "system.exceptions.";
 
 /**
- * Represents an exception.
+ * Represents an any-purpose exception.
  *
- * @class Exception
+ * @class TiException
  * @public
  */
-class Exception {
+class TiException {
 
     #id;
     #code;
@@ -270,7 +268,7 @@ class Exception {
     }
 
     /**
-     * Extracts the essential information about the Exception and returns it as JSON.
+     * Extracts the essential information about the {@link TiException} and returns it as JSON.
      *
      * @method
      * @param {boolean} [includeData=true] Whether to include the data property in the output.
@@ -298,36 +296,44 @@ class Exception {
  * Used to raise an exception from the provided source.
  *
  * @method
- * @param {Error|TiExceptionCode|Exception} source Could be a standard JS Error, an ExceptionCode, or another Exception (in which case it will be raised further).
+ * @param {Error|TiExceptionCode|TiException} source Could be a standard JS Error, an ExceptionCode, or another TiException (in which case it will be raised further).
  * @param {Object} [data] Additional JSON data that can go with the exception. If more data is added on later Raise calls, it will be merged with the existing one.
- * @param {string} [exceptionID] Should be used only in cases when we have a recognizable exception ID beforehand. Should not be entered otherwise!
- * @returns {Exception}
+ * @param {string} [exceptionID=undefined] Should be used only in cases when we have a recognizable exception ID beforehand. Should not be entered otherwise!
+ * @param {TiHttpCode} [httpCode=undefined] An optional HTTP code in case this exception needs to be propagated to a web-application frontend. If provided, this will
+ * override any preexisting HTTP code in 'source'!
+ * @returns {TiException}
  * @public
  */
-module.exports.raise = ( source, data, exceptionID ) => {
-    /** @type Exception */
+module.exports.raise = ( source, data, exceptionID = undefined, httpCode = undefined ) => {
+    /** @type TiException */
     let exception;
 
+    // Support flexible argument passing: if exceptionID is a number (likely an HTTP code) and httpCode is missing, swap them:
+    if ( typeof exceptionID === "number" && httpCode === undefined ) {
+        httpCode = exceptionID;
+        exceptionID = undefined;
+    }
+
     if ( source instanceof Error ) {
-        exception = new Exception( exceptionID || tools.getUUID(), exceptionCodeEnum.E_GEN_JS_INTERNAL_ERROR, tools.errorToJSON( source ) );
-    } else if ( source instanceof Exception ) {
+        exception = new TiException( exceptionID || tools.getUUID(), exceptionCodeEnum.E_GEN_JS_INTERNAL_ERROR, tools.errorToJSON( source ) );
+    } else if ( source instanceof TiException ) {
         exception = source;
     } else if ( _.isString( source ) ) {
-        exception = new Exception( exceptionID || tools.getUUID(), exceptionCodeEnum.E_GEN_JS_INTERNAL_ERROR, {
+        exception = new TiException( exceptionID || tools.getUUID(), exceptionCodeEnum.E_GEN_JS_INTERNAL_ERROR, {
             message: source
         } );
     } else if ( _.isObjectLike( source ) ) {
-        exception = new Exception(
+        exception = new TiException(
             exceptionID || ( source.id || tools.getUUID() ),
             source.code || exceptionCodeEnum.E_GEN_JS_INTERNAL_ERROR,
             source.data,
             source.description
         );
-        if ( httpCodeEnum.contains( source.httpCode ) ) {
+        if ( source.httpCode && httpCodeEnum.contains( source.httpCode ) ) {
             exception.httpCode = source.httpCode;
         }
     } else {
-        exception = new Exception( exceptionID || tools.getUUID(), ( exceptionCodeEnum.contains( source ) ) ? source : exceptionCodeEnum.E_UNKNOWN_ERROR );
+        exception = new TiException( exceptionID || tools.getUUID(), ( exceptionCodeEnum.contains( source ) ) ? source : exceptionCodeEnum.E_UNKNOWN_ERROR );
     }
 
     // Merge the default exception data with the additional one if it's provided:
@@ -340,11 +346,15 @@ module.exports.raise = ( source, data, exceptionID ) => {
         exception.data = tools.decycle( exception.data );
     }
 
+    if ( httpCode && httpCodeEnum.contains( httpCode ) ) {
+        exception.httpCode = httpCode;
+    }
+
     return exception;
 };
 
 /**
- * Verifies if the passed object is an Exception.
+ * Verifies if the passed object is a {@link TiException}.
  *
  * @method
  * @param {*} object
@@ -352,5 +362,5 @@ module.exports.raise = ( source, data, exceptionID ) => {
  * @public
  */
 module.exports.isException = ( object ) => {
-    return ( object instanceof Exception );
+    return ( object instanceof TiException );
 };

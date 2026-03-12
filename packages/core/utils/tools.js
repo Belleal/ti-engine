@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -8,21 +8,6 @@
 
 const _ = require( "lodash" );
 const crypto = require( "node:crypto" );
-
-/**
- * @typedef {Object} TiEnumValue
- * @property {number|string} value
- * @property {string} name
- * @property {string} [description]
- */
-
-/**
- * @typedef {Object} TiEnum
- * @property {Object.<number|string,TiEnumValue>} properties
- * @property {function( (number|string), [string] ): (string|undefined)} name
- * @property {function( (number|string), [string] ): (string|undefined)} description
- * @property {function( (number|string) ): boolean} contains
- */
 
 /**
  * Used to generate and return new UUID.
@@ -367,7 +352,7 @@ module.exports.decycle = ( object, replacer ) => {
  * replaced with references to the value found by the PATH. This will restore cycles. The object will be mutated.
  *
  * The eval function is used to locate the values described by a PATH. The root object is kept in a $ variable. A
- * regular expression is used to assure that the PATH is extremely well-formed. The regexp contains nested quantifiers.
+ * regular expression is used to ensure that the PATH is extremely well-formed. The regexp contains nested quantifiers.
  * That has been known to have extremely bad performance problems on some browsers for very long strings. A PATH is
  * expected to be reasonably short. A PATH is allowed to belong to a very restricted subset of Goessner's JSONPath.
  *
@@ -455,7 +440,7 @@ module.exports.isJsonString = ( string ) => {
 };
 
 /**
- * Use this to parse any JSON string into JSON object for internal system purposes as it ensures to restore any
+ * Use this to parse any JSON string into a JSON object for internal system purposes as it ensures to restore any
  * circular dependencies obscured with 'stringifyJSON'.
  *
  * @method
@@ -474,7 +459,7 @@ module.exports.parseJSON = ( value ) => {
 
 /**
  * Use this to decompose a JSON object into a sorted string. The values will be ordered alphabetically and combined with
- * their keys, where applicable, starting from the bottom and moving up. Null or undefined values will be ignored and
+ * their keys, where applicable, starting from the bottom and moving up. Null or undefined values will be ignored, and
  * their keys will not be included in the final string.
  *
  * @param {Object} input

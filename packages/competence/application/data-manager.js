@@ -41,8 +41,8 @@ class DataManager {
      */
     initialize( preloadData = false ) {
         let promises = [];
-        promises.push( cache.instance.setJSON( `ti:competence:data:employees`, {} ) );
-        promises.push( cache.instance.setJSON( `ti:competence:data:evaluations`, {} ) );
+        promises.push( cache.instance.setJSON( `ti:competence:data:employees`, {}, "$", 1 ) );
+        promises.push( cache.instance.setJSON( `ti:competence:data:evaluations`, {}, "$", 1 ) );
 
         if ( preloadData === true ) {
             const employees = require( "#data-employees" ).employees;

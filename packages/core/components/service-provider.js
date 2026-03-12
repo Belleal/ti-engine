@@ -38,7 +38,7 @@ class ServiceProvider extends ServiceConsumer {
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
      * @param {ServiceConfiguration} [serviceConfig] The JSON configuration for this service.
-     * @throws {Exception.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
+     * @throws {TiException.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
      */
     constructor( serviceDomainName, serviceConfig ) {
         super( serviceDomainName, serviceConfig );
@@ -56,7 +56,7 @@ class ServiceProvider extends ServiceConsumer {
      * <br/>
      * NOTE: This method will be invoked automatically.
      * <br/>
-     * NOTE: If you need to add more onStart logic you can override this method but make sure to call it in the
+     * NOTE: If you need to add more onStart logic, you can override this method but make sure to call it in the
      * overriding method using: super.onStart()
      *
      * @method
@@ -88,7 +88,7 @@ class ServiceProvider extends ServiceConsumer {
      * <br/>
      * NOTE: This method will be invoked automatically.
      * <br/>
-     * NOTE: If you need to add more onStop logic you can override this method but make sure to call it in the
+     * NOTE: If you need to add more onStop logic, you can override this method but make sure to call it in the
      * overriding method using: super.onStop()
      *
      * @method
@@ -110,7 +110,7 @@ class ServiceProvider extends ServiceConsumer {
      * Used to report health status of the service instance for external monitoring.
      * This is a scheduled job that will be executed at SERVICE_HEALTH_CHECK_INTERVAL time.
      * <br/>
-     * NOTE: By default this method will update a Redis key with an expiration timer. You can override this
+     * NOTE: By default, this method will update a Redis key with an expiration timer. You can override this
      * functionality with something custom like calling an HTTP endpoint.
      *
      * @method
@@ -204,8 +204,8 @@ class ServiceProvider extends ServiceConsumer {
                 let promises = [];
                 _.forEach( serviceDefinitions, ( serviceDefinition ) => {
                     // NOTE: we are not going to interrupt the service interface loading if one of the services fails to load or is not found!
-                    // If this happens, a corresponding log entry will be created but the loading process will continue. Therefore, the following
-                    // promise will always resolve (unless a programming error occurs in it, of course).
+                    // If this happens, a corresponding log entry will be created, but the loading process will continue. Therefore, the following
+                    // promise will always be resolved (unless a programming error occurs in it, of course).
                     let registrationPromise = ( serviceDefinition, defaultServiceHandler ) => {
                         return new Promise( ( resolve ) => {
                             this.registerService( serviceDefinition, defaultServiceHandler ).then( () => {

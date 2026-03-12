@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -11,19 +11,7 @@ const _ = require( "lodash" );
 const tools = require( "#tools" );
 const logger = require( "#logger" );
 const config = require( "#config" );
-const gcloud = require( "#gcloud-integration" );
 const ServiceInstance = require( "#service-instance" );
-
-/**
- * @typedef {Object} TiLogEntry
- * @property {string} _id Unique identifier that can be used to identify the document in a NoSQL database.
- * @property {TiLogSeverity} severity The log severity level.
- * @property {string} thread The categorization of the log message.
- * @property {string} reporter
- * @property {string} message The actual log message.
- * @property {number} timestamp The timestamp of the log entry in UTC time.
- * @property {Object} data Additional JSON data to go with the message.
- */
 
 /**
  * Used to create and/or return an Auditing System singleton instance.
@@ -71,11 +59,6 @@ class Auditing {
                 // Make sure there is a console available (especially important for Cloud or containerized environments):
                 if ( config.getSetting( config.setting.AUDITING_LOG_CONSOLE_ENABLED ) === true && console ) {
                     Auditing.#logToConsole( logEntry );
-                }
-
-                // If this is an actual error, then send it to GCloud error reporting system as well:
-                if ( logEntry.severity >= logger.logSeverity.WARNING && data instanceof Error && gcloud.isEnabled() ) {
-                    gcloud.reportError( data );
                 }
             }
         } catch {
