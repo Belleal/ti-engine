@@ -198,30 +198,22 @@ describe( "JSON Configuration Files Validation", () => {
         } );
     } );
 
-    describe( "roles.json", () => {
-        let roles;
-
-        it( "should exist and be valid JSON", () => {
-            const filePath = path.join( configDir, "roles.json" );
-            assert.ok( fs.existsSync( filePath ), "roles.json should exist" );
-
-            const content = fs.readFileSync( filePath, "utf8" );
-            assert.doesNotThrow( () => {
-                roles = JSON.parse( content );
-            }, "roles.json should be valid JSON" );
+    describe( "roles (now in configuration-loader)", () => {
+        it( "should be available as roleCode enum in configuration-loader", () => {
+            const configLoader = require( "#configuration-loader" );
+            assert.ok( configLoader.roleCode, "roleCode should be exported from configuration-loader" );
+            assert.ok( configLoader.roleCode.EMPLOYEE, "Should have EMPLOYEE role" );
+            assert.ok( configLoader.roleCode.MANAGER, "Should have MANAGER role" );
+            assert.ok( configLoader.roleCode.SUPERVISOR, "Should have SUPERVISOR role" );
+            assert.ok( configLoader.roleCode.TEAM_MEMBER, "Should have TEAM_MEMBER role" );
         } );
 
-        it( "should have valid role structure", () => {
-            const filePath = path.join( configDir, "roles.json" );
-            roles = JSON.parse( fs.readFileSync( filePath, "utf8" ) );
-
-            Object.entries( roles ).forEach( ( [ roleKey, roleData ] ) => {
-                assert.ok( Array.isArray( roleData ), `Role ${ roleKey } should be an array` );
-                assert.strictEqual( roleData.length, 3, `Role ${ roleKey } should have 3 elements` );
-                assert.ok( typeof roleData[ 0 ] === "number", "First element should be role ID number" );
-                assert.ok( typeof roleData[ 1 ] === "string", "Second element should be role name" );
-                assert.ok( typeof roleData[ 2 ] === "string", "Third element should be role description" );
-            } );
+        it( "should have valid role values", () => {
+            const configLoader = require( "#configuration-loader" );
+            assert.strictEqual( configLoader.roleCode.EMPLOYEE, 1 );
+            assert.strictEqual( configLoader.roleCode.MANAGER, 2 );
+            assert.strictEqual( configLoader.roleCode.SUPERVISOR, 3 );
+            assert.strictEqual( configLoader.roleCode.TEAM_MEMBER, 4 );
         } );
     } );
 
@@ -254,24 +246,24 @@ describe( "JSON Configuration Files Validation", () => {
         } );
     } );
 
-    describe( "employees.json", () => {
+    describe( "employees.json (moved to seeders)", () => {
         let employees;
         it( "should exist and be valid JSON", () => {
-            const filePath = path.join( dataDir, "employees.json" );
-            assert.ok( fs.existsSync( filePath ), "employees.json should exist" );
+            const filePath = path.join( dataDir, "seeders", "employees.json" );
+            assert.ok( fs.existsSync( filePath ), "employees.json should exist in seeders" );
             const content = fs.readFileSync( filePath, "utf8" );
             assert.doesNotThrow( () => {
                 employees = JSON.parse( content );
             }, "employees.json should be valid JSON" );
         } );
         it( "should have employees array", () => {
-            const filePath = path.join( dataDir, "employees.json" );
+            const filePath = path.join( dataDir, "seeders", "employees.json" );
             employees = JSON.parse( fs.readFileSync( filePath, "utf8" ) );
             assert.ok( employees.employees, "Should have employees property" );
             assert.ok( Array.isArray( employees.employees ), "employees should be an array" );
         } );
         it( "should have valid employee structure", () => {
-            const filePath = path.join( dataDir, "employees.json" );
+            const filePath = path.join( dataDir, "seeders", "employees.json" );
             employees = JSON.parse( fs.readFileSync( filePath, "utf8" ) );
             employees.employees.forEach( ( employee, index ) => {
                 assert.ok(
@@ -282,7 +274,8 @@ describe( "JSON Configuration Files Validation", () => {
                 assert.ok( employee.personal.name, `Employee ${ index } should have name` );
                 assert.ok( typeof employee.personal.position === "string", `Employee ${ index } should have enum position` );
                 assert.ok( employee.personal.department, `Employee ${ index } should have department` );
-                assert.ok( employee.personal.manager, `Employee ${ index } should have manager` );
+                assert.ok( employee.manager, `Employee ${ index } should have manager info` );
+                assert.ok( employee.manager.managerID, `Employee ${ index } should have managerID` );
                 assert.ok( employee.personal.level, `Employee ${ index } should have level` );
                 assert.ok( typeof employee.personal.stage === "number", `Employee ${ index } should have number stage` );
                 const startingDate = new Date( employee.personal.startingDate );
@@ -299,24 +292,24 @@ describe( "JSON Configuration Files Validation", () => {
         } );
     } );
 
-    describe( "evaluations.json", () => {
+    describe( "evaluations.json (moved to seeders)", () => {
         let evaluations;
         it( "should exist and be valid JSON", () => {
-            const filePath = path.join( dataDir, "evaluations.json" );
-            assert.ok( fs.existsSync( filePath ), "evaluations.json should exist" );
+            const filePath = path.join( dataDir, "seeders", "evaluations.json" );
+            assert.ok( fs.existsSync( filePath ), "evaluations.json should exist in seeders" );
             const content = fs.readFileSync( filePath, "utf8" );
             assert.doesNotThrow( () => {
                 evaluations = JSON.parse( content );
             }, "evaluations.json should be valid JSON" );
         } );
         it( "should have evaluations array", () => {
-            const filePath = path.join( dataDir, "evaluations.json" );
+            const filePath = path.join( dataDir, "seeders", "evaluations.json" );
             evaluations = JSON.parse( fs.readFileSync( filePath, "utf8" ) );
             assert.ok( evaluations.evaluations, "Should have evaluations property" );
             assert.ok( Array.isArray( evaluations.evaluations ), "evaluations should be an array" );
         } );
         it( "should have valid evaluation structure", () => {
-            const filePath = path.join( dataDir, "evaluations.json" );
+            const filePath = path.join( dataDir, "seeders", "evaluations.json" );
             evaluations = JSON.parse( fs.readFileSync( filePath, "utf8" ) );
             evaluations.evaluations.forEach( ( evaluation, index ) => {
                 assert.ok( evaluation.evaluationID, `Evaluation ${ index } should have evaluationID` );
@@ -331,13 +324,18 @@ describe( "JSON Configuration Files Validation", () => {
             } );
         } );
         it( "should have valid grade structure in evaluations", () => {
-            const filePath = path.join( dataDir, "evaluations.json" );
+            const filePath = path.join( dataDir, "seeders", "evaluations.json" );
             evaluations = JSON.parse( fs.readFileSync( filePath, "utf8" ) );
             evaluations.evaluations.forEach( ( evaluation, evalIndex ) => {
                 Object.entries( evaluation.grades ).forEach( ( [ competencyId, grade ] ) => {
                     assert.ok( grade.hasOwnProperty( "employee" ), `Evaluation ${ evalIndex }, competency ${ competencyId } should have employee grade` );
                     assert.ok( grade.hasOwnProperty( "manager" ), `Evaluation ${ evalIndex }, competency ${ competencyId } should have manager grade` );
                     assert.ok( grade.hasOwnProperty( "team" ), `Evaluation ${ evalIndex }, competency ${ competencyId } should have team grade` );
+                    // Validate new team structure with cumulative and individual
+                    assert.ok( typeof grade.team === "object", `Evaluation ${ evalIndex }, competency ${ competencyId } team should be an object` );
+                    assert.ok( grade.team.hasOwnProperty( "cumulative" ), `Evaluation ${ evalIndex }, competency ${ competencyId } team should have cumulative grade` );
+                    assert.ok( grade.team.hasOwnProperty( "individual" ), `Evaluation ${ evalIndex }, competency ${ competencyId } team should have individual grades array` );
+                    assert.ok( Array.isArray( grade.team.individual ), `Evaluation ${ evalIndex }, competency ${ competencyId } team.individual should be an array` );
                 } );
             } );
         } );
@@ -345,8 +343,8 @@ describe( "JSON Configuration Files Validation", () => {
 
     describe( "Cross-file Data Consistency", () => {
         it( "should have consistent employee-evaluation relationships", () => {
-            const employeesPath = path.join( dataDir, "employees.json" );
-            const evaluationsPath = path.join( dataDir, "evaluations.json" );
+            const employeesPath = path.join( dataDir, "seeders", "employees.json" );
+            const evaluationsPath = path.join( dataDir, "seeders", "evaluations.json" );
 
             const employees = JSON.parse( fs.readFileSync( employeesPath, "utf8" ) );
             const evaluations = JSON.parse( fs.readFileSync( evaluationsPath, "utf8" ) );
@@ -363,7 +361,7 @@ describe( "JSON Configuration Files Validation", () => {
 
         it( "should have consistent competency references in evaluations", () => {
             const competenciesPath = path.join( configDir, "competencies.json" );
-            const evaluationsPath = path.join( dataDir, "evaluations.json" );
+            const evaluationsPath = path.join( dataDir, "seeders", "evaluations.json" );
 
             const competenciesConfig = JSON.parse( fs.readFileSync( competenciesPath, "utf8" ) );
             const evaluations = JSON.parse( fs.readFileSync( evaluationsPath, "utf8" ) );
