@@ -25,7 +25,7 @@
 
 /**
  * @typedef {Object} EvaluationWorkflow
- * @property {"1"|"2"|"3"|"4"|"5"|"6"|"7"|"8"} currentStep - Current step in the workflow.
+ * @property {1|2|3|4|5|6|7|8} currentStep - Current step in the workflow.
  * @property {boolean} [selfEvaluationCompleted=false] - Indicates if self-evaluation has been completed.
  * @property {string} [selfEvaluationDeadline] - Deadline for self-evaluation submission (YYYY-MM-DD).
  * @property {boolean} [teamEvaluationCompleted=false] - Indicates if team-evaluation has been completed.
@@ -78,7 +78,7 @@
  * @typedef {Object} Employee
  * @property {string} employeeID - Unique identifier for the employee.
  * @property {EmployeePersonalInformation} personal - Personal information about the employee.
- * @property {EmployeeManagerInformation} manager - Name of the direct manager.
+ * @property {EmployeeManagerInformation} manager - Information about the direct manager.
  */
 
 /**

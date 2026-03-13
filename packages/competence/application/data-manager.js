@@ -8,6 +8,7 @@
 
 const cache = require( "@ti-engine/core/cache" );
 const exceptions = require( "@ti-engine/core/exceptions" );
+const tools = require( "@ti-engine/core/tools" );
 const _ = require( "lodash" );
 const configurationLoader = require( "#configuration-loader" );
 
@@ -35,14 +36,15 @@ class DataManager {
      * Used to initialize the data manager.
      *
      * @method
-     * @param {boolean} preloadData If true, it will preload the data from the available data files into the data storage.
      * @returns {Promise}
      * @public
      */
-    initialize( preloadData = false ) {
+    initialize() {
         let promises = [];
         promises.push( cache.instance.setJSON( `ti:competence:data:employees`, {}, "$", 1 ) );
         promises.push( cache.instance.setJSON( `ti:competence:data:evaluations`, {}, "$", 1 ) );
+
+        let preloadData = ( process.env.COMPETENCE_PRELOAD_DATA !== undefined ) ? tools.toBool( process.env.COMPETENCE_PRELOAD_DATA ) : false;
 
         if ( preloadData === true ) {
             const employees = require( "#data-employees" ).employees;
@@ -163,7 +165,7 @@ class DataManager {
                 // NOTE: Only for development purposes. The system expects an actual DB to function properly.
                 const evaluations = require( "#data-evaluations" ).evaluations;
                 const evaluation = evaluations.find( ( evaluation ) => evaluation.evaluationID === evaluationID );
-                if ( !evaluation ) {
+                if ( !evaluation || evaluation.status === configurationLoader.evaluationStatus.DELETED ) {
                     reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: `Evaluation with ID '${ evaluationID }' not found!` } ) );
                 } else {
                     resolve( _.cloneDeep( evaluation ) );

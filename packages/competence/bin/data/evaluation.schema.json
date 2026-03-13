@@ -65,15 +65,15 @@
       },
       "additionalProperties": false
     },
-    "comment": {
-      "type": "string",
-      "description": "Comment submitted by the employee"
-    },
     "feedback": {
       "type": "object",
       "description": "Feedback attached to the evaluation",
       "additionalProperties": false,
       "properties": {
+        "employeeComment": {
+          "type": "string",
+          "description": "Comment submitted by the employee"
+        },
         "managerComment": {
           "type": "string",
           "description": "Comment submitted by the manager"
@@ -90,6 +90,14 @@
     "workflow": {
       "type": "object",
       "description": "System workflow state for the evaluation",
+      "required": [
+        "currentStep",
+        "selfEvaluationCompleted",
+        "teamEvaluationCompleted",
+        "managerEvaluationCompleted",
+        "teamEvaluationsSubmitted",
+        "team"
+      ],
       "additionalProperties": false,
       "properties": {
         "currentStep": {

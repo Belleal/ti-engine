@@ -194,10 +194,15 @@ let configureCompetencyEvaluation = () => {
         },
 
         resetGrades() {
-            if ( this.getUserRoleAsText() && this.evaluation && this.evaluation.grades ) {
+            const role = this.getUserRoleAsText();
+            if ( role && this.evaluation && this.evaluation.grades ) {
                 Object.keys( this.evaluation.grades ).forEach( ( key ) => {
                     if ( this.evaluation.grades[ key ] ) {
-                        this.evaluation.grades[ key ][ this.getUserRoleAsText() ] = "";
+                        if ( role === "team" ) {
+                            this.evaluation.grades[ key ].team = { cumulative: "" };
+                        } else {
+                            this.evaluation.grades[ key ][ role ] = "";
+                        }
                     }
                 } );
             }
@@ -229,7 +234,7 @@ let configureCompetencyEvaluation = () => {
         formatDate( value ) {
             if ( !value ) return "";
             const normalized = /^\d{4}-\d{2}-\d{2}$/.test( value )
-                ? `${ value }T00:00:00Z`
+                ? `${ value }T00:00:00`
                 : value;
             const date = new Date( normalized );
             return isValidDate( date ) ? date.toLocaleDateString() : "";

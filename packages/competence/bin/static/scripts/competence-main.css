@@ -183,8 +183,14 @@
     }
 
     .competence-row,
+    .competence-list,
     .competence-list-head,
     .competence-category {
-        min-width: 100%;
+        grid-template-columns: 1fr;
+        min-width: 0;
+    }
+
+    .competence-list {
+        overflow-x: auto;
     }
 }

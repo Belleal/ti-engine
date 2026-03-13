@@ -2338,6 +2338,10 @@
       "no-draft-saving-possible": {
         "en": "Not possible to save a draft for team evaluation. Please submit all grades to proceed.",
         "bg": "Не е възможно запазване на чернова за екипна оценка. Моля, изпратете всички оценки, за да продължите."
+      },
+      "status-is-closed": {
+        "en": "The requested Evaluation is already closed for processing.",
+        "bg": "Изисканата Оценка е затворена за обработка."
       }
     }
   },

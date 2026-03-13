@@ -199,6 +199,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                         existingEvaluation.feedback = existingEvaluation.feedback || {};
                         existingEvaluation.feedback.managerComment = evaluation.feedback.managerComment;
                     }
+
+                    if ( evaluation.interviewDate !== undefined ) {
+                        existingEvaluation.interviewDate = evaluation.interviewDate;
+                    }
+
                     this.#updateManagerEvaluationGrades( existingEvaluation, evaluation.grades );
 
                     existingEvaluation.workflow.managerEvaluationCompleted = true;
@@ -214,6 +219,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                         existingEvaluation.status = configurationLoader.evaluationStatus.IN_REVIEW;
                     }
                 }
+
+                // TODO: Make sure to update the 'currentStep' of the workflow accordingly (graph implementation needed first).
 
                 return dataManager.instance.saveEvaluation( existingEvaluation );
             } ).then( ( savedEvaluation ) => {
@@ -293,6 +300,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                         existingEvaluation.feedback = existingEvaluation.feedback || {};
                         existingEvaluation.feedback.managerComment = evaluation.feedback.managerComment;
                     }
+
+                    if ( evaluation.interviewDate !== undefined ) {
+                        existingEvaluation.interviewDate = evaluation.interviewDate;
+                    }
+
                     this.#updateManagerEvaluationGrades( existingEvaluation, evaluation.grades );
                 } else {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.no-draft-saving-possible" }, exceptions.httpCode.C_422 );
@@ -344,7 +356,7 @@ class CompetenceWebApplication extends TiWebAppManager {
             let isTeamMember = false;
             dataManager.instance.fetchEmployee( employeeID ).then( ( employeeData ) => {
                 employee = employeeData;
-                return dataManager.instance.fetchEvaluations( employee.employeeID, true );
+                return dataManager.instance.fetchEvaluations( employee.employeeID );
             } ).then( ( evaluations ) => {
                 // Load the current evaluation - either by the specified evaluation ID or by the most recent evaluation in the list:
                 if ( evaluationID ) {
@@ -355,7 +367,12 @@ class CompetenceWebApplication extends TiWebAppManager {
                 } else if ( evaluations.length > 0 ) {
                     currentEvaluation = evaluations.slice().sort( ( a, b ) => new Date( b.cycleDate ) - new Date( a.cycleDate ) )[ 0 ];
                 } else {
+                    // TODO: Separate business logic to strictly loading an evaluation and creating a new one by a user with the requisite rights.
                     currentEvaluation = this.#createNewEvaluation( employeeID );
+                }
+
+                if ( currentEvaluation.status === configurationLoader.evaluationStatus.CLOSED ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.status-is-closed" }, exceptions.httpCode.C_422 );
                 }
 
                 const positionKey = String( employee.personal?.position ?? "" ).trim();
@@ -655,7 +672,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 teamComments: []
             },
             workflow: {
-                currentStep: "1",
+                currentStep: 1,
                 selfEvaluationCompleted: false,
                 selfEvaluationDeadline: "",
                 managerEvaluationCompleted: false,

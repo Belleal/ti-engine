@@ -11,7 +11,7 @@
         "E1-2": { "employee": "", "manager": "", "team": { "cumulative": "", "individual": [] } }
       },
       "workflow": {
-        "currentStep": "1",
+        "currentStep": 1,
         "selfEvaluationCompleted": false,
         "selfEvaluationDeadline": "",
         "managerEvaluationCompleted": false,
@@ -36,7 +36,7 @@
         "C1-1": { "employee": "S", "manager": "R", "team": { "cumulative": "U", "individual": [] } }
       },
       "workflow": {
-        "currentStep": "1",
+        "currentStep": 1,
         "selfEvaluationCompleted": false,
         "selfEvaluationDeadline": "",
         "managerEvaluationCompleted": false,
@@ -62,7 +62,7 @@
         "C1-1": { "employee": "R", "manager": "R", "team": { "cumulative": "S", "individual": [] } }
       },
       "workflow": {
-        "currentStep": "1",
+        "currentStep": 1,
         "selfEvaluationCompleted": false,
         "selfEvaluationDeadline": "",
         "managerEvaluationCompleted": false,
