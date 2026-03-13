@@ -1,6 +1,6 @@
 :root {
     /** General **/
-    --ti-font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    --ti-font-family: system-ui, -apple-system, segoe ui, roboto, arial, sans-serif;
     --ti-font-size: 14px;
     --ti-gap: 12px;
     --ti-grid-gap: 6px;

@@ -13,11 +13,11 @@ const tools = require( "@ti-engine/core/tools" );
 const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
 
-let gradeWeights = {};
-gradeWeights[ configurationLoader.evaluationGrade.S ] = 1.3;
-gradeWeights[ configurationLoader.evaluationGrade.R ] = 1.0;
-gradeWeights[ configurationLoader.evaluationGrade.U ] = 0.6;
-tools.deepFreeze( gradeWeights );
+const gradeWeights = tools.deepFreeze( {
+    [ configurationLoader.evaluationGrade.S ]: 1.3,
+    [ configurationLoader.evaluationGrade.R ]: 1.0,
+    [ configurationLoader.evaluationGrade.U ]: 0.6
+} );
 
 /**
  * NOTE: This is still a work in progress.
@@ -66,7 +66,6 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Used to process a request for a data resource.
      *
      * @method
-     * @override
      * @param {Object} session
      * @param {string} view
      * @param {Object} [options]
@@ -541,18 +540,20 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @private
      */
     #anonymizeEvaluationGrades( evaluation, userRole ) {
-        Object.keys( evaluation.grades ).forEach( ( competencyCode ) => {
-            if ( userRole === configurationLoader.roleCode.EMPLOYEE ) {
-                delete evaluation.grades[ competencyCode ].manager;
-                delete evaluation.grades[ competencyCode ].team;
-            } else if ( userRole === configurationLoader.roleCode.TEAM_MEMBER ) {
-                delete evaluation.grades[ competencyCode ].employee;
-                delete evaluation.grades[ competencyCode ].manager;
-                evaluation.grades[ competencyCode ].team = { cumulative: "" };
-            } else {
-                delete evaluation.grades[ competencyCode ].team.individual;
-            }
-        } );
+        if ( evaluation.grades ) {
+            Object.keys( evaluation.grades ).forEach( ( competencyCode ) => {
+                if ( userRole === configurationLoader.roleCode.EMPLOYEE ) {
+                    delete evaluation.grades[ competencyCode ].manager;
+                    delete evaluation.grades[ competencyCode ].team;
+                } else if ( userRole === configurationLoader.roleCode.TEAM_MEMBER ) {
+                    delete evaluation.grades[ competencyCode ].employee;
+                    delete evaluation.grades[ competencyCode ].manager;
+                    evaluation.grades[ competencyCode ].team = { cumulative: "" };
+                } else {
+                    delete evaluation.grades[ competencyCode ].team.individual;
+                }
+            } );
+        }
     }
 
     /**

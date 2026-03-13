@@ -122,5 +122,5 @@
  */
 
 /**
- * @typedef {1|2|3} RoleCodeValue
+ * @typedef {1|2|3|4} RoleCodeValue
  */

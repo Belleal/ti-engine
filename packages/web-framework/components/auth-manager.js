@@ -226,7 +226,7 @@ class AuthManager {
         return new Promise( ( resolve, reject ) => {
             // TODO: Public clients are not fully supported yet!
             let clientAuthentication;
-            let metaData = {};
+            let metaData;
             if ( oauth2.isPublic === true ) {
                 metaData = { token_endpoint_auth_method: openIDTokenEndpointAuthMethodEnum.NONE };
                 clientAuthentication = openidClient.None();

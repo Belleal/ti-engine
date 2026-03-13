@@ -59,7 +59,9 @@ if ( settings.auditing ) {
     settings.auditing.logUsesJSON = ( process.env.TI_AUDITING_LOG_USES_JSON !== undefined ) ? tools.toBool( process.env.TI_AUDITING_LOG_USES_JSON ) : settings.auditing.logUsesJSON;
 }
 if ( settings.localization ) {
-    settings.localization.labelsPath = ( process.env.TI_LOCALIZATION_LABELS_PATH !== undefined ) ? process.env.TI_LOCALIZATION_LABELS_PATH.split( "," ).map( ( p ) => p.trim() ) : settings.localization.labelsPath;
+    settings.localization.labelsPath = ( process.env.TI_LOCALIZATION_LABELS_PATH !== undefined )
+        ? process.env.TI_LOCALIZATION_LABELS_PATH.split( "," ).map( ( p ) => p.trim() ).filter( Boolean )
+        : settings.localization.labelsPath;
     settings.localization.language = ( process.env.TI_LOCALIZATION_LANGUAGE !== undefined ) ? process.env.TI_LOCALIZATION_LANGUAGE : settings.localization.language;
 }
 if ( settings.memoryCache ) {

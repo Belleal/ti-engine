@@ -26,7 +26,7 @@ module.exports.getUUID = () => {
  * @method
  * @param {Object} object
  * @param {WeakSet} [seen]
- * @return {Object}
+ * @returns {Object}
  * @public
  */
 module.exports.deepFreeze = ( object, seen = new WeakSet() ) => {

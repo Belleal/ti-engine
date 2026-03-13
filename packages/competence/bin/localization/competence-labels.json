@@ -2295,49 +2295,49 @@
     "application": {
       "init-failed": {
         "en": "Failed to initialize the application: ",
-        "bg": ""
+        "bg": "Неуспешно инициализиране на приложението: "
       },
       "unexpected": {
         "en": "Unexpected application error encountered.",
-        "bg": ""
+        "bg": "Възникна неочаквана грешка в приложението."
       }
     },
     "evaluation": {
       "already-completed-self-evaluation": {
         "en": "The self-evaluation for this Evaluation was already completed.",
-        "bg": ""
+        "bg": "Самооценката за тази Оценка вече е завършена."
       },
       "deadline-over-manager-evaluation": {
         "en": "The manager evaluation deadline for this Evaluation has passed.",
-        "bg": ""
+        "bg": "Крайният срок за мениджърска оценка за тази Оценка е изтекъл."
       },
       "deadline-over-self-evaluation": {
         "en": "The self-evaluation deadline for this Evaluation has passed.",
-        "bg": ""
+        "bg": "Крайният срок за самооценка за тази Оценка е изтекъл."
       },
       "deadline-over-team-evaluation": {
         "en": "The team evaluation deadline for this Evaluation has passed.",
-        "bg": ""
+        "bg": "Крайният срок за екипна оценка за тази Оценка е изтекъл."
       },
       "invalid-draft-status-in-review": {
         "en": "The Evaluation status must be 'In Review' in order to save it as a draft.",
-        "bg": ""
+        "bg": "Статусът на Оценката трябва да е 'In Review', за да я запазите като чернова."
       },
       "invalid-draft-status-open": {
         "en": "The Evaluation status must be 'Open' in order to save it as a draft.",
-        "bg": ""
+        "bg": "Статусът на Оценката трябва да е 'Open', за да я запазите като чернова."
       },
       "invalid-submit-status-in-review": {
         "en": "The Evaluation status must be 'In Review' in order to submit it.",
-        "bg": ""
+        "bg": "Статусът на Оценката трябва да е 'In Review', за да я изпратите."
       },
       "invalid-submit-status-open": {
         "en": "The Evaluation status must be 'Open' in order to submit it.",
-        "bg": ""
+        "bg": "Статусът на Оценката трябва да е 'Open', за да я изпратите."
       },
       "no-draft-saving-possible": {
         "en": "Not possible to save a draft for team evaluation. Please submit all grades to proceed.",
-        "bg": ""
+        "bg": "Не е възможно запазване на чернова за екипна оценка. Моля, изпратете всички оценки, за да продължите."
       }
     }
   },
@@ -2462,11 +2462,11 @@
       "messages": {
         "draft-saved": {
           "en": "The Evaluation draft was saved successfully.",
-          "bg": ""
+          "bg": "Черновата на Оценката беше запазена успешно."
         },
         "submitted": {
           "en": "The Evaluation was submitted successfully.",
-          "bg": ""
+          "bg": "Оценката беше изпратена успешно."
         }
       }
     }

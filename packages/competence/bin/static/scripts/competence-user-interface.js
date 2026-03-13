@@ -180,12 +180,24 @@ let configureCompetencyEvaluation = () => {
             }
         },
 
+        getUserRoleAsText() {
+            switch ( this.userRole ) {
+                case 1:
+                    return "employee";
+                case 2:
+                    return "manager";
+                case 4:
+                    return "team";
+                default:
+                    return "";
+            }
+        },
+
         resetGrades() {
-            const role = this.isEmployee() ? "employee" : ( this.isEmployeeManager() ? "manager" : null );
-            if ( role && this.evaluation && this.evaluation.grades ) {
+            if ( this.getUserRoleAsText() && this.evaluation && this.evaluation.grades ) {
                 Object.keys( this.evaluation.grades ).forEach( ( key ) => {
                     if ( this.evaluation.grades[ key ] ) {
-                        this.evaluation.grades[ key ][ role ] = "";
+                        this.evaluation.grades[ key ][ this.getUserRoleAsText() ] = "";
                     }
                 } );
             }

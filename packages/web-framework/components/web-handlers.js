@@ -682,7 +682,7 @@ module.exports.csrfInitHandler = ( instance ) => {
                 }
                 next();
             } catch ( error ) {
-                next( exceptions.raise( error, null, exceptions.httpCode.C_400 ) );
+                next( exceptions.raise( error, null, exceptions.httpCode.C_500 ) );
             }
         }
     };

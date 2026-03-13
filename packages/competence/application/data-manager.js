@@ -151,7 +151,7 @@ class DataManager {
             if ( cache.instance.isOperational ) {
                 cache.instance.getJSON( `ti:competence:data:evaluations`, `*.${ evaluationID }` ).then( ( result ) => {
                     const evaluation = _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result );
-                    if ( !evaluation || evaluation.status === "Deleted" ) {
+                    if ( !evaluation || evaluation.status === configurationLoader.evaluationStatus.DELETED ) {
                         reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: `Evaluation with ID '${ evaluationID }' not found!` } ) );
                     } else {
                         resolve( evaluation );
@@ -183,7 +183,7 @@ class DataManager {
     saveEvaluation( evaluation ) {
         return new Promise( ( resolve, reject ) => {
             if ( !evaluation?.employeeID || !evaluation?.evaluationID ) {
-                throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluation } );
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluation } ) );
             }
             cache.instance.editJSON( `ti:competence:data:evaluations`, { [ evaluation.employeeID ]: { [ evaluation.evaluationID ]: evaluation } } ).then( () => {
                 resolve( evaluation );

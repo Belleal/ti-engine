@@ -269,7 +269,7 @@ class ServiceCaller extends MessageObserver {
      *
      * @method
      * @param {string} identifier The identifier of the observed connection.
-     * @param {Message|ServiceCall} serviceCall The service call message for processing.
+     * @param {ServiceCall} serviceCall The service call message for processing.
      * @returns {ServiceCall} The service call message that was received.
      * @override
      * @public

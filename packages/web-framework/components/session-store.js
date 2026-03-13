@@ -44,11 +44,7 @@ class SessionStore extends session.Store {
     set( sessionID, session, callback ) {
         cache.instance.hashSetField( sessionStoreName, sessionID, session ).then( () => {
             let expire = ( session.cookie && _.isNumber( session.cookie.maxAge ) ) ? session.cookie.maxAge / 1000 : null;
-            if ( expire ) {
-                return cache.instance.expireValue( sessionID, expire, sessionStoreName );
-            } else {
-                callback();
-            }
+            return ( expire ) ? cache.instance.expireValue( sessionID, expire, sessionStoreName ) : null;
         } ).then( () => {
             callback();
         } ).catch( ( error ) => {

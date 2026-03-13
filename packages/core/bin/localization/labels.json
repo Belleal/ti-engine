@@ -116,7 +116,7 @@
         "en": "The requested resource cannot be found. See details for more information."
       },
       "5005": {
-        "en": "The application service encountered and error. See details for more information."
+        "en": "The application service encountered an error. See details for more information."
       }
     }
   }

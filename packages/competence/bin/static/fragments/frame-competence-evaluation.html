@@ -20,7 +20,9 @@
     </div>
 
     <div x-show="showEvaluationForm && (userRole === 1 || userRole === 2 || userRole === 4)" class="ti-button-bar ti-sub-panel">
-        <button type="button" class="ti-button ti-glass-btn-black large on-screen" x-on:click="saveDraft()"
+        <button type="button" class="ti-button ti-glass-btn-black large on-screen"
+                x-show="userRole === 1 || userRole === 2"
+                x-on:click="saveDraft()"
                 x-text-label="interface.evaluation.actions.save-draft"></button>
         <button type="button" class="ti-button ti-glass-btn-black large on-screen" x-on:click="resetGrades()"
                 x-text-label="interface.evaluation.actions.reset"></button>
@@ -69,6 +71,7 @@
                                     </div>
                                     <!-- Self Grade Column -->
                                     <select x-bind:name="'grade-employee-' + item.id" class="ti-input grade"
+                                            x-bind:aria-label="'Self grade for ' + item.id + ' ' + item.name"
                                             x-on:change="setItemGrade(item.id, 'employee', $event.target.value)"
                                             x-bind:data-ti-tooltip="item.description"
                                             x-show="userRole === 1">
@@ -79,10 +82,14 @@
                                         </template>
                                     </select>
                                     <div class="ti-data-value compact-centered" x-text="getItemGrade(item.id, 'employee', '-')" x-show="userRole === 2"></div>
-                                    <div class="material-symbols-outlined ti-data-value compact-centered" x-show="userRole === 4">lock_person</div>
+                                    <div class="material-symbols-outlined ti-data-value compact-centered"
+                                         x-show="userRole === 4"
+                                         aria-label="Locked" role="img">lock_person
+                                    </div>
 
                                     <!-- Manager Grade Column -->
                                     <select x-bind:name="'grade-manager-' + item.id" class="ti-input grade"
+                                            x-bind:aria-label="'Manager grade for ' + item.id + ' ' + item.name"
                                             x-on:change="setItemGrade(item.id, 'manager', $event.target.value)"
                                             x-show="userRole === 2">
                                         <option value="" x-bind:selected="!getItemGrade(item.id, 'manager')">-</option>
@@ -91,11 +98,14 @@
                                                     x-bind:selected="getItemGrade(item.id, 'manager') == gradeKey"></option>
                                         </template>
                                     </select>
-                                    <div class="material-symbols-outlined ti-data-value compact-centered" x-show="userRole === 1 || userRole === 4">lock_person
+                                    <div class="material-symbols-outlined ti-data-value compact-centered"
+                                         x-show="userRole === 1 || userRole === 4"
+                                         aria-label="Locked" role="img">lock_person
                                     </div>
 
                                     <!-- Team Grade Column -->
                                     <select x-bind:name="'grade-team-' + item.id" class="ti-input grade"
+                                            x-bind:aria-label="'Team grade for ' + item.id + ' ' + item.name"
                                             x-on:change="setItemGrade(item.id, 'team', $event.target.value)"
                                             x-show="userRole === 4">
                                         <option value="" x-bind:selected="!getItemGrade(item.id, 'team')">-</option>
@@ -105,9 +115,12 @@
                                         </template>
                                     </select>
                                     <div class="ti-data-value compact-centered" x-text="getItemGrade(item.id, 'team', '-')" x-show="userRole === 2"></div>
-                                    <div class="material-symbols-outlined ti-data-value compact-centered" x-show="userRole === 1">lock_person</div>
+                                    <div class="material-symbols-outlined ti-data-value compact-centered"
+                                         x-show="userRole === 1"
+                                         aria-label="Locked" role="img">lock_person
+                                    </div>
 
-                                    <div class="competence-category-description" x-text="item.description"></div>
+                                    <div class="competence-item-description" x-text="item.description"></div>
                                 </div>
                             </template>
                         </div>

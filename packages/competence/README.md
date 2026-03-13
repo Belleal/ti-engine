@@ -1,6 +1,6 @@
 # Competence
 
-Specialized software for managing and monitoring of a **Competence-based Performance Apprisal Process** within an organization.
+Specialized software for managing and monitoring of a **Competence-based Performance Appraisal Process** within an organization.
 
 ## Information
 
@@ -72,4 +72,58 @@ sequenceDiagram
     Note over Sup, Sys: 8. Closure
     Sup ->> Sys: Close Evaluation
     Sys -->> Sys: Set Status: Closed
+```
+
+## Information Flows
+
+```mermaid
+sequenceDiagram
+    participant User as User / Employee
+    participant Client as Competence UI
+    participant Server as Competence Web Server
+    participant DataMgr as Data Manager
+    participant DB as Redis Database
+
+    rect rgba(100, 150, 200, 0.5)
+        note over User, DB: Load Evaluation Flow
+        User ->> Client: Open evaluation view
+        Client ->> Server: POST /app/load-evaluation
+        Server ->> DataMgr: fetchEmployee(employeeID)
+        DataMgr ->> DB: GET employee data
+        DB -->> DataMgr: Employee record
+        DataMgr -->> Server: Employee details
+        Server ->> DataMgr: fetchEvaluation(employeeID, cycleID)
+        DataMgr ->> DB: GET evaluation data
+        DB -->> DataMgr: Evaluation record
+        DataMgr -->> Server: Evaluation with grades & workflow
+        Server -->> Client: Evaluation + competencies (anonymized by role)
+        Client -->> User: Display evaluation form
+    end
+
+    rect rgba(150, 100, 200, 0.5)
+        note over User, DB: Save Draft Flow
+        User ->> Client: Edit grades & click Save Draft
+        Client ->> Server: POST /app/save-evaluation-draft
+        Server ->> DataMgr: saveEvaluation(evaluation)
+        DataMgr ->> DB: EDIT evaluation (status unchanged)
+        DB -->> DataMgr: Updated evaluation
+        DataMgr -->> Server: Promise resolves with evaluation
+        Server -->> Client: Success response
+        Client -->> User: "Draft saved" notification
+    end
+
+    rect rgba(200, 100, 100, 0.5)
+        note over User, DB: Submit Evaluation Flow
+        User ->> Client: Complete grades & click Submit
+        Client ->> Server: POST /app/submit-evaluation
+        Server ->> DataMgr: Validate role & deadline
+        Server ->> DataMgr: Update evaluation status (OPEN → IN_REVIEW)
+        DataMgr ->> DB: EDIT evaluation (new status & workflow)
+        DB -->> DataMgr: Updated evaluation
+        DataMgr -->> Server: Promise resolves with evaluation
+        Server -->> Client: Success response
+        Client ->> Server: POST /app/load-evaluation (reload)
+        Server -->> Client: Updated evaluation state
+        Client -->> User: "Submitted" notification + refreshed view
+    end
 ```

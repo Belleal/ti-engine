@@ -4,10 +4,42 @@ This document contains the list of changes made to the competence package. The f
 
 ## Version 1.0.2
 
-* feat(data manager): replace `data-loader` with `data-manager` that supports data storage and retrival from Redis Cache
+* feat(config): add `config.application.json` with `performanceAppraisals` settings (`minTeamEvaluationMembers`, `numberOfNextPeriodGoals`)
+* feat(config-loader): replace `organizationRoleCode` with `roleCode`; add `evaluationStatus` and `evaluationGrade` enum exports
+* feat(data): add `bin/data/seeders/evaluations.json` seeder with workflow-aware evaluation records
+* feat(data-manager): replace `data-loader` with `data-manager` that supports data storage and retrieval from Redis Cache
 * feat(definitions): add typedefs for `Employee` and `Evaluation` with corresponding JSON Schemas
-* feat(web-server): change `onStart` sequence to also initialize the new data manager
+* feat(definitions): add `EvaluationStatusValue`, `EvaluationWorkflow`, and `EvaluationFeedback` typedefs
+* feat(definitions): expand `Evaluation` typedef with `managerID`, `comment`, `feedback`, and `workflow` properties
+* feat(definitions): restructure `Employee` typedef using `EmployeePersonalInformation` and `EmployeeManagerInformation` sub-types
+* feat(definitions): add `CompetencyScope`, `CompetencyRelevancy`, `Competency`, and `RoleCodeValue` typedefs
+* feat(definitions): update `EvaluationGradeEntry` with structured `team` grade containing `cumulative` and `individual` sub-fields
+* feat(localization): add error messages for application and evaluation error scenarios
+* feat(localization): add notification labels for `draft-saved` and `submitted` UI feedback messages
+* feat(schema): update `employee.schema.json` with nested `personal` and `manager` objects
+* feat(schema): update `evaluation.schema.json` with `managerID`, `comment`, `feedback`, `workflow` fields and expanded `status` enum (added `Ready`)
 * feat(ui): add button bar to the evaluation screen with `save draft`, `reset`, and `submit` actions
+* feat(ui): add team grade handling with `cumulative` and `individual` sub-structures in `getItemGrade`/`setItemGrade`
+* feat(web-app): replace `load-employee-competencies` view with `load-evaluation` view
+* feat(web-app): add `submit-evaluation` service request handler with role checks, deadline enforcement, and status transitions
+* feat(web-app): add `save-evaluation-draft` service request handler with role-based authorization
+* feat(web-app): add evaluation initialization logic with default workflow state, grades, feedback, and comment structures
+* feat(web-app): add grade anonymization based on user role before returning evaluation responses
+* feat(web-server): change `onStart` sequence to also initialize the new data manager
+* refactor(config): remove static `roles.json` configuration file (replaced by dynamic role codes in configuration-loader)
+* refactor(css): migrate CSS custom properties and class selectors from `competence-*` to `ti-*` design token naming scheme
+* refactor(data): update `employees.json` seeder to use nested `manager` object structure
+* refactor(data): move seed data files to `bin/data/seeders/` directory
+* refactor(package): update `#data-employees` and `#data-evaluations` import mappings to reference seeder files; remove `#config-roles` import
+* refactor(test): update all test references from `load-employee-competencies` to `load-evaluation` view
+* refactor(test): remove `organizationRoleCode` test suite from configuration-loader tests
+* refactor(ui): replace `isEmployee`/`isEmployeeManager` helpers with numeric `userRole` checks
+* refactor(ui): rename `loadEmployee` to `loadEmployeeEvaluation` and update backend URL to `/app/load-evaluation`
+* refactor(web-app): rename competency property keys (`code` → `competencyCode`, `categoryId` → `categoryID`, `subId` → `subID`)
+* fix(data-manager): replace `E_WEB_INVALID_REQUEST_PARAMETERS` with `E_APP_RESOURCE_NOT_FOUND` for not-found scenarios
+* fix(data-manager): use config-driven status values in `fetchEvaluations` instead of hard-coded strings
+* fix(data-manager): update `saveEvaluation` to correctly return `Promise<Evaluation>` resolving with the saved evaluation
+* docs(competence): add `README.md` with module overview and default process workflow diagram (Mermaid)
 
 ## Version 1.0.1
 

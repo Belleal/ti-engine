@@ -9,9 +9,9 @@ This document contains the list of changes made to the framework. The format is 
 * feat(cache): implement consistent RedisJSON path handling and uniform error wrapping
 * feat(exceptions): add new standardized exception code `E_GEN_NOT_IMPLEMENTED` to use for cases where a feature is not yet implemented
 * feat(exceptions): add new optional, flexible parameter `httpCode` to the `raise` method
-* refactor(exceptions)!: rename the exception class from `Exception` to `TiException` in all refered places
+* refactor(exceptions)!: rename the exception class from `Exception` to `TiException` in all referred places
 * refactor(definitions): move all object definitions to a new `definitions.types.js` file
-* refactor(gcloud integration)!: remove file `gcloud-integration.js` and all related functionality (as it was obsolete and vulnerability vector)
+* refactor(gcloud integration)!: remove file `gcloud-integration.js` and all related functionality (as it was obsolete and a security vulnerability)
 * fix(cache): fix a bug where RedisJSON methods would return `E_GEN_FEATURE_UNSUPPORTED` error while discarding the details of that error
 * fix(config): fix the ENV `TI_LOCALIZATION_LABELS_PATH` to properly support multiple paths to label files
 * build(deps): update `@dotenvx/dotenvx` from ^1.52.0 to ^1.54.1

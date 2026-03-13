@@ -588,7 +588,7 @@ document.addEventListener( "htmx:responseError", ( event ) => {
             const data = JSON.parse( xhr.responseText );
             const tiApplication = Alpine.store( "tiApplication" );
             if ( tiApplication && tiApplication.isInitialized ) {
-                tiApplication.notify( this.formatException( data ) );
+                tiApplication.notify( tiApplication.formatException( data ) );
             }
         }
     } catch {

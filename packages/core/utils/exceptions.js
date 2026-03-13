@@ -60,7 +60,7 @@ const exceptionCodeEnum = tools.enum( {
     E_WEB_INVALID_REQUEST_CONTENT_ENCODING: [ 4009, "invalid request content encoding", "The request content encoding is not recognized or not supported." ],
     /** Application exceptions - codes under 5xxx */
     E_APP_RESOURCE_NOT_FOUND: [ 5004, "resource not found", "The requested resource cannot be found. See details for more information." ],
-    E_APP_SERVICE_ERROR: [ 5005, "app service error", "The application service encountered and error. See details for more information." ]
+    E_APP_SERVICE_ERROR: [ 5005, "app service error", "The application service encountered an error. See details for more information." ]
 } );
 module.exports.exceptionCode = exceptionCodeEnum;
 
@@ -294,6 +294,8 @@ class TiException {
 
 /**
  * Used to raise an exception from the provided source.
+ * <br/>
+ * NOTE: Custom numeric exception IDs are not supported when 'httpCode' is omitted!
  *
  * @method
  * @param {Error|TiExceptionCode|TiException} source Could be a standard JS Error, an ExceptionCode, or another TiException (in which case it will be raised further).
