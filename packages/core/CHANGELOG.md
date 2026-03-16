@@ -2,6 +2,10 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.4.1
+
+* build(deps): update `@dotenvx/dotenvx` from ^1.54.1 to ^1.55.1
+
 ## Version 1.4.0
 
 * feat(redis integration): implement support for `JSON.MERGE` and `JSON.MGET` commands
