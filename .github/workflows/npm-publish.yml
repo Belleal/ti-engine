@@ -14,11 +14,14 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@main
+      - uses: actions/setup-node@main
         with:
           node-version: 24
-      - run: npm ci
+      - name: Prepare Environment - Install
+        run: npm install
+      - name: Prepare Environment - CI
+        run: npm ci
       - name: Test Package "Core"
         run: npm test --workspace=@ti-engine/core
 
@@ -29,12 +32,15 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@main
+      - uses: actions/setup-node@main
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org/
-      - run: npm ci
+      - name: Prepare Environment - Install
+        run: npm install
+      - name: Prepare Environment - CI
+        run: npm ci
       - name: Publish Package "Core"
         run: npm publish --workspace=@ti-engine/core --provenance --access public
         env:
