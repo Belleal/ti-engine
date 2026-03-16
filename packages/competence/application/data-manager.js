@@ -8,7 +8,9 @@
 
 const cache = require( "@ti-engine/core/cache" );
 const exceptions = require( "@ti-engine/core/exceptions" );
+const tools = require( "@ti-engine/core/tools" );
 const _ = require( "lodash" );
+const configurationLoader = require( "#configuration-loader" );
 
 /**
  * Used to create and/or return a Data Manager singleton instance.
@@ -34,14 +36,15 @@ class DataManager {
      * Used to initialize the data manager.
      *
      * @method
-     * @param {boolean} preloadData If true, it will preload the data from the available data files into the data storage.
      * @returns {Promise}
      * @public
      */
-    initialize( preloadData = false ) {
+    initialize() {
         let promises = [];
-        promises.push( cache.instance.setJSON( `ti:competence:data:employees`, {} ) );
-        promises.push( cache.instance.setJSON( `ti:competence:data:evaluations`, {} ) );
+        promises.push( cache.instance.setJSON( `ti:competence:data:employees`, {}, "$", 1 ) );
+        promises.push( cache.instance.setJSON( `ti:competence:data:evaluations`, {}, "$", 1 ) );
+
+        let preloadData = ( process.env.COMPETENCE_PRELOAD_DATA !== undefined ) ? tools.toBool( process.env.COMPETENCE_PRELOAD_DATA ) : false;
 
         if ( preloadData === true ) {
             const employees = require( "#data-employees" ).employees;
@@ -74,7 +77,7 @@ class DataManager {
             if ( cache.instance.isOperational ) {
                 cache.instance.getJSON( `ti:competence:data:employees`, `${ resolvedEmployeeID }` ).then( ( result ) => {
                     if ( !result || result.length === 0 ) {
-                        reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID: employeeID } ) );
+                        reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: `Employee with ID '${ employeeID }' not found!` } ) );
                     } else {
                         resolve( _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result ) );
                     }
@@ -86,7 +89,7 @@ class DataManager {
                 const employees = require( "#data-employees" ).employees;
                 const employee = employees.find( ( employee ) => employee.employeeID === resolvedEmployeeID );
                 if ( !employee ) {
-                    reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID: employeeID } ) );
+                    reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: `Employee with ID '${ employeeID }' not found!` } ) );
                 } else {
                     resolve( _.cloneDeep( employee ) );
                 }
@@ -108,9 +111,10 @@ class DataManager {
     fetchEvaluations( employeeID, filterClosed = false ) {
         return new Promise( ( resolve, reject ) => {
             const resolvedEmployeeID = String( employeeID );
-            let statusFilter = [ "Deleted" ];
+            let statusFilter = [];
+            statusFilter.push( configurationLoader.evaluationStatus.DELETED );
             if ( filterClosed === true ) {
-                statusFilter.push( "Closed" );
+                statusFilter.push( configurationLoader.evaluationStatus.CLOSED );
             }
 
             if ( cache.instance.isOperational ) {
@@ -149,8 +153,8 @@ class DataManager {
             if ( cache.instance.isOperational ) {
                 cache.instance.getJSON( `ti:competence:data:evaluations`, `*.${ evaluationID }` ).then( ( result ) => {
                     const evaluation = _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result );
-                    if ( !evaluation || evaluation.status === "Deleted" ) {
-                        reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID: evaluationID } ) );
+                    if ( !evaluation || evaluation.status === configurationLoader.evaluationStatus.DELETED ) {
+                        reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: `Evaluation with ID '${ evaluationID }' not found!` } ) );
                     } else {
                         resolve( evaluation );
                     }
@@ -161,8 +165,8 @@ class DataManager {
                 // NOTE: Only for development purposes. The system expects an actual DB to function properly.
                 const evaluations = require( "#data-evaluations" ).evaluations;
                 const evaluation = evaluations.find( ( evaluation ) => evaluation.evaluationID === evaluationID );
-                if ( !evaluation ) {
-                    reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID: evaluationID } ) );
+                if ( !evaluation || evaluation.status === configurationLoader.evaluationStatus.DELETED ) {
+                    reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: `Evaluation with ID '${ evaluationID }' not found!` } ) );
                 } else {
                     resolve( _.cloneDeep( evaluation ) );
                 }
@@ -175,14 +179,20 @@ class DataManager {
      *
      * @method
      * @param {Evaluation} evaluation
-     * @returns {Promise}
+     * @returns {Promise<Evaluation>}
      * @public
      */
     saveEvaluation( evaluation ) {
-        if ( !evaluation?.employeeID || !evaluation?.evaluationID ) {
-            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluation } ) );
-        }
-        return cache.instance.editJSON( `ti:competence:data:evaluations`, { [ evaluation.employeeID ]: { [ evaluation.evaluationID ]: evaluation } } );
+        return new Promise( ( resolve, reject ) => {
+            if ( !evaluation?.employeeID || !evaluation?.evaluationID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluation } ) );
+            }
+            cache.instance.editJSON( `ti:competence:data:evaluations`, { [ evaluation.employeeID ]: { [ evaluation.evaluationID ]: evaluation } } ).then( () => {
+                resolve( evaluation );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
     }
 
 }

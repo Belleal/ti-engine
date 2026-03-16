@@ -1,1 +1,28 @@
-{}
+{
+  "interface": {
+    "default": {
+      "login": {
+        "password": {
+          "en": "Password",
+          "bg": "Парола"
+        },
+        "sign-in": {
+          "en": "Sign In",
+          "bg": "Вход"
+        },
+        "sign-in-azure": {
+          "en": "Sign In - Azure",
+          "bg": "Вход с Azure"
+        },
+        "sign-in-google": {
+          "en": "Sign In - Google",
+          "bg": "Вход с Google"
+        },
+        "username": {
+          "en": "Username",
+          "bg": "Потребител"
+        }
+      }
+    }
+  }
+}

@@ -4,59 +4,61 @@
  * @constant
  */
 const initialDataModels = {
-    "competencyEvaluation": {
-        "personal": {
-            "name": "",
-            "position": "",
-            "department": "",
-            "manager": "",
-            "managerID": "",
-            "level": "",
-            "stage": "",
-            "startingDate": ""
+    competencyEvaluation: {
+        personal: {
+            name: "",
+            position: "",
+            department: "",
+            level: "",
+            stage: "",
+            startingDate: ""
         },
-        "evaluation": {
-            "cycle": "",
-            "cycleID": "",
-            "cycleDate": "",
-            "interviewDate": ""
+        manager: {
+            name: "",
+            managerID: ""
         },
-        "competencies": [
+        evaluation: {
+            cycle: "",
+            cycleID: "",
+            cycleDate: "",
+            interviewDate: ""
+        },
+        competencies: [
             {
-                "id": "E",
-                "name": "Expertise",
-                "subcategories": [
+                id: "E",
+                name: "Expertise",
+                subcategories: [
                     {
-                        "id": "E1",
-                        "name": "Theoretical knowledge",
-                        "items": []
+                        id: "E1",
+                        name: "Theoretical knowledge",
+                        items: []
                     },
                     {
-                        "id": "E2",
-                        "name": "Applied skills",
-                        "items": []
+                        id: "E2",
+                        name: "Applied skills",
+                        items: []
                     }
                 ]
             },
             {
-                "id": "I",
-                "name": "Impact",
-                "subcategories": [
+                id: "I",
+                name: "Impact",
+                subcategories: [
                     {
-                        "id": "I1",
-                        "name": "Delivery",
-                        "items": []
+                        id: "I1",
+                        name: "Delivery",
+                        items: []
                     }
                 ]
             },
             {
-                "id": "C",
-                "name": "Collaboration",
-                "subcategories": [
+                id: "C",
+                name: "Collaboration",
+                subcategories: [
                     {
-                        "id": "C1",
-                        "name": "Teamwork",
-                        "items": []
+                        id: "C1",
+                        name: "Teamwork",
+                        items: []
                     }
                 ]
             }
@@ -88,6 +90,8 @@ let configureCompetencyEvaluation = () => {
 
     return {
         employeeID: null,
+        userRole: null,
+        manager: {},
         personal: clone( initialDataModels.competencyEvaluation.personal ),
         evaluation: clone( initialDataModels.competencyEvaluation.evaluation ),
         competencies: clone( initialDataModels.competencyEvaluation.competencies ),
@@ -98,7 +102,7 @@ let configureCompetencyEvaluation = () => {
             const onInitialized = () => {
                 this.grades = tiApplication.configuration.grades;
                 this.employeeID = getEmployeeIDFromUrl();
-                this.loadEmployee( this.employeeID );
+                this.loadEmployeeEvaluation( this.employeeID );
             };
 
             if ( tiApplication.isInitialized ) {
@@ -115,11 +119,13 @@ let configureCompetencyEvaluation = () => {
         applyData( data ) {
             const fresh = ( data && typeof data === "object" ) ? data : {};
             this.personal = clone( fresh.personal || initialDataModels.competencyEvaluation.personal );
+            this.manager = clone( fresh.manager || initialDataModels.competencyEvaluation.manager );
+            this.userRole = fresh.userRole;
             this.evaluation = clone( fresh.evaluation || initialDataModels.competencyEvaluation.evaluation );
             this.competencies = clone( fresh.competencies || initialDataModels.competencyEvaluation.competencies );
         },
 
-        loadEmployee( employeeID ) {
+        loadEmployeeEvaluation( employeeID ) {
             const resolvedID = String( employeeID || "" ).trim();
             if ( !resolvedID ) {
                 this.showEvaluationForm = false;
@@ -127,16 +133,18 @@ let configureCompetencyEvaluation = () => {
             } else {
                 this.employeeID = resolvedID;
                 const evaluationID = getEvaluationIDFromUrl();
-                const url = `/app/load-employee-competencies?employeeID=${ encodeURIComponent( resolvedID ) }${ evaluationID ? `&evaluationID=${ encodeURIComponent( evaluationID ) }` : "" }`;
+                const url = `/app/load-evaluation?employeeID=${ encodeURIComponent( resolvedID ) }${ evaluationID ? `&evaluationID=${ encodeURIComponent( evaluationID ) }` : "" }`;
                 tiApplication.sendRequest( url ).then( ( result ) => {
                     this.showEvaluationForm = true;
                     this.applyData( result?.data );
                 } ).catch( ( error ) => {
-                    if ( error?.name === "AbortError" || error?.isAborted ) return;
+                    if ( error?.name === "AbortError" || error?.isAborted ) {
+                        return;
+                    }
 
                     this.showEvaluationForm = false;
                     this.applyData( initialDataModels.competencyEvaluation );
-                    tiApplication.notify( { message: `Failed to load competence evaluation: ${ error.message }`, timeout: 60000 } );
+                    tiApplication.notify( tiApplication.formatException( error ) );
                 } );
             }
         },
@@ -147,43 +155,54 @@ let configureCompetencyEvaluation = () => {
                 const initial = JSON.parse( schema.textContent || '{}' );
                 this.applyData( initial );
             } else if ( this.employeeID ) {
-                this.loadEmployee( this.employeeID );
+                this.loadEmployeeEvaluation( this.employeeID );
             } else {
                 this.applyData( initialDataModels.competencyEvaluation );
             }
         },
 
         saveDraft() {
-            tiApplication.sendRequest( "/app/save-evaluation-draft", "POST", this.evaluation ).then( () => {
-                tiApplication.notify( {
-                    message: tiApplication.getLabel( "interface.evaluation.messages.draft-saved", "Draft saved successfully." ),
-                    timeout: 3000
-                } );
+            tiApplication.sendRequest( "/app/save-evaluation-draft", "POST", { evaluation: this.evaluation } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.draft-saved" ) );
             } ).catch( ( error ) => {
-                tiApplication.notify( { message: error.message } );
+                tiApplication.notify( tiApplication.formatException( error ) );
             } );
         },
 
         submitEvaluation() {
             if ( confirm( tiApplication.getLabel( "interface.evaluation.messages.confirm-submit", "Are you sure you want to submit the evaluation?" ) ) ) {
-                tiApplication.sendRequest( "/app/submit-evaluation", "POST", this.evaluation ).then( () => {
-                    tiApplication.notify( {
-                        message: tiApplication.getLabel( "interface.evaluation.messages.submitted", "Evaluation submitted successfully." ),
-                        timeout: 5000
-                    } );
-                    this.loadEmployee( this.employeeID );
+                tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: this.evaluation } ).then( () => {
+                    tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.submitted" ) );
+                    this.loadEmployeeEvaluation( this.employeeID );
                 } ).catch( ( error ) => {
-                    tiApplication.notify( { message: error.message } );
+                    tiApplication.notify( tiApplication.formatException( error ) );
                 } );
             }
         },
 
+        getUserRoleAsText() {
+            switch ( this.userRole ) {
+                case 1:
+                    return "employee";
+                case 2:
+                    return "manager";
+                case 4:
+                    return "team";
+                default:
+                    return "";
+            }
+        },
+
         resetGrades() {
-            const role = this.isEmployee() ? "employee" : ( this.isEmployeeManager() ? "manager" : null );
+            const role = this.getUserRoleAsText();
             if ( role && this.evaluation && this.evaluation.grades ) {
                 Object.keys( this.evaluation.grades ).forEach( ( key ) => {
                     if ( this.evaluation.grades[ key ] ) {
-                        this.evaluation.grades[ key ][ role ] = "";
+                        if ( role === "team" ) {
+                            this.evaluation.grades[ key ].team = { cumulative: "" };
+                        } else {
+                            this.evaluation.grades[ key ][ role ] = "";
+                        }
                     }
                 } );
             }
@@ -196,7 +215,7 @@ let configureCompetencyEvaluation = () => {
         getItemGrade( competencyCode, role, defaultValue = "" ) {
             let grade;
             if ( competencyCode ) {
-                grade = this.evaluation.grades?.[ competencyCode ]?.[ role ];
+                grade = ( role !== "team" ) ? this.evaluation.grades?.[ competencyCode ]?.[ role ] : this.evaluation.grades?.[ competencyCode ]?.team?.cumulative;
             }
             return grade || defaultValue;
         },
@@ -204,25 +223,23 @@ let configureCompetencyEvaluation = () => {
         setItemGrade( competencyCode, role, value ) {
             this.evaluation.grades = this.evaluation.grades || {};
             this.evaluation.grades[ competencyCode ] = this.evaluation.grades[ competencyCode ] || {};
-            this.evaluation.grades[ competencyCode ][ role ] = value;
+            if ( role !== "team" ) {
+                this.evaluation.grades[ competencyCode ][ role ] = value;
+            } else {
+                this.evaluation.grades[ competencyCode ].team = this.evaluation.grades[ competencyCode ].team || {};
+                this.evaluation.grades[ competencyCode ].team.cumulative = value;
+            }
         },
 
         formatDate( value ) {
             if ( !value ) return "";
             const normalized = /^\d{4}-\d{2}-\d{2}$/.test( value )
-                ? `${ value }T00:00:00Z`
+                ? `${ value }T00:00:00`
                 : value;
             const date = new Date( normalized );
             return isValidDate( date ) ? date.toLocaleDateString() : "";
-        },
-
-        isEmployeeManager() {
-            return tiApplication.user && tiApplication.user.roles && tiApplication.user.roles.includes( 2 ) && this.personal.managerID === tiApplication.user.employeeID;
-        },
-
-        isEmployee() {
-            return tiApplication.user && tiApplication.user.roles && tiApplication.user.roles.includes( 1 ) && this.employeeID === tiApplication.user.employeeID;
         }
+
     };
 };
 

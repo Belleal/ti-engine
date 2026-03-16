@@ -15,7 +15,7 @@ const fs = require( "node:fs" );
 const RE_NONCE_ATTR = /\{ti-nonce-placeholder}/g;
 const RE_CSRF_ATTR = /\{ti-csrf-placeholder}/g;
 const RE_HTMX_CONFIG = /\{ti-htmx-config-placeholder}/g;
-const RE_CSP_NONCE = /^[A-Za-z0-9+\/=_-]{16,}$/;
+const RE_CSP_NONCE = /^[A-Za-z0-9+/=_-]{16,}$/;
 const TI_NESTED_FRAME_PLACEHOLDER = "ti-nested-frame-placeholder";
 
 /**
@@ -40,7 +40,7 @@ class TiWebAppManager {
     /**
      * @constructor
      * @param {string} identifier The identifier for this web application. Should be unique and recognizable.
-     * @throws {Exception.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
+     * @throws {TiException.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
      */
     constructor( identifier ) {
         // Make sure this abstract class cannot be instantiated:
@@ -104,7 +104,7 @@ class TiWebAppManager {
      * @method
      * @param {string} identifier
      * @param {Object} fragment
-     * @throws {Exception.E_GEN_UNALLOWED_OVERRIDE} If a fragment with the same identifier already exists.
+     * @throws {TiException.E_GEN_UNALLOWED_OVERRIDE} If a fragment with the same identifier already exists.
      * @public
      */
     addFragment( identifier, fragment ) {
@@ -242,6 +242,7 @@ class TiWebAppManager {
      * @param {string} view
      * @param {Object} [options]
      * @returns {Promise<Object>}
+     * @virtual
      * @public
      */
     processDataRequest( session, view, options = {} ) {
@@ -254,8 +255,25 @@ class TiWebAppManager {
                     }
                 } );
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI, { view: view } ) );
             }
+        } );
+    }
+
+    /**
+     * Used to process an application service request.
+     *
+     * @method
+     * @param {Object} session
+     * @param {string} service
+     * @param {Object} params
+     * @returns {Promise<Object>}
+     * @virtual
+     * @public
+     */
+    processServiceRequest( session, service, params ) {
+        return new Promise( ( resolve, reject ) => {
+            reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI, { service: service } ) );
         } );
     }
 

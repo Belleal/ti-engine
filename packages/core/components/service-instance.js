@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -14,11 +14,6 @@ const logger = require( "#logger" );
 const exceptions = require( "#exceptions" );
 const cache = require( "#cache" );
 const messageDispatcher = require( "#message-dispatcher" );
-
-/**
- * @typedef {Object} ServiceConfiguration
- * @property {ServiceDefinition[]} [services] A list of service definitions to be registered with the {@link ServiceProvider}.
- */
 
 /**
  * Abstract class used to define a Service Instance behavior.
@@ -43,8 +38,8 @@ class ServiceInstance {
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
      * @param {ServiceConfiguration} [serviceConfig={ services: [] }] The JSON configuration for this service.
-     * @throws {Exception.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
-     * @throws {Exception.E_GEN_FEATURE_UNSUPPORTED} If multiple instances are started in the same process.
+     * @throws {TiException.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
+     * @throws {TiException.E_GEN_FEATURE_UNSUPPORTED} If multiple instances are started in the same process.
      */
     constructor( serviceDomainName, serviceConfig = { services: [] } ) {
         // Ensure this abstract class cannot be instantiated:
@@ -143,7 +138,7 @@ class ServiceInstance {
      * <br/>
      * NOTE: This method will be invoked automatically.
      * <br/>
-     * NOTE: If you need to add more onStart logic you can override this method but make sure to call it in the
+     * NOTE: If you need to add more onStart logic, you can override this method but make sure to call it in the
      * overriding method using: super.onStart()
      *
      * @method

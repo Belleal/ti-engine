@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -13,45 +13,6 @@ const logger = require( "#logger" );
 const config = require( "#config" );
 const cache = require( "#cache" );
 const messageDispatcher = require( "#message-dispatcher" );
-
-/**
- * @typedef {Object} ServiceAddress
- * @property {string} serviceAlias A valid service alias.
- * @property {string} serviceDomainName A valid service domain name.
- * @property {number|undefined} serviceVersion Optional service version. If not provided, the latest version will be assumed as a target.
- */
-
-/**
- * @typedef {Object} ServiceExecContext
- * @property {string|undefined} authToken A valid authentication token that initialized the service call (if applicable).
- * @property {ServiceCallPredecessor|undefined} previousServiceCall The previous service call in the execution chain (if such exists).
- */
-
-/**
- * @typedef {Message} ServiceCallPredecessor
- * @property {string} predecessor The {@link Message.messageID} of the predecessor in the service call tree.
- * @property {ServiceAddress} serviceAddress The address of the service that has to process the service call.
- * @property {Object|undefined} serviceParams The named params to be provided to the API service.
- */
-
-/**
- * @typedef {ServiceCallPredecessor} ServiceCall
- * @property {string} authToken A valid authentication token that initialized the service call.
- * @property {number} createdOn A unix timestamp taken at creation time of the service call.
- * @property {number} executionTime The total execution time of this service call in milliseconds.
- * @property {Object|undefined} exception If there was exception during the service call processing, it will be set here. Otherwise, it will be 'undefined'.
- * @property {number|undefined} finishedOn A unix timestamp taken at finish time of the service call.
- * @property {boolean} isCompleted Flag to indicate if this service call has been completed.
- * @property {boolean|undefined} isSuccessful A flag indicating if this service call can be considered successful or not. Will be 'undefined' until the service call is processed.
- * @property {string[]} successors The service call IDs of the successors in the service call tree.
- */
-
-/**
- * @typedef {Object} ServiceCallResult
- * @property {Exception|undefined} exception If there was exception during the service call processing, it will be set here. Otherwise, it will be 'undefined'.
- * @property {boolean} isSuccessful A flag indicating if this service call can be considered successful or not.
- * @property {Object|string|undefined} payload The payload containing the results from the service call processing. If a string, it is ID of the payload in the memory cache instead.
- */
 
 /**
  * Used to assemble and prepare a new {@link ServiceCall} object.

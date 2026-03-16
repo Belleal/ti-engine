@@ -92,7 +92,7 @@ function getVisibleBox( isFixed ) {
         if ( window.visualViewport ) {
             const viewport = window.visualViewport;
             return {
-                left: viewport.offsetLeft, // CSS px, where the viewport begins relative to layout viewport
+                left: viewport.offsetLeft, // CSS px, where the viewport begins relative to a layout viewport
                 top: viewport.offsetTop,
                 width: viewport.width,
                 height: viewport.height,
@@ -423,7 +423,7 @@ let configureApplication = () => {
          */
         init() {
             document.addEventListener( "ti:error", ( event ) => {
-                this.notify( event.detail );
+                this.notify( this.formatException( event.detail ) );
             } );
 
             // Use application settings to configure the application at load-time:
@@ -434,12 +434,13 @@ let configureApplication = () => {
                 this.user = result?.data?.user || null;
                 this.isInitialized = true;
             } ).catch( ( error ) => {
-                if ( error?.name === "AbortError" || error?.isAborted ) return;
+                if ( error?.name === "AbortError" || error?.isAborted ) {
+                    return;
+                }
 
                 this.user = null;
                 this.isInitialized = false;
-                error.message = `Failed to initialize the application: ${ error.message }`;
-                this.notify( error );
+                this.notify( this.getLabel( "error.application.init-failed" ) + this.formatException( error ) );
             } );
         },
 
@@ -517,20 +518,32 @@ let configureApplication = () => {
         },
 
         /**
+         * Used to format an exception notification message.
+         *
+         * @method
+         * @param {Object} error
+         * @returns {string}
+         * @public
+         */
+        formatException( error ) {
+            return this.getLabel( ( error.exception?.code === 5005 && error.exception?.data ) ? error.exception.data.details : error.exception?.label );
+        },
+
+        /**
          * Used to display a notification in the notification bar.
          *
          * @method
-         * @param {Object} data
+         * @param {string} message
+         * @param {number} [timeout=6000]
          * @public
          */
-        notify( data ) {
+        notify( message, timeout = 6000 ) {
             const notificationBar = document.querySelector( "#ti-notifications" );
             if ( notificationBar ) {
                 Alpine.$data( notificationBar ).add( {
-                    id: data?.exception?.id || this.notificationIDCounter++,
-                    code: data?.exception?.code || 0,
-                    message: data?.message || "Unexpected application error.",
-                    timeout: data?.timeout || 60000
+                    id: this.notificationIDCounter++,
+                    message: message || this.getLabel( "error.application.unexpected" ),
+                    timeout: timeout
                 } );
             }
         },
@@ -575,7 +588,7 @@ document.addEventListener( "htmx:responseError", ( event ) => {
             const data = JSON.parse( xhr.responseText );
             const tiApplication = Alpine.store( "tiApplication" );
             if ( tiApplication && tiApplication.isInitialized ) {
-                tiApplication.notify( data );
+                tiApplication.notify( tiApplication.formatException( data ) );
             }
         }
     } catch {

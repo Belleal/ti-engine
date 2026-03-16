@@ -10,10 +10,9 @@
     "#config-position-competencies": "./bin/config/positionCompetencies.json",
     "#config-position-levels": "./bin/config/positionLevels.json",
     "#config-positions": "./bin/config/positions.json",
-    "#config-roles": "./bin/config/roles.json",
     "#configuration-loader": "./application/configuration-loader.js",
-    "#data-employees": "./bin/data/employees.json",
-    "#data-evaluations": "./bin/data/evaluations.json",
+    "#data-employees": "./bin/data/seeders/employees.json",
+    "#data-evaluations": "./bin/data/seeders/evaluations.json",
     "#data-manager": "./application/data-manager.js"
   },
   "dependencies": {

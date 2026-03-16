@@ -13,6 +13,12 @@ const tools = require( "@ti-engine/core/tools" );
 const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
 
+const gradeWeights = tools.deepFreeze( {
+    [ configurationLoader.evaluationGrade.S ]: 1.3,
+    [ configurationLoader.evaluationGrade.R ]: 1.0,
+    [ configurationLoader.evaluationGrade.U ]: 0.6
+} );
+
 /**
  * NOTE: This is still a work in progress.
  *
@@ -60,11 +66,11 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Used to process a request for a data resource.
      *
      * @method
-     * @override
      * @param {Object} session
      * @param {string} view
      * @param {Object} [options]
      * @returns {Promise<Object>}
+     * @override
      * @public
      */
     processDataRequest( session, view, options = {} ) {
@@ -73,19 +79,261 @@ class CompetenceWebApplication extends TiWebAppManager {
                 ...result,
                 grades: configurationLoader.configEvaluationGrades
             } ) );
-        }
-        if ( view === "load-employee-competencies" ) {
+        } else if ( view === "load-evaluation" ) {
             const employeeID = String( options?.query?.employeeID || "" ).trim();
             const evaluationID = String( options?.query?.evaluationID || "" ).trim();
-            return this.#loadEmployeeCompetencies( session, employeeID, evaluationID );
+            return this.#loadEvaluation( session, employeeID, evaluationID );
+        } else {
+            return super.processDataRequest( session, view, options );
         }
-        return super.processDataRequest( session, view, options );
+    }
+
+    /**
+     * Used to process an application service request.
+     *
+     * @method
+     * @param {Object} session
+     * @param {string} service
+     * @param {Object} params
+     * @returns {Promise<Object>}
+     * @override
+     * @public
+     */
+    processServiceRequest( session, service, params ) {
+        if ( service === "save-evaluation-draft" ) {
+            return this.#saveEvaluationDraft( session, params.evaluation );
+        } else if ( service === "submit-evaluation" ) {
+            return this.#submitEvaluation( session, params.evaluation );
+        } else {
+            return super.processServiceRequest( session, service, params );
+        }
     }
 
     /* Private interface */
 
     /**
-     * Used to load the data for the competence evaluation screen for a specific employee.
+     * Used to submit the evaluation.
+     *
+     * @param {Object} session
+     * @param {Evaluation} evaluation
+     * @returns {Promise<Evaluation>}
+     * @throws {TiException.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
+     * @throws {TiException.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
+     * @private
+     */
+    #submitEvaluation( session, evaluation ) {
+        return new Promise( ( resolve, reject ) => {
+            const userID = session?.user?.employeeID;
+            if ( !userID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS ) );
+            }
+
+            let existingEvaluation = null;
+            let isEmployee = false;
+            let isManager = false;
+            let isTeamMember = false;
+            dataManager.instance.fetchEvaluation( evaluation.evaluationID ).then( ( storedEvaluation ) => {
+                existingEvaluation = storedEvaluation;
+                isEmployee = existingEvaluation.employeeID === userID;
+                isTeamMember = Array.isArray( existingEvaluation.workflow?.team ) && existingEvaluation.workflow.team.includes( userID ) && !isEmployee;
+
+                return this.#canManagerModifyEvaluation( userID, existingEvaluation );
+            } ).then( ( isManagerResult ) => {
+                isManager = isManagerResult;
+                const today = new Date().toISOString().split( "T" )[ 0 ];
+
+                if ( isEmployee ) {
+                    if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-open" }, exceptions.httpCode.C_422 );
+                    }
+                    if ( existingEvaluation.workflow.selfEvaluationCompleted ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.already-completed-self-evaluation" }, exceptions.httpCode.C_422 );
+                    }
+                    if ( existingEvaluation.workflow.selfEvaluationDeadline && today > existingEvaluation.workflow.selfEvaluationDeadline ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-self-evaluation" }, exceptions.httpCode.C_422 );
+                    }
+
+                    if ( evaluation.comment !== undefined ) {
+                        existingEvaluation.comment = evaluation.comment;
+                    }
+                    this.#updateSelfEvaluationGrades( existingEvaluation, evaluation.grades );
+
+                    existingEvaluation.workflow.selfEvaluationCompleted = true;
+                } else if ( isTeamMember ) {
+                    if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-open" }, exceptions.httpCode.C_422 );
+                    }
+                    if ( existingEvaluation.workflow.teamEvaluationDeadline && today > existingEvaluation.workflow.teamEvaluationDeadline ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-team-evaluation" }, exceptions.httpCode.C_422 );
+                    }
+
+                    this.#updateTeamEvaluationGrades( existingEvaluation, evaluation.grades );
+
+                    if ( evaluation.feedback && evaluation.feedback.teamComments ) {
+                        existingEvaluation.feedback = existingEvaluation.feedback || {};
+                        existingEvaluation.feedback.teamComments = existingEvaluation.feedback.teamComments || [];
+                        const comments = evaluation.feedback.teamComments;
+                        if ( Array.isArray( comments ) ) {
+                            existingEvaluation.feedback.teamComments.push( ...comments );
+                        } else if ( typeof comments === "string" && comments.trim() ) {
+                            existingEvaluation.feedback.teamComments.push( comments );
+                        }
+                    }
+
+                    existingEvaluation.workflow.teamEvaluationsSubmitted = ( existingEvaluation.workflow.teamEvaluationsSubmitted || 0 ) + 1;
+                    existingEvaluation.workflow.team = existingEvaluation.workflow.team.filter( ( id ) => id !== userID );
+
+                    if ( existingEvaluation.workflow.team.length === 0 ) {
+                        existingEvaluation.workflow.teamEvaluationCompleted = true;
+                        this.#calculateTeamCumulativeGrades( existingEvaluation );
+                    }
+                } else if ( isManager ) {
+                    if ( existingEvaluation.status !== configurationLoader.evaluationStatus.IN_REVIEW ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-in-review" }, exceptions.httpCode.C_422 );
+                    }
+                    if ( existingEvaluation.workflow.managerEvaluationDeadline && today > existingEvaluation.workflow.managerEvaluationDeadline ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-manager-evaluation" }, exceptions.httpCode.C_422 );
+                    }
+
+                    if ( evaluation.feedback && evaluation.feedback.managerComment !== undefined ) {
+                        existingEvaluation.feedback = existingEvaluation.feedback || {};
+                        existingEvaluation.feedback.managerComment = evaluation.feedback.managerComment;
+                    }
+
+                    if ( evaluation.interviewDate !== undefined ) {
+                        existingEvaluation.interviewDate = evaluation.interviewDate;
+                    }
+
+                    this.#updateManagerEvaluationGrades( existingEvaluation, evaluation.grades );
+
+                    existingEvaluation.workflow.managerEvaluationCompleted = true;
+                    existingEvaluation.status = configurationLoader.evaluationStatus.READY;
+                } else {
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
+                }
+
+                if ( existingEvaluation.status === configurationLoader.evaluationStatus.OPEN ) {
+                    const teamDone = existingEvaluation.workflow.teamEvaluationCompleted
+                        || ( !existingEvaluation.workflow.team || existingEvaluation.workflow.team.length === 0 );
+                    if ( existingEvaluation.workflow.selfEvaluationCompleted && teamDone ) {
+                        existingEvaluation.status = configurationLoader.evaluationStatus.IN_REVIEW;
+                    }
+                }
+
+                // TODO: Make sure to update the 'currentStep' of the workflow accordingly (graph implementation needed first).
+
+                return dataManager.instance.saveEvaluation( existingEvaluation );
+            } ).then( ( savedEvaluation ) => {
+                let userRole;
+                if ( isTeamMember ) {
+                    userRole = configurationLoader.roleCode.TEAM_MEMBER;
+                } else if ( isEmployee ) {
+                    userRole = configurationLoader.roleCode.EMPLOYEE;
+                } else if ( isManager ) {
+                    userRole = configurationLoader.roleCode.MANAGER;
+                }
+
+                // NOTE: Remove information that should not be exposed to some roles:
+                this.#anonymizeEvaluationGrades( savedEvaluation, userRole );
+
+                // NOTE: Make sure to delete the workflow system information:
+                delete savedEvaluation.workflow;
+
+                resolve( savedEvaluation );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to save a draft of the evaluation.
+     *
+     * @method
+     * @param {Object} session
+     * @param {Evaluation} evaluation
+     * @returns {Promise<Evaluation>}
+     * @throws {TiException.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
+     * @throws {TiException.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
+     * @private
+     */
+    #saveEvaluationDraft( session, evaluation ) {
+        return new Promise( ( resolve, reject ) => {
+            const userID = session?.user?.employeeID;
+            if ( !userID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS ) );
+            }
+
+            let existingEvaluation = null;
+            let isEmployee = false;
+            let isManager = false;
+            dataManager.instance.fetchEvaluation( evaluation.evaluationID ).then( ( storedEvaluation ) => {
+                isEmployee = storedEvaluation.employeeID === userID;
+                existingEvaluation = storedEvaluation;
+
+                return this.#canManagerModifyEvaluation( userID, existingEvaluation );
+            } ).then( ( isManagerResult ) => {
+                isManager = isManagerResult;
+                const today = new Date().toISOString().split( "T" )[ 0 ];
+
+                if ( isEmployee ) {
+                    if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-draft-status-open" }, exceptions.httpCode.C_422 );
+                    }
+                    if ( existingEvaluation.workflow?.selfEvaluationDeadline && today > existingEvaluation.workflow.selfEvaluationDeadline ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-self-evaluation" }, exceptions.httpCode.C_422 );
+                    }
+
+                    if ( evaluation.comment !== undefined ) {
+                        existingEvaluation.comment = evaluation.comment;
+                    }
+                    this.#updateSelfEvaluationGrades( existingEvaluation, evaluation.grades );
+                } else if ( isManager ) {
+                    if ( existingEvaluation.status !== configurationLoader.evaluationStatus.IN_REVIEW ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-draft-status-in-review" }, exceptions.httpCode.C_422 );
+                    }
+                    if ( existingEvaluation.workflow?.managerEvaluationDeadline && today > existingEvaluation.workflow.managerEvaluationDeadline ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-manager-evaluation" }, exceptions.httpCode.C_422 );
+                    }
+
+                    if ( evaluation.feedback && evaluation.feedback.managerComment !== undefined ) {
+                        existingEvaluation.feedback = existingEvaluation.feedback || {};
+                        existingEvaluation.feedback.managerComment = evaluation.feedback.managerComment;
+                    }
+
+                    if ( evaluation.interviewDate !== undefined ) {
+                        existingEvaluation.interviewDate = evaluation.interviewDate;
+                    }
+
+                    this.#updateManagerEvaluationGrades( existingEvaluation, evaluation.grades );
+                } else {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.no-draft-saving-possible" }, exceptions.httpCode.C_422 );
+                }
+
+                return dataManager.instance.saveEvaluation( existingEvaluation );
+            } ).then( ( savedEvaluation ) => {
+                let userRole;
+                if ( isEmployee ) {
+                    userRole = configurationLoader.roleCode.EMPLOYEE;
+                } else if ( isManager ) {
+                    userRole = configurationLoader.roleCode.MANAGER;
+                }
+
+                // NOTE: Remove information that should not be exposed to some roles:
+                this.#anonymizeEvaluationGrades( savedEvaluation, userRole );
+
+                // NOTE: Make sure to delete the workflow system information:
+                delete savedEvaluation.workflow;
+
+                resolve( savedEvaluation );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to load the data for the competence evaluation form for a specific employee.
      *
      * @method
      * @param {Object} session
@@ -94,15 +342,23 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @returns {Promise<Object>}
      * @private
      */
-    #loadEmployeeCompetencies( session, employeeID, evaluationID = null ) {
+    #loadEvaluation( session, employeeID, evaluationID = null ) {
         return new Promise( ( resolve, reject ) => {
+            const userID = session?.user?.employeeID;
+            if ( !userID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS ) );
+            }
+
+            let currentEvaluation = null;
             let employee = null;
+            let allowedCompetencyCodes = null;
+            let isEmployee = false;
+            let isTeamMember = false;
             dataManager.instance.fetchEmployee( employeeID ).then( ( employeeData ) => {
                 employee = employeeData;
-                return dataManager.instance.fetchEvaluations( employee.employeeID, true );
+                return dataManager.instance.fetchEvaluations( employee.employeeID );
             } ).then( ( evaluations ) => {
                 // Load the current evaluation - either by the specified evaluation ID or by the most recent evaluation in the list:
-                let currentEvaluation;
                 if ( evaluationID ) {
                     currentEvaluation = evaluations.find( ( evaluation ) => evaluation.evaluationID === evaluationID );
                     if ( !currentEvaluation ) {
@@ -111,7 +367,12 @@ class CompetenceWebApplication extends TiWebAppManager {
                 } else if ( evaluations.length > 0 ) {
                     currentEvaluation = evaluations.slice().sort( ( a, b ) => new Date( b.cycleDate ) - new Date( a.cycleDate ) )[ 0 ];
                 } else {
+                    // TODO: Separate business logic to strictly loading an evaluation and creating a new one by a user with the requisite rights.
                     currentEvaluation = this.#createNewEvaluation( employeeID );
+                }
+
+                if ( currentEvaluation.status === configurationLoader.evaluationStatus.CLOSED ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.status-is-closed" }, exceptions.httpCode.C_422 );
                 }
 
                 const positionKey = String( employee.personal?.position ?? "" ).trim();
@@ -120,7 +381,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 const positionEntry = Object.prototype.hasOwnProperty.call( positionCompetencies, positionKey )
                     ? positionCompetencies[ positionKey ]
                     : null;
-                let allowedCompetencyCodes = null;
+
                 if ( Array.isArray( positionEntry ) ) {
                     allowedCompetencyCodes = positionEntry;
                 } else if ( positionEntry && typeof positionEntry === "object" ) {
@@ -132,13 +393,37 @@ class CompetenceWebApplication extends TiWebAppManager {
                     currentEvaluation.grades[ competencyCode ] = this.#normalizeGrades( currentEvaluation.grades, competencyCode );
                 }
 
+                return dataManager.instance.saveEvaluation( currentEvaluation );
+            } ).then( ( evaluation ) => {
+                isEmployee = evaluation.employeeID === userID && session?.user?.roles?.includes( 1 );
+                isTeamMember = Array.isArray( evaluation.workflow?.team ) && evaluation.workflow.team.includes( userID ) && !isEmployee;
+
+                return this.#canManagerModifyEvaluation( userID, evaluation );
+            } ).then( ( isManager ) => {
+                let userRole;
+                if ( isTeamMember ) {
+                    userRole = configurationLoader.roleCode.TEAM_MEMBER;
+                } else if ( isEmployee ) {
+                    userRole = configurationLoader.roleCode.EMPLOYEE;
+                } else if ( isManager ) {
+                    userRole = configurationLoader.roleCode.MANAGER;
+                }
+
+                // NOTE: Remove information that should not be exposed to some roles:
+                this.#anonymizeEvaluationGrades( currentEvaluation, userRole );
+
+                // NOTE: Make sure to delete the workflow system information:
+                delete currentEvaluation.workflow;
+
                 resolve( {
                     employeeID: employeeID,
                     personal: {
                         ...employee.personal,
                         positionName: configurationLoader.organizationPositionCode.name( employee.personal?.position )
                     },
+                    manager: employee.manager,
                     evaluation: currentEvaluation,
+                    userRole: userRole,
                     competencies: this.#buildCompetenciesTree(
                         configurationLoader.configCompetencies,
                         session?.language,
@@ -173,8 +458,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             ? new Set( Array.isArray( allowedCompetencyCodes ) ? allowedCompetencyCodes : [] )
             : null;
 
-        Object.entries( competencies ).forEach( ( [ code, competency ] ) => {
-            if ( filterByPosition && !allowedCompetencySet.has( code ) ) return;
+        Object.entries( competencies ).forEach( ( [ competencyCode, competency ] ) => {
+            if ( filterByPosition && !allowedCompetencySet.has( competencyCode ) ) return;
             if ( !competency || !competency.category || !competency.subcategory ) return;
             if ( !itemsByCategory[ competency.category ] ) {
                 itemsByCategory[ competency.category ] = {};
@@ -184,7 +469,7 @@ class CompetenceWebApplication extends TiWebAppManager {
             }
 
             itemsByCategory[ competency.category ][ competency.subcategory ].push( {
-                id: code,
+                id: competencyCode,
                 name: localization.getLabel( competency.name, language ),
                 description: localization.getLabel( competency.description, language )
             } );
@@ -196,13 +481,13 @@ class CompetenceWebApplication extends TiWebAppManager {
             } );
         } );
 
-        return Object.entries( categories ).map( ( [ categoryId, category ] ) => {
-            const subcategories = Object.entries( category.subcategories || {} ).map( ( [ subId, subcategory ] ) => {
+        return Object.entries( categories ).map( ( [ categoryID, category ] ) => {
+            const subcategories = Object.entries( category.subcategories || {} ).map( ( [ subID, subcategory ] ) => {
                 return {
-                    id: subId,
+                    id: subID,
                     name: localization.getLabel( subcategory.name, language ),
                     description: localization.getLabel( subcategory.description, language ),
-                    items: itemsByCategory?.[ categoryId ]?.[ subId ] || []
+                    items: itemsByCategory?.[ categoryID ]?.[ subID ] || []
                 };
             } );
             const filteredSubcategories = filterByPosition
@@ -212,12 +497,157 @@ class CompetenceWebApplication extends TiWebAppManager {
                 return null;
             }
             return {
-                id: categoryId,
+                id: categoryID,
                 name: localization.getLabel( category.name, language ),
                 description: localization.getLabel( category.description, language ),
                 subcategories: filteredSubcategories
             };
         } ).filter( Boolean );
+    }
+
+    /**
+     * Used to calculate the cumulative grades for the team evaluation.
+     * <br/>
+     * NOTE: This method mutates the passed Evaluation object!
+     *
+     * @method
+     * @param {Evaluation} evaluation
+     * @private
+     */
+    #calculateTeamCumulativeGrades( evaluation ) {
+        if ( evaluation.grades ) {
+            Object.values( evaluation.grades ).forEach( ( gradeEntry ) => {
+                if ( gradeEntry.team && gradeEntry.team.individual && gradeEntry.team.individual.length > 0 ) {
+                    let sum = 0;
+                    let count = 0;
+                    gradeEntry.team.individual.forEach( ( grade ) => {
+                        if ( gradeWeights[ grade ] ) {
+                            sum += gradeWeights[ grade ];
+                            count++;
+                        }
+                    } );
+                    if ( count > 0 ) {
+                        const average = sum / count;
+                        let closestGrade = "";
+                        let minDiff = Number.MAX_VALUE;
+
+                        Object.keys( gradeWeights ).forEach( ( grade ) => {
+                            const diff = Math.abs( average - gradeWeights[ grade ] );
+                            if ( diff < minDiff ) {
+                                minDiff = diff;
+                                closestGrade = grade;
+                            }
+                        } );
+
+                        gradeEntry.team.cumulative = closestGrade;
+                    }
+                }
+            } );
+        }
+    }
+
+    /**
+     * Used to anonymize the evaluation grades based on the user role.
+     * <br/>
+     * NOTE: This method mutates the passed Evaluation object!
+     *
+     * @method
+     * @param {Evaluation} evaluation
+     * @param {RoleCodeValue} userRole
+     * @private
+     */
+    #anonymizeEvaluationGrades( evaluation, userRole ) {
+        if ( evaluation.grades ) {
+            Object.keys( evaluation.grades ).forEach( ( competencyCode ) => {
+                if ( userRole === configurationLoader.roleCode.EMPLOYEE ) {
+                    delete evaluation.grades[ competencyCode ].manager;
+                    delete evaluation.grades[ competencyCode ].team;
+                } else if ( userRole === configurationLoader.roleCode.TEAM_MEMBER ) {
+                    delete evaluation.grades[ competencyCode ].employee;
+                    delete evaluation.grades[ competencyCode ].manager;
+                    evaluation.grades[ competencyCode ].team = { cumulative: "" };
+                } else {
+                    delete evaluation.grades[ competencyCode ].team.individual;
+                }
+            } );
+        }
+    }
+
+    /**
+     * Used to update the self-evaluation grades in the evaluation object.
+     * <br/>
+     * NOTE: This method mutates the passed Evaluation object!
+     *
+     * @method
+     * @param {Evaluation} evaluation
+     * @param {Object.<string, EvaluationGradeEntry>} grades
+     * @private
+     */
+    #updateSelfEvaluationGrades( evaluation, grades ) {
+        if ( grades ) {
+            Object.keys( grades ).forEach( ( competencyCode ) => {
+                evaluation.grades[ competencyCode ] = evaluation.grades[ competencyCode ] || {
+                    employee: "",
+                    manager: "",
+                    team: { cumulative: "", individual: [] }
+                };
+                if ( grades[ competencyCode ]?.employee !== undefined ) {
+                    evaluation.grades[ competencyCode ].employee = grades[ competencyCode ].employee;
+                }
+            } );
+        }
+    }
+
+    /**
+     * Used to update the team evaluation grades in the evaluation object.
+     * <br/>
+     * NOTE: This method mutates the passed Evaluation object!
+     *
+     * @method
+     * @param {Evaluation} evaluation
+     * @param {Object.<string, EvaluationGradeEntry>} grades
+     * @private
+     */
+    #updateTeamEvaluationGrades( evaluation, grades ) {
+        if ( grades ) {
+            Object.keys( grades ).forEach( ( competencyCode ) => {
+                evaluation.grades[ competencyCode ] = evaluation.grades[ competencyCode ] || {
+                    employee: "",
+                    manager: "",
+                    team: { cumulative: "", individual: [] }
+                };
+                const teamEntry = evaluation.grades[ competencyCode ].team = evaluation.grades[ competencyCode ].team || {
+                    cumulative: "",
+                    individual: []
+                };
+                teamEntry.individual = teamEntry.individual || [];
+
+                const submittedGrade = grades[ competencyCode ]?.team?.cumulative;
+                if ( submittedGrade ) {
+                    teamEntry.individual.push( submittedGrade );
+                }
+            } );
+        }
+    }
+
+    /**
+     * Used to update the manager evaluation grades in the evaluation object.
+     * <br/>
+     * NOTE: This method mutates the passed Evaluation object!
+     *
+     * @method
+     * @param {Evaluation} evaluation
+     * @param {Object.<string, EvaluationGradeEntry>} grades
+     * @private
+     */
+    #updateManagerEvaluationGrades( evaluation, grades ) {
+        if ( grades ) {
+            Object.keys( grades ).forEach( ( competencyCode ) => {
+                if ( grades[ competencyCode ]?.manager !== undefined ) {
+                    evaluation.grades[ competencyCode ].manager = grades[ competencyCode ].manager;
+                }
+            } );
+        }
     }
 
     /**
@@ -234,8 +664,24 @@ class CompetenceWebApplication extends TiWebAppManager {
             employeeID: employeeID,
             cycleID: "2025.H1", // TODO: Get cycleID from current cycle!
             cycleDate: "2025-06-30", // TODO: Get cycleDate from current cycle!
-            status: "Open",
-            grades: {}
+            status: configurationLoader.evaluationStatus.OPEN,
+            grades: {},
+            comment: "",
+            feedback: {
+                managerComment: "",
+                teamComments: []
+            },
+            workflow: {
+                currentStep: 1,
+                selfEvaluationCompleted: false,
+                selfEvaluationDeadline: "",
+                managerEvaluationCompleted: false,
+                managerEvaluationDeadline: "",
+                teamEvaluationCompleted: false,
+                teamEvaluationDeadline: "",
+                teamEvaluationsSubmitted: 0,
+                team: []
+            }
         };
     }
 
@@ -255,8 +701,34 @@ class CompetenceWebApplication extends TiWebAppManager {
         return {
             employee: grade.employee || "",
             manager: grade.manager || "",
-            team: grade.team || ""
+            team: {
+                cumulative: grade.team?.cumulative || "",
+                individual: grade.team?.individual || [],
+            }
         };
+    }
+
+    /**
+     * Used to check if the provided user ID is authorized to act as a manager for the evaluation.
+     *
+     * @method
+     * @param {string} managerID
+     * @param {Evaluation} evaluation
+     * @returns {Promise<boolean>}
+     * @private
+     */
+    #canManagerModifyEvaluation( managerID, evaluation ) {
+        return new Promise( ( resolve ) => {
+            if ( evaluation.managerID ) {
+                resolve( evaluation.managerID === managerID );
+            } else {
+                dataManager.instance.fetchEmployee( evaluation.employeeID ).then( ( employee ) => {
+                    resolve( employee.manager.managerID === managerID );
+                } ).catch( () => {
+                    resolve( false );
+                } );
+            }
+        } );
     }
 
 }

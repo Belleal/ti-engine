@@ -13,8 +13,10 @@ describe( "dataManager", () => {
     let dataManager;
 
     before( () => {
-        dataManager = require( "#data-manager" );
+        process.env.COMPETENCE_PRELOAD_DATA = true;
 
+        dataManager = require( "#data-manager" );
+        // TODO: preload the cache system!
     } );
 
     it( "should load DataManager module without errors", () => {
@@ -23,7 +25,7 @@ describe( "dataManager", () => {
 
     it( "should initialize DataManager module without errors", async () => {
         await assert.doesNotReject( async () => {
-            await dataManager.instance.initialize( true );
+            await dataManager.instance.initialize();
         } );
     } );
 

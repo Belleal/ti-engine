@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -13,20 +13,6 @@ const logger = require( "#logger" );
 const exceptions = require( "#exceptions" );
 const cache = require( "#cache" );
 
-/**
- * @typedef {Object} TiTraceEntry
- * @property {string} chainID
- * @property {string} dispatchEvent
- * @property {string} fromAddress
- * @property {string} messageID
- * @property {Object} messageSnapshot
- * @property {string} messageState
- * @property {string} messageType
- * @property {string} toAddress
- * @property {string} traceID
- * @property {number} traceTimestamp
- */
-
 const traceRoot = {
     trace: []
 };
@@ -37,15 +23,12 @@ const UNKNOWN_TOKEN = "UNKNOWN";
  *
  * @readonly
  * @enum {number}
+ * @typedef {number} TiMessageType
  */
 let messageTypeEnum = tools.enum( {
     MESSAGE_REQUEST: [ 1000, "REQUEST", "" ],
     MESSAGE_RESPONSE: [ 1001, "RESPONSE", "" ]
 } );
-
-/**
- * @typedef {number} TiMessageType
- */
 module.exports.messageType = messageTypeEnum;
 
 /**
@@ -53,6 +36,7 @@ module.exports.messageType = messageTypeEnum;
  *
  * @readonly
  * @enum {number}
+ * @typedef {number} TiDispatchEvent
  */
 let dispatchEventEnum = tools.enum( {
     DELIVERED: [ 1100, "DELIVERED", "When message delivery is confirmed." ],
@@ -60,10 +44,6 @@ let dispatchEventEnum = tools.enum( {
     RECEIVED: [ 1102, "RECEIVED", "When message was received." ],
     SENT: [ 1103, "SENT", "When message was sent." ]
 } );
-
-/**
- * @typedef {number} TiDispatchEvent
- */
 module.exports.dispatchEvent = dispatchEventEnum;
 
 /**
@@ -71,15 +51,12 @@ module.exports.dispatchEvent = dispatchEventEnum;
  *
  * @readonly
  * @enum {number}
+ * @typedef {number} TiMessageState
  */
 let messageStateEnum = tools.enum( {
     PENDING: [ 1200, "PENDING", "" ],
     PROCESSED: [ 1201, "PROCESSED", "" ]
 } );
-
-/**
- * @typedef {number} TiMessageState
- */
 module.exports.messageState = messageStateEnum;
 
 /**

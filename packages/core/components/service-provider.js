@@ -1,6 +1,6 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
- * Copyright © 2021-2025 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -38,7 +38,7 @@ class ServiceProvider extends ServiceConsumer {
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
      * @param {ServiceConfiguration} [serviceConfig] The JSON configuration for this service.
-     * @throws {Exception.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
+     * @throws {TiException.E_GEN_ABSTRACT_CLASS_INIT} If this class is instantiated directly.
      */
     constructor( serviceDomainName, serviceConfig ) {
         super( serviceDomainName, serviceConfig );
@@ -56,7 +56,7 @@ class ServiceProvider extends ServiceConsumer {
      * <br/>
      * NOTE: This method will be invoked automatically.
      * <br/>
-     * NOTE: If you need to add more onStart logic you can override this method but make sure to call it in the
+     * NOTE: If you need to add more onStart logic, you can override this method but make sure to call it in the
      * overriding method using: super.onStart()
      *
      * @method
@@ -88,7 +88,7 @@ class ServiceProvider extends ServiceConsumer {
      * <br/>
      * NOTE: This method will be invoked automatically.
      * <br/>
-     * NOTE: If you need to add more onStop logic you can override this method but make sure to call it in the
+     * NOTE: If you need to add more onStop logic, you can override this method but make sure to call it in the
      * overriding method using: super.onStop()
      *
      * @method
@@ -110,7 +110,7 @@ class ServiceProvider extends ServiceConsumer {
      * Used to report health status of the service instance for external monitoring.
      * This is a scheduled job that will be executed at SERVICE_HEALTH_CHECK_INTERVAL time.
      * <br/>
-     * NOTE: By default this method will update a Redis key with an expiration timer. You can override this
+     * NOTE: By default, this method will update a Redis key with an expiration timer. You can override this
      * functionality with something custom like calling an HTTP endpoint.
      *
      * @method
@@ -204,13 +204,14 @@ class ServiceProvider extends ServiceConsumer {
                 let promises = [];
                 _.forEach( serviceDefinitions, ( serviceDefinition ) => {
                     // NOTE: we are not going to interrupt the service interface loading if one of the services fails to load or is not found!
-                    // If this happens, a corresponding log entry will be created but the loading process will continue. Therefore, the following
-                    // promise will always resolve (unless a programming error occurs in it, of course).
+                    // If this happens, a corresponding log entry will be created, but the loading process will continue. Therefore, the following
+                    // promise will always be resolved (unless a programming error occurs in it, of course).
                     let registrationPromise = ( serviceDefinition, defaultServiceHandler ) => {
                         return new Promise( ( resolve ) => {
                             this.registerService( serviceDefinition, defaultServiceHandler ).then( () => {
                                 resolve( true );
-                            } ).catch( () => {
+                            } ).catch( ( error ) => {
+                                logger.log( `Service registration failed for '${ serviceDefinition?.serviceAlias || "unknown-service" }'.`, logger.logSeverity.ERROR, error );
                                 resolve( false );
                             } );
                         } );

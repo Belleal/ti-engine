@@ -152,7 +152,7 @@ describe( "CompetenceWebApplication", () => {
         } );
     } );
 
-    describe( "processDataRequest() - load-employee-competencies view", () => {
+    describe( "processDataRequest() - load-evaluation view", () => {
         beforeEach( () => {
             app = new CompetenceWebApplication();
         } );
@@ -160,7 +160,7 @@ describe( "CompetenceWebApplication", () => {
         it( "should reject when employeeID is missing", async () => {
             const session = { language: "en" };
             await assert.rejects(
-                app.processDataRequest( session, "load-employee-competencies", {} ),
+                app.processDataRequest( session, "load-evaluation", {} ),
                 ( error ) => {
                     assert.ok( error );
                     return true;
@@ -173,7 +173,7 @@ describe( "CompetenceWebApplication", () => {
             const options = { query: { employeeID: "" } };
 
             await assert.rejects(
-                app.processDataRequest( session, "load-employee-competencies", options ),
+                app.processDataRequest( session, "load-evaluation", options ),
                 ( error ) => {
                     assert.ok( error );
                     return true;
@@ -186,7 +186,7 @@ describe( "CompetenceWebApplication", () => {
             const options = { query: { employeeID: "   " } };
 
             await assert.rejects(
-                app.processDataRequest( session, "load-employee-competencies", options ),
+                app.processDataRequest( session, "load-evaluation", options ),
                 ( error ) => {
                     assert.ok( error );
                     return true;
@@ -199,7 +199,7 @@ describe( "CompetenceWebApplication", () => {
             const options = { query: { employeeID: "999" } };
 
             await assert.rejects(
-                app.processDataRequest( session, "load-employee-competencies", options ),
+                app.processDataRequest( session, "load-evaluation", options ),
                 ( error ) => {
                     assert.ok( error );
                     return true;
@@ -211,7 +211,7 @@ describe( "CompetenceWebApplication", () => {
             const session = { language: "en" };
             const options = { query: { employeeID: "1" } };
 
-            const result = await app.processDataRequest( session, "load-employee-competencies", options );
+            const result = await app.processDataRequest( session, "load-evaluation", options );
 
             assert.ok( result );
             assert.strictEqual( result.employeeID, "1" );
@@ -224,7 +224,7 @@ describe( "CompetenceWebApplication", () => {
             const session = { language: "en" };
             const options = { query: { employeeID: "1" } };
 
-            const result = await app.processDataRequest( session, "load-employee-competencies", options );
+            const result = await app.processDataRequest( session, "load-evaluation", options );
 
             assert.ok( result.personal );
             assert.ok( result.personal.name );
@@ -239,7 +239,7 @@ describe( "CompetenceWebApplication", () => {
             const session = { language: "en" };
             const options = { query: { employeeID: "1" } };
 
-            const result = await app.processDataRequest( session, "load-employee-competencies", options );
+            const result = await app.processDataRequest( session, "load-evaluation", options );
 
             assert.ok( result.evaluation );
             // If there are evaluations, verify the structure
@@ -254,7 +254,7 @@ describe( "CompetenceWebApplication", () => {
             const session = { language: "en" };
             const options = { query: { employeeID: "1" } };
 
-            const result = await app.processDataRequest( session, "load-employee-competencies", options );
+            const result = await app.processDataRequest( session, "load-evaluation", options );
 
             assert.ok( Array.isArray( result.competencies ) );
             if ( result.competencies.length > 0 ) {
@@ -286,7 +286,7 @@ describe( "CompetenceWebApplication", () => {
             // Assuming employeeID "2" might have different evaluation data
             const options = { query: { employeeID: "2" } };
 
-            const result = await app.processDataRequest( session, "load-employee-competencies", options );
+            const result = await app.processDataRequest( session, "load-evaluation", options );
 
             assert.ok( result );
             assert.strictEqual( result.employeeID, "2" );
@@ -298,7 +298,7 @@ describe( "CompetenceWebApplication", () => {
             const session = { language: "en" };
             const options = { query: { employeeID: "  1  " } };
 
-            const result = await app.processDataRequest( session, "load-employee-competencies", options );
+            const result = await app.processDataRequest( session, "load-evaluation", options );
 
             assert.ok( result );
             assert.strictEqual( result.employeeID, "1" );
@@ -309,8 +309,8 @@ describe( "CompetenceWebApplication", () => {
             const sessionDe = { language: "de" };
             const options = { query: { employeeID: "1" } };
 
-            const resultEn = await app.processDataRequest( sessionEn, "load-employee-competencies", options );
-            const resultDe = await app.processDataRequest( sessionDe, "load-employee-competencies", options );
+            const resultEn = await app.processDataRequest( sessionEn, "load-evaluation", options );
+            const resultDe = await app.processDataRequest( sessionDe, "load-evaluation", options );
 
             // Both should return valid results
             assert.ok( resultEn.competencies );
@@ -321,7 +321,7 @@ describe( "CompetenceWebApplication", () => {
             const session = {};
             const options = { query: { employeeID: "1" } };
 
-            const result = await app.processDataRequest( session, "load-employee-competencies", options );
+            const result = await app.processDataRequest( session, "load-evaluation", options );
 
             assert.ok( result );
             assert.ok( result.competencies );
@@ -331,7 +331,7 @@ describe( "CompetenceWebApplication", () => {
             const session = { language: "en" };
             const options = { query: { employeeID: "1" } };
 
-            const result = await app.processDataRequest( session, "load-employee-competencies", options );
+            const result = await app.processDataRequest( session, "load-evaluation", options );
 
             result.competencies.forEach( category => {
                 category.subcategories.forEach( subcategory => {
@@ -371,14 +371,14 @@ describe( "CompetenceWebApplication", () => {
 
         it( "should handle null session gracefully", async () => {
             const options = { query: { employeeID: "1" } };
-            const result = await app.processDataRequest( null, "load-employee-competencies", options );
+            const result = await app.processDataRequest( null, "load-evaluation", options );
             assert.ok( result );
         } );
 
         it( "should handle options without query property", async () => {
             const session = { language: "en" };
             await assert.rejects(
-                app.processDataRequest( session, "load-employee-competencies", {} ),
+                app.processDataRequest( session, "load-evaluation", {} ),
                 ( error ) => {
                     assert.ok( error );
                     return true;
@@ -390,7 +390,7 @@ describe( "CompetenceWebApplication", () => {
             const session = { language: "en" };
             const options = { query: { employeeID: 1 } };
 
-            const result = await app.processDataRequest( session, "load-employee-competencies", options );
+            const result = await app.processDataRequest( session, "load-evaluation", options );
             assert.ok( result );
             assert.strictEqual( result.employeeID, "1" );
         } );
@@ -399,7 +399,7 @@ describe( "CompetenceWebApplication", () => {
             const session = { language: "en" };
             const options = { query: { employeeID: "1" } };
 
-            const result = await app.processDataRequest( session, "load-employee-competencies", options );
+            const result = await app.processDataRequest( session, "load-evaluation", options );
 
             // Check that all competency items have normalized grades
             if ( result.evaluation.grades ) {
@@ -416,7 +416,7 @@ describe( "CompetenceWebApplication", () => {
             const session = { language: "en" };
             const options = { query: { employeeID: "1" } };
 
-            const result = await app.processDataRequest( session, "load-employee-competencies", options );
+            const result = await app.processDataRequest( session, "load-evaluation", options );
 
             // Grades are stored in evaluation.grades[competencyCode], not on items
             assert.ok( result.competencies );
@@ -440,7 +440,7 @@ describe( "CompetenceWebApplication", () => {
             const session = { language: "en" };
             const options = { query: { employeeID: "1" } };
 
-            const result = await app.processDataRequest( session, "load-employee-competencies", options );
+            const result = await app.processDataRequest( session, "load-evaluation", options );
 
             // Verify that competencies come from configuration
             assert.ok( result.competencies.length > 0 );
@@ -453,7 +453,7 @@ describe( "CompetenceWebApplication", () => {
             const session = { language: "en" };
             const options = { query: { employeeID: "1" } };
 
-            const result = await app.processDataRequest( session, "load-employee-competencies", options );
+            const result = await app.processDataRequest( session, "load-evaluation", options );
 
             // Verify that employee data comes from data loader
             assert.ok( result.personal );
@@ -465,7 +465,7 @@ describe( "CompetenceWebApplication", () => {
             const session = { language: "en" };
             const options = { query: { employeeID: "1" } };
 
-            const result = await app.processDataRequest( session, "load-employee-competencies", options );
+            const result = await app.processDataRequest( session, "load-evaluation", options );
 
             // Verify that evaluation data comes from data loader
             assert.ok( result.evaluation );

@@ -38,17 +38,13 @@ class SessionStore extends session.Store {
      * @method
      * @param {string} sessionID
      * @param {Object} session
-     * @param {function( (Error|Exception|null)= )} callback
+     * @param {function( (Error|TiException|null)= )} callback
      * @public
      */
     set( sessionID, session, callback ) {
         cache.instance.hashSetField( sessionStoreName, sessionID, session ).then( () => {
             let expire = ( session.cookie && _.isNumber( session.cookie.maxAge ) ) ? session.cookie.maxAge / 1000 : null;
-            if ( expire ) {
-                return cache.instance.expireValue( sessionID, expire, sessionStoreName );
-            } else {
-                callback();
-            }
+            return ( expire ) ? cache.instance.expireValue( sessionID, expire, sessionStoreName ) : null;
         } ).then( () => {
             callback();
         } ).catch( ( error ) => {
@@ -62,7 +58,7 @@ class SessionStore extends session.Store {
      *
      * @method
      * @param {string} sessionID
-     * @param {function( (Error|Exception|null)=, (Object)= )} callback
+     * @param {function( (Error|TiException|null)=, (Object)= )} callback
      * @public
      */
     get( sessionID, callback ) {
@@ -79,7 +75,7 @@ class SessionStore extends session.Store {
      *
      * @method
      * @param {string} sessionID
-     * @param {function( (Error|Exception|null)= )} callback
+     * @param {function( (Error|TiException|null)= )} callback
      * @public
      */
     destroy( sessionID, callback ) {
@@ -97,7 +93,7 @@ class SessionStore extends session.Store {
      * @method
      * @param {string} sessionID
      * @param {Object} session
-     * @param {function( (Error|Exception|null)= )} callback
+     * @param {function( (Error|TiException|null)= )} callback
      * @public
      */
     touch( sessionID, session, callback ) {

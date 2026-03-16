@@ -1,12 +1,38 @@
 :root {
-    --ti-button-size: 44px;
-    --ti-button-radius: 10px;
-    --ti-gap: 10px;
-    --ti-padding: 10px;
-    --ti-margin: 10px;
-    --ti-notification-top: 50px;
-    --ti-font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    /** General **/
+    --ti-font-family: system-ui, -apple-system, segoe ui, roboto, arial, sans-serif;
     --ti-font-size: 14px;
+    --ti-gap: 12px;
+    --ti-grid-gap: 6px;
+    --ti-margin: 12px;
+    --ti-padding: 12px;
+    --ti-error-color: rgb(230 96 96 / 95%);
+    /** Widgets **/
+    --ti-notification-top: 50px;
+    --ti-panel-border-radius: 4px;
+    --ti-panel-padding: var(--ti-padding);
+    --ti-sub-panel-background: #d9d9d9;
+    /** Buttons **/
+    --ti-button-gap: 6px;
+    --ti-button-radius: 10px;
+    --ti-button-size: 44px;
+    /** Data Fields **/
+    --ti-data-field-background-color: #b9b9b9;
+    --ti-data-field-border-color: var(--ti-data-field-background-color);
+    --ti-data-field-border-radius: 2px;
+    --ti-data-field-height: 20px;
+    --ti-data-field-padding-h: 12px;
+    --ti-data-field-padding-v: 6px;
+    --ti-data-field-text-color: #111111;
+    --ti-description-color: #353535;
+    --ti-input-background-color: #ffffff;
+    --ti-input-border-color: #a6a6a6;
+    --ti-input-outline-color: #8ba0e3;
+    --ti-input-outline-shadow-color: rgba(74, 110, 219, 0.2);
+    --ti-label-color: #1f1f1f;
+    --ti-label-font-size: 14px;
+    --ti-title-color: #1d1d1d;
+    --ti-title-font-size: 14px;
 }
 
 body {
@@ -53,11 +79,17 @@ body {
 }
 
 .ti-button {
+    display: inline-flex;
+    align-items: center;
+    flex-direction: row;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
     appearance: none;
+    gap: var(--ti-button-gap);
     border: 0;
     background: transparent;
-    align-items: center;
-    cursor: pointer;
+    box-sizing: border-box;
     font-family: var(--ti-font-family), system-ui;
     font-size: var(--ti-font-size);
     color: inherit;
@@ -65,6 +97,20 @@ body {
     width: fit-content;
     border-radius: var(--ti-button-radius);
     padding-inline: var(--ti-padding);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.ti-button:link {
+    text-decoration: none !important;
+}
+
+.ti-button:visited {
+    text-decoration: none !important;
+}
+
+.ti-button.login {
+    grid-column: 2;
+    justify-self: center;
 }
 
 .ti-sidebar-button {
@@ -96,12 +142,6 @@ body {
     min-height: 0;
 }
 
-.ti-content.login {
-    flex-direction: column;
-    gap: var(--ti-gap);
-    align-items: center;
-    justify-content: center;
-}
 
 .ti-content.pane {
     display: flex;
@@ -130,6 +170,87 @@ body {
     flex-direction: column;
     gap: var(--ti-gap);
     width: 100%;
+}
+
+.ti-panel.login {
+    flex-direction: column;
+    gap: var(--ti-gap);
+    align-items: center;
+    justify-content: center;
+    width: auto;
+}
+
+.ti-panel-title {
+    font-size: var(--ti-title-font-size);
+    font-weight: 600;
+    color: var(--ti-title-color);
+}
+
+.ti-sub-panel {
+    background-color: var(--ti-sub-panel-background);
+    padding: var(--ti-panel-padding);
+    gap: var(--ti-grid-gap);
+    border-radius: var(--ti-panel-border-radius);
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.ti-sub-panel-title {
+    font-size: var(--ti-title-font-size);
+    font-weight: 600;
+    color: var(--ti-title-color);
+}
+
+.ti-form-grid {
+    display: grid;
+    gap: var(--ti-grid-gap);
+    align-items: center;
+}
+
+.ti-form-grid.login {
+    grid-template-columns: 120px minmax(220px, 1fr);
+}
+
+.ti-label {
+    font-size: var(--ti-label-font-size);
+    color: var(--ti-label-color);
+}
+
+.ti-input {
+    background-color: var(--ti-input-background-color);
+    border: 1px solid var(--ti-input-border-color);
+    border-radius: var(--ti-data-field-border-radius);
+    padding: var(--ti-data-field-padding-v) var(--ti-data-field-padding-h);
+    font-family: var(--ti-font-family);
+    font-size: var(--ti-label-font-size);
+    line-height: var(--ti-data-field-height);
+    min-height: var(--ti-data-field-height);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.ti-input:focus,
+.ti-input:focus-visible {
+    outline: 1px solid var(--ti-input-outline-color);
+    outline-offset: -1px;
+    box-shadow: 0 0 4px 2px var(--ti-input-outline-shadow-color);
+}
+
+.ti-data-value {
+    background-color: var(--ti-data-field-background-color);
+    font-size: var(--ti-label-font-size);
+    font-weight: normal;
+    color: var(--ti-data-field-text-color);
+    padding: calc(var(--ti-data-field-padding-v) - 1px) var(--ti-data-field-padding-h) calc(var(--ti-data-field-padding-v) + 1px);
+    min-height: var(--ti-data-field-height);
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--ti-data-field-border-color);
+    border-radius: var(--ti-data-field-border-radius);
+}
+
+.ti-data-value.compact-centered {
+    justify-content: center;
 }
 
 .ti-button-bar {

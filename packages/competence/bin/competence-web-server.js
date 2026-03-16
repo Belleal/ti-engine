@@ -43,7 +43,7 @@ class CompetenceWebServer extends TiWebServer {
     onStart() {
         return new Promise( ( resolve, reject ) => {
             super.onStart().then( () => {
-                return dataManager.instance.initialize( true );
+                return dataManager.instance.initialize( false );
             } ).then( () => {
                 resolve();
             } ).catch( ( error ) => {

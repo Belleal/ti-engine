@@ -4,6 +4,10 @@ This document will contain the list of changes made to the framework. The format
 
 ## Version 1.5.2
 
+* feat(framework): expand application API by improving `sendRequest`, `notify`, and `getLabel` methods
+* feat(tooltip): add helper methods `getTooltipMessage`, `handleEnter`, `handleLeave`, `showTooltip`, `hideTooltip` to the tooltip component
+* feat(css): improve styles and style structure
+
 ## Version 1.5.1
 
 * feat(framework): add `isValidDate` utility function for validating Date instances

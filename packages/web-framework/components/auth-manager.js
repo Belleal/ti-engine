@@ -143,8 +143,8 @@ class AuthManager {
      * @param {TiAuthMethod} authMethod
      * @param {Object} authDetails
      * @returns {Promise<Object>}
-     * @throws {Exception.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the authentication method is not recognized or enabled.
-     * @throws {Exception.E_GEN_NOT_INITIALIZED} If the auth manager was not properly initialized.
+     * @throws {TiException.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the authentication method is not recognized or enabled.
+     * @throws {TiException.E_GEN_NOT_INITIALIZED} If the auth manager was not properly initialized.
      * @public
      */
     authenticate( authMethod, authDetails ) {
@@ -172,7 +172,7 @@ class AuthManager {
      * @param {URL} currentUrl
      * @param {Object} oidc
      * @returns {Promise<User>}
-     * @throws {Exception.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the authentication method is not recognized.
+     * @throws {TiException.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the authentication method is not recognized.
      * @public
      */
     authorize( authMethod, currentUrl, oidc ) {
@@ -195,7 +195,7 @@ class AuthManager {
      * @method
      * @param {TiAuthMethod} authMethod
      * @returns {string}
-     * @throws {Exception.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the requested OAuth2 method is not recognized or enabled.
+     * @throws {TiException.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the requested OAuth2 method is not recognized or enabled.
      * @public
      */
     getOAuth2CallbackUrl( authMethod ) {
@@ -213,44 +213,43 @@ class AuthManager {
     /**
      * Used to initialize the OpenID Connect client for the specified OAuth2 authentication method.
      * <br/>
-     * NOTE: Google Cloud guide available here: https://developers.google.com/identity/openid-connect/openid-connect
+     * NOTE: A Google Cloud guide available here: https://developers.google.com/identity/openid-connect/openid-connect
      * <br/>
-     * NOTE: Azure Cloud guide available here: https://learn.microsoft.com/en-us/entra/identity-platform/v2-protocols
+     * NOTE: An Azure Cloud guide available here: https://learn.microsoft.com/en-us/entra/identity-platform/v2-protocols
      *
      * @method
      * @param {SettingsOAuth2Client} oauth2
      * @returns {Promise<openidClient.Configuration>}
-     * @throws {Exception.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the token endpoint authentication method is not recognized.
      * @private
      */
     #initializeOpenIDClient( oauth2 ) {
         return new Promise( ( resolve, reject ) => {
             // TODO: Public clients are not fully supported yet!
             let clientAuthentication;
-            let metadata = {};
+            let metaData;
             if ( oauth2.isPublic === true ) {
-                metadata = { token_endpoint_auth_method: openIDTokenEndpointAuthMethodEnum.NONE };
+                metaData = { token_endpoint_auth_method: openIDTokenEndpointAuthMethodEnum.NONE };
                 clientAuthentication = openidClient.None();
             } else {
                 const method = oauth2.tokenEndpointAuthMethod || openIDTokenEndpointAuthMethodEnum.POST;
                 switch ( method ) {
                     case openIDTokenEndpointAuthMethodEnum.POST: {
                         clientAuthentication = openidClient.ClientSecretPost( oauth2.clientSecret );
-                        metadata = { token_endpoint_auth_method: openIDTokenEndpointAuthMethodEnum.POST };
+                        metaData = { token_endpoint_auth_method: openIDTokenEndpointAuthMethodEnum.POST };
                     }
                         break;
                     case openIDTokenEndpointAuthMethodEnum.BASIC: {
                         clientAuthentication = openidClient.ClientSecretBasic( oauth2.clientSecret );
-                        metadata = { token_endpoint_auth_method: openIDTokenEndpointAuthMethodEnum.BASIC };
+                        metaData = { token_endpoint_auth_method: openIDTokenEndpointAuthMethodEnum.BASIC };
                     }
                         break;
                     default: {
-                        throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
+                        return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD ) );
                     }
                 }
             }
 
-            openidClient.discovery( new URL( oauth2.discoveryUrl ), oauth2.clientID, metadata, clientAuthentication, { algorithm: "oidc" } ).then( ( configuration ) => {
+            openidClient.discovery( new URL( oauth2.discoveryUrl ), oauth2.clientID, metaData, clientAuthentication, { algorithm: "oidc" } ).then( ( configuration ) => {
                 resolve( configuration );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -265,7 +264,6 @@ class AuthManager {
      * @param {string} username
      * @param {string} password
      * @returns {Promise}
-     * @throws {Exception.E_SEC_UNAUTHORIZED_ACCESS} If the authentication fails.
      * @private
      */
     #authenticateLocal( username, password ) {

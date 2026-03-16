@@ -115,7 +115,7 @@ class TiWebServer extends ServiceConsumer {
      * @constructor
      * @param {string} serviceDomainName The service domain name for this service instance.
      * @param {TiWebServiceConfiguration} serviceConfig The JSON configuration for this service. Note that the configuration provided will be merged with the default web server configuration, and it will override any conflicting properties.
-     * @throws {Exception.E_GEN_JS_INTERNAL_ERROR} If the web application manager cannot be loaded.
+     * @throws {TiException.E_GEN_JS_INTERNAL_ERROR} If the web application manager cannot be loaded.
      */
     constructor( serviceDomainName, serviceConfig ) {
         super( serviceDomainName, _.merge( {}, webServerConfig, ( _.isObjectLike( serviceConfig ) ) ? serviceConfig : {} ) );
@@ -229,12 +229,10 @@ class TiWebServer extends ServiceConsumer {
                 if ( this.serviceConfig.useTLS === true ) {
                     if ( !this.serviceConfig.tlsKeyPath || !this.serviceConfig.tlsCertPath ) {
                         // Abort initialization if there is something wrong with the TLS key or cert paths:
-                        let exception = exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, {
+                        return reject( exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, {
                             tlsKeyPath: this.serviceConfig.tlsKeyPath,
                             tlsCertPath: this.serviceConfig.tlsCertPath
-                        } );
-                        exception.httpCode = exceptions.httpCode.C_500;
-                        return reject( exception );
+                        }, exceptions.httpCode.C_500 ) );
                     }
                     netServerOptions.key = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsKeyPath ) );
                     netServerOptions.cert = fs.readFileSync( path.join( process.cwd(), this.serviceConfig.tlsCertPath ) );
@@ -476,6 +474,7 @@ class TiWebServer extends ServiceConsumer {
         this.#webServer.get( "/not-found", webHandlers.webAppHandler( this ) );
         this.#webServer.get( "/app", webHandlers.webAppHandler( this ) );
         this.#webServer.get( "/app/:view", webHandlers.webAppHandler( this ) );
+        this.#webServer.post( "/app/:service", webHandlers.webAppHandler( this ) );
         this.#webServer.get( "/login/:method", webHandlers.authenticationHandler( this ) );
         this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
         this.#webServer.post( "/logout", webHandlers.logoutHandler() );

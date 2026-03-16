@@ -16,6 +16,7 @@ const localization = require( "#localization" );
  *
  * @readonly
  * @enum {number}
+ * @typedef {number} TiLogSeverity
  */
 const logSeverityEnum = tools.enum( {
     DEFAULT: [ 0, "default", "The log entry has no assigned severity level." ],
@@ -28,10 +29,6 @@ const logSeverityEnum = tools.enum( {
     ALERT: [ 700, "alert", "A person must take an action immediately." ],
     EMERGENCY: [ 800, "emergency", "One or more systems are unusable." ]
 } );
-
-/**
- * @typedef {number} TiLogSeverity
- */
 module.exports.logSeverity = logSeverityEnum;
 
 /**
@@ -46,10 +43,10 @@ module.exports.getSeverityName = ( severity ) => {
 };
 
 /**
- * Used to extract information from an Exception and convert it to a loggable data object.
+ * Used to extract information from a {@link TiException} and convert it to a loggable data object.
  *
  * @method
- * @param {Exception} exception
+ * @param {TiException} exception
  * @returns {{description, details: (*|undefined), exceptionID}}
  * @private
  */
@@ -66,8 +63,8 @@ const exceptionToLog = ( exception ) => {
  *
  * @method
  * @param {string} message The primary log message.
- * @param {TiLogSeverity} [level=DEFAULT] The log severity level. If the current log filtering setting is higher than this then the log entry will be ignored.
- * @param {Object|Error|Exception} [data={}] Optional JSON data containing details of the log entry.
+ * @param {TiLogSeverity} [level=DEFAULT] The log severity level. If the current log filtering setting is higher than this, then the log entry will be ignored.
+ * @param {Object|Error|TiException} [data={}] Optional JSON data containing details of the log entry.
  * @param {string} [thread='main'] The logging thread to which the log entry belongs.
  * @public
  */

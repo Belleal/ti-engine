@@ -34,6 +34,9 @@
       "1009": {
         "en": "Attempt to override a protected or private method or property detected."
       },
+      "1010": {
+        "en": "The requested functionality is not yet implemented."
+      },
       "2000": {
         "en": "Invalid authorization token provided."
       },
@@ -108,6 +111,12 @@
       },
       "4009": {
         "en": "The request content encoding is not recognized or not supported."
+      },
+      "5004": {
+        "en": "The requested resource cannot be found. See details for more information."
+      },
+      "5005": {
+        "en": "The application service encountered an error. See details for more information."
       }
     }
   }

@@ -6,11 +6,13 @@
         "name": "Geatrks Frkats",
         "position": "SOFTWARE_ENGINEER",
         "department": "Software Development",
-        "manager": "Sdfaer Ltruajs",
-        "managerID": "3",
         "level": "R",
         "stage": 2,
         "startingDate": "2022-03-14"
+      },
+      "manager": {
+        "name": "Sdfaer Ltruajs",
+        "managerID": "3"
       }
     },
     {
@@ -19,11 +21,13 @@
         "name": "Mrkius Brhajas",
         "position": "PROJECT_MANAGER",
         "department": "Software Development",
-        "manager": "Grasht Jraksj",
-        "managerID": "4",
         "level": "J",
         "stage": 3,
         "startingDate": "2020-11-02"
+      },
+      "manager": {
+        "name": "Grasht Jraksj",
+        "managerID": "4"
       }
     }
   ]
