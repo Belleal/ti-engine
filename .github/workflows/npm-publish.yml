@@ -10,19 +10,23 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
         with:
           node-version: 24
       - run: npm ci
-      - run: npm test
+      - name: Test Package "Core"
+        run: npm test --workspace=@ti-engine/core
 
   publish-npm:
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v5
@@ -31,6 +35,11 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org/
       - run: npm ci
-      - run: npm publish --provenance --access public
+      - name: Publish Package "Core"
+        run: npm publish --workspace=@ti-engine/core --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish Package "Tester"
+        run: npm publish --workspace=@ti-engine/tester --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
