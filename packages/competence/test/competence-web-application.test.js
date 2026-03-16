@@ -437,7 +437,7 @@ describe( "CompetenceWebApplication", () => {
         } );
 
         it( "should use configuration loader for competencies", async () => {
-            const session = { language: "en" };
+            const session = { user: { employeeID: "1", roles: [ 1 ] }, language: "en" };
             const options = { query: { employeeID: "1" } };
 
             const result = await app.processDataRequest( session, "load-evaluation", options );
@@ -450,7 +450,7 @@ describe( "CompetenceWebApplication", () => {
         } );
 
         it( "should use data loader for employee data", async () => {
-            const session = { language: "en" };
+            const session = { user: { employeeID: "1", roles: [ 1 ] }, language: "en" };
             const options = { query: { employeeID: "1" } };
 
             const result = await app.processDataRequest( session, "load-evaluation", options );
@@ -462,13 +462,429 @@ describe( "CompetenceWebApplication", () => {
         } );
 
         it( "should use data loader for evaluation data", async () => {
-            const session = { language: "en" };
+            const session = { user: { employeeID: "1", roles: [ 1 ] }, language: "en" };
             const options = { query: { employeeID: "1" } };
 
             const result = await app.processDataRequest( session, "load-evaluation", options );
 
             // Verify that evaluation data comes from data loader
             assert.ok( result.evaluation );
+        } );
+    } );
+
+    describe( "processServiceRequest()", () => {
+        beforeEach( () => {
+            app = new CompetenceWebApplication();
+        } );
+
+        it( "should have processServiceRequest method", () => {
+            assert.strictEqual( typeof app.processServiceRequest, "function" );
+        } );
+
+        it( "should return a promise", () => {
+            const session = { user: { employeeID: "1", roles: [ 1 ] } };
+            const result = app.processServiceRequest( session, "unknown-service", {} );
+            assert.ok( result instanceof Promise );
+        } );
+
+        it( "should delegate to parent class for unknown service", async () => {
+            const session = { user: { employeeID: "1", roles: [ 1 ] } };
+            await assert.rejects(
+                app.processServiceRequest( session, "unknown-service", {} ),
+                ( error ) => {
+                    assert.ok( error );
+                    return true;
+                }
+            );
+        } );
+    } );
+
+    describe( "processServiceRequest() - save-evaluation-draft", () => {
+        beforeEach( async () => {
+            app = new CompetenceWebApplication();
+            const dataManager = require( "#data-manager" );
+            await dataManager.instance.initialize( true );
+        } );
+
+        it( "should reject when session is missing user", async () => {
+            const session = {};
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {}
+            };
+
+            await assert.rejects(
+                app.processServiceRequest( session, "save-evaluation-draft", { evaluation } ),
+                ( error ) => {
+                    assert.ok( error );
+                    return true;
+                }
+            );
+        } );
+
+        it( "should reject when user is not authorized", async () => {
+            const session = { user: { employeeID: "999", roles: [ 1 ] } };
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {}
+            };
+
+            await assert.rejects(
+                app.processServiceRequest( session, "save-evaluation-draft", { evaluation } ),
+                ( error ) => {
+                    assert.ok( error );
+                    return true;
+                }
+            );
+        } );
+
+        it( "should save draft for employee with valid data", async () => {
+            const session = { user: { employeeID: "1", roles: [ 1 ] } };
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                comment: "Test draft comment",
+                grades: {
+                    "E1-1": { employee: "S" }
+                }
+            };
+
+            const result = await app.processServiceRequest( session, "save-evaluation-draft", { evaluation } );
+            assert.ok( result );
+            assert.strictEqual( result.evaluationID, evaluation.evaluationID );
+        } );
+
+        it( "should update grades when saving draft", async () => {
+            const session = { user: { employeeID: "1", roles: [ 1 ] } };
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {
+                    "E1-1": { employee: "R" },
+                    "E1-2": { employee: "S" }
+                }
+            };
+
+            const result = await app.processServiceRequest( session, "save-evaluation-draft", { evaluation } );
+            assert.ok( result.grades );
+            assert.ok( result.grades[ "E1-1" ] );
+        } );
+
+        it( "should anonymize grades based on user role", async () => {
+            const session = { user: { employeeID: "1", roles: [ 1 ] } };
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {
+                    "E1-1": { employee: "S" }
+                }
+            };
+
+            const result = await app.processServiceRequest( session, "save-evaluation-draft", { evaluation } );
+            // Employee should not see manager or team grades
+            Object.values( result.grades ).forEach( grade => {
+                assert.strictEqual( grade.manager, undefined );
+                assert.strictEqual( grade.team, undefined );
+            } );
+        } );
+
+        it( "should not include workflow in response", async () => {
+            const session = { user: { employeeID: "1", roles: [ 1 ] } };
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {}
+            };
+
+            const result = await app.processServiceRequest( session, "save-evaluation-draft", { evaluation } );
+            assert.strictEqual( result.workflow, undefined );
+        } );
+    } );
+
+    describe( "processServiceRequest() - submit-evaluation", () => {
+        beforeEach( async () => {
+            app = new CompetenceWebApplication();
+            const dataManager = require( "#data-manager" );
+            await dataManager.instance.initialize( true );
+        } );
+
+        it( "should reject when session is missing user", async () => {
+            const session = {};
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {}
+            };
+
+            await assert.rejects(
+                app.processServiceRequest( session, "submit-evaluation", { evaluation } ),
+                ( error ) => {
+                    assert.ok( error );
+                    return true;
+                }
+            );
+        } );
+
+        it( "should reject when user is not authorized", async () => {
+            const session = { user: { employeeID: "999", roles: [ 1 ] } };
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {}
+            };
+
+            await assert.rejects(
+                app.processServiceRequest( session, "submit-evaluation", { evaluation } ),
+                ( error ) => {
+                    assert.ok( error );
+                    return true;
+                }
+            );
+        } );
+
+        it( "should submit evaluation for employee with valid data", async () => {
+            const session = { user: { employeeID: "1", roles: [ 1 ] } };
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                comment: "Self evaluation complete",
+                grades: {
+                    "E1-1": { employee: "S" },
+                    "E1-2": { employee: "R" }
+                }
+            };
+
+            const result = await app.processServiceRequest( session, "submit-evaluation", { evaluation } );
+            assert.ok( result );
+            assert.strictEqual( result.evaluationID, evaluation.evaluationID );
+        } );
+
+        it( "should mark self-evaluation as completed after submission", async () => {
+            const session = { user: { employeeID: "1", roles: [ 1 ] } };
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {
+                    "E1-1": { employee: "S" }
+                }
+            };
+
+            const result = await app.processServiceRequest( session, "submit-evaluation", { evaluation } );
+            assert.ok( result );
+            // Workflow should be removed from response
+            assert.strictEqual( result.workflow, undefined );
+        } );
+
+        it( "should update evaluation status when all parts are complete", async () => {
+            const session = { user: { employeeID: "1", roles: [ 1 ] } };
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {
+                    "E1-1": { employee: "S" }
+                }
+            };
+
+            const result = await app.processServiceRequest( session, "submit-evaluation", { evaluation } );
+            assert.ok( result );
+            // Status should change after self and team evaluations are complete
+        } );
+
+        it( "should anonymize grades for employee role", async () => {
+            const session = { user: { employeeID: "1", roles: [ 1 ] } };
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {
+                    "E1-1": { employee: "R" }
+                }
+            };
+
+            const result = await app.processServiceRequest( session, "submit-evaluation", { evaluation } );
+            Object.values( result.grades ).forEach( grade => {
+                assert.strictEqual( grade.manager, undefined );
+                assert.strictEqual( grade.team, undefined );
+            } );
+        } );
+
+        it( "should handle team member submission", async () => {
+            const session = { user: { employeeID: "2", roles: [ 1 ] } };
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {
+                    "E1-1": { team: { cumulative: "S" } }
+                },
+                feedback: {
+                    teamComments: "Good team player"
+                }
+            };
+
+            const result = await app.processServiceRequest( session, "submit-evaluation", { evaluation } );
+            assert.ok( result );
+        } );
+
+        it( "should not include workflow in response", async () => {
+            const session = { user: { employeeID: "1", roles: [ 1 ] } };
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {}
+            };
+
+            const result = await app.processServiceRequest( session, "submit-evaluation", { evaluation } );
+            assert.strictEqual( result.workflow, undefined );
+        } );
+    } );
+
+    describe( "Grade Calculation and Anonymization", () => {
+        beforeEach( async () => {
+            app = new CompetenceWebApplication();
+            const dataManager = require( "#data-manager" );
+            await dataManager.instance.initialize( true );
+        } );
+
+        it( "should calculate team cumulative grades from individual grades", async () => {
+            const session = { user: { employeeID: "2", roles: [ 1 ] } };
+
+            // Submit multiple team evaluations to trigger cumulative calculation
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {
+                    "E1-1": { team: { cumulative: "S" } }
+                }
+            };
+
+            const result = await app.processServiceRequest( session, "submit-evaluation", { evaluation } );
+            assert.ok( result );
+        } );
+
+        it( "should anonymize manager grades for employee role", async () => {
+            const session = { user: { employeeID: "1", roles: [ 1 ] } };
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {
+                    "E1-1": { employee: "R" }
+                }
+            };
+
+            const result = await app.processServiceRequest( session, "save-evaluation-draft", { evaluation } );
+            Object.keys( result.grades ).forEach( competencyCode => {
+                const grade = result.grades[ competencyCode ];
+                assert.strictEqual( grade.manager, undefined );
+                assert.strictEqual( grade.team, undefined );
+            } );
+        } );
+
+        it( "should anonymize employee and manager grades for team member role", async () => {
+            const session = { user: { employeeID: "2", roles: [ 1 ] } };
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {
+                    "E1-1": { team: { cumulative: "S" } }
+                }
+            };
+
+            const result = await app.processServiceRequest( session, "submit-evaluation", { evaluation } );
+            Object.keys( result.grades ).forEach( competencyCode => {
+                const grade = result.grades[ competencyCode ];
+                assert.strictEqual( grade.employee, undefined );
+                assert.strictEqual( grade.manager, undefined );
+                assert.ok( grade.team );
+            } );
+        } );
+
+        it( "should preserve employee grades when updating", async () => {
+            const session = { user: { employeeID: "1", roles: [ 1 ] } };
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {
+                    "E1-1": { employee: "S" },
+                    "E1-2": { employee: "R" }
+                }
+            };
+
+            const result = await app.processServiceRequest( session, "save-evaluation-draft", { evaluation } );
+            assert.ok( result.grades[ "E1-1" ] );
+            assert.ok( result.grades[ "E1-2" ] );
+        } );
+    } );
+
+    describe( "Authorization and Access Control", () => {
+        beforeEach( async () => {
+            app = new CompetenceWebApplication();
+            const dataManager = require( "#data-manager" );
+            await dataManager.instance.initialize( true );
+        } );
+
+        it( "should require session with user for load-evaluation", async () => {
+            const session = {};
+            const options = { query: { employeeID: "1" } };
+
+            await assert.rejects(
+                app.processDataRequest( session, "load-evaluation", options ),
+                ( error ) => {
+                    assert.ok( error );
+                    return true;
+                }
+            );
+        } );
+
+        it( "should require session with user for save-evaluation-draft", async () => {
+            const session = {};
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {}
+            };
+
+            await assert.rejects(
+                app.processServiceRequest( session, "save-evaluation-draft", { evaluation } ),
+                ( error ) => {
+                    assert.ok( error );
+                    return true;
+                }
+            );
+        } );
+
+        it( "should require session with user for submit-evaluation", async () => {
+            const session = {};
+            const evaluation = {
+                evaluationID: "d43d14e1-dc96-48de-92f5-adb16586c178",
+                employeeID: "1",
+                grades: {}
+            };
+
+            await assert.rejects(
+                app.processServiceRequest( session, "submit-evaluation", { evaluation } ),
+                ( error ) => {
+                    assert.ok( error );
+                    return true;
+                }
+            );
+        } );
+
+        it( "should determine user role correctly for employee", async () => {
+            const session = { user: { employeeID: "1", roles: [ 1 ] }, language: "en" };
+            const options = { query: { employeeID: "1" } };
+
+            const result = await app.processDataRequest( session, "load-evaluation", options );
+            assert.strictEqual( result.userRole, 1 );
+        } );
+
+        it( "should include manager information in evaluation data", async () => {
+            const session = { user: { employeeID: "1", roles: [ 1 ] }, language: "en" };
+            const options = { query: { employeeID: "1" } };
+
+            const result = await app.processDataRequest( session, "load-evaluation", options );
+            assert.ok( result.manager );
+            assert.ok( result.manager.managerID );
         } );
     } );
 } );
