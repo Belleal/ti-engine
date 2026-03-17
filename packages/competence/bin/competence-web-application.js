@@ -403,17 +403,24 @@ class CompetenceWebApplication extends TiWebAppManager {
                 let userRole;
                 let canEdit;
                 let deadlineDate;
+                const today = new Date().toISOString().split( "T" )[ 0 ];
                 if ( isTeamMember ) {
                     userRole = configurationLoader.roleCode.TEAM_MEMBER;
-                    canEdit = !currentEvaluation.workflow.teamEvaluationCompleted && currentEvaluation.status === configurationLoader.evaluationStatus.OPEN;
+                    canEdit = !currentEvaluation.workflow.teamEvaluationCompleted
+                        && currentEvaluation.status === configurationLoader.evaluationStatus.OPEN
+                        && ( !deadlineDate || today <= deadlineDate );
                     deadlineDate = currentEvaluation.workflow.teamEvaluationDeadline;
                 } else if ( isEmployee ) {
                     userRole = configurationLoader.roleCode.EMPLOYEE;
-                    canEdit = !currentEvaluation.workflow.selfEvaluationCompleted && currentEvaluation.status === configurationLoader.evaluationStatus.OPEN;
+                    canEdit = !currentEvaluation.workflow.selfEvaluationCompleted
+                        && currentEvaluation.status === configurationLoader.evaluationStatus.OPEN
+                        && ( !deadlineDate || today <= deadlineDate );
                     deadlineDate = currentEvaluation.workflow.selfEvaluationDeadline;
                 } else if ( isManager ) {
                     userRole = configurationLoader.roleCode.MANAGER;
-                    canEdit = !currentEvaluation.workflow.managerEvaluationCompleted && currentEvaluation.status === configurationLoader.evaluationStatus.IN_REVIEW;
+                    canEdit = !currentEvaluation.workflow.managerEvaluationCompleted
+                        && currentEvaluation.status === configurationLoader.evaluationStatus.IN_REVIEW
+                        && ( !deadlineDate || today <= deadlineDate );
                     deadlineDate = currentEvaluation.workflow.managerEvaluationDeadline;
                 } else {
                     throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );

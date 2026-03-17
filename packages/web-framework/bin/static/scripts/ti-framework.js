@@ -525,15 +525,15 @@ let configureApplication = () => {
          * @public
          */
         openScreen( screen ) {
-            if ( window.htmx ) {
+            if ( !screen || !/^[\w-]+$/.test( screen ) || !window.htmx ) {
+                window.location.href = "/";
+            } else {
                 let screenUrl = "/app/" + screen;
                 window.htmx.ajax( "get", screenUrl, { target: "#ti-content", swap: "innerHTML" } ).then( () => {
                     window.history.pushState( null, "", screenUrl );
                 } ).catch( () => {
                     window.location.href = "/";
                 } );
-            } else {
-                window.location.href = "/";
             }
         },
 
