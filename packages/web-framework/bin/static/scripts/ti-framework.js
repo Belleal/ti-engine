@@ -518,6 +518,26 @@ let configureApplication = () => {
         },
 
         /**
+         * Redirect the user to the specified screen.
+         *
+         * @method
+         * @param {string} screen
+         * @public
+         */
+        openScreen( screen ) {
+            if ( window.htmx ) {
+                let screenUrl = "/app/" + screen;
+                window.htmx.ajax( "get", screenUrl, { target: "#ti-content", swap: "innerHTML" } ).then( () => {
+                    window.history.pushState( null, "", screenUrl );
+                } ).catch( () => {
+                    window.location.href = "/";
+                } );
+            } else {
+                window.location.href = "/";
+            }
+        },
+
+        /**
          * Used to format an exception notification message.
          *
          * @method

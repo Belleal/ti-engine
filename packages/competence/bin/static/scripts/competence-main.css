@@ -168,6 +168,38 @@
     display: none;
 }
 
+.role-banner {
+    position: relative;
+    overflow: hidden;
+}
+
+.role-banner::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6px;
+}
+
+.role-banner.employee::before {
+    background: repeating-linear-gradient(45deg, #ff8a80, #ff8a80 10px, #ff5252 10px, #ff5252 20px);
+}
+
+.role-banner.manager::before {
+    background: repeating-linear-gradient(45deg, #ea80fc, #ea80fc 10px, #e040fb 10px, #e040fb 20px);
+}
+
+.role-banner.team::before {
+    background: repeating-linear-gradient(45deg, #b388ff, #b388ff 10px, #7c4dff 10px, #7c4dff 20px);
+}
+
+.role-banner-text {
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.04em;
+    padding-top: 5px;
+}
+
 @media screen and (width <= 720px) {
     .ti-sub-panel {
         max-width: 100%;
