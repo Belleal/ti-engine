@@ -2,6 +2,30 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.1.0
+
+* feat(web-app): add `start-evaluation` service request handler with position-based competency initialization and active evaluation guard
+* feat(web-app): add `#startEvaluation(session, employeeID)` private method to handle new evaluation creation flow
+* feat(web-app): add `#getAllowedCompetencyCodes(positionKey, cycleID)` private method to compute position-based allowed competency codes
+* feat(web-app): add `canEdit` and `deadlineDate` metadata to `load-evaluation` response for UI state management
+* feat(web-app): update `#loadEvaluation` to return 404 `error.evaluation.no-evaluation-found` when no evaluation exists, instead of creating a new one
+* feat(web-app): rework role-based grade anonymization; team data returns empty string for `TEAM_MEMBER`, cumulative value for `MANAGER`
+* feat(ui): add `canEdit` and `deadlineDate` state properties to the competency evaluation model
+* feat(ui): navigate to dashboard on HTTP 401 during `loadEmployeeEvaluation` and on successful `submitEvaluation`
+* feat(ui): update `formatDate` to accept a `placeholder` parameter and return the corresponding label for invalid dates
+* feat(ui): simplify `getItemGrade` and `setItemGrade` to use a flat `grades[competencyCode][role]` structure, removing team cumulative branching
+* feat(ui): add a role banner to the evaluation form with employee, manager, and team color variants
+* feat(ui): add `canEdit` guard to evaluation form container and action buttons
+* feat(ui): replace interview date input with a static display showing the interview date and submission deadline
+* feat(localization): add evaluation state labels (`active-evaluation-exists`, `already-completed-manager-evaluation`, `already-completed-team-evaluation`, `incomplete-grades`, `no-employee-found`, `no-evaluation-found`)
+* feat(localization): add role-based banner labels (`interface.evaluation.banners.employee/manager/team`)
+* feat(localization): add submission deadline and interview date UI labels for personal and appraisal sections
+* feat(css): add `.role-banner` container with `employee`, `manager`, and `team` gradient color variants
+* feat(error-handling): enforce explicit HTTP 401 on unauthorized access, 404 on missing employee/evaluation, and 422 on incomplete grades
+* feat(config): add `COMPETENCE_PRELOAD_DATA` environment variable (default: `false`) to control data preloading at startup
+* refactor(data): update `evaluations.json` seeder to use empty grade placeholders across all evaluation records
+* build(deps): remove `postgres` direct dependency (delegated to framework layer)
+
 ## Version 1.0.2
 
 * feat(config): add `config.application.json` with `performanceAppraisals` settings (`minTeamEvaluationMembers`, `numberOfNextPeriodGoals`)

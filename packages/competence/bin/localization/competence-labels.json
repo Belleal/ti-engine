@@ -2303,9 +2303,21 @@
       }
     },
     "evaluation": {
+      "active-evaluation-exists": {
+        "en": "An active Evaluation already exists for this Employee.",
+        "bg": "Вече съществува активна Оценка за този Служител."
+      },
+      "already-completed-manager-evaluation": {
+        "en": "The manager evaluation for this Evaluation was already completed.",
+        "bg": "Мениджърската оценка за тази Оценка вече е завършена."
+      },
       "already-completed-self-evaluation": {
         "en": "The self-evaluation for this Evaluation was already completed.",
         "bg": "Самооценката за тази Оценка вече е завършена."
+      },
+      "already-completed-team-evaluation": {
+        "en": "The team evaluation for this Evaluation was already completed.",
+        "bg": "Екипната оценка за тази Оценка вече е завършена."
       },
       "deadline-over-manager-evaluation": {
         "en": "The manager evaluation deadline for this Evaluation has passed.",
@@ -2318,6 +2330,10 @@
       "deadline-over-team-evaluation": {
         "en": "The team evaluation deadline for this Evaluation has passed.",
         "bg": "Крайният срок за екипна оценка за тази Оценка е изтекъл."
+      },
+      "incomplete-grades": {
+        "en": "All grades must be filled before submitting the evaluation.",
+        "bg": "Всички оценки трябва да бъдат попълнени преди изпращане на оценката."
       },
       "invalid-draft-status-in-review": {
         "en": "The Evaluation status must be 'In Review' in order to save it as a draft.",
@@ -2338,6 +2354,14 @@
       "no-draft-saving-possible": {
         "en": "Not possible to save a draft for team evaluation. Please submit all grades to proceed.",
         "bg": "Не е възможно запазване на чернова за екипна оценка. Моля, изпратете всички оценки, за да продължите."
+      },
+      "no-employee-found": {
+        "en": "No Employee found for the provided criteria.",
+        "bg": "Не е намерен Служител спрямо посочените критерии."
+      },
+      "no-evaluation-found": {
+        "en": "No valid Evaluation found for this Employee.",
+        "bg": "Не е намерена валидна Оценка за този Служител."
       },
       "status-is-closed": {
         "en": "The requested Evaluation is already closed for processing.",
@@ -2387,6 +2411,20 @@
       }
     },
     "evaluation": {
+      "banners": {
+        "employee": {
+          "en": "This is your own Evaluation form",
+          "bg": "Това е Вашата собствена форма за Оценка"
+        },
+        "manager": {
+          "en": "This is the Evaluation form of your organizational unit member",
+          "bg": "Това е формата за Оценка на член от Вашата организационна единица"
+        },
+        "team": {
+          "en": "This is the Evaluation form of your colleague",
+          "bg": "Това е формата за Оценка на Ваш колега"
+        }
+      },
       "personal": {
         "title": {
           "en": "Personal Information",
@@ -2425,6 +2463,18 @@
         "interview-date": {
           "en": "Performance Interview Date:",
           "bg": "Дата на среща за дискусия:"
+        },
+        "interview-date-not-set": {
+          "en": "Not Scheduled",
+          "bg": "Няма зададена"
+        },
+        "submission-deadline":{
+          "en": "Submission Deadline:",
+          "bg": "Крайна Дата за Подаване:"
+        },
+        "submission-deadline-not-set":{
+          "en": "Not Set",
+          "bg": "Няма зададена"
         }
       },
       "competencies": {

@@ -104,6 +104,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#saveEvaluationDraft( session, params.evaluation );
         } else if ( service === "submit-evaluation" ) {
             return this.#submitEvaluation( session, params.evaluation );
+        } else if ( service === "start-evaluation" ) {
+            return this.#startEvaluation( session, params.employeeID );
         } else {
             return super.processServiceRequest( session, service, params );
         }
@@ -125,7 +127,7 @@ class CompetenceWebApplication extends TiWebAppManager {
         return new Promise( ( resolve, reject ) => {
             const userID = session?.user?.employeeID;
             if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS ) );
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
             }
 
             let existingEvaluation = null;
@@ -158,13 +160,24 @@ class CompetenceWebApplication extends TiWebAppManager {
                     }
                     this.#updateSelfEvaluationGrades( existingEvaluation, evaluation.grades );
 
+                    if ( Object.keys( existingEvaluation.grades || {} ).some( ( code ) => !configurationLoader.evaluationGrade.contains( evaluation.grades?.[ code ]?.employee ) ) ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.incomplete-grades" }, exceptions.httpCode.C_422 );
+                    }
+
                     existingEvaluation.workflow.selfEvaluationCompleted = true;
                 } else if ( isTeamMember ) {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-open" }, exceptions.httpCode.C_422 );
                     }
+                    if ( existingEvaluation.workflow.teamEvaluationCompleted ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.already-completed-team-evaluation" }, exceptions.httpCode.C_422 );
+                    }
                     if ( existingEvaluation.workflow.teamEvaluationDeadline && today > existingEvaluation.workflow.teamEvaluationDeadline ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-team-evaluation" }, exceptions.httpCode.C_422 );
+                    }
+
+                    if ( Object.keys( existingEvaluation.grades || {} ).some( ( code ) => !configurationLoader.evaluationGrade.contains( evaluation.grades?.[ code ]?.team ) ) ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.incomplete-grades" }, exceptions.httpCode.C_422 );
                     }
 
                     this.#updateTeamEvaluationGrades( existingEvaluation, evaluation.grades );
@@ -191,6 +204,9 @@ class CompetenceWebApplication extends TiWebAppManager {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.IN_REVIEW ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-in-review" }, exceptions.httpCode.C_422 );
                     }
+                    if ( existingEvaluation.workflow.managerEvaluationCompleted ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.already-completed-manager-evaluation" }, exceptions.httpCode.C_422 );
+                    }
                     if ( existingEvaluation.workflow.managerEvaluationDeadline && today > existingEvaluation.workflow.managerEvaluationDeadline ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-manager-evaluation" }, exceptions.httpCode.C_422 );
                     }
@@ -200,16 +216,16 @@ class CompetenceWebApplication extends TiWebAppManager {
                         existingEvaluation.feedback.managerComment = evaluation.feedback.managerComment;
                     }
 
-                    if ( evaluation.interviewDate !== undefined ) {
-                        existingEvaluation.interviewDate = evaluation.interviewDate;
-                    }
-
                     this.#updateManagerEvaluationGrades( existingEvaluation, evaluation.grades );
+
+                    if ( Object.keys( existingEvaluation.grades || {} ).some( ( code ) => !configurationLoader.evaluationGrade.contains( evaluation.grades?.[ code ]?.manager ) ) ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.incomplete-grades" }, exceptions.httpCode.C_422 );
+                    }
 
                     existingEvaluation.workflow.managerEvaluationCompleted = true;
                     existingEvaluation.status = configurationLoader.evaluationStatus.READY;
                 } else {
-                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
                 }
 
                 if ( existingEvaluation.status === configurationLoader.evaluationStatus.OPEN ) {
@@ -261,7 +277,7 @@ class CompetenceWebApplication extends TiWebAppManager {
         return new Promise( ( resolve, reject ) => {
             const userID = session?.user?.employeeID;
             if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS ) );
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
             }
 
             let existingEvaluation = null;
@@ -280,6 +296,9 @@ class CompetenceWebApplication extends TiWebAppManager {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-draft-status-open" }, exceptions.httpCode.C_422 );
                     }
+                    if ( existingEvaluation.workflow.selfEvaluationCompleted ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.already-completed-self-evaluation" }, exceptions.httpCode.C_422 );
+                    }
                     if ( existingEvaluation.workflow?.selfEvaluationDeadline && today > existingEvaluation.workflow.selfEvaluationDeadline ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-self-evaluation" }, exceptions.httpCode.C_422 );
                     }
@@ -292,6 +311,9 @@ class CompetenceWebApplication extends TiWebAppManager {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.IN_REVIEW ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-draft-status-in-review" }, exceptions.httpCode.C_422 );
                     }
+                    if ( existingEvaluation.workflow.managerEvaluationCompleted ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.already-completed-manager-evaluation" }, exceptions.httpCode.C_422 );
+                    }
                     if ( existingEvaluation.workflow?.managerEvaluationDeadline && today > existingEvaluation.workflow.managerEvaluationDeadline ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-manager-evaluation" }, exceptions.httpCode.C_422 );
                     }
@@ -299,10 +321,6 @@ class CompetenceWebApplication extends TiWebAppManager {
                     if ( evaluation.feedback && evaluation.feedback.managerComment !== undefined ) {
                         existingEvaluation.feedback = existingEvaluation.feedback || {};
                         existingEvaluation.feedback.managerComment = evaluation.feedback.managerComment;
-                    }
-
-                    if ( evaluation.interviewDate !== undefined ) {
-                        existingEvaluation.interviewDate = evaluation.interviewDate;
                     }
 
                     this.#updateManagerEvaluationGrades( existingEvaluation, evaluation.grades );
@@ -338,7 +356,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @method
      * @param {Object} session
      * @param {string} employeeID
-     * @param {string|null} [evaluationID] Optional evaluation ID to load. If not provided, the most recent evaluation will be loaded.
+     * @param {string|null} [evaluationID] Optional evaluation ID to load. If not provided, the most recent valid evaluation will be loaded.
      * @returns {Promise<Object>}
      * @private
      */
@@ -346,15 +364,18 @@ class CompetenceWebApplication extends TiWebAppManager {
         return new Promise( ( resolve, reject ) => {
             const userID = session?.user?.employeeID;
             if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS ) );
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
             }
 
             let currentEvaluation = null;
             let employee = null;
-            let allowedCompetencyCodes = null;
             let isEmployee = false;
             let isTeamMember = false;
             dataManager.instance.fetchEmployee( employeeID ).then( ( employeeData ) => {
+                if ( !employeeData ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-employee-found" }, exceptions.httpCode.C_404 );
+                }
+
                 employee = employeeData;
                 return dataManager.instance.fetchEvaluations( employee.employeeID );
             } ).then( ( evaluations ) => {
@@ -367,46 +388,42 @@ class CompetenceWebApplication extends TiWebAppManager {
                 } else if ( evaluations.length > 0 ) {
                     currentEvaluation = evaluations.slice().sort( ( a, b ) => new Date( b.cycleDate ) - new Date( a.cycleDate ) )[ 0 ];
                 } else {
-                    // TODO: Separate business logic to strictly loading an evaluation and creating a new one by a user with the requisite rights.
-                    currentEvaluation = this.#createNewEvaluation( employeeID );
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-evaluation-found" }, exceptions.httpCode.C_404 );
                 }
 
                 if ( currentEvaluation.status === configurationLoader.evaluationStatus.CLOSED ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.status-is-closed" }, exceptions.httpCode.C_422 );
                 }
 
-                const positionKey = String( employee.personal?.position ?? "" ).trim();
-                const cycleID = String( currentEvaluation?.cycleID ?? "" ).trim();
-                const positionCompetencies = configurationLoader.configEvaluationPositionCompetencies || {};
-                const positionEntry = Object.prototype.hasOwnProperty.call( positionCompetencies, positionKey )
-                    ? positionCompetencies[ positionKey ]
-                    : null;
+                isEmployee = currentEvaluation.employeeID === userID && session?.user?.roles?.includes( configurationLoader.roleCode.EMPLOYEE );
+                isTeamMember = Array.isArray( currentEvaluation.workflow?.team ) && currentEvaluation.workflow.team.includes( userID ) && !isEmployee;
 
-                if ( Array.isArray( positionEntry ) ) {
-                    allowedCompetencyCodes = positionEntry;
-                } else if ( positionEntry && typeof positionEntry === "object" ) {
-                    allowedCompetencyCodes = Object.prototype.hasOwnProperty.call( positionEntry, cycleID ) ? positionEntry[ cycleID ] : [];
-                }
-                for ( const competencyCode of allowedCompetencyCodes || [] ) {
-                    currentEvaluation.grades = currentEvaluation.grades || {};
-                    currentEvaluation.grades[ competencyCode ] = currentEvaluation.grades[ competencyCode ] || {};
-                    currentEvaluation.grades[ competencyCode ] = this.#normalizeGrades( currentEvaluation.grades, competencyCode );
-                }
-
-                return dataManager.instance.saveEvaluation( currentEvaluation );
-            } ).then( ( evaluation ) => {
-                isEmployee = evaluation.employeeID === userID && session?.user?.roles?.includes( 1 );
-                isTeamMember = Array.isArray( evaluation.workflow?.team ) && evaluation.workflow.team.includes( userID ) && !isEmployee;
-
-                return this.#canManagerModifyEvaluation( userID, evaluation );
+                return this.#canManagerModifyEvaluation( userID, currentEvaluation );
             } ).then( ( isManager ) => {
                 let userRole;
+                let canEdit;
+                let deadlineDate;
+                const today = new Date().toISOString().split( "T" )[ 0 ];
                 if ( isTeamMember ) {
                     userRole = configurationLoader.roleCode.TEAM_MEMBER;
+                    deadlineDate = currentEvaluation.workflow.teamEvaluationDeadline;
+                    canEdit = !currentEvaluation.workflow.teamEvaluationCompleted
+                        && currentEvaluation.status === configurationLoader.evaluationStatus.OPEN
+                        && ( !deadlineDate || today <= deadlineDate );
                 } else if ( isEmployee ) {
                     userRole = configurationLoader.roleCode.EMPLOYEE;
+                    deadlineDate = currentEvaluation.workflow.selfEvaluationDeadline;
+                    canEdit = !currentEvaluation.workflow.selfEvaluationCompleted
+                        && currentEvaluation.status === configurationLoader.evaluationStatus.OPEN
+                        && ( !deadlineDate || today <= deadlineDate );
                 } else if ( isManager ) {
                     userRole = configurationLoader.roleCode.MANAGER;
+                    deadlineDate = currentEvaluation.workflow.managerEvaluationDeadline;
+                    canEdit = !currentEvaluation.workflow.managerEvaluationCompleted
+                        && currentEvaluation.status === configurationLoader.evaluationStatus.IN_REVIEW
+                        && ( !deadlineDate || today <= deadlineDate );
+                } else {
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
                 }
 
                 // NOTE: Remove information that should not be exposed to some roles:
@@ -424,16 +441,102 @@ class CompetenceWebApplication extends TiWebAppManager {
                     manager: employee.manager,
                     evaluation: currentEvaluation,
                     userRole: userRole,
+                    deadlineDate: deadlineDate,
+                    canEdit: canEdit, // Used only for UI visualization purposes - do NOT rely on this!
                     competencies: this.#buildCompetenciesTree(
                         configurationLoader.configCompetencies,
                         session?.language,
-                        allowedCompetencyCodes
+                        this.#getAllowedCompetencyCodes( employee.personal.position, currentEvaluation.cycleID )
                     )
                 } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
         } );
+    }
+
+    /**
+     * Used to start a new evaluation for an employee.
+     *
+     * @method
+     * @param {Object} session
+     * @param {string} employeeID
+     * @returns {Promise<string>} Return the evaluationID of the newly created evaluation.
+     * @private
+     */
+    #startEvaluation( session, employeeID ) {
+        return new Promise( ( resolve, reject ) => {
+            const userID = session?.user?.employeeID;
+            if ( !userID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+            }
+
+            const isSupervisor = Array.isArray( session?.user?.roles ) && session.user.roles.includes( configurationLoader.roleCode.SUPERVISOR );
+
+            dataManager.instance.fetchEmployee( employeeID ).then( ( employee ) => {
+                if ( !employee ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-employee-found" }, exceptions.httpCode.C_404 );
+                }
+
+                const isManager = employee.manager?.managerID === userID;
+
+                if ( !isSupervisor && !isManager ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+                }
+
+                return Promise.all( [ employee, dataManager.instance.fetchEvaluations( employeeID ) ] );
+            } ).then( ( [ employee, evaluations ] ) => {
+                const activeStatuses = [
+                    configurationLoader.evaluationStatus.OPEN,
+                    configurationLoader.evaluationStatus.IN_REVIEW,
+                    configurationLoader.evaluationStatus.READY
+                ];
+                const hasActiveEvaluation = ( evaluations || [] ).some( ( evaluation ) => activeStatuses.includes( evaluation.status ) );
+
+                if ( hasActiveEvaluation ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.active-evaluation-exists" }, exceptions.httpCode.C_409 );
+                }
+
+                const newEvaluation = this.#createNewEvaluation( employeeID );
+
+                // Populate the competencies based on the employee position and the role configuration:
+                for ( const competencyCode of this.#getAllowedCompetencyCodes( employee.personal.position, newEvaluation.cycleID ) ) {
+                    newEvaluation.grades[ competencyCode ] = this.#normalizeGrades( newEvaluation.grades, competencyCode );
+                }
+
+                return dataManager.instance.saveEvaluation( newEvaluation );
+            } ).then( ( savedEvaluation ) => {
+                resolve( savedEvaluation.evaluationID );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to get the allowed competency codes for the provided position and evaluation cycle.
+     *
+     * @method
+     * @param {string} positionKey
+     * @param {string} cycleID
+     * @returns {Array<string>} Will be empty if no competencies are allowed for the provided criteria.
+     * @private
+     */
+    #getAllowedCompetencyCodes( positionKey, cycleID ) {
+        let allowedCompetencyCodes = [];
+        if ( positionKey ) {
+            const positionCompetencies = configurationLoader.configEvaluationPositionCompetencies || {};
+            const positionEntry = Object.prototype.hasOwnProperty.call( positionCompetencies, positionKey )
+                ? positionCompetencies[ positionKey ]
+                : null;
+
+            if ( Array.isArray( positionEntry ) ) {
+                allowedCompetencyCodes = positionEntry;
+            } else if ( positionEntry && typeof positionEntry === "object" ) {
+                allowedCompetencyCodes = Object.prototype.hasOwnProperty.call( positionEntry, cycleID ) ? positionEntry[ cycleID ] : [];
+            }
+        }
+        return allowedCompetencyCodes;
     }
 
     /**
@@ -446,7 +549,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @param {Object} competenceConfig
      * @param {TiLocalizationLanguage} language
      * @param {Array<string>} allowedCompetencyCodes
-     * @return {Array<Object>}
+     * @returns {Array<Object>}
      * @private
      */
     #buildCompetenciesTree( competenceConfig, language, allowedCompetencyCodes = null ) {
@@ -565,9 +668,13 @@ class CompetenceWebApplication extends TiWebAppManager {
                 } else if ( userRole === configurationLoader.roleCode.TEAM_MEMBER ) {
                     delete evaluation.grades[ competencyCode ].employee;
                     delete evaluation.grades[ competencyCode ].manager;
-                    evaluation.grades[ competencyCode ].team = { cumulative: "" };
+                    evaluation.grades[ competencyCode ].team = "";
+                } else if ( userRole === configurationLoader.roleCode.MANAGER ) {
+                    evaluation.grades[ competencyCode ].team = evaluation.grades[ competencyCode ].team?.cumulative || "";
                 } else {
-                    delete evaluation.grades[ competencyCode ].team.individual;
+                    delete evaluation.grades[ competencyCode ].employee;
+                    delete evaluation.grades[ competencyCode ].manager;
+                    delete evaluation.grades[ competencyCode ].team;
                 }
             } );
         }
@@ -622,9 +729,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                 };
                 teamEntry.individual = teamEntry.individual || [];
 
-                const submittedGrade = grades[ competencyCode ]?.team?.cumulative;
+                const submittedGrade = grades[ competencyCode ]?.team;
                 if ( submittedGrade ) {
                     teamEntry.individual.push( submittedGrade );
+                    // TODO: recalculate the cumulative
                 }
             } );
         }
@@ -654,7 +762,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Used to create a new Evaluation object.
      *
      * @method
-     * @param employeeID
+     * @param {string} employeeID
      * @returns {Evaluation}
      * @private
      */

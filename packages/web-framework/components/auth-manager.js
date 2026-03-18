@@ -272,7 +272,7 @@ class AuthManager {
             if ( this.isAuthEnabled( authMethodEnum.LOCAL ) && ( username === this.#authSettings.local.username && password === this.#authSettings.local.password ) ) {
                 resolve();
             } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
             }
         } );
     }

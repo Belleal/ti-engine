@@ -91,6 +91,8 @@ let configureCompetencyEvaluation = () => {
     return {
         employeeID: null,
         userRole: null,
+        deadlineDate: null,
+        canEdit: false,
         manager: {},
         personal: clone( initialDataModels.competencyEvaluation.personal ),
         evaluation: clone( initialDataModels.competencyEvaluation.evaluation ),
@@ -121,6 +123,8 @@ let configureCompetencyEvaluation = () => {
             this.personal = clone( fresh.personal || initialDataModels.competencyEvaluation.personal );
             this.manager = clone( fresh.manager || initialDataModels.competencyEvaluation.manager );
             this.userRole = fresh.userRole;
+            this.deadlineDate = fresh.deadlineDate;
+            this.canEdit = fresh.canEdit;
             this.evaluation = clone( fresh.evaluation || initialDataModels.competencyEvaluation.evaluation );
             this.competencies = clone( fresh.competencies || initialDataModels.competencyEvaluation.competencies );
         },
@@ -145,6 +149,9 @@ let configureCompetencyEvaluation = () => {
                     this.showEvaluationForm = false;
                     this.applyData( initialDataModels.competencyEvaluation );
                     tiApplication.notify( tiApplication.formatException( error ) );
+                    if ( error.exception?.httpCode === 401 ) {
+                        tiApplication.openScreen( "dashboard" );
+                    }
                 } );
             }
         },
@@ -173,7 +180,7 @@ let configureCompetencyEvaluation = () => {
             if ( confirm( tiApplication.getLabel( "interface.evaluation.messages.confirm-submit", "Are you sure you want to submit the evaluation?" ) ) ) {
                 tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: this.evaluation } ).then( () => {
                     tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.submitted" ) );
-                    this.loadEmployeeEvaluation( this.employeeID );
+                    tiApplication.openScreen( "dashboard" );
                 } ).catch( ( error ) => {
                     tiApplication.notify( tiApplication.formatException( error ) );
                 } );
@@ -198,11 +205,7 @@ let configureCompetencyEvaluation = () => {
             if ( role && this.evaluation && this.evaluation.grades ) {
                 Object.keys( this.evaluation.grades ).forEach( ( key ) => {
                     if ( this.evaluation.grades[ key ] ) {
-                        if ( role === "team" ) {
-                            this.evaluation.grades[ key ].team = { cumulative: "" };
-                        } else {
-                            this.evaluation.grades[ key ][ role ] = "";
-                        }
+                        this.evaluation.grades[ key ][ role ] = "";
                     }
                 } );
             }
@@ -215,7 +218,7 @@ let configureCompetencyEvaluation = () => {
         getItemGrade( competencyCode, role, defaultValue = "" ) {
             let grade;
             if ( competencyCode ) {
-                grade = ( role !== "team" ) ? this.evaluation.grades?.[ competencyCode ]?.[ role ] : this.evaluation.grades?.[ competencyCode ]?.team?.cumulative;
+                grade = this.evaluation.grades?.[ competencyCode ]?.[ role ];
             }
             return grade || defaultValue;
         },
@@ -223,21 +226,15 @@ let configureCompetencyEvaluation = () => {
         setItemGrade( competencyCode, role, value ) {
             this.evaluation.grades = this.evaluation.grades || {};
             this.evaluation.grades[ competencyCode ] = this.evaluation.grades[ competencyCode ] || {};
-            if ( role !== "team" ) {
-                this.evaluation.grades[ competencyCode ][ role ] = value;
-            } else {
-                this.evaluation.grades[ competencyCode ].team = this.evaluation.grades[ competencyCode ].team || {};
-                this.evaluation.grades[ competencyCode ].team.cumulative = value;
-            }
+            this.evaluation.grades[ competencyCode ][ role ] = value;
         },
 
-        formatDate( value ) {
-            if ( !value ) return "";
+        formatDate( value, placeholder = "" ) {
             const normalized = /^\d{4}-\d{2}-\d{2}$/.test( value )
                 ? `${ value }T00:00:00`
                 : value;
             const date = new Date( normalized );
-            return isValidDate( date ) ? date.toLocaleDateString() : "";
+            return isValidDate( date ) ? date.toLocaleDateString() : tiApplication.getLabel( placeholder, "" );
         }
 
     };

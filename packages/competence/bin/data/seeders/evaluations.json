@@ -6,10 +6,7 @@
       "cycleID": "2025.H1",
       "cycleDate": "2025-06-30",
       "status": "Deleted",
-      "grades": {
-        "E1-1": { "employee": "", "manager": "", "team": { "cumulative": "", "individual": [] } },
-        "E1-2": { "employee": "", "manager": "", "team": { "cumulative": "", "individual": [] } }
-      },
+      "grades": {},
       "workflow": {
         "currentStep": 1,
         "selfEvaluationCompleted": false,
@@ -29,11 +26,15 @@
       "cycleDate": "2025-06-30",
       "status": "Open",
       "grades": {
-        "E1-1": { "employee": "S", "manager": "R", "team": { "cumulative": "S", "individual": [] } },
-        "E1-2": { "employee": "R", "manager": "R", "team": { "cumulative": "R", "individual": [] } },
-        "E2-1": { "employee": "S", "manager": "S", "team": { "cumulative": "R", "individual": [] } },
-        "I1-1": { "employee": "R", "manager": "R", "team": { "cumulative": "R", "individual": [] } },
-        "C1-1": { "employee": "S", "manager": "R", "team": { "cumulative": "U", "individual": [] } }
+        "E1-1": { "employee": "", "manager": "", "team": { "cumulative": "", "individual": [] } },
+        "E1-2": { "employee": "", "manager": "", "team": { "cumulative": "", "individual": [] } },
+        "E1-5": { "employee": "", "manager": "", "team": { "cumulative": "", "individual": [] } },
+        "E2-3": { "employee": "", "manager": "", "team": { "cumulative": "", "individual": [] } },
+        "E2-4": { "employee": "", "manager": "", "team": { "cumulative": "", "individual": [] } },
+        "I2-1": { "employee": "", "manager": "", "team": { "cumulative": "", "individual": [] } },
+        "C1-1": { "employee": "", "manager": "", "team": { "cumulative": "", "individual": [] } },
+        "C3-2": { "employee": "", "manager": "", "team": { "cumulative": "", "individual": [] } },
+        "C3-3": { "employee": "", "manager": "", "team": { "cumulative": "", "individual": [] } }
       },
       "workflow": {
         "currentStep": 1,
@@ -44,7 +45,9 @@
         "teamEvaluationCompleted": false,
         "teamEvaluationDeadline": "",
         "teamEvaluationsSubmitted": 0,
-        "team": [ "2" ]
+        "team": [
+          "2"
+        ]
       }
     },
     {
@@ -54,13 +57,7 @@
       "cycleDate": "2025-06-30",
       "interviewDate": "2025-06-17",
       "status": "Open",
-      "grades": {
-        "E1-1": { "employee": "R", "manager": "R", "team": { "cumulative": "R", "individual": [] } },
-        "E1-2": { "employee": "R", "manager": "S", "team": { "cumulative": "R", "individual": [] } },
-        "E2-1": { "employee": "R", "manager": "R", "team": { "cumulative": "R", "individual": [] } },
-        "I1-1": { "employee": "S", "manager": "R", "team": { "cumulative": "R", "individual": [] } },
-        "C1-1": { "employee": "R", "manager": "R", "team": { "cumulative": "S", "individual": [] } }
-      },
+      "grades": {},
       "workflow": {
         "currentStep": 1,
         "selfEvaluationCompleted": false,
