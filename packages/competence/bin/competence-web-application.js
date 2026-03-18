@@ -395,7 +395,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.status-is-closed" }, exceptions.httpCode.C_422 );
                 }
 
-                isEmployee = currentEvaluation.employeeID === userID && session?.user?.roles?.includes( 1 );
+                isEmployee = currentEvaluation.employeeID === userID && session?.user?.roles?.includes( configurationLoader.roleCode.EMPLOYEE );
                 isTeamMember = Array.isArray( currentEvaluation.workflow?.team ) && currentEvaluation.workflow.team.includes( userID ) && !isEmployee;
 
                 return this.#canManagerModifyEvaluation( userID, currentEvaluation );
@@ -406,22 +406,22 @@ class CompetenceWebApplication extends TiWebAppManager {
                 const today = new Date().toISOString().split( "T" )[ 0 ];
                 if ( isTeamMember ) {
                     userRole = configurationLoader.roleCode.TEAM_MEMBER;
+                    deadlineDate = currentEvaluation.workflow.teamEvaluationDeadline;
                     canEdit = !currentEvaluation.workflow.teamEvaluationCompleted
                         && currentEvaluation.status === configurationLoader.evaluationStatus.OPEN
                         && ( !deadlineDate || today <= deadlineDate );
-                    deadlineDate = currentEvaluation.workflow.teamEvaluationDeadline;
                 } else if ( isEmployee ) {
                     userRole = configurationLoader.roleCode.EMPLOYEE;
+                    deadlineDate = currentEvaluation.workflow.selfEvaluationDeadline;
                     canEdit = !currentEvaluation.workflow.selfEvaluationCompleted
                         && currentEvaluation.status === configurationLoader.evaluationStatus.OPEN
                         && ( !deadlineDate || today <= deadlineDate );
-                    deadlineDate = currentEvaluation.workflow.selfEvaluationDeadline;
                 } else if ( isManager ) {
                     userRole = configurationLoader.roleCode.MANAGER;
+                    deadlineDate = currentEvaluation.workflow.managerEvaluationDeadline;
                     canEdit = !currentEvaluation.workflow.managerEvaluationCompleted
                         && currentEvaluation.status === configurationLoader.evaluationStatus.IN_REVIEW
                         && ( !deadlineDate || today <= deadlineDate );
-                    deadlineDate = currentEvaluation.workflow.managerEvaluationDeadline;
                 } else {
                     throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
                 }
@@ -501,7 +501,6 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 // Populate the competencies based on the employee position and the role configuration:
                 for ( const competencyCode of this.#getAllowedCompetencyCodes( employee.personal.position, newEvaluation.cycleID ) ) {
-                    newEvaluation.grades[ competencyCode ] = newEvaluation.grades[ competencyCode ] || {};
                     newEvaluation.grades[ competencyCode ] = this.#normalizeGrades( newEvaluation.grades, competencyCode );
                 }
 

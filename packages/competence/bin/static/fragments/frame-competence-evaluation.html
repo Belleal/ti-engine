@@ -22,20 +22,18 @@
     <div x-show="showEvaluationForm && (userRole === 1 || userRole === 2 || userRole === 4) && canEdit" class="ti-button-bar ti-sub-panel">
         <button type="button" class="ti-button ti-glass-btn-black large on-screen"
                 x-on:click="resetGrades()"
-                x-text-label="interface.evaluation.actions.reset"
-                x-show="canEdit"></button>
+                x-text-label="interface.evaluation.actions.reset"></button>
         <button type="button" class="ti-button ti-glass-btn-black large on-screen"
                 x-show="( userRole === 1 || userRole === 2 ) && canEdit"
                 x-on:click="saveDraft()"
                 x-text-label="interface.evaluation.actions.save-draft"></button>
         <button type="button" class="ti-button ti-glass-btn-black large on-screen primary"
                 x-on:click="submitEvaluation()"
-                x-text-label="interface.evaluation.actions.submit"
-                x-show="canEdit"></button>
+                x-text-label="interface.evaluation.actions.submit"></button>
     </div>
 
     <div x-show="showEvaluationForm" class="ti-panel ti-sub-panel">
-        <div class="role-banner" x-bind:class="getUserRoleAsText()">
+        <div class="role-banner" x-bind:class="getUserRoleAsText()" x-show="userRole">
             <div class="role-banner-text">
                 <span x-show="userRole === 1" x-text-label="interface.evaluation.banners.employee"></span>
                 <span x-show="userRole === 2" x-text-label="interface.evaluation.banners.manager"></span>
