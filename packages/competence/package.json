@@ -1,29 +1,31 @@
 {
   "name": "@ti-engine/competence",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "imports": {
     "#config-competencies": "./bin/config/competencies.json",
-    "#config-grades": "./bin/config/grades.json",
+    "#config-organization-structure": "./bin/config/config.organization-structure.json",
     "#config-position-competencies": "./bin/config/positionCompetencies.json",
     "#config-position-levels": "./bin/config/positionLevels.json",
     "#config-positions": "./bin/config/positions.json",
     "#configuration-loader": "./application/configuration-loader.js",
     "#data-employees": "./bin/data/seeders/employees.json",
     "#data-evaluations": "./bin/data/seeders/evaluations.json",
-    "#data-manager": "./application/data-manager.js"
+    "#data-manager": "./application/data-manager.js",
+    "#organization-manager": "./application/organization-manager.js"
   },
   "dependencies": {
     "@ti-engine/core": "*",
-    "@ti-engine/web-framework": "*"
+    "@ti-engine/web-framework": "*",
+    "graphology": "^0.26.0"
   },
   "scripts": {
     "test": "node --test test/*.test.js",
     "test:json": "node --test test/json-config-validation.test.js"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   }
 }

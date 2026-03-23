@@ -273,9 +273,7 @@ describe( "JSON Configuration Files Validation", () => {
                 assert.ok( employee.personal, `Employee ${ index } should have personal info` );
                 assert.ok( employee.personal.name, `Employee ${ index } should have name` );
                 assert.ok( typeof employee.personal.position === "string", `Employee ${ index } should have enum position` );
-                assert.ok( employee.personal.department, `Employee ${ index } should have department` );
-                assert.ok( employee.manager, `Employee ${ index } should have manager info` );
-                assert.ok( employee.manager.managerID, `Employee ${ index } should have managerID` );
+                assert.ok( employee.personal.organizationUnitID, `Employee ${ index } should have organizationUnitID` );
                 assert.ok( employee.personal.level, `Employee ${ index } should have level` );
                 assert.ok( typeof employee.personal.stage === "number", `Employee ${ index } should have number stage` );
                 const startingDate = new Date( employee.personal.startingDate );
@@ -355,6 +353,30 @@ describe( "JSON Configuration Files Validation", () => {
                 assert.ok(
                     employeeIds.has( evaluation.employeeID ),
                     `Evaluation ${ index } references non-existent employee ${ evaluation.employeeID }`
+                );
+            } );
+        } );
+
+        it( "should have consistent organization unit relationships", () => {
+            const employeesPath = path.join( dataDir, "seeders", "employees.json" );
+            const organizationPath = path.join( configDir, "config.organization-structure.json" );
+
+            const employees = JSON.parse( fs.readFileSync( employeesPath, "utf8" ) );
+            const organizationStructure = JSON.parse( fs.readFileSync( organizationPath, "utf8" ) );
+
+            const employeeIds = new Set( employees.employees.map( e => e.employeeID ) );
+
+            employees.employees.forEach( ( employee, index ) => {
+                assert.ok(
+                    organizationStructure[ employee.personal.organizationUnitID ],
+                    `Employee ${ index } references non-existent organization unit ${ employee.personal.organizationUnitID }`
+                );
+            } );
+
+            Object.entries( organizationStructure ).forEach( ( [ unitID, unit ] ) => {
+                assert.ok(
+                    employeeIds.has( unit.managerID ),
+                    `Organization unit ${ unitID } references non-existent manager ${ unit.managerID }`
                 );
             } );
         } );

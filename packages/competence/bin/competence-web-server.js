@@ -11,6 +11,8 @@ const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const ServiceConsumer = require( "@ti-engine/core/service-consumer" );
 const dataManager = require( "#data-manager" );
+const organizationManager = require( "#organization-manager" );
+const configurationLoader = require( "#configuration-loader" );
 
 /**
  * NOTE: This is still a work in progress.
@@ -43,7 +45,9 @@ class CompetenceWebServer extends TiWebServer {
     onStart() {
         return new Promise( ( resolve, reject ) => {
             super.onStart().then( () => {
-                return dataManager.instance.initialize( false );
+                return dataManager.instance.initialize();
+            } ).then( () => {
+                return organizationManager.instance.buildOrganizationChart();
             } ).then( () => {
                 resolve();
             } ).catch( ( error ) => {

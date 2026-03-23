@@ -23,6 +23,10 @@ class DataManager {
 
     static #instance = null;
 
+    /**
+     * @constructor
+     * @returns {DataManager}
+     */
     constructor() {
         if ( !DataManager.#instance ) {
             DataManager.#instance = this;
@@ -58,6 +62,34 @@ class DataManager {
         }
 
         return Promise.all( promises );
+    }
+
+    /**
+     * Used to fetch all employees from the data storage.
+     *
+     * @method
+     * @returns {Promise<Array<Employee>>}
+     * @public
+     */
+    fetchEmployees() {
+        return new Promise( ( resolve, reject ) => {
+            if ( cache.instance.isOperational ) {
+                cache.instance.getJSON( `ti:competence:data:employees`, "$" ).then( ( result ) => {
+                    const source = _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result );
+                    if ( !source || typeof source !== "object" ) {
+                        resolve( [] );
+                    } else {
+                        resolve( Object.values( source ) );
+                    }
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                // NOTE: Only for development purposes. The system expects an actual DB to function properly.
+                const employees = require( "#data-employees" ).employees;
+                resolve( _.cloneDeep( Array.isArray( employees ) ? employees : [] ) );
+            }
+        } );
     }
 
     /**

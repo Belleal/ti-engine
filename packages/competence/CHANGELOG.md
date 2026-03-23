@@ -2,6 +2,34 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.2.0
+
+* feat(org): add `OrganizationManager` singleton powered by `graphology` to build an organization chart from units and employees
+* feat(org): add manager and organization context resolution (`resolveManagerIDForEmployee`, `resolveEmployeeOrganizationContext`) with parent-unit fallback
+* feat(config): add `bin/config/config.organization-structure.json` and expose `configOrganizationStructure` via configuration loader
+* feat(data-manager): add `fetchEmployees()` for bulk employee retrieval from cache or seeded fallback data
+* feat(web-server): initialize organizational graph on startup after data initialization
+* feat(web-app): add `employees-list` fragment registration and sidebar navigation action for the new screen
+* feat(web-app): augment loaded evaluation personal context with `organizationUnitName` and graph-resolved manager info
+* feat(web-app): set new evaluations `managerID` via organization graph resolution and use graph-based manager authorization checks
+* feat(web-app): return grades from `evaluationGrade.properties` instead of external grades JSON configuration
+* feat(ui): add employees list UI model and fragment scaffold with flat and hierarchical unit rendering
+* feat(ui): update evaluation personal section to display organization unit name instead of department
+* feat(css): add dedicated employees list layout and responsive styles
+* feat(localization): add labels for employees list screen and rename personal section label key to organization unit
+* refactor(data): replace employee `department`/embedded manager seed structure with `organizationUnitID` mapping and expanded seed dataset
+* refactor(schema): update employee JSON schema to use `organizationUnitID` and remove required manager object
+* refactor(types): align employee type definitions with organization-unit fields and optional manager data
+* refactor(ui): migrate cloning and date formatting usage to framework toolbox helpers and remove `ti-user-interface.js` include from package index
+* build(package): add import aliases `#config-organization-structure` and `#organization-manager`; remove `#config-grades`
+* build(scripts): add local build utilities for generating competencies and competence labels from CSV sources (`bin/build/*.js`)
+* build(deps): add `graphology` dependency
+* build(engines): update Node.js requirement from `>=20.0.0` to `>=24.0.0`
+* build(release): bump package version from `1.1.0` to `1.2.0`
+* test(app): update web application tests for organization unit and manager context behavior
+* test(data): update data manager tests to validate `organizationUnitID`-based employee structure
+* test(json): add organization-structure consistency validation between units and employee manager references
+
 ## Version 1.1.0
 
 * feat(web-app): add `start-evaluation` service request handler with position-based competency initialization and active evaluation guard

@@ -70,8 +70,7 @@ describe( "dataManager", () => {
             assert.ok( employee.personal );
             assert.ok( employee.personal.name );
             assert.ok( typeof employee.personal.position === "string" );
-            assert.ok( employee.personal.department );
-            assert.ok( employee.personal.manager );
+            assert.ok( employee.personal.organizationUnitID );
             assert.ok( employee.personal.level );
             assert.ok( employee.personal.startingDate );
         } );

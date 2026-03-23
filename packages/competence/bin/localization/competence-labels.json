@@ -2438,9 +2438,9 @@
           "en": "Position & Level:",
           "bg": "Позиция & Ниво:"
         },
-        "department": {
-          "en": "Department:",
-          "bg": "Отдел:"
+        "organization-unit-id": {
+          "en": "Organization Unit:",
+          "bg": "Организационна единица:"
         },
         "manager": {
           "en": "Manager:",
@@ -2521,6 +2521,72 @@
         "submitted": {
           "en": "The Evaluation was submitted successfully.",
           "bg": "Оценката беше изпратена успешно."
+        }
+      }
+    },
+    "employees": {
+      "title": {
+        "en": "Employee List",
+        "bg": "Списък на служителите"
+      },
+      "unit": {
+        "type": {
+          "en": "Unit Type:",
+          "bg": "Тип единица:"
+        },
+        "name": {
+          "en": "Unit Name:",
+          "bg": "Име на единицата:"
+        },
+        "managers": {
+          "en": "Managers:",
+          "bg": "Мениджъри:"
+        },
+        "location": {
+          "en": "Located In:",
+          "bg": "Ниво в структурата:"
+        }
+      },
+      "columns": {
+        "id": {
+          "en": "Employee ID",
+          "bg": "ID на служител"
+        },
+        "name": {
+          "en": "Name",
+          "bg": "Име"
+        },
+        "position": {
+          "en": "Position",
+          "bg": "Позиция"
+        },
+        "level": {
+          "en": "Level",
+          "bg": "Ниво"
+        },
+        "since": {
+          "en": "Since",
+          "bg": "От"
+        },
+        "evaluation": {
+          "en": "Evaluation",
+          "bg": "Оценка"
+        }
+      },
+      "actions": {
+        "start-new": {
+          "en": "Start New",
+          "bg": "Нова"
+        },
+        "review": {
+          "en": "Review",
+          "bg": "Преглед"
+        }
+      },
+      "status": {
+        "open": {
+          "en": "Open",
+          "bg": "Отворена"
         }
       }
     }

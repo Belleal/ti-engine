@@ -10,13 +10,13 @@ const tools = require( "@ti-engine/core/tools" );
 
 const configOrganizationPositionsEnum = tools.enum( require( "#config-positions" ) );
 const configCompetencies = require( "#config-competencies" );
-const configEvaluationGrades = require( "#config-grades" );
+const configOrganizationStructure = require( "#config-organization-structure" );
 const configEvaluationLevels = require( "#config-position-levels" );
 const configEvaluationPositionCompetencies = require( "#config-position-competencies" );
 
 module.exports.organizationPositionCode = configOrganizationPositionsEnum;
 module.exports.configCompetencies = tools.deepFreeze( configCompetencies );
-module.exports.configEvaluationGrades = tools.deepFreeze( configEvaluationGrades );
+module.exports.configOrganizationStructure = tools.deepFreeze( configOrganizationStructure );
 module.exports.configEvaluationLevels = tools.deepFreeze( configEvaluationLevels );
 module.exports.configEvaluationPositionCompetencies = tools.deepFreeze( configEvaluationPositionCompetencies );
 

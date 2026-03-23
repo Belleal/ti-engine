@@ -39,9 +39,9 @@
           "type": "string",
           "description": "Job title or position"
         },
-        "department": {
+        "organizationUnitID": {
           "type": "string",
-          "description": "Department name"
+          "description": "Organization unit ID"
         },
         "level": {
           "type": "string",
@@ -65,24 +65,6 @@
           "type": "string",
           "format": "date",
           "description": "Date of joining the company"
-        }
-      }
-    },
-    "manager": {
-      "type": "object",
-      "description": "Information about the direct manager",
-      "required": [
-        "managerID"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Name of the direct manager"
-        },
-        "managerID": {
-          "type": "string",
-          "description": "Employee ID of the direct manager"
         }
       }
     }

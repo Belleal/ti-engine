@@ -62,7 +62,8 @@
  * @property {string} name - Full name of the employee.
  * @property {string} [email] - Corporate email address.
  * @property {string} [position] - Job title or position.
- * @property {string} [department] - Department name.
+ * @property {string} [organizationUnitID] - Organization unit ID.
+ * @property {string} [organizationUnitName] - Organization unit display name.
  * @property {"N"|"J"|"R"|"S"|"X"|"T"} level - Competency level.
  * @property {1|2|3} stage - Progression stage within the level.
  * @property {string} [startingDate] - Date of joining the company (YYYY-MM-DD).
@@ -78,7 +79,7 @@
  * @typedef {Object} Employee
  * @property {string} employeeID - Unique identifier for the employee.
  * @property {EmployeePersonalInformation} personal - Personal information about the employee.
- * @property {EmployeeManagerInformation} manager - Information about the direct manager.
+ * @property {EmployeeManagerInformation} [manager] - Information about the direct manager.
  */
 
 /**

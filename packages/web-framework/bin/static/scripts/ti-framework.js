@@ -1,158 +1,287 @@
-/**
- * Used to check if a value is a plain object.
- *
- * @method
- * @param {*} value
- * @returns {boolean}
- * @public
- */
-function isPlainObject( value ) {
-    return Object.prototype.toString.call( value ) === "[object Object]";
-}
+/*
+ * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 
 /**
- * Used to check if a value is a valid Date object.
- *
- * @method
- * @param {*} value
- * @returns {boolean}
- * @public
+ * @typedef {Object} SidebarFlyoutConfig
+ * @property {string} [menuTitle]
+ * @property {number} [offset]
+ * @property {string} [placement]
+ * @property {boolean} [fixed]
+ * @property {Array<SidebarFlyoutButtonConfig>} [buttonConfigs]
  */
-function isValidDate( value ) {
-    return value instanceof Date && !isNaN( value );
-}
 
 /**
- * Used to perform a deep merge of two objects. 'base' is the object that will be modified.
- * <br/>
- * NOTE: If 'structuredClone' is not available, fall back to JSON.parse/JSON.stringify. The later will not preserve non-JSON-serializable
- * values (functions, undefined, symbols) and will convert Dates to strings, RegExp to empty objects, etc.
+ * @typedef {Object} SidebarFlyoutButtonConfig
+ * @property {string} title
+ * @property {string} icon
+ * @property {Object} action
+ * @property {string} action.href
+ * @property {string} action.target
+ * @property {string} action.swap
+ */
+
+/**
+ * @constant
+ * @type {SidebarFlyoutConfig}
+ */
+const configSidebarUserMenu = {
+    menuTitle: "User",
+    offset: 20,
+    buttonConfigs: [ {
+        title: "Profile",
+        icon: "person",
+        action: {
+            href: "/app/profile",
+            target: "#ti-content",
+            swap: "innerHTML"
+        }
+    }, {
+        title: "Logout",
+        icon: "logout",
+        action: {
+            href: "/logout",
+            method: "post",
+            target: "body",
+            swap: "outerHTML"
+        }
+    } ]
+};
+
+/**
+ * @constant
+ * @type {SidebarFlyoutConfig}
+ */
+const configSidebarAdministrationMenu = {
+    menuTitle: "Administration",
+    offset: 20,
+    buttonConfigs: [ {
+        title: "Settings",
+        icon: "settings",
+        action: {
+            href: "/app/administration",
+            target: "#ti-content",
+            swap: "innerHTML"
+        }
+    }, {
+        title: "Error",
+        icon: "error",
+        action: {
+            href: "/app/error",
+            target: "#ti-content",
+            swap: "innerHTML"
+        }
+    } ]
+};
+
+
+/**
+ * Returns a configuration object for the toolbox.
  *
  * @method
- * @param {Object} base
- * @param {Object} source
  * @returns {Object}
  * @public
  */
-function deepMerge( base, source ) {
-    if ( !isPlainObject( base ) || !isPlainObject( source ) ) {
-        return ( typeof structuredClone === "function" ) ? structuredClone( source ) : JSON.parse( JSON.stringify( source ) );
-    } else {
-        const out = { ...base };
-        for ( const key of Object.keys( source ) ) {
-            const b = base[ key ];
-            const s = source[ key ];
-
-            if ( Array.isArray( s ) ) {
-                out[ key ] = s.slice();
-            } else if ( isPlainObject( s ) && isPlainObject( b ) ) {
-                out[ key ] = deepMerge( b, s );
-            } else if ( isPlainObject( s ) ) {
-                out[ key ] = deepMerge( {}, s );
-            } else {
-                out[ key ] = s;
-            }
-        }
-        return out;
-    }
-}
-
-/**
- * Used to deep-freeze an object.
- *
- * @method
- * @param {Object} object
- * @param {WeakSet} [seen]
- * @return {Object}
- * @public
- */
-function deepFreeze( object, seen = new WeakSet() ) {
-    if ( object === null || typeof object !== "object" || seen.has( object ) ) {
-        return object;
-    } else {
-        seen.add( object );
-        Object.keys( object ).forEach( ( key ) => {
-            deepFreeze( object[ key ], seen );
-        } );
-        return Object.freeze( object );
-    }
-}
-
-/**
- * Used to get the visible box of the document.
- *
- * @method
- * @param {boolean} isFixed
- * @returns {Object}
- * @public
- */
-function getVisibleBox( isFixed ) {
-    // Fixed coordinates are viewport-based (top/left = 0/0):
-    if ( isFixed ) {
-        if ( window.visualViewport ) {
-            const viewport = window.visualViewport;
-            return {
-                left: viewport.offsetLeft, // CSS px, where the viewport begins relative to a layout viewport
-                top: viewport.offsetTop,
-                width: viewport.width,
-                height: viewport.height,
-                pageLeft: viewport.pageLeft, // document coords
-                pageTop: viewport.pageTop
-            };
-        } else {
-            return { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight, pageLeft: window.scrollX, pageTop: window.scrollY };
-        }
-    } else {
-        // Absolute coordinates are document-based (top/left = scroll position):
-        return {
-            left: window.scrollX,
-            top: window.scrollY,
-            width: document.documentElement.clientWidth,
-            height: document.documentElement.clientHeight,
-            pageLeft: window.scrollX,
-            pageTop: window.scrollY
-        };
-    }
-}
-
-/**
- * Used to clamp a position to a box.
- *
- * @method
- * @param {number} x
- * @param {number} y
- * @param {number} w
- * @param {number} h
- * @param {Object} box
- * @param {number} [edgePadding=0]
- * @returns {{x: number, y: number}}
- * @public
- */
-function clampToBox( x, y, w, h, box, edgePadding = 0 ) {
-    // If the box has an offset (visualViewport on some platforms), normalize appropriately.
-    // For fixed elements, x/y are in viewport coordinates; for absolute, in page coordinates.
-    const minX = box.left + edgePadding;
-    const minY = box.top + edgePadding;
-    const maxX = box.left + box.width - w - edgePadding;
-    const maxY = box.top + box.height - h - edgePadding;
+const configureToolbox = () => {
+    /**
+     * @typedef {Object} TiToolbox
+     */
     return {
-        x: Math.min( Math.max( x, minX ), Math.max( minX, maxX ) ),
-        y: Math.min( Math.max( y, minY ), Math.max( minY, maxY ) )
-    };
-}
 
-/**
- * Used to get a cookie value by name.
- *
- * @method
- * @param {string} name
- * @returns {string}
- * @public
- */
-function getCookie( name ) {
-    const cookie = document.cookie.match( new RegExp( "(?:^|; )" + name.replace( /[$()*+.?[\]\\^{}|]/g, "\\$&" ) + "=([^;]*)" ) );
-    return cookie ? decodeURIComponent( cookie[ 1 ] ) : "";
-}
+        /**
+         * Used to clamp a position to a box.
+         *
+         * @method
+         * @param {number} x
+         * @param {number} y
+         * @param {number} w
+         * @param {number} h
+         * @param {Object} box
+         * @param {number} [edgePadding=0]
+         * @returns {{x: number, y: number}}
+         * @public
+         */
+        clampToBox( x, y, w, h, box, edgePadding = 0 ) {
+            // If the box has an offset (visualViewport on some platforms), normalize appropriately.
+            // For fixed elements, x/y are in viewport coordinates; for absolute, in page coordinates.
+            const minX = box.left + edgePadding;
+            const minY = box.top + edgePadding;
+            const maxX = box.left + box.width - w - edgePadding;
+            const maxY = box.top + box.height - h - edgePadding;
+            return {
+                x: Math.min( Math.max( x, minX ), Math.max( minX, maxX ) ),
+                y: Math.min( Math.max( y, minY ), Math.max( minY, maxY ) )
+            };
+        },
+
+        /**
+         * Used to deep-freeze an object.
+         *
+         * @method
+         * @param {Object} object
+         * @param {WeakSet} [seen]
+         * @returns {Object}
+         * @public
+         */
+        deepFreeze( object, seen = new WeakSet() ) {
+            if ( object === null || typeof object !== "object" || seen.has( object ) ) {
+                return object;
+            } else {
+                seen.add( object );
+                Object.keys( object ).forEach( ( key ) => {
+                    this.deepFreeze( object[ key ], seen );
+                } );
+                return Object.freeze( object );
+            }
+        },
+
+        /**
+         * Used to perform a deep merge of two objects. 'base' is the object that will be modified.
+         * <br/>
+         * NOTE: If 'structuredClone' is not available, fall back to JSON.parse/JSON.stringify. The later will not preserve non-JSON-serializable
+         * values (functions, undefined, symbols) and will convert Dates to strings, RegExp to empty objects, etc.
+         *
+         * @method
+         * @param {Object} base
+         * @param {Object} source
+         * @returns {Object}
+         * @public
+         */
+        deepMerge( base, source ) {
+            if ( !this.isPlainObject( base ) || !this.isPlainObject( source ) ) {
+                return this.structuredClone( source );
+            } else {
+                const out = { ...base };
+                for ( const key of Object.keys( source ) ) {
+                    const b = base[ key ];
+                    const s = source[ key ];
+
+                    if ( Array.isArray( s ) ) {
+                        out[ key ] = s.slice();
+                    } else if ( this.isPlainObject( s ) && this.isPlainObject( b ) ) {
+                        out[ key ] = this.deepMerge( b, s );
+                    } else if ( this.isPlainObject( s ) ) {
+                        out[ key ] = this.deepMerge( {}, s );
+                    } else {
+                        out[ key ] = s;
+                    }
+                }
+                return out;
+            }
+        },
+
+        /**
+         * Used to format a system string date value into a display string.
+         *
+         * @method
+         * @param {string} value
+         * @param {string} placeholder
+         * @returns {string}
+         * @public
+         */
+        formatDate( value, placeholder = "" ) {
+            const normalized = /^\d{4}-\d{2}-\d{2}$/.test( value )
+                ? `${ value }T00:00:00`
+                : value;
+            const date = new Date( normalized );
+            return this.isValidDate( date ) ? date.toLocaleDateString() : placeholder;
+        },
+
+        /**
+         * Used to get a cookie value by name.
+         *
+         * @method
+         * @param {string} name
+         * @returns {string}
+         * @public
+         */
+        getCookie( name ) {
+            const cookie = document.cookie.match( new RegExp( "(?:^|; )" + name.replace( /[$()*+.?[\]\\^{}|]/g, "\\$&" ) + "=([^;]*)" ) );
+            return cookie ? decodeURIComponent( cookie[ 1 ] ) : "";
+        },
+
+        /**
+         * Used to get the visible box of the document.
+         *
+         * @method
+         * @param {boolean} isFixed
+         * @returns {Object}
+         * @public
+         */
+        getVisibleBox( isFixed ) {
+            // Fixed coordinates are viewport-based (top/left = 0/0):
+            if ( isFixed ) {
+                if ( window.visualViewport ) {
+                    const viewport = window.visualViewport;
+                    return {
+                        left: viewport.offsetLeft, // CSS px, where the viewport begins relative to a layout viewport
+                        top: viewport.offsetTop,
+                        width: viewport.width,
+                        height: viewport.height,
+                        pageLeft: viewport.pageLeft, // document coords
+                        pageTop: viewport.pageTop
+                    };
+                } else {
+                    return { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight, pageLeft: window.scrollX, pageTop: window.scrollY };
+                }
+            } else {
+                // Absolute coordinates are document-based (top/left = scroll position):
+                return {
+                    left: window.scrollX,
+                    top: window.scrollY,
+                    width: document.documentElement.clientWidth,
+                    height: document.documentElement.clientHeight,
+                    pageLeft: window.scrollX,
+                    pageTop: window.scrollY
+                };
+            }
+        },
+
+        /**
+         * Used to check if a value is a plain object.
+         *
+         * @method
+         * @param {*} value
+         * @returns {boolean}
+         * @public
+         */
+        isPlainObject( value ) {
+            return Object.prototype.toString.call( value ) === "[object Object]";
+        },
+
+        /**
+         * Used to check if a value is a valid Date object.
+         *
+         * @method
+         * @param {*} value
+         * @returns {boolean}
+         * @public
+         */
+        isValidDate( value ) {
+            return value instanceof Date && !isNaN( value );
+        },
+
+        /**
+         * Used to perform a structured clone operation.
+         * <br/>
+         * NOTE: If 'structuredClone' is not available, fall back to JSON.parse/JSON.stringify. The later will not preserve non-JSON-serializable.
+         *
+         * @method
+         * @param {Object} value
+         * @param {Object} [options]
+         * @returns {Object}
+         * @public
+         */
+        structuredClone( value, options ) {
+            return ( typeof structuredClone === "function" ) ? structuredClone( value, options ) : JSON.parse( JSON.stringify( value ) );
+        }
+
+    };
+};
 
 /**
  * Returns a configuration object for the sidebar flyout component "component-sidebar-flyout.html".
@@ -162,15 +291,24 @@ function getCookie( name ) {
  * @returns {Object}
  * @public
  */
-let configureComponentSidebarFlyout = ( options = {} ) => {
+const configureComponentSidebarFlyout = ( options = {} ) => {
     const TI_EVENT_CLOSE_ALL_FLYOUT = "ti-close-all-flyout";
 
-    /** @type {Object} */
+    /**
+     * @typedef {Object} TiSidebarFlyout
+     */
     return {
         placement: options.placement ?? "right-start",
         offset: options.offset ?? 10,
         fixed: options.fixed ?? true,
         isOpen: false,
+
+        /**
+         * Used to initialize the sidebar flyout component.
+         *
+         * @method
+         * @public
+         */
         init() {
             this._reflow = this.reposition.bind( this );
             this._close = this.close.bind( this );
@@ -178,14 +316,35 @@ let configureComponentSidebarFlyout = ( options = {} ) => {
             window.addEventListener( "scroll", this._reflow, { passive: true } );
             window.addEventListener( TI_EVENT_CLOSE_ALL_FLYOUT, this._close );
         },
+
+        /**
+         * Used to destroy the sidebar flyout component.
+         *
+         * @method
+         * @public
+         */
         destroy() {
             window.removeEventListener( "resize", this._reflow );
             window.removeEventListener( "scroll", this._reflow );
             window.removeEventListener( TI_EVENT_CLOSE_ALL_FLYOUT, this._close );
         },
+
+        /**
+         * Used to toggle the sidebar flyout panel.
+         *
+         * @method
+         * @public
+         */
         toggle() {
             this.isOpen ? this.close() : this.open();
         },
+
+        /**
+         * Used to open the sidebar flyout panel.
+         *
+         * @method
+         * @public
+         */
         open() {
             if ( !this.isOpen ) {
                 window.dispatchEvent( new CustomEvent( TI_EVENT_CLOSE_ALL_FLYOUT ) );
@@ -196,16 +355,37 @@ let configureComponentSidebarFlyout = ( options = {} ) => {
                 } );
             }
         },
+
+        /**
+         * Used to close the flyout panel.
+         *
+         * @method
+         * @public
+         */
         close() {
             if ( this.isOpen ) {
                 this.isOpen = false;
                 this.$nextTick( () => this.setAria() );
             }
         },
+
+        /**
+         * Used to set the ARIA attributes for the flyout button.
+         *
+         * @method
+         * @public
+         */
         setAria() {
             if ( !this.$refs.flyoutButton ) return;
             this.$refs.flyoutButton.setAttribute( "aria-expanded", String( this.isOpen ) );
         },
+
+        /**
+         * Used to reposition the flyout panel.
+         *
+         * @method
+         * @public
+         */
         reposition() {
             if ( !this.isOpen || !this.$refs.flyoutButton || !this.$refs.flyoutPanel ) return;
 
@@ -253,13 +433,14 @@ let configureComponentSidebarFlyout = ( options = {} ) => {
                 }
             }
 
-            const box = getVisibleBox( this.fixed );
-            const coords = clampToBox( left, top, pw, ph, box, 10 );
+            const box = this.getVisibleBox( this.fixed );
+            const coords = this.clampToBox( left, top, pw, ph, box, 10 );
 
             flyoutPanel.style.position = this.fixed ? "fixed" : "absolute";
             flyoutPanel.style.top = Math.round( coords.y ) + "px";
             flyoutPanel.style.left = Math.round( coords.x ) + "px";
         }
+
     };
 };
 
@@ -270,10 +451,21 @@ let configureComponentSidebarFlyout = ( options = {} ) => {
  * @returns {Object}
  * @public
  */
-let configureComponentNotificationBar = () => {
+const configureComponentNotificationBar = () => {
+    /**
+     * @typedef {Object} TiNotificationBar
+     */
     return {
         notifications: [],
         timers: {},
+
+        /**
+         * Used to add a notification to the notification bar.
+         *
+         * @method
+         * @param {Object} notification
+         * @public
+         */
         add( notification ) {
             if ( notification && notification.id ) {
                 this.remove( notification.id );
@@ -283,6 +475,14 @@ let configureComponentNotificationBar = () => {
                 }
             }
         },
+
+        /**
+         * Used to remove a notification by its ID.
+         *
+         * @method
+         * @param {string} id
+         * @public
+         */
         remove( id ) {
             if ( id ) {
                 this.notifications = this.notifications.filter( notification => notification.id !== id );
@@ -292,11 +492,19 @@ let configureComponentNotificationBar = () => {
                 }
             }
         },
+
+        /**
+         * Used to clear all notifications.
+         *
+         * @method
+         * @public
+         */
         destroy() {
             Object.keys( this.timers ).forEach( ( id ) => clearTimeout( this.timers[ id ] ) );
             this.timers = {};
             this.notifications = [];
         }
+
     };
 };
 
@@ -307,7 +515,10 @@ let configureComponentNotificationBar = () => {
  * @returns {Object}
  * @public
  */
-function configureComponentTooltip() {
+const configureComponentTooltip = () => {
+    /**
+     * @typedef {Object} TiTooltip
+     */
     return {
         isVisible: false,
         text: "This is a default tooltip. To change that, define a 'x-bind:data-ti-tooltip' attribute in the target element to set the tooltip text.",
@@ -376,6 +587,7 @@ function configureComponentTooltip() {
         hideTooltip() {
             this.isVisible = false;
         }
+
     };
 }
 
@@ -386,7 +598,9 @@ function configureComponentTooltip() {
  * @returns {Object}
  * @public
  */
-let configureApplication = () => {
+const configureApplication = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+
     /**
      * Used to extract a label from a nested labels object.
      *
@@ -394,7 +608,7 @@ let configureApplication = () => {
      * @param {Object} labels
      * @param {String[]} keys
      * @param {String} fallback
-     * @return {String}
+     * @returns {String}
      * @private
      */
     const extractLabel = ( labels, keys, fallback ) => {
@@ -411,6 +625,9 @@ let configureApplication = () => {
         return fallback;
     };
 
+    /**
+     * @typedef {Object} TiApplication
+     */
     return {
         isInitialized: false,
         user: null,
@@ -456,7 +673,7 @@ let configureApplication = () => {
          */
         sendRequest( url, method = "GET", data = null ) {
             return new Promise( ( resolve, reject ) => {
-                const xsrf = getCookie( "ti-xsrf-token" ) || "";
+                const xsrf = tiToolbox.getCookie( "ti-xsrf-token" ) || "";
                 const normalizedMethod = String( method || "GET" ).toUpperCase();
                 const requestKey = `${ normalizedMethod } ${ String( url || "" ).split( "?" )[ 0 ] }`;
                 const abortController = ( typeof AbortController === "function" ) ? new AbortController() : null;
@@ -584,6 +801,7 @@ let configureApplication = () => {
                 return extractLabel( this.configuration.labels || {}, label.split( "." ).filter( Boolean ), fallback );
             }
         }
+
     };
 };
 
@@ -591,13 +809,17 @@ let configureApplication = () => {
  * Perform a one-time configuration of the HTMX framework.
  */
 document.addEventListener( "htmx:configRequest", ( event ) => {
-    event.detail.headers[ 'x-xsrf-token' ] = getCookie( "ti-xsrf-token" ) || "";
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    event.detail.headers[ 'x-xsrf-token' ] = tiToolbox.getCookie( "ti-xsrf-token" ) || "";
     // Reuse the existing nonce from the active document:
     const styleNonce = ( htmx?.config?.inlineStyleNonce ) || "";
     const scriptNonce = ( htmx?.config?.inlineScriptNonce ) || "";
     event.detail.headers[ 'x-csp-nonce' ] = styleNonce || scriptNonce || "";
 } );
 
+/**
+ * Add a custom event listener to the HTMX framework.
+ */
 document.addEventListener( "htmx:responseError", ( event ) => {
     // If the server sent HX-Trigger with our payload, it will also emit a separate event,
     // But here we parse body as fallback when body is JSON
@@ -620,6 +842,14 @@ document.addEventListener( "htmx:responseError", ( event ) => {
  * Register on-initialization tasks for the Alpine.js framework.
  */
 document.addEventListener( "alpine:init", () => {
+    const defaultComponentConfig = {
+        menuTitle: "Menu",
+        placement: "right-start",
+        offset: 10,
+        fixed: true,
+        buttonConfigs: []
+    };
+
     Alpine.directive( "text-label", ( element, { expression }, { effect } ) => {
         effect( () => {
             const tiApplication = Alpine.store( "tiApplication" );
@@ -635,7 +865,13 @@ document.addEventListener( "alpine:init", () => {
             element.textContent = tiApplication.getLabel( path, fallback );
         } );
     } );
+    Alpine.store( "tiToolbox", configureToolbox() );
     Alpine.store( "tiApplication", configureApplication() );
+
+    Alpine.store( "tiComponentsConfig", {
+        sidebarAdministrationMenu: Alpine.store( "tiToolbox" ).deepMerge( defaultComponentConfig, configSidebarAdministrationMenu ),
+        sidebarUserMenu: Alpine.store( "tiToolbox" ).deepMerge( defaultComponentConfig, configSidebarUserMenu )
+    } );
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
     Alpine.data( "tiComponentTooltip", configureComponentTooltip );

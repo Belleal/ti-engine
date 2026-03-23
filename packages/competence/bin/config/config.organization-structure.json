@@ -1,0 +1,47 @@
+{
+  "1": {
+    "id": "1",
+    "name": "Organization",
+    "displayName": "Organization",
+    "description": "Organization",
+    "type": "organization",
+    "managerID": "22",
+    "parent": null,
+    "children": [
+      "1-1"
+    ]
+  },
+  "1-1": {
+    "id": "1-1",
+    "name": "Department 1",
+    "displayName": "Department 1",
+    "description": "Department 1",
+    "type": "unit",
+    "managerID": "20",
+    "parent": "1",
+    "children": [
+      "1-1-1",
+      "1-1-2"
+    ]
+  },
+  "1-1-1": {
+    "id": "1-1-1",
+    "name": "Team 1",
+    "displayName": "Team 1",
+    "description": "Team 1",
+    "type": "unit",
+    "managerID": "8",
+    "parent": "1-1",
+    "children": []
+  },
+  "1-1-2": {
+    "id": "1-1-2",
+    "name": "Team 2",
+    "displayName": "Team 2",
+    "description": "Team 2",
+    "type": "unit",
+    "managerID": "11",
+    "parent": "1-1",
+    "children": []
+  }
+}

@@ -132,6 +132,7 @@ describe( "CompetenceWebApplication", () => {
 
             assert.ok( result );
             assert.ok( result.grades );
+            assert.ok( result.organizationChart );
             assert.strictEqual( typeof result.grades, "object" );
         } );
 
@@ -230,8 +231,9 @@ describe( "CompetenceWebApplication", () => {
             assert.ok( result.personal.name );
             assert.ok( result.personal.position );
             assert.ok( result.personal.positionName );
-            assert.ok( result.personal.department );
-            assert.ok( result.personal.manager );
+            assert.ok( result.personal.organizationUnitID );
+            assert.ok( result.personal.organizationUnitName );
+            assert.ok( result.manager?.name );
             assert.ok( result.personal.level );
         } );
 
@@ -458,7 +460,7 @@ describe( "CompetenceWebApplication", () => {
             // Verify that employee data comes from data loader
             assert.ok( result.personal );
             assert.ok( result.personal.name );
-            assert.ok( result.personal.department );
+            assert.ok( result.personal.organizationUnitID );
         } );
 
         it( "should use data loader for evaluation data", async () => {
@@ -884,7 +886,7 @@ describe( "CompetenceWebApplication", () => {
 
             const result = await app.processDataRequest( session, "load-evaluation", options );
             assert.ok( result.manager );
-            assert.ok( result.manager.managerID );
+            assert.ok( result.manager.name );
         } );
     } );
 } );

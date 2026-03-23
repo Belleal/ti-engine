@@ -1,3 +1,11 @@
+/*
+ * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
+
 /**
  * Initialization data models for the various Competence screens.
  *
@@ -8,14 +16,14 @@ const initialDataModels = {
         personal: {
             name: "",
             position: "",
-            department: "",
+            organizationUnitID: "",
+            organizationUnitName: "",
             level: "",
             stage: "",
             startingDate: ""
         },
         manager: {
-            name: "",
-            managerID: ""
+            name: ""
         },
         evaluation: {
             cycle: "",
@@ -63,6 +71,67 @@ const initialDataModels = {
                 ]
             }
         ]
+    },
+    employeesList: {
+        unit: {
+            type: "Department",
+            name: "Department A",
+            managers: [ "Michael Scott" ],
+            parents: [ "Division Alpha" ]
+        },
+        units: [
+            {
+                id: "department-a",
+                type: "Department",
+                name: "Department A",
+                managers: [ "Michael Scott" ],
+                employees: [],
+                children: [
+                    {
+                        id: "team-1",
+                        type: "Team",
+                        name: "Team 1",
+                        managers: [ "Pam Beesly" ],
+                        employees: [
+                            {
+                                id: "Employee ID 1",
+                                name: "John Smith",
+                                position: "Software Engineer",
+                                level: "R2",
+                                since: "12.03.2020",
+                                evaluation: { status: "new", date: "" }
+                            },
+                            {
+                                id: "Employee ID 2",
+                                name: "Jane Doe",
+                                position: "Software Engineer",
+                                level: "R3",
+                                since: "25.01.2020",
+                                evaluation: { status: "open", date: "28.04.2026" }
+                            }
+                        ],
+                        children: []
+                    },
+                    {
+                        id: "team-2",
+                        type: "Team",
+                        name: "Team 2",
+                        managers: [ "Jim Halpert" ],
+                        employees: [
+                            {
+                                id: "Employee ID n",
+                                name: "Names",
+                                position: "Position",
+                                level: "R3",
+                                since: "25.01.2020",
+                                evaluation: { status: "new", date: "" }
+                            }
+                        ],
+                        children: []
+                    }
+                ]
+            }
+        ]
     }
 };
 
@@ -74,9 +143,8 @@ const initialDataModels = {
  * @public
  */
 let configureCompetencyEvaluation = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
     const tiApplication = Alpine.store( "tiApplication" );
-
-    const clone = ( value ) => JSON.parse( JSON.stringify( value ) );
 
     const getEmployeeIDFromUrl = () => {
         const params = new URLSearchParams( window.location.search );
@@ -94,9 +162,9 @@ let configureCompetencyEvaluation = () => {
         deadlineDate: null,
         canEdit: false,
         manager: {},
-        personal: clone( initialDataModels.competencyEvaluation.personal ),
-        evaluation: clone( initialDataModels.competencyEvaluation.evaluation ),
-        competencies: clone( initialDataModels.competencyEvaluation.competencies ),
+        personal: tiToolbox.structuredClone( initialDataModels.competencyEvaluation.personal ),
+        evaluation: tiToolbox.structuredClone( initialDataModels.competencyEvaluation.evaluation ),
+        competencies: tiToolbox.structuredClone( initialDataModels.competencyEvaluation.competencies ),
         grades: {},
         showEvaluationForm: false,
 
@@ -120,13 +188,13 @@ let configureCompetencyEvaluation = () => {
 
         applyData( data ) {
             const fresh = ( data && typeof data === "object" ) ? data : {};
-            this.personal = clone( fresh.personal || initialDataModels.competencyEvaluation.personal );
-            this.manager = clone( fresh.manager || initialDataModels.competencyEvaluation.manager );
+            this.personal = tiToolbox.structuredClone( fresh.personal || initialDataModels.competencyEvaluation.personal );
+            this.manager = tiToolbox.structuredClone( fresh.manager || initialDataModels.competencyEvaluation.manager );
             this.userRole = fresh.userRole;
             this.deadlineDate = fresh.deadlineDate;
             this.canEdit = fresh.canEdit;
-            this.evaluation = clone( fresh.evaluation || initialDataModels.competencyEvaluation.evaluation );
-            this.competencies = clone( fresh.competencies || initialDataModels.competencyEvaluation.competencies );
+            this.evaluation = tiToolbox.structuredClone( fresh.evaluation || initialDataModels.competencyEvaluation.evaluation );
+            this.competencies = tiToolbox.structuredClone( fresh.competencies || initialDataModels.competencyEvaluation.competencies );
         },
 
         loadEmployeeEvaluation( employeeID ) {
@@ -211,10 +279,6 @@ let configureCompetencyEvaluation = () => {
             }
         },
 
-        setInterviewDate( value ) {
-            this.evaluation.interviewDate = value;
-        },
-
         getItemGrade( competencyCode, role, defaultValue = "" ) {
             let grade;
             if ( competencyCode ) {
@@ -230,11 +294,101 @@ let configureCompetencyEvaluation = () => {
         },
 
         formatDate( value, placeholder = "" ) {
-            const normalized = /^\d{4}-\d{2}-\d{2}$/.test( value )
-                ? `${ value }T00:00:00`
-                : value;
-            const date = new Date( normalized );
-            return isValidDate( date ) ? date.toLocaleDateString() : tiApplication.getLabel( placeholder, "" );
+            return tiToolbox.formatDate( value, tiApplication.getLabel( placeholder, "" ) );
+        }
+
+    };
+};
+
+/**
+ * Returns a configuration object for the employees list screen.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+let configureEmployeesList = () => {
+    const tiApplication = Alpine.store( "tiApplication" );
+    const clone = ( value ) => JSON.parse( JSON.stringify( value ) );
+
+    const formatList = ( values, separator = ", " ) => {
+        if ( !Array.isArray( values ) ) {
+            return "";
+        }
+        return values.map( ( entry ) => String( entry || "" ).trim() ).filter( Boolean ).join( separator );
+    };
+
+    const getLabel = ( key, fallback ) => {
+        if ( tiApplication && typeof tiApplication.getLabel === "function" ) {
+            return tiApplication.getLabel( key, fallback );
+        }
+        return fallback;
+    };
+
+    const buildUnitEntry = ( unit, depth, index ) => {
+        const type = String( unit?.type || "" ).trim();
+        const name = String( unit?.name || "" ).trim();
+        const managers = formatList( unit?.managers );
+        const managersLabel = managers
+            ? `${ getLabel( "interface.employees.unit.managers", "Managers:" ) } ${ managers }`
+            : "";
+        return {
+            id: unit?.id || `${ type || "unit" }-${ name || "unknown" }-${ depth }-${ index }`,
+            depth: depth,
+            type: type,
+            name: name,
+            displayName: type ? `${ type }: ${ name }` : name,
+            managersLabel: managersLabel,
+            employees: clone( Array.isArray( unit?.employees ) ? unit.employees : [] )
+        };
+    };
+
+    const flattenUnits = ( units, depth = 0, output = [] ) => {
+        const list = Array.isArray( units ) ? units : [];
+        list.forEach( ( unit, index ) => {
+            output.push( buildUnitEntry( unit, depth, index ) );
+            const children = Array.isArray( unit?.children ) ? unit.children : [];
+            if ( children.length > 0 ) {
+                flattenUnits( children, depth + 1, output );
+            }
+        } );
+        return output;
+    };
+
+    return {
+        unitType: "",
+        unitName: "",
+        unitManagers: "",
+        unitLocation: "",
+        units: [],
+        flatUnits: [],
+        employees: [],
+        hasHierarchy: false,
+
+        init() {
+            this.applyData( initialDataModels.employeesList );
+        },
+
+        applyData( data ) {
+            const fresh = ( data && typeof data === "object" ) ? data : {};
+            const unit = ( fresh.unit && typeof fresh.unit === "object" ) ? fresh.unit : {};
+
+            this.unitType = String( unit.type || "" ).trim();
+            this.unitName = String( unit.name || "" ).trim();
+            this.unitManagers = formatList( unit.managers );
+            this.unitLocation = formatList( unit.parents, " / " );
+
+            this.units = clone( Array.isArray( fresh.units ) ? fresh.units : [] );
+            this.hasHierarchy = this.units.length > 1
+                || this.units.some( ( entry ) => Array.isArray( entry?.children ) && entry.children.length > 0 );
+
+            if ( !this.hasHierarchy && this.units.length === 1 ) {
+                this.employees = clone( Array.isArray( this.units[ 0 ]?.employees ) ? this.units[ 0 ].employees : [] );
+            } else {
+                this.employees = [];
+            }
+
+            this.flatUnits = this.hasHierarchy ? flattenUnits( this.units ) : [];
         }
 
     };
@@ -242,4 +396,5 @@ let configureCompetencyEvaluation = () => {
 
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "competencyEvaluation", configureCompetencyEvaluation );
+    Alpine.data( "employeesList", configureEmployeesList );
 } );
