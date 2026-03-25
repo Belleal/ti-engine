@@ -1,10 +1,10 @@
 {
   "1": {
     "id": "1",
-    "name": "Organization",
-    "displayName": "Organization",
-    "description": "Organization",
-    "type": "organization",
+    "name": "Parent Organization",
+    "displayName": "Parent Organization",
+    "description": "The parent organization.",
+    "type": "Organization",
     "managerID": "22",
     "parent": null,
     "children": [
@@ -13,10 +13,10 @@
   },
   "1-1": {
     "id": "1-1",
-    "name": "Department 1",
-    "displayName": "Department 1",
-    "description": "Department 1",
-    "type": "unit",
+    "name": "Division 1",
+    "displayName": "Division 1",
+    "description": "Division 1",
+    "type": "Division",
     "managerID": "20",
     "parent": "1",
     "children": [
@@ -29,7 +29,7 @@
     "name": "Team 1",
     "displayName": "Team 1",
     "description": "Team 1",
-    "type": "unit",
+    "type": "Team",
     "managerID": "8",
     "parent": "1-1",
     "children": []
@@ -39,7 +39,7 @@
     "name": "Team 2",
     "displayName": "Team 2",
     "description": "Team 2",
-    "type": "unit",
+    "type": "Team",
     "managerID": "11",
     "parent": "1-1",
     "children": []

@@ -4,7 +4,7 @@
       "employeeID": "1",
       "personal": {
         "name": "Geatrks Frkats",
-        "position": "SOFTWARE_ENGINEER",
+        "careerPath": "SE01",
         "organizationUnitID": "1-1-1",
         "level": "R",
         "stage": 2,
@@ -15,7 +15,7 @@
       "employeeID": "2",
       "personal": {
         "name": "Mrkius Brhajas",
-        "position": "PROJECT_MANAGER",
+        "careerPath": "PM01",
         "organizationUnitID": "1-1-2",
         "level": "J",
         "stage": 3,
@@ -26,7 +26,7 @@
       "employeeID": "3",
       "personal": {
         "name": "Trguf Gjkurans",
-        "position": "SOFTWARE_ENGINEER",
+        "careerPath": "SE01",
         "organizationUnitID": "1-1-1",
         "level": "S",
         "stage": 1,
@@ -37,7 +37,7 @@
       "employeeID": "4",
       "personal": {
         "name": "Kjurtha Lmhjafs",
-        "position": "SOFTWARE_ENGINEER",
+        "careerPath": "SE01",
         "organizationUnitID": "1-1-1",
         "level": "J",
         "stage": 3,
@@ -48,7 +48,7 @@
       "employeeID": "8",
       "personal": {
         "name": "Sdfaer Ltruajs",
-        "position": "SOFTWARE_ENGINEER",
+        "careerPath": "SE01",
         "organizationUnitID": "1-1-1",
         "level": "T",
         "stage": 1,
@@ -59,7 +59,7 @@
       "employeeID": "11",
       "personal": {
         "name": "Hjrtva Klprtah",
-        "position": "PROJECT_MANAGER",
+        "careerPath": "PM01",
         "organizationUnitID": "1-1-2",
         "level": "T",
         "stage": 1,
@@ -70,7 +70,7 @@
       "employeeID": "20",
       "personal": {
         "name": "Ghrtyf Frtadsr",
-        "position": "PROJECT_MANAGER",
+        "careerPath": "PM01",
         "organizationUnitID": "1-1",
         "level": "T",
         "stage": 1,
@@ -81,7 +81,7 @@
       "employeeID": "22",
       "personal": {
         "name": "Mrfgutr Asrtguvs",
-        "position": "PROJECT_MANAGER",
+        "careerPath": "PM01",
         "organizationUnitID": "1",
         "level": "T",
         "stage": 1,

@@ -292,6 +292,7 @@ const configureToolbox = () => {
  * @public
  */
 const configureComponentSidebarFlyout = ( options = {} ) => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
     const TI_EVENT_CLOSE_ALL_FLYOUT = "ti-close-all-flyout";
 
     /**
@@ -433,8 +434,8 @@ const configureComponentSidebarFlyout = ( options = {} ) => {
                 }
             }
 
-            const box = this.getVisibleBox( this.fixed );
-            const coords = this.clampToBox( left, top, pw, ph, box, 10 );
+            const box = tiToolbox.getVisibleBox( this.fixed );
+            const coords = tiToolbox.clampToBox( left, top, pw, ph, box, 10 );
 
             flyoutPanel.style.position = this.fixed ? "fixed" : "absolute";
             flyoutPanel.style.top = Math.round( coords.y ) + "px";

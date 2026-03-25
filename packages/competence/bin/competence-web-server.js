@@ -12,7 +12,6 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const ServiceConsumer = require( "@ti-engine/core/service-consumer" );
 const dataManager = require( "#data-manager" );
 const organizationManager = require( "#organization-manager" );
-const configurationLoader = require( "#configuration-loader" );
 
 /**
  * NOTE: This is still a work in progress.

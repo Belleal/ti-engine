@@ -2382,6 +2382,10 @@
       "U": {
         "en": "The employee shows skills below the expected standards for this competency at the current level. There are noticeable gaps in the application of knowledge or skills, requiring improvement and additional support or training.",
         "bg": "Служителят показва умения под очакваните стандарти за тази компетентност на текущото ниво. Има забележими пропуски в прилагането на знанията или уменията, което изисква подобрение и допълнителна подкрепа или обучение."
+      },
+      "N": {
+        "en": "The employee does not use or does not have this competency at the current level.",
+        "bg": "Служителят не използва или няма тази компетентност на текущото ниво."
       }
     }
   },
@@ -2417,8 +2421,8 @@
           "bg": "Това е Вашата собствена форма за Оценка"
         },
         "manager": {
-          "en": "This is the Evaluation form of your organizational unit member",
-          "bg": "Това е формата за Оценка на член от Вашата организационна единица"
+          "en": "This is the Evaluation form of your employee",
+          "bg": "Това е формата за Оценка на Вашия служител"
         },
         "team": {
           "en": "This is the Evaluation form of your colleague",
@@ -2428,13 +2432,13 @@
       "personal": {
         "title": {
           "en": "Personal Information",
-          "bg": "Лична Информация"
+          "bg": "Лична информация"
         },
         "name": {
           "en": "Employee Name:",
           "bg": "Име на служителя:"
         },
-        "position": {
+        "career-path": {
           "en": "Position & Level:",
           "bg": "Позиция & Ниво:"
         },
@@ -2525,18 +2529,18 @@
       }
     },
     "employees": {
-      "title": {
+      "organization-title": {
+        "en": "Organization Unit",
+        "bg": "Организационна единица"
+      },
+      "list-title": {
         "en": "Employee List",
         "bg": "Списък на служителите"
       },
       "unit": {
-        "type": {
-          "en": "Unit Type:",
-          "bg": "Тип единица:"
-        },
-        "name": {
-          "en": "Unit Name:",
-          "bg": "Име на единицата:"
+        "name-type": {
+          "en": "Type & Name:",
+          "bg": "Тип & Име:"
         },
         "managers": {
           "en": "Managers:",
@@ -2556,7 +2560,7 @@
           "en": "Name",
           "bg": "Име"
         },
-        "position": {
+        "career-path": {
           "en": "Position",
           "bg": "Позиция"
         },
@@ -2566,11 +2570,11 @@
         },
         "since": {
           "en": "Since",
-          "bg": "От"
+          "bg": "Стартова дата"
         },
         "evaluation": {
           "en": "Evaluation",
-          "bg": "Оценка"
+          "bg": "Оценка на Представянето"
         }
       },
       "actions": {

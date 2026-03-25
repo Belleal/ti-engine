@@ -11,7 +11,6 @@ const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
 const { DirectedGraph } = require( "graphology" );
 
-
 /**
  * Used to create and/or return an Organization Manager singleton instance.
  *
@@ -38,10 +37,26 @@ class OrganizationManager {
 
     /* Public interface */
 
+    /**
+     * Used to convert an organization unit ID to a node ID.
+     *
+     * @method
+     * @param {string} unitID
+     * @returns {`unit:${string}`}
+     * @public
+     */
     toUnitNodeID = ( unitID ) => {
         return `unit:${ unitID }`;
     }
 
+    /**
+     * Used to convert an employee ID to a node ID.
+     *
+     * @method
+     * @param {string} employeeID
+     * @returns {`employee:${string}`}
+     * @public
+     */
     toEmployeeNodeID = ( employeeID ) => {
         return `employee:${ employeeID }`;
     }
@@ -60,26 +75,30 @@ class OrganizationManager {
 
                 // Add organization unit nodes.
                 Object.entries( configurationLoader.configOrganizationStructure || {} ).forEach( ( [ rawUnitID, unit ] ) => {
-                    const unitID = String( unit?.id || rawUnitID || "" ).trim();
-                    if ( !unitID ) return;
+                    const unitID = unit?.id || rawUnitID;
+                    if ( !unitID ) {
+                        return;
+                    }
 
-                    const parent = unit?.parent ? String( unit.parent ).trim() : "";
                     graph.mergeNode( this.toUnitNodeID( unitID ), {
                         nodeType: "organizationUnit",
                         id: unitID,
-                        type: String( unit?.type || "" ).trim(),
-                        name: String( unit?.displayName || unit?.name || unitID ).trim(),
-                        description: String( unit?.description || "" ).trim(),
-                        managerID: String( unit?.managerID || "" ).trim(),
-                        parent: parent || null
+                        type: unit.type,
+                        name: unit.name || unitID,
+                        displayName: unit.displayName,
+                        description: unit.description,
+                        managerID: unit.managerID,
+                        parent: unit.parent
                     } );
                 } );
 
                 // Add hierarchy edges (parent -> child).
                 Object.entries( configurationLoader.configOrganizationStructure || {} ).forEach( ( [ rawUnitID, unit ] ) => {
-                    const unitID = String( unit?.id || rawUnitID || "" ).trim();
-                    const parentID = String( unit?.parent || "" ).trim();
-                    if ( !unitID || !parentID ) return;
+                    const unitID = unit?.id || rawUnitID;
+                    const parentID = unit?.parent;
+                    if ( !unitID || !parentID ) {
+                        return;
+                    }
 
                     const parentNodeID = this.toUnitNodeID( parentID );
                     const childNodeID = this.toUnitNodeID( unitID );
@@ -95,16 +114,21 @@ class OrganizationManager {
 
                 // Add employee nodes and membership edges (unit -> employee).
                 employees.forEach( ( employee ) => {
-                    const employeeID = String( employee?.employeeID || "" ).trim();
-                    if ( !employeeID ) return;
+                    const employeeID = employee?.employeeID;
+                    if ( !employeeID ) {
+                        return;
+                    }
 
-                    const organizationUnitID = String( employee?.personal?.organizationUnitID || "" ).trim();
+                    const organizationUnitID = employee.personal?.organizationUnitID;
                     const employeeNodeID = this.toEmployeeNodeID( employeeID );
                     graph.mergeNode( employeeNodeID, {
                         nodeType: "employee",
                         id: employeeID,
-                        name: String( employee?.personal?.name || "" ).trim(),
-                        position: String( employee?.personal?.position || "" ).trim(),
+                        name: employee.personal?.name,
+                        careerPath: employee.personal?.careerPath,
+                        level: employee.personal?.level,
+                        stage: employee.personal?.stage,
+                        startingDate: employee.personal?.startingDate,
                         organizationUnitID: organizationUnitID
                     } );
 
@@ -132,25 +156,24 @@ class OrganizationManager {
      * Resolves the manager ID for the provided employee.
      *
      * @method
-     * @param {Employee} employee
+     * @param {string} employeeID
+     * @param {string} organizationUnitID
      * @returns {string}
      * @public
      */
-    resolveManagerIDForEmployee( employee ) {
-        const employeeID = String( employee?.employeeID || "" ).trim();
-        if ( !employeeID ) {
+    resolveManagerIDForEmployee( employeeID, organizationUnitID ) {
+        if ( !employeeID || !organizationUnitID ) {
             return "";
         }
 
-        const unitNodeID = this.toUnitNodeID( employee?.personal?.organizationUnitID );
-
+        const unitNodeID = this.toUnitNodeID( organizationUnitID );
         if ( this.#organizationChart && this.#organizationChart.hasNode( unitNodeID ) ) {
             let currentUnitNodeID = unitNodeID;
             const visited = new Set();
 
             while ( currentUnitNodeID && !visited.has( currentUnitNodeID ) && this.#organizationChart.hasNode( currentUnitNodeID ) ) {
                 visited.add( currentUnitNodeID );
-                const managerID = String( this.#organizationChart.getNodeAttribute( currentUnitNodeID, "managerID" ) || "" ).trim();
+                const managerID = this.#organizationChart.getNodeAttribute( currentUnitNodeID, "managerID" );
                 if ( managerID && managerID !== employeeID ) {
                     return managerID;
                 } else {
@@ -172,13 +195,17 @@ class OrganizationManager {
      *
      * @method
      * @param {Employee} employee
-     * @returns {{organizationUnitName: string, managerID: string, managerName: string}}
+     * @returns {{organizationUnitName: string, managerID: string, managerName: string}|null}
      * @public
      */
     resolveEmployeeOrganizationContext( employee ) {
-        const organizationUnitID = String( employee?.personal?.organizationUnitID || "" ).trim();
+        const organizationUnitID = employee?.personal?.organizationUnitID;
+        if ( !organizationUnitID ) {
+            return null;
+        }
+
         const unitNodeID = this.toUnitNodeID( organizationUnitID );
-        const managerID = String( this.resolveManagerIDForEmployee( employee ) || "" ).trim();
+        const managerID = this.resolveManagerIDForEmployee( employee.employeeID, organizationUnitID );
         const managerNodeID = this.toEmployeeNodeID( managerID );
 
         let unitName = "";
@@ -186,10 +213,10 @@ class OrganizationManager {
 
         if ( this.#organizationChart ) {
             if ( this.#organizationChart.hasNode( unitNodeID ) ) {
-                unitName = String( this.#organizationChart.getNodeAttribute( unitNodeID, "name" ) || "" ).trim();
+                unitName = this.#organizationChart.getNodeAttribute( unitNodeID, "name" );
             }
             if ( managerID && this.#organizationChart.hasNode( managerNodeID ) ) {
-                managerName = String( this.#organizationChart.getNodeAttribute( managerNodeID, "name" ) || "" ).trim();
+                managerName = this.#organizationChart.getNodeAttribute( managerNodeID, "name" );
             }
         }
 
@@ -197,6 +224,158 @@ class OrganizationManager {
             organizationUnitName: unitName,
             managerID: managerID,
             managerName: managerName
+        };
+    }
+
+    /**
+     * Resolves the organization unit ID for the specified employee ID.
+     *
+     * @method
+     * @param {string} employeeID
+     * @returns {string}
+     * @public
+     */
+    resolveOrganizationUnitIDForEmployee( employeeID ) {
+        const employeeNodeID = this.toEmployeeNodeID( employeeID );
+        if ( !employeeID || !this.#organizationChart || !this.#organizationChart.hasNode( employeeNodeID ) ) {
+            return "";
+        }
+
+        return this.#organizationChart.getNodeAttribute( employeeNodeID, "organizationUnitID" );
+    }
+
+    /**
+     * Resolves the display name for the specified employee ID.
+     *
+     * @method
+     * @param {string} employeeID
+     * @returns {string}
+     * @public
+     */
+    resolveEmployeeName( employeeID ) {
+        const employeeNodeID = this.toEmployeeNodeID( employeeID );
+        if ( !employeeID || !this.#organizationChart || !this.#organizationChart.hasNode( employeeNodeID ) ) {
+            return "";
+        }
+
+        return this.#organizationChart.getNodeAttribute( employeeNodeID, "name" );
+    }
+
+    /**
+     * Resolves the parent unit names for the specified unit ID.
+     * The resulting array is ordered from top parent to direct parent.
+     *
+     * @method
+     * @param {string} unitID
+     * @returns {Array<string>}
+     * @public
+     */
+    resolveParentUnitNames( unitID ) {
+        const unitNodeID = this.toUnitNodeID( unitID );
+        if ( !unitID || !this.#organizationChart || !this.#organizationChart.hasNode( unitNodeID ) ) {
+            return [];
+        }
+
+        const parentNames = [];
+        const visited = new Set();
+        let currentUnitNodeID = unitNodeID;
+        while ( this.#organizationChart.hasNode( currentUnitNodeID ) && !visited.has( currentUnitNodeID ) ) {
+            visited.add( currentUnitNodeID );
+            const parentUnitID = this.#organizationChart.getNodeAttribute( currentUnitNodeID, "parent" );
+            if ( !parentUnitID ) {
+                break;
+            }
+
+            const parentNodeID = this.toUnitNodeID( parentUnitID );
+            if ( !this.#organizationChart.hasNode( parentNodeID ) ) {
+                break;
+            }
+
+            parentNames.unshift( this.#organizationChart.getNodeAttribute( parentNodeID, "name" ) || parentUnitID );
+            currentUnitNodeID = parentNodeID;
+        }
+
+        return parentNames;
+    }
+
+    /**
+     * Returns the organization chart subtree for the provided unit ID.
+     *
+     * @method
+     * @param {string} rootUnitID
+     * @returns {OrganizationUnit|null}
+     * @public
+     */
+    getOrganizationUnitSubtree( rootUnitID ) {
+        const rootNodeID = this.toUnitNodeID( rootUnitID );
+        if ( !rootUnitID || !this.#organizationChart || !this.#organizationChart.hasNode( rootNodeID ) ) {
+            return null;
+        } else {
+            return this.#buildUnitTree( rootNodeID );
+        }
+    }
+
+    /* Private interface */
+
+    /**
+     * Used to build the organization chart subtree for the provided unit node ID.
+     *
+     * @method
+     * @param {string} unitNodeID
+     * @param {Set} visited
+     * @returns {OrganizationUnit|null}
+     * @private
+     */
+    #buildUnitTree( unitNodeID, visited = new Set() ) {
+        if ( !unitNodeID || visited.has( unitNodeID ) || !this.#organizationChart.hasNode( unitNodeID ) ) {
+            return null;
+        }
+
+        const nextVisited = new Set( visited );
+        nextVisited.add( unitNodeID );
+
+        const unitAttributes = this.#organizationChart.getNodeAttributes( unitNodeID );
+        const childUnitNodeIDs = this.#organizationChart.outNeighbors( unitNodeID ).filter( ( neighborNodeID ) => {
+            if ( !this.#organizationChart.hasNode( neighborNodeID ) ) return false;
+            if ( this.#organizationChart.getNodeAttribute( neighborNodeID, "nodeType" ) !== "organizationUnit" ) return false;
+            const edgeKey = this.#organizationChart.edge( unitNodeID, neighborNodeID );
+            return edgeKey && this.#organizationChart.getEdgeAttribute( edgeKey, "relation" ) === "organizationUnitChild";
+        } );
+        const employeeNodeIDs = this.#organizationChart.outNeighbors( unitNodeID ).filter( ( neighborNodeID ) => {
+            if ( !this.#organizationChart.hasNode( neighborNodeID ) ) return false;
+            if ( this.#organizationChart.getNodeAttribute( neighborNodeID, "nodeType" ) !== "employee" ) return false;
+            const edgeKey = this.#organizationChart.edge( unitNodeID, neighborNodeID );
+            return edgeKey && this.#organizationChart.getEdgeAttribute( edgeKey, "relation" ) === "organizationUnitMember";
+        } );
+
+        const employees = employeeNodeIDs.map( ( employeeNodeID ) => {
+            const employeeAttributes = this.#organizationChart.getNodeAttributes( employeeNodeID );
+            return employeeAttributes ? {
+                employeeID: employeeAttributes.id,
+                name: employeeAttributes.name,
+                careerPath: employeeAttributes.careerPath,
+                level: employeeAttributes.level,
+                stage: employeeAttributes.stage,
+                startingDate: employeeAttributes.startingDate,
+                organizationUnitID: employeeAttributes.organizationUnitID
+            } : null;
+        } );
+        employees.sort( ( firstEmployee, secondEmployee ) => firstEmployee.name.localeCompare( secondEmployee.name ) );
+
+        const children = childUnitNodeIDs
+            .map( ( childNodeID ) => this.#buildUnitTree( childNodeID, nextVisited ) )
+            .filter( Boolean )
+            .sort( ( firstUnit, secondUnit ) => firstUnit.name.localeCompare( secondUnit.name ) );
+
+        return {
+            id: unitAttributes.id,
+            type: unitAttributes.type,
+            name: unitAttributes.displayName || unitAttributes.name,
+            description: unitAttributes.description,
+            managerID: unitAttributes.managerID,
+            parent: unitAttributes.parent,
+            employees: employees,
+            children: children
         };
     }
 

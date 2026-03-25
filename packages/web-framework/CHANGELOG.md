@@ -2,6 +2,13 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.6.1
+
+* feat(css): add inline button support via `.ti-button.inline` and new `--ti-button-inline-height` design token
+* refactor(ui): update sidebar flyout positioning logic to use shared `tiToolbox` viewport helpers (`getVisibleBox`, `clampToBox`)
+* fix(ui): fix the call to utility functions `getVisibleBox` and `clampToBox` in the sidebar flyout component
+* build(release): bump package version from `1.6.0` to `1.6.1`
+
 ## Version 1.6.0
 
 * feat(toolbox): add Alpine.js `tiToolbox` store with shared utility methods (`deepMerge`, `deepFreeze`, `structuredClone`, `formatDate`, viewport helpers, and cookie access)

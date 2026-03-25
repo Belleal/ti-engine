@@ -35,9 +35,9 @@
           "format": "email",
           "description": "Corporate email address"
         },
-        "position": {
+        "careerPath": {
           "type": "string",
-          "description": "Job title or position"
+          "description": "Career path"
         },
         "organizationUnitID": {
           "type": "string",

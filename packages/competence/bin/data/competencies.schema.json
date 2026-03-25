@@ -137,7 +137,7 @@
         },
         "scope": {
           "type": "object",
-          "description": "Scope descriptions per position level",
+          "description": "Scope descriptions per career path level",
           "required": [
             "N",
             "J",
@@ -182,7 +182,7 @@
         },
         "relevancy": {
           "type": "object",
-          "description": "Relevancy scores per position tier",
+          "description": "Relevancy scores per career path tier",
           "required": [
             "N1",
             "J1",

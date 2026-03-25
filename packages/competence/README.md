@@ -6,11 +6,33 @@ Specialized software for managing and monitoring a **Competence-based Performanc
 
 This is a customizable solution based on the **ti-engine** framework. Currently under development.
 
+## Current status
+
+This package is actively developed. The implemented flow currently focuses on:
+
+* [Workflow] Loading and editing Evaluations by employee role (`Employee`, `Manager`, `Team Member`) and status-based workflow
+* [Workflow] Saving drafts and submitting Evaluations with role-based status/authorization/deadline verifications
+* [Workflow] Starting evaluations (`Supervisor` or resolved manager)
+* [Capability] Resolving manager and organizational context for employees through a dynamic organization chart graph
+* [Screen] Rendering and working on Evaluations via a specialized UI screen
+* [Screen] Rendering and working with Employees based on the organization chart via a specialized UI screen
+
 ## Processes
 
 ### Performance Appraisal
 
 The recurring performance appraisal process governs the completion and submission of a digital `Evaluation` form by an `Employee` of the organization, a follow-up review and update by an authorized `Manager`, followed by an official closure by the process governing body, which will be labeled as the `Supervisor` (this is usually the HR department head or the process owner).
+
+Evaluation statuses: `Open` -> `In Review` -> `Ready` -> `Closed` (`Deleted` is used for Evaluations that have been scrapped or discarded).
+
+Role-based permissions:
+
+* `Employee` can draft/submit self-grades while evaluation is `Open`
+* `Team Member` can submit team grades when assigned in `workflow.team` while evaluation is `Open`
+* `Manager` can draft/submit manager grades while evaluation is `In Review`
+* Grade validation requires known grade values before submission.
+* Team grade submissions are aggregated to a cumulative grade.
+* Returned evaluation payload is anonymized per role.
 
 #### Default Process Workflow
 

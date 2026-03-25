@@ -4,19 +4,19 @@
     --competence-row-name-width: 180px;
     --competence-row-grade-width: 60px;
     --competence-row-desc-width: 240px;
-    --employees-row-id-width: 140px;
+    --employees-row-id-width: 100px;
     --employees-row-name-width: 180px;
-    --employees-row-position-width: 220px;
+    --employees-row-career-path-width: 220px;
     --employees-row-level-width: 60px;
     --employees-row-since-width: 120px;
     --employees-row-evaluation-width: 320px;
     --employees-static-width: calc(var(--employees-row-id-width) + var(--employees-row-name-width) + var(--ti-grid-gap));
     --employees-dynamic-min-width: calc(
-        var(--employees-row-position-width)
-        + var(--employees-row-level-width)
-        + var(--employees-row-since-width)
-        + var(--employees-row-evaluation-width)
-        + (var(--ti-grid-gap) * 3)
+            var(--employees-row-career-path-width)
+            + var(--employees-row-level-width)
+            + var(--employees-row-since-width)
+            + var(--employees-row-evaluation-width)
+            + (var(--ti-grid-gap) * 3)
     );
     --employees-unit-indent: 16px;
 }
@@ -26,11 +26,7 @@
 }
 
 .ti-form-grid.employees {
-    grid-template-columns: 160px minmax(220px, 1fr);
-}
-
-.employees-pane {
-    overflow-x: hidden;
+    grid-template-columns: 220px minmax(220px, 1fr);
 }
 
 .competence-grid-value-group {
@@ -38,7 +34,7 @@
     gap: var(--ti-grid-gap);
 }
 
-.competence-grid-value-group.position-level {
+.competence-grid-value-group.level {
     grid-template-columns: 40px minmax(200px, 1fr);
 }
 
@@ -166,9 +162,12 @@
     gap: var(--ti-grid-gap);
     align-items: center;
     background-color: #c9c9c9;
+    border: 1px solid #c9c9c9;
     border-radius: 2px;
     padding: var(--ti-data-field-padding-v) var(--ti-data-field-padding-h);
     box-sizing: border-box;
+    line-height: var(--ti-data-field-height);
+    min-height: var(--ti-data-field-height);
 }
 
 .competence-code,
@@ -223,17 +222,20 @@
     padding-top: 5px;
 }
 
+.employee-organization-value-group {
+    display: grid;
+    gap: var(--ti-grid-gap);
+}
+
+.employee-organization-value-group.unit {
+    grid-template-columns: 120px minmax(200px, 1fr);
+}
+
+.employees-organization-list,
 .employees-list {
     display: flex;
     flex-direction: column;
     gap: var(--ti-grid-gap);
-    overflow: visible;
-    min-width: 0;
-}
-
-.employees-list-panel {
-    overflow-x: hidden;
-    overflow-y: visible;
     min-width: 0;
 }
 
@@ -241,6 +243,7 @@
     display: grid;
     grid-template-columns: var(--employees-static-width) minmax(0, 1fr);
     min-width: 0;
+    gap: var(--ti-grid-gap);
 }
 
 .employees-static {
@@ -277,10 +280,11 @@
 .employees-row-dynamic {
     display: grid;
     grid-template-columns:
-        var(--employees-row-position-width)
+        var(--employees-row-career-path-width)
         var(--employees-row-level-width)
         var(--employees-row-since-width)
-        var(--employees-row-evaluation-width);
+        var(--employees-row-evaluation-width)
+        minmax(0, 1fr);
     gap: var(--ti-grid-gap);
     align-items: center;
     min-width: var(--employees-dynamic-min-width);
@@ -302,17 +306,35 @@
     display: flex;
     flex-direction: column;
     gap: var(--ti-grid-gap);
-    min-width: 0;
+    width: 100%;
+    min-width: var(--competence-appraisal-form-min-width);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ti-label-color);
 }
 
 .employees-unit-header {
-
+    display: grid;
+    grid-template-columns: 1fr minmax(var(--competence-row-name-width), 1fr);
+    gap: var(--ti-grid-gap);
+    align-items: baseline;
 }
 
-.employees-unit-name {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
+.employees-unit-title {
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.04em;
+}
+
+.employees-unit-manager {
+    grid-column: 2;
+    font-weight: 500;
+    font-style: italic;
+    text-align: left;
+    color: var(--ti-description-color);
+}
+
+.employees-unit-manager:empty {
+    display: none;
 }
 
 .employees-list-head-label {
@@ -322,16 +344,9 @@
     color: var(--ti-title-color);
 }
 
-.employees-list-head-label.id {
-    text-align: left;
-}
-
+.employees-list-head-label.id,
 .employees-list-head-label.name {
     text-align: left;
-}
-
-.employees-list-head-label.evaluation {
-    text-align: right;
 }
 
 .employees-id {
@@ -346,18 +361,18 @@
 .employees-evaluation {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
     gap: var(--ti-grid-gap);
     flex-wrap: nowrap;
     white-space: nowrap;
 }
 
-.employees-evaluation-open {
+.employees-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    gap: var(--ti-grid-gap);
     flex-wrap: nowrap;
-    white-space: nowrap;
 }
 
 .employees-row-static .ti-data-value,
@@ -369,9 +384,15 @@
 
 .employees-evaluation-status,
 .employees-evaluation-date {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--ti-label-color);
+    font-size: 12px;
+    font-weight: 500;
+    font-style: italic;
+    color: var(--ti-description-color);
+}
+
+.employees-evaluation-status:empty,
+.employees-evaluation-date:empty {
+    display: none;
 }
 
 @media screen and (width <= 720px) {

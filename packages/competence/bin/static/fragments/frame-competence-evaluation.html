@@ -5,8 +5,8 @@
         <div class="ti-form-grid competence">
             <div class="ti-label" x-text-label="interface.evaluation.personal.name"></div>
             <div class="ti-data-value" x-text="personal.name"></div>
-            <div class="ti-label" x-text-label="interface.evaluation.personal.position"></div>
-            <div class="competence-grid-value-group position-level">
+            <div class="ti-label" x-text-label="interface.evaluation.personal.career-path"></div>
+            <div class="competence-grid-value-group level">
                 <div class="ti-data-value compact-centered" x-text="personal.level + personal.stage"></div>
                 <div class="ti-data-value" x-text="personal.positionName"></div>
             </div>
@@ -85,16 +85,16 @@
                                     <!-- Self Grade Column -->
                                     <select x-bind:name="'grade-employee-' + item.id" class="ti-input grade"
                                             x-bind:aria-label="'Self grade for ' + item.id + ' ' + item.name"
-                                            x-on:change="setItemGrade(item.id, 'employee', $event.target.value)"
+                                            x-on:change="setItemGrade( item.id, 'employee', $event.target.value )"
                                             x-bind:data-ti-tooltip="item.description"
                                             x-show="userRole === 1 && canEdit">
-                                        <option value="" x-bind:selected="!getItemGrade(item.id, 'employee')">-</option>
-                                        <template x-for="(grade, gradeKey) in grades" x-bind:key="gradeKey">
+                                        <option value="" x-bind:selected="!getItemGrade( item.id, 'employee' )">-</option>
+                                        <template x-for="( grade, gradeKey ) in grades" x-bind:key="gradeKey">
                                             <option x-bind:value="gradeKey" x-text="gradeKey"
-                                                    x-bind:selected="getItemGrade(item.id, 'employee') == gradeKey"></option>
+                                                    x-bind:selected="getItemGrade( item.id, 'employee' ) == gradeKey"></option>
                                         </template>
                                     </select>
-                                    <div class="ti-data-value compact-centered" x-text="getItemGrade(item.id, 'employee', '-')"
+                                    <div class="ti-data-value compact-centered" x-text="getItemGrade( item.id, 'employee', '-' )"
                                          x-show="userRole === 2 || ( userRole === 1 && !canEdit )"></div>
                                     <div class="material-symbols-outlined ti-data-value compact-centered"
                                          x-show="userRole === 4"
@@ -104,15 +104,15 @@
                                     <!-- Manager Grade Column -->
                                     <select x-bind:name="'grade-manager-' + item.id" class="ti-input grade"
                                             x-bind:aria-label="'Manager grade for ' + item.id + ' ' + item.name"
-                                            x-on:change="setItemGrade(item.id, 'manager', $event.target.value)"
+                                            x-on:change="setItemGrade( item.id, 'manager', $event.target.value )"
                                             x-show="userRole === 2 && canEdit">
-                                        <option value="" x-bind:selected="!getItemGrade(item.id, 'manager')">-</option>
-                                        <template x-for="(grade, gradeKey) in grades" x-bind:key="gradeKey">
+                                        <option value="" x-bind:selected="!getItemGrade( item.id, 'manager' )">-</option>
+                                        <template x-for="( grade, gradeKey ) in grades" x-bind:key="gradeKey">
                                             <option x-bind:value="gradeKey" x-text="gradeKey"
-                                                    x-bind:selected="getItemGrade(item.id, 'manager') == gradeKey"></option>
+                                                    x-bind:selected="getItemGrade( item.id, 'manager' ) == gradeKey"></option>
                                         </template>
                                     </select>
-                                    <div class="ti-data-value compact-centered" x-text="getItemGrade(item.id, 'manager', '-')"
+                                    <div class="ti-data-value compact-centered" x-text="getItemGrade( item.id, 'manager', '-' )"
                                          x-show="userRole === 2 && !canEdit"></div>
                                     <div class="material-symbols-outlined ti-data-value compact-centered"
                                          x-show="userRole === 1 || userRole === 4"
@@ -122,15 +122,15 @@
                                     <!-- Team Grade Column -->
                                     <select x-bind:name="'grade-team-' + item.id" class="ti-input grade"
                                             x-bind:aria-label="'Team grade for ' + item.id + ' ' + item.name"
-                                            x-on:change="setItemGrade(item.id, 'team', $event.target.value)"
+                                            x-on:change="setItemGrade( item.id, 'team', $event.target.value )"
                                             x-show="userRole === 4 && canEdit">
-                                        <option value="" x-bind:selected="!getItemGrade(item.id, 'team')">-</option>
-                                        <template x-for="(grade, gradeKey) in grades" x-bind:key="gradeKey">
+                                        <option value="" x-bind:selected="!getItemGrade( item.id, 'team' )">-</option>
+                                        <template x-for="( grade, gradeKey ) in grades" x-bind:key="gradeKey">
                                             <option x-bind:value="gradeKey" x-text="gradeKey"
-                                                    x-bind:selected="getItemGrade(item.id, 'team') == gradeKey"></option>
+                                                    x-bind:selected="getItemGrade( item.id, 'team' ) == gradeKey"></option>
                                         </template>
                                     </select>
-                                    <div class="ti-data-value compact-centered" x-text="getItemGrade(item.id, 'team', '-')"
+                                    <div class="ti-data-value compact-centered" x-text="getItemGrade( item.id, 'team', '-' )"
                                          x-show="userRole === 2 || ( userRole === 4 && !canEdit )"></div>
                                     <div class="material-symbols-outlined ti-data-value compact-centered"
                                          x-show="userRole === 1"

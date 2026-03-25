@@ -15,7 +15,7 @@ const initialDataModels = {
     competencyEvaluation: {
         personal: {
             name: "",
-            position: "",
+            careerPath: "",
             organizationUnitID: "",
             organizationUnitName: "",
             level: "",
@@ -96,7 +96,7 @@ const initialDataModels = {
                             {
                                 id: "Employee ID 1",
                                 name: "John Smith",
-                                position: "Software Engineer",
+                                careerPath: "Software Engineer",
                                 level: "R2",
                                 since: "12.03.2020",
                                 evaluation: { status: "new", date: "" }
@@ -104,7 +104,7 @@ const initialDataModels = {
                             {
                                 id: "Employee ID 2",
                                 name: "Jane Doe",
-                                position: "Software Engineer",
+                                careerPath: "Software Engineer",
                                 level: "R3",
                                 since: "25.01.2020",
                                 evaluation: { status: "open", date: "28.04.2026" }
@@ -121,7 +121,7 @@ const initialDataModels = {
                             {
                                 id: "Employee ID n",
                                 name: "Names",
-                                position: "Position",
+                                careerPath: "Position",
                                 level: "R3",
                                 since: "25.01.2020",
                                 evaluation: { status: "new", date: "" }
@@ -308,52 +308,8 @@ let configureCompetencyEvaluation = () => {
  * @public
  */
 let configureEmployeesList = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
     const tiApplication = Alpine.store( "tiApplication" );
-    const clone = ( value ) => JSON.parse( JSON.stringify( value ) );
-
-    const formatList = ( values, separator = ", " ) => {
-        if ( !Array.isArray( values ) ) {
-            return "";
-        }
-        return values.map( ( entry ) => String( entry || "" ).trim() ).filter( Boolean ).join( separator );
-    };
-
-    const getLabel = ( key, fallback ) => {
-        if ( tiApplication && typeof tiApplication.getLabel === "function" ) {
-            return tiApplication.getLabel( key, fallback );
-        }
-        return fallback;
-    };
-
-    const buildUnitEntry = ( unit, depth, index ) => {
-        const type = String( unit?.type || "" ).trim();
-        const name = String( unit?.name || "" ).trim();
-        const managers = formatList( unit?.managers );
-        const managersLabel = managers
-            ? `${ getLabel( "interface.employees.unit.managers", "Managers:" ) } ${ managers }`
-            : "";
-        return {
-            id: unit?.id || `${ type || "unit" }-${ name || "unknown" }-${ depth }-${ index }`,
-            depth: depth,
-            type: type,
-            name: name,
-            displayName: type ? `${ type }: ${ name }` : name,
-            managersLabel: managersLabel,
-            employees: clone( Array.isArray( unit?.employees ) ? unit.employees : [] )
-        };
-    };
-
-    const flattenUnits = ( units, depth = 0, output = [] ) => {
-        const list = Array.isArray( units ) ? units : [];
-        list.forEach( ( unit, index ) => {
-            output.push( buildUnitEntry( unit, depth, index ) );
-            const children = Array.isArray( unit?.children ) ? unit.children : [];
-            if ( children.length > 0 ) {
-                flattenUnits( children, depth + 1, output );
-            }
-        } );
-        return output;
-    };
 
     return {
         unitType: "",
@@ -361,34 +317,93 @@ let configureEmployeesList = () => {
         unitManagers: "",
         unitLocation: "",
         units: [],
-        flatUnits: [],
-        employees: [],
-        hasHierarchy: false,
+        isManagerView: false,
 
         init() {
-            this.applyData( initialDataModels.employeesList );
+            const onInitialized = () => {
+                this.loadEmployeeList();
+            };
+
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
         },
 
-        applyData( data ) {
-            const fresh = ( data && typeof data === "object" ) ? data : {};
-            const unit = ( fresh.unit && typeof fresh.unit === "object" ) ? fresh.unit : {};
+        flattenUnits( organizationUnits, flattenedUnits = [] ) {
+            organizationUnits.forEach( ( unit ) => {
+                flattenedUnits.push( unit );
+                if ( unit.children && Array.isArray( unit.children ) ) {
+                    this.flattenUnits( unit.children, flattenedUnits );
+                }
+            } );
+        },
 
-            this.unitType = String( unit.type || "" ).trim();
-            this.unitName = String( unit.name || "" ).trim();
-            this.unitManagers = formatList( unit.managers );
-            this.unitLocation = formatList( unit.parents, " / " );
+        loadEmployeeList() {
+            const url = "/app/load-employee-list";
+            tiApplication.sendRequest( url ).then( ( result ) => {
+                const data = ( result?.data && typeof result.data === "object" ) ? result.data : {};
+                const organizationUnits = Array.isArray( data.organizationUnits ) ? data.organizationUnits : [];
+                const rootUnit = organizationUnits[ 0 ] || {};
 
-            this.units = clone( Array.isArray( fresh.units ) ? fresh.units : [] );
-            this.hasHierarchy = this.units.length > 1
-                || this.units.some( ( entry ) => Array.isArray( entry?.children ) && entry.children.length > 0 );
+                this.isManagerView = !!data.isManagerView;
 
-            if ( !this.hasHierarchy && this.units.length === 1 ) {
-                this.employees = clone( Array.isArray( this.units[ 0 ]?.employees ) ? this.units[ 0 ].employees : [] );
-            } else {
-                this.employees = [];
+                this.unitType = String( rootUnit.type || "" ).trim();
+                this.unitName = String( rootUnit.name || "" ).trim();
+                this.unitManagers = this.formatList( rootUnit.managers );
+                this.unitLocation = this.formatList( rootUnit.parents, " / " );
+
+                this.flattenUnits( organizationUnits, this.units );
+            } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) {
+                    return;
+                }
+
+                tiApplication.notify( tiApplication.formatException( error ) );
+                if ( error.exception?.httpCode === 401 ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
+        },
+
+        startEvaluation( employeeID ) {
+            tiApplication.sendRequest( "/app/start-evaluation", "POST", { employeeID: employeeID } ).then( ( result ) => {
+                const evaluationID = result?.data;
+                this.openEvaluation( employeeID, evaluationID );
+            } ).catch( ( error ) => {
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        openEvaluation( employeeID, evaluationID ) {
+            let url = "/app/competence-evaluation?employeeID=" + encodeURIComponent( employeeID );
+            if ( evaluationID ) {
+                url += "&evaluationID=" + encodeURIComponent( evaluationID );
             }
+            if ( window.htmx ) {
+                window.htmx.ajax( "GET", url, { target: "#ti-content", swap: "innerHTML" } );
+                window.history.pushState( null, "", url );
+            } else {
+                window.location.href = url;
+            }
+        },
 
-            this.flatUnits = this.hasHierarchy ? flattenUnits( this.units ) : [];
+        formatList( values, separator = ", " ) {
+            if ( Array.isArray( values ) ) {
+                return values.map( ( entry ) => String( entry || "" ).trim() ).filter( Boolean ).join( separator );
+            } else if ( typeof values === "string" ) {
+                return values.trim();
+            }
+            return "";
+        },
+
+        formatDate( value, placeholder = "" ) {
+            return tiToolbox.formatDate( value, tiApplication.getLabel( placeholder, "" ) );
         }
 
     };
