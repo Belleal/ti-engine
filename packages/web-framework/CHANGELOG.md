@@ -2,6 +2,22 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.6.1
+
+* feat(css): add inline button support via `.ti-button.inline` and new `--ti-button-inline-height` design token
+* refactor(ui): update sidebar flyout positioning logic to use shared `tiToolbox` viewport helpers (`getVisibleBox`, `clampToBox`)
+* fix(ui): fix the call to utility functions `getVisibleBox` and `clampToBox` in the sidebar flyout component
+* build(release): bump package version from `1.6.0` to `1.6.1`
+
+## Version 1.6.0
+
+* feat(toolbox): add Alpine.js `tiToolbox` store with shared utility methods (`deepMerge`, `deepFreeze`, `structuredClone`, `formatDate`, viewport helpers, and cookie access)
+* feat(ui): move sidebar menu configuration into `ti-framework.js` and register `tiComponentsConfig` during Alpine.js initialization
+* refactor(static): remove legacy `ti-user-interface.js` from static assets and stop loading it from `index.html`
+* refactor(components): update framework components to consume toolbox utilities through Alpine stores
+* refactor(docs): add and expand JSDoc typedefs and method-level documentation in `ti-framework.js`
+* build(release): bump package version from `1.5.3` to `1.6.0`
+
 ## Version 1.5.3
 
 * feat(framework): add `openScreen` method for in-app navigation

@@ -4,9 +4,28 @@
     --competence-row-name-width: 180px;
     --competence-row-grade-width: 60px;
     --competence-row-desc-width: 240px;
+    --employees-row-id-width: 100px;
+    --employees-row-name-width: 180px;
+    --employees-row-career-path-width: 220px;
+    --employees-row-level-width: 60px;
+    --employees-row-since-width: 120px;
+    --employees-row-evaluation-width: 320px;
+    --employees-static-width: calc(var(--employees-row-id-width) + var(--employees-row-name-width) + var(--ti-grid-gap));
+    --employees-dynamic-min-width: calc(
+            var(--employees-row-career-path-width) +
+            var(--employees-row-level-width) +
+            var(--employees-row-since-width) +
+            var(--employees-row-evaluation-width) +
+            (var(--ti-grid-gap) * 3)
+    );
+    --employees-unit-indent: 16px;
 }
 
 .ti-form-grid.competence {
+    grid-template-columns: 220px minmax(220px, 1fr);
+}
+
+.ti-form-grid.employees {
     grid-template-columns: 220px minmax(220px, 1fr);
 }
 
@@ -15,7 +34,7 @@
     gap: var(--ti-grid-gap);
 }
 
-.competence-grid-value-group.position-level {
+.competence-grid-value-group.level {
     grid-template-columns: 40px minmax(200px, 1fr);
 }
 
@@ -143,9 +162,12 @@
     gap: var(--ti-grid-gap);
     align-items: center;
     background-color: #c9c9c9;
+    border: 1px solid #c9c9c9;
     border-radius: 2px;
     padding: var(--ti-data-field-padding-v) var(--ti-data-field-padding-h);
     box-sizing: border-box;
+    line-height: var(--ti-data-field-height);
+    min-height: var(--ti-data-field-height);
 }
 
 .competence-code,
@@ -200,6 +222,179 @@
     padding-top: 5px;
 }
 
+.employee-organization-value-group {
+    display: grid;
+    gap: var(--ti-grid-gap);
+}
+
+.employee-organization-value-group.unit {
+    grid-template-columns: 120px minmax(200px, 1fr);
+}
+
+.employees-organization-list,
+.employees-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ti-grid-gap);
+    min-width: 0;
+}
+
+.employees-table {
+    display: grid;
+    grid-template-columns: var(--employees-static-width) minmax(0, 1fr);
+    min-width: 0;
+    gap: var(--ti-grid-gap);
+}
+
+.employees-static {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ti-grid-gap);
+    min-width: 0;
+    padding-right: var(--ti-grid-gap);
+}
+
+.employees-list-scroll {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ti-grid-gap);
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-left: 1px solid rgb(0 0 0 / 28%);
+    padding-left: var(--ti-grid-gap);
+}
+
+.employees-list-head-static,
+.employees-row-static {
+    display: grid;
+    grid-template-columns:
+        var(--employees-row-id-width)
+        var(--employees-row-name-width);
+    gap: var(--ti-grid-gap);
+    align-items: center;
+    min-width: var(--employees-static-width);
+}
+
+.employees-list-head-dynamic,
+.employees-row-dynamic {
+    display: grid;
+    grid-template-columns:
+        var(--employees-row-career-path-width)
+        var(--employees-row-level-width)
+        var(--employees-row-since-width)
+        var(--employees-row-evaluation-width)
+        minmax(0, 1fr);
+    gap: var(--ti-grid-gap);
+    align-items: center;
+    min-width: var(--employees-dynamic-min-width);
+}
+
+.employees-row-static,
+.employees-row-dynamic {
+    min-height: var(--ti-button-size);
+}
+
+.employees-hierarchy {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--ti-grid-gap) * 2);
+    min-width: 0;
+}
+
+.employees-unit {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ti-grid-gap);
+    width: 100%;
+    min-width: var(--competence-appraisal-form-min-width);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ti-label-color);
+}
+
+.employees-unit-header {
+    display: grid;
+    grid-template-columns: 1fr minmax(var(--competence-row-name-width), 1fr);
+    gap: var(--ti-grid-gap);
+    align-items: baseline;
+}
+
+.employees-unit-title {
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.04em;
+}
+
+.employees-unit-manager {
+    grid-column: 2;
+    font-weight: 500;
+    font-style: italic;
+    text-align: left;
+    color: var(--ti-description-color);
+}
+
+.employees-unit-manager:empty {
+    display: none;
+}
+
+.employees-list-head-label {
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--ti-title-color);
+}
+
+.employees-list-head-label.id,
+.employees-list-head-label.name {
+    text-align: left;
+}
+
+.employees-id {
+    font-size: var(--ti-label-font-size);
+    font-weight: 600;
+    color: var(--ti-label-color);
+    min-height: var(--ti-data-field-height);
+    display: flex;
+    align-items: center;
+}
+
+.employees-evaluation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ti-grid-gap);
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+.employees-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ti-grid-gap);
+    flex-wrap: nowrap;
+}
+
+.employees-row-static .ti-data-value,
+.employees-row-dynamic .ti-data-value {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.employees-evaluation-status,
+.employees-evaluation-date {
+    font-size: 12px;
+    font-weight: 500;
+    font-style: italic;
+    color: var(--ti-description-color);
+}
+
+.employees-evaluation-status:empty,
+.employees-evaluation-date:empty {
+    display: none;
+}
+
 @media screen and (width <= 720px) {
     .ti-sub-panel {
         max-width: 100%;
@@ -224,5 +419,32 @@
 
     .competence-list {
         overflow-x: auto;
+    }
+
+    .employees-unit {
+        min-width: 0;
+    }
+
+    .employees-list-scroll {
+        overflow-x: auto;
+        border-left: 0;
+        padding-left: 0;
+    }
+
+    .employees-table {
+        grid-template-columns: 1fr;
+        gap: var(--ti-grid-gap);
+    }
+
+    .employees-list-head-static,
+    .employees-row-static,
+    .employees-list-head-dynamic,
+    .employees-row-dynamic {
+        grid-template-columns: 1fr;
+        min-width: 0;
+    }
+
+    .employees-evaluation {
+        justify-content: flex-start;
     }
 }

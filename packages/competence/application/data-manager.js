@@ -23,6 +23,10 @@ class DataManager {
 
     static #instance = null;
 
+    /**
+     * @constructor
+     * @returns {DataManager}
+     */
     constructor() {
         if ( !DataManager.#instance ) {
             DataManager.#instance = this;
@@ -58,6 +62,34 @@ class DataManager {
         }
 
         return Promise.all( promises );
+    }
+
+    /**
+     * Used to fetch all employees from the data storage.
+     *
+     * @method
+     * @returns {Promise<Array<Employee>>}
+     * @public
+     */
+    fetchEmployees() {
+        return new Promise( ( resolve, reject ) => {
+            if ( cache.instance.isOperational ) {
+                cache.instance.getJSON( `ti:competence:data:employees`, "$" ).then( ( result ) => {
+                    const source = _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result );
+                    if ( !source || typeof source !== "object" ) {
+                        resolve( [] );
+                    } else {
+                        resolve( Object.values( source ) );
+                    }
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                // NOTE: Only for development purposes. The system expects an actual DB to function properly.
+                const employees = require( "#data-employees" ).employees;
+                resolve( _.cloneDeep( Array.isArray( employees ) ? employees : [] ) );
+            }
+        } );
     }
 
     /**
@@ -98,19 +130,19 @@ class DataManager {
     }
 
     /**
-     * Used to fetch a set of evaluations from the data storage by employee ID.
+     * Used to fetch a set of evaluations from the data storage and filter them by employee ID (if provided).
      * <br/>
      * NOTE: This specifically does not cache the data! It is a temporary implementation for development purposes only.
      *
      * @method
-     * @param {string|number} employeeID
+     * @param {string|number|null} [employeeID] If provided, it will filter out evaluations that are not assigned to the specified employee ID.
      * @param {boolean} [filterClosed=false] If true, it will filter out evaluations that are closed.
      * @returns {Promise<Array<Evaluation>>} Returns an array of evaluation data objects or empty array if there are no evaluations for the specified employee ID.
      * @public
      */
     fetchEvaluations( employeeID, filterClosed = false ) {
         return new Promise( ( resolve, reject ) => {
-            const resolvedEmployeeID = String( employeeID );
+            const resolvedEmployeeID = employeeID ? String( employeeID ) : null;
             let statusFilter = [];
             statusFilter.push( configurationLoader.evaluationStatus.DELETED );
             if ( filterClosed === true ) {
@@ -118,22 +150,34 @@ class DataManager {
             }
 
             if ( cache.instance.isOperational ) {
-                cache.instance.getJSON( `ti:competence:data:evaluations`, `${ resolvedEmployeeID }` ).then( ( result ) => {
+                cache.instance.getJSON( `ti:competence:data:evaluations`, resolvedEmployeeID ? `${ resolvedEmployeeID }` : "$" ).then( ( result ) => {
                     if ( !result || result.length === 0 ) {
                         resolve( [] );
                     } else {
-
-                        let employeeEvaluations = _.filter( ( result instanceof Array ) ? result[ 0 ] : result, ( evaluation ) => ( statusFilter.indexOf( evaluation.status ) < 0 ) );
-                        resolve( ( !employeeEvaluations || employeeEvaluations.length === 0 ) ? [] : _.cloneDeep( employeeEvaluations ) );
+                        let employeeEvaluations = ( result instanceof Array ) ? result[ 0 ] : result;
+                        if ( resolvedEmployeeID ) {
+                            employeeEvaluations = _.filter( employeeEvaluations, ( evaluation ) => ( statusFilter.indexOf( evaluation.status ) < 0 ) );
+                            resolve( ( !employeeEvaluations || employeeEvaluations.length === 0 ) ? [] : _.cloneDeep( employeeEvaluations ) );
+                        } else {
+                            let evaluations = [];
+                            _.forEach( employeeEvaluations, ( employee ) => {
+                                _.forEach( employee, ( employeeEvaluation ) => {
+                                    if ( statusFilter.indexOf( employeeEvaluation.status ) < 0 ) {
+                                        evaluations.push( employeeEvaluation );
+                                    }
+                                } );
+                            } );
+                            resolve( evaluations );
+                        }
                     }
                 } ).catch( ( error ) => {
                     reject( error );
                 } );
             } else {
                 // NOTE: Only for development purposes. The system expects an actual DB to function properly.
-                const evaluations = require( "#data-evaluations" ).evaluations;
-                let employeeEvaluations = evaluations.filter( ( evaluation ) => evaluation.employeeID === resolvedEmployeeID && statusFilter.indexOf( evaluation.status ) < 0 );
-                resolve( ( !employeeEvaluations || employeeEvaluations.length === 0 ) ? [] : _.cloneDeep( employeeEvaluations ) );
+                const rawEvaluations = require( "#data-evaluations" ).evaluations;
+                const evaluations = Array.isArray( rawEvaluations ) ? rawEvaluations : [];
+                resolve( _.cloneDeep( evaluations.filter( ( evaluation ) => ( !resolvedEmployeeID || evaluation.employeeID === resolvedEmployeeID ) && statusFilter.indexOf( evaluation.status ) < 0 ) ) );
             }
         } );
     }

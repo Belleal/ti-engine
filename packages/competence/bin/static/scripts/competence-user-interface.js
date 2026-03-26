@@ -1,3 +1,11 @@
+/*
+ * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
+
 /**
  * Initialization data models for the various Competence screens.
  *
@@ -7,15 +15,15 @@ const initialDataModels = {
     competencyEvaluation: {
         personal: {
             name: "",
-            position: "",
-            department: "",
+            careerPath: "",
+            organizationUnitID: "",
+            organizationUnitName: "",
             level: "",
             stage: "",
             startingDate: ""
         },
         manager: {
-            name: "",
-            managerID: ""
+            name: ""
         },
         evaluation: {
             cycle: "",
@@ -63,6 +71,67 @@ const initialDataModels = {
                 ]
             }
         ]
+    },
+    employeesList: {
+        unit: {
+            type: "Department",
+            name: "Department A",
+            managers: [ "Michael Scott" ],
+            parents: [ "Division Alpha" ]
+        },
+        units: [
+            {
+                id: "department-a",
+                type: "Department",
+                name: "Department A",
+                managers: [ "Michael Scott" ],
+                employees: [],
+                children: [
+                    {
+                        id: "team-1",
+                        type: "Team",
+                        name: "Team 1",
+                        managers: [ "Pam Beesly" ],
+                        employees: [
+                            {
+                                id: "Employee ID 1",
+                                name: "John Smith",
+                                careerPath: "Software Engineer",
+                                level: "R2",
+                                since: "12.03.2020",
+                                evaluation: { status: "new", date: "" }
+                            },
+                            {
+                                id: "Employee ID 2",
+                                name: "Jane Doe",
+                                careerPath: "Software Engineer",
+                                level: "R3",
+                                since: "25.01.2020",
+                                evaluation: { status: "open", date: "28.04.2026" }
+                            }
+                        ],
+                        children: []
+                    },
+                    {
+                        id: "team-2",
+                        type: "Team",
+                        name: "Team 2",
+                        managers: [ "Jim Halpert" ],
+                        employees: [
+                            {
+                                id: "Employee ID n",
+                                name: "Names",
+                                careerPath: "Position",
+                                level: "R3",
+                                since: "25.01.2020",
+                                evaluation: { status: "new", date: "" }
+                            }
+                        ],
+                        children: []
+                    }
+                ]
+            }
+        ]
     }
 };
 
@@ -74,9 +143,8 @@ const initialDataModels = {
  * @public
  */
 let configureCompetencyEvaluation = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
     const tiApplication = Alpine.store( "tiApplication" );
-
-    const clone = ( value ) => JSON.parse( JSON.stringify( value ) );
 
     const getEmployeeIDFromUrl = () => {
         const params = new URLSearchParams( window.location.search );
@@ -94,9 +162,9 @@ let configureCompetencyEvaluation = () => {
         deadlineDate: null,
         canEdit: false,
         manager: {},
-        personal: clone( initialDataModels.competencyEvaluation.personal ),
-        evaluation: clone( initialDataModels.competencyEvaluation.evaluation ),
-        competencies: clone( initialDataModels.competencyEvaluation.competencies ),
+        personal: tiToolbox.structuredClone( initialDataModels.competencyEvaluation.personal ),
+        evaluation: tiToolbox.structuredClone( initialDataModels.competencyEvaluation.evaluation ),
+        competencies: tiToolbox.structuredClone( initialDataModels.competencyEvaluation.competencies ),
         grades: {},
         showEvaluationForm: false,
 
@@ -120,13 +188,13 @@ let configureCompetencyEvaluation = () => {
 
         applyData( data ) {
             const fresh = ( data && typeof data === "object" ) ? data : {};
-            this.personal = clone( fresh.personal || initialDataModels.competencyEvaluation.personal );
-            this.manager = clone( fresh.manager || initialDataModels.competencyEvaluation.manager );
+            this.personal = tiToolbox.structuredClone( fresh.personal || initialDataModels.competencyEvaluation.personal );
+            this.manager = tiToolbox.structuredClone( fresh.manager || initialDataModels.competencyEvaluation.manager );
             this.userRole = fresh.userRole;
             this.deadlineDate = fresh.deadlineDate;
             this.canEdit = fresh.canEdit;
-            this.evaluation = clone( fresh.evaluation || initialDataModels.competencyEvaluation.evaluation );
-            this.competencies = clone( fresh.competencies || initialDataModels.competencyEvaluation.competencies );
+            this.evaluation = tiToolbox.structuredClone( fresh.evaluation || initialDataModels.competencyEvaluation.evaluation );
+            this.competencies = tiToolbox.structuredClone( fresh.competencies || initialDataModels.competencyEvaluation.competencies );
         },
 
         loadEmployeeEvaluation( employeeID ) {
@@ -211,10 +279,6 @@ let configureCompetencyEvaluation = () => {
             }
         },
 
-        setInterviewDate( value ) {
-            this.evaluation.interviewDate = value;
-        },
-
         getItemGrade( competencyCode, role, defaultValue = "" ) {
             let grade;
             if ( competencyCode ) {
@@ -230,11 +294,114 @@ let configureCompetencyEvaluation = () => {
         },
 
         formatDate( value, placeholder = "" ) {
-            const normalized = /^\d{4}-\d{2}-\d{2}$/.test( value )
-                ? `${ value }T00:00:00`
-                : value;
-            const date = new Date( normalized );
-            return isValidDate( date ) ? date.toLocaleDateString() : tiApplication.getLabel( placeholder, "" );
+            return tiToolbox.formatDate( value, tiApplication.getLabel( placeholder, "" ) );
+        }
+
+    };
+};
+
+/**
+ * Returns a configuration object for the employees list screen.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+let configureEmployeesList = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    return {
+        unitType: "",
+        unitName: "",
+        unitManagers: "",
+        unitLocation: "",
+        units: [],
+        isManagerView: false,
+
+        init() {
+            const onInitialized = () => {
+                this.loadEmployeeList();
+            };
+
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        flattenUnits( organizationUnits, flattenedUnits = [] ) {
+            organizationUnits.forEach( ( unit ) => {
+                flattenedUnits.push( unit );
+                if ( unit.children && Array.isArray( unit.children ) ) {
+                    this.flattenUnits( unit.children, flattenedUnits );
+                }
+            } );
+        },
+
+        loadEmployeeList() {
+            const url = "/app/load-employee-list";
+            tiApplication.sendRequest( url ).then( ( result ) => {
+                const data = ( result?.data && typeof result.data === "object" ) ? result.data : {};
+                const organizationUnits = Array.isArray( data.organizationUnits ) ? data.organizationUnits : [];
+                const rootUnit = organizationUnits[ 0 ] || {};
+                this.isManagerView = !!data.isManagerView;
+                this.unitType = String( rootUnit.type || "" ).trim();
+                this.unitName = String( rootUnit.name || "" ).trim();
+                this.unitManagers = this.formatList( rootUnit.managers );
+                this.unitLocation = this.formatList( rootUnit.parents, " / " );
+                this.units = [];
+                this.flattenUnits( organizationUnits, this.units );
+            } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) {
+                    return;
+                }
+
+                tiApplication.notify( tiApplication.formatException( error ) );
+                if ( error.exception?.httpCode === 401 ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
+        },
+
+        startEvaluation( employeeID ) {
+            tiApplication.sendRequest( "/app/start-evaluation", "POST", { employeeID: employeeID } ).then( ( result ) => {
+                const evaluationID = result?.data;
+                this.openEvaluation( employeeID, evaluationID );
+            } ).catch( ( error ) => {
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        openEvaluation( employeeID, evaluationID ) {
+            let url = "/app/competence-evaluation?employeeID=" + encodeURIComponent( employeeID );
+            if ( evaluationID ) {
+                url += "&evaluationID=" + encodeURIComponent( evaluationID );
+            }
+            if ( window.htmx ) {
+                window.htmx.ajax( "GET", url, { target: "#ti-content", swap: "innerHTML" } );
+                window.history.pushState( null, "", url );
+            } else {
+                window.location.href = url;
+            }
+        },
+
+        formatList( values, separator = ", " ) {
+            if ( Array.isArray( values ) ) {
+                return values.map( ( entry ) => String( entry || "" ).trim() ).filter( Boolean ).join( separator );
+            } else if ( typeof values === "string" ) {
+                return values.trim();
+            }
+            return "";
+        },
+
+        formatDate( value, placeholder = "" ) {
+            return tiToolbox.formatDate( value, tiApplication.getLabel( placeholder, "" ) );
         }
 
     };
@@ -242,4 +409,5 @@ let configureCompetencyEvaluation = () => {
 
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "competencyEvaluation", configureCompetencyEvaluation );
+    Alpine.data( "employeesList", configureEmployeesList );
 } );

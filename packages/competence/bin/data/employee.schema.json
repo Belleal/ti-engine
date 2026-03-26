@@ -20,6 +20,8 @@
       "description": "Personal information about the employee",
       "required": [
         "name",
+        "careerPath",
+        "organizationUnitID",
         "level",
         "stage"
       ],
@@ -35,13 +37,15 @@
           "format": "email",
           "description": "Corporate email address"
         },
-        "position": {
+        "careerPath": {
           "type": "string",
-          "description": "Job title or position"
+          "minLength": 1,
+          "description": "Career path"
         },
-        "department": {
+        "organizationUnitID": {
           "type": "string",
-          "description": "Department name"
+          "minLength": 1,
+          "description": "Organization unit ID"
         },
         "level": {
           "type": "string",
@@ -65,24 +69,6 @@
           "type": "string",
           "format": "date",
           "description": "Date of joining the company"
-        }
-      }
-    },
-    "manager": {
-      "type": "object",
-      "description": "Information about the direct manager",
-      "required": [
-        "managerID"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Name of the direct manager"
-        },
-        "managerID": {
-          "type": "string",
-          "description": "Employee ID of the direct manager"
         }
       }
     }

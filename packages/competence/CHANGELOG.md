@@ -2,6 +2,57 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.0
+
+* feat(web-app): add `load-employee-list` data view and implement `#loadEmployeeList()` for organization-tree employee loading with role-aware visibility and evaluation access
+* feat(org): extend `OrganizationManager` graph employee nodes with `careerPath`, `level`, `stage`, and `startingDate`
+* feat(org): add organization graph query helpers (`resolveOrganizationUnitIDForEmployee`, `resolveEmployeeName`, `resolveParentUnitNames`, `getOrganizationUnitSubtree`)
+* feat(data-manager): extend `fetchEvaluations()` to support bulk retrieval when `employeeID` is omitted
+* feat(ui): implement employees-list controller data loading from `/app/load-employee-list` and add evaluation actions (`startEvaluation`, `openEvaluation`)
+* feat(ui): rework `frame-employees-list` to render organization units and employees from the new hierarchical backend payload
+* feat(css): update employees-list screen styling for organization section, career-path column, evaluation status display, and action layout
+* feat(localization): add/update labels for employees-list organization/list sections and rename position label keys to career-path equivalents
+* feat(config-loader): replace position-based exports with career-path-based exports and add grade code `N` (`Not Utilized`)
+* feat(config): add/rename config files to `config.career-path-competencies.json`, `config.career-path-levels.json`, and `config.competencies.json`; remove `positions.json`
+* feat(config): update organization structure seed naming/types (Organization/Division/Team display metadata)
+* refactor(web-app): migrate evaluation and competency resolution logic from `position` to `careerPath`
+* refactor(data): migrate employee seed data from `personal.position` to `personal.careerPath`
+* refactor(schema): update employee and competencies schemas to use career-path terminology
+* refactor(types): align data object typedefs with career-path naming and add organization-unit typedef
+* refactor(ui): update competence-evaluation personal section bindings from `position` to `career-path`
+* build(package): bump package version to `1.3.0` and update package import aliases for renamed config files
+* build(scripts): add local build scripts for compiling competencies and competence labels from CSV sources (`bin/build/*.js`)
+* chore(web-server): remove unused `#configuration-loader` import
+* chore(test): remove obsolete competence package test suite files under `packages/competence/test/`
+* docs(readme): expand module status/process workflow and role-based permission notes
+
+## Version 1.2.0
+
+* feat(org): add `OrganizationManager` singleton powered by `graphology` to build an organization chart from units and employees
+* feat(org): add manager and organization context resolution (`resolveManagerIDForEmployee`, `resolveEmployeeOrganizationContext`) with parent-unit fallback
+* feat(config): add `bin/config/config.organization-structure.json` and expose `configOrganizationStructure` via configuration loader
+* feat(data-manager): add `fetchEmployees()` for bulk employee retrieval from cache or seeded fallback data
+* feat(web-server): initialize organizational graph on startup after data initialization
+* feat(web-app): add `employees-list` fragment registration and sidebar navigation action for the new screen
+* feat(web-app): augment loaded evaluation personal context with `organizationUnitName` and graph-resolved manager info
+* feat(web-app): set new evaluations `managerID` via organization graph resolution and use graph-based manager authorization checks
+* feat(web-app): return grades from `evaluationGrade.properties` instead of external grades JSON configuration
+* feat(ui): add employees list UI model and fragment scaffold with flat and hierarchical unit rendering
+* feat(ui): update evaluation personal section to display organization unit name instead of department
+* feat(css): add dedicated employees list layout and responsive styles
+* feat(localization): add labels for employees list screen and rename personal section label key to organization unit
+* refactor(data): replace employee `department`/embedded manager seed structure with `organizationUnitID` mapping and expanded seed dataset
+* refactor(schema): update employee JSON schema to use `organizationUnitID` and remove required manager object
+* refactor(types): align employee type definitions with organization-unit fields and optional manager data
+* refactor(ui): migrate cloning and date formatting usage to framework toolbox helpers and remove `ti-user-interface.js` include from package index
+* build(package): add import aliases `#config-organization-structure` and `#organization-manager`; remove `#config-grades`
+* build(scripts): add local build utilities for generating competencies and competence labels from CSV sources (`bin/build/*.js`)
+* build(deps): add `graphology` dependency
+* build(release): bump package version from `1.1.0` to `1.2.0`
+* test(app): update web application tests for organization unit and manager context behavior
+* test(data): update data manager tests to validate `organizationUnitID`-based employee structure
+* test(json): add organization-structure consistency validation between units and employee manager references
+
 ## Version 1.1.0
 
 * feat(web-app): add `start-evaluation` service request handler with position-based competency initialization and active evaluation guard

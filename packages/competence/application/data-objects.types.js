@@ -7,16 +7,20 @@
 */
 
 /**
- * @typedef {Object} EvaluationGradeEntry
- * @property {EvaluationGradeValue} [employee]
- * @property {EvaluationGradeValue} [manager]
- * @property {Object} [team]
- * @property {EvaluationGradeValue} [team.cumulative]
- * @property {EvaluationGradeValue[]} [team.individual]
+ * @typedef {Object} EvaluationTeamGradeValues
+ * @property {EvaluationGradeValue} [cumulative]
+ * @property {EvaluationGradeValue[]} [individual]
  */
 
 /**
- * @typedef {"U"|"R"|"S"|""} EvaluationGradeValue
+ * @typedef {Object} EvaluationGradeEntry
+ * @property {EvaluationGradeValue} [employee]
+ * @property {EvaluationGradeValue} [manager]
+ * @property {EvaluationTeamGradeValues|string} [team]
+ */
+
+/**
+ * @typedef {"U"|"R"|"S"|"N"|""} EvaluationGradeValue
  */
 
 /**
@@ -61,10 +65,11 @@
  * @typedef {Object} EmployeePersonalInformation
  * @property {string} name - Full name of the employee.
  * @property {string} [email] - Corporate email address.
- * @property {string} [position] - Job title or position.
- * @property {string} [department] - Department name.
- * @property {"N"|"J"|"R"|"S"|"X"|"T"} level - Competency level.
- * @property {1|2|3} stage - Progression stage within the level.
+ * @property {CareerPathCodeValue} careerPath - Career path.
+ * @property {CareerLevelCodeValue} level - Career path level.
+ * @property {CareerLevelStageCodeValue} stage - Progression stage within the level.
+ * @property {string} organizationUnitID - Organization unit ID.
+ * @property {string} [organizationUnitName] - Organization unit display name.
  * @property {string} [startingDate] - Date of joining the company (YYYY-MM-DD).
  */
 
@@ -78,7 +83,7 @@
  * @typedef {Object} Employee
  * @property {string} employeeID - Unique identifier for the employee.
  * @property {EmployeePersonalInformation} personal - Personal information about the employee.
- * @property {EmployeeManagerInformation} manager - Information about the direct manager.
+ * @property {EmployeeManagerInformation} [manager] - Information about the direct manager.
  */
 
 /**
@@ -117,10 +122,35 @@
  * @property {string} description - Localization key for competency description.
  * @property {CompetencyCategory} category - Category code: E (Expertise), I (Insight), or C (Commitment).
  * @property {string} subcategory - Subcategory code matching the parent category.
- * @property {CompetencyScope} scope - Scope descriptions per position level.
- * @property {CompetencyRelevancy} relevancy - Relevancy scores per position tier.
+ * @property {CompetencyScope} scope - Scope descriptions per career path level.
+ * @property {CompetencyRelevancy} relevancy - Relevancy scores per career path level tier/stage.
  */
 
 /**
  * @typedef {1|2|3|4} RoleCodeValue
+ */
+
+/**
+ * @typedef {"SE01"|"PM01"|"BA01"} CareerPathCodeValue
+ */
+
+/**
+ * @typedef {"N"|"J"|"R"|"S"|"X"|"T"} CareerLevelCodeValue
+ */
+
+/**
+ * @typedef {1|2|3} CareerLevelStageCodeValue
+ */
+
+/**
+ * @typedef {Object} OrganizationUnit
+ * @property {string} id - Unique identifier for the organization unit.
+ * @property {string} name - System name of the organization unit.
+ * @property {string} [displayName] - Display name of the organization unit.
+ * @property {string} description - Description of the organization unit.
+ * @property {string} type - Type of the organization unit (e.g., "Department", "Division", "Team").
+ * @property {string} managerID - Employee ID of the manager of the organization unit.
+ * @property {Employee[]} [employees] - List of employees in the organization unit.
+ * @property {string} [parent] - Parent organization unit ID.
+ * @property {string[]|OrganizationUnit[]} [children] - List of child organization units or unit IDs.
  */

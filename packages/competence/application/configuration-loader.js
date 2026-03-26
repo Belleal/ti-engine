@@ -8,17 +8,10 @@
 
 const tools = require( "@ti-engine/core/tools" );
 
-const configOrganizationPositionsEnum = tools.enum( require( "#config-positions" ) );
-const configCompetencies = require( "#config-competencies" );
-const configEvaluationGrades = require( "#config-grades" );
-const configEvaluationLevels = require( "#config-position-levels" );
-const configEvaluationPositionCompetencies = require( "#config-position-competencies" );
-
-module.exports.organizationPositionCode = configOrganizationPositionsEnum;
-module.exports.configCompetencies = tools.deepFreeze( configCompetencies );
-module.exports.configEvaluationGrades = tools.deepFreeze( configEvaluationGrades );
-module.exports.configEvaluationLevels = tools.deepFreeze( configEvaluationLevels );
-module.exports.configEvaluationPositionCompetencies = tools.deepFreeze( configEvaluationPositionCompetencies );
+module.exports.configCareerPathCompetencies = tools.deepFreeze( require( "#config-career-path-competencies" ) );
+module.exports.configCareerPathLevels = tools.deepFreeze( require( "#config-career-path-levels" ) );
+module.exports.configCompetencies = tools.deepFreeze( require( "#config-competencies" ) );
+module.exports.configOrganizationStructure = tools.deepFreeze( require( "#config-organization-structure" ) );
 
 /**
  * Enum for the organization role values.
@@ -34,6 +27,20 @@ const roleCodeEnum = tools.enum( {
     TEAM_MEMBER: [ 4, "Team Member", "A team member role that is part of a dedicated team and has limited privileges." ]
 } );
 module.exports.roleCode = roleCodeEnum;
+
+/**
+ * Enum for the organization career path values.
+ *
+ * @readonly
+ * @enum {CareerPathCode}
+ * @typedef {CareerPathCodeValue} CareerPathCode
+ */
+const careerPathCodeEnum = tools.enum( {
+    SE01: [ "SE01", "Software Engineer", "A career path suitable for a general software engineer position without a focus on specific technology stack." ],
+    PM01: [ "PM01", "Project Manager", "A career path suitable for a standard project manager position that is responsible for managing a portfolio of projects." ],
+    BA01: [ "BA01", "Business Analyst", "A career path suitable for a standard business analyst position that is responsible for analyzing business requirements and providing solutions." ]
+} );
+module.exports.careerPathCode = careerPathCodeEnum;
 
 /**
  * Enum for the evaluation status values.
@@ -61,6 +68,7 @@ module.exports.evaluationStatus = evaluationStatusEnum;
 const evaluationGradeEnum = tools.enum( {
     S: [ "S", "Superior", "The employee exceeds expectations for this competency at the current level." ],
     R: [ "R", "Regular", "The employee meets the expected standards for this competency at the current level." ],
-    U: [ "U", "Unsatisfactory", "The employee shows skills below the expected standards for this competency at the current level." ]
+    U: [ "U", "Unsatisfactory", "The employee shows skills below the expected standards for this competency at the current level." ],
+    N: [ "N", "Not Utilized", "The employee does not use or does not have this competency at the current level." ]
 } );
 module.exports.evaluationGrade = evaluationGradeEnum;

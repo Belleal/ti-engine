@@ -16,6 +16,7 @@
     --ti-button-gap: 6px;
     --ti-button-radius: 10px;
     --ti-button-size: 44px;
+    --ti-button-inline-height: 32px;
     /** Data Fields **/
     --ti-data-field-background-color: #b9b9b9;
     --ti-data-field-border-color: var(--ti-data-field-background-color);
@@ -113,6 +114,13 @@ body {
     justify-self: center;
 }
 
+.ti-button.inline {
+    padding: calc(var(--ti-data-field-padding-v) - 1px) var(--ti-data-field-padding-h) calc(var(--ti-data-field-padding-v) + 1px);
+    height: var(--ti-button-inline-height);
+    width: auto;
+    min-width: 120px;
+}
+
 .ti-sidebar-button {
     width: var(--ti-button-size);
     height: var(--ti-button-size);
@@ -141,7 +149,6 @@ body {
     height: 100%;
     min-height: 0;
 }
-
 
 .ti-content.pane {
     display: flex;

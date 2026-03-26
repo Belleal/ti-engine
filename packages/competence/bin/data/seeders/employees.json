@@ -4,30 +4,88 @@
       "employeeID": "1",
       "personal": {
         "name": "Geatrks Frkats",
-        "position": "SOFTWARE_ENGINEER",
-        "department": "Software Development",
+        "careerPath": "SE01",
+        "organizationUnitID": "1-1-1",
         "level": "R",
         "stage": 2,
         "startingDate": "2022-03-14"
-      },
-      "manager": {
-        "name": "Sdfaer Ltruajs",
-        "managerID": "3"
       }
     },
     {
       "employeeID": "2",
       "personal": {
         "name": "Mrkius Brhajas",
-        "position": "PROJECT_MANAGER",
-        "department": "Software Development",
+        "careerPath": "PM01",
+        "organizationUnitID": "1-1-2",
         "level": "J",
         "stage": 3,
         "startingDate": "2020-11-02"
-      },
-      "manager": {
-        "name": "Grasht Jraksj",
-        "managerID": "4"
+      }
+    },
+    {
+      "employeeID": "3",
+      "personal": {
+        "name": "Trguf Gjkurans",
+        "careerPath": "SE01",
+        "organizationUnitID": "1-1-1",
+        "level": "S",
+        "stage": 1,
+        "startingDate": "2021-02-21"
+      }
+    },
+    {
+      "employeeID": "4",
+      "personal": {
+        "name": "Kjurtha Lmhjafs",
+        "careerPath": "SE01",
+        "organizationUnitID": "1-1-1",
+        "level": "J",
+        "stage": 3,
+        "startingDate": "2025-07-22"
+      }
+    },
+    {
+      "employeeID": "8",
+      "personal": {
+        "name": "Sdfaer Ltruajs",
+        "careerPath": "SE01",
+        "organizationUnitID": "1-1-1",
+        "level": "T",
+        "stage": 1,
+        "startingDate": "2018-09-03"
+      }
+    },
+    {
+      "employeeID": "11",
+      "personal": {
+        "name": "Hjrtva Klprtah",
+        "careerPath": "PM01",
+        "organizationUnitID": "1-1-2",
+        "level": "T",
+        "stage": 1,
+        "startingDate": "2019-01-22"
+      }
+    },
+    {
+      "employeeID": "20",
+      "personal": {
+        "name": "Ghrtyf Frtadsr",
+        "careerPath": "PM01",
+        "organizationUnitID": "1-1",
+        "level": "T",
+        "stage": 1,
+        "startingDate": "2015-02-27"
+      }
+    },
+    {
+      "employeeID": "22",
+      "personal": {
+        "name": "Mrfgutr Asrtguvs",
+        "careerPath": "PM01",
+        "organizationUnitID": "1",
+        "level": "T",
+        "stage": 1,
+        "startingDate": "2022-05-13"
       }
     }
   ]
