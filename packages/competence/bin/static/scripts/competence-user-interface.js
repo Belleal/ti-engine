@@ -350,14 +350,12 @@ let configureEmployeesList = () => {
                 const data = ( result?.data && typeof result.data === "object" ) ? result.data : {};
                 const organizationUnits = Array.isArray( data.organizationUnits ) ? data.organizationUnits : [];
                 const rootUnit = organizationUnits[ 0 ] || {};
-
                 this.isManagerView = !!data.isManagerView;
-
                 this.unitType = String( rootUnit.type || "" ).trim();
                 this.unitName = String( rootUnit.name || "" ).trim();
                 this.unitManagers = this.formatList( rootUnit.managers );
                 this.unitLocation = this.formatList( rootUnit.parents, " / " );
-
+                this.units = [];
                 this.flattenUnits( organizationUnits, this.units );
             } ).catch( ( error ) => {
                 if ( error?.name === "AbortError" || error?.isAborted ) {

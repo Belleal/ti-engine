@@ -48,7 +48,7 @@
   },
   "homepage": "https://github.com/Belleal/ti-engine/tree/master/packages/web-framework#readme",
   "engines": {
-    "node": ">=24.0.0"
+    "node": ">=20.0.0"
   },
   "scripts": {
     "postinstall": "node ./bin/build/post-install.js"

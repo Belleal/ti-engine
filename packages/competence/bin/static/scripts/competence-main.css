@@ -12,11 +12,11 @@
     --employees-row-evaluation-width: 320px;
     --employees-static-width: calc(var(--employees-row-id-width) + var(--employees-row-name-width) + var(--ti-grid-gap));
     --employees-dynamic-min-width: calc(
-            var(--employees-row-career-path-width)
-            + var(--employees-row-level-width)
-            + var(--employees-row-since-width)
-            + var(--employees-row-evaluation-width)
-            + (var(--ti-grid-gap) * 3)
+            var(--employees-row-career-path-width) +
+            var(--employees-row-level-width) +
+            var(--employees-row-since-width) +
+            var(--employees-row-evaluation-width) +
+            (var(--ti-grid-gap) * 3)
     );
     --employees-unit-indent: 16px;
 }
@@ -419,6 +419,10 @@
 
     .competence-list {
         overflow-x: auto;
+    }
+
+    .employees-unit {
+        min-width: 0;
     }
 
     .employees-list-scroll {

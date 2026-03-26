@@ -20,6 +20,8 @@
       "description": "Personal information about the employee",
       "required": [
         "name",
+        "careerPath",
+        "organizationUnitID",
         "level",
         "stage"
       ],
@@ -37,10 +39,12 @@
         },
         "careerPath": {
           "type": "string",
+          "minLength": 1,
           "description": "Career path"
         },
         "organizationUnitID": {
           "type": "string",
+          "minLength": 1,
           "description": "Organization unit ID"
         },
         "level": {

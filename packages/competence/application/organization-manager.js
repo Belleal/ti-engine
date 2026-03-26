@@ -213,7 +213,7 @@ class OrganizationManager {
 
         if ( this.#organizationChart ) {
             if ( this.#organizationChart.hasNode( unitNodeID ) ) {
-                unitName = this.#organizationChart.getNodeAttribute( unitNodeID, "name" );
+                unitName = this.#organizationChart.getNodeAttribute( unitNodeID, "displayName" ) || this.#organizationChart.getNodeAttribute( unitNodeID, "name" );
             }
             if ( managerID && this.#organizationChart.hasNode( managerNodeID ) ) {
                 managerName = this.#organizationChart.getNodeAttribute( managerNodeID, "name" );
@@ -291,7 +291,10 @@ class OrganizationManager {
                 break;
             }
 
-            parentNames.unshift( this.#organizationChart.getNodeAttribute( parentNodeID, "name" ) || parentUnitID );
+            parentNames.unshift( this.#organizationChart.getNodeAttribute( parentNodeID, "displayName" )
+                || this.#organizationChart.getNodeAttribute( parentNodeID, "name" )
+                || parentUnitID
+            );
             currentUnitNodeID = parentNodeID;
         }
 

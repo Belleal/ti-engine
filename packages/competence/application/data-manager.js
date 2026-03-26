@@ -175,17 +175,8 @@ class DataManager {
                 } );
             } else {
                 // NOTE: Only for development purposes. The system expects an actual DB to function properly.
-                const employeeEvaluations = require( "#data-evaluations" ).evaluations;
-                let evaluations = [];
-                if ( !resolvedEmployeeID ) {
-                    _.forEach( employeeEvaluations, ( employee ) => {
-                        _.forEach( employee, ( employeeEvaluation ) => {
-                            if ( statusFilter.indexOf( employeeEvaluation.status ) < 0 ) {
-                                evaluations.push( employeeEvaluation );
-                            }
-                        } );
-                    } );
-                }
+                const rawEvaluations = require( "#data-evaluations" ).evaluations;
+                const evaluations = Array.isArray( rawEvaluations ) ? rawEvaluations : [];
                 resolve( _.cloneDeep( evaluations.filter( ( evaluation ) => ( !resolvedEmployeeID || evaluation.employeeID === resolvedEmployeeID ) && statusFilter.indexOf( evaluation.status ) < 0 ) ) );
             }
         } );

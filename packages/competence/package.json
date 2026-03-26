@@ -25,6 +25,6 @@
     "test:json": "node --test test/json-config-validation.test.js"
   },
   "engines": {
-    "node": ">=24.0.0"
+    "node": ">=20.0.0"
   }
 }

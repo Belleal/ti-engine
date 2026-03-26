@@ -16,7 +16,6 @@ This document will contain the list of changes made to the framework. The format
 * refactor(static): remove legacy `ti-user-interface.js` from static assets and stop loading it from `index.html`
 * refactor(components): update framework components to consume toolbox utilities through Alpine stores
 * refactor(docs): add and expand JSDoc typedefs and method-level documentation in `ti-framework.js`
-* build(engines): update Node.js requirement from `>=20.0.0` to `>=24.0.0`
 * build(release): bump package version from `1.5.3` to `1.6.0`
 
 ## Version 1.5.3

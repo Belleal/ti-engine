@@ -48,7 +48,6 @@ This document contains the list of changes made to the competence package. The f
 * build(package): add import aliases `#config-organization-structure` and `#organization-manager`; remove `#config-grades`
 * build(scripts): add local build utilities for generating competencies and competence labels from CSV sources (`bin/build/*.js`)
 * build(deps): add `graphology` dependency
-* build(engines): update Node.js requirement from `>=20.0.0` to `>=24.0.0`
 * build(release): bump package version from `1.1.0` to `1.2.0`
 * test(app): update web application tests for organization unit and manager context behavior
 * test(data): update data manager tests to validate `organizationUnitID`-based employee structure

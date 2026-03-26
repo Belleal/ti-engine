@@ -762,7 +762,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     let sum = 0;
                     let count = 0;
                     gradeEntry.team.individual.forEach( ( grade ) => {
-                        if ( gradeWeights[ grade ] ) {
+                        if ( Object.prototype.hasOwnProperty.call( gradeWeights, grade ) ) {
                             sum += gradeWeights[ grade ];
                             count++;
                         }

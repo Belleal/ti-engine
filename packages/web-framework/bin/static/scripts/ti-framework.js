@@ -811,7 +811,7 @@ const configureApplication = () => {
  */
 document.addEventListener( "htmx:configRequest", ( event ) => {
     const tiToolbox = Alpine.store( "tiToolbox" );
-    event.detail.headers[ 'x-xsrf-token' ] = tiToolbox.getCookie( "ti-xsrf-token" ) || "";
+    event.detail.headers[ 'x-xsrf-token' ] = tiToolbox?.getCookie( "ti-xsrf-token" ) || "";
     // Reuse the existing nonce from the active document:
     const styleNonce = ( htmx?.config?.inlineStyleNonce ) || "";
     const scriptNonce = ( htmx?.config?.inlineScriptNonce ) || "";
