@@ -191,6 +191,47 @@ class OrganizationManager {
     }
 
     /**
+     * Checks if a user is a superior manager of a given employee.
+     * This includes the direct manager and any manager higher up in the organizational hierarchy.
+     *
+     * @method
+     * @param {string} potentialSuperiorID The ID of the user to check.
+     * @param {string} employeeID The ID of the employee.
+     * @returns {boolean}
+     * @public
+     */
+    isSuperiorManagerOfEmployee( potentialSuperiorID, employeeID ) {
+        if ( !potentialSuperiorID || !employeeID || potentialSuperiorID === employeeID ) {
+            return false;
+        }
+
+        const employeeUnitID = this.resolveOrganizationUnitIDForEmployee( employeeID );
+        if ( !employeeUnitID || !this.#organizationChart ) {
+            return false;
+        }
+
+        let currentUnitNodeID = this.toUnitNodeID( employeeUnitID );
+        const visited = new Set();
+        while ( currentUnitNodeID && !visited.has( currentUnitNodeID ) && this.#organizationChart.hasNode( currentUnitNodeID ) ) {
+            visited.add( currentUnitNodeID );
+            const unitManagerID = this.#organizationChart.getNodeAttribute( currentUnitNodeID, "managerID" );
+
+            if ( unitManagerID && unitManagerID === potentialSuperiorID ) {
+                return true;
+            }
+
+            const parentUnitID = this.#organizationChart.getNodeAttribute( currentUnitNodeID, "parent" );
+            if ( parentUnitID ) {
+                currentUnitNodeID = this.toUnitNodeID( parentUnitID );
+            } else {
+                currentUnitNodeID = null;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Resolves organization-unit and manager display data for an employee.
      *
      * @method

@@ -189,9 +189,23 @@ class CompetenceWebApplication extends TiWebAppManager {
                     const latestEvaluation = latestEvaluationByEmployeeID.get( employeeNode.employeeID ) || null;
                     const canSeePersonalData = ( isManagerOfCurrentUnit || employeeNode.employeeID === userID );
 
+                    let evaluationDate = "";
+                    if ( latestEvaluation ) {
+                        if ( latestEvaluation.status === configurationLoader.evaluationStatus.OPEN ) {
+                            const selfDeadline = latestEvaluation.workflow?.selfEvaluationDeadline || "";
+                            const teamDeadline = latestEvaluation.workflow?.teamEvaluationDeadline || "";
+                            evaluationDate = selfDeadline > teamDeadline ? selfDeadline : teamDeadline;
+                        } else if ( latestEvaluation.status === configurationLoader.evaluationStatus.IN_REVIEW ) {
+                            evaluationDate = latestEvaluation.workflow?.managerEvaluationDeadline || "";
+                        } else if ( latestEvaluation.status === configurationLoader.evaluationStatus.READY ) {
+                            evaluationDate = latestEvaluation.interviewDate || "";
+                        }
+                    }
+
                     return {
                         id: employeeNode.employeeID,
                         name: employeeNode.name,
+                        isCurrentUser: employeeNode.employeeID === userID,
                         organizationUnitID: employeeNode.organizationUnitID,
                         career: {
                             careerPath: employeeNode.careerPath,
@@ -207,7 +221,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                         evaluation: ( canSeePersonalData && latestEvaluation ) ? {
                             evaluationID: latestEvaluation.evaluationID,
                             status: latestEvaluation.status,
-                            date: latestEvaluation.cycleDate
+                            date: evaluationDate
                         } : null
                     };
                 };
@@ -265,7 +279,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 isEmployee = existingEvaluation.employeeID === userID;
                 isTeamMember = Array.isArray( existingEvaluation.workflow?.team ) && existingEvaluation.workflow.team.includes( userID ) && !isEmployee;
 
-                return this.#canManagerModifyEvaluation( userID, existingEvaluation );
+                return this.#canManagerPerformEvaluation( userID, existingEvaluation.employeeID );
             } ).then( ( isManagerResult ) => {
                 isManager = isManagerResult;
                 const today = new Date().toISOString().split( "T" )[ 0 ];
@@ -415,7 +429,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 isEmployee = storedEvaluation.employeeID === userID;
                 existingEvaluation = storedEvaluation;
 
-                return this.#canManagerModifyEvaluation( userID, existingEvaluation );
+                return this.#canManagerPerformEvaluation( userID, existingEvaluation.employeeID );
             } ).then( ( isManagerResult ) => {
                 isManager = isManagerResult;
                 const today = new Date().toISOString().split( "T" )[ 0 ];
@@ -526,7 +540,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 isEmployee = currentEvaluation.employeeID === userID && session?.user?.roles?.includes( configurationLoader.roleCode.EMPLOYEE );
                 isTeamMember = Array.isArray( currentEvaluation.workflow?.team ) && currentEvaluation.workflow.team.includes( userID ) && !isEmployee;
 
-                return this.#canManagerModifyEvaluation( userID, currentEvaluation );
+                return this.#canManagerPerformEvaluation( userID, currentEvaluation.employeeID );
             } ).then( ( isManager ) => {
                 let userRole;
                 let canEdit;
@@ -605,22 +619,22 @@ class CompetenceWebApplication extends TiWebAppManager {
             }
 
             const isSupervisor = Array.isArray( session?.user?.roles ) && session.user.roles.includes( configurationLoader.roleCode.SUPERVISOR );
-            let resolvedManagerID;
+            let employee;
 
-            dataManager.instance.fetchEmployee( employeeID ).then( ( employee ) => {
-                if ( !employee ) {
+            dataManager.instance.fetchEmployee( employeeID ).then( ( result ) => {
+                if ( !result ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-employee-found" }, exceptions.httpCode.C_404 );
                 }
+                employee = result;
 
-                resolvedManagerID = organizationManager.instance.resolveManagerIDForEmployee( employee.employeeID, employee.personal?.organizationUnitID );
-                const isManager = ( resolvedManagerID === userID );
-
+                return this.#canManagerPerformEvaluation( userID, employee.employeeID );
+            } ).then( ( isManager ) => {
                 if ( !isSupervisor && !isManager ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
                 }
 
-                return Promise.all( [ Promise.resolve( employee ), dataManager.instance.fetchEvaluations( employeeID ) ] );
-            } ).then( ( [ employee, evaluations ] ) => {
+                return dataManager.instance.fetchEvaluations( employee.employeeID );
+            } ).then( ( evaluations ) => {
                 const activeStatuses = [
                     configurationLoader.evaluationStatus.OPEN,
                     configurationLoader.evaluationStatus.IN_REVIEW,
@@ -633,6 +647,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 }
 
                 const newEvaluation = this.#createNewEvaluation( employeeID );
+                const resolvedManagerID = organizationManager.instance.resolveManagerIDForEmployee( employee.employeeID, employee.personal?.organizationUnitID );
                 if ( resolvedManagerID ) {
                     newEvaluation.managerID = resolvedManagerID;
                 }
@@ -958,22 +973,12 @@ class CompetenceWebApplication extends TiWebAppManager {
      *
      * @method
      * @param {string} managerID
-     * @param {Evaluation} evaluation
+     * @param {string} employeeID
      * @returns {Promise<boolean>}
      * @private
      */
-    #canManagerModifyEvaluation( managerID, evaluation ) {
-        return new Promise( ( resolve ) => {
-            if ( evaluation.managerID ) {
-                resolve( evaluation.managerID === managerID );
-            } else {
-                dataManager.instance.fetchEmployee( evaluation.employeeID ).then( ( employee ) => {
-                    resolve( organizationManager.instance.resolveManagerIDForEmployee( employee.employeeID, employee.personal?.organizationUnitID ) === managerID );
-                } ).catch( () => {
-                    resolve( false );
-                } );
-            }
-        } );
+    #canManagerPerformEvaluation( managerID, employeeID ) {
+        return Promise.resolve( organizationManager.instance.isSuperiorManagerOfEmployee( managerID, employeeID ) );
     }
 
 }

@@ -71,67 +71,6 @@ const initialDataModels = {
                 ]
             }
         ]
-    },
-    employeesList: {
-        unit: {
-            type: "Department",
-            name: "Department A",
-            managers: [ "Michael Scott" ],
-            parents: [ "Division Alpha" ]
-        },
-        units: [
-            {
-                id: "department-a",
-                type: "Department",
-                name: "Department A",
-                managers: [ "Michael Scott" ],
-                employees: [],
-                children: [
-                    {
-                        id: "team-1",
-                        type: "Team",
-                        name: "Team 1",
-                        managers: [ "Pam Beesly" ],
-                        employees: [
-                            {
-                                id: "Employee ID 1",
-                                name: "John Smith",
-                                careerPath: "Software Engineer",
-                                level: "R2",
-                                since: "12.03.2020",
-                                evaluation: { status: "new", date: "" }
-                            },
-                            {
-                                id: "Employee ID 2",
-                                name: "Jane Doe",
-                                careerPath: "Software Engineer",
-                                level: "R3",
-                                since: "25.01.2020",
-                                evaluation: { status: "open", date: "28.04.2026" }
-                            }
-                        ],
-                        children: []
-                    },
-                    {
-                        id: "team-2",
-                        type: "Team",
-                        name: "Team 2",
-                        managers: [ "Jim Halpert" ],
-                        employees: [
-                            {
-                                id: "Employee ID n",
-                                name: "Names",
-                                careerPath: "Position",
-                                level: "R3",
-                                since: "25.01.2020",
-                                evaluation: { status: "new", date: "" }
-                            }
-                        ],
-                        children: []
-                    }
-                ]
-            }
-        ]
     }
 };
 
