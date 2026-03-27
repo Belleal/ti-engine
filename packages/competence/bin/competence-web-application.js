@@ -10,6 +10,7 @@ const TiWebAppManager = require( "@ti-engine/web-framework/web-application" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const localization = require( "@ti-engine/core/localization" );
 const tools = require( "@ti-engine/core/tools" );
+const _ = require( "lodash" );
 const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
 const organizationManager = require( "#organization-manager" );
@@ -81,9 +82,18 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     processDataRequest( session, view, options = {} ) {
         if ( view === "config" ) {
+            let grades = {};
+            _.forOwn( configurationLoader.evaluationGrade.properties, ( grade, code ) => {
+                grades[ code ] = {
+                    value: grade.value,
+                    name: localization.getLabel( grade.name, session?.language ),
+                    description: localization.getLabel( grade.description, session?.language )
+                };
+            } );
+
             return super.processDataRequest( session, view, options ).then( ( result ) => ( {
                 ...result,
-                grades: configurationLoader.evaluationGrade.properties
+                grades: grades
             } ) );
         } else if ( view === "load-evaluation" ) {
             const employeeID = String( options?.query?.employeeID || "" ).trim();

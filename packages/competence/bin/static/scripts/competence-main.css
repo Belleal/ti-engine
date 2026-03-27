@@ -66,6 +66,11 @@
     grid-template-columns: 80px minmax(200px, 1fr);
 }
 
+.competence-grid-value-group.grading {
+    grid-template-columns: 36px 120px 1fr;
+    align-items: center;
+}
+
 .competence-list {
     display: flex;
     flex-direction: column;
@@ -78,7 +83,7 @@
     display: grid;
     grid-template-columns:
         var(--competence-row-code-width)
-        minmax(var(--competence-row-name-width), 1fr)
+        minmax(var(--competence-row-name-width), 0.5fr)
         var(--competence-row-grade-width)
         var(--competence-row-grade-width)
         var(--competence-row-grade-width)
@@ -123,6 +128,7 @@
     grid-column: 5;
 }
 
+.competence-instructions,
 .competence-category {
     display: flex;
     flex-direction: column;
@@ -146,13 +152,17 @@
     letter-spacing: 0.04em;
 }
 
+.competence-grading-description,
 .competence-item-description,
 .competence-category-description {
-    grid-column: 2;
     font-weight: 500;
     font-style: italic;
     text-align: left;
     color: var(--ti-description-color);
+}
+
+.competence-category-description {
+    grid-column: 2;
 }
 
 .competence-item-description {
@@ -181,8 +191,8 @@
 
 .competence-info {
     grid-column: 1 / span 2;
-    display: grid;
-    grid-template-columns: var(--competence-row-code-width) minmax(var(--competence-row-name-width), 1fr);
+    display: flex;
+    flex-direction: row;
     gap: var(--ti-grid-gap);
     align-items: center;
     background-color: #c9c9c9;
@@ -194,9 +204,14 @@
     min-height: var(--ti-data-field-height);
 }
 
+.competence-grading-name,
 .competence-code,
 .competence-name {
     font-weight: 500;
+}
+
+.competence-code {
+    min-width: 30px;
 }
 
 .ti-input.grade {

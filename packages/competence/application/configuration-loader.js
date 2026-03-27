@@ -66,9 +66,9 @@ module.exports.evaluationStatus = evaluationStatusEnum;
  * @typedef {EvaluationGradeValue} EvaluationGrade
  */
 const evaluationGradeEnum = tools.enum( {
-    S: [ "S", "Superior", "The employee exceeds expectations for this competency at the current level." ],
-    R: [ "R", "Regular", "The employee meets the expected standards for this competency at the current level." ],
-    U: [ "U", "Unsatisfactory", "The employee shows skills below the expected standards for this competency at the current level." ],
-    N: [ "N", "Not Utilized", "The employee does not use or does not have this competency at the current level." ]
+    S: [ "S", "framework.grades.name.S", "framework.grades.description.S" ],
+    R: [ "R", "framework.grades.name.R", "framework.grades.description.R" ],
+    U: [ "U", "framework.grades.name.U", "framework.grades.description.U" ],
+    N: [ "N", "framework.grades.name.N", "framework.grades.description.N" ]
 } );
 module.exports.evaluationGrade = evaluationGradeEnum;

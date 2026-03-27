@@ -58,6 +58,21 @@
 
         <span class="ti-spacer-v-10"></span>
 
+        <div class="ti-sub-panel-title" x-text-label="interface.evaluation.instructions.title"></div>
+        <div class="competence-instructions">
+            <div class="competence-grading-name" x-text-label="interface.evaluation.instructions.grades"></div>
+            <div class="competence-grading-name" x-text-label="interface.evaluation.instructions.team-grading" x-show="userRole === 4"></div>
+            <template x-for="( grade, gradeKey ) in grades" x-bind:key="gradeKey">
+                <div class="competence-grid-value-group grading">
+                    <div class="ti-data-value compact-centered" x-text="gradeKey"></div>
+                    <div class="competence-grading-name" x-text="grade.name"></div>
+                    <div class="competence-grading-description" x-text="grade.description"></div>
+                </div>
+            </template>
+        </div>
+
+        <span class="ti-spacer-v-10"></span>
+
         <div class="competence-list">
             <div class="competence-list-head">
                 <div class="competence-list-head-label title" x-text-label="interface.evaluation.competencies.title"></div>
