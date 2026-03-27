@@ -2,6 +2,15 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.6.2
+
+* feat(ui): replace Material Symbols usage with framework-native `.ti-icon` classes across sidebar flyouts, login actions, and notification bar
+* feat(sidebar): merge administration and user flyout menus into a single `sidebarApplicationMenu` with configurable menu icon and updated actions
+* feat(css): add embedded SVG mask icon variants (`app-menu`, `dashboard`, `settings`, `error`, `user-profile`, `login`, `logout`, `internet`) and increase default icon size to `24px`
+* refactor(theme): remove Material Symbols-specific icon styling from the black-glass theme
+* build(static): remove external Google Material Symbols stylesheet import from static `index.html`
+* build(release): bump package version from `1.6.1` to `1.6.2`
+
 ## Version 1.6.1
 
 * feat(css): add inline button support via `.ti-button.inline` and new `--ti-button-inline-height` design token

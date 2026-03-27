@@ -8,8 +8,9 @@
 
 /**
  * @typedef {Object} SidebarFlyoutConfig
- * @property {string} [menuTitle]
+ * @property {string} menuTitle
  * @property {number} [offset]
+ * @property {string} icon
  * @property {string} [placement]
  * @property {boolean} [fixed]
  * @property {Array<SidebarFlyoutButtonConfig>} [buttonConfigs]
@@ -29,14 +30,31 @@
  * @constant
  * @type {SidebarFlyoutConfig}
  */
-const configSidebarUserMenu = {
-    menuTitle: "User",
+const configSidebarApplicationMenu = {
+    menuTitle: "Application Menu",
     offset: 20,
+    icon: "app-menu",
     buttonConfigs: [ {
+        title: "Error",
+        icon: "error",
+        action: {
+            href: "/app/error",
+            target: "#ti-content",
+            swap: "innerHTML"
+        }
+    }, {
         title: "Profile",
-        icon: "person",
+        icon: "user-profile",
         action: {
             href: "/app/profile",
+            target: "#ti-content",
+            swap: "innerHTML"
+        }
+    }, {
+        title: "Settings",
+        icon: "settings",
+        action: {
+            href: "/app/administration",
             target: "#ti-content",
             swap: "innerHTML"
         }
@@ -51,33 +69,6 @@ const configSidebarUserMenu = {
         }
     } ]
 };
-
-/**
- * @constant
- * @type {SidebarFlyoutConfig}
- */
-const configSidebarAdministrationMenu = {
-    menuTitle: "Administration",
-    offset: 20,
-    buttonConfigs: [ {
-        title: "Settings",
-        icon: "settings",
-        action: {
-            href: "/app/administration",
-            target: "#ti-content",
-            swap: "innerHTML"
-        }
-    }, {
-        title: "Error",
-        icon: "error",
-        action: {
-            href: "/app/error",
-            target: "#ti-content",
-            swap: "innerHTML"
-        }
-    } ]
-};
-
 
 /**
  * Returns a configuration object for the toolbox.
@@ -302,6 +293,7 @@ const configureComponentSidebarFlyout = ( options = {} ) => {
         placement: options.placement ?? "right-start",
         offset: options.offset ?? 10,
         fixed: options.fixed ?? true,
+        icon: options.icon ?? "app-menu",
         isOpen: false,
 
         /**
@@ -870,8 +862,7 @@ document.addEventListener( "alpine:init", () => {
     Alpine.store( "tiApplication", configureApplication() );
 
     Alpine.store( "tiComponentsConfig", {
-        sidebarAdministrationMenu: Alpine.store( "tiToolbox" ).deepMerge( defaultComponentConfig, configSidebarAdministrationMenu ),
-        sidebarUserMenu: Alpine.store( "tiToolbox" ).deepMerge( defaultComponentConfig, configSidebarUserMenu )
+        sidebarApplicationMenu: Alpine.store( "tiToolbox" ).deepMerge( defaultComponentConfig, configSidebarApplicationMenu )
     } );
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );

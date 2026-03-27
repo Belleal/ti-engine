@@ -96,9 +96,9 @@
                                     </select>
                                     <div class="ti-data-value compact-centered" x-text="getItemGrade( item.id, 'employee', '-' )"
                                          x-show="userRole === 2 || ( userRole === 1 && !canEdit )"></div>
-                                    <div class="material-symbols-outlined ti-data-value compact-centered"
+                                    <div class="ti-icon lock ti-data-value compact-centered"
                                          x-show="userRole === 4"
-                                         aria-label="Locked" role="img">lock_person
+                                         aria-label="Locked" role="img">
                                     </div>
 
                                     <!-- Manager Grade Column -->
@@ -114,9 +114,9 @@
                                     </select>
                                     <div class="ti-data-value compact-centered" x-text="getItemGrade( item.id, 'manager', '-' )"
                                          x-show="userRole === 2 && !canEdit"></div>
-                                    <div class="material-symbols-outlined ti-data-value compact-centered"
+                                    <div class="ti-icon lock ti-data-value compact-centered"
                                          x-show="userRole === 1 || userRole === 4"
-                                         aria-label="Locked" role="img">lock_person
+                                         aria-label="Locked" role="img">
                                     </div>
 
                                     <!-- Team Grade Column -->
@@ -132,9 +132,9 @@
                                     </select>
                                     <div class="ti-data-value compact-centered" x-text="getItemGrade( item.id, 'team', '-' )"
                                          x-show="userRole === 2 || ( userRole === 4 && !canEdit )"></div>
-                                    <div class="material-symbols-outlined ti-data-value compact-centered"
+                                    <div class="ti-icon lock ti-data-value compact-centered"
                                          x-show="userRole === 1"
-                                         aria-label="Locked" role="img">lock_person
+                                         aria-label="Locked" role="img">
                                     </div>
 
                                     <div class="competence-item-description" x-text="item.description"></div>
