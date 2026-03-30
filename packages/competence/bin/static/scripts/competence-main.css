@@ -214,6 +214,11 @@
     min-width: 30px;
 }
 
+.competence-icon-lock {
+    width: 20px;
+    height: 20px;
+}
+
 .ti-input.grade {
     text-align: center;
     text-align-last: center;
@@ -257,6 +262,7 @@
 
 .role-banner-text {
     font-variant-caps: all-small-caps;
+    font-size: 14px;
     letter-spacing: 0.04em;
     padding-top: 5px;
 }

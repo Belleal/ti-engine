@@ -9,6 +9,8 @@
     --ti-error-color: rgb(230 96 96 / 95%);
     --ti-icon-color: #a6a6a6;
     --ti-icon-hover-color: #ffffff;
+    --ti-icon-color-dark: #353535;
+    --ti-icon-hover-color-dark: #353535;
     /** Widgets **/
     --ti-notification-top: 50px;
     --ti-panel-border-radius: 4px;
@@ -63,6 +65,14 @@ body {
 
 .ti-icon:hover {
     background-color: var(--ti-icon-hover-color);
+}
+
+.ti-icon.dark-style {
+    background-color: var(--ti-icon-color-dark);
+}
+
+.ti-icon.dark-style:hover {
+    background-color: var(--ti-icon-hover-color-dark);
 }
 
 .ti-icon.empty {

@@ -5,6 +5,10 @@
     "performanceAppraisals": {
       "type": "object",
       "properties": {
+        "isTeamEvaluationCollective": {
+          "type": "boolean",
+          "description": "Whether team evaluations are collective or individual"
+        },
         "minTeamEvaluationMembers": {
           "type": "integer",
           "minimum": 1,

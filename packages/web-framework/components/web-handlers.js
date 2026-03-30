@@ -292,7 +292,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
                     session.language = user.language || instance.serviceConfig.language;
 
                     // TODO: This part is for testing purposes only! Normally, the employeeID (if any) and roles should come from the AD response.
-                    session.user.employeeID = session.user.employeeID || "20";
+                    session.user.employeeID = session.user.employeeID || "2";
                     session.user.roles = [ 1, 2 ];
 
                     delete session.oidc;

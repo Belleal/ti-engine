@@ -13,6 +13,7 @@
  */
 const initialDataModels = {
     competencyEvaluation: {
+        isTeamEvaluationCollective: false,
         personal: {
             name: "",
             careerPath: "",
@@ -99,6 +100,7 @@ let configureCompetencyEvaluation = () => {
         employeeID: null,
         userRole: null,
         deadlineDate: null,
+        isTeamEvaluationCollective: false,
         canEdit: false,
         manager: {},
         personal: tiToolbox.structuredClone( initialDataModels.competencyEvaluation.personal ),
@@ -127,6 +129,7 @@ let configureCompetencyEvaluation = () => {
 
         applyData( data ) {
             const fresh = ( data && typeof data === "object" ) ? data : {};
+            this.isTeamEvaluationCollective = ( fresh.isTeamEvaluationCollective === true );
             this.personal = tiToolbox.structuredClone( fresh.personal || initialDataModels.competencyEvaluation.personal );
             this.manager = tiToolbox.structuredClone( fresh.manager || initialDataModels.competencyEvaluation.manager );
             this.userRole = fresh.userRole;
@@ -240,7 +243,7 @@ let configureCompetencyEvaluation = () => {
 };
 
 /**
- * Returns a configuration object for the employees list screen.
+ * Returns a configuration object for the list of employees screen.
  *
  * @method
  * @returns {Object}

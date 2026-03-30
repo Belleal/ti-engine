@@ -7,6 +7,18 @@
 */
 
 /**
+ * @typedef {Object} ConfigPerformanceAppraisals
+ * @property {boolean} [isTeamEvaluationCollective]
+ * @property {number} minTeamEvaluationMembers
+ * @property {number} numberOfNextPeriodGoals
+ */
+
+/**
+ * @typedef {Object} ConfigApplication
+ * @property {ConfigPerformanceAppraisals} performanceAppraisals
+ */
+
+/**
  * @typedef {Object} EvaluationTeamGradeValues
  * @property {EvaluationGradeValue} [cumulative]
  * @property {EvaluationGradeValue[]} [individual]

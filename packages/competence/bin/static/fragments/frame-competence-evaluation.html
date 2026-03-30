@@ -91,8 +91,36 @@
                     <template x-for="sub in category.subcategories" x-bind:key="sub.id">
                         <div class="competence-subcategory">
                             <div class="competence-subcategory-title" x-text="sub.name"></div>
+
+                            <!-- Collective Subcategory Row (Visible only to Team in Collective mode) -->
+                            <div class="competence-row" x-show="userRole === 4 && isTeamEvaluationCollective">
+                                <div class="competence-info">
+                                    <div class="competence-code" x-text="sub.id"></div>
+                                    <div class="competence-name" x-text="sub.name"></div>
+                                </div>
+                                <div class="ti-data-value compact-centered" aria-label="Locked">
+                                    <span class="ti-icon lock dark-style competence-icon-lock" role="img"></span>
+                                </div>
+                                <div class="ti-data-value compact-centered" aria-label="Locked">
+                                    <span class="ti-icon lock dark-style competence-icon-lock" role="img"></span>
+                                </div>
+                                <select x-bind:name="'grade-team-collective-' + sub.id" class="ti-input grade"
+                                        x-bind:aria-label="'Team grade for ' + sub.id + ' ' + sub.name"
+                                        x-on:change="setItemGrade( sub.id, 'team', $event.target.value )"
+                                        x-show="canEdit">
+                                    <option value="" x-bind:selected="!getItemGrade( sub.id, 'team' )">-</option>
+                                    <template x-for="( grade, gradeKey ) in grades" x-bind:key="gradeKey">
+                                        <option x-bind:value="gradeKey" x-text="gradeKey"
+                                                x-bind:selected="getItemGrade( sub.id, 'team' ) == gradeKey"></option>
+                                    </template>
+                                </select>
+                                <div class="ti-data-value compact-centered" x-text="getItemGrade( sub.id, 'team' ) || '-'"
+                                     x-show="!canEdit"></div>
+                                <div class="competence-item-description" x-text="sub.description"></div>
+                            </div>
+
                             <template x-for="item in sub.items" x-bind:key="item.id">
-                                <div class="competence-row">
+                                <div class="competence-row" x-show="userRole !== 4 || !isTeamEvaluationCollective">
                                     <div class="competence-info">
                                         <div class="competence-code" x-text="item.id"></div>
                                         <div class="competence-name" x-text="item.name"></div>
@@ -111,9 +139,10 @@
                                     </select>
                                     <div class="ti-data-value compact-centered" x-text="getItemGrade( item.id, 'employee', '-' )"
                                          x-show="userRole === 2 || ( userRole === 1 && !canEdit )"></div>
-                                    <div class="ti-icon lock ti-data-value compact-centered"
+                                    <div class="ti-data-value compact-centered"
                                          x-show="userRole === 4"
-                                         aria-label="Locked" role="img">
+                                         aria-label="Locked">
+                                        <span class="ti-icon lock dark-style competence-icon-lock" role="img"></span>
                                     </div>
 
                                     <!-- Manager Grade Column -->
@@ -129,9 +158,10 @@
                                     </select>
                                     <div class="ti-data-value compact-centered" x-text="getItemGrade( item.id, 'manager', '-' )"
                                          x-show="userRole === 2 && !canEdit"></div>
-                                    <div class="ti-icon lock ti-data-value compact-centered"
+                                    <div class="ti-data-value compact-centered"
                                          x-show="userRole === 1 || userRole === 4"
-                                         aria-label="Locked" role="img">
+                                         aria-label="Locked">
+                                        <span class="ti-icon lock dark-style competence-icon-lock" role="img"></span>
                                     </div>
 
                                     <!-- Team Grade Column -->
@@ -147,9 +177,10 @@
                                     </select>
                                     <div class="ti-data-value compact-centered" x-text="getItemGrade( item.id, 'team', '-' )"
                                          x-show="userRole === 2 || ( userRole === 4 && !canEdit )"></div>
-                                    <div class="ti-icon lock ti-data-value compact-centered"
+                                    <div class="ti-data-value compact-centered"
                                          x-show="userRole === 1"
-                                         aria-label="Locked" role="img">
+                                         aria-label="Locked">
+                                        <span class="ti-icon lock dark-style competence-icon-lock" role="img"></span>
                                     </div>
 
                                     <div class="competence-item-description" x-text="item.description"></div>

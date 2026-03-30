@@ -6,6 +6,7 @@
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+const _ = require( "lodash" );
 const tools = require( "@ti-engine/core/tools" );
 
 module.exports.configCareerPathCompetencies = tools.deepFreeze( require( "#config-career-path-competencies" ) );
@@ -72,3 +73,22 @@ const evaluationGradeEnum = tools.enum( {
     N: [ "N", "framework.grades.name.N", "framework.grades.description.N" ]
 } );
 module.exports.evaluationGrade = evaluationGradeEnum;
+
+/** @type {ConfigApplication} */
+const configApplication = require( "#config-application" );
+
+// Prevent further modifications to the settings object:
+tools.deepFreeze( configApplication );
+
+/**
+ * A standard getter method for fetching a setting.
+ *
+ * @method
+ * @param {string} setting Specifies either a dot-separated JSON path of the setting.
+ * @param {*} [defaultValue] The default value to be returned if the setting is not found in the current configuration.
+ * @returns {*}
+ * @public
+ */
+module.exports.getSetting = ( setting, defaultValue ) => {
+    return _.get( configApplication, setting, defaultValue );
+};

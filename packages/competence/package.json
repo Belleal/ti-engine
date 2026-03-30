@@ -5,6 +5,7 @@
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "imports": {
+    "#config-application": "./bin/config/config.application.json",
     "#config-career-path-competencies": "./bin/config/config.career-path-competencies.json",
     "#config-career-path-levels": "./bin/config/config.career-path-levels.json",
     "#config-competencies": "./bin/config/config.competencies.json",

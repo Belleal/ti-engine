@@ -326,6 +326,17 @@ class CompetenceWebApplication extends TiWebAppManager {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-team-evaluation" }, exceptions.httpCode.C_422 );
                     }
 
+                    const isCollective = configurationLoader.getSetting( "performanceAppraisals.isTeamEvaluationCollective" );
+                    if ( isCollective ) {
+                        const competencies = configurationLoader.configCompetencies?.competencies || {};
+                        Object.keys( existingEvaluation.grades || {} ).forEach( ( competencyCode ) => {
+                            const competency = competencies[ competencyCode ];
+                            if ( competency && competency.subcategory ) {
+                                evaluation.grades[ competencyCode ] = { team: evaluation.grades[ competency.subcategory ]?.team || null };
+                            }
+                        } );
+                    }
+
                     if ( Object.keys( existingEvaluation.grades || {} ).some( ( code ) => !configurationLoader.evaluationGrade.contains( evaluation.grades?.[ code ]?.team ) ) ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.incomplete-grades" }, exceptions.httpCode.C_422 );
                     }
@@ -600,6 +611,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     userRole: userRole,
                     deadlineDate: deadlineDate,
                     canEdit: canEdit, // Used only for UI visualization purposes - do NOT rely on this!
+                    isTeamEvaluationCollective: configurationLoader.getSetting( "performanceAppraisals.isTeamEvaluationCollective" ),
                     competencies: this.#buildCompetenciesTree(
                         configurationLoader.configCompetencies,
                         session?.language,
@@ -829,9 +841,14 @@ class CompetenceWebApplication extends TiWebAppManager {
                     delete evaluation.grades[ competencyCode ].manager;
                     delete evaluation.grades[ competencyCode ].team;
                 } else if ( userRole === configurationLoader.roleCode.TEAM_MEMBER ) {
-                    delete evaluation.grades[ competencyCode ].employee;
-                    delete evaluation.grades[ competencyCode ].manager;
-                    evaluation.grades[ competencyCode ].team = "";
+                    const isCollective = configurationLoader.getSetting( "performanceAppraisals.isTeamEvaluationCollective" );
+                    if ( isCollective ) {
+                        delete evaluation.grades[ competencyCode ];
+                    } else {
+                        delete evaluation.grades[ competencyCode ].employee;
+                        delete evaluation.grades[ competencyCode ].manager;
+                        evaluation.grades[ competencyCode ].team = "";
+                    }
                 } else if ( userRole === configurationLoader.roleCode.MANAGER ) {
                     evaluation.grades[ competencyCode ].team = evaluation.grades[ competencyCode ].team?.cumulative || "";
                 } else {
@@ -880,21 +897,24 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #updateTeamEvaluationGrades( evaluation, grades ) {
         if ( grades ) {
+            const competencies = configurationLoader.configCompetencies?.competencies || {};
             Object.keys( grades ).forEach( ( competencyCode ) => {
-                evaluation.grades[ competencyCode ] = evaluation.grades[ competencyCode ] || {
-                    employee: "",
-                    manager: "",
-                    team: { cumulative: "", individual: [] }
-                };
-                const teamEntry = evaluation.grades[ competencyCode ].team = evaluation.grades[ competencyCode ].team || {
-                    cumulative: "",
-                    individual: []
-                };
-                teamEntry.individual = teamEntry.individual || [];
+                if ( competencies[ competencyCode ] ) {
+                    evaluation.grades[ competencyCode ] = evaluation.grades[ competencyCode ] || {
+                        employee: "",
+                        manager: "",
+                        team: { cumulative: "", individual: [] }
+                    };
+                    const teamEntry = evaluation.grades[ competencyCode ].team = evaluation.grades[ competencyCode ].team || {
+                        cumulative: "",
+                        individual: []
+                    };
+                    teamEntry.individual = teamEntry.individual || [];
 
-                const submittedGrade = grades[ competencyCode ]?.team;
-                if ( submittedGrade ) {
-                    teamEntry.individual.push( submittedGrade );
+                    const submittedGrade = grades[ competencyCode ]?.team;
+                    if ( submittedGrade ) {
+                        teamEntry.individual.push( submittedGrade );
+                    }
                 }
             } );
         }

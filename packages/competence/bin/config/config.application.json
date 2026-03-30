@@ -1,6 +1,7 @@
 {
   "$schema": "config.application.schema.json",
   "performanceAppraisals": {
+    "isTeamEvaluationCollective": true,
     "minTeamEvaluationMembers": 3,
     "numberOfNextPeriodGoals": 5
   }
