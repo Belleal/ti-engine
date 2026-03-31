@@ -5,6 +5,7 @@
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "imports": {
+    "#competence-framework": "./application/competence-framework.js",
     "#config-application": "./bin/config/config.application.json",
     "#config-career-path-competencies": "./bin/config/config.career-path-competencies.json",
     "#config-career-path-levels": "./bin/config/config.career-path-levels.json",

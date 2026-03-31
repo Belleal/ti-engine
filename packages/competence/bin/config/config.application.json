@@ -1,6 +1,17 @@
 {
   "$schema": "config.application.schema.json",
   "performanceAppraisals": {
+    "evaluationWeights": {
+      "self": 0.2,
+      "team": 0.3,
+      "manager": 0.5
+    },
+    "gradeWeights": {
+      "S": 1.3,
+      "R": 1.0,
+      "U": 0.6,
+      "N": 0.0
+    },
     "isTeamEvaluationCollective": true,
     "minTeamEvaluationMembers": 3,
     "numberOfNextPeriodGoals": 5
