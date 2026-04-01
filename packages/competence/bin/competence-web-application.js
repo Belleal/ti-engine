@@ -662,7 +662,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.active-evaluation-exists" }, exceptions.httpCode.C_409 );
                 }
 
-                const newEvaluation = competenceFramework.instance.createNewEvaluation( employeeID );
+                const newEvaluation = competenceFramework.instance.createNewEvaluation( employee );
                 const resolvedManagerID = organizationManager.instance.resolveManagerIDForEmployee( employee.employeeID, employee.personal?.organizationUnitID );
                 if ( resolvedManagerID ) {
                     newEvaluation.managerID = resolvedManagerID;

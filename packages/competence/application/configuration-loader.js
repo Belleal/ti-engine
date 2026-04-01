@@ -11,6 +11,7 @@ const tools = require( "@ti-engine/core/tools" );
 
 module.exports.configCareerPathCompetencies = tools.deepFreeze( require( "#config-career-path-competencies" ) );
 module.exports.configCareerPathLevels = tools.deepFreeze( require( "#config-career-path-levels" ) );
+/** @type {ConfigCompetencies} */
 module.exports.configCompetencies = tools.deepFreeze( require( "#config-competencies" ) );
 module.exports.configOrganizationStructure = tools.deepFreeze( require( "#config-organization-structure" ) );
 

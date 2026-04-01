@@ -7,6 +7,7 @@
 */
 
 const tools = require( "@ti-engine/core/tools" );
+const logger = require( "@ti-engine/core/logger" );
 const localization = require( "@ti-engine/core/localization" );
 const configurationLoader = require( "#configuration-loader" );
 const _ = require( "lodash" );
@@ -24,8 +25,16 @@ const evaluationWeights = tools.deepFreeze( {
     MANAGER: configurationLoader.getSetting( "performanceAppraisals.evaluationWeights.manager" ) || 0.5
 } );
 
+const performanceThresholds = tools.deepFreeze( {
+    BAD: 76,
+    INSUFFICIENT: 89,
+    EXPECTED: 105,
+    GOOD: 119,
+    OUTSTANDING: 120
+} );
+
 /**
- * Used to create and/or return an Competence Framework singleton instance.
+ * Used to create and/or return a Competence Framework singleton instance.
  *
  * @class CompetenceFramework
  * @singleton
@@ -59,18 +68,21 @@ class CompetenceFramework {
      * Used to create a new Evaluation object.
      *
      * @method
-     * @param {string} employeeID
+     * @param {Employee} employee
      * @returns {Evaluation}
      * @public
      */
-    createNewEvaluation( employeeID ) {
+    createNewEvaluation( employee ) {
         return {
             evaluationID: tools.getUUID(),
-            employeeID: employeeID,
+            employeeID: employee.employeeID,
             cycleID: this.#evaluationCycleID,
             cycleDate: this.#evaluationCycleDate,
             status: configurationLoader.evaluationStatus.OPEN,
             grades: {},
+            careerPath: employee.personal.careerPath,
+            stageLevel: `${ employee.personal.level }${ employee.personal.stage }`,
+            scores: {},
             comment: "",
             feedback: {
                 managerComment: "",
@@ -141,7 +153,55 @@ class CompetenceFramework {
      * @public
      */
     calculateFinalEvaluationScores( evaluation ) {
-        // TODO: Implement final evaluation scoring algorithm!
+        if ( evaluation.grades ) {
+            const competencies = configurationLoader.configCompetencies?.competencies || {};
+            let selfScore = {};
+            let teamScore = {};
+            let managerScore = {};
+            Object.keys( evaluation.grades ).forEach( ( competencyCode ) => {
+                const competency = competencies[ competencyCode ];
+                const gradeEntry = evaluation.grades[ competencyCode ];
+                if ( competency && gradeEntry ) {
+                    selfScore[ competency.category ] = selfScore[ competency.category ] || 0;
+                    teamScore[ competency.category ] = teamScore[ competency.category ] || 0;
+                    managerScore[ competency.category ] = managerScore[ competency.category ] || 0;
+
+                    selfScore[ competency.category ] += gradeWeights[ gradeEntry.employee ] * competency.relevancy[ evaluation.stageLevel ];
+                    teamScore[ competency.category ] += gradeWeights[ gradeEntry.team.cumulative ] * competency.relevancy[ evaluation.stageLevel ];
+                    managerScore[ competency.category ] += gradeWeights[ gradeEntry.manager ] * competency.relevancy[ evaluation.stageLevel ];
+                }
+            } );
+
+            evaluation.scores = {};
+            evaluation.finalScore = {
+                score: 0
+            };
+            Object.keys( configurationLoader.configCompetencies?.categories ).forEach( ( categoryCode ) => {
+                evaluation.scores[ categoryCode ] = {};
+                evaluation.scores[ categoryCode ].score = Math.ceil( (
+                    ( selfScore[ categoryCode ] / this.#evaluationScoreMatrices[ evaluation.careerPath ][ categoryCode ][ evaluation.stageLevel ] ) * evaluationWeights.SELF +
+                    ( teamScore[ categoryCode ] / this.#evaluationScoreMatrices[ evaluation.careerPath ][ categoryCode ][ evaluation.stageLevel ] ) * evaluationWeights.TEAM +
+                    ( managerScore[ categoryCode ] / this.#evaluationScoreMatrices[ evaluation.careerPath ][ categoryCode ][ evaluation.stageLevel ] ) * evaluationWeights.MANAGER
+                ) * 100 );
+
+                evaluation.scores[ categoryCode ].interpretation = null;
+                Object.keys( performanceThresholds ).forEach( ( thresholdCode ) => {
+                    if ( !evaluation.scores[ categoryCode ].interpretation && evaluation.scores[ categoryCode ].score <= performanceThresholds[ thresholdCode ] ) {
+                        evaluation.scores[ categoryCode ].interpretation = thresholdCode;
+                    }
+                } );
+                evaluation.finalScore.score += evaluation.scores[ categoryCode ].score;
+            } );
+
+            evaluation.finalScore.score = Math.ceil( evaluation.finalScore.score / Object.keys( configurationLoader.configCompetencies?.categories ).length );
+            Object.keys( performanceThresholds ).forEach( ( thresholdCode ) => {
+                if ( !evaluation.finalScore.interpretation && evaluation.finalScore.score <= performanceThresholds[ thresholdCode ] ) {
+                    evaluation.finalScore.interpretation = thresholdCode;
+                }
+            } );
+
+            logger.log( "Final evaluation scores:", logger.logSeverity.DEBUG, { categories: evaluation.scores, final: evaluation.finalScore } );
+        }
     }
 
     /**
