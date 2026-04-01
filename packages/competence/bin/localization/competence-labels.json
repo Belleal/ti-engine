@@ -2407,6 +2407,54 @@
           "bg": "Неизползвано"
         }
       }
+    },
+    "performance": {
+      "threshold": {
+        "description": {
+          "T1": {
+            "en": "The employee's performance is significantly below expectations for the current level. It is necessary to create a detailed improvement plan that addresses the specific gaps and helps the employee meet the requirements of the position.",
+            "bg": "Представянето на служителя е значително под очакванията за текущото ниво. Необходимо е създаването на подробен план за подобрение, който да адресира конкретните пропуски и да подпомогне служителя да постигне изискванията на длъжността."
+          },
+          "T2": {
+            "en": "The employee's performance is below the expected standards for the current level. Personal attention and active guidance from the manager are required to support the employee in improving specific skills and competencies.",
+            "bg": "Представянето на служителя е под очакваните стандарти за текущото ниво. Изисква се персонално внимание и активно ръководство от страна на ръководителя, за да се подпомогне служителя в подобряването на специфични умения и компетенции."
+          },
+          "T3": {
+            "en": "The employee meets the standard expectations for their level. They competently perform their tasks and responsibilities, contributing steadily to the goals of the team and the organization.",
+            "bg": "Служителят отговаря на стандартните очаквания за своето ниво. Той изпълнява компетентно задачите и отговорностите си, като допринася стабилно за целите на екипа и организацията."
+          },
+          "T4": {
+            "en": "The employee's performance exceeds the standard expectations for the current level. They demonstrate strong skills and initiative, making them eligible for a bonus or other recognition from the manager.",
+            "bg": "Представянето на служителя надхвърля стандартните очаквания за текущото ниво. Той демонстрира силни умения и инициативност, което го прави подходящ за бонус или друго поощрение от страна на ръководителя."
+          },
+          "T5": {
+            "en": "The employee consistently exceeds expectations for their level. They exhibit exceptional knowledge, skills, and contribution to the team, making a promotion to the next level highly recommended.",
+            "bg": "Служителят постоянно надминава очакванията за своето ниво. Проявява изключителни знания, умения и принос към екипа, което прави препоръчително повишението му в следващо ниво."
+          }
+        },
+        "name": {
+          "T1": {
+            "en": "Weak",
+            "bg": "Слабо"
+          },
+          "T2": {
+            "en": "Insufficient",
+            "bg": "Недостатъчно"
+          },
+          "T3": {
+            "en": "Expected",
+            "bg": "Очаквано"
+          },
+          "T4": {
+            "en": "Good",
+            "bg": "Добро"
+          },
+          "T5": {
+            "en": "Outstanding",
+            "bg": "Отлично"
+          }
+        }
+      }
     }
   },
   "interface": {

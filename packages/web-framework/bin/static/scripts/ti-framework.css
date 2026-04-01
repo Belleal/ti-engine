@@ -1,3 +1,9 @@
+/*
+ * Icons are sourced from Heroicons (https://heroicons.com/).
+ * The source SVG files live in the project's assets/icons directory.
+ * Future edits should target the SVG files directly instead of editing long data URIs here.
+ */
+
 :root {
     /** General **/
     --ti-font-family: system-ui, -apple-system, segoe ui, roboto, arial, sans-serif;

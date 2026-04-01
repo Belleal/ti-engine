@@ -321,11 +321,13 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                     const isCollective = configurationLoader.getSetting( "performanceAppraisals.isTeamEvaluationCollective" );
                     if ( isCollective ) {
+                        const submittedGrades = evaluation.grades || {};
+                        evaluation.grades = {};
                         const competencies = configurationLoader.configCompetencies?.competencies || {};
                         Object.keys( existingEvaluation.grades || {} ).forEach( ( competencyCode ) => {
                             const competency = competencies[ competencyCode ];
                             if ( competency && competency.subcategory ) {
-                                evaluation.grades[ competencyCode ] = { team: evaluation.grades[ competency.subcategory ]?.team || null };
+                                evaluation.grades[ competencyCode ] = { team: submittedGrades[ competency.subcategory ]?.team || null };
                             }
                         } );
                     }

@@ -10,7 +10,6 @@ const tools = require( "@ti-engine/core/tools" );
 const logger = require( "@ti-engine/core/logger" );
 const localization = require( "@ti-engine/core/localization" );
 const configurationLoader = require( "#configuration-loader" );
-const _ = require( "lodash" );
 
 const gradeWeights = tools.deepFreeze( {
     [ configurationLoader.evaluationGrade.S ]: configurationLoader.getSetting( "performanceAppraisals.gradeWeights.S" ) || 1.3,
@@ -26,11 +25,11 @@ const evaluationWeights = tools.deepFreeze( {
 } );
 
 const performanceThresholds = tools.deepFreeze( {
-    BAD: 76,
-    INSUFFICIENT: 89,
-    EXPECTED: 105,
-    GOOD: 119,
-    OUTSTANDING: 120
+    [ configurationLoader.performanceThreshold.T1 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T1" ) || 76,
+    [ configurationLoader.performanceThreshold.T2 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T2" ) || 89,
+    [ configurationLoader.performanceThreshold.T3 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T3" ) || 105,
+    [ configurationLoader.performanceThreshold.T4 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T4" ) || 119,
+    [ configurationLoader.performanceThreshold.T5 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T5" ) || 150
 } );
 
 /**
@@ -176,12 +175,17 @@ class CompetenceFramework {
             evaluation.finalScore = {
                 score: 0
             };
-            Object.keys( configurationLoader.configCompetencies?.categories ).forEach( ( categoryCode ) => {
+            const scoreMatrixByCategory = this.#evaluationScoreMatrices[ evaluation.careerPath ] || {};
+            Object.keys( scoreMatrixByCategory ).forEach( ( categoryCode ) => {
+                const maxCategoryScore = scoreMatrixByCategory[ categoryCode ]?.[ evaluation.stageLevel ];
+                if ( !maxCategoryScore ) {
+                    return;
+                }
                 evaluation.scores[ categoryCode ] = {};
                 evaluation.scores[ categoryCode ].score = Math.ceil( (
-                    ( selfScore[ categoryCode ] / this.#evaluationScoreMatrices[ evaluation.careerPath ][ categoryCode ][ evaluation.stageLevel ] ) * evaluationWeights.SELF +
-                    ( teamScore[ categoryCode ] / this.#evaluationScoreMatrices[ evaluation.careerPath ][ categoryCode ][ evaluation.stageLevel ] ) * evaluationWeights.TEAM +
-                    ( managerScore[ categoryCode ] / this.#evaluationScoreMatrices[ evaluation.careerPath ][ categoryCode ][ evaluation.stageLevel ] ) * evaluationWeights.MANAGER
+                    ( ( selfScore[ categoryCode ] || 0 ) / maxCategoryScore ) * evaluationWeights.SELF +
+                    ( ( teamScore[ categoryCode ] || 0 ) / maxCategoryScore ) * evaluationWeights.TEAM +
+                    ( ( managerScore[ categoryCode ] || 0 ) / maxCategoryScore ) * evaluationWeights.MANAGER
                 ) * 100 );
 
                 evaluation.scores[ categoryCode ].interpretation = null;
@@ -190,15 +194,23 @@ class CompetenceFramework {
                         evaluation.scores[ categoryCode ].interpretation = thresholdCode;
                     }
                 } );
+                if ( !evaluation.scores[ categoryCode ].interpretation ) {
+                    evaluation.scores[ categoryCode ].interpretation = configurationLoader.performanceThreshold.T5;
+                }
                 evaluation.finalScore.score += evaluation.scores[ categoryCode ].score;
             } );
 
-            evaluation.finalScore.score = Math.ceil( evaluation.finalScore.score / Object.keys( configurationLoader.configCompetencies?.categories ).length );
+            const scoredCategoriesCount = Object.keys( evaluation.scores ).length;
+            evaluation.finalScore.score = scoredCategoriesCount > 0 ? Math.ceil( evaluation.finalScore.score / scoredCategoriesCount ) : 0;
+            evaluation.finalScore.interpretation = null;
             Object.keys( performanceThresholds ).forEach( ( thresholdCode ) => {
                 if ( !evaluation.finalScore.interpretation && evaluation.finalScore.score <= performanceThresholds[ thresholdCode ] ) {
                     evaluation.finalScore.interpretation = thresholdCode;
                 }
             } );
+            if ( !evaluation.finalScore.interpretation ) {
+                evaluation.finalScore.interpretation = configurationLoader.performanceThreshold.T5;
+            }
 
             logger.log( "Final evaluation scores:", logger.logSeverity.DEBUG, { categories: evaluation.scores, final: evaluation.finalScore } );
         }
@@ -216,7 +228,11 @@ class CompetenceFramework {
      */
     updateSelfEvaluationGrades( evaluation, grades ) {
         if ( grades ) {
+            const allowedCompetencyCodes = new Set( this.getAllowedCompetencyCodes( evaluation.careerPath, evaluation.cycleID ) );
             Object.keys( grades ).forEach( ( competencyCode ) => {
+                if ( !allowedCompetencyCodes.has( competencyCode ) ) {
+                    return;
+                }
                 evaluation.grades[ competencyCode ] = evaluation.grades[ competencyCode ] || {
                     employee: "",
                     manager: "",
@@ -242,8 +258,9 @@ class CompetenceFramework {
     updateTeamEvaluationGrades( evaluation, grades ) {
         if ( grades ) {
             const competencies = configurationLoader.configCompetencies?.competencies || {};
+            const allowedCompetencyCodes = new Set( this.getAllowedCompetencyCodes( evaluation.careerPath, evaluation.cycleID ) );
             Object.keys( grades ).forEach( ( competencyCode ) => {
-                if ( competencies[ competencyCode ] ) {
+                if ( competencies[ competencyCode ] && allowedCompetencyCodes.has( competencyCode ) ) {
                     evaluation.grades[ competencyCode ] = evaluation.grades[ competencyCode ] || {
                         employee: "",
                         manager: "",
@@ -276,8 +293,9 @@ class CompetenceFramework {
      */
     updateManagerEvaluationGrades( evaluation, grades ) {
         if ( grades ) {
+            const allowedCompetencyCodes = new Set( this.getAllowedCompetencyCodes( evaluation.careerPath, evaluation.cycleID ) );
             Object.keys( grades ).forEach( ( competencyCode ) => {
-                if ( grades[ competencyCode ]?.manager !== undefined ) {
+                if ( allowedCompetencyCodes.has( competencyCode ) && grades[ competencyCode ]?.manager !== undefined ) {
                     evaluation.grades[ competencyCode ].manager = grades[ competencyCode ].manager;
                 }
             } );
@@ -448,15 +466,16 @@ class CompetenceFramework {
      */
     #calculateEvaluationScoreMatrices() {
         const competencies = configurationLoader.configCompetencies?.competencies || {};
-        _.forOwn( configurationLoader.configCareerPathCompetencies, ( careerPathCompetencies, careerPathID ) => {
-            const evaluationCycleCompetencies = careerPathCompetencies[ this.#evaluationCycleID ];
+        Object.keys( configurationLoader.configCareerPathCompetencies ).forEach( ( careerPathID ) => {
+            const evaluationCycleCompetencies = this.getAllowedCompetencyCodes( careerPathID, this.#evaluationCycleID );
             if ( evaluationCycleCompetencies && Array.isArray( evaluationCycleCompetencies ) ) {
                 this.#evaluationScoreMatrices[ careerPathID ] = {};
                 evaluationCycleCompetencies.forEach( ( competencyCode ) => {
                     const competency = competencies[ competencyCode ];
                     if ( competency ) {
                         this.#evaluationScoreMatrices[ careerPathID ][ competency.category ] = this.#evaluationScoreMatrices[ careerPathID ][ competency.category ] || {};
-                        _.forOwn( configurationLoader.configCareerPathLevels, ( careerPathLevel, careerPathLevelID ) => {
+                        Object.keys( configurationLoader.configCareerPathLevels ).forEach( ( careerPathLevelID ) => {
+                            const careerPathLevel = configurationLoader.configCareerPathLevels[ careerPathLevelID ];
                             for ( let stage = 1; stage <= careerPathLevel.stages; stage++ ) {
                                 const stageLevel = `${ careerPathLevelID }${ stage }`;
                                 this.#evaluationScoreMatrices[ careerPathID ][ competency.category ][ stageLevel ] = this.#evaluationScoreMatrices[ careerPathID ][ competency.category ][ stageLevel ] || 0;
@@ -465,7 +484,6 @@ class CompetenceFramework {
                         } );
                     }
                 } );
-
             }
         } );
     }

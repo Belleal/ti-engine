@@ -98,11 +98,11 @@
                                     <div class="competence-code" x-text="sub.id"></div>
                                     <div class="competence-name" x-text="sub.name"></div>
                                 </div>
-                                <div class="ti-data-value compact-centered" aria-label="Locked">
-                                    <span class="ti-icon lock dark-style competence-icon-lock" role="img"></span>
+                                <div class="ti-data-value compact-centered">
+                                    <span class="ti-icon lock dark-style competence-icon-lock" role="img" aria-label="Locked"></span>
                                 </div>
-                                <div class="ti-data-value compact-centered" aria-label="Locked">
-                                    <span class="ti-icon lock dark-style competence-icon-lock" role="img"></span>
+                                <div class="ti-data-value compact-centered">
+                                    <span class="ti-icon lock dark-style competence-icon-lock" role="img" aria-label="Locked"></span>
                                 </div>
                                 <select x-bind:name="'grade-team-collective-' + sub.id" class="ti-input grade"
                                         x-bind:aria-label="'Team grade for ' + sub.id + ' ' + sub.name"
@@ -140,9 +140,8 @@
                                     <div class="ti-data-value compact-centered" x-text="getItemGrade( item.id, 'employee', '-' )"
                                          x-show="userRole === 2 || ( userRole === 1 && !canEdit )"></div>
                                     <div class="ti-data-value compact-centered"
-                                         x-show="userRole === 4"
-                                         aria-label="Locked">
-                                        <span class="ti-icon lock dark-style competence-icon-lock" role="img"></span>
+                                         x-show="userRole === 4">
+                                        <span class="ti-icon lock dark-style competence-icon-lock" role="img" aria-label="Locked"></span>
                                     </div>
 
                                     <!-- Manager Grade Column -->
@@ -159,9 +158,8 @@
                                     <div class="ti-data-value compact-centered" x-text="getItemGrade( item.id, 'manager', '-' )"
                                          x-show="userRole === 2 && !canEdit"></div>
                                     <div class="ti-data-value compact-centered"
-                                         x-show="userRole === 1 || userRole === 4"
-                                         aria-label="Locked">
-                                        <span class="ti-icon lock dark-style competence-icon-lock" role="img"></span>
+                                         x-show="userRole === 1 || userRole === 4">
+                                        <span class="ti-icon lock dark-style competence-icon-lock" role="img" aria-label="Locked"></span>
                                     </div>
 
                                     <!-- Team Grade Column -->
@@ -178,9 +176,8 @@
                                     <div class="ti-data-value compact-centered" x-text="getItemGrade( item.id, 'team', '-' )"
                                          x-show="userRole === 2 || ( userRole === 4 && !canEdit )"></div>
                                     <div class="ti-data-value compact-centered"
-                                         x-show="userRole === 1"
-                                         aria-label="Locked">
-                                        <span class="ti-icon lock dark-style competence-icon-lock" role="img"></span>
+                                         x-show="userRole === 1">
+                                        <span class="ti-icon lock dark-style competence-icon-lock" role="img" aria-label="Locked"></span>
                                     </div>
 
                                     <div class="competence-item-description" x-text="item.description"></div>

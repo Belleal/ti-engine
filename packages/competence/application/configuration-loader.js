@@ -75,6 +75,22 @@ const evaluationGradeEnum = tools.enum( {
 } );
 module.exports.evaluationGrade = evaluationGradeEnum;
 
+/**
+ * Enum for the performance threshold values.
+ *
+ * @readonly
+ * @enum {PerformanceThreshold}
+ * @typedef {PerformanceThresholdValue} PerformanceThreshold
+ */
+const performanceThresholdEnum = tools.enum( {
+    T1: [ "T1", "framework.performance.threshold.name.T1", "framework.performance.threshold.description.T1" ],
+    T2: [ "T2", "framework.performance.threshold.name.T2", "framework.performance.threshold.description.T2" ],
+    T3: [ "T3", "framework.performance.threshold.name.T3", "framework.performance.threshold.description.T3" ],
+    T4: [ "T4", "framework.performance.threshold.name.T4", "framework.performance.threshold.description.T4" ],
+    T5: [ "T5", "framework.performance.threshold.name.T5", "framework.performance.threshold.description.T5" ]
+} );
+module.exports.performanceThreshold = performanceThresholdEnum;
+
 /** @type {ConfigApplication} */
 const configApplication = require( "#config-application" );
 

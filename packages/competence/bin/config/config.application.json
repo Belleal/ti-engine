@@ -14,6 +14,13 @@
     },
     "isTeamEvaluationCollective": true,
     "minTeamEvaluationMembers": 3,
-    "numberOfNextPeriodGoals": 5
+    "numberOfNextPeriodGoals": 5,
+    "performanceThresholds": {
+      "T1": 76,
+      "T2": 89,
+      "T3": 105,
+      "T4": 119,
+      "T5": 150
+    }
   }
 }

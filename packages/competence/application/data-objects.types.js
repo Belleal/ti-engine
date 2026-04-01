@@ -8,9 +8,12 @@
 
 /**
  * @typedef {Object} ConfigPerformanceAppraisals
+ * @property {Object.<string, decimal>} evaluationWeights
+ * @property {Object.<EvaluationGradeValue, decimal>} gradeWeights
  * @property {boolean} [isTeamEvaluationCollective]
  * @property {number} minTeamEvaluationMembers
  * @property {number} numberOfNextPeriodGoals
+ * @property {Object.<PerformanceThresholdValue, number>} performanceThresholds
  */
 
 /**
@@ -46,6 +49,10 @@
  */
 
 /**
+ * @typedef {"T1"|"T2"|"T3"|"T4"|"T5"} PerformanceThresholdValue
+ */
+
+/**
  * @typedef {Object} EvaluationWorkflow
  * @property {1|2|3|4|5|6|7|8} currentStep - Current step in the workflow.
  * @property {boolean} [selfEvaluationCompleted=false] - Indicates if self-evaluation has been completed.
@@ -67,7 +74,7 @@
 /**
  * @typedef {Object} EvaluationScore
  * @property {number} score - Numeric score calculated by the framework.
- * @property {string} [interpretation] - Interpretation of the score determined by the framework.
+ * @property {PerformanceThreshold|null} [interpretation] - Interpretation of the score determined by the framework.
  */
 
 /**
@@ -82,7 +89,7 @@
  * @property {Object.<string, EvaluationGradeEntry>} [grades] - Collection of grades keyed by competency ID.
  * @property {CareerPathCodeValue} careerPath - The career path of the employee at the time of this evaluation.
  * @property {string} stageLevel - The level and sage of the employee at the time of this evaluation.
- * @property {Object.<CompetencyCategory, EvaluationScore>|Object} [scores] - The evaluation scores per category based on the given grades.
+ * @property {Object.<CompetencyCategory, EvaluationScore>} [scores] - The evaluation scores per category based on the given grades.
  * @property {EvaluationScore} [finalScore] - The final score of the evaluation itself.
  * @property {string} [comment] - Comment submitted by the employee.
  * @property {EvaluationFeedback} [feedback] - Feedback attached to the evaluation.
