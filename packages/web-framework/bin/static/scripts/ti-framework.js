@@ -815,14 +815,15 @@ const configureApplication = () => {
  */
 const configureDirectiveTextLabel = () => {
     return ( element, { value, expression }, { effect } ) => {
+        const targetAttribute = value;
+        const fallback = targetAttribute ? ( element.getAttribute( targetAttribute ) || "" ) : ( element.textContent || "" );
+
         effect( () => {
             const tiApplication = Alpine.store( "tiApplication" );
             if ( !tiApplication || typeof tiApplication.getLabel !== "function" ) {
                 return;
             }
             let path = ( expression || "" ).trim();
-            const targetAttribute = value;
-            const fallback = targetAttribute ? ( element.getAttribute( targetAttribute ) || "" ) : element.textContent;
             if (
                 ( path.startsWith( "'" ) && path.endsWith( "'" ) ) ||
                 ( path.startsWith( "\"" ) && path.endsWith( "\"" ) )

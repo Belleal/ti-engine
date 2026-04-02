@@ -2368,8 +2368,8 @@
         "bg": "Изисканата Оценка е затворена за обработка."
       },
       "unable-to-final-score": {
-        "en": "Unable to final score Evaluation as it has insufficient number of individual grades.",
-        "bg": "Не може да се изчисли крайният резултат за тази Оценка, защото няма достатъчно индивидуални оценки."
+        "en": "Unable to calculate the final score for this Evaluation.",
+        "bg": "Крайният резултат за тази Оценка не може да бъде изчислен."
       }
     }
   },

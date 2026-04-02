@@ -110,6 +110,7 @@
       "required": [
         "evaluationWeights",
         "gradeWeights",
+        "isTeamEvaluationCollective",
         "minTeamEvaluationMembers",
         "numberOfNextPeriodGoals",
         "performanceThresholds"
