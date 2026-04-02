@@ -2,6 +2,12 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.4.2
+
+* build(deps): update `@dotenvx/dotenvx` from ^1.55.1 to ^1.59.1
+* build(deps): update `ioredis` from ^5.10.0 to ^5.10.1
+* build(deps): update `lodash` from ^4.17.23 to ^4.18.1
+
 ## Version 1.4.1
 
 * build(deps): update `@dotenvx/dotenvx` from ^1.54.1 to ^1.55.1
