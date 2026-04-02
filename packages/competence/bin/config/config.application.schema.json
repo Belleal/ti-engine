@@ -25,14 +25,41 @@
               "maximum": 1
             }
           },
+          "required": [
+            "self",
+            "team",
+            "manager"
+          ],
           "additionalProperties": false
         },
         "gradeWeights": {
           "type": "object",
           "description": "Numeric weights for each grade code",
-          "additionalProperties": {
-            "type": "number"
-          }
+          "properties": {
+            "S": {
+              "type": "number",
+              "minimum": 0
+            },
+            "R": {
+              "type": "number",
+              "minimum": 0
+            },
+            "U": {
+              "type": "number",
+              "minimum": 0
+            },
+            "N": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "S",
+            "R",
+            "U",
+            "N"
+          ],
+          "additionalProperties": false
         },
         "isTeamEvaluationCollective": {
           "type": "boolean",
@@ -53,9 +80,31 @@
         "performanceThresholds": {
           "type": "object",
           "description": "Threshold scores for performance levels",
-          "additionalProperties": {
-            "type": "number"
-          }
+          "properties": {
+            "T1": {
+              "type": "number"
+            },
+            "T2": {
+              "type": "number"
+            },
+            "T3": {
+              "type": "number"
+            },
+            "T4": {
+              "type": "number"
+            },
+            "T5": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "T1",
+            "T2",
+            "T3",
+            "T4",
+            "T5"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [

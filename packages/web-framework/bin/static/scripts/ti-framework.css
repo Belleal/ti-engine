@@ -82,9 +82,14 @@ body {
     background-color: var(--ti-icon-hover-color-dark);
 }
 
+/*
+ * -webkit-mask-image: url("data:image/svg+xml,");
+ * mask-image: url("data:image/svg+xml,");
+ */
 .ti-icon.empty {
-    -webkit-mask-image: url("data:image/svg+xml,");
-    mask-image: url("data:image/svg+xml,");
+    -webkit-mask-image: none;
+    mask-image: none;
+    background-color: transparent;
 }
 
 .ti-icon.app-menu {

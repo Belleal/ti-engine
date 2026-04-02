@@ -2366,6 +2366,10 @@
       "status-is-closed": {
         "en": "The requested Evaluation is already closed for processing.",
         "bg": "Изисканата Оценка е затворена за обработка."
+      },
+      "unable-to-final-score": {
+        "en": "Unable to final score Evaluation as it has insufficient number of individual grades.",
+        "bg": "Не може да се изчисли крайният резултат за тази Оценка, защото няма достатъчно индивидуални оценки."
       }
     }
   },

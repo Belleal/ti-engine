@@ -10,26 +10,27 @@ const tools = require( "@ti-engine/core/tools" );
 const logger = require( "@ti-engine/core/logger" );
 const localization = require( "@ti-engine/core/localization" );
 const configurationLoader = require( "#configuration-loader" );
+const exceptions = require( '@ti-engine/core/exceptions' )
 
 const gradeWeights = tools.deepFreeze( {
-    [ configurationLoader.evaluationGrade.S ]: configurationLoader.getSetting( "performanceAppraisals.gradeWeights.S" ) || 1.3,
-    [ configurationLoader.evaluationGrade.R ]: configurationLoader.getSetting( "performanceAppraisals.gradeWeights.R" ) || 1.0,
-    [ configurationLoader.evaluationGrade.U ]: configurationLoader.getSetting( "performanceAppraisals.gradeWeights.U" ) || 0.6,
-    [ configurationLoader.evaluationGrade.N ]: configurationLoader.getSetting( "performanceAppraisals.gradeWeights.N" ) || 0.0
+    [ configurationLoader.evaluationGrade.S ]: configurationLoader.getSetting( "performanceAppraisals.gradeWeights.S" ) ?? 1.3,
+    [ configurationLoader.evaluationGrade.R ]: configurationLoader.getSetting( "performanceAppraisals.gradeWeights.R" ) ?? 1.0,
+    [ configurationLoader.evaluationGrade.U ]: configurationLoader.getSetting( "performanceAppraisals.gradeWeights.U" ) ?? 0.6,
+    [ configurationLoader.evaluationGrade.N ]: configurationLoader.getSetting( "performanceAppraisals.gradeWeights.N" ) ?? 0.0
 } );
 
 const evaluationWeights = tools.deepFreeze( {
-    SELF: configurationLoader.getSetting( "performanceAppraisals.evaluationWeights.self" ) || 0.2,
-    TEAM: configurationLoader.getSetting( "performanceAppraisals.evaluationWeights.team" ) || 0.3,
-    MANAGER: configurationLoader.getSetting( "performanceAppraisals.evaluationWeights.manager" ) || 0.5
+    SELF: configurationLoader.getSetting( "performanceAppraisals.evaluationWeights.self" ) ?? 0.2,
+    TEAM: configurationLoader.getSetting( "performanceAppraisals.evaluationWeights.team" ) ?? 0.3,
+    MANAGER: configurationLoader.getSetting( "performanceAppraisals.evaluationWeights.manager" ) ?? 0.5
 } );
 
 const performanceThresholds = tools.deepFreeze( {
-    [ configurationLoader.performanceThreshold.T1 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T1" ) || 76,
-    [ configurationLoader.performanceThreshold.T2 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T2" ) || 89,
-    [ configurationLoader.performanceThreshold.T3 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T3" ) || 105,
-    [ configurationLoader.performanceThreshold.T4 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T4" ) || 119,
-    [ configurationLoader.performanceThreshold.T5 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T5" ) || 150
+    [ configurationLoader.performanceThreshold.T1 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T1" ) ?? 76,
+    [ configurationLoader.performanceThreshold.T2 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T2" ) ?? 89,
+    [ configurationLoader.performanceThreshold.T3 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T3" ) ?? 105,
+    [ configurationLoader.performanceThreshold.T4 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T4" ) ?? 119,
+    [ configurationLoader.performanceThreshold.T5 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T5" ) ?? 150
 } );
 
 /**
@@ -201,7 +202,11 @@ class CompetenceFramework {
             } );
 
             const scoredCategoriesCount = Object.keys( evaluation.scores ).length;
-            evaluation.finalScore.score = scoredCategoriesCount > 0 ? Math.ceil( evaluation.finalScore.score / scoredCategoriesCount ) : 0;
+            if ( scoredCategoriesCount === 0 ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.unable-to-final-score" }, exceptions.httpCode.C_422 );
+            }
+            evaluation.finalScore.score = Math.ceil( evaluation.finalScore.score / scoredCategoriesCount );
+
             evaluation.finalScore.interpretation = null;
             Object.keys( performanceThresholds ).forEach( ( thresholdCode ) => {
                 if ( !evaluation.finalScore.interpretation && evaluation.finalScore.score <= performanceThresholds[ thresholdCode ] ) {
@@ -230,16 +235,18 @@ class CompetenceFramework {
         if ( grades ) {
             const allowedCompetencyCodes = new Set( this.getAllowedCompetencyCodes( evaluation.careerPath, evaluation.cycleID ) );
             Object.keys( grades ).forEach( ( competencyCode ) => {
-                if ( !allowedCompetencyCodes.has( competencyCode ) ) {
-                    return;
-                }
-                evaluation.grades[ competencyCode ] = evaluation.grades[ competencyCode ] || {
-                    employee: "",
-                    manager: "",
-                    team: { cumulative: "", individual: [] }
-                };
-                if ( grades[ competencyCode ]?.employee !== undefined ) {
-                    evaluation.grades[ competencyCode ].employee = grades[ competencyCode ].employee;
+                if ( allowedCompetencyCodes.has( competencyCode ) ) {
+                    evaluation.grades[ competencyCode ] = evaluation.grades[ competencyCode ] || {
+                        employee: "",
+                        manager: "",
+                        team: { cumulative: "", individual: [] }
+                    };
+                    const submittedGrade = grades[ competencyCode ]?.employee;
+                    if ( submittedGrade !== undefined ) {
+                        if ( submittedGrade === "" || configurationLoader.evaluationGrade.contains( submittedGrade ) ) {
+                            evaluation.grades[ competencyCode ].employee = submittedGrade;
+                        }
+                    }
                 }
             } );
         }
@@ -274,7 +281,9 @@ class CompetenceFramework {
 
                     const submittedGrade = grades[ competencyCode ]?.team;
                     if ( submittedGrade ) {
-                        teamEntry.individual.push( submittedGrade );
+                        if ( configurationLoader.evaluationGrade.contains( submittedGrade ) ) {
+                            teamEntry.individual.push( submittedGrade );
+                        }
                     }
                 }
             } );
@@ -295,8 +304,13 @@ class CompetenceFramework {
         if ( grades ) {
             const allowedCompetencyCodes = new Set( this.getAllowedCompetencyCodes( evaluation.careerPath, evaluation.cycleID ) );
             Object.keys( grades ).forEach( ( competencyCode ) => {
-                if ( allowedCompetencyCodes.has( competencyCode ) && evaluation.grades[ competencyCode ] && grades[ competencyCode ]?.manager !== undefined ) {
-                    evaluation.grades[ competencyCode ].manager = grades[ competencyCode ].manager;
+                if ( allowedCompetencyCodes.has( competencyCode ) && evaluation.grades[ competencyCode ] ) {
+                    const submittedGrade = grades[ competencyCode ]?.manager;
+                    if ( submittedGrade !== undefined ) {
+                        if ( submittedGrade === "" || configurationLoader.evaluationGrade.contains( submittedGrade ) ) {
+                            evaluation.grades[ competencyCode ].manager = submittedGrade;
+                        }
+                    }
                 }
             } );
         }

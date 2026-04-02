@@ -22,6 +22,7 @@
  * @property {string} icon
  * @property {Object} action
  * @property {string} action.href
+ * @property {string} [action.method]
  * @property {string} action.target
  * @property {string} action.swap
  */
