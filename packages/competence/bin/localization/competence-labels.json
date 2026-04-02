@@ -2583,6 +2583,10 @@
         "team": {
           "en": "Team",
           "bg": "Екип"
+        },
+        "locked": {
+          "en": "Locked",
+          "bg": "Заключено"
         }
       },
       "actions": {

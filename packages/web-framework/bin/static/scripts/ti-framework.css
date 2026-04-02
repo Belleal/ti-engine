@@ -13,10 +13,11 @@
     --ti-margin: 12px;
     --ti-padding: 12px;
     --ti-error-color: rgb(230 96 96 / 95%);
+    --ti-icon-size: 24px;
     --ti-icon-color: #a6a6a6;
     --ti-icon-hover-color: #ffffff;
     --ti-icon-color-dark: #353535;
-    --ti-icon-hover-color-dark: #353535;
+    --ti-icon-hover-color-dark: #4c4c4c;
     /** Widgets **/
     --ti-notification-top: 50px;
     --ti-panel-border-radius: 4px;
@@ -58,8 +59,8 @@ body {
 
 .ti-icon {
     display: inline-block;
-    width: 24px;
-    height: 24px;
+    width: var(--ti-icon-size);
+    height: var(--ti-icon-size);
     background-color: var(--ti-icon-color);
     -webkit-mask-image: none;
     mask-image: none;

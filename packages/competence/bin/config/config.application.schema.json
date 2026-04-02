@@ -5,6 +5,35 @@
     "performanceAppraisals": {
       "type": "object",
       "properties": {
+        "evaluationWeights": {
+          "type": "object",
+          "description": "Weights assigned to different evaluation roles",
+          "properties": {
+            "self": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "team": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "manager": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "gradeWeights": {
+          "type": "object",
+          "description": "Numeric weights for each grade code",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
         "isTeamEvaluationCollective": {
           "type": "boolean",
           "description": "Whether team evaluations are collective or individual"
@@ -20,11 +49,21 @@
           "minimum": 1,
           "maximum": 20,
           "description": "Number of goals to set for the next evaluation period"
+        },
+        "performanceThresholds": {
+          "type": "object",
+          "description": "Threshold scores for performance levels",
+          "additionalProperties": {
+            "type": "number"
+          }
         }
       },
       "required": [
+        "evaluationWeights",
+        "gradeWeights",
         "minTeamEvaluationMembers",
-        "numberOfNextPeriodGoals"
+        "numberOfNextPeriodGoals",
+        "performanceThresholds"
       ]
     }
   },

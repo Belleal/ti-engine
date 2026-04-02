@@ -295,7 +295,7 @@ class CompetenceFramework {
         if ( grades ) {
             const allowedCompetencyCodes = new Set( this.getAllowedCompetencyCodes( evaluation.careerPath, evaluation.cycleID ) );
             Object.keys( grades ).forEach( ( competencyCode ) => {
-                if ( allowedCompetencyCodes.has( competencyCode ) && grades[ competencyCode ]?.manager !== undefined ) {
+                if ( allowedCompetencyCodes.has( competencyCode ) && evaluation.grades[ competencyCode ] && grades[ competencyCode ]?.manager !== undefined ) {
                     evaluation.grades[ competencyCode ].manager = grades[ competencyCode ].manager;
                 }
             } );

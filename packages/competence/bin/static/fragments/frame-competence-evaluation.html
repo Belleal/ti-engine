@@ -99,10 +99,10 @@
                                     <div class="competence-name" x-text="sub.name"></div>
                                 </div>
                                 <div class="ti-data-value compact-centered">
-                                    <span class="ti-icon lock dark-style competence-icon-lock" role="img" aria-label="Locked"></span>
+                                    <span class="ti-icon lock dark-style competence-icon-lock" role="img" x-text-label:aria-label="interface.evaluation.competencies.locked"></span>
                                 </div>
                                 <div class="ti-data-value compact-centered">
-                                    <span class="ti-icon lock dark-style competence-icon-lock" role="img" aria-label="Locked"></span>
+                                    <span class="ti-icon lock dark-style competence-icon-lock" role="img" x-text-label:aria-label="interface.evaluation.competencies.locked"></span>
                                 </div>
                                 <select x-bind:name="'grade-team-collective-' + sub.id" class="ti-input grade"
                                         x-bind:aria-label="'Team grade for ' + sub.id + ' ' + sub.name"
@@ -141,7 +141,7 @@
                                          x-show="userRole === 2 || ( userRole === 1 && !canEdit )"></div>
                                     <div class="ti-data-value compact-centered"
                                          x-show="userRole === 4">
-                                        <span class="ti-icon lock dark-style competence-icon-lock" role="img" aria-label="Locked"></span>
+                                        <span class="ti-icon lock dark-style competence-icon-lock" role="img" x-text-label:aria-label="interface.evaluation.competencies.locked"></span>
                                     </div>
 
                                     <!-- Manager Grade Column -->
@@ -159,7 +159,7 @@
                                          x-show="userRole === 2 && !canEdit"></div>
                                     <div class="ti-data-value compact-centered"
                                          x-show="userRole === 1 || userRole === 4">
-                                        <span class="ti-icon lock dark-style competence-icon-lock" role="img" aria-label="Locked"></span>
+                                        <span class="ti-icon lock dark-style competence-icon-lock" role="img" x-text-label:aria-label="interface.evaluation.competencies.locked"></span>
                                     </div>
 
                                     <!-- Team Grade Column -->
@@ -177,7 +177,7 @@
                                          x-show="userRole === 2 || ( userRole === 4 && !canEdit )"></div>
                                     <div class="ti-data-value compact-centered"
                                          x-show="userRole === 1">
-                                        <span class="ti-icon lock dark-style competence-icon-lock" role="img" aria-label="Locked"></span>
+                                        <span class="ti-icon lock dark-style competence-icon-lock" role="img" x-text-label:aria-label="interface.evaluation.competencies.locked"></span>
                                     </div>
 
                                     <div class="competence-item-description" x-text="item.description"></div>

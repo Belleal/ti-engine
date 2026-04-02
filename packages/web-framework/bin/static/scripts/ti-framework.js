@@ -799,6 +799,46 @@ const configureApplication = () => {
 };
 
 /**
+ * Returns a callback function for the Alpine.js "text-label" directive.
+ * This directive can be used to localize the text content of an element or its attributes.
+ *
+ * Usage instructions:
+ * - To localize text content:
+ *   `<span x-text-label="translation.key">Fallback Text</span>`
+ * - To localize an element attribute (e.g., aria-label, placeholder, title):
+ *   `<button x-text-label:aria-label="translation.key" aria-label="Fallback Text">...</button>`
+ *
+ * @method
+ * @returns {Function}
+ * @public
+ */
+const configureDirectiveTextLabel = () => {
+    return ( element, { value, expression }, { effect } ) => {
+        effect( () => {
+            const tiApplication = Alpine.store( "tiApplication" );
+            if ( !tiApplication || typeof tiApplication.getLabel !== "function" ) {
+                return;
+            }
+            let path = ( expression || "" ).trim();
+            const targetAttribute = value;
+            const fallback = targetAttribute ? ( element.getAttribute( targetAttribute ) || "" ) : element.textContent;
+            if (
+                ( path.startsWith( "'" ) && path.endsWith( "'" ) ) ||
+                ( path.startsWith( "\"" ) && path.endsWith( "\"" ) )
+            ) {
+                path = path.slice( 1, -1 );
+            }
+            const translatedText = tiApplication.getLabel( path, fallback );
+            if ( targetAttribute ) {
+                element.setAttribute( targetAttribute, translatedText );
+            } else {
+                element.textContent = translatedText;
+            }
+        } );
+    };
+};
+
+/**
  * Perform a one-time configuration of the HTMX framework.
  */
 document.addEventListener( "htmx:configRequest", ( event ) => {
@@ -843,24 +883,10 @@ document.addEventListener( "alpine:init", () => {
         buttonConfigs: []
     };
 
-    Alpine.directive( "text-label", ( element, { expression }, { effect } ) => {
-        effect( () => {
-            const tiApplication = Alpine.store( "tiApplication" );
-            if ( !tiApplication || typeof tiApplication.getLabel !== "function" ) return;
-            let path = ( expression || "" ).trim();
-            const fallback = element.textContent;
-            if (
-                ( path.startsWith( "'" ) && path.endsWith( "'" ) ) ||
-                ( path.startsWith( "\"" ) && path.endsWith( "\"" ) )
-            ) {
-                path = path.slice( 1, -1 );
-            }
-            element.textContent = tiApplication.getLabel( path, fallback );
-        } );
-    } );
+    // Note: Sequence here is important!
+    Alpine.directive( "text-label", configureDirectiveTextLabel() );
     Alpine.store( "tiToolbox", configureToolbox() );
     Alpine.store( "tiApplication", configureApplication() );
-
     Alpine.store( "tiComponentsConfig", {
         sidebarApplicationMenu: Alpine.store( "tiToolbox" ).deepMerge( defaultComponentConfig, configSidebarApplicationMenu )
     } );
