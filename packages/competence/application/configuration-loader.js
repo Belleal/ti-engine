@@ -6,10 +6,12 @@
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+const _ = require( "lodash" );
 const tools = require( "@ti-engine/core/tools" );
 
 module.exports.configCareerPathCompetencies = tools.deepFreeze( require( "#config-career-path-competencies" ) );
 module.exports.configCareerPathLevels = tools.deepFreeze( require( "#config-career-path-levels" ) );
+/** @type {ConfigCompetencies} */
 module.exports.configCompetencies = tools.deepFreeze( require( "#config-competencies" ) );
 module.exports.configOrganizationStructure = tools.deepFreeze( require( "#config-organization-structure" ) );
 
@@ -66,9 +68,44 @@ module.exports.evaluationStatus = evaluationStatusEnum;
  * @typedef {EvaluationGradeValue} EvaluationGrade
  */
 const evaluationGradeEnum = tools.enum( {
-    S: [ "S", "Superior", "The employee exceeds expectations for this competency at the current level." ],
-    R: [ "R", "Regular", "The employee meets the expected standards for this competency at the current level." ],
-    U: [ "U", "Unsatisfactory", "The employee shows skills below the expected standards for this competency at the current level." ],
-    N: [ "N", "Not Utilized", "The employee does not use or does not have this competency at the current level." ]
+    S: [ "S", "framework.grades.name.S", "framework.grades.description.S" ],
+    R: [ "R", "framework.grades.name.R", "framework.grades.description.R" ],
+    U: [ "U", "framework.grades.name.U", "framework.grades.description.U" ],
+    N: [ "N", "framework.grades.name.N", "framework.grades.description.N" ]
 } );
 module.exports.evaluationGrade = evaluationGradeEnum;
+
+/**
+ * Enum for the performance threshold values.
+ *
+ * @readonly
+ * @enum {PerformanceThreshold}
+ * @typedef {PerformanceThresholdValue} PerformanceThreshold
+ */
+const performanceThresholdEnum = tools.enum( {
+    T1: [ "T1", "framework.performance.threshold.name.T1", "framework.performance.threshold.description.T1" ],
+    T2: [ "T2", "framework.performance.threshold.name.T2", "framework.performance.threshold.description.T2" ],
+    T3: [ "T3", "framework.performance.threshold.name.T3", "framework.performance.threshold.description.T3" ],
+    T4: [ "T4", "framework.performance.threshold.name.T4", "framework.performance.threshold.description.T4" ],
+    T5: [ "T5", "framework.performance.threshold.name.T5", "framework.performance.threshold.description.T5" ]
+} );
+module.exports.performanceThreshold = performanceThresholdEnum;
+
+/** @type {ConfigApplication} */
+const configApplication = require( "#config-application" );
+
+// Prevent further modifications to the settings object:
+tools.deepFreeze( configApplication );
+
+/**
+ * A standard getter method for fetching a setting.
+ *
+ * @method
+ * @param {string} setting Specifies either a dot-separated JSON path of the setting.
+ * @param {*} [defaultValue] The default value to be returned if the setting is not found in the current configuration.
+ * @returns {*}
+ * @public
+ */
+module.exports.getSetting = ( setting, defaultValue ) => {
+    return _.get( configApplication, setting, defaultValue );
+};

@@ -2366,26 +2366,98 @@
       "status-is-closed": {
         "en": "The requested Evaluation is already closed for processing.",
         "bg": "Изисканата Оценка е затворена за обработка."
+      },
+      "unable-to-final-score": {
+        "en": "Unable to calculate the final score for this Evaluation.",
+        "bg": "Крайният резултат за тази Оценка не може да бъде изчислен."
       }
     }
   },
   "framework": {
     "grades": {
-      "R": {
-        "en": "The employee meets the expected standards for this competency at the current level. Performs tasks competently and consistently, demonstrating adequate understanding and skills in this area.",
-        "bg": "Служителят отговаря на очакваните стандарти за тази компетентност на текущото ниво. Изпълнява задачите си компетентно и последователно, демонстрирайки адекватно разбиране и умения в тази област."
+      "description": {
+        "R": {
+          "en": "The employee meets the expected standards for this competency at the current level. Performs tasks competently and consistently, demonstrating adequate understanding and skills in this area.",
+          "bg": "Служителят отговаря на очакваните стандарти за тази компетентност на текущото ниво. Изпълнява задачите си компетентно и последователно, демонстрирайки адекватно разбиране и умения в тази област."
+        },
+        "S": {
+          "en": "The employee exceeds expectations for this competency at the current level. Demonstrates exceptional skills, proactivity, and in-depth understanding, contributing significantly to the team's success in this area.",
+          "bg": "Служителят надхвърля очакванията за тази компетентност на текущото ниво. Демонстрира изключителни умения, проактивност и задълбочено разбиране, като допринася значително към успеха на екипа в тази област."
+        },
+        "U": {
+          "en": "The employee shows skills below the expected standards for this competency at the current level. There are noticeable gaps in the application of knowledge or skills, requiring improvement and additional support or training.",
+          "bg": "Служителят показва умения под очакваните стандарти за тази компетентност на текущото ниво. Има забележими пропуски в прилагането на знанията или уменията, което изисква подобрение и допълнителна подкрепа или обучение."
+        },
+        "N": {
+          "en": "The employee does not use or does not have this competency at the current level.",
+          "bg": "Служителят не използва или няма тази компетентност на текущото ниво."
+        }
       },
-      "S": {
-        "en": "The employee exceeds expectations for this competency at the current level. Demonstrates exceptional skills, proactivity, and in-depth understanding, contributing significantly to the team's success in this area.",
-        "bg": "Служителят надхвърля очакванията за тази компетентност на текущото ниво. Демонстрира изключителни умения, проактивност и задълбочено разбиране, като допринася значително към успеха на екипа в тази област."
-      },
-      "U": {
-        "en": "The employee shows skills below the expected standards for this competency at the current level. There are noticeable gaps in the application of knowledge or skills, requiring improvement and additional support or training.",
-        "bg": "Служителят показва умения под очакваните стандарти за тази компетентност на текущото ниво. Има забележими пропуски в прилагането на знанията или уменията, което изисква подобрение и допълнителна подкрепа или обучение."
-      },
-      "N": {
-        "en": "The employee does not use or does not have this competency at the current level.",
-        "bg": "Служителят не използва или няма тази компетентност на текущото ниво."
+      "name": {
+        "R": {
+          "en": "Regular",
+          "bg": "Стандартно"
+        },
+        "S": {
+          "en": "Superior",
+          "bg": "Изключително"
+        },
+        "U": {
+          "en": "Unsatisfactory",
+          "bg": "Незадоволително"
+        },
+        "N": {
+          "en": "Not Utilized",
+          "bg": "Неизползвано"
+        }
+      }
+    },
+    "performance": {
+      "threshold": {
+        "description": {
+          "T1": {
+            "en": "The employee's performance is significantly below expectations for the current level. It is necessary to create a detailed improvement plan that addresses the specific gaps and helps the employee meet the requirements of the position.",
+            "bg": "Представянето на служителя е значително под очакванията за текущото ниво. Необходимо е създаването на подробен план за подобрение, който да адресира конкретните пропуски и да подпомогне служителя да постигне изискванията на длъжността."
+          },
+          "T2": {
+            "en": "The employee's performance is below the expected standards for the current level. Personal attention and active guidance from the manager are required to support the employee in improving specific skills and competencies.",
+            "bg": "Представянето на служителя е под очакваните стандарти за текущото ниво. Изисква се персонално внимание и активно ръководство от страна на ръководителя, за да се подпомогне служителя в подобряването на специфични умения и компетенции."
+          },
+          "T3": {
+            "en": "The employee meets the standard expectations for their level. They competently perform their tasks and responsibilities, contributing steadily to the goals of the team and the organization.",
+            "bg": "Служителят отговаря на стандартните очаквания за своето ниво. Той изпълнява компетентно задачите и отговорностите си, като допринася стабилно за целите на екипа и организацията."
+          },
+          "T4": {
+            "en": "The employee's performance exceeds the standard expectations for the current level. They demonstrate strong skills and initiative, making them eligible for a bonus or other recognition from the manager.",
+            "bg": "Представянето на служителя надхвърля стандартните очаквания за текущото ниво. Той демонстрира силни умения и инициативност, което го прави подходящ за бонус или друго поощрение от страна на ръководителя."
+          },
+          "T5": {
+            "en": "The employee consistently exceeds expectations for their level. They exhibit exceptional knowledge, skills, and contribution to the team, making a promotion to the next level highly recommended.",
+            "bg": "Служителят постоянно надминава очакванията за своето ниво. Проявява изключителни знания, умения и принос към екипа, което прави препоръчително повишението му в следващо ниво."
+          }
+        },
+        "name": {
+          "T1": {
+            "en": "Weak",
+            "bg": "Слабо"
+          },
+          "T2": {
+            "en": "Insufficient",
+            "bg": "Недостатъчно"
+          },
+          "T3": {
+            "en": "Expected",
+            "bg": "Очаквано"
+          },
+          "T4": {
+            "en": "Good",
+            "bg": "Добро"
+          },
+          "T5": {
+            "en": "Outstanding",
+            "bg": "Отлично"
+          }
+        }
       }
     }
   },
@@ -2427,6 +2499,20 @@
         "team": {
           "en": "This is the Evaluation form of your colleague",
           "bg": "Това е формата за Оценка на Ваш колега"
+        }
+      },
+      "instructions": {
+        "title": {
+          "en": "Grading Instructions",
+          "bg": "Инструкции за оценяване"
+        },
+        "grades": {
+          "en": "Please rate each competency with one of the following grades while maintaining objectivity and fairness. For each given rating you might be asked to provide additional feedback and justification.",
+          "bg": "Моля оценете всяка компетенция с една от следните оценки, придържайки се към обективност и справедливост. За всяка дадена оценка може да бъдете попитани за допълнителна информация и обосновка."
+        },
+        "team-grading": {
+          "en": "When rating a team member, please consider how their individual performance and contribution in each particular competency category has affected the outcomes of your mutual work.",
+          "bg": "Когато оценявате член на екипа, моля вземете под внимание как тяхната индивидуална дейност и принос във всяка конкретна категория компетенции са повлияли на резултатите от вашата съвместна работа."
         }
       },
       "personal": {
@@ -2472,11 +2558,11 @@
           "en": "Not Scheduled",
           "bg": "Няма зададена"
         },
-        "submission-deadline":{
+        "submission-deadline": {
           "en": "Submission Deadline:",
           "bg": "Крайна Дата за Подаване:"
         },
-        "submission-deadline-not-set":{
+        "submission-deadline-not-set": {
           "en": "Not Set",
           "bg": "Няма зададена"
         }
@@ -2501,6 +2587,10 @@
         "team": {
           "en": "Team",
           "bg": "Екип"
+        },
+        "locked": {
+          "en": "Locked",
+          "bg": "Заключено"
         }
       },
       "actions": {

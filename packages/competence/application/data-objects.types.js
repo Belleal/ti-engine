@@ -7,6 +7,27 @@
 */
 
 /**
+ * @typedef {Object} ConfigPerformanceAppraisals
+ * @property {Object.<string, decimal>} evaluationWeights
+ * @property {Object.<EvaluationGradeValue, decimal>} gradeWeights
+ * @property {boolean} [isTeamEvaluationCollective]
+ * @property {number} minTeamEvaluationMembers
+ * @property {number} numberOfNextPeriodGoals
+ * @property {Object.<PerformanceThresholdValue, number>} performanceThresholds
+ */
+
+/**
+ * @typedef {Object} ConfigApplication
+ * @property {ConfigPerformanceAppraisals} performanceAppraisals
+ */
+
+/**
+ * @typedef {Object} ConfigCompetencies
+ * @property {Object.<CompetencyCategory, Object>} categories
+ * @property {Object.<string, Object>} competencies
+ */
+
+/**
  * @typedef {Object} EvaluationTeamGradeValues
  * @property {EvaluationGradeValue} [cumulative]
  * @property {EvaluationGradeValue[]} [individual]
@@ -25,6 +46,10 @@
 
 /**
  * @typedef {"Open"|"In Review"|"Ready"|"Closed"|"Deleted"} EvaluationStatusValue
+ */
+
+/**
+ * @typedef {"T1"|"T2"|"T3"|"T4"|"T5"} PerformanceThresholdValue
  */
 
 /**
@@ -47,6 +72,12 @@
  */
 
 /**
+ * @typedef {Object} EvaluationScore
+ * @property {number} score - Numeric score calculated by the framework.
+ * @property {PerformanceThreshold|null} [interpretation] - Interpretation of the score determined by the framework.
+ */
+
+/**
  * @typedef {Object} Evaluation
  * @property {string} evaluationID - Unique identifier for the evaluation (UUID).
  * @property {string} employeeID - ID of the employee being evaluated.
@@ -56,6 +87,10 @@
  * @property {string|null} [interviewDate] - Date when the evaluation interview took place (YYYY-MM-DD).
  * @property {EvaluationStatusValue} status - Current status of the evaluation.
  * @property {Object.<string, EvaluationGradeEntry>} [grades] - Collection of grades keyed by competency ID.
+ * @property {CareerPathCodeValue} careerPath - The career path of the employee at the time of this evaluation.
+ * @property {string} stageLevel - The level and sage of the employee at the time of this evaluation.
+ * @property {Object.<CompetencyCategory, EvaluationScore>} [scores] - The evaluation scores per category based on the given grades.
+ * @property {EvaluationScore} [finalScore] - The final score of the evaluation itself.
  * @property {string} [comment] - Comment submitted by the employee.
  * @property {EvaluationFeedback} [feedback] - Feedback attached to the evaluation.
  * @property {EvaluationWorkflow} [workflow] - System workflow state for the evaluation.

@@ -8,8 +8,9 @@
 
 /**
  * @typedef {Object} SidebarFlyoutConfig
- * @property {string} [menuTitle]
+ * @property {string} menuTitle
  * @property {number} [offset]
+ * @property {string} icon
  * @property {string} [placement]
  * @property {boolean} [fixed]
  * @property {Array<SidebarFlyoutButtonConfig>} [buttonConfigs]
@@ -21,6 +22,7 @@
  * @property {string} icon
  * @property {Object} action
  * @property {string} action.href
+ * @property {string} [action.method]
  * @property {string} action.target
  * @property {string} action.swap
  */
@@ -29,14 +31,31 @@
  * @constant
  * @type {SidebarFlyoutConfig}
  */
-const configSidebarUserMenu = {
-    menuTitle: "User",
+const configSidebarApplicationMenu = {
+    menuTitle: "Application Menu",
     offset: 20,
+    icon: "app-menu",
     buttonConfigs: [ {
+        title: "Error",
+        icon: "error",
+        action: {
+            href: "/app/error",
+            target: "#ti-content",
+            swap: "innerHTML"
+        }
+    }, {
         title: "Profile",
-        icon: "person",
+        icon: "user-profile",
         action: {
             href: "/app/profile",
+            target: "#ti-content",
+            swap: "innerHTML"
+        }
+    }, {
+        title: "Settings",
+        icon: "settings",
+        action: {
+            href: "/app/administration",
             target: "#ti-content",
             swap: "innerHTML"
         }
@@ -51,33 +70,6 @@ const configSidebarUserMenu = {
         }
     } ]
 };
-
-/**
- * @constant
- * @type {SidebarFlyoutConfig}
- */
-const configSidebarAdministrationMenu = {
-    menuTitle: "Administration",
-    offset: 20,
-    buttonConfigs: [ {
-        title: "Settings",
-        icon: "settings",
-        action: {
-            href: "/app/administration",
-            target: "#ti-content",
-            swap: "innerHTML"
-        }
-    }, {
-        title: "Error",
-        icon: "error",
-        action: {
-            href: "/app/error",
-            target: "#ti-content",
-            swap: "innerHTML"
-        }
-    } ]
-};
-
 
 /**
  * Returns a configuration object for the toolbox.
@@ -302,6 +294,7 @@ const configureComponentSidebarFlyout = ( options = {} ) => {
         placement: options.placement ?? "right-start",
         offset: options.offset ?? 10,
         fixed: options.fixed ?? true,
+        icon: options.icon ?? "app-menu",
         isOpen: false,
 
         /**
@@ -807,6 +800,47 @@ const configureApplication = () => {
 };
 
 /**
+ * Returns a callback function for the Alpine.js "text-label" directive.
+ * This directive can be used to localize the text content of an element or its attributes.
+ *
+ * Usage instructions:
+ * - To localize text content:
+ *   `<span x-text-label="translation.key">Fallback Text</span>`
+ * - To localize an element attribute (e.g., aria-label, placeholder, title):
+ *   `<button x-text-label:aria-label="translation.key" aria-label="Fallback Text">...</button>`
+ *
+ * @method
+ * @returns {Function}
+ * @public
+ */
+const configureDirectiveTextLabel = () => {
+    return ( element, { value, expression }, { effect } ) => {
+        const targetAttribute = value;
+        const fallback = targetAttribute ? ( element.getAttribute( targetAttribute ) || "" ) : ( element.textContent || "" );
+
+        effect( () => {
+            const tiApplication = Alpine.store( "tiApplication" );
+            if ( !tiApplication || typeof tiApplication.getLabel !== "function" ) {
+                return;
+            }
+            let path = ( expression || "" ).trim();
+            if (
+                ( path.startsWith( "'" ) && path.endsWith( "'" ) ) ||
+                ( path.startsWith( "\"" ) && path.endsWith( "\"" ) )
+            ) {
+                path = path.slice( 1, -1 );
+            }
+            const translatedText = tiApplication.getLabel( path, fallback );
+            if ( targetAttribute ) {
+                element.setAttribute( targetAttribute, translatedText );
+            } else {
+                element.textContent = translatedText;
+            }
+        } );
+    };
+};
+
+/**
  * Perform a one-time configuration of the HTMX framework.
  */
 document.addEventListener( "htmx:configRequest", ( event ) => {
@@ -851,27 +885,12 @@ document.addEventListener( "alpine:init", () => {
         buttonConfigs: []
     };
 
-    Alpine.directive( "text-label", ( element, { expression }, { effect } ) => {
-        effect( () => {
-            const tiApplication = Alpine.store( "tiApplication" );
-            if ( !tiApplication || typeof tiApplication.getLabel !== "function" ) return;
-            let path = ( expression || "" ).trim();
-            const fallback = element.textContent;
-            if (
-                ( path.startsWith( "'" ) && path.endsWith( "'" ) ) ||
-                ( path.startsWith( "\"" ) && path.endsWith( "\"" ) )
-            ) {
-                path = path.slice( 1, -1 );
-            }
-            element.textContent = tiApplication.getLabel( path, fallback );
-        } );
-    } );
+    // Note: Sequence here is important!
+    Alpine.directive( "text-label", configureDirectiveTextLabel() );
     Alpine.store( "tiToolbox", configureToolbox() );
     Alpine.store( "tiApplication", configureApplication() );
-
     Alpine.store( "tiComponentsConfig", {
-        sidebarAdministrationMenu: Alpine.store( "tiToolbox" ).deepMerge( defaultComponentConfig, configSidebarAdministrationMenu ),
-        sidebarUserMenu: Alpine.store( "tiToolbox" ).deepMerge( defaultComponentConfig, configSidebarUserMenu )
+        sidebarApplicationMenu: Alpine.store( "tiToolbox" ).deepMerge( defaultComponentConfig, configSidebarApplicationMenu )
     } );
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );

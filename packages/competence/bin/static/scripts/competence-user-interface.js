@@ -13,6 +13,7 @@
  */
 const initialDataModels = {
     competencyEvaluation: {
+        isTeamEvaluationCollective: false,
         personal: {
             name: "",
             careerPath: "",
@@ -71,67 +72,6 @@ const initialDataModels = {
                 ]
             }
         ]
-    },
-    employeesList: {
-        unit: {
-            type: "Department",
-            name: "Department A",
-            managers: [ "Michael Scott" ],
-            parents: [ "Division Alpha" ]
-        },
-        units: [
-            {
-                id: "department-a",
-                type: "Department",
-                name: "Department A",
-                managers: [ "Michael Scott" ],
-                employees: [],
-                children: [
-                    {
-                        id: "team-1",
-                        type: "Team",
-                        name: "Team 1",
-                        managers: [ "Pam Beesly" ],
-                        employees: [
-                            {
-                                id: "Employee ID 1",
-                                name: "John Smith",
-                                careerPath: "Software Engineer",
-                                level: "R2",
-                                since: "12.03.2020",
-                                evaluation: { status: "new", date: "" }
-                            },
-                            {
-                                id: "Employee ID 2",
-                                name: "Jane Doe",
-                                careerPath: "Software Engineer",
-                                level: "R3",
-                                since: "25.01.2020",
-                                evaluation: { status: "open", date: "28.04.2026" }
-                            }
-                        ],
-                        children: []
-                    },
-                    {
-                        id: "team-2",
-                        type: "Team",
-                        name: "Team 2",
-                        managers: [ "Jim Halpert" ],
-                        employees: [
-                            {
-                                id: "Employee ID n",
-                                name: "Names",
-                                careerPath: "Position",
-                                level: "R3",
-                                since: "25.01.2020",
-                                evaluation: { status: "new", date: "" }
-                            }
-                        ],
-                        children: []
-                    }
-                ]
-            }
-        ]
     }
 };
 
@@ -160,6 +100,7 @@ let configureCompetencyEvaluation = () => {
         employeeID: null,
         userRole: null,
         deadlineDate: null,
+        isTeamEvaluationCollective: false,
         canEdit: false,
         manager: {},
         personal: tiToolbox.structuredClone( initialDataModels.competencyEvaluation.personal ),
@@ -188,6 +129,7 @@ let configureCompetencyEvaluation = () => {
 
         applyData( data ) {
             const fresh = ( data && typeof data === "object" ) ? data : {};
+            this.isTeamEvaluationCollective = ( fresh.isTeamEvaluationCollective === true );
             this.personal = tiToolbox.structuredClone( fresh.personal || initialDataModels.competencyEvaluation.personal );
             this.manager = tiToolbox.structuredClone( fresh.manager || initialDataModels.competencyEvaluation.manager );
             this.userRole = fresh.userRole;
@@ -301,7 +243,7 @@ let configureCompetencyEvaluation = () => {
 };
 
 /**
- * Returns a configuration object for the employees list screen.
+ * Returns a configuration object for the list of employees screen.
  *
  * @method
  * @returns {Object}

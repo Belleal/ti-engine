@@ -2,6 +2,16 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.1
+
+* feat(org): add `isSuperiorManagerOfEmployee()` to support superior-manager checks through the organization unit hierarchy
+* feat(auth): replace direct-manager-only checks with hierarchy-aware `#canManagerPerformEvaluation()` across evaluation load/save/submit/start flows
+* fix(web-app): calculate employees-list evaluation date by evaluation status (`OPEN` self/team deadline, `IN_REVIEW` manager deadline, `READY` interview date)
+* feat(web-app): include `isCurrentUser` in employees-list payload entries
+* fix(ui): update employees-list evaluation status rendering and prevent starting evaluations for the current user
+* refactor(ui): remove hardcoded `employeesList` mock data from initial UI models
+* build(release): bump package version to `1.3.1`
+
 ## Version 1.3.0
 
 * feat(web-app): add `load-employee-list` data view and implement `#loadEmployeeList()` for organization-tree employee loading with role-aware visibility and evaluation access

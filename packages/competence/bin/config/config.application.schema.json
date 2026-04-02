@@ -5,6 +5,66 @@
     "performanceAppraisals": {
       "type": "object",
       "properties": {
+        "evaluationWeights": {
+          "type": "object",
+          "description": "Weights assigned to different evaluation roles",
+          "properties": {
+            "self": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "team": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "manager": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": [
+            "self",
+            "team",
+            "manager"
+          ],
+          "additionalProperties": false
+        },
+        "gradeWeights": {
+          "type": "object",
+          "description": "Numeric weights for each grade code",
+          "properties": {
+            "S": {
+              "type": "number",
+              "minimum": 0
+            },
+            "R": {
+              "type": "number",
+              "minimum": 0
+            },
+            "U": {
+              "type": "number",
+              "minimum": 0
+            },
+            "N": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "S",
+            "R",
+            "U",
+            "N"
+          ],
+          "additionalProperties": false
+        },
+        "isTeamEvaluationCollective": {
+          "type": "boolean",
+          "description": "Whether team evaluations are collective or individual"
+        },
         "minTeamEvaluationMembers": {
           "type": "integer",
           "minimum": 1,
@@ -16,11 +76,44 @@
           "minimum": 1,
           "maximum": 20,
           "description": "Number of goals to set for the next evaluation period"
+        },
+        "performanceThresholds": {
+          "type": "object",
+          "description": "Threshold scores for performance levels",
+          "properties": {
+            "T1": {
+              "type": "number"
+            },
+            "T2": {
+              "type": "number"
+            },
+            "T3": {
+              "type": "number"
+            },
+            "T4": {
+              "type": "number"
+            },
+            "T5": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "T1",
+            "T2",
+            "T3",
+            "T4",
+            "T5"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
+        "evaluationWeights",
+        "gradeWeights",
+        "isTeamEvaluationCollective",
         "minTeamEvaluationMembers",
-        "numberOfNextPeriodGoals"
+        "numberOfNextPeriodGoals",
+        "performanceThresholds"
       ]
     }
   },

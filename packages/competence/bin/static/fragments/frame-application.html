@@ -1,7 +1,7 @@
 <div id="ti-sidebar" class="ti-sidebar ti-glass-panel-black">
     <div id="ti-sidebar-menu-top" class="ti-sidebar-menu top">
-        <a href="/" class="ti-sidebar-button ti-glass-btn-black" aria-label="Home">
-            <span class="material-symbols-outlined">home</span>
+        <a href="/" class="ti-sidebar-button ti-glass-btn-black" aria-label="Dashboard">
+            <span class="ti-icon dashboard" aria-hidden="true"></span>
         </a>
         <span class="ti-spacer-v-10"></span>
         <button hx-get="/app/competence-evaluation?employeeID=1"
@@ -9,21 +9,18 @@
                 hx-swap="innerHTML"
                 hx-push-url="true"
                 type="button" class="ti-sidebar-flyout-item ti-glass-btn-black" aria-label="Competence Evaluation">
-            <span class="material-symbols-outlined">fact_check</span>
+            <span class="ti-icon evaluation-form" aria-hidden="true"></span>
         </button>
         <button hx-get="/app/employees-list"
                 hx-target="#ti-content"
                 hx-swap="innerHTML"
                 hx-push-url="true"
                 type="button" class="ti-sidebar-flyout-item ti-glass-btn-black" aria-label="Employees List">
-            <span class="material-symbols-outlined">groups</span>
+            <span class="ti-icon employee-list" aria-hidden="true"></span>
         </button>
     </div>
     <div id="ti-sidebar-menu-bottom" class="ti-sidebar-menu bottom">
-        <div x-data="$store.tiComponentsConfig.sidebarAdministrationMenu">
-            <ti-component-sidebar-flyout-placeholder/>
-        </div>
-        <div x-data="$store.tiComponentsConfig.sidebarUserMenu">
+        <div x-data="$store.tiComponentsConfig.sidebarApplicationMenu">
             <ti-component-sidebar-flyout-placeholder/>
         </div>
     </div>

@@ -58,7 +58,7 @@
                                                 <div class="ti-data-value" x-text="formatDate( employee.career.startingDate )"></div>
                                                 <div class="employees-evaluation">
                                                     <span class="employees-evaluation-status"
-                                                          x-text="employee.evaluation ? employee.evaluation.status + ' - ' : 'Not Started'"></span>
+                                                          x-text="employee.evaluation ? employee.evaluation.status : 'Not Started'"></span>
                                                     <span class="employees-evaluation-date"
                                                           x-text="employee.evaluation ? formatDate( employee.evaluation.date ) : ''"></span>
                                                 </div>
@@ -68,7 +68,7 @@
                                                             x-on:click="openEvaluation( employee.id, employee.evaluation.evaluationID )"
                                                             x-text-label="interface.employees.actions.review"></button>
                                                     <button type="button" class="ti-button inline ti-glass-btn-black large on-screen"
-                                                            x-show="!employee.evaluation"
+                                                    x-show="!employee.evaluation && !employee.isCurrentUser"
                                                             x-on:click="startEvaluation( employee.id )"
                                                             x-text-label="interface.employees.actions.start-new"></button>
                                                 </div>
