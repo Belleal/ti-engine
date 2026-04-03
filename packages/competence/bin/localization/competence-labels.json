@@ -2487,6 +2487,16 @@
       }
     },
     "evaluation": {
+      "default": {
+        "not-provided": {
+          "en": "Not Provided",
+          "bg": "Не е предоставен"
+        },
+        "not-ready": {
+          "en": "Not Ready",
+          "bg": "Не е готово"
+        }
+      },
       "banners": {
         "employee": {
           "en": "This is your own Evaluation form",
@@ -2523,10 +2533,6 @@
         "name": {
           "en": "Employee Name:",
           "bg": "Име на служителя:"
-        },
-        "career-path": {
-          "en": "Position & Level:",
-          "bg": "Позиция & Ниво:"
         },
         "organization-unit-id": {
           "en": "Organization Unit:",
@@ -2565,6 +2571,34 @@
         "submission-deadline-not-set": {
           "en": "Not Set",
           "bg": "Няма зададена"
+        },
+        "career-path": {
+          "en": "Position & Level:",
+          "bg": "Позиция & Ниво:"
+        },
+        "feedback-title": {
+          "en": "Feedback & Comments",
+          "bg": "Обратна Връзка & Коментари"
+        },
+        "employee-comment": {
+          "en": "Employee Comment:",
+          "bg": "Коментар от Служител:"
+        },
+        "team-comment": {
+          "en": "Team Member Comment:",
+          "bg": "Коментар от Член на Екипа:"
+        },
+        "manager-comment": {
+          "en": "Manager Comment:",
+          "bg": "Коментар от Мениджър:"
+        },
+        "final-score": {
+          "en": "Final Score:",
+          "bg": "Финална Оценка:"
+        },
+        "category-score": {
+          "en": "Category Score:",
+          "bg": "Оценка на Кетегорията:"
         }
       },
       "competencies": {

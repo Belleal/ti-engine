@@ -83,6 +83,7 @@ class CompetenceFramework {
             careerPath: employee.personal.careerPath,
             stageLevel: `${ employee.personal.level }${ employee.personal.stage }`,
             scores: {},
+            finalScore: {},
             comment: "",
             feedback: {
                 managerComment: "",
@@ -349,6 +350,40 @@ class CompetenceFramework {
                     delete evaluation.grades[ competencyCode ].team;
                 }
             } );
+        }
+    }
+
+    /**
+     * Used to anonymize the evaluation scores based on the user role.
+     * <br/>
+     * NOTE: This method mutates the passed Evaluation object!
+     *
+     * @method
+     * @param {Evaluation} evaluation
+     * @param {RoleCodeValue} userRole
+     * @public
+     */
+    anonymizeEvaluationScores( evaluation, userRole ) {
+        if ( userRole === configurationLoader.roleCode.EMPLOYEE || userRole === configurationLoader.roleCode.MANAGER ) {
+            if ( evaluation.finalScore && evaluation.finalScore.interpretation ) {
+                evaluation.finalScore = {
+                    ...evaluation.finalScore,
+                    interpretationName: configurationLoader.performanceThreshold.name( evaluation.finalScore.interpretation )
+                };
+            }
+            if ( evaluation.scores ) {
+                Object.values( evaluation.scores ).forEach( ( score ) => {
+                    if ( score && score.interpretation ) {
+                        score.interpretationName = configurationLoader.performanceThreshold.name( score.interpretation );
+                    }
+                } );
+            }
+        } else {
+            evaluation.finalScore = {};
+            evaluation.scores = {};
+            delete evaluation.feedback.managerComment;
+            evaluation.feedback.teamComments = [];
+            delete evaluation.comment;
         }
     }
 

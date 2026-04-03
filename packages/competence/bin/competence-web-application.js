@@ -410,6 +410,7 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 // NOTE: Remove information that should not be exposed to some roles:
                 competenceFramework.instance.anonymizeEvaluationGrades( savedEvaluation, userRole );
+                competenceFramework.instance.anonymizeEvaluationScores( savedEvaluation, userRole );
 
                 // NOTE: Make sure to delete the workflow system information:
                 delete savedEvaluation.workflow;
@@ -498,6 +499,7 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 // NOTE: Remove information that should not be exposed to some roles:
                 competenceFramework.instance.anonymizeEvaluationGrades( savedEvaluation, userRole );
+                competenceFramework.instance.anonymizeEvaluationScores( savedEvaluation, userRole );
 
                 // NOTE: Make sure to delete the workflow system information:
                 delete savedEvaluation.workflow;
@@ -587,6 +589,7 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 // NOTE: Remove information that should not be exposed to some roles:
                 competenceFramework.instance.anonymizeEvaluationGrades( currentEvaluation, userRole );
+                competenceFramework.instance.anonymizeEvaluationScores( currentEvaluation, userRole );
 
                 // NOTE: Make sure to delete the workflow system information:
                 delete currentEvaluation.workflow;
@@ -603,7 +606,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                         managerID: organizationContext.managerID,
                         name: organizationContext.managerName
                     },
-                    evaluation: currentEvaluation,
+                    evaluation: {
+                        ...currentEvaluation,
+                        careerPathName: configurationLoader.careerPathCode.name( currentEvaluation.careerPath )
+                    },
                     userRole: userRole,
                     deadlineDate: deadlineDate,
                     canEdit: canEdit, // Used only for UI visualization purposes - do NOT rely on this!

@@ -53,6 +53,10 @@
     grid-template-columns: 220px minmax(220px, 1fr);
 }
 
+.ti-form-grid.feedback {
+    grid-template-columns: minmax(220px, 1fr);
+}
+
 .competence-grid-value-group {
     display: grid;
     gap: var(--ti-grid-gap);
@@ -69,6 +73,10 @@
 .competence-grid-value-group.grading {
     grid-template-columns: 36px 120px 1fr;
     align-items: center;
+}
+
+.competence-grid-value-group.score {
+    grid-template-columns: 80px minmax(200px, 1fr);
 }
 
 .competence-list {
@@ -129,6 +137,7 @@
 }
 
 .competence-instructions,
+.competence-feedback,
 .competence-category {
     display: flex;
     flex-direction: column;
@@ -136,7 +145,6 @@
     width: 100%;
     min-width: var(--competence-appraisal-form-min-width);
     font-size: 12px;
-    font-weight: 600;
     color: var(--ti-label-color);
 }
 
@@ -149,6 +157,8 @@
 
 .competence-category-name {
     font-variant-caps: all-small-caps;
+    font-size: 14px;
+    font-weight: 600;
     letter-spacing: 0.04em;
 }
 
@@ -182,6 +192,8 @@
 
 .competence-subcategory-title {
     font-variant-caps: all-small-caps;
+    font-size: 14px;
+    font-weight: 600;
     letter-spacing: 0.04em;
 }
 
@@ -263,6 +275,7 @@
 .role-banner-text {
     font-variant-caps: all-small-caps;
     font-size: 14px;
+    font-weight: 600;
     letter-spacing: 0.04em;
     padding-top: 5px;
 }
@@ -354,7 +367,6 @@
     width: 100%;
     min-width: var(--competence-appraisal-form-min-width);
     font-size: 12px;
-    font-weight: 600;
     color: var(--ti-label-color);
 }
 
@@ -367,6 +379,8 @@
 
 .employees-unit-title {
     font-variant-caps: all-small-caps;
+    font-size: 14px;
+    font-weight: 600;
     letter-spacing: 0.04em;
 }
 

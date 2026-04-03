@@ -10,6 +10,12 @@
       "careerPath": "SE01",
       "stageLevel": "R1",
       "scores": {},
+      "finalScore": {},
+      "comment": "",
+      "feedback": {
+        "managerComment": "",
+        "teamComments": []
+      },
       "workflow": {
         "currentStep": 1,
         "selfEvaluationCompleted": false,
@@ -29,19 +35,91 @@
       "cycleDate": "2025-06-30",
       "status": "In Review",
       "grades": {
-        "E1-1": { "employee": "R", "manager": "", "team": { "cumulative": "U", "individual": [] } },
-        "E1-2": { "employee": "S", "manager": "", "team": { "cumulative": "R", "individual": [] } },
-        "E1-5": { "employee": "R", "manager": "", "team": { "cumulative": "R", "individual": [] } },
-        "E2-3": { "employee": "R", "manager": "", "team": { "cumulative": "R", "individual": [] } },
-        "E2-4": { "employee": "U", "manager": "", "team": { "cumulative": "R", "individual": [] } },
-        "I2-1": { "employee": "S", "manager": "", "team": { "cumulative": "S", "individual": [] } },
-        "C1-1": { "employee": "R", "manager": "", "team": { "cumulative": "R", "individual": [] } },
-        "C3-2": { "employee": "R", "manager": "", "team": { "cumulative": "U", "individual": [] } },
-        "C3-3": { "employee": "R", "manager": "", "team": { "cumulative": "U", "individual": [] } }
+        "E1-1": {
+          "employee": "R",
+          "manager": "",
+          "team": {
+            "cumulative": "U",
+            "individual": []
+          }
+        },
+        "E1-2": {
+          "employee": "S",
+          "manager": "",
+          "team": {
+            "cumulative": "R",
+            "individual": []
+          }
+        },
+        "E1-5": {
+          "employee": "R",
+          "manager": "",
+          "team": {
+            "cumulative": "R",
+            "individual": []
+          }
+        },
+        "E2-3": {
+          "employee": "R",
+          "manager": "",
+          "team": {
+            "cumulative": "R",
+            "individual": []
+          }
+        },
+        "E2-4": {
+          "employee": "U",
+          "manager": "",
+          "team": {
+            "cumulative": "R",
+            "individual": []
+          }
+        },
+        "I2-1": {
+          "employee": "S",
+          "manager": "",
+          "team": {
+            "cumulative": "S",
+            "individual": []
+          }
+        },
+        "C1-1": {
+          "employee": "R",
+          "manager": "",
+          "team": {
+            "cumulative": "R",
+            "individual": []
+          }
+        },
+        "C3-2": {
+          "employee": "R",
+          "manager": "",
+          "team": {
+            "cumulative": "U",
+            "individual": []
+          }
+        },
+        "C3-3": {
+          "employee": "R",
+          "manager": "",
+          "team": {
+            "cumulative": "U",
+            "individual": []
+          }
+        }
       },
       "careerPath": "SE01",
       "stageLevel": "R2",
       "scores": {},
+      "finalScore": {},
+      "comment": "This is an employee comment.",
+      "feedback": {
+        "managerComment": "This is a manager comment.",
+        "teamComments": [
+          "This is a team comment 1.",
+          "This is a team comment 2."
+        ]
+      },
       "workflow": {
         "currentStep": 1,
         "selfEvaluationCompleted": false,
@@ -67,6 +145,12 @@
       "careerPath": "PM01",
       "stageLevel": "J3",
       "scores": {},
+      "finalScore": {},
+      "comment": "",
+      "feedback": {
+        "managerComment": "",
+        "teamComments": []
+      },
       "workflow": {
         "currentStep": 1,
         "selfEvaluationCompleted": false,
