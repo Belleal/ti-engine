@@ -238,6 +238,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                         evaluation: ( canSeePersonalData && latestEvaluation ) ? {
                             evaluationID: latestEvaluation.evaluationID,
                             status: latestEvaluation.status,
+                            statusName: configurationLoader.evaluationStatus.name( latestEvaluation.status ),
                             date: evaluationDate
                         } : null
                     };
@@ -622,7 +623,9 @@ class CompetenceWebApplication extends TiWebAppManager {
                     },
                     evaluation: {
                         ...currentEvaluation,
-                        careerPathName: configurationLoader.careerPathCode.name( currentEvaluation.careerPath )
+                        careerPathName: configurationLoader.careerPathCode.name( currentEvaluation.careerPath ),
+                        statusName: configurationLoader.evaluationStatus.name( currentEvaluation.status ),
+                        statusDescription: configurationLoader.evaluationStatus.description( currentEvaluation.status )
                     },
                     userRole: userRole,
                     deadlineDate: deadlineDate,

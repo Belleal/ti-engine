@@ -48,6 +48,7 @@
                                             <div class="employees-list-head-label level" x-text-label="interface.employees.columns.level"></div>
                                             <div class="employees-list-head-label since" x-text-label="interface.employees.columns.since"></div>
                                             <div class="employees-list-head-label evaluation" x-text-label="interface.employees.columns.evaluation"></div>
+                                            <div class="employees-list-head-label actions" x-text-label="interface.employees.columns.actions"></div>
                                         </div>
 
                                         <template x-for="( employee, index ) in unit.employees" x-bind:key="'unit-dynamic-' + unit.id + '-' + index">
@@ -56,21 +57,26 @@
                                                 <div class="ti-data-value compact-centered"
                                                      x-text="employee.career.level + ( employee.career.stage || '' )"></div>
                                                 <div class="ti-data-value" x-text="formatDate( employee.career.startingDate )"></div>
-                                                <div class="employees-evaluation" x-show="employee.isCurrentUser || isManagerView">
+                                                <div class="employees-evaluation">
                                                     <span class="employees-evaluation-status"
-                                                          x-text="employee.evaluation ? employee.evaluation.status : 'Not Started'"></span>
+                                                          x-show="employee.isCurrentUser || isManagerView"
+                                                          x-text="getLabel( employee.evaluation ? employee.evaluation.statusName : 'framework.status.name.not-started' )"></span>
                                                     <span class="employees-evaluation-date"
+                                                          x-show="employee.isCurrentUser || isManagerView"
                                                           x-text="employee.evaluation ? formatDate( employee.evaluation.date ) : ''"></span>
                                                 </div>
                                                 <div class="employees-actions">
                                                     <button type="button" class="ti-button inline ti-glass-btn-black large on-screen"
-                                                            x-show="employee.evaluation"
+                                                            x-show="employee.evaluation && ( isManagerView || employee.isCurrentUser )"
                                                             x-on:click="openEvaluation( employee.id, employee.evaluation.evaluationID )"
                                                             x-text-label="interface.employees.actions.review"></button>
                                                     <button type="button" class="ti-button inline ti-glass-btn-black large on-screen"
-                                                            x-show="!employee.evaluation && isManagerView"
+                                                            x-show="!employee.evaluation && isManagerView && !employee.isCurrentUser"
                                                             x-on:click="startEvaluation( employee.id )"
                                                             x-text-label="interface.employees.actions.start-new"></button>
+                                                    <span class="ti-icon lock dark-style competence-icon-lock" role="img"
+                                                          x-show="( !isManagerView && !employee.isCurrentUser ) || ( employee.isCurrentUser && !employee.evaluation )"
+                                                          x-text-label:aria-label="interface.evaluation.competencies.locked"></span>
                                                 </div>
                                             </div>
                                         </template>

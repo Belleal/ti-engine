@@ -3,8 +3,8 @@
     {
       "evaluationID": "adef433c-9a9d-42d4-abdc-26ca3a48827e",
       "employeeID": "1",
-      "cycleID": "2025.H1",
-      "cycleDate": "2025-06-30",
+      "cycleID": "2026.H1",
+      "cycleDate": "2026-06-30",
       "status": "Deleted",
       "grades": {},
       "careerPath": "SE01",
@@ -31,8 +31,8 @@
     {
       "evaluationID": "d43d14e1-dc96-48de-92f5-adb16586c178",
       "employeeID": "1",
-      "cycleID": "2025.H1",
-      "cycleDate": "2025-06-30",
+      "cycleID": "2026.H1",
+      "cycleDate": "2026-06-30",
       "status": "In Review",
       "grades": {
         "E1-1": {
@@ -122,12 +122,12 @@
       },
       "workflow": {
         "currentStep": 1,
-        "selfEvaluationCompleted": false,
-        "selfEvaluationDeadline": "",
+        "selfEvaluationCompleted": true,
+        "selfEvaluationDeadline": "2026-07-17",
         "managerEvaluationCompleted": false,
-        "managerEvaluationDeadline": "",
-        "teamEvaluationCompleted": false,
-        "teamEvaluationDeadline": "",
+        "managerEvaluationDeadline": "2026-07-17",
+        "teamEvaluationCompleted": true,
+        "teamEvaluationDeadline": "2026-07-17",
         "teamEvaluationsSubmitted": 0,
         "team": [
           "2"
@@ -137,9 +137,9 @@
     {
       "evaluationID": "1735bb0a-62c5-415a-b37d-06a26c9939e3",
       "employeeID": "2",
-      "cycleID": "2025.H1",
-      "cycleDate": "2025-06-30",
-      "interviewDate": "2025-06-17",
+      "cycleID": "2026.H1",
+      "cycleDate": "2026-06-30",
+      "interviewDate": "2025-07-17",
       "status": "Open",
       "grades": {},
       "careerPath": "PM01",

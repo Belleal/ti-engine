@@ -62,6 +62,11 @@
                 <div class="ti-data-value"
                      x-text="getLabel( evaluation.finalScore && evaluation.finalScore.interpretationName ? evaluation.finalScore.interpretationName : 'interface.evaluation.default.not-ready' )"></div>
             </div>
+            <div class="ti-label" x-text-label="interface.evaluation.appraisal.current-status"></div>
+            <div class="competence-grid-value-group status">
+                <div class="ti-data-value compact-centered" x-text="getLabel( evaluation.statusName )"></div>
+                <div class="competence-status-description" x-text="getLabel( evaluation.statusDescription )"></div>
+            </div>
         </div>
 
         <span class="ti-spacer-v-10"></span>
@@ -239,7 +244,7 @@
                 <textarea class="ti-input area" rows="4"
                           x-on:input="setFeedbackComment( 'team', $event.target.value )"
                           x-show="userRole === 4 && canEdit"></textarea>
-                <div x-show="userRole === 2">
+                <div class="competence-team-feedback-grid" x-show="userRole === 2">
                     <template x-for="( comment, index ) in getFeedbackComment( 'team' )" x-bind:key="index">
                         <div class="ti-data-value" x-text="comment || getLabel( 'interface.evaluation.default.not-provided' )"></div>
                     </template>

@@ -44,8 +44,9 @@ class CompetenceFramework {
 
     static #instance = null;
 
-    #evaluationCycleID = "2025.H1";
-    #evaluationCycleDate = "2025-06-30";
+    // TODO: These need to be configurable!
+    #evaluationCycleID = "2026.H1";
+    #evaluationCycleDate = "2026-06-30";
     #evaluationScoreMatrices = {};
 
     /**

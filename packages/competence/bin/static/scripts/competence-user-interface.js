@@ -70,7 +70,10 @@ let configureCompetencyEvaluation = () => {
             this.userRole = fresh.userRole;
             this.deadlineDate = fresh.deadlineDate;
             this.canEdit = fresh.canEdit;
-            this.evaluation = fresh.evaluation ? tiToolbox.structuredClone( fresh.evaluation ) : {};
+            this.evaluation = fresh.evaluation ? tiToolbox.structuredClone( fresh.evaluation ) : {
+                scores: {},
+                finalScore: {}
+            };
             this.competencies = fresh.competencies ? tiToolbox.structuredClone( fresh.competencies ) : {};
         },
 
@@ -304,6 +307,10 @@ let configureEmployeesList = () => {
                 return values.trim();
             }
             return "";
+        },
+
+        getLabel( label ) {
+            return tiApplication.getLabel( label );
         },
 
         formatDate( value, placeholder = "" ) {

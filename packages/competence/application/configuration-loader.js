@@ -52,11 +52,12 @@ module.exports.careerPathCode = careerPathCodeEnum;
  * @typedef {EvaluationStatusValue} EvaluationStatus
  */
 const evaluationStatusEnum = tools.enum( {
-    OPEN: [ "Open", "Open", "The evaluation form is open for self and team submissions." ],
-    IN_REVIEW: [ "In Review", "In Review", "The evaluation form is in review by the manager." ],
-    READY: [ "Ready", "Ready", "The evaluation form was reviewed and is now ready for interview scheduling." ],
-    CLOSED: [ "Closed", "Closed", "The evaluation form is closed and the evaluation cannot be modified." ],
-    DELETED: [ "Deleted", "Deleted", "The evaluation form has been deleted and cannot be accessed." ]
+    NOT_STARTED: [ "Not Started", "framework.status.name.not-started", "framework.status.description.not-started" ],
+    OPEN: [ "Open", "framework.status.name.open", "framework.status.description.open" ],
+    IN_REVIEW: [ "In Review", "framework.status.name.in-review", "framework.status.description.in-review" ],
+    READY: [ "Ready", "framework.status.name.ready", "framework.status.description.ready" ],
+    CLOSED: [ "Closed", "framework.status.name.closed", "framework.status.description.closed" ],
+    DELETED: [ "Deleted", "framework.status.name.deleted", "framework.status.description.deleted" ]
 } );
 module.exports.evaluationStatus = evaluationStatusEnum;
 

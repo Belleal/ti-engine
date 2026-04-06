@@ -9,7 +9,8 @@
     --employees-row-career-path-width: 220px;
     --employees-row-level-width: 60px;
     --employees-row-since-width: 120px;
-    --employees-row-evaluation-width: 320px;
+    --employees-row-evaluation-width: 220px;
+    --employees-row-actions-width: 120px;
     --employees-static-width: calc(var(--employees-row-id-width) + var(--employees-row-name-width) + var(--ti-grid-gap));
     --employees-dynamic-min-width: calc(var(--employees-row-career-path-width) + var(--employees-row-level-width) + var(--employees-row-since-width) + var(--employees-row-evaluation-width) + (var(--ti-grid-gap) * 3));
     --employees-unit-indent: 16px;
@@ -68,6 +69,10 @@
 
 .competence-grid-value-group.appraisal-cycle {
     grid-template-columns: 80px minmax(200px, 1fr);
+}
+
+.competence-grid-value-group.status {
+    grid-template-columns: 120px minmax(200px, 1fr);
 }
 
 .competence-grid-value-group.grading {
@@ -164,7 +169,8 @@
 
 .competence-grading-description,
 .competence-item-description,
-.competence-category-description {
+.competence-category-description,
+.competence-status-description {
     font-weight: 500;
     font-style: italic;
     text-align: left;
@@ -177,6 +183,12 @@
 
 .competence-item-description {
     grid-column: 6;
+}
+
+.competence-status-description {
+    grid-column: 2;
+    font-size: 12px;
+    align-content: center;
 }
 
 .competence-item-description:empty,
@@ -229,6 +241,11 @@
 .competence-icon-lock {
     width: 20px;
     height: 20px;
+}
+
+.competence-team-feedback-grid {
+    display: grid;
+    gap: var(--ti-grid-gap);
 }
 
 .ti-input.grade {
@@ -342,7 +359,7 @@
         var(--employees-row-level-width)
         var(--employees-row-since-width)
         var(--employees-row-evaluation-width)
-        minmax(0, 1fr);
+        minmax(var(--employees-row-actions-width), 1fr);
     gap: var(--ti-grid-gap);
     align-items: center;
     min-width: var(--employees-dynamic-min-width);
@@ -406,6 +423,14 @@
 .employees-list-head-label.id,
 .employees-list-head-label.name {
     text-align: left;
+}
+
+.employees-list-head-label.career-path,
+.employees-list-head-label.level,
+.employees-list-head-label.since,
+.employees-list-head-label.evaluation,
+.employees-list-head-label.actions {
+    text-align: center;
 }
 
 .employees-id {

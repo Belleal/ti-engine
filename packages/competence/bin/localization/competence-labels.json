@@ -2459,6 +2459,60 @@
           }
         }
       }
+    },
+    "status": {
+      "description": {
+        "not-started": {
+          "en": "The Evaluation is not yet started.",
+          "bg": "Оценката все още не е започната."
+        },
+        "open": {
+          "en": "The Evaluation is open for self and team submissions.",
+          "bg": "Оценката е отворена за попълване от служителя и членовете на екипа."
+        },
+        "in-review": {
+          "en": "The Evaluation is in review and rating by the manager.",
+          "bg": "Оценката е в процес на преглед и попълване от страна на мениджъра."
+        },
+        "ready": {
+          "en": "The Evaluation was reviewed and is now ready for interview scheduling.",
+          "bg": "Оценката е прегледана и готова за започване на интервюто."
+        },
+        "closed": {
+          "en": "The Evaluation is now closed and cannot be modified further.",
+          "bg": "Оценката е затворена и не може да бъде променяна."
+        },
+        "deleted": {
+          "en": "The Evaluation has been deleted and cannot be accessed.",
+          "bg": "Оценката е изтрита и не може да бъде достъпена."
+        }
+      },
+      "name": {
+        "not-started": {
+          "en": "Not Started",
+          "bg": "Незапочната"
+        },
+        "open": {
+          "en": "Open",
+          "bg": "Отворена"
+        },
+        "in-review": {
+          "en": "In Review",
+          "bg": "За Преглед"
+        },
+        "ready": {
+          "en": "Ready",
+          "bg": "Готова"
+        },
+        "closed": {
+          "en": "Closed",
+          "bg": "Затворена"
+        },
+        "deleted": {
+          "en": "Deleted",
+          "bg": "Изтрита"
+        }
+      }
     }
   },
   "interface": {
@@ -2599,6 +2653,10 @@
         "category-score": {
           "en": "Category Score:",
           "bg": "Оценка на Кетегорията:"
+        },
+        "current-status": {
+          "en": "Current Status:",
+          "bg": "Текущ Статус:"
         }
       },
       "competencies": {
@@ -2699,6 +2757,10 @@
         "evaluation": {
           "en": "Evaluation",
           "bg": "Оценка на Представянето"
+        },
+        "actions": {
+          "en": "Actions",
+          "bg": "Действия"
         }
       },
       "actions": {
