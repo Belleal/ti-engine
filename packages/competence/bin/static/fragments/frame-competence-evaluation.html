@@ -220,6 +220,7 @@
                 <div class="ti-label" x-text-label="interface.evaluation.appraisal.employee-comment"></div>
                 <textarea class="ti-input area" rows="4"
                           x-text="getFeedbackComment( 'employee' )"
+                          x-on:input="setFeedbackComment( 'employee', $event.target.value )"
                           x-show="userRole === 1 && canEdit"></textarea>
                 <div class="ti-data-value" x-text="getFeedbackComment( 'employee' )"
                      x-show="userRole === 2 || ( userRole === 1 && !canEdit )"></div>
@@ -228,6 +229,7 @@
                 <div class="ti-label" x-text-label="interface.evaluation.appraisal.manager-comment"></div>
                 <textarea class="ti-input area" rows="4"
                           x-text="getFeedbackComment( 'manager' )"
+                          x-on:input="setFeedbackComment( 'manager', $event.target.value )"
                           x-show="userRole === 2 && canEdit"></textarea>
                 <div class="ti-data-value" x-text="getFeedbackComment( 'manager' )"
                      x-show="userRole === 1 || ( userRole === 2 && !canEdit )"></div>
@@ -235,6 +237,7 @@
             <div class="ti-form-grid feedback" x-show="userRole === 2 || ( userRole === 4 && canEdit )">
                 <div class="ti-label" x-text-label="interface.evaluation.appraisal.team-comment"></div>
                 <textarea class="ti-input area" rows="4"
+                          x-on:input="setFeedbackComment( 'team', $event.target.value )"
                           x-show="userRole === 4 && canEdit"></textarea>
                 <div x-show="userRole === 2">
                     <template x-for="( comment, index ) in getFeedbackComment( 'team' )" x-bind:key="index">

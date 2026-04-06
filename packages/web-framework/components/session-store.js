@@ -37,7 +37,7 @@ class SessionStore extends session.Store {
      *
      * @method
      * @param {string} sessionID
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {function( (Error|TiException|null)= )} callback
      * @public
      */
@@ -58,7 +58,7 @@ class SessionStore extends session.Store {
      *
      * @method
      * @param {string} sessionID
-     * @param {function( (Error|TiException|null)=, (Object)= )} callback
+     * @param {function( (Error|TiException|null)=, (TiSession)= )} callback
      * @public
      */
     get( sessionID, callback ) {
@@ -92,7 +92,7 @@ class SessionStore extends session.Store {
      *
      * @method
      * @param {string} sessionID
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {function( (Error|TiException|null)= )} callback
      * @public
      */

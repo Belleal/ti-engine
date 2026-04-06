@@ -39,6 +39,7 @@ let configureCompetencyEvaluation = () => {
             scores: {},
             finalScore: {}
         },
+        feedback: {},
         competencies: {},
         grades: {},
         showEvaluationForm: false,
@@ -167,6 +168,18 @@ let configureCompetencyEvaluation = () => {
             this.evaluation.grades = this.evaluation.grades || {};
             this.evaluation.grades[ competencyCode ] = this.evaluation.grades[ competencyCode ] || {};
             this.evaluation.grades[ competencyCode ][ role ] = value;
+        },
+
+        setFeedbackComment( role, value ) {
+            if ( role === "employee" ) {
+                this.evaluation.comment = value;
+            } else if ( role === "manager" ) {
+                this.evaluation.feedback = this.evaluation.feedback || {};
+                this.evaluation.feedback.managerComment = value;
+            } else if ( role === "team" ) {
+                this.evaluation.feedback = this.evaluation.feedback || {};
+                this.evaluation.feedback.teamComments = value;
+            }
         },
 
         getFeedbackComment( role ) {

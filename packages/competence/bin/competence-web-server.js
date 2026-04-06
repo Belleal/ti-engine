@@ -78,6 +78,25 @@ class CompetenceWebServer extends TiWebServer {
         super.defineWebApplicationRoutes();
     }
 
+    /**
+     * Used to augment the session with additional data.
+     *
+     * @method
+     * @override
+     * @param {TiSession} session
+     * @returns {TiSession}
+     * @public
+     */
+    augmentSession( session ) {
+        // TODO: This part is for testing purposes only! Normally, the employeeID (if any) and roles should come from the AD response.
+        if ( session.user ) {
+            session.user.employeeID = session.user.employeeID || "20";
+            session.user.roles = [ 1, 2 ];
+        }
+
+        return session;
+    }
+
 }
 
 module.exports = CompetenceWebServer;

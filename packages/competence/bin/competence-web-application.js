@@ -122,6 +122,20 @@ class CompetenceWebApplication extends TiWebAppManager {
         }
     }
 
+    /**
+     * Used to verify whether the current user has access to the requested resource.
+     *
+     * @method
+     * @override
+     * @param {TiSession} session
+     * @param {*} resource
+     * @returns {Promise}
+     * @public
+     */
+    verifyAccess( session, resource ) {
+        return Promise.resolve();
+    }
+
     /* Private interface */
 
     /**
