@@ -43,6 +43,7 @@ let configureCompetencyEvaluation = () => {
         competencies: {},
         grades: {},
         showEvaluationForm: false,
+        warningMessage: "",
 
         init() {
             const onInitialized = () => {
@@ -75,6 +76,8 @@ let configureCompetencyEvaluation = () => {
                 finalScore: {}
             };
             this.competencies = fresh.competencies ? tiToolbox.structuredClone( fresh.competencies ) : {};
+
+            this.warningMessage = this.getEvaluationWarning();
         },
 
         loadEmployeeEvaluation( employeeID ) {
@@ -183,6 +186,29 @@ let configureCompetencyEvaluation = () => {
                 this.evaluation.feedback = this.evaluation.feedback || {};
                 this.evaluation.feedback.teamComments = value;
             }
+        },
+
+        getEvaluationWarning() {
+            if ( !this.evaluation ) {
+                return "";
+            }
+
+            const now = new Date();
+            const deadline = this.deadlineDate ? new Date( this.deadlineDate ) : null;
+
+            if ( deadline && now > deadline ) {
+                return "interface.evaluation.messages.deadline-expired";
+            } else if ( this.userRole === 2 ) {
+                if ( this.evaluation.status === 'Open' ) {
+                    return "interface.evaluation.messages.waiting-for-employees";
+                }
+            } else if ( this.userRole === 1 ) {
+                if ( this.evaluation.status === 'In Review' ) {
+                    return "interface.evaluation.messages.waiting-for-manager";
+                }
+            }
+
+            return "";
         },
 
         getFeedbackComment( role ) {

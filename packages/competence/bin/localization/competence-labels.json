@@ -2707,6 +2707,18 @@
         "submitted": {
           "en": "The Evaluation was submitted successfully.",
           "bg": "Оценката беше изпратена успешно."
+        },
+        "waiting-for-employees": {
+          "en": "The Evaluation is waiting for the employee and team members to submit their ratings.",
+          "bg": "Оценката очаква служителят и членовете на екипа да подадат оценките си."
+        },
+        "waiting-for-manager": {
+          "en": "The Evaluation is waiting for the manager to submit their rating.",
+          "bg": "Оценката очаква мениджъра да подаде оценката си."
+        },
+        "deadline-expired": {
+          "en": "The deadline for submitting rating to this Evaluation has passed.",
+          "bg": "Срокът за подаване на оценки за тази Оценка е изтекъл."
         }
       }
     },

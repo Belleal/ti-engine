@@ -27,16 +27,19 @@
                 x-text-label="interface.evaluation.actions.submit"></button>
     </div>
 
-    <div x-show="showEvaluationForm && evaluation" class="ti-panel ti-sub-panel">
-        <div class="role-banner" x-bind:class="getUserRoleAsText()" x-show="userRole">
-            <div class="role-banner-text">
-                <span x-show="userRole === 1" x-text-label="interface.evaluation.banners.employee"></span>
-                <span x-show="userRole === 2" x-text-label="interface.evaluation.banners.manager"></span>
-                <span x-show="userRole === 4" x-text-label="interface.evaluation.banners.team"></span>
-            </div>
+    <div x-show="showEvaluationForm && evaluation" class="ti-panel ti-sub-panel role-banner" x-bind:class="getUserRoleAsText()">
+        <div class="role-banner-text" x-show="userRole">
+            <span x-show="userRole === 1" x-text-label="interface.evaluation.banners.employee"></span>
+            <span x-show="userRole === 2" x-text-label="interface.evaluation.banners.manager"></span>
+            <span x-show="userRole === 4" x-text-label="interface.evaluation.banners.team"></span>
         </div>
 
-        <span class="ti-spacer-v-10"></span>
+        <div x-show="warningMessage" class="competence-warning-box">
+            <div class="ti-icon warning dark-style" role="img" x-text-label:aria-label="interface.evaluation.warnings.title"></div>
+            <div class="competence-warning-text" x-text="getLabel( warningMessage )"></div>
+        </div>
+
+        <span class="ti-spacer-v-10" x-show="userRole"></span>
 
         <div class="ti-sub-panel-title" x-text-label="interface.evaluation.appraisal.title"></div>
         <div class="ti-form-grid competence">
