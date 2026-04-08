@@ -369,6 +369,10 @@ body {
     box-shadow: 0 0 4px 2px var(--ti-input-outline-shadow-color);
 }
 
+.ti-input.area {
+    resize: vertical;
+}
+
 .ti-data-value {
     background-color: var(--ti-data-field-background-color);
     font-size: var(--ti-label-font-size);

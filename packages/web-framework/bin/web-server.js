@@ -357,13 +357,28 @@ class TiWebServer extends ServiceConsumer {
      * Used to verify the session of a request.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @returns {boolean}
      * @public
      */
     verifySession( session ) {
         // TODO: Implement this!
         return Boolean( session && session.user );
+    }
+
+    /**
+     * Used to augment the session with additional data.
+     * <br/>
+     * NOTE: The base method simply returns the same session object. Override this in custom Web Servers to define behavior.
+     *
+     * @method
+     * @virtual
+     * @param {TiSession} session
+     * @returns {TiSession}
+     * @public
+     */
+    augmentSession( session ) {
+        return session;
     }
 
     /**
@@ -502,10 +517,10 @@ class TiWebServer extends ServiceConsumer {
         this.#unprotectedRoutes.push( "/app" );
         this.#unprotectedRoutes.push( "/app/enter" );
         this.#unprotectedRoutes.push( "/app/config" );
-        this.#unprotectedRoutes.push( /^\/login\/[^\/]+$/i );
+        this.#unprotectedRoutes.push( /^\/login\/[^/]+$/i );
         this.#unprotectedRoutes.push( "/logout" );
-        this.#unprotectedRoutes.push( /^\/static\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
-        this.#unprotectedRoutes.push( /^\/\.well-known\/(?:.+\/)*[^\/]+\.[^\/]+$/i );
+        this.#unprotectedRoutes.push( /^\/static\/(?:.+\/)*[^/]+\.[^/]+$/i );
+        this.#unprotectedRoutes.push( /^\/\.well-known\/(?:.+\/)*[^/]+\.[^/]+$/i );
     }
 
     /* Private interface */

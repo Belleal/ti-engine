@@ -174,7 +174,7 @@ class TiWebAppManager {
      * Used to assemble the complete HTML view for the requested route, including nested HTML fragments.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {string[]} staticContentPaths
      * @param {string} route
      * @param {Object} [options]
@@ -195,7 +195,7 @@ class TiWebAppManager {
                 fragment = this.#fragments[ 'home' ];
                 getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, fragment, { ...localOptions, isHome: true } ) );
             } else if ( route === "/app/error" ) {
-                // TODO: This is for testing purposes only. Remove later.
+                // TODO: This endpoint is for testing purposes only. Remove later.
                 return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_METHOD ) );
             } else if ( route === "/app" || route === "/app/enter" ) {
                 fragment = ( session && session.user ) ? this.#fragments[ 'application-main' ] : this.#fragments[ 'login' ];
@@ -238,7 +238,7 @@ class TiWebAppManager {
      * Used to process a request for a data resource.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {string} view
      * @param {Object} [options]
      * @returns {Promise<Object>}
@@ -264,7 +264,7 @@ class TiWebAppManager {
      * Used to process an application service request.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {string} service
      * @param {Object} params
      * @returns {Promise<Object>}
@@ -277,13 +277,29 @@ class TiWebAppManager {
         } );
     }
 
+    /**
+     * Used to verify whether the current user has access to the requested resource.
+     * <br/>
+     * NOTE: Override in subclasses to implement the desired behavior.
+     *
+     * @method
+     * @virtual
+     * @param {TiSession} session
+     * @param {*} resource
+     * @returns {Promise}
+     * @public
+     */
+    verifyAccess( session, resource ) {
+        return Promise.resolve();
+    }
+
     /* Private interface */
 
     /**
      * Returns the HTML fragment for the requested route.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {string[]} staticContentPaths
      * @param {Object} fragment
      * @param {Object} [options]
@@ -295,7 +311,7 @@ class TiWebAppManager {
      */
     #getHtmlFragment( session, staticContentPaths, fragment, options = {} ) {
         return new Promise( ( resolve, reject ) => {
-            this.#verifyAccess( session, fragment ).then( () => {
+            this.verifyAccess( session, fragment ).then( () => {
                 return this.#locateStaticFile( staticContentPaths, fragment.path );
             } ).then( ( fileData ) => {
                 return this.#replaceComponentPlaceholders( fileData, staticContentPaths, fragment.components );
@@ -435,22 +451,6 @@ class TiWebAppManager {
         }
 
         return html.slice( 0, start ) + replacementWithInner + html.slice( end );
-    }
-
-    /**
-     * Used to verify whether the current user has access to the requested resource.
-     *
-     * @method
-     * @param {Object} session
-     * @param {Object} resource
-     * @returns {Promise}
-     * @private
-     */
-    #verifyAccess( session, resource ) {
-        return new Promise( ( resolve, reject ) => {
-            // TODO: Implement role based access management.
-            resolve();
-        } );
     }
 
 }

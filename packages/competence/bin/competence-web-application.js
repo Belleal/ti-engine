@@ -122,6 +122,20 @@ class CompetenceWebApplication extends TiWebAppManager {
         }
     }
 
+    /**
+     * Used to verify whether the current user has access to the requested resource.
+     *
+     * @method
+     * @override
+     * @param {TiSession} session
+     * @param {*} resource
+     * @returns {Promise}
+     * @public
+     */
+    verifyAccess( session, resource ) {
+        return Promise.resolve();
+    }
+
     /* Private interface */
 
     /**
@@ -224,6 +238,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                         evaluation: ( canSeePersonalData && latestEvaluation ) ? {
                             evaluationID: latestEvaluation.evaluationID,
                             status: latestEvaluation.status,
+                            statusName: configurationLoader.evaluationStatus.name( latestEvaluation.status ),
                             date: evaluationDate
                         } : null
                     };
@@ -410,6 +425,7 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 // NOTE: Remove information that should not be exposed to some roles:
                 competenceFramework.instance.anonymizeEvaluationGrades( savedEvaluation, userRole );
+                competenceFramework.instance.anonymizeEvaluationScores( savedEvaluation, userRole );
 
                 // NOTE: Make sure to delete the workflow system information:
                 delete savedEvaluation.workflow;
@@ -498,6 +514,7 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 // NOTE: Remove information that should not be exposed to some roles:
                 competenceFramework.instance.anonymizeEvaluationGrades( savedEvaluation, userRole );
+                competenceFramework.instance.anonymizeEvaluationScores( savedEvaluation, userRole );
 
                 // NOTE: Make sure to delete the workflow system information:
                 delete savedEvaluation.workflow;
@@ -587,6 +604,7 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 // NOTE: Remove information that should not be exposed to some roles:
                 competenceFramework.instance.anonymizeEvaluationGrades( currentEvaluation, userRole );
+                competenceFramework.instance.anonymizeEvaluationScores( currentEvaluation, userRole );
 
                 // NOTE: Make sure to delete the workflow system information:
                 delete currentEvaluation.workflow;
@@ -603,7 +621,12 @@ class CompetenceWebApplication extends TiWebAppManager {
                         managerID: organizationContext.managerID,
                         name: organizationContext.managerName
                     },
-                    evaluation: currentEvaluation,
+                    evaluation: {
+                        ...currentEvaluation,
+                        careerPathName: configurationLoader.careerPathCode.name( currentEvaluation.careerPath ),
+                        statusName: configurationLoader.evaluationStatus.name( currentEvaluation.status ),
+                        statusDescription: configurationLoader.evaluationStatus.description( currentEvaluation.status )
+                    },
                     userRole: userRole,
                     deadlineDate: deadlineDate,
                     canEdit: canEdit, // Used only for UI visualization purposes - do NOT rely on this!

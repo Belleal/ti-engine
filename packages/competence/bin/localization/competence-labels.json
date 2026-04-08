@@ -2459,6 +2459,60 @@
           }
         }
       }
+    },
+    "status": {
+      "description": {
+        "not-started": {
+          "en": "The Evaluation is not yet started.",
+          "bg": "Оценката все още не е започната."
+        },
+        "open": {
+          "en": "The Evaluation is open for self and team submissions.",
+          "bg": "Оценката е отворена за попълване от служителя и членовете на екипа."
+        },
+        "in-review": {
+          "en": "The Evaluation is in review and rating by the manager.",
+          "bg": "Оценката е в процес на преглед и попълване от страна на мениджъра."
+        },
+        "ready": {
+          "en": "The Evaluation was reviewed and is now ready for interview scheduling.",
+          "bg": "Оценката е прегледана и готова за започване на интервюто."
+        },
+        "closed": {
+          "en": "The Evaluation is now closed and cannot be modified further.",
+          "bg": "Оценката е затворена и не може да бъде променяна."
+        },
+        "deleted": {
+          "en": "The Evaluation has been deleted and cannot be accessed.",
+          "bg": "Оценката е изтрита и не може да бъде достъпена."
+        }
+      },
+      "name": {
+        "not-started": {
+          "en": "Not Started",
+          "bg": "Незапочната"
+        },
+        "open": {
+          "en": "Open",
+          "bg": "Отворена"
+        },
+        "in-review": {
+          "en": "In Review",
+          "bg": "За Преглед"
+        },
+        "ready": {
+          "en": "Ready",
+          "bg": "Готова"
+        },
+        "closed": {
+          "en": "Closed",
+          "bg": "Затворена"
+        },
+        "deleted": {
+          "en": "Deleted",
+          "bg": "Изтрита"
+        }
+      }
     }
   },
   "interface": {
@@ -2487,6 +2541,16 @@
       }
     },
     "evaluation": {
+      "default": {
+        "not-provided": {
+          "en": "Not Provided",
+          "bg": "Не е предоставен"
+        },
+        "not-ready": {
+          "en": "Not Ready",
+          "bg": "Не е готово"
+        }
+      },
       "banners": {
         "employee": {
           "en": "This is your own Evaluation form",
@@ -2523,10 +2587,6 @@
         "name": {
           "en": "Employee Name:",
           "bg": "Име на служителя:"
-        },
-        "career-path": {
-          "en": "Position & Level:",
-          "bg": "Позиция & Ниво:"
         },
         "organization-unit-id": {
           "en": "Organization Unit:",
@@ -2565,6 +2625,38 @@
         "submission-deadline-not-set": {
           "en": "Not Set",
           "bg": "Няма зададена"
+        },
+        "career-path": {
+          "en": "Position & Level:",
+          "bg": "Позиция & Ниво:"
+        },
+        "feedback-title": {
+          "en": "Feedback & Comments",
+          "bg": "Обратна Връзка & Коментари"
+        },
+        "employee-comment": {
+          "en": "Employee Comment:",
+          "bg": "Коментар от Служител:"
+        },
+        "team-comment": {
+          "en": "Team Member Comment:",
+          "bg": "Коментар от Член на Екипа:"
+        },
+        "manager-comment": {
+          "en": "Manager Comment:",
+          "bg": "Коментар от Мениджър:"
+        },
+        "final-score": {
+          "en": "Final Score:",
+          "bg": "Финална Оценка:"
+        },
+        "category-score": {
+          "en": "Category Score:",
+          "bg": "Оценка на Категорията:"
+        },
+        "current-status": {
+          "en": "Current Status:",
+          "bg": "Текущ Статус:"
         }
       },
       "competencies": {
@@ -2615,6 +2707,18 @@
         "submitted": {
           "en": "The Evaluation was submitted successfully.",
           "bg": "Оценката беше изпратена успешно."
+        },
+        "waiting-for-employees": {
+          "en": "The Evaluation is waiting for the employee and team members to submit their ratings.",
+          "bg": "Оценката очаква служителят и членовете на екипа да подадат оценките си."
+        },
+        "waiting-for-manager": {
+          "en": "The Evaluation is waiting for the manager to submit their rating.",
+          "bg": "Оценката очаква мениджъра да подаде оценката си."
+        },
+        "deadline-expired": {
+          "en": "The deadline for submitting rating to this Evaluation has passed.",
+          "bg": "Срокът за подаване на оценки за тази Оценка е изтекъл."
         }
       }
     },
@@ -2665,6 +2769,10 @@
         "evaluation": {
           "en": "Evaluation",
           "bg": "Оценка на Представянето"
+        },
+        "actions": {
+          "en": "Actions",
+          "bg": "Действия"
         }
       },
       "actions": {

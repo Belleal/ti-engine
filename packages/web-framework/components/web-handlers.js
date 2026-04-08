@@ -111,7 +111,7 @@ let getRequestOrigin = ( request ) => {
  * @method
  * @param {ExpressRequest} request
  * @param {string} redirectTo
- * @param {function( Session ): Session} modifier
+ * @param {function( TiSession ): TiSession} modifier
  * @returns {Promise<string>}
  * @private
  */
@@ -121,8 +121,13 @@ let regenerateAndSaveSession = ( request, redirectTo, modifier ) => {
             if ( error ) {
                 reject( error );
             } else {
-                if ( modifier && typeof modifier === "function" ) {
-                    request.session = modifier( request.session );
+                try {
+                    if ( modifier && typeof modifier === "function" ) {
+                        request.session = modifier( request.session );
+                    }
+                } catch ( error ) {
+                    reject( error );
+                    return;
                 }
                 request.session.save( ( error ) => {
                     if ( error ) {
@@ -243,7 +248,8 @@ module.exports.authenticationHandler = ( instance ) => {
                 return regenerateAndSaveSession( request, "/", ( session ) => {
                     session.user = user.asJSON();
                     session.language = user.language || instance.serviceConfig.language;
-                    return session;
+
+                    return instance.augmentSession( session );
                 } );
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
@@ -291,12 +297,9 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
                     session.user = user.asJSON();
                     session.language = user.language || instance.serviceConfig.language;
 
-                    // TODO: This part is for testing purposes only! Normally, the employeeID (if any) and roles should come from the AD response.
-                    session.user.employeeID = session.user.employeeID || "20";
-                    session.user.roles = [ 1, 2 ];
-
                     delete session.oidc;
-                    return session;
+
+                    return instance.augmentSession( session );
                 } );
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );

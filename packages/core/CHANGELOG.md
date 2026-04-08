@@ -2,6 +2,10 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.4.3
+
+* build(deps): update `@dotenvx/dotenvx` from ^1.59.1 to ^1.60.0
+
 ## Version 1.4.2
 
 * build(deps): update `@dotenvx/dotenvx` from ^1.55.1 to ^1.59.1

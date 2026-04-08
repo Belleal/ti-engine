@@ -7,75 +7,6 @@
 */
 
 /**
- * Initialization data models for the various Competence screens.
- *
- * @constant
- */
-const initialDataModels = {
-    competencyEvaluation: {
-        isTeamEvaluationCollective: false,
-        personal: {
-            name: "",
-            careerPath: "",
-            organizationUnitID: "",
-            organizationUnitName: "",
-            level: "",
-            stage: "",
-            startingDate: ""
-        },
-        manager: {
-            name: ""
-        },
-        evaluation: {
-            cycle: "",
-            cycleID: "",
-            cycleDate: "",
-            interviewDate: ""
-        },
-        competencies: [
-            {
-                id: "E",
-                name: "Expertise",
-                subcategories: [
-                    {
-                        id: "E1",
-                        name: "Theoretical knowledge",
-                        items: []
-                    },
-                    {
-                        id: "E2",
-                        name: "Applied skills",
-                        items: []
-                    }
-                ]
-            },
-            {
-                id: "I",
-                name: "Impact",
-                subcategories: [
-                    {
-                        id: "I1",
-                        name: "Delivery",
-                        items: []
-                    }
-                ]
-            },
-            {
-                id: "C",
-                name: "Collaboration",
-                subcategories: [
-                    {
-                        id: "C1",
-                        name: "Teamwork",
-                        items: []
-                    }
-                ]
-            }
-        ]
-    }
-};
-
-/**
  * Returns a configuration object for the competency evaluation screen.
  *
  * @method
@@ -103,11 +34,16 @@ let configureCompetencyEvaluation = () => {
         isTeamEvaluationCollective: false,
         canEdit: false,
         manager: {},
-        personal: tiToolbox.structuredClone( initialDataModels.competencyEvaluation.personal ),
-        evaluation: tiToolbox.structuredClone( initialDataModels.competencyEvaluation.evaluation ),
-        competencies: tiToolbox.structuredClone( initialDataModels.competencyEvaluation.competencies ),
+        personal: {},
+        evaluation: {
+            scores: {},
+            finalScore: {}
+        },
+        feedback: {},
+        competencies: {},
         grades: {},
         showEvaluationForm: false,
+        warningMessage: "",
 
         init() {
             const onInitialized = () => {
@@ -130,13 +66,18 @@ let configureCompetencyEvaluation = () => {
         applyData( data ) {
             const fresh = ( data && typeof data === "object" ) ? data : {};
             this.isTeamEvaluationCollective = ( fresh.isTeamEvaluationCollective === true );
-            this.personal = tiToolbox.structuredClone( fresh.personal || initialDataModels.competencyEvaluation.personal );
-            this.manager = tiToolbox.structuredClone( fresh.manager || initialDataModels.competencyEvaluation.manager );
+            this.personal = fresh.personal ? tiToolbox.structuredClone( fresh.personal ) : {};
+            this.manager = fresh.manager ? tiToolbox.structuredClone( fresh.manager ) : {};
             this.userRole = fresh.userRole;
             this.deadlineDate = fresh.deadlineDate;
             this.canEdit = fresh.canEdit;
-            this.evaluation = tiToolbox.structuredClone( fresh.evaluation || initialDataModels.competencyEvaluation.evaluation );
-            this.competencies = tiToolbox.structuredClone( fresh.competencies || initialDataModels.competencyEvaluation.competencies );
+            this.evaluation = fresh.evaluation ? tiToolbox.structuredClone( fresh.evaluation ) : {
+                scores: {},
+                finalScore: {}
+            };
+            this.competencies = fresh.competencies ? tiToolbox.structuredClone( fresh.competencies ) : {};
+
+            this.warningMessage = this.getEvaluationWarning();
         },
 
         loadEmployeeEvaluation( employeeID ) {
@@ -157,7 +98,7 @@ let configureCompetencyEvaluation = () => {
                     }
 
                     this.showEvaluationForm = false;
-                    this.applyData( initialDataModels.competencyEvaluation );
+                    this.applyData( {} );
                     tiApplication.notify( tiApplication.formatException( error ) );
                     if ( error.exception?.httpCode === 401 ) {
                         tiApplication.openScreen( "dashboard" );
@@ -174,7 +115,7 @@ let configureCompetencyEvaluation = () => {
             } else if ( this.employeeID ) {
                 this.loadEmployeeEvaluation( this.employeeID );
             } else {
-                this.applyData( initialDataModels.competencyEvaluation );
+                this.applyData( {} );
             }
         },
 
@@ -233,6 +174,58 @@ let configureCompetencyEvaluation = () => {
             this.evaluation.grades = this.evaluation.grades || {};
             this.evaluation.grades[ competencyCode ] = this.evaluation.grades[ competencyCode ] || {};
             this.evaluation.grades[ competencyCode ][ role ] = value;
+        },
+
+        setFeedbackComment( role, value ) {
+            if ( role === "employee" ) {
+                this.evaluation.comment = value;
+            } else if ( role === "manager" ) {
+                this.evaluation.feedback = this.evaluation.feedback || {};
+                this.evaluation.feedback.managerComment = value;
+            } else if ( role === "team" ) {
+                this.evaluation.feedback = this.evaluation.feedback || {};
+                this.evaluation.feedback.teamComments = value;
+            }
+        },
+
+        getEvaluationWarning() {
+            if ( !this.evaluation ) {
+                return "";
+            }
+
+            const now = new Date();
+            const deadline = this.deadlineDate ? new Date( this.deadlineDate ) : null;
+
+            if ( deadline && now > deadline ) {
+                return "interface.evaluation.messages.deadline-expired";
+            } else if ( this.userRole === 2 ) {
+                if ( this.evaluation.status === 'Open' ) {
+                    return "interface.evaluation.messages.waiting-for-employees";
+                }
+            } else if ( this.userRole === 1 ) {
+                if ( this.evaluation.status === 'In Review' ) {
+                    return "interface.evaluation.messages.waiting-for-manager";
+                }
+            }
+
+            return "";
+        },
+
+        getFeedbackComment( role ) {
+            const defaultComment = tiApplication.getLabel( "interface.evaluation.default.not-provided" );
+            if ( role === "employee" ) {
+                return this.evaluation.comment || defaultComment;
+            } else if ( role === "manager" ) {
+                return this.evaluation.feedback?.managerComment || defaultComment;
+            } else if ( role === "team" ) {
+                return this.evaluation.feedback?.teamComments || [];
+            } else {
+                return defaultComment;
+            }
+        },
+
+        getLabel( label ) {
+            return tiApplication.getLabel( label );
         },
 
         formatDate( value, placeholder = "" ) {
@@ -340,6 +333,10 @@ let configureEmployeesList = () => {
                 return values.trim();
             }
             return "";
+        },
+
+        getLabel( label ) {
+            return tiApplication.getLabel( label );
         },
 
         formatDate( value, placeholder = "" ) {
