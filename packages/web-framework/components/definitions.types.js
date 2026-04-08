@@ -7,14 +7,20 @@
 */
 
 /**
+ * @callback TiSessionCallback
+ * @param {Error|null} [error]
+ * @returns {void}
+ */
+
+/**
  * @typedef {Object} TiSession
- * @property {string} sessionID
+ * @property {string} id
  * @property {Object} [user]
  * @property {TiLocalizationLanguage} [language]
  * @property {Object} [cookie]
  * @property {Object} [oidc]
  * @property {string} [csrfToken]
- * @property {function( Error )} regenerate
- * @property {function( Error )} destroy
- * @property {function( Error )} save
+ * @property {function(TiSessionCallback): TiSession} regenerate
+ * @property {function(TiSessionCallback): TiSession} destroy
+ * @property {function(TiSessionCallback=): TiSession} save
  */
