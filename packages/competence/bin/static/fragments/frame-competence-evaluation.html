@@ -1,6 +1,6 @@
 <title id="ti-page-title" hx-swap-oob="outerHTML">{ti-title-placeholder}</title>
 <div class="ti-content pane" x-data="competencyEvaluation()">
-    <div class="ti-panel ti-sub-panel" x-show="personal && manager">
+    <div class="ti-panel ti-sub-panel" x-show="showEvaluationForm && personal.name && manager.name">
         <div class="ti-sub-panel-title" x-text-label="interface.evaluation.personal.title"></div>
         <div class="ti-form-grid competence">
             <div class="ti-label" x-text-label="interface.evaluation.personal.name"></div>
@@ -35,7 +35,7 @@
         </div>
 
         <div x-show="warningMessage" class="competence-warning-box">
-            <div class="ti-icon warning dark-style" role="img" x-text-label:aria-label="interface.evaluation.warnings.title"></div>
+            <div class="ti-icon warning dark-style" role="img"></div>
             <div class="competence-warning-text" x-text="getLabel( warningMessage )"></div>
         </div>
 

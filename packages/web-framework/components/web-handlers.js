@@ -121,8 +121,13 @@ let regenerateAndSaveSession = ( request, redirectTo, modifier ) => {
             if ( error ) {
                 reject( error );
             } else {
-                if ( modifier && typeof modifier === "function" ) {
-                    request.session = modifier( request.session );
+                try {
+                    if ( modifier && typeof modifier === "function" ) {
+                        request.session = modifier( request.session );
+                    }
+                } catch ( error ) {
+                    reject( error );
+                    return;
                 }
                 request.session.save( ( error ) => {
                     if ( error ) {

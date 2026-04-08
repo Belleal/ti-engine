@@ -128,10 +128,8 @@
         "managerEvaluationDeadline": "2026-07-17",
         "teamEvaluationCompleted": true,
         "teamEvaluationDeadline": "2026-07-17",
-        "teamEvaluationsSubmitted": 0,
-        "team": [
-          "2"
-        ]
+        "teamEvaluationsSubmitted": 1,
+        "team": []
       }
     },
     {
@@ -160,7 +158,9 @@
         "teamEvaluationCompleted": false,
         "teamEvaluationDeadline": "",
         "teamEvaluationsSubmitted": 0,
-        "team": []
+        "team": [
+          "2"
+        ]
       }
     }
   ]

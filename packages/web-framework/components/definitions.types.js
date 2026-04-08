@@ -13,4 +13,8 @@
  * @property {TiLocalizationLanguage} [language]
  * @property {Object} [cookie]
  * @property {Object} [oidc]
+ * @property {string} [csrfToken]
+ * @property {function( Error )} regenerate
+ * @property {function( Error )} destroy
+ * @property {function( Error )} save
  */
