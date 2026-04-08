@@ -382,8 +382,10 @@ class CompetenceFramework {
         } else {
             evaluation.finalScore = {};
             evaluation.scores = {};
-            delete evaluation.feedback.managerComment;
-            evaluation.feedback.teamComments = [];
+            if ( evaluation.feedback ) {
+                delete evaluation.feedback.managerComment;
+                evaluation.feedback.teamComments = [];
+            }
             delete evaluation.comment;
         }
     }

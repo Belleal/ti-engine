@@ -243,7 +243,8 @@ module.exports.authenticationHandler = ( instance ) => {
                 return regenerateAndSaveSession( request, "/", ( session ) => {
                     session.user = user.asJSON();
                     session.language = user.language || instance.serviceConfig.language;
-                    return session;
+
+                    return instance.augmentSession( session );
                 } );
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );

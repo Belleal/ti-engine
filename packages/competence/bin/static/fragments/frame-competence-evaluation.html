@@ -226,8 +226,8 @@
         <div class="competence-feedback" x-show="userRole === 1 || userRole === 2 || ( userRole === 4 && canEdit )">
             <div class="ti-form-grid feedback" x-show="userRole === 1 || userRole === 2">
                 <div class="ti-label" x-text-label="interface.evaluation.appraisal.employee-comment"></div>
-                <textarea class="ti-input area" rows="4"
-                          x-text="getFeedbackComment( 'employee' )"
+                <textarea name="employeeFeedbackText" class="ti-input area" rows="4"
+                          x-bind:value="getFeedbackComment( 'employee' )"
                           x-on:input="setFeedbackComment( 'employee', $event.target.value )"
                           x-show="userRole === 1 && canEdit"></textarea>
                 <div class="ti-data-value" x-text="getFeedbackComment( 'employee' )"
@@ -235,8 +235,8 @@
             </div>
             <div class="ti-form-grid feedback" x-show="userRole === 1 || userRole === 2">
                 <div class="ti-label" x-text-label="interface.evaluation.appraisal.manager-comment"></div>
-                <textarea class="ti-input area" rows="4"
-                          x-text="getFeedbackComment( 'manager' )"
+                <textarea name="managerFeedbackText" class="ti-input area" rows="4"
+                          x-bind:value="getFeedbackComment( 'manager' )"
                           x-on:input="setFeedbackComment( 'manager', $event.target.value )"
                           x-show="userRole === 2 && canEdit"></textarea>
                 <div class="ti-data-value" x-text="getFeedbackComment( 'manager' )"
@@ -244,7 +244,7 @@
             </div>
             <div class="ti-form-grid feedback" x-show="userRole === 2 || ( userRole === 4 && canEdit )">
                 <div class="ti-label" x-text-label="interface.evaluation.appraisal.team-comment"></div>
-                <textarea class="ti-input area" rows="4"
+                <textarea name="teamFeedbackText" class="ti-input area" rows="4"
                           x-on:input="setFeedbackComment( 'team', $event.target.value )"
                           x-show="userRole === 4 && canEdit"></textarea>
                 <div class="competence-team-feedback-grid" x-show="userRole === 2">
