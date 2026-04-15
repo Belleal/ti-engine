@@ -184,6 +184,7 @@ body {
     flex-flow: column;
     justify-content: space-between;
     flex: auto;
+    z-index: 1000;
 }
 
 .ti-sidebar-menu {
@@ -451,7 +452,7 @@ body {
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 1000;
+    z-index: 1001;
     transform: none;
 
     /* Box model */
@@ -526,7 +527,7 @@ body {
     white-space: normal;
     overflow-wrap: break-word;
     box-shadow: var(--ti-tooltip-shadow, none);
-    z-index: 1000;
+    z-index: 1005;
     pointer-events: none;
 }
 

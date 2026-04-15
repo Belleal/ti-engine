@@ -11,6 +11,7 @@
     --employees-row-since-width: 120px;
     --employees-row-evaluation-width: 220px;
     --employees-row-actions-width: 120px;
+    --new-evaluation-team-list-max-height: 200px;
     --employees-static-width: calc(var(--employees-row-id-width) + var(--employees-row-name-width) + var(--ti-grid-gap));
     --employees-dynamic-min-width: calc(var(--employees-row-career-path-width) + var(--employees-row-level-width) + var(--employees-row-since-width) + var(--employees-row-evaluation-width) + (var(--ti-grid-gap) * 3));
     --employees-unit-indent: 16px;
@@ -54,6 +55,13 @@
 .ti-icon.warning:hover {
     -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22currentColor%22%20class%3D%22size-6%22%3E%0A%20%20%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M9.401%203.003c1.155-2%204.043-2%205.197%200l7.355%2012.748c1.154%202-.29%204.5-2.599%204.5H4.645c-2.309%200-3.752-2.5-2.598-4.5L9.4%203.003ZM12%208.25a.75.75%200%200%201%20.75.75v3.75a.75.75%200%200%201-1.5%200V9a.75.75%200%200%201%20.75-.75Zm0%208.25a.75.75%200%201%200%200-1.5.75.75%200%200%200%200%201.5Z%22%20clip-rule%3D%22evenodd%22%20%2F%3E%0A%3C%2Fsvg%3E");
     mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22currentColor%22%20class%3D%22size-6%22%3E%0A%20%20%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M9.401%203.003c1.155-2%204.043-2%205.197%200l7.355%2012.748c1.154%202-.29%204.5-2.599%204.5H4.645c-2.309%200-3.752-2.5-2.598-4.5L9.4%203.003ZM12%208.25a.75.75%200%200%201%20.75.75v3.75a.75.75%200%200%201-1.5%200V9a.75.75%200%200%201%20.75-.75Zm0%208.25a.75.75%200%201%200%200-1.5.75.75%200%200%200%200%201.5Z%22%20clip-rule%3D%22evenodd%22%20%2F%3E%0A%3C%2Fsvg%3E");
+}
+
+.ti-icon.remove-small {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='currentColor' class='size-4'%3E%3Cpath d='M2.22 2.22a.75.75 0 0 1 1.06 0L8 6.94l4.72-4.72a.75.75 0 1 1 1.06 1.06L9.06 8l4.72 4.72a.75.75 0 1 1-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 0 1 0-1.06Z' /%3E%3C/svg%3E%0A");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='currentColor' class='size-4'%3E%3Cpath d='M2.22 2.22a.75.75 0 0 1 1.06 0L8 6.94l4.72-4.72a.75.75 0 1 1 1.06 1.06L9.06 8l4.72 4.72a.75.75 0 1 1-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 0 1 0-1.06Z' /%3E%3C/svg%3E%0A");
+    width: 16px;
+    height: 16px;
 }
 
 /* Structural Components */
@@ -503,6 +511,34 @@
     font-weight: 500;
     font-style: italic;
     color: var(--ti-description-color);
+}
+
+.new-evaluation-team-selection {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--ti-grid-gap);
+    align-items: center;
+}
+
+.new-evaluation-team-list {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--ti-grid-gap) / 2);
+    margin-top: var(--ti-grid-gap);
+    padding: var(--ti-panel-padding);
+    border: 1px solid var(--ti-input-border-color);
+    border-radius: var(--ti-panel-border-radius);
+    max-height: var(--new-evaluation-team-list-max-height);
+    overflow-y: auto;
+}
+
+.new-evaluation-team-member {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: calc(var(--ti-data-field-padding-v) / 2) var(--ti-data-field-padding-h);
+    background-color: var(--ti-input-background-color);
+    border-radius: var(--ti-data-field-border-radius);
 }
 
 .employees-evaluation-status:empty,

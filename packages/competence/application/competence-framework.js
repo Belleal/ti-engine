@@ -10,7 +10,7 @@ const tools = require( "@ti-engine/core/tools" );
 const logger = require( "@ti-engine/core/logger" );
 const localization = require( "@ti-engine/core/localization" );
 const configurationLoader = require( "#configuration-loader" );
-const exceptions = require( '@ti-engine/core/exceptions' )
+const exceptions = require( "@ti-engine/core/exceptions" );
 
 const gradeWeights = tools.deepFreeze( {
     [ configurationLoader.evaluationGrade.S ]: configurationLoader.getSetting( "performanceAppraisals.gradeWeights.S" ) ?? 1.3,
@@ -51,7 +51,7 @@ class CompetenceFramework {
 
     /**
      * @constructor
-     * @return {CompetenceFramework}
+     * @returns {CompetenceFramework}
      */
     constructor() {
         if ( !CompetenceFramework.#instance ) {
@@ -64,6 +64,28 @@ class CompetenceFramework {
     }
 
     /* Public interface */
+
+    /**
+     * Property returning the current evaluation cycle ID.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get evaluationCycleID() {
+        return this.#evaluationCycleID;
+    }
+
+    /**
+     * Property returning the current evaluation cycle date.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get evaluationCycleDate() {
+        return this.#evaluationCycleDate;
+    }
 
     /**
      * Used to create a new Evaluation object.

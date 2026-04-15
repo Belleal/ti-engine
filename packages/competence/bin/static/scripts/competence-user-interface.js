@@ -304,13 +304,14 @@ let configureEmployeesList = () => {
             } );
         },
 
-        startEvaluation( employeeID ) {
-            tiApplication.sendRequest( "/app/start-evaluation", "POST", { employeeID: employeeID } ).then( ( result ) => {
-                const evaluationID = result?.data;
-                this.openEvaluation( employeeID, evaluationID );
-            } ).catch( ( error ) => {
-                tiApplication.notify( tiApplication.formatException( error ) );
-            } );
+        startNewEvaluation( employeeID ) {
+            const url = "/app/new-evaluation?employeeID=" + encodeURIComponent( employeeID );
+            if ( window.htmx ) {
+                window.htmx.ajax( "GET", url, { target: "#ti-content", swap: "innerHTML" } );
+                window.history.pushState( null, "", url );
+            } else {
+                window.location.href = url;
+            }
         },
 
         openEvaluation( employeeID, evaluationID ) {
@@ -346,7 +347,123 @@ let configureEmployeesList = () => {
     };
 };
 
+/**
+ * Returns a configuration object for the new evaluation screen.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+let configureNewEvaluation = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    const getEmployeeIDFromUrl = () => {
+        const params = new URLSearchParams( window.location.search );
+        return params.get( "employeeID" );
+    };
+
+    return {
+        employeeID: null,
+        personal: {},
+        manager: {},
+        evaluation: {},
+        availableTeamMembers: [],
+        team: [],
+        selectedTeamMemberID: "",
+
+        init() {
+            const onInitialized = () => {
+                this.employeeID = getEmployeeIDFromUrl();
+                this.loadData( this.employeeID );
+            };
+
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        loadData( employeeID ) {
+            const resolvedID = String( employeeID || "" ).trim();
+            if ( !resolvedID ) {
+                this.applyData( {} );
+            } else {
+                this.employeeID = resolvedID;
+                const url = `/app/load-new-evaluation-data?employeeID=${ encodeURIComponent( resolvedID ) }`;
+                tiApplication.sendRequest( url ).then( ( result ) => {
+                    this.applyData( result?.data );
+                } ).catch( ( error ) => {
+                    if ( error?.name === "AbortError" || error?.isAborted ) {
+                        return;
+                    }
+                    this.applyData( {} );
+                    tiApplication.notify( tiApplication.formatException( error ) );
+                    if ( error.exception?.httpCode === 401 ) {
+                        tiApplication.openScreen( "dashboard" );
+                    }
+                } );
+            }
+        },
+
+        applyData( data ) {
+            const fresh = ( data && typeof data === "object" ) ? data : {};
+            this.personal = fresh.personal ? tiToolbox.structuredClone( fresh.personal ) : {};
+            this.manager = fresh.manager ? tiToolbox.structuredClone( fresh.manager ) : {};
+            this.evaluation = fresh.evaluation ? tiToolbox.structuredClone( fresh.evaluation ) : {};
+            this.availableTeamMembers = fresh.availableTeamMembers ? tiToolbox.structuredClone( fresh.availableTeamMembers ) : [];
+            this.team = [];
+            this.selectedTeamMemberID = "";
+        },
+
+        addTeamMember() {
+            if ( this.selectedTeamMemberID && !this.team.find( m => m.employeeID === this.selectedTeamMemberID ) ) {
+                const member = this.availableTeamMembers.find( m => m.employeeID === this.selectedTeamMemberID );
+                if ( member ) {
+                    this.team.push( { employeeID: member.employeeID, name: member.name } );
+                }
+            }
+            this.selectedTeamMemberID = "";
+        },
+
+        removeTeamMember( employeeID ) {
+            this.team = this.team.filter( m => m.employeeID !== employeeID );
+        },
+
+        submitNewEvaluation() {
+            const teamIDs = this.team.map( m => m.employeeID );
+            tiApplication.sendRequest( "/app/start-evaluation", "POST", {
+                employeeID: this.employeeID,
+                team: teamIDs
+            } ).then( ( result ) => {
+                const evaluationID = result?.data;
+                this.openEvaluation( this.employeeID, evaluationID );
+            } ).catch( ( error ) => {
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        cancel() {
+            tiApplication.openScreen( "employees-list" );
+        },
+
+        formatDate( value, placeholder = "" ) {
+            return tiToolbox.formatDate( value, tiApplication.getLabel( placeholder, "" ) );
+        },
+
+        getLabel( label ) {
+            return tiApplication.getLabel( label );
+        }
+    };
+};
+
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "competencyEvaluation", configureCompetencyEvaluation );
     Alpine.data( "employeesList", configureEmployeesList );
+    Alpine.data( "newEvaluation", configureNewEvaluation );
 } );

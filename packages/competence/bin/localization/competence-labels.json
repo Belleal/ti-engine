@@ -2606,6 +2606,18 @@
           "en": "Performance Appraisal Form",
           "bg": "Форма за Оценка на Представянето"
         },
+        "data": {
+          "en": "Performance Appraisal Data",
+          "bg": "Данни за Оценка на Представянето"
+        },
+        "team-selection": {
+          "en": "Team Selection",
+          "bg": "Избор на Екип"
+        },
+        "employee-list": {
+          "en": "Select Employees:",
+          "bg": "Избор на Служители:"
+        },
         "cycle": {
           "en": "Performance Appraisal Cycle:",
           "bg": "Цикъл на Оценка на Представянето:"
@@ -2697,6 +2709,18 @@
         "submit": {
           "en": "Submit",
           "bg": "Завърши"
+        },
+        "cancel": {
+          "en": "Cancel",
+          "bg": "Откажи"
+        },
+        "remove": {
+          "en": "Remove",
+          "bg": "Премахни"
+        },
+        "add-team-member": {
+          "en": "Add Team Member",
+          "bg": "Добави член на екипа"
         }
       },
       "messages": {

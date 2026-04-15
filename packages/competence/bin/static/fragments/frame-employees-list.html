@@ -72,7 +72,7 @@
                                                             x-text-label="interface.employees.actions.review"></button>
                                                     <button type="button" class="ti-button inline ti-glass-btn-black large on-screen"
                                                             x-show="!employee.evaluation && isManagerView && !employee.isCurrentUser"
-                                                            x-on:click="startEvaluation( employee.id )"
+                                                            x-on:click="startNewEvaluation( employee.id )"
                                                             x-text-label="interface.employees.actions.start-new"></button>
                                                     <span class="ti-icon lock dark-style competence-icon-lock" role="img"
                                                           x-show="( !isManagerView && !employee.isCurrentUser ) || ( employee.isCurrentUser && !employee.evaluation )"
