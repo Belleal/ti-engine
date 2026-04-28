@@ -12,6 +12,7 @@
     --ti-grid-gap: 6px;
     --ti-margin: 12px;
     --ti-padding: 12px;
+    --ti-internal-padding: 6px;
     --ti-error-color: rgb(230 96 96 / 95%);
     --ti-icon-size: 24px;
     --ti-icon-color: #a6a6a6;
@@ -244,8 +245,8 @@ body {
 .ti-button.inline {
     padding: calc(var(--ti-data-field-padding-v) - 1px) var(--ti-data-field-padding-h) calc(var(--ti-data-field-padding-v) + 1px);
     height: var(--ti-button-inline-height);
+    border-radius: var(--ti-data-field-border-radius);
     width: auto;
-    min-width: 120px;
 }
 
 .ti-sidebar-button {
@@ -389,6 +390,10 @@ body {
 
 .ti-data-value.compact-centered {
     justify-content: center;
+}
+
+.ti-data-value.fill-space {
+    flex-grow: 1;
 }
 
 .ti-button-bar {

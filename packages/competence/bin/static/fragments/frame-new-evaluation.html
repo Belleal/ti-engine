@@ -46,18 +46,17 @@
             </div>
         </div>
 
-        <template x-if="team.length > 0">
-            <div class="new-evaluation-team-list">
-                <template x-for="member in team" x-bind:key="member.employeeID">
-                    <div class="new-evaluation-team-member">
-                        <span x-text="member.name"></span>
-                        <button type="button" class="ti-button icon-only ti-glass-btn-black" x-on:click="removeTeamMember( member.employeeID )">
-                            <span class="ti-icon remove-small" role="img" x-text-label:aria-label="interface.evaluation.actions.remove"></span>
-                        </button>
-                    </div>
-                </template>
-            </div>
-        </template>
+        <div class="new-evaluation-team-list">
+            <template x-for="member in team" x-bind:key="member.employeeID">
+                <div class="new-evaluation-team-member">
+                    <span class="ti-data-value fill-space" x-text="member.name"></span>
+                    <button type="button" class="ti-button inline ti-glass-btn-black large on-screen" x-on:click="removeTeamMember( member.employeeID )">
+                        <span class="ti-icon remove-small" role="img" x-text-label:aria-label="interface.evaluation.actions.remove"></span>
+                    </button>
+                </div>
+            </template>
+            <div x-show="team.length <= 0" class="competence-info-text" x-text-label="interface.evaluation.appraisal.empty-team-list"></div>
+        </div>
     </div>
 
     <div class="ti-button-bar ti-sub-panel">

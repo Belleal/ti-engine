@@ -11,7 +11,6 @@
     --employees-row-since-width: 120px;
     --employees-row-evaluation-width: 220px;
     --employees-row-actions-width: 120px;
-    --new-evaluation-team-list-max-height: 200px;
     --employees-static-width: calc(var(--employees-row-id-width) + var(--employees-row-name-width) + var(--ti-grid-gap));
     --employees-dynamic-min-width: calc(var(--employees-row-career-path-width) + var(--employees-row-level-width) + var(--employees-row-since-width) + var(--employees-row-evaluation-width) + (var(--ti-grid-gap) * 3));
     --employees-unit-indent: 16px;
@@ -292,6 +291,7 @@
     margin-top: 10px;
 }
 
+.competence-info-text,
 .competence-warning-text {
     font-variant-caps: all-small-caps;
     font-size: 14px;
@@ -523,22 +523,19 @@
 .new-evaluation-team-list {
     display: flex;
     flex-direction: column;
-    gap: calc(var(--ti-grid-gap) / 2);
-    margin-top: var(--ti-grid-gap);
-    padding: var(--ti-panel-padding);
+    gap: var(--ti-grid-gap);
+    padding: var(--ti-internal-padding);
     border: 1px solid var(--ti-input-border-color);
     border-radius: var(--ti-panel-border-radius);
-    max-height: var(--new-evaluation-team-list-max-height);
+    min-height: var(--ti-button-inline-height);
     overflow-y: auto;
 }
 
 .new-evaluation-team-member {
     display: flex;
-    justify-content: space-between;
+    flex-direction: row;
+    gap: var(--ti-grid-gap);
     align-items: center;
-    padding: calc(var(--ti-data-field-padding-v) / 2) var(--ti-data-field-padding-h);
-    background-color: var(--ti-input-background-color);
-    border-radius: var(--ti-data-field-border-radius);
 }
 
 .employees-evaluation-status:empty,

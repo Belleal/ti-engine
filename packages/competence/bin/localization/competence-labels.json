@@ -2669,6 +2669,10 @@
         "current-status": {
           "en": "Current Status:",
           "bg": "Текущ Статус:"
+        },
+        "empty-team-list": {
+          "en": "No team members selected",
+          "bg": "Няма избрани членове на екипа"
         }
       },
       "competencies": {
