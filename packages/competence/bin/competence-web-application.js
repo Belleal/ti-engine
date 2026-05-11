@@ -70,7 +70,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Used to process a request for a data resource.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {string} view
      * @param {Object} [options]
      * @returns {Promise<Object>}
@@ -110,7 +110,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Used to process an application service request.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {string} service
      * @param {Object} params
      * @returns {Promise<Object>}
@@ -149,7 +149,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Used to load the employee list sorted by organization unit.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @returns {Promise<Object>}
      * @private
      */
@@ -281,11 +281,11 @@ class CompetenceWebApplication extends TiWebAppManager {
     /**
      * Used to submit the evaluation.
      *
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {Evaluation} evaluation
      * @returns {Promise<Evaluation>}
-     * @throws {TiException.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
-     * @throws {TiException.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
+     * @exception {TiException.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
      * @private
      */
     #submitEvaluation( session, evaluation ) {
@@ -448,11 +448,11 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Used to save a draft of the evaluation.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {Evaluation} evaluation
      * @returns {Promise<Evaluation>}
-     * @throws {TiException.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
-     * @throws {TiException.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
+     * @exception {TiException.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
      * @private
      */
     #saveEvaluationDraft( session, evaluation ) {
@@ -537,7 +537,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Used to load the data for the competence evaluation form for a specific employee.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {string} employeeID
      * @param {string|null} [evaluationID] Optional evaluation ID to load. If not provided, the most recent valid evaluation will be loaded.
      * @returns {Promise<Object>}
@@ -654,7 +654,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Used to start a new evaluation for an employee.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {string} employeeID
      * @param {string[]} [team]
      * @returns {Promise<string>} Return the evaluationID of the newly created evaluation.
@@ -723,7 +723,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Used to load the data for the new evaluation screen.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {string} employeeID
      * @returns {Promise<Object>}
      * @private
