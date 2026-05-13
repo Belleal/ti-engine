@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Competence — UI/UX Redesign</title>
+
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    html, body { margin: 0; height: 100%; font-family: 'General Sans', system-ui, sans-serif; }
+    body { background: #f0eee9; color: #2A241C; }
+    .artboard-iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+    .post-it-h2 { font-weight: 600; font-size: 13px; margin-bottom: 4px; letter-spacing: -0.01em; }
+    .post-it-p  { font-size: 11.5px; line-height: 1.45; }
+    .post-it-tag {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      padding: 1px 6px;
+      background: rgba(0,0,0,0.08);
+      border-radius: 999px;
+      margin-bottom: 6px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+  </style>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react" src="design-canvas.jsx"></script>
+
+  <script type="text/babel" data-presets="react">
+    (() => {
+    const { DesignCanvas, DCSection, DCArtboard, DCPostIt } = window;
+    const W = 1380, H = 880;
+
+    const Frame = ({ theme, screen }) => (
+      <iframe className="artboard-iframe"
+              src={`prototype.html?theme=${theme}#${screen || 'dashboard'}`}
+              title={`Competence — ${theme}`}/>
+    );
+
+    function App() {
+      return (
+        <DesignCanvas>
+
+          <DCSection id="intro" title="Competence — UI/UX redesign" subtitle="Two themeable directions · same component system">
+            <DCArtboard id="rationale" label="Design rationale" width={520} height={H}>
+              <div style={{ padding: 36, height: '100%', boxSizing: 'border-box', fontSize: 14, lineHeight: 1.6, color: '#2A241C', background: '#FFFEFB', overflow: 'auto' }}>
+                <div style={{ fontFamily: 'JetBrains Mono', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8B8478', marginBottom: 8 }}>The brief</div>
+                <h1 style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-0.025em', lineHeight: 1.05, margin: '0 0 12px' }}>A calm, competent home for performance reviews.</h1>
+                <p style={{ color: '#5C564D', marginBottom: 24 }}>
+                  Competence handles emotionally sensitive work — appraisals shape careers. The redesign aims to <strong style={{ color: '#1A1714' }}>radiate competence and inspire confidence</strong>: clear hierarchy, kind copy, transparent state at every step, no aesthetic noise.
+                </p>
+
+                <div style={{ fontFamily: 'JetBrains Mono', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8B8478', marginBottom: 8 }}>Design system</div>
+                <p style={{ color: '#5C564D', marginBottom: 18 }}>
+                  One component library, two themes. <strong style={{ color: '#1A1714' }}>Daylight</strong> is the recommended default for HR-class software — warm, transparent, calm. <strong style={{ color: '#1A1714' }}>Black Glass v2</strong> refines the existing dark direction. Theme swap is a single <code style={{ background: '#F2EEE5', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>data-theme</code> attribute on <code style={{ background: '#F2EEE5', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>{`<html>`}</code>.
+                </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
+                  <div style={{ padding: 12, background: '#FFF', border: '1px solid #E5DFD3', borderRadius: 10 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg, #E5523C, #B83A28)', marginBottom: 8 }}/>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>Daylight</div>
+                    <div style={{ fontSize: 11, color: '#8B8478' }}>Warm putty + coral · light</div>
+                  </div>
+                  <div style={{ padding: 12, background: '#0B0D12', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg, #FF8A6E, #E5523C)', marginBottom: 8, boxShadow: '0 0 24px rgba(255,138,110,0.4)' }}/>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: 'rgba(245,246,250,0.96)' }}>Black Glass v2</div>
+                    <div style={{ fontSize: 11, color: 'rgba(225,228,236,0.5)' }}>Deep neutrals · refined dark</div>
+                  </div>
+                </div>
+
+                <div style={{ fontFamily: 'JetBrains Mono', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8B8478', marginBottom: 8 }}>What's redesigned</div>
+                <ul style={{ paddingLeft: 18, color: '#5C564D', margin: 0 }}>
+                  <li><strong style={{ color: '#1A1714' }}>Dashboard</strong> — hero greeting + state-machine track + cycle + tasks + activity</li>
+                  <li><strong style={{ color: '#1A1714' }}>Employees List</strong> — proper org-tree connectors, role-aware visibility</li>
+                  <li><strong style={{ color: '#1A1714' }}>Evaluation Form</strong> — color-coded grade chips replace dropdowns, sticky progress bar, animated score reveal</li>
+                  <li><strong style={{ color: '#1A1714' }}>New Evaluation</strong> — guided team selection with peer chips</li>
+                  <li><strong style={{ color: '#1A1714' }}>Manager Calendar</strong> — split ✓/✕ hover micro-interaction, calm legend</li>
+                  <li><strong style={{ color: '#1A1714' }}>Interview Schedule</strong> — 4-week slot picker grid with manager context</li>
+                </ul>
+
+                <div style={{ marginTop: 24, padding: 14, background: '#FCEAE4', border: '1px dashed #E5523C', borderRadius: 10 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: '#B5392E', marginBottom: 4 }}>Both prototypes are clickable.</div>
+                  <div style={{ fontSize: 12, color: '#5C564D' }}>Click any artboard's expand icon to view full-screen, then click through Dashboard → Employees → Evaluation → Calendar → Interviews. The sidebar's theme toggle swaps Daylight ↔ Black Glass in place.</div>
+                </div>
+              </div>
+            </DCArtboard>
+
+            <DCArtboard id="daylight" label="A · Daylight (recommended)" width={W} height={H}>
+              <Frame theme="daylight"/>
+            </DCArtboard>
+
+            <DCPostIt top={140} left={-220} width={200} rotate={-3}>
+              <div className="post-it-tag">Direction A</div>
+              <div className="post-it-h2">Daylight — calm, transparent, archival.</div>
+              <div className="post-it-p">Off-white surfaces signal honesty. One coral accent for primary action. JetBrains Mono on every number to evoke precision.</div>
+            </DCPostIt>
+
+            <DCArtboard id="glass" label="B · Black Glass v2 (refined)" width={W} height={H}>
+              <Frame theme="glass"/>
+            </DCArtboard>
+
+            <DCPostIt top={140} left={-220} width={200} rotate={2}>
+              <div className="post-it-tag">Direction B</div>
+              <div className="post-it-h2">Black Glass v2 — your existing DNA, pixel-perfect.</div>
+              <div className="post-it-p">Refined glass surfaces, real contrast, warmer coral that reads on dark. Same components, theme-swapped via CSS variables only.</div>
+            </DCPostIt>
+          </DCSection>
+
+          <DCSection id="framework-notes" title="What changes in web-framework" subtitle="Things to update in packages/web-framework — flagged per request">
+            <DCArtboard id="notes" label="Framework change notes" width={920} height={620}>
+              <div style={{ padding: 36, height: '100%', boxSizing: 'border-box', fontSize: 13.5, lineHeight: 1.6, color: '#2A241C', background: '#FFFEFB', overflow: 'auto' }}>
+                <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em', margin: '0 0 8px' }}>Changes in <code style={{ background: '#F2EEE5', padding: '2px 8px', borderRadius: 6, fontSize: 18 }}>packages/web-framework</code></h2>
+                <p style={{ color: '#5C564D', marginTop: 0, marginBottom: 22 }}>The current black-glass styles live in <code style={{ background: '#F2EEE5', padding: '1px 6px', borderRadius: 4 }}>ti-theme-black-glass.css</code>, mixed with structural CSS in <code style={{ background: '#F2EEE5', padding: '1px 6px', borderRadius: 4 }}>ti-framework.css</code>. To support real theming, structure and theme need to separate.</p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '36px 1fr', gap: '8px 14px', alignItems: 'baseline' }}>
+
+                  <div style={{ background: '#E5523C', color: '#FFF', width: 30, height: 30, borderRadius: 6, display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13, fontFamily: 'JetBrains Mono' }}>1</div>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Extract a token contract from <code>ti-framework.css</code> into a separate <code>ti-tokens.css</code>.</div>
+                    <div style={{ color: '#5C564D' }}>All themes import <code>ti-tokens.css</code> first, then override the same variable names. Right now buttons/panels hardcode their own gradients per theme; the contract should be theme-agnostic (<code>--ti-bg-surface</code>, <code>--ti-fg-primary</code>, <code>--ti-accent</code>, …). The two themes we delivered already follow this pattern — adopt it framework-wide.</div>
+                  </div>
+
+                  <div style={{ background: '#E5523C', color: '#FFF', width: 30, height: 30, borderRadius: 6, display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13, fontFamily: 'JetBrains Mono' }}>2</div>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Use <code>data-theme</code> on <code>{`<html>`}</code>, not parallel stylesheet swaps.</div>
+                    <div style={{ color: '#5C564D' }}>Single source of truth: <code>document.documentElement.setAttribute('data-theme', 'daylight'|'glass')</code>. The index template would always load <code>ti-tokens.css</code> + <code>ti-themes.css</code> (containing all theme variants). No more conditional <code>{`<link>`}</code> per theme.</div>
+                  </div>
+
+                  <div style={{ background: '#E5523C', color: '#FFF', width: 30, height: 30, borderRadius: 6, display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13, fontFamily: 'JetBrains Mono' }}>3</div>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Sidebar: support labeled items, not icon-only.</div>
+                    <div style={{ color: '#5C564D' }}>Current <code>frame-application.html</code> renders icon-only buttons (24 × 24 with aria-label tooltips). For an HR tool, icon-only adds cognitive load — text labels are friendlier. Add a layout flag (collapsed vs expanded) and update <code>ti-sidebar-button</code> to lay out icon + label. The redesign also adds a <em>sections</em> concept ("Workspace", "Quick links") and a user footer card.</div>
+                  </div>
+
+                  <div style={{ background: '#E5523C', color: '#FFF', width: 30, height: 30, borderRadius: 6, display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13, fontFamily: 'JetBrains Mono' }}>4</div>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Top bar (new component).</div>
+                    <div style={{ color: '#5C564D' }}>The current app has no header strip — page titles live inside frames. The redesign adds a sticky <code>.topbar</code> with page title, breadcrumb, search, notifications, and a primary CTA slot. Add an empty <code>top-bar</code> placeholder to <code>frame-application.html</code> that fragment frames can swap into.</div>
+                  </div>
+
+                  <div style={{ background: '#E5523C', color: '#FFF', width: 30, height: 30, borderRadius: 6, display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13, fontFamily: 'JetBrains Mono' }}>5</div>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Notification bar → polished toast stack.</div>
+                    <div style={{ color: '#5C564D' }}>Replace the always-error <code>ti-notification</code> with a typed toast component (info/success/warn/danger), title + message, a left accent bar, and graceful enter/exit animations. The redesign ships a working spec to port.</div>
+                  </div>
+
+                  <div style={{ background: '#E5523C', color: '#FFF', width: 30, height: 30, borderRadius: 6, display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13, fontFamily: 'JetBrains Mono' }}>6</div>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Login screen — typography + brand mark.</div>
+                    <div style={{ color: '#5C564D' }}>Current <code>frame-login.html</code> reuses generic glass panel + ti-input. A redesign should add a brand block (logo + product name + cycle subtitle) and a quieter form layout.</div>
+                  </div>
+
+                  <div style={{ background: '#E5523C', color: '#FFF', width: 30, height: 30, borderRadius: 6, display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13, fontFamily: 'JetBrains Mono' }}>7</div>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Type system — adopt General Sans + JetBrains Mono.</div>
+                    <div style={{ color: '#5C564D' }}>Add <code>@font-face</code> (or Fontshare/Google Fonts <code>{`<link>`}</code>) for General Sans (400/500/600/700) and JetBrains Mono. Replace any explicit serif fallbacks in <code>ti-framework.css</code> with the new stack. Mono is used for all numeric values (scores, IDs, dates in some places) — define a <code>.mono</code> utility class.</div>
+                  </div>
+
+                  <div style={{ background: '#E5523C', color: '#FFF', width: 30, height: 30, borderRadius: 6, display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13, fontFamily: 'JetBrains Mono' }}>8</div>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Existing classes: keep names, redefine internals.</div>
+                    <div style={{ color: '#5C564D' }}>Classes like <code>ti-button</code>, <code>ti-input</code>, <code>ti-panel</code>, <code>ti-form-grid</code>, <code>ti-sub-panel</code> are widely used in fragments — keep the class names, redefine them in terms of new tokens, and deprecate <code>ti-glass-btn-black</code> / <code>ti-glass-panel-black</code> as direct utilities (they become theme-internal).</div>
+                  </div>
+
+                </div>
+              </div>
+            </DCArtboard>
+          </DCSection>
+
+        </DesignCanvas>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+    })();
+  </script>
+</body>
+</html>

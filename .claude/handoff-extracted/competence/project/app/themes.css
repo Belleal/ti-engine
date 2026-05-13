@@ -1,0 +1,232 @@
+/* ============================================================
+   Competence — Theme System
+   Two themes share the same component tokens.
+   Switch via:  <html data-theme="daylight"> or "glass"
+   ============================================================ */
+
+/* ----------  Shared tokens  ---------- */
+:root {
+  /* Type scale */
+  --fs-xs:   11px;
+  --fs-sm:   12px;
+  --fs-base: 13.5px;
+  --fs-md:   15px;
+  --fs-lg:   18px;
+  --fs-xl:   22px;
+  --fs-2xl:  28px;
+  --fs-3xl:  36px;
+  --fs-display: 48px;
+
+  /* Spacing */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 32px;
+  --s-8: 40px;
+  --s-9: 56px;
+  --s-10: 72px;
+
+  /* Radius */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+  --r-pill: 999px;
+
+  /* Layout */
+  --sidebar-w: 220px;
+  --sidebar-w-collapsed: 64px;
+  --header-h: 64px;
+  --content-max: 1180px;
+
+  /* Animation */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+  --dur-slow: 380ms;
+}
+
+/* ============================================================
+   Daylight Theme — warm light enterprise
+   ============================================================ */
+:root,
+[data-theme="daylight"] {
+  --bg-app:       #F5F2EC;   /* warm putty backdrop */
+  --bg-surface:   #FFFFFF;   /* card */
+  --bg-sunken:    #FAF7F1;   /* nested surface, list rows */
+  --bg-tint:      #F2EEE5;   /* hover row */
+  --bg-overlay:   rgba(20, 18, 14, 0.42);
+
+  --fg-primary:   #1A1714;
+  --fg-secondary: #5C564D;
+  --fg-tertiary:  #8B8478;
+  --fg-on-accent: #FFFFFF;
+  --fg-inverse:   #FFFFFF;
+
+  --border:       #E5DFD3;
+  --border-strong:#D4CBB8;
+  --border-soft:  #EEE9DD;
+
+  --accent:        #E5523C;          /* warm coral, slightly desaturated for HR */
+  --accent-hover:  #C84528;
+  --accent-soft:   #FCEAE4;
+  --accent-ring:   rgba(229, 82, 60, 0.22);
+
+  --success:       #1F7A4F;
+  --success-soft:  #DDEFE3;
+  --warn:          #B6741F;
+  --warn-soft:     #F8EAD0;
+  --danger:        #B5392E;
+  --danger-soft:   #F7E0DC;
+  --info:          #2462A4;
+  --info-soft:     #DEEAF7;
+  --muted:         #94897A;
+  --muted-soft:    #ECE6D8;
+
+  /* Grade colors */
+  --grade-S:       #1F7A4F;
+  --grade-S-soft:  #DDEFE3;
+  --grade-R:       #2462A4;
+  --grade-R-soft:  #DEEAF7;
+  --grade-U:       #B6741F;
+  --grade-U-soft:  #F8EAD0;
+  --grade-N:       #8B8478;
+  --grade-N-soft:  #ECE6D8;
+
+  --shadow-xs: 0 1px 0 rgba(20, 18, 14, 0.04);
+  --shadow-sm: 0 1px 2px rgba(20, 18, 14, 0.06), 0 1px 1px rgba(20, 18, 14, 0.04);
+  --shadow-md: 0 4px 10px rgba(20, 18, 14, 0.06), 0 1px 2px rgba(20, 18, 14, 0.05);
+  --shadow-lg: 0 14px 40px rgba(20, 18, 14, 0.10), 0 2px 6px rgba(20, 18, 14, 0.04);
+  --shadow-focus: 0 0 0 4px var(--accent-ring);
+
+  --sidebar-bg:    #1F1A14;
+  --sidebar-fg:    rgba(245, 240, 230, 0.78);
+  --sidebar-fg-active: #FFFFFF;
+  --sidebar-active-bg: rgba(229, 82, 60, 0.18);
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+  --sidebar-divider: rgba(255, 255, 255, 0.08);
+  --sidebar-accent: var(--accent);
+
+  --grid-line: rgba(20, 18, 14, 0.045);
+
+  color-scheme: light;
+}
+
+/* ============================================================
+   Black Glass v2 — refined dark
+   ============================================================ */
+[data-theme="glass"] {
+  --bg-app:       #0B0D12;
+  --bg-surface:   rgba(22, 25, 33, 0.72);
+  --bg-sunken:    rgba(14, 16, 22, 0.55);
+  --bg-tint:      rgba(255, 255, 255, 0.04);
+  --bg-overlay:   rgba(4, 5, 8, 0.66);
+
+  --fg-primary:   rgba(245, 246, 250, 0.96);
+  --fg-secondary: rgba(225, 228, 236, 0.62);
+  --fg-tertiary:  rgba(225, 228, 236, 0.40);
+  --fg-on-accent: #1A0F0B;
+  --fg-inverse:   #1A1714;
+
+  --border:       rgba(255, 255, 255, 0.08);
+  --border-strong:rgba(255, 255, 255, 0.14);
+  --border-soft:  rgba(255, 255, 255, 0.05);
+
+  --accent:        #FF8A6E;
+  --accent-hover:  #FF9F87;
+  --accent-soft:   rgba(255, 138, 110, 0.14);
+  --accent-ring:   rgba(255, 138, 110, 0.32);
+
+  --success:       #5BD49E;
+  --success-soft:  rgba(91, 212, 158, 0.14);
+  --warn:          #F4B860;
+  --warn-soft:     rgba(244, 184, 96, 0.14);
+  --danger:        #FF7D78;
+  --danger-soft:   rgba(255, 125, 120, 0.14);
+  --info:          #6FB3FF;
+  --info-soft:     rgba(111, 179, 255, 0.14);
+  --muted:         rgba(225, 228, 236, 0.52);
+  --muted-soft:    rgba(255, 255, 255, 0.06);
+
+  --grade-S:       #5BD49E;
+  --grade-S-soft:  rgba(91, 212, 158, 0.16);
+  --grade-R:       #6FB3FF;
+  --grade-R-soft:  rgba(111, 179, 255, 0.16);
+  --grade-U:       #F4B860;
+  --grade-U-soft:  rgba(244, 184, 96, 0.16);
+  --grade-N:       rgba(225, 228, 236, 0.45);
+  --grade-N-soft:  rgba(255, 255, 255, 0.07);
+
+  --shadow-xs: inset 0 1px 0 rgba(255,255,255,0.04);
+  --shadow-sm: 0 1px 1px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
+  --shadow-md: 0 10px 30px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
+  --shadow-lg: 0 24px 60px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.06);
+  --shadow-focus: 0 0 0 4px var(--accent-ring);
+
+  --sidebar-bg:    rgba(10, 12, 17, 0.78);
+  --sidebar-fg:    rgba(245, 246, 250, 0.74);
+  --sidebar-fg-active: #FFFFFF;
+  --sidebar-active-bg: rgba(255, 138, 110, 0.16);
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+  --sidebar-divider: rgba(255, 255, 255, 0.06);
+  --sidebar-accent: var(--accent);
+
+  --grid-line: rgba(255, 255, 255, 0.04);
+
+  color-scheme: dark;
+}
+
+/* App background patterns per theme */
+[data-theme="daylight"] body {
+  background: var(--bg-app);
+}
+[data-theme="glass"] body {
+  background:
+    radial-gradient(1200px 600px at 20% -10%, rgba(255, 138, 110, 0.08), transparent 60%),
+    radial-gradient(900px 600px at 100% 100%, rgba(111, 179, 255, 0.06), transparent 60%),
+    linear-gradient(180deg, #0A0B10 0%, #0B0D12 100%);
+  background-attachment: fixed;
+}
+
+/* Glass-specific surface effects */
+[data-theme="glass"] .surface,
+[data-theme="glass"] .panel {
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+
+body {
+  font-family: 'General Sans', 'Söhne', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  color: var(--fg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-feature-settings: 'ss01', 'zero'; }
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button { cursor: pointer; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); background-clip: padding-box; border: 2px solid transparent; }

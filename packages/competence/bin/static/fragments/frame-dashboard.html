@@ -1,0 +1,260 @@
+<title id="ti-page-title" hx-swap-oob="outerHTML">Dashboard — Competence</title>
+<div x-data="competenceDashboard" class="page">
+
+    <!-- Loading state -->
+    <template x-if="isLoading">
+        <div class="empty-state">
+            <div class="empty-state-title">Loading dashboard…</div>
+        </div>
+    </template>
+
+    <!-- Dashboard content -->
+    <template x-if="!isLoading">
+        <div>
+            <!-- Hero row -->
+            <div class="dash-hero">
+                <!-- Greeting card -->
+                <div class="dash-hero-card">
+                    <div class="dash-hero-greeting" x-text="getGreeting() + ','"></div>
+                    <div class="dash-hero-title" x-text="getUserName() + '.'"></div>
+                    <div class="dash-hero-msg">
+                        <template x-if="myEvaluation">
+                            <span>Your evaluation is currently
+                                <strong x-text="myEvaluation.statusName"></strong>.
+                            </span>
+                        </template>
+                        <template x-if="!myEvaluation">
+                            <span>No active evaluation found for this cycle.</span>
+                        </template>
+                    </div>
+                    <div class="dash-hero-actions" x-show="myEvaluation">
+                        <button @click="openMyEvaluation()" class="btn primary" type="button">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M9 11l3 3L22 4"/>
+                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                            </svg>
+                            Open My Evaluation
+                        </button>
+                    </div>
+
+                    <!-- Background mark -->
+                    <div class="dash-hero-mark" aria-hidden="true">
+                        <svg viewBox="0 0 120 120" fill="none">
+                            <path d="M60 10 L110 35 L110 85 L60 110 L10 85 L10 35 Z" stroke="currentColor" stroke-width="2" fill="none" opacity="0.5"/>
+                            <circle cx="60" cy="60" r="30" stroke="currentColor" stroke-width="2" fill="none"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Cycle card -->
+                <div class="dash-cycle-card">
+                    <div class="cycle-meta">
+                        <span>Active Cycle</span> <span class="status-pill success">
+                            <span class="dot"></span>
+                            Running
+                        </span>
+                    </div>
+                    <div class="cycle-id" x-text="cycle.id || '—'"></div>
+                    <div>
+                        <div class="cycle-progress">
+                            <progress :value="stats.ready" :max="stats.total"></progress>
+                        </div>
+                        <div class="cycle-progress-meta">
+                            <span x-text="stats.ready + ' of ' + stats.total + ' ready'"></span> <span x-text="cycleProgressPct() + '%'"></span>
+                        </div>
+                    </div>
+                    <template x-if="myEvaluation">
+                        <div>
+                            <div class="kv-grid mt">
+                                <span class="kv-label">My Status</span> <span class="status-pill" :class="statusColorClass(myEvaluation.status)">
+                                    <span class="dot"></span>
+                                    <span x-text="myEvaluation.statusName"></span>
+                                </span> <span class="kv-label">Cycle Date</span> <span class="kv-value" x-text="formatDate(myEvaluation.cycleDate)"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Stat cards (manager view) -->
+            <div class="dash-stats" x-show="isManager">
+                <div class="stat-card accent">
+                    <div class="stat-card-head">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                        <span>Total</span> <span class="spacer"></span>
+                    </div>
+                    <div class="stat-card-value">
+                        <span x-text="stats.total"></span> <span class="stat-card-value-suffix">evals</span>
+                    </div>
+                    <div class="stat-card-sub">Team evaluations this cycle</div>
+                    <div class="stat-card-viz" x-show="stats.total > 0">
+                        <progress value="1" max="1"></progress>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-head">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        <span>In Progress</span>
+                    </div>
+                    <div class="stat-card-value">
+                        <span x-text="stats.open"></span> <span class="stat-card-value-suffix">open</span>
+                    </div>
+                    <div class="stat-card-sub">Awaiting self or team evaluation</div>
+                    <div class="stat-card-viz info" x-show="stats.total > 0">
+                        <progress :value="stats.open" :max="stats.total"></progress>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-head">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <span>In Review</span>
+                    </div>
+                    <div class="stat-card-value">
+                        <span x-text="stats.inReview"></span> <span class="stat-card-value-suffix">review</span>
+                    </div>
+                    <div class="stat-card-sub">Awaiting manager evaluation</div>
+                    <div class="stat-card-viz warn" x-show="stats.total > 0">
+                        <progress :value="stats.inReview" :max="stats.total"></progress>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-head">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                        <span>Ready</span>
+                    </div>
+                    <div class="stat-card-value">
+                        <span x-text="stats.ready"></span> <span class="stat-card-value-suffix">ready</span>
+                    </div>
+                    <div class="stat-card-sub">Awaiting interview scheduling</div>
+                    <div class="stat-card-viz success" x-show="stats.total > 0">
+                        <progress :value="stats.ready" :max="stats.total"></progress>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two-column: team + activity -->
+            <div class="dash-cols">
+                <!-- Team evaluations -->
+                <div class="panel">
+                    <div class="panel-head">
+                        <div class="panel-title" x-show="isManager">Team Evaluations</div>
+                        <div class="panel-title" x-show="!isManager">My Evaluation Status</div>
+                        <div class="panel-head-actions">
+                            <button hx-get="/app/employees-list" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" class="btn sm ghost" type="button">View all
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Manager: team list -->
+                    <template x-if="isManager && teamEvaluations.length > 0">
+                        <div class="task-list">
+                            <template x-for="e in teamEvaluations" :key="e.evaluationID">
+                                <div class="task-item static">
+                                    <div class="task-item-icon" :class="statusColorClass(e.status)">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M9 11l3 3L22 4"/>
+                                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div class="task-item-title" x-text="e.employeeName"></div>
+                                        <div class="task-item-sub" x-text="e.statusName"></div>
+                                    </div>
+                                    <span class="status-pill" :class="statusColorClass(e.status)">
+                                        <span class="dot"></span>
+                                        <span x-text="e.statusName"></span>
+                                    </span>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- Manager: no evaluations -->
+                    <template x-if="isManager && teamEvaluations.length === 0">
+                        <div class="empty-state">
+                            <div class="empty-state-title">No active evaluations</div>
+                            <div class="empty-state-desc">Your team has no evaluations in progress for this cycle.</div>
+                        </div>
+                    </template>
+
+                    <!-- Employee: my eval state track -->
+                    <template x-if="!isManager && myEvaluation">
+                        <div>
+                            <div class="state-track">
+                                <div class="state-step" :class="{ complete: myEvaluation.status !== 'NOT_STARTED', current: myEvaluation.status === 'NOT_STARTED' }">
+                                    <div class="marker"></div>
+                                    <span>Started</span>
+                                </div>
+                                <div class="state-step-line" :class="{ complete: myEvaluation.status === 'IN_REVIEW' || myEvaluation.status === 'READY' || myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'OPEN' }"></div>
+                                <div class="state-step" :class="{ complete: myEvaluation.status === 'IN_REVIEW' || myEvaluation.status === 'READY' || myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'OPEN' }">
+                                    <div class="marker"></div>
+                                    <span>Open</span>
+                                </div>
+                                <div class="state-step-line" :class="{ complete: myEvaluation.status === 'READY' || myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'IN_REVIEW' }"></div>
+                                <div class="state-step" :class="{ complete: myEvaluation.status === 'READY' || myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'IN_REVIEW' }">
+                                    <div class="marker"></div>
+                                    <span>In Review</span>
+                                </div>
+                                <div class="state-step-line" :class="{ complete: myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'READY' }"></div>
+                                <div class="state-step" :class="{ complete: myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'READY' }">
+                                    <div class="marker"></div>
+                                    <span>Ready</span>
+                                </div>
+                            </div>
+
+                            <div class="dash-hero-actions">
+                                <button @click="openMyEvaluation()" class="btn primary" type="button">Open My Evaluation</button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="!isManager && !myEvaluation">
+                        <div class="empty-state">
+                            <div class="empty-state-title">No evaluation found</div>
+                            <div class="empty-state-desc">No active evaluation exists for you in this cycle.</div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Activity feed -->
+                <div class="panel">
+                    <div class="panel-head">
+                        <div class="panel-title">Recent Activity</div>
+                    </div>
+                    <template x-if="activity.length > 0">
+                        <div class="activity-list">
+                            <template x-for="item in activity" :key="item.id">
+                                <div class="activity-item">
+                                    <div class="activity-dot"></div>
+                                    <div>
+                                        <div class="activity-text" x-text="item.text"></div>
+                                        <div class="activity-time" x-text="item.time"></div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    <template x-if="activity.length === 0">
+                        <div class="empty-state">
+                            <div class="empty-state-title">No recent activity</div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>

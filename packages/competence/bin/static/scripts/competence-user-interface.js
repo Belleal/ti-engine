@@ -327,6 +327,14 @@ const configureEmployeesList = () => {
             }
         },
 
+        totalEmployees() {
+            let total = 0;
+            for ( let i = 0; i < this.units.length; i++ ) {
+                total += this.units[ i ].employees.length;
+            }
+            return total;
+        },
+
         formatList( values, separator = ", " ) {
             if ( Array.isArray( values ) ) {
                 return values.map( ( entry ) => String( entry || "" ).trim() ).filter( Boolean ).join( separator );
@@ -607,6 +615,13 @@ const configureManagerCalendar = () => {
             return slot.status;
         },
 
+        handleSlotClick( date, startTime ) {
+            const state = this.getSlotState( date, startTime );
+            if ( state !== "empty" && state !== "booked" ) {
+                this.toggleSlot( date, startTime, state );
+            }
+        },
+
         getSlotBookingLabel( date, startTime ) {
             const slot = this.slots[ `${ date }|${ startTime }` ];
             if ( slot && slot.status === "booked" && slot.booking ) {
@@ -866,10 +881,112 @@ const configureInterviewSchedule = () => {
     };
 };
 
+/**
+ * Returns a configuration object for the dashboard screen.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureDashboard = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    return {
+        isLoading: true,
+        isManager: false,
+        cycle: {},
+        myEvaluation: null,
+        teamEvaluations: [],
+        stats: { total: 0, open: 0, inReview: 0, ready: 0 },
+        activity: [],
+
+        init() {
+            const onInitialized = () => {
+                this.loadDashboard();
+            };
+
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        loadDashboard() {
+            this.isLoading = true;
+            tiApplication.sendRequest( "/app/load-dashboard" ).then( ( result ) => {
+                const data = ( result?.data && typeof result.data === "object" ) ? result.data : {};
+                this.isManager = !!data.isManager;
+                this.cycle = data.cycle ? tiToolbox.structuredClone( data.cycle ) : {};
+                this.myEvaluation = data.myEvaluation ? tiToolbox.structuredClone( data.myEvaluation ) : null;
+                this.teamEvaluations = Array.isArray( data.teamEvaluations ) ? tiToolbox.structuredClone( data.teamEvaluations ) : [];
+                this.stats = data.stats ? tiToolbox.structuredClone( data.stats ) : { total: 0, open: 0, inReview: 0, ready: 0 };
+                this.activity = Array.isArray( data.activity ) ? tiToolbox.structuredClone( data.activity ) : [];
+                this.isLoading = false;
+            } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) {
+                    return;
+                }
+                this.isLoading = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        openMyEvaluation() {
+            if ( this.myEvaluation?.evaluationID ) {
+                tiApplication.openScreen( `competence-evaluation?evaluationID=${ this.myEvaluation.evaluationID }` );
+            } else {
+                tiApplication.openScreen( "competence-evaluation" );
+            }
+        },
+
+        getGreeting() {
+            const hour = new Date().getHours();
+            if ( hour < 12 ) return "Good morning";
+            if ( hour < 17 ) return "Good afternoon";
+            return "Good evening";
+        },
+
+        getUserName() {
+            const user = tiApplication.user;
+            return ( user && user.name ) ? user.name.split( " " )[ 0 ] : "there";
+        },
+
+        statusColorClass( status ) {
+            const map = {
+                "NOT_STARTED": "muted",
+                "OPEN": "info",
+                "IN_REVIEW": "warn",
+                "READY": "success",
+                "CLOSED": "muted",
+                "DELETED": "danger"
+            };
+            return map[ status ] || "muted";
+        },
+
+        cycleProgressPct() {
+            if ( this.stats.total <= 0 ) {
+                return 0;
+            }
+            return Math.round( ( this.stats.ready / this.stats.total ) * 100 );
+        },
+
+        formatDate( value, placeholder = "" ) {
+            return tiToolbox.formatDate( value, tiApplication.getLabel( placeholder, "" ) );
+        }
+    };
+};
+
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "competencyEvaluation", configureCompetencyEvaluation );
     Alpine.data( "employeesList", configureEmployeesList );
     Alpine.data( "newEvaluation", configureNewEvaluation );
     Alpine.data( "managerCalendar", configureManagerCalendar );
     Alpine.data( "interviewSchedule", configureInterviewSchedule );
+    Alpine.data( "competenceDashboard", configureDashboard );
 } );

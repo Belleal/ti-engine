@@ -1,0 +1,79 @@
+/* ============================================================
+   Daylight Theme — warm light enterprise
+   Default theme for ti-engine web framework
+   Activate with: <html data-theme="daylight">
+   ============================================================ */
+
+:root,
+[data-theme="daylight"] {
+    /* Surface & background */
+    --bg-app: #F5F2EC;
+    --bg-surface: #FFFFFF;
+    --bg-sunken: #FAF7F1;
+    --bg-tint: #F2EEE5;
+    --bg-overlay: rgba(20, 18, 14, 0.42);
+
+    /* Foreground */
+    --fg-primary: #1A1714;
+    --fg-secondary: #5C564D;
+    --fg-tertiary: #8B8478;
+    --fg-on-accent: #FFFFFF;
+    --fg-inverse: #FFFFFF;
+
+    /* Borders */
+    --border: #E5DFD3;
+    --border-strong: #D4CBB8;
+    --border-soft: #EEE9DD;
+
+    /* Accent (warm coral) */
+    --accent: #E5523C;
+    --accent-hover: #C84528;
+    --accent-soft: #FCEAE4;
+    --accent-ring: rgba(229, 82, 60, 0.22);
+
+    /* Semantic */
+    --success: #1F7A4F;
+    --success-soft: #DDEFE3;
+    --warn: #B6741F;
+    --warn-soft: #F8EAD0;
+    --danger: #B5392E;
+    --danger-soft: #F7E0DC;
+    --info: #2462A4;
+    --info-soft: #DEEAF7;
+    --muted: #94897A;
+    --muted-soft: #ECE6D8;
+
+    /* Grade colors */
+    --grade-S: #1F7A4F;
+    --grade-S-soft: #DDEFE3;
+    --grade-R: #2462A4;
+    --grade-R-soft: #DEEAF7;
+    --grade-U: #B6741F;
+    --grade-U-soft: #F8EAD0;
+    --grade-N: #8B8478;
+    --grade-N-soft: #ECE6D8;
+
+    /* Shadows */
+    --shadow-xs: 0 1px 0 rgba(20, 18, 14, 0.04);
+    --shadow-sm: 0 1px 2px rgba(20, 18, 14, 0.06), 0 1px 1px rgba(20, 18, 14, 0.04);
+    --shadow-md: 0 4px 10px rgba(20, 18, 14, 0.06), 0 1px 2px rgba(20, 18, 14, 0.05);
+    --shadow-lg: 0 14px 40px rgba(20, 18, 14, 0.10), 0 2px 6px rgba(20, 18, 14, 0.04);
+    --shadow-focus: 0 0 0 4px var(--accent-ring);
+
+    /* Sidebar */
+    --sidebar-bg: #1F1A14;
+    --sidebar-fg: rgba(245, 240, 230, 0.78);
+    --sidebar-fg-active: #FFFFFF;
+    --sidebar-active-bg: rgba(229, 82, 60, 0.18);
+    --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+    --sidebar-divider: rgba(255, 255, 255, 0.08);
+    --sidebar-accent: var(--accent);
+
+    --grid-line: rgba(20, 18, 14, 0.045);
+
+    color-scheme: light;
+}
+
+[data-theme="daylight"] body {
+    background: var(--bg-app);
+}

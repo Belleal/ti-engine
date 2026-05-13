@@ -270,6 +270,34 @@ const configureToolbox = () => {
          */
         structuredClone( value, options ) {
             return ( typeof structuredClone === "function" ) ? structuredClone( value, options ) : JSON.parse( JSON.stringify( value ) );
+        },
+
+        /**
+         * Deterministically maps a seed value (e.g. employeeID) to an HSL color string.
+         * The result is stable across sessions and consistent for the same seed.
+         *
+         * @method
+         * @param {string|number} seed
+         * @returns {string} HSL color string
+         * @public
+         */
+        generateAvatarColor( seed ) {
+            const str = String( seed ?? "" );
+            let hash = 0;
+            for ( let i = 0; i < str.length; i++ ) {
+                hash = ( ( hash << 5 ) - hash + str.charCodeAt( i ) ) | 0;
+            }
+            const hue = Math.abs( hash ) % 360;
+            return `hsl(${ hue }, 60%, 48%)`;
+        },
+
+        generateAvatarClass( seed ) {
+            const str = String( seed ?? "" );
+            let hash = 0;
+            for ( let i = 0; i < str.length; i++ ) {
+                hash = ( ( hash << 5 ) - hash + str.charCodeAt( i ) ) | 0;
+            }
+            return `ac-${ Math.abs( hash ) % 12 }`;
         }
 
     };
@@ -439,7 +467,7 @@ const configureComponentSidebarFlyout = ( options = {} ) => {
 };
 
 /**
- * Returns a configuration object for the notifications component "component-notification-bar.html".
+ * Returns a configuration object for the notification component "component-notification-bar.html".
  *
  * @method
  * @returns {Object}
@@ -626,6 +654,7 @@ const configureApplication = () => {
         isInitialized: false,
         user: null,
         configuration: {},
+        currentScreen: "",
         notificationIDCounter: 1,
         requestControllers: new Map(),
 
@@ -742,10 +771,22 @@ const configureApplication = () => {
                 let screenUrl = "/app/" + screen;
                 window.htmx.ajax( "get", screenUrl, { target: "#ti-content", swap: "innerHTML" } ).then( () => {
                     window.history.pushState( null, "", screenUrl );
+                    this.currentScreen = screen;
                 } ).catch( () => {
                     window.location.href = "/";
                 } );
             }
+        },
+
+        /**
+         * Used to update the current screen name and push the URL to history.
+         *
+         * @method
+         * @param {string} screen
+         * @public
+         */
+        setCurrentScreen( screen ) {
+            if ( screen ) this.currentScreen = screen;
         },
 
         /**
@@ -841,6 +882,88 @@ const configureDirectiveTextLabel = () => {
 };
 
 /**
+ * Returns a configuration object for the app shell (sidebar collapse + theme toggle).
+ * Bind to the root .app-shell element via x-data="tiAppShell".
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureAppShell = () => {
+    const STORAGE_KEY_COLLAPSED = "ti-sidebar-collapsed";
+    const STORAGE_KEY_THEME = "ti-theme";
+    const DEFAULT_THEME = "daylight";
+
+    /**
+     * @typedef {Object} TiAppShell
+     */
+    return {
+        collapsed: false,
+        theme: DEFAULT_THEME,
+
+        /**
+         * Initialize from localStorage and apply the saved theme.
+         *
+         * @method
+         * @public
+         */
+        init() {
+            try {
+                const savedCollapsed = localStorage.getItem( STORAGE_KEY_COLLAPSED );
+                if ( savedCollapsed !== null ) this.collapsed = savedCollapsed === "true";
+
+                const savedTheme = localStorage.getItem( STORAGE_KEY_THEME );
+                if ( savedTheme ) this.theme = savedTheme;
+            } catch {
+                // localStorage may be unavailable (private browsing, security policy).
+            }
+            this._applyTheme( this.theme );
+        },
+
+        /**
+         * Toggle the sidebar between expanded and collapsed states.
+         *
+         * @method
+         * @public
+         */
+        toggleCollapse() {
+            this.collapsed = !this.collapsed;
+            try {
+                localStorage.setItem( STORAGE_KEY_COLLAPSED, String( this.collapsed ) );
+            } catch { /* ignore */
+            }
+        },
+
+        /**
+         * Toggle between daylight and glass themes.
+         *
+         * @method
+         * @public
+         */
+        toggleTheme() {
+            this.theme = ( this.theme === "daylight" ) ? "glass" : "daylight";
+            this._applyTheme( this.theme );
+            try {
+                localStorage.setItem( STORAGE_KEY_THEME, this.theme );
+            } catch { /* ignore */
+            }
+        },
+
+        /**
+         * Apply a theme by setting the data-theme attribute on <html>.
+         *
+         * @method
+         * @param {string} theme
+         * @private
+         */
+        _applyTheme( theme ) {
+            document.documentElement.dataset.theme = theme;
+        }
+
+    };
+};
+
+/**
  * Perform a one-time configuration of the HTMX framework.
  */
 document.addEventListener( "htmx:configRequest", ( event ) => {
@@ -895,4 +1018,5 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
     Alpine.data( "tiComponentTooltip", configureComponentTooltip );
+    Alpine.data( "tiAppShell", configureAppShell );
 } );

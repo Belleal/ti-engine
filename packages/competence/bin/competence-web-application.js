@@ -100,6 +100,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                 ...result,
                 grades: grades
             } ) );
+        } else if ( view === "load-dashboard" ) {
+            return this.#loadDashboard( session );
         } else if ( view === "load-evaluation" ) {
             const employeeID = String( options?.query?.employeeID || "" ).trim();
             const evaluationID = String( options?.query?.evaluationID || "" ).trim();
@@ -880,8 +882,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @param {Object} params
      * @param {string} params.date
      * @param {string} params.startTime
-     * @param {string} [params.targetStatus] The desired slot status. Accepts `available` or `busy`. Defaults to `available`.
-     * If a slot with the same status already exists it will be removed (toggle off).
+     * @param {string} [params.targetStatus] The desired slot status. Accepts `available` or `busy`. Defaults to `available`. If a slot with the same status already exists, it will be removed (toggle off).
      * @returns {Promise<Object>}
      * @private
      */
@@ -1050,6 +1051,85 @@ class CompetenceWebApplication extends TiWebAppManager {
                 return Promise.all( [ saveSlotPromise, clearDatePromise ] );
             } ).then( () => {
                 resolve( { slotID: slotID } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to load the dashboard data for the current user.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadDashboard( session ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireSessionUser( session );
+
+            const isManager = userRoles.includes( configurationLoader.roleCode.MANAGER ) || userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = competenceFramework.instance.evaluationCycleID;
+            const cycleDate = competenceFramework.instance.evaluationCycleDate;
+
+            dataManager.instance.fetchEvaluations( userID ).then( ( myEvaluations ) => {
+                const myLatestEvaluation = myEvaluations.length > 0
+                    ? myEvaluations.slice().sort( ( a, b ) => new Date( b.cycleDate ) - new Date( a.cycleDate ) )[ 0 ]
+                    : null;
+
+                const myEvalStatus = myLatestEvaluation
+                    ? {
+                        evaluationID: myLatestEvaluation.evaluationID,
+                        status: myLatestEvaluation.status,
+                        statusName: configurationLoader.evaluationStatus.name( myLatestEvaluation.status ),
+                        cycleDate: myLatestEvaluation.cycleDate
+                    }
+                    : null;
+
+                const teamEvaluations = isManager
+                    ? dataManager.instance.fetchEvaluations( null, false ).then( ( allEvals ) =>
+                        allEvals.filter( ( e ) =>
+                            e.managerID === userID &&
+                            e.status !== configurationLoader.evaluationStatus.CLOSED &&
+                            e.status !== configurationLoader.evaluationStatus.DELETED
+                        ).map( ( e ) => ( {
+                            evaluationID: e.evaluationID,
+                            employeeID: e.employeeID,
+                            employeeName: organizationManager.instance.resolveEmployeeName( e.employeeID ) || e.employeeID,
+                            status: e.status,
+                            statusName: configurationLoader.evaluationStatus.name( e.status )
+                        } ) )
+                    )
+                    : Promise.resolve( [] );
+
+                return Promise.all( [ teamEvaluations ] ).then( ( [ teamEvals ] ) => {
+                    const stats = {
+                        total: teamEvals.length,
+                        open: teamEvals.filter( ( e ) => e.status === configurationLoader.evaluationStatus.OPEN ).length,
+                        inReview: teamEvals.filter( ( e ) => e.status === configurationLoader.evaluationStatus.IN_REVIEW ).length,
+                        ready: teamEvals.filter( ( e ) => e.status === configurationLoader.evaluationStatus.READY ).length
+                    };
+
+                    resolve( {
+                        userID: userID,
+                        isManager: isManager,
+                        cycle: {
+                            id: cycleID,
+                            date: cycleDate
+                        },
+                        myEvaluation: myEvalStatus,
+                        teamEvaluations: teamEvals,
+                        stats: stats,
+                        activity: [
+                            { id: 1, type: "evaluation_open", text: "Evaluation cycle opened", time: "2 days ago" },
+                            { id: 2, type: "evaluation_submit", text: "Self-evaluation submitted", time: "1 day ago" },
+                            { id: 3, type: "team_evaluation", text: "Team evaluation received", time: "6 hours ago" },
+                            { id: 4, type: "review_started", text: "Manager review started", time: "2 hours ago" }
+                        ]
+                    } );
+                } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );

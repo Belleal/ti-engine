@@ -1,95 +1,115 @@
-<title id="ti-page-title" hx-swap-oob="outerHTML">{ti-title-placeholder}</title>
-<div class="ti-content pane" x-data="employeesList()">
-    <div class="ti-panel ti-sub-panel">
-        <div class="ti-sub-panel-title" x-text-label="interface.employees.organization-title"></div>
-        <div class="ti-form-grid employees">
-            <div class="ti-label" x-text-label="interface.employees.unit.name-type"></div>
-            <div class="employee-organization-value-group unit">
-                <div class="ti-data-value compact-centered" x-text="unitType"></div>
-                <div class="ti-data-value" x-text="unitName"></div>
-            </div>
-            <div class="ti-label" x-text-label="interface.employees.unit.managers"></div>
-            <div class="ti-data-value" x-text="unitManagers"></div>
-            <div class="ti-label" x-text-label="interface.employees.unit.location"></div>
-            <div class="ti-data-value" x-text="unitLocation"></div>
+<title id="ti-page-title" hx-swap-oob="outerHTML">Employees — Competence</title>
+<div class="page" x-data="employeesList()">
+
+    <template x-if="units.length === 0">
+        <div class="empty-state">
+            <div class="empty-state-title">No employees found</div>
+            <div class="empty-state-desc">No employees could be loaded for your organization unit.</div>
         </div>
-    </div>
+    </template>
 
-    <div class="ti-panel ti-sub-panel">
-        <div class="ti-sub-panel-title" x-text-label="interface.employees.list-title"></div>
-        <div class="employees-organization-list">
-            <template x-if="units.length > 0">
-                <template x-for="unit in units" x-bind:key="unit.id">
-                    <div class="employees-unit">
-                        <div class="employees-unit-header">
-                            <div class="employees-unit-title" x-text="unit.name"></div>
-                            <div class="employees-unit-manager" x-text="formatList( unit.managers )"></div>
+    <template x-if="units.length > 0">
+        <div>
+            <!-- Org summary header -->
+            <div class="org-summary">
+                <div class="org-mark">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                </div>
+                <div class="org-meta">
+                    <div class="org-name" x-text="unitName || 'Organization'"></div>
+                    <div class="org-sub" x-text="unitManagers"></div>
+                </div>
+                <div class="org-summary-stats">
+                    <div>
+                        <div class="org-stat-num" x-text="totalEmployees()"></div>
+                        <div class="org-stat-label">Employees</div>
+                    </div>
+                    <div>
+                        <div class="org-stat-num" x-text="units.length"></div>
+                        <div class="org-stat-label">Teams</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Team blocks -->
+            <template x-for="unit in units" :key="unit.id">
+                <div class="team-block">
+                    <div class="team-block-head">
+                        <div class="team-mark">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                            </svg>
                         </div>
-                        <div class="employees-list">
-                            <template x-if="unit.employees.length > 0">
-                                <div class="employees-table">
-                                    <div class="employees-static">
-                                        <div class="employees-list-head-static">
-                                            <div class="employees-list-head-label id" x-text-label="interface.employees.columns.id"></div>
-                                            <div class="employees-list-head-label name" x-text-label="interface.employees.columns.name"></div>
-                                        </div>
-
-                                        <template x-for="(employee, index) in unit.employees" x-bind:key="'unit-static-' + unit.id + '-' + index">
-                                            <div class="employees-row-static">
-                                                <div class="employees-id" x-text="employee.id"></div>
-                                                <div class="ti-data-value" x-text="employee.name"></div>
-                                            </div>
-                                        </template>
-                                    </div>
-
-                                    <div class="employees-list-scroll">
-                                        <div class="employees-list-head-dynamic">
-                                            <div class="employees-list-head-label career-path" x-text-label="interface.employees.columns.career-path"></div>
-                                            <div class="employees-list-head-label level" x-text-label="interface.employees.columns.level"></div>
-                                            <div class="employees-list-head-label since" x-text-label="interface.employees.columns.since"></div>
-                                            <div class="employees-list-head-label evaluation" x-text-label="interface.employees.columns.evaluation"></div>
-                                            <div class="employees-list-head-label actions" x-text-label="interface.employees.columns.actions"></div>
-                                        </div>
-
-                                        <template x-for="( employee, index ) in unit.employees" x-bind:key="'unit-dynamic-' + unit.id + '-' + index">
-                                            <div class="employees-row-dynamic">
-                                                <div class="ti-data-value" x-text="employee.career.careerPathName"></div>
-                                                <div class="ti-data-value compact-centered"
-                                                     x-text="employee.career.level + ( employee.career.stage || '' )"></div>
-                                                <div class="ti-data-value" x-text="formatDate( employee.career.startingDate )"></div>
-                                                <div class="employees-evaluation">
-                                                    <span class="employees-evaluation-status"
-                                                          x-show="employee.isCurrentUser || isManagerView"
-                                                          x-text="getLabel( employee.evaluation ? employee.evaluation.statusName : 'framework.status.name.not-started' )"></span>
-                                                    <span class="employees-evaluation-date"
-                                                          x-show="employee.isCurrentUser || isManagerView"
-                                                          x-text="employee.evaluation ? formatDate( employee.evaluation.date ) : ''"></span>
-                                                </div>
-                                                <div class="employees-actions">
-                                                    <button type="button" class="ti-button inline ti-glass-btn-black large on-screen"
-                                                            x-show="employee.evaluation && ( isManagerView || employee.isCurrentUser )"
-                                                            x-on:click="openEvaluation( employee.id, employee.evaluation.evaluationID )"
-                                                            x-text-label="interface.employees.actions.review"></button>
-                                                    <button type="button" class="ti-button inline ti-glass-btn-black large on-screen"
-                                                            x-show="!employee.evaluation && isManagerView && !employee.isCurrentUser"
-                                                            x-on:click="startNewEvaluation( employee.id )"
-                                                            x-text-label="interface.employees.actions.start-new"></button>
-                                                    <span class="ti-icon lock dark-style competence-icon-lock" role="img"
-                                                          x-show="( !isManagerView && !employee.isCurrentUser ) || ( employee.isCurrentUser && !employee.evaluation )"
-                                                          x-text-label:aria-label="interface.evaluation.competencies.locked"></span>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </div>
-                            </template>
+                        <div>
+                            <div class="team-block-title" x-text="unit.name"></div>
+                            <div class="team-block-sub" x-text="formatList(unit.managers)"></div>
+                        </div>
+                        <div class="team-block-meta">
+                            <span><strong x-text="unit.employees.length"></strong>&nbsp;members</span>
                         </div>
                     </div>
-                </template>
-            </template>
-            <template x-if="units.length === 0">
-                <div class="ti-data-value">No employees found for the selected unit.</div>
+
+                    <template x-if="unit.employees.length > 0">
+                        <div>
+                            <div class="org-tree-head">
+                                <span></span> <span></span> <span>Employee</span> <span>Career Path</span> <span>Level</span> <span>Since</span> <span>Actions</span>
+                            </div>
+                            <div class="org-tree-rows">
+                                <template x-for="employee in unit.employees" :key="employee.id">
+                                    <div class="org-tree-row" :class="{ current: employee.isCurrentUser }">
+                                        <div class="org-tree-connector"></div>
+                                        <div class="avatar sm" :class="$store.tiToolbox.generateAvatarClass(employee.id)" :aria-label="employee.name">
+                                            <span x-text="(employee.name || '?').charAt(0).toUpperCase()"></span>
+                                        </div>
+                                        <div class="org-employee-cell">
+                                            <div class="org-employee-name">
+                                                <span x-text="employee.name"></span> <span class="you-tag" x-show="employee.isCurrentUser">You</span>
+                                            </div>
+                                            <div class="org-employee-id" x-text="employee.id"></div>
+                                        </div>
+                                        <div x-text="employee.career.careerPathName"></div>
+                                        <div>
+                                            <span class="level-pip" :class="employee.career.level" x-text="employee.career.level + (employee.career.stage || '')"></span>
+                                        </div>
+                                        <div class="org-employee-since" x-text="formatDate(employee.career.startingDate)"></div>
+                                        <div class="org-action-cell">
+                                            <button type="button" class="btn sm" x-show="employee.evaluation && (isManagerView || employee.isCurrentUser)" @click="openEvaluation(employee.id, employee.evaluation.evaluationID)">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                    <path d="M9 11l3 3L22 4"/>
+                                                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                                                </svg>
+                                                Review
+                                            </button>
+                                            <button type="button" class="btn sm primary" x-show="!employee.evaluation && isManagerView && !employee.isCurrentUser" @click="startNewEvaluation(employee.id)">
+                                                Start Evaluation
+                                            </button>
+                                            <span class="org-locked" x-show="(!isManagerView && !employee.isCurrentUser) || (employee.isCurrentUser && !employee.evaluation)">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                                </svg>
+                                                Locked
+                                            </span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="unit.employees.length === 0">
+                        <div class="empty-state">
+                            <div class="empty-state-title">No employees in this team</div>
+                        </div>
+                    </template>
+                </div>
             </template>
         </div>
-    </div>
+    </template>
 </div>
