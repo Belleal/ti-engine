@@ -2,6 +2,19 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.6.3
+
+* feat(css): add `--ti-internal-padding` CSS variable to the design token system
+* feat(css): add `--ti-border-color` CSS variable for consistent border theming
+* feat(icons): add `.ti-icon.calendar` and `.ti-icon.schedule` icon variants with hover states
+* feat(css): add `.ti-data-value.fill-space` modifier for flex-grow behavior in inline data value layouts
+* fix(css): remove `min-width: 120px` constraint from `.ti-button.inline` for more flexible sizing
+* fix(css): update z-index stacking values for dropdown and overlay elements to prevent layering conflicts
+* build(deps): update `openid-client` from ^6.8.2 to ^6.8.4
+* build(deps): update bundled `@alpinejs/csp` from ^3.15.11 to ^3.15.12
+* build(deps): update bundled `htmx.org` from ^2.0.8 to ^2.0.10
+* build(static): refresh bundled Alpine.js CSP and HTMX library files to match updated dependency versions
+
 ## Version 1.6.2
 
 * feat(ui): replace Material Symbols usage with framework-native `.ti-icon` classes across sidebar flyouts, login actions, and notification bar

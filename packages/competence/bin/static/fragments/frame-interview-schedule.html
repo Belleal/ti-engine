@@ -1,0 +1,76 @@
+<title id="ti-page-title" hx-swap-oob="outerHTML">{ti-title-placeholder}</title>
+<div class="ti-content pane" x-data="interviewSchedule()">
+    <div class="ti-panel ti-sub-panel">
+        <div class="ti-sub-panel-title" x-text-label="interface.schedule.title"></div>
+        <div class="interview-schedule-list">
+            <div class="interview-schedule-head">
+                <div class="interview-col-name ti-label" x-text-label="interface.schedule.columns.employee"></div>
+                <div class="interview-col-date ti-label" x-text-label="interface.schedule.columns.interview-date"></div>
+                <div class="interview-col-actions ti-label" x-text-label="interface.schedule.columns.actions"></div>
+            </div>
+            <template x-if="evaluations.length === 0">
+                <div class="ti-data-value" x-text-label="interface.schedule.no-evaluations"></div>
+            </template>
+            <template x-for="evaluation in evaluations" x-bind:key="evaluation.evaluationID">
+                <div class="interview-schedule-row" x-bind:class="{ selected: selectedEvaluationID === evaluation.evaluationID }">
+                    <div class="interview-col-name ti-data-value" x-text="evaluation.employeeName"></div>
+                    <div class="interview-col-date ti-data-value"
+                         x-text="evaluation.interviewDate ? formatDate( evaluation.interviewDate ) : getLabel( 'interface.schedule.not-scheduled' )"></div>
+                    <div class="interview-col-actions">
+                        <button type="button"
+                                class="ti-button inline ti-glass-btn-black large on-screen"
+                                x-show="!evaluation.interviewDate"
+                                x-on:click="selectEvaluation( evaluation.evaluationID )"
+                                x-text-label="interface.schedule.actions.schedule"></button>
+                        <button type="button"
+                                class="ti-button inline ti-glass-btn-black large on-screen"
+                                x-show="!!evaluation.interviewDate && !!evaluation.bookedSlotID"
+                                x-on:click="cancelBooking( evaluation.bookedSlotID )"
+                                x-text-label="interface.schedule.actions.cancel-booking"></button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <div class="ti-panel ti-sub-panel interview-slot-picker" x-show="!!selectedEvaluationID">
+        <div class="ti-sub-panel-title" x-text-label="interface.schedule.pick-slot-title"></div>
+        <template x-if="!hasAvailableSlots()">
+            <div class="ti-data-value" x-text-label="interface.schedule.no-slots"></div>
+        </template>
+        <template x-if="hasAvailableSlots()">
+            <div>
+                <div class="calendar-week-nav">
+                    <button type="button" class="ti-button inline ti-glass-btn-black large on-screen"
+                            x-on:click="prevSlotWeeks()"
+                            x-bind:disabled="!canGoPrevSlotWeeks()"
+                            x-text-label="interface.schedule.week-nav-prev"></button>
+                    <button type="button" class="ti-button inline ti-glass-btn-black large on-screen"
+                            x-on:click="nextSlotWeeks()"
+                            x-bind:disabled="!canGoNextSlotWeeks()"
+                            x-text-label="interface.schedule.week-nav-next"></button>
+                </div>
+                <div class="interview-slot-weeks">
+                    <template x-for="week in getSlotViewWeeks()" x-bind:key="week.weekLabel">
+                        <div class="interview-slot-week-column">
+                            <div class="interview-slot-week-header" x-text="week.weekLabel"></div>
+                            <div class="interview-slot-week-body">
+                                <template x-if="week.slots.length === 0">
+                                    <div class="interview-slot-week-empty">—</div>
+                                </template>
+                                <template x-for="slot in week.slots" x-bind:key="slot.slotID">
+                                    <button type="button"
+                                            class="ti-button ti-glass-btn-black on-screen interview-slot-item"
+                                            x-on:click="bookSlot( slot.slotID )">
+                                        <span class="interview-slot-time" x-text="formatSlotTime( slot )"></span>
+                                        <span class="interview-slot-manager" x-text="slot.managerName || ''"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>

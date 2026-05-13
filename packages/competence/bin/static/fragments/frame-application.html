@@ -18,6 +18,20 @@
                 type="button" class="ti-sidebar-flyout-item ti-glass-btn-black" aria-label="Employees List">
             <span class="ti-icon employee-list" aria-hidden="true"></span>
         </button>
+        <button hx-get="/app/manager-calendar"
+                hx-target="#ti-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                type="button" class="ti-sidebar-flyout-item ti-glass-btn-black" aria-label="My Availability Calendar">
+            <span class="ti-icon calendar" aria-hidden="true"></span>
+        </button>
+        <button hx-get="/app/interview-schedule"
+                hx-target="#ti-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                type="button" class="ti-sidebar-flyout-item ti-glass-btn-black" aria-label="Interview Schedule">
+            <span class="ti-icon schedule" aria-hidden="true"></span>
+        </button>
     </div>
     <div id="ti-sidebar-menu-bottom" class="ti-sidebar-menu bottom">
         <div x-data="$store.tiComponentsConfig.sidebarApplicationMenu">

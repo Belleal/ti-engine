@@ -3,7 +3,7 @@
     {
       "evaluationID": "adef433c-9a9d-42d4-abdc-26ca3a48827e",
       "employeeID": "1",
-      "cycleID": "2026.H1",
+      "cycleID": "2026-H1",
       "cycleDate": "2026-06-30",
       "status": "Deleted",
       "grades": {},
@@ -31,7 +31,7 @@
     {
       "evaluationID": "d43d14e1-dc96-48de-92f5-adb16586c178",
       "employeeID": "1",
-      "cycleID": "2026.H1",
+      "cycleID": "2026-H1",
       "cycleDate": "2026-06-30",
       "status": "In Review",
       "grades": {
@@ -135,7 +135,7 @@
     {
       "evaluationID": "1735bb0a-62c5-415a-b37d-06a26c9939e3",
       "employeeID": "2",
-      "cycleID": "2026.H1",
+      "cycleID": "2026-H1",
       "cycleDate": "2026-06-30",
       "interviewDate": "2026-07-17",
       "status": "Open",

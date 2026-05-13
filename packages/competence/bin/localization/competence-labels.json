@@ -2351,6 +2351,10 @@
         "en": "The Evaluation status must be 'Open' in order to submit it.",
         "bg": "Статусът на Оценката трябва да е 'Open', за да я изпратите."
       },
+      "invalid-interview-status": {
+        "en": "The Evaluation status must be 'Ready' in order to schedule an interview.",
+        "bg": "Статусът на Оценката трябва да е 'Ready', за да планирате интервю."
+      },
       "no-draft-saving-possible": {
         "en": "Not possible to save a draft for team evaluation. Please submit all grades to proceed.",
         "bg": "Не е възможно запазване на чернова за екипна оценка. Моля, изпратете всички оценки, за да продължите."
@@ -2370,6 +2374,32 @@
       "unable-to-final-score": {
         "en": "Unable to calculate the final score for this Evaluation.",
         "bg": "Крайният резултат за тази Оценка не може да бъде изчислен."
+      },
+      "invalid-team-members": {
+        "en": "One or more team member IDs are not valid employees.",
+        "bg": "Един или повече идентификатори на членове на екипа не са валидни служители."
+      }
+    },
+    "calendar": {
+      "slot-not-found": {
+        "en": "The selected slot was not found.",
+        "bg": "Избраният слот не беше намерен."
+      },
+      "slot-not-available": {
+        "en": "The selected slot is no longer available.",
+        "bg": "Избраният слот вече не е свободен."
+      },
+      "slot-not-booked": {
+        "en": "The selected slot is not currently booked.",
+        "bg": "Избраният слот в момента не е запазен."
+      },
+      "slot-already-booked": {
+        "en": "This slot is already booked.",
+        "bg": "Този слот вече е запазен."
+      },
+      "cannot-toggle-booked": {
+        "en": "Cannot remove a booked slot. Cancel the booking first.",
+        "bg": "Не може да се премахне запазен слот. Отменете резервацията първо."
       }
     }
   },
@@ -2606,6 +2636,18 @@
           "en": "Performance Appraisal Form",
           "bg": "Форма за Оценка на Представянето"
         },
+        "data": {
+          "en": "Performance Appraisal Data",
+          "bg": "Данни за Оценка на Представянето"
+        },
+        "team-selection": {
+          "en": "Team Selection",
+          "bg": "Избор на Екип"
+        },
+        "employee-list": {
+          "en": "Select Employees:",
+          "bg": "Избор на Служители:"
+        },
         "cycle": {
           "en": "Performance Appraisal Cycle:",
           "bg": "Цикъл на Оценка на Представянето:"
@@ -2657,6 +2699,10 @@
         "current-status": {
           "en": "Current Status:",
           "bg": "Текущ Статус:"
+        },
+        "empty-team-list": {
+          "en": "No team members selected",
+          "bg": "Няма избрани членове на екипа"
         }
       },
       "competencies": {
@@ -2697,6 +2743,18 @@
         "submit": {
           "en": "Submit",
           "bg": "Завърши"
+        },
+        "cancel": {
+          "en": "Cancel",
+          "bg": "Откажи"
+        },
+        "remove": {
+          "en": "Remove",
+          "bg": "Премахни"
+        },
+        "add-team-member": {
+          "en": "Add Team Member",
+          "bg": "Добави член на екипа"
         }
       },
       "messages": {
@@ -2789,6 +2847,98 @@
         "open": {
           "en": "Open",
           "bg": "Отворена"
+        }
+      }
+    },
+    "calendar": {
+      "title": {
+        "en": "My Availability Calendar",
+        "bg": "Моят Календар за Наличност"
+      },
+      "week-nav-prev": {
+        "en": "Previous Week",
+        "bg": "Предишна Седмица"
+      },
+      "week-nav-next": {
+        "en": "Next Week",
+        "bg": "Следваща Седмица"
+      },
+      "slot-available": {
+        "en": "Available",
+        "bg": "Свободен"
+      },
+      "slot-booked": {
+        "en": "Booked",
+        "bg": "Запазен"
+      },
+      "slot-busy": {
+        "en": "Busy",
+        "bg": "Зает"
+      },
+      "slot-empty": {
+        "en": "Not Available",
+        "bg": "Неналичен"
+      },
+      "mark-available": {
+        "en": "Mark as Available",
+        "bg": "Маркирай като Свободен"
+      },
+      "mark-busy": {
+        "en": "Mark as Busy",
+        "bg": "Маркирай като Зает"
+      }
+    },
+    "schedule": {
+      "title": {
+        "en": "Interview Schedule",
+        "bg": "График за Интервюта"
+      },
+      "not-scheduled": {
+        "en": "Not Scheduled",
+        "bg": "Без насрочено интервю"
+      },
+      "pick-slot-title": {
+        "en": "Select an Available Slot",
+        "bg": "Изберете Свободен Слот"
+      },
+      "week-nav-prev": {
+        "en": "← Previous",
+        "bg": "← Предишни"
+      },
+      "week-nav-next": {
+        "en": "Next →",
+        "bg": "Следващи →"
+      },
+      "no-evaluations": {
+        "en": "No evaluations awaiting interview scheduling.",
+        "bg": "Няма оценки, чакащи насрочване на интервю."
+      },
+      "no-slots": {
+        "en": "No available slots. Ask the manager to configure their calendar.",
+        "bg": "Няма свободни слотове. Помолете мениджъра да конфигурира своя календар."
+      },
+      "actions": {
+        "schedule": {
+          "en": "Schedule",
+          "bg": "Насрочи"
+        },
+        "cancel-booking": {
+          "en": "Cancel Interview",
+          "bg": "Отмени Интервюто"
+        }
+      },
+      "columns": {
+        "employee": {
+          "en": "Employee",
+          "bg": "Служител"
+        },
+        "interview-date": {
+          "en": "Interview Date",
+          "bg": "Дата на Интервю"
+        },
+        "actions": {
+          "en": "Actions",
+          "bg": "Действия"
         }
       }
     }

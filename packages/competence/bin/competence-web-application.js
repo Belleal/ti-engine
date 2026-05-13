@@ -40,6 +40,18 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "Employees List",
             path: "fragments/frame-employees-list.html"
         } );
+        this.addFragment( "new-evaluation", {
+            title: "New Competence Evaluation",
+            path: "fragments/frame-new-evaluation.html"
+        } );
+        this.addFragment( "manager-calendar", {
+            title: "My Availability Calendar",
+            path: "fragments/frame-manager-calendar.html"
+        } );
+        this.addFragment( "interview-schedule", {
+            title: "Interview Schedule",
+            path: "fragments/frame-interview-schedule.html"
+        } );
     }
 
     /* Public interface */
@@ -66,7 +78,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Used to process a request for a data resource.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {string} view
      * @param {Object} [options]
      * @returns {Promise<Object>}
@@ -94,6 +106,13 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#loadEvaluation( session, employeeID, evaluationID );
         } else if ( view === "load-employee-list" ) {
             return this.#loadEmployeeList( session );
+        } else if ( view === "load-new-evaluation-data" ) {
+            const employeeID = String( options?.query?.employeeID || "" ).trim();
+            return this.#loadNewEvaluationData( session, employeeID );
+        } else if ( view === "load-manager-calendar" ) {
+            return this.#loadManagerCalendar( session );
+        } else if ( view === "load-interview-schedule" ) {
+            return this.#loadInterviewSchedule( session );
         } else {
             return super.processDataRequest( session, view, options );
         }
@@ -103,7 +122,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Used to process an application service request.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {string} service
      * @param {Object} params
      * @returns {Promise<Object>}
@@ -116,7 +135,13 @@ class CompetenceWebApplication extends TiWebAppManager {
         } else if ( service === "submit-evaluation" ) {
             return this.#submitEvaluation( session, params.evaluation );
         } else if ( service === "start-evaluation" ) {
-            return this.#startEvaluation( session, params.employeeID );
+            return this.#startEvaluation( session, params.employeeID, params.team );
+        } else if ( service === "toggle-calendar-slot" ) {
+            return this.#toggleCalendarSlot( session, params );
+        } else if ( service === "book-interview-slot" ) {
+            return this.#bookInterviewSlot( session, params );
+        } else if ( service === "cancel-interview-booking" ) {
+            return this.#cancelInterviewBooking( session, params );
         } else {
             return super.processServiceRequest( session, service, params );
         }
@@ -142,18 +167,14 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Used to load the employee list sorted by organization unit.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @returns {Promise<Object>}
      * @private
      */
     #loadEmployeeList( session ) {
         return new Promise( ( resolve, reject ) => {
-            const userID = session?.user?.employeeID;
-            if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
+            const { userID, userRoles } = this.#requireSessionUser( session );
 
-            const userRoles = Array.isArray( session?.user?.roles ) ? session.user.roles : [];
             const userUnitID = organizationManager.instance.resolveOrganizationUnitIDForEmployee( userID );
             if ( !userUnitID ) {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-employee-found" }, exceptions.httpCode.C_404 ) );
@@ -274,19 +295,16 @@ class CompetenceWebApplication extends TiWebAppManager {
     /**
      * Used to submit the evaluation.
      *
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {Evaluation} evaluation
      * @returns {Promise<Evaluation>}
-     * @throws {TiException.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
-     * @throws {TiException.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
+     * @exception {TiException.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
      * @private
      */
     #submitEvaluation( session, evaluation ) {
         return new Promise( ( resolve, reject ) => {
-            const userID = session?.user?.employeeID;
-            if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
+            const { userID } = this.#requireSessionUser( session );
 
             let existingEvaluation = null;
             let isEmployee = false;
@@ -441,19 +459,16 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Used to save a draft of the evaluation.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {Evaluation} evaluation
      * @returns {Promise<Evaluation>}
-     * @throws {TiException.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
-     * @throws {TiException.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
+     * @exception {TiException.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
      * @private
      */
     #saveEvaluationDraft( session, evaluation ) {
         return new Promise( ( resolve, reject ) => {
-            const userID = session?.user?.employeeID;
-            if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
+            const { userID } = this.#requireSessionUser( session );
 
             let existingEvaluation = null;
             let isEmployee = false;
@@ -530,7 +545,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Used to load the data for the competence evaluation form for a specific employee.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {string} employeeID
      * @param {string|null} [evaluationID] Optional evaluation ID to load. If not provided, the most recent valid evaluation will be loaded.
      * @returns {Promise<Object>}
@@ -538,10 +553,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #loadEvaluation( session, employeeID, evaluationID = null ) {
         return new Promise( ( resolve, reject ) => {
-            const userID = session?.user?.employeeID;
-            if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
+            const { userID } = this.#requireSessionUser( session );
 
             let currentEvaluation = null;
             let employee = null;
@@ -647,19 +659,16 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Used to start a new evaluation for an employee.
      *
      * @method
-     * @param {Object} session
+     * @param {TiSession} session
      * @param {string} employeeID
+     * @param {string[]} [team]
      * @returns {Promise<string>} Return the evaluationID of the newly created evaluation.
      * @private
      */
-    #startEvaluation( session, employeeID ) {
+    #startEvaluation( session, employeeID, team ) {
         return new Promise( ( resolve, reject ) => {
-            const userID = session?.user?.employeeID;
-            if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
-
-            const isSupervisor = Array.isArray( session?.user?.roles ) && session.user.roles.includes( configurationLoader.roleCode.SUPERVISOR );
+            const { userID, userRoles } = this.#requireSessionUser( session );
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
             let employee;
 
             dataManager.instance.fetchEmployee( employeeID ).then( ( result ) => {
@@ -693,6 +702,16 @@ class CompetenceWebApplication extends TiWebAppManager {
                     newEvaluation.managerID = resolvedManagerID;
                 }
 
+                if ( Array.isArray( team ) ) {
+                    const uniqueTeam = [ ...new Set( team.map( String ) ) ]
+                        .filter( ( id ) => id !== employee.employeeID && id !== resolvedManagerID );
+                    const invalidIDs = uniqueTeam.filter( ( id ) => !organizationManager.instance.resolveEmployeeName( id ) );
+                    if ( invalidIDs.length > 0 ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.evaluation.invalid-team-members" } );
+                    }
+                    newEvaluation.workflow.team = uniqueTeam;
+                }
+
                 // Populate the competencies based on the employee career path and the role configuration:
                 for ( const competencyCode of competenceFramework.instance.getAllowedCompetencyCodes( employee.personal.careerPath, newEvaluation.cycleID ) ) {
                     newEvaluation.grades[ competencyCode ] = competenceFramework.instance.normalizeGrades( newEvaluation.grades, competencyCode );
@@ -701,6 +720,336 @@ class CompetenceWebApplication extends TiWebAppManager {
                 return dataManager.instance.saveEvaluation( newEvaluation );
             } ).then( ( savedEvaluation ) => {
                 resolve( savedEvaluation.evaluationID );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to load the data for the new evaluation screen.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {string} employeeID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadNewEvaluationData( session, employeeID ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR, configurationLoader.roleCode.MANAGER );
+
+            let employee;
+            dataManager.instance.fetchEmployee( employeeID ).then( ( employeeData ) => {
+                if ( !employeeData ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-employee-found" }, exceptions.httpCode.C_404 );
+                }
+                employee = employeeData;
+                return dataManager.instance.fetchEmployees();
+            } ).then( ( allEmployees ) => {
+                const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee );
+                let availableTeamMembers = [];
+                allEmployees.forEach( ( currentEmployee ) => {
+                    if ( currentEmployee.employeeID !== employeeID && currentEmployee.employeeID !== organizationContext.managerID ) {
+                        availableTeamMembers.push( {
+                            employeeID: currentEmployee.employeeID,
+                            name: currentEmployee.personal.name,
+                            careerPathName: configurationLoader.careerPathCode.name( currentEmployee.personal.careerPath )
+                        } );
+                    }
+                } );
+
+                resolve( {
+                    personal: {
+                        ...employee.personal,
+                        organizationUnitName: organizationContext.organizationUnitName
+                    },
+                    manager: {
+                        managerID: organizationContext.managerID,
+                        name: organizationContext.managerName
+                    },
+                    evaluation: {
+                        cycleID: competenceFramework.instance.evaluationCycleID,
+                        cycleDate: competenceFramework.instance.evaluationCycleDate,
+                        careerPathName: configurationLoader.careerPathCode.name( employee.personal.careerPath ),
+                        stageLevel: `${ employee.personal.level }${ employee.personal.stage }`
+                    },
+                    availableTeamMembers: availableTeamMembers
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to load the manager's availability calendar for the current cycle.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadManagerCalendar( session ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.MANAGER );
+
+            const cycleID = competenceFramework.instance.evaluationCycleID;
+            const calendarConfig = this.#getCalendarConfig();
+
+            dataManager.instance.fetchManagerCalendar( cycleID, userID ).then( ( slots ) => {
+                resolve( {
+                    cycleID: cycleID,
+                    cycleDate: competenceFramework.instance.evaluationCycleDate,
+                    managerID: userID,
+                    slots: slots,
+                    config: calendarConfig
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to load all READY evaluations and available calendar slots for the supervisor scheduling view.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadInterviewSchedule( session ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR, configurationLoader.roleCode.MANAGER );
+
+            const cycleID = competenceFramework.instance.evaluationCycleID;
+            const calendarConfig = this.#getCalendarConfig();
+
+            Promise.all( [
+                dataManager.instance.fetchEvaluations( null, false ),
+                dataManager.instance.fetchAllCalendarSlots( cycleID )
+            ] ).then( ( [ allEvaluations, allSlots ] ) => {
+                const readyStatus = configurationLoader.evaluationStatus.READY;
+                const readyEvaluations = allEvaluations.filter( ( evaluation ) => evaluation.status === readyStatus );
+
+                const bookedSlotByEvaluationID = new Map();
+                allSlots.forEach( ( slot ) => {
+                    if ( slot.status === configurationLoader.slotStatus.BOOKED && slot.booking?.evaluationID ) {
+                        bookedSlotByEvaluationID.set( slot.booking.evaluationID, slot );
+                    }
+                } );
+
+                const evaluations = readyEvaluations.map( ( evaluation ) => {
+                    const bookedSlot = bookedSlotByEvaluationID.get( evaluation.evaluationID ) || null;
+                    return {
+                        evaluationID: evaluation.evaluationID,
+                        employeeID: evaluation.employeeID,
+                        employeeName: organizationManager.instance.resolveEmployeeName( evaluation.employeeID ) || evaluation.employeeID,
+                        managerID: evaluation.managerID,
+                        managerName: organizationManager.instance.resolveEmployeeName( evaluation.managerID ) || evaluation.managerID,
+                        interviewDate: evaluation.interviewDate || null,
+                        bookedSlotID: bookedSlot ? bookedSlot.slotID : null
+                    };
+                } );
+
+                const slots = allSlots
+                    .filter( ( slot ) => slot.status === configurationLoader.slotStatus.AVAILABLE )
+                    .map( ( slot ) => ( {
+                        ...slot,
+                        managerName: organizationManager.instance.resolveEmployeeName( slot.managerID ) || slot.managerID
+                    } ) );
+
+                resolve( {
+                    cycleID: cycleID,
+                    evaluations: evaluations,
+                    slots: slots,
+                    config: calendarConfig
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to toggle a calendar slot on/off for the current manager.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.date
+     * @param {string} params.startTime
+     * @param {string} [params.targetStatus] The desired slot status. Accepts `available` or `busy`. Defaults to `available`.
+     * If a slot with the same status already exists it will be removed (toggle off).
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #toggleCalendarSlot( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.MANAGER );
+
+            const date = String( params?.date || "" ).trim();
+            const startTime = String( params?.startTime || "" ).trim();
+            if ( !date || !startTime ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { params } ) );
+            }
+
+            const targetStatus = String( params?.targetStatus || "" ).trim() || configurationLoader.slotStatus.AVAILABLE;
+            if ( targetStatus !== configurationLoader.slotStatus.AVAILABLE && targetStatus !== configurationLoader.slotStatus.BUSY ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { targetStatus } ) );
+            }
+
+            const cycleID = competenceFramework.instance.evaluationCycleID;
+            const slotID = `${ cycleID }|${ userID }|${ date }|${ startTime }`;
+            const durationMinutes = configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.slotDurationMinutes", 30 );
+
+            dataManager.instance.fetchManagerCalendar( cycleID, userID ).then( ( existingSlots ) => {
+                const existing = existingSlots.find( ( s ) => s.slotID === slotID );
+
+                if ( existing ) {
+                    if ( existing.status === configurationLoader.slotStatus.BOOKED ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.calendar.cannot-toggle-booked" }, exceptions.httpCode.C_422 );
+                    }
+                    if ( existing.status === targetStatus ) {
+                        existing.status = configurationLoader.slotStatus.DELETED;
+                        return dataManager.instance.saveCalendarSlot( existing ).then( () => ( { action: "removed" } ) );
+                    } else {
+                        existing.status = targetStatus;
+                        return dataManager.instance.saveCalendarSlot( existing ).then( () => ( { action: "updated", slot: existing } ) );
+                    }
+                } else {
+                    const newSlot = {
+                        slotID: slotID,
+                        managerID: userID,
+                        cycleID: cycleID,
+                        date: date,
+                        startTime: startTime,
+                        durationMinutes: durationMinutes,
+                        status: targetStatus,
+                        booking: null,
+                        externalRef: null
+                    };
+                    return dataManager.instance.saveCalendarSlot( newSlot ).then( () => ( { action: "added", slot: newSlot } ) );
+                }
+            } ).then( ( result ) => {
+                resolve( result );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to book a calendar slot for a specific evaluation interview.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.slotID
+     * @param {string} params.evaluationID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #bookInterviewSlot( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const slotID = String( params?.slotID || "" ).trim();
+            const evaluationID = String( params?.evaluationID || "" ).trim();
+            if ( !slotID || !evaluationID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { params } ) );
+            }
+
+            const { cycleID, managerID } = this.#parseSlotID( slotID );
+
+            let targetSlot;
+            let targetEvaluation;
+
+            dataManager.instance.fetchManagerCalendar( cycleID, managerID ).then( ( slots ) => {
+                targetSlot = slots.find( ( s ) => s.slotID === slotID );
+                if ( !targetSlot ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.calendar.slot-not-found" }, exceptions.httpCode.C_404 );
+                }
+                if ( targetSlot.status !== configurationLoader.slotStatus.AVAILABLE ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.calendar.slot-not-available" }, exceptions.httpCode.C_422 );
+                }
+                return dataManager.instance.fetchEvaluation( evaluationID );
+            } ).then( ( evaluation ) => {
+                if ( evaluation.status !== configurationLoader.evaluationStatus.READY ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-interview-status" }, exceptions.httpCode.C_422 );
+                }
+                targetEvaluation = evaluation;
+
+                targetSlot.status = configurationLoader.slotStatus.BOOKED;
+                targetSlot.booking = {
+                    evaluationID: evaluationID,
+                    employeeID: evaluation.employeeID,
+                    employeeName: organizationManager.instance.resolveEmployeeName( evaluation.employeeID ) || evaluation.employeeID,
+                    bookedAt: new Date().toISOString()
+                };
+
+                targetEvaluation.interviewDate = targetSlot.date;
+
+                return Promise.all( [
+                    dataManager.instance.saveCalendarSlot( targetSlot ),
+                    dataManager.instance.saveEvaluation( targetEvaluation )
+                ] );
+            } ).then( () => {
+                resolve( { slotID: slotID, interviewDate: targetSlot.date } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to cancel an existing interview booking, freeing the slot and clearing the evaluation's interview date.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.slotID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #cancelInterviewBooking( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const slotID = String( params?.slotID || "" ).trim();
+            if ( !slotID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { params } ) );
+            }
+
+            const { cycleID, managerID } = this.#parseSlotID( slotID );
+
+            let targetSlot;
+
+            dataManager.instance.fetchManagerCalendar( cycleID, managerID ).then( ( slots ) => {
+                targetSlot = slots.find( ( s ) => s.slotID === slotID );
+                if ( !targetSlot ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.calendar.slot-not-found" }, exceptions.httpCode.C_404 );
+                }
+                if ( targetSlot.status !== configurationLoader.slotStatus.BOOKED ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.calendar.slot-not-booked" }, exceptions.httpCode.C_422 );
+                }
+
+                const evaluationID = targetSlot.booking?.evaluationID;
+                targetSlot.status = configurationLoader.slotStatus.AVAILABLE;
+                targetSlot.booking = null;
+
+                const saveSlotPromise = dataManager.instance.saveCalendarSlot( targetSlot );
+                const clearDatePromise = evaluationID
+                    ? dataManager.instance.fetchEvaluation( evaluationID ).then( ( evaluation ) => {
+                        evaluation.interviewDate = null;
+                        return dataManager.instance.saveEvaluation( evaluation );
+                    } )
+                    : Promise.resolve();
+
+                return Promise.all( [ saveSlotPromise, clearDatePromise ] );
+            } ).then( () => {
+                resolve( { slotID: slotID } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
@@ -718,6 +1067,76 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #canManagerPerformEvaluation( managerID, employeeID ) {
         return Promise.resolve( organizationManager.instance.isSuperiorManagerOfEmployee( managerID, employeeID ) );
+    }
+
+    /**
+     * Extracts the authenticated user context from the session.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {{ userID: string, userRoles: string[] }}
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} (401) If the session has no valid user identity.
+     * @private
+     */
+    #requireSessionUser( session ) {
+        const userID = session?.user?.employeeID;
+        if ( !userID ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+        }
+        const userRoles = Array.isArray( session?.user?.roles ) ? session.user.roles : [];
+        return { userID, userRoles };
+    }
+
+    /**
+     * Extracts the authenticated user context and verifies that the user holds at least one of the specified roles.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {...string} roles One or more role codes; at least one must be present in the session.
+     * @returns {{ userID: string, userRoles: string[] }}
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} (401) If the session is unauthenticated or no role matches.
+     * @private
+     */
+    #requireRole( session, ...roles ) {
+        const context = this.#requireSessionUser( session );
+        if ( !roles.some( ( role ) => context.userRoles.includes( role ) ) ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+        }
+        return context;
+    }
+
+    /**
+     * Returns the interview calendar configuration derived from application settings.
+     *
+     * @method
+     * @returns {Object}
+     * @private
+     */
+    #getCalendarConfig() {
+        return {
+            slotDurationMinutes: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.slotDurationMinutes", 30 ),
+            workingHoursStart: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingHoursStart", "09:00" ),
+            workingHoursEnd: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingHoursEnd", "18:00" ),
+            workingDays: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingDays", [ 1, 2, 3, 4, 5 ] )
+        };
+    }
+
+    /**
+     * Parses a slot ID string into its component parts.
+     *
+     * @method
+     * @param {string} slotID
+     * @returns {{ cycleID: string, managerID: string, date: string, startTime: string }}
+     * @exception {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} If the format of the slot ID is invalid.
+     * @private
+     */
+    #parseSlotID( slotID ) {
+        const parts = slotID.split( "|" );
+        if ( parts.length < 4 ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { slotID } );
+        }
+        const [ cycleID, managerID, date, startTime ] = parts;
+        return { cycleID, managerID, date, startTime };
     }
 
 }

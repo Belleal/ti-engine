@@ -341,12 +341,7 @@ class CommonMemoryCache extends ConnectionObserver {
     expireValue( key, seconds, name ) {
         return new Promise( ( resolve, reject ) => {
             if ( this.#isOperational === true ) {
-                let commandExpire = [];
-                if ( name ) {
-                    commandExpire = [ redis.cacheCommands.HASH_EXPIRE, name, seconds, "FIELDS", 1, key ];
-                } else {
-                    commandExpire = [ redis.cacheCommands.EXPIRE, key, seconds ];
-                }
+                let commandExpire = ( name ) ? [ redis.cacheCommands.HASH_EXPIRE, name, seconds, "FIELDS", 1, key ] : [ redis.cacheCommands.EXPIRE, key, seconds ];
                 this.#redisClient.executeCommands( [ commandExpire ] ).then( () => {
                     resolve( seconds );
                 } ).catch( ( error ) => {
@@ -632,7 +627,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @method
      * @param {string} key
      * @param {Object} value
-     * @param {string} [path="$"]
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments (use the array form when key names may contain dots or other special characters).
      * @param {number} [overrideMode=0] By default this allows full override for existing keys.
      * Option 1 will set the key only if it doesn't already exist. Option 2 will set it only if it already exists.
      * @returns {Promise}
@@ -667,7 +662,7 @@ class CommonMemoryCache extends ConnectionObserver {
      *
      * @method
      * @param {string} key
-     * @param {string} [path="$"]
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments (use the array form when key names may contain dots or other special characters).
      * @returns {Promise<Object>}
      * @public
      */
@@ -698,7 +693,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @method
      * @param {string} key
      * @param {Object} value
-     * @param {string} [path="$"]
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments (use the array form when key names may contain dots or other special characters).
      * @returns {Promise}
      * @public
      */
@@ -729,7 +724,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @method
      * @param {string} key
      * @param {Object} value
-     * @param {string} [path="$"]
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments (use the array form when key names may contain dots or other special characters).
      * @returns {Promise}
      * @public
      */
@@ -756,13 +751,19 @@ class CommonMemoryCache extends ConnectionObserver {
 
     /**
      * Used to normalize a JSON path.
+     * <br/>
+     * NOTE: If "path" is an array, each element is treated as a literal key name and encoded with bracket notation,
+     * which correctly handles key names that contain dots or other JSONPath special characters.
      *
      * @method
-     * @param {string} path
+     * @param {string|string[]} path
      * @returns {string}
      * @private
      */
     #normalizeJSONPath( path ) {
+        if ( Array.isArray( path ) ) {
+            return "$" + path.map( ( segment ) => `["${ String( segment ).replace( /\\/g, "\\\\" ).replace( /"/g, '\\"' ) }"]` ).join( "" );
+        }
         return ( path.startsWith( "$" ) === false ) ? ( "$." + path ) : path;
     }
 

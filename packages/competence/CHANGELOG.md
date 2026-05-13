@@ -2,6 +2,63 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.5.0
+
+* feat(config): add `interviewCalendar` configuration block to `config.application.json` with `slotDurationMinutes`, `workingHoursStart`, `workingHoursEnd`, and `workingDays` settings
+* feat(data-manager): initialize `ti:competence:data:calendars` Redis root key in `initialize()`
+* feat(data-manager): add `fetchManagerCalendar(cycleID, managerID)` to retrieve a manager's active availability slots for a given cycle
+* feat(data-manager): add `fetchAllCalendarSlots(cycleID)` to retrieve all active availability slots across all managers for a given cycle
+* feat(data-manager): add `saveCalendarSlot(slot)` for persisting calendar slot state with logical deletion support
+* feat(web-app): add `manager-calendar` and `interview-schedule` fragment registrations
+* feat(web-app): add `load-manager-calendar` data view returning availability slots, cycle metadata, and calendar configuration for the authenticated manager
+* feat(web-app): add `load-interview-schedule` data view returning READY evaluations with booking state and all available slots for supervisor scheduling
+* feat(web-app): add `toggle-calendar-slot` service handler — MANAGER-only: creates or logically deletes an availability slot by date and start time; booked slots cannot be toggled
+* feat(web-app): add `book-interview-slot` service handler — SUPERVISOR-only: books an available slot for a READY evaluation, sets `slot.status = "booked"` and `evaluation.interviewDate`
+* feat(web-app): add `cancel-interview-booking` service handler — SUPERVISOR-only: cancels a booked slot, restores it to `"available"`, and clears `evaluation.interviewDate`
+* feat(ui): add `managerCalendar` Alpine.js controller with week grid rendering (`getWeekDays`, `getTimeSlots`), slot state resolution (`getSlotState`, `getSlotBookingLabel`), toggle support, and cycle-bounded week navigation (`prevWeek`, `nextWeek`, `canGoPrev`, `canGoNext`)
+* feat(ui): add `interviewSchedule` Alpine.js controller with slot listing (`getAvailableSlots`), booking (`bookSlot`), booking cancellation (`cancelBooking`), and formatted slot label output (`formatSlotLabel`)
+* feat(ui): add `manager-calendar` and `interview-schedule` sidebar navigation buttons to `frame-application.html`
+* feat(html): add `frame-manager-calendar.html` — visual weekly availability grid with click-to-toggle cells, booking occupancy display, slot state legend, and prev/next week navigation
+* feat(html): add `frame-interview-schedule.html` — supervisor interface listing READY evaluations with schedule and cancel actions, and an inline slot picker for selecting available slots
+* feat(css): add calendar grid layout CSS variables (`--calendar-time-col-width`, `--calendar-day-col-width`, `--calendar-slot-height`) and component classes (`.calendar-table`, `.calendar-row`, `.calendar-slot-cell`, `.calendar-legend`, etc.)
+* feat(css): add interview schedule layout classes (`.interview-schedule-list`, `.interview-schedule-row`, `.interview-slot-picker`, `.interview-slot-item`)
+* feat(css): add `.ti-icon.calendar` and `.ti-icon.schedule` embedded SVG mask icons for sidebar buttons
+* feat(localization): add `interface.calendar.*` labels for calendar title, week navigation, and slot states
+* feat(localization): add `interface.schedule.*` labels for schedule title, actions, columns, and empty-state messages
+* feat(localization): add `error.calendar.*` error message labels for slot state violations (`slot-not-found`, `slot-not-available`, `slot-already-booked`, `cannot-toggle-booked`)
+* feat(config-loader): add `slotStatus` enum with values `AVAILABLE`, `BOOKED`, `BUSY`, and `DELETED`
+* refactor(web-app): replace all hardcoded slot status strings with `slotStatus` enum references across `toggle-calendar-slot`, `book-interview-slot`, `cancel-interview-booking`, and `load-interview-schedule`
+* feat(web-app): extend `toggle-calendar-slot` with an optional `targetStatus` parameter (`available` or `busy`); toggling a slot with the same status removes it, toggling with a different non-booked status updates it in place
+* feat(web-app): include `employeeName` (resolved via `OrganizationManager`) in the booking record created by `book-interview-slot`
+* feat(ui): add `busy` slot state to the manager calendar — empty cells display a split hover with a ✓ mark-as-available button and a ✕ mark-as-busy button; busy slots render in amber and toggle off on click
+* feat(ui): update `getSlotBookingLabel` to display `booking.employeeName` instead of raw `booking.employeeID`
+* fix(ui): fix `canGoPrev()` in `managerCalendar` controller to compare ISO date strings instead of `Date` objects, preventing the prev-week button from remaining active on the current week
+* feat(ui): replace the flat slot list in `interviewSchedule` with a 4-column weekly grid — `getSlotViewWeeks()` groups available slots by week, navigation shifts the window by 4 weeks at a time bounded at today's Monday, slot buttons show day/time and manager name on separate lines
+* feat(html): update `frame-manager-calendar.html` with split hover action buttons on empty cells and a `busy` entry in the legend
+* feat(html): replace the flat slot list in `frame-interview-schedule.html` with a 4-column weekly grid and `← Previous` / `Next →` navigation controls
+* feat(css): add `.calendar-slot-cell.busy` amber variant and `.calendar-slot-actions` / `.calendar-slot-action` split-button hover styles for the manager calendar grid
+* feat(css): add `.interview-slot-weeks`, `.interview-slot-week-column`, `.interview-slot-week-header`, `.interview-slot-item`, `.interview-slot-time`, and `.interview-slot-manager` styles for the weekly slot picker layout
+* feat(localization): add `interface.calendar.slot-busy`, `interface.calendar.mark-available`, and `interface.calendar.mark-busy` labels
+* feat(localization): add `interface.schedule.week-nav-prev` and `interface.schedule.week-nav-next` labels
+* fix(data-manager): use array-based Redis JSON paths in `fetchManagerCalendar` and `fetchAllCalendarSlots` to prevent misinterpretation of cycle IDs containing dots or other JSONPath special characters
+* build(release): bump package version to `1.5.0`
+
+## Version 1.4.0
+
+* feat(framework): expose `evaluationCycleID` and `evaluationCycleDate` as public getters on `CompetenceFramework`
+* feat(web-app): add `new-evaluation` fragment registration
+* feat(web-app): add `load-new-evaluation-data` data view to assemble employee, manager context, cycle metadata, and available team member list for the new evaluation screen
+* feat(web-app): add `#loadNewEvaluationData()` private method for new evaluation screen data resolution
+* feat(web-app): update `#startEvaluation()` to accept and apply `team` parameter for pre-populating evaluation team members at creation
+* fix(ui): rename `startEvaluation()` to `startNewEvaluation()` in `employeesList` Alpine.js controller and update corresponding `frame-employees-list.html` button binding
+* feat(ui): add `startNewEvaluation()` navigation helper to `employeesList` controller to route to the `new-evaluation` fragment
+* feat(ui): implement `configureNewEvaluation` Alpine.js controller with `loadData()`, `applyData()`, `addTeamMember()`, `removeTeamMember()`, `submitNewEvaluation()`, and `cancel()` methods
+* feat(html): add `frame-new-evaluation.html` fragment — evaluation initialization form displaying personal information and an interactive team member selection panel
+* feat(css): add `.new-evaluation-team-selection` grid layout, `.new-evaluation-team-list` scrollable container, and `.new-evaluation-team-member` row styles
+* feat(css): add `.ti-icon.remove-small` embedded SVG mask icon for inline remove buttons
+* feat(localization): add labels for new evaluation data section (`appraisal.data`, `appraisal.team-selection`, `appraisal.employee-list`, `appraisal.empty-team-list`) and action buttons (`actions.cancel`, `actions.remove`, `actions.add-team-member`)
+* build(release): bump package version to `1.4.0`
+
 ## Version 1.3.1
 
 * feat(org): add `isSuperiorManagerOfEmployee()` to support superior-manager checks through the organization unit hierarchy

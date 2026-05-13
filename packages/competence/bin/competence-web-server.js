@@ -91,7 +91,7 @@ class CompetenceWebServer extends TiWebServer {
         // TODO: This part is for testing purposes only! Normally, the employeeID (if any) and roles should come from the AD response.
         if ( session.user ) {
             session.user.employeeID = session.user.employeeID || "20";
-            session.user.roles = [ 1, 2 ];
+            session.user.roles = [ 1, 2, 3 ];
         }
 
         return session;
