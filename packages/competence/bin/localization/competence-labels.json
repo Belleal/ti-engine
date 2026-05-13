@@ -2352,7 +2352,7 @@
         "bg": "Статусът на Оценката трябва да е 'Open', за да я изпратите."
       },
       "invalid-interview-status": {
-        "en": "The Evaluation status must be in status 'Ready' in order to schedule an interview.",
+        "en": "The Evaluation status must be 'Ready' in order to schedule an interview.",
         "bg": "Статусът на Оценката трябва да бъде в статус 'Ready', за да планирате интервю."
       },
       "no-draft-saving-possible": {

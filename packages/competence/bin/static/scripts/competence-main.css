@@ -733,8 +733,16 @@
     flex-direction: row;
 }
 
-.calendar-slot-cell.empty:hover .calendar-slot-actions {
+.calendar-slot-cell.empty:hover .calendar-slot-actions,
+.calendar-slot-cell.empty:focus-within .calendar-slot-actions,
+.calendar-slot-cell.empty.show-actions .calendar-slot-actions {
     display: flex;
+}
+
+@media (hover: none) {
+    .calendar-slot-cell.empty .calendar-slot-actions {
+        display: flex;
+    }
 }
 
 .calendar-slot-action {
