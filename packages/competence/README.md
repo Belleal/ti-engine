@@ -280,9 +280,9 @@ sequenceDiagram
     Note over Mgr, Sys: Step 7 — Interview Scheduling
     Mgr ->> Sys: Toggle availability slots (available / busy)
     Sys -->> Sys: Persist slot state in calendar store
-    Sup ->> Sys: Open Interview Schedule; select Ready evaluation
+    Sup ->> Sys: Open Interview Schedule, select Ready evaluation
     Sup ->> Sys: Book an available slot
-Sys -->> Sys: slot.status = booked ; evaluation.interviewDate set
+Sys -->> Sys: slot.status = booked, evaluation.interviewDate set
 Sys ->> Emp: Notify interview date
 Sys ->> Mgr: Notify interview date
 
@@ -543,7 +543,7 @@ Server ->> DataMgr: fetchEvaluation(evaluationID)
 DataMgr ->> DB: GET evaluation record
 DB -->> DataMgr: Evaluation data
 DataMgr -->> Server: Existing evaluation
-Server -->> Server: Resolve role ; validate status, deadline, and not-yet-submitted
+Server -->> Server: Resolve role, validate status, deadline, and not-yet-submitted
 alt Employee role (status must be Open)
 Server ->> CF: updateSelfEvaluationGrades(evaluation, grades)
 Server -->> Server: Update employee comment
@@ -580,13 +580,13 @@ Server ->> DataMgr: fetchEvaluation(evaluationID)
 DataMgr ->> DB: GET evaluation record
 DB -->> DataMgr: Evaluation data
 DataMgr -->> Server: Existing evaluation
-Server -->> Server: Resolve role ; validate status, deadline, and grade completeness
+Server -->> Server: Resolve role, validate status, deadline, and grade completeness
 alt Employee role (status must be Open)
 Server ->> CF: updateSelfEvaluationGrades(evaluation, grades)
 Server -->> Server: selfEvaluationCompleted = true
 else Team Member role (status must be Open)
 Server ->> CF: updateTeamEvaluationGrades(evaluation, grades)
-Server -->> Server: teamEvaluationsSubmitted++; remove member from pending list
+Server -->> Server: teamEvaluationsSubmitted++, remove member from pending list
 opt Last team member submitted
 Server ->> CF: calculateTeamCumulativeGrades(evaluation)
 Server -->> Server: teamEvaluationCompleted = true
@@ -606,7 +606,7 @@ DB -->> DataMgr: Updated record
 DataMgr -->> Server: Saved evaluation
 Server ->> CF: anonymizeEvaluationGrades + anonymizeEvaluationScores
 Server -->> Client: Updated evaluation (role-filtered, workflow stripped)
-Client -->> User: "Submitted" notification ; navigate to dashboard
+Client -->> User: Submitted notification, navigate to dashboard
 end
 ```
 
@@ -695,7 +695,7 @@ sequenceDiagram
         Server ->> DataMgr: fetchAllCalendarSlots(cycleID)
         DataMgr ->> DB: GET all slots for cycle
         DataMgr -->> Server: All non-deleted slots
-        Server -->> Server: Filter evaluations to READY status; map booked slots per evaluationID
+        Server -->> Server: Filter evaluations to READY status, map booked slots per evaluationID
         Server ->> OrgMgr: resolveEmployeeName (per evaluation + per slot)
         OrgMgr -->> Server: Employee and manager names
         Server -->> Client: {evaluations, slots (available only, with managerName), config}
@@ -721,13 +721,13 @@ Client ->> Server: POST /app/book-interview-slot {slotID, evaluationID}
 Server -->> Server: Verify SUPERVISOR role
 Server ->> DataMgr: fetchManagerCalendar(cycleID, managerID)
 DataMgr -->> Server: Manager's slots
-Server -->> Server: Locate slot ; verify status = available
+Server -->> Server: Locate slot, verify status = available
         Server ->> DataMgr: fetchEvaluation(evaluationID)
 DataMgr -->> Server: Evaluation record
 Server -->> Server: Verify evaluation status = READY
 Server ->> OrgMgr: resolveEmployeeName(employeeID)
 OrgMgr -->> Server: Employee name
-Server -->> Server: slot.status = booked ; slot.booking = {evaluationID, employeeID, employeeName, bookedAt}
+Server -->> Server: Set slot.status to booked, populate booking record
 Server -->> Server: evaluation.interviewDate = slot.date
 Server ->> DataMgr: saveCalendarSlot(slot)
 Server ->> DataMgr: saveEvaluation(evaluation)
@@ -749,13 +749,13 @@ sequenceDiagram
 
 rect rgba(100, 180, 180, 0.5)
 note over User, DB: Cancel Interview Booking Flow
-User ->> Client: Click "Cancel Interview" on a scheduled evaluation
+User ->> Client: Click Cancel Interview on a scheduled evaluation
 Client ->> Server: POST /app/cancel-interview-booking {slotID}
 Server -->> Server: Verify SUPERVISOR role
 Server ->> DataMgr: fetchManagerCalendar(cycleID, managerID)
 DataMgr -->> Server: Manager's slots
-Server -->> Server: Locate slot ; verify status = booked
-        Server -->> Server: slot.status = available ; slot.booking = null
+Server -->> Server: Locate slot, verify status = booked
+Server -->> Server: slot.status = available, slot.booking = null
 Server ->> DataMgr: fetchEvaluation(evaluationID)
 DataMgr -->> Server: Evaluation record
 Server -->> Server: evaluation.interviewDate = null
@@ -797,7 +797,7 @@ Server ->> CF: createNewEvaluation(employee)
 CF -->> Server: New evaluation object (status: Open)
 Server ->> OrgMgr: resolveManagerIDForEmployee(employeeID, unitID)
 OrgMgr -->> Server: Resolved manager ID
-Server -->> Server: Set managerID ; set workflow.team from provided list
+Server -->> Server: Set managerID, set workflow.team from provided list
         Server ->> CF: getAllowedCompetencyCodes(careerPath, cycleID)
 CF -->> Server: Competency codes for career path and cycle
 Server -->> Server: Populate grades map with empty grade entries per competency
