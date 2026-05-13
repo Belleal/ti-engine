@@ -1,0 +1,72 @@
+<title id="ti-page-title" hx-swap-oob="outerHTML">{ti-title-placeholder}</title>
+<div class="ti-content pane" x-data="managerCalendar()">
+    <div class="ti-panel ti-sub-panel">
+        <div class="ti-sub-panel-title" x-text-label="interface.calendar.title"></div>
+        <div class="calendar-week-nav">
+            <button type="button" class="ti-button inline ti-glass-btn-black large on-screen"
+                    x-on:click="prevWeek()"
+                    x-bind:disabled="!canGoPrev()"
+                    x-text-label="interface.calendar.week-nav-prev"></button>
+            <span class="calendar-week-label ti-data-value" x-text="getWeekLabel()"></span>
+            <button type="button" class="ti-button inline ti-glass-btn-black large on-screen"
+                    x-on:click="nextWeek()"
+                    x-bind:disabled="!canGoNext()"
+                    x-text-label="interface.calendar.week-nav-next"></button>
+        </div>
+    </div>
+
+    <div class="ti-panel ti-sub-panel">
+        <div class="calendar-scroll-wrapper">
+            <div class="calendar-table">
+                <div class="calendar-row header">
+                    <div class="calendar-corner-cell"></div>
+                    <template x-for="day in getWeekDays()" x-bind:key="'header-' + day.date">
+                        <div class="calendar-header-cell">
+                            <div class="calendar-day-name" x-text="day.dayLabel"></div>
+                            <div class="calendar-day-date" x-text="day.dateLabel"></div>
+                        </div>
+                    </template>
+                </div>
+                <template x-for="slot in getTimeSlots()" x-bind:key="slot.startTime">
+                    <div class="calendar-row">
+                        <div class="calendar-time-cell" x-text="slot.startTime"></div>
+                        <template x-for="day in getWeekDays()" x-bind:key="day.date + '-' + slot.startTime">
+                            <div class="calendar-slot-cell"
+                                 x-bind:class="getSlotState( day.date, slot.startTime )"
+                                 x-on:click="getSlotState( day.date, slot.startTime ) !== 'empty' && getSlotState( day.date, slot.startTime ) !== 'booked' && toggleSlot( day.date, slot.startTime, getSlotState( day.date, slot.startTime ) )">
+                                <div class="calendar-slot-actions">
+                                    <button type="button" class="calendar-slot-action available"
+                                            x-on:click.stop="toggleSlot( day.date, slot.startTime, 'available' )"
+                                            x-bind:title="getLabel( 'interface.calendar.mark-available' )"></button>
+                                    <button type="button" class="calendar-slot-action busy"
+                                            x-on:click.stop="toggleSlot( day.date, slot.startTime, 'busy' )"
+                                            x-bind:title="getLabel( 'interface.calendar.mark-busy' )"></button>
+                                </div>
+                                <span class="calendar-slot-label" x-text="getSlotBookingLabel( day.date, slot.startTime )"></span>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <div class="calendar-legend">
+            <span class="calendar-legend-item">
+                <span class="calendar-slot-cell small available"></span>
+                <span x-text-label="interface.calendar.slot-available"></span>
+            </span>
+            <span class="calendar-legend-item">
+                <span class="calendar-slot-cell small booked"></span>
+                <span x-text-label="interface.calendar.slot-booked"></span>
+            </span>
+            <span class="calendar-legend-item">
+                <span class="calendar-slot-cell small busy"></span>
+                <span x-text-label="interface.calendar.slot-busy"></span>
+            </span>
+            <span class="calendar-legend-item">
+                <span class="calendar-slot-cell small"></span>
+                <span x-text-label="interface.calendar.slot-empty"></span>
+            </span>
+        </div>
+    </div>
+</div>

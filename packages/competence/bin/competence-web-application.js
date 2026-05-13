@@ -44,6 +44,14 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "New Competence Evaluation",
             path: "fragments/frame-new-evaluation.html"
         } );
+        this.addFragment( "manager-calendar", {
+            title: "My Availability Calendar",
+            path: "fragments/frame-manager-calendar.html"
+        } );
+        this.addFragment( "interview-schedule", {
+            title: "Interview Schedule",
+            path: "fragments/frame-interview-schedule.html"
+        } );
     }
 
     /* Public interface */
@@ -101,6 +109,10 @@ class CompetenceWebApplication extends TiWebAppManager {
         } else if ( view === "load-new-evaluation-data" ) {
             const employeeID = String( options?.query?.employeeID || "" ).trim();
             return this.#loadNewEvaluationData( session, employeeID );
+        } else if ( view === "load-manager-calendar" ) {
+            return this.#loadManagerCalendar( session );
+        } else if ( view === "load-interview-schedule" ) {
+            return this.#loadInterviewSchedule( session );
         } else {
             return super.processDataRequest( session, view, options );
         }
@@ -124,6 +136,12 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#submitEvaluation( session, params.evaluation );
         } else if ( service === "start-evaluation" ) {
             return this.#startEvaluation( session, params.employeeID, params.team );
+        } else if ( service === "toggle-calendar-slot" ) {
+            return this.#toggleCalendarSlot( session, params );
+        } else if ( service === "book-interview-slot" ) {
+            return this.#bookInterviewSlot( session, params );
+        } else if ( service === "cancel-interview-booking" ) {
+            return this.#cancelInterviewBooking( session, params );
         } else {
             return super.processServiceRequest( session, service, params );
         }
@@ -772,6 +790,340 @@ class CompetenceWebApplication extends TiWebAppManager {
                     },
                     availableTeamMembers: availableTeamMembers
                 } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+      a* Used to load the manager's availability calendar for the current cycle.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadManagerCalendar( session ) {
+        return new Promise( ( resolve, reject ) => {
+            const userID = session?.user?.employeeID;
+            if ( !userID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+            }
+
+            const userRoles = Array.isArray( session?.user?.roles ) ? session.user.roles : [];
+            if ( !userRoles.includes( configurationLoader.roleCode.MANAGER ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+            }
+
+            const cycleID = competenceFramework.instance.evaluationCycleID;
+            const calendarConfig = {
+                slotDurationMinutes: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.slotDurationMinutes", 30 ),
+                workingHoursStart: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingHoursStart", "09:00" ),
+                workingHoursEnd: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingHoursEnd", "18:00" ),
+                workingDays: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingDays", [ 1, 2, 3, 4, 5 ] )
+            };
+
+            dataManager.instance.fetchManagerCalendar( cycleID, userID ).then( ( slots ) => {
+                resolve( {
+                    cycleID: cycleID,
+                    cycleDate: competenceFramework.instance.evaluationCycleDate,
+                    managerID: userID,
+                    slots: slots,
+                    config: calendarConfig
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to load all READY evaluations and available calendar slots for the supervisor scheduling view.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadInterviewSchedule( session ) {
+        return new Promise( ( resolve, reject ) => {
+            const userID = session?.user?.employeeID;
+            if ( !userID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+            }
+
+            const userRoles = Array.isArray( session?.user?.roles ) ? session.user.roles : [];
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+            const isManager = userRoles.includes( configurationLoader.roleCode.MANAGER );
+            if ( !isSupervisor && !isManager ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+            }
+
+            const cycleID = competenceFramework.instance.evaluationCycleID;
+            const calendarConfig = {
+                slotDurationMinutes: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.slotDurationMinutes", 30 ),
+                workingHoursStart: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingHoursStart", "09:00" ),
+                workingHoursEnd: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingHoursEnd", "18:00" ),
+                workingDays: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingDays", [ 1, 2, 3, 4, 5 ] )
+            };
+
+            Promise.all( [
+                dataManager.instance.fetchEvaluations( null, false ),
+                dataManager.instance.fetchAllCalendarSlots( cycleID )
+            ] ).then( ( [ allEvaluations, allSlots ] ) => {
+                const readyStatus = configurationLoader.evaluationStatus.READY;
+                const readyEvaluations = allEvaluations.filter( ( evaluation ) => evaluation.status === readyStatus );
+
+                const bookedSlotByEvaluationID = new Map();
+                allSlots.forEach( ( slot ) => {
+                    if ( slot.status === configurationLoader.slotStatus.BOOKED && slot.booking?.evaluationID ) {
+                        bookedSlotByEvaluationID.set( slot.booking.evaluationID, slot );
+                    }
+                } );
+
+                const evaluations = readyEvaluations.map( ( evaluation ) => {
+                    const bookedSlot = bookedSlotByEvaluationID.get( evaluation.evaluationID ) || null;
+                    return {
+                        evaluationID: evaluation.evaluationID,
+                        employeeID: evaluation.employeeID,
+                        employeeName: organizationManager.instance.resolveEmployeeName( evaluation.employeeID ) || evaluation.employeeID,
+                        managerID: evaluation.managerID,
+                        managerName: organizationManager.instance.resolveEmployeeName( evaluation.managerID ) || evaluation.managerID,
+                        interviewDate: evaluation.interviewDate || null,
+                        bookedSlotID: bookedSlot ? bookedSlot.slotID : null
+                    };
+                } );
+
+                const slots = allSlots
+                    .filter( ( slot ) => slot.status === configurationLoader.slotStatus.AVAILABLE )
+                    .map( ( slot ) => ( {
+                        ...slot,
+                        managerName: organizationManager.instance.resolveEmployeeName( slot.managerID ) || slot.managerID
+                    } ) );
+
+                resolve( {
+                    cycleID: cycleID,
+                    evaluations: evaluations,
+                    slots: slots,
+                    config: calendarConfig
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to toggle a calendar slot on/off for the current manager.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.date
+     * @param {string} params.startTime
+     * @param {string} [params.targetStatus] The desired slot status. Accepts `available` or `busy`. Defaults to `available`.
+     * If a slot with the same status already exists it will be removed (toggle off).
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #toggleCalendarSlot( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const userID = session?.user?.employeeID;
+            if ( !userID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+            }
+
+            const userRoles = Array.isArray( session?.user?.roles ) ? session.user.roles : [];
+            if ( !userRoles.includes( configurationLoader.roleCode.MANAGER ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+            }
+
+            const date = String( params?.date || "" ).trim();
+            const startTime = String( params?.startTime || "" ).trim();
+            if ( !date || !startTime ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { params } ) );
+            }
+
+            const targetStatus = String( params?.targetStatus || "" ).trim() || configurationLoader.slotStatus.AVAILABLE;
+            if ( targetStatus !== configurationLoader.slotStatus.AVAILABLE && targetStatus !== configurationLoader.slotStatus.BUSY ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { targetStatus } ) );
+            }
+
+            const cycleID = competenceFramework.instance.evaluationCycleID;
+            const slotID = `${ cycleID }|${ userID }|${ date }|${ startTime }`;
+            const durationMinutes = configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.slotDurationMinutes", 30 );
+
+            dataManager.instance.fetchManagerCalendar( cycleID, userID ).then( ( existingSlots ) => {
+                const existing = existingSlots.find( ( s ) => s.slotID === slotID );
+
+                if ( existing ) {
+                    if ( existing.status === configurationLoader.slotStatus.BOOKED ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.calendar.cannot-toggle-booked" }, exceptions.httpCode.C_422 );
+                    }
+                    if ( existing.status === targetStatus ) {
+                        existing.status = configurationLoader.slotStatus.DELETED;
+                        return dataManager.instance.saveCalendarSlot( existing ).then( () => ( { action: "removed" } ) );
+                    } else {
+                        existing.status = targetStatus;
+                        return dataManager.instance.saveCalendarSlot( existing ).then( () => ( { action: "updated", slot: existing } ) );
+                    }
+                } else {
+                    const newSlot = {
+                        slotID: slotID,
+                        managerID: userID,
+                        cycleID: cycleID,
+                        date: date,
+                        startTime: startTime,
+                        durationMinutes: durationMinutes,
+                        status: targetStatus,
+                        booking: null,
+                        externalRef: null
+                    };
+                    return dataManager.instance.saveCalendarSlot( newSlot ).then( () => ( { action: "added", slot: newSlot } ) );
+                }
+            } ).then( ( result ) => {
+                resolve( result );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to book a calendar slot for a specific evaluation interview.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.slotID
+     * @param {string} params.evaluationID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #bookInterviewSlot( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const userID = session?.user?.employeeID;
+            if ( !userID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+            }
+
+            const userRoles = Array.isArray( session?.user?.roles ) ? session.user.roles : [];
+            if ( !userRoles.includes( configurationLoader.roleCode.SUPERVISOR ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+            }
+
+            const slotID = String( params?.slotID || "" ).trim();
+            const evaluationID = String( params?.evaluationID || "" ).trim();
+            if ( !slotID || !evaluationID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { params } ) );
+            }
+
+            const parts = slotID.split( "|" );
+            if ( parts.length < 4 ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { slotID } ) );
+            }
+            const [ cycleID, managerID ] = parts;
+
+            let targetSlot;
+            let targetEvaluation;
+
+            dataManager.instance.fetchManagerCalendar( cycleID, managerID ).then( ( slots ) => {
+                targetSlot = slots.find( ( s ) => s.slotID === slotID );
+                if ( !targetSlot ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.calendar.slot-not-found" }, exceptions.httpCode.C_404 );
+                }
+                if ( targetSlot.status !== configurationLoader.slotStatus.AVAILABLE ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.calendar.slot-not-available" }, exceptions.httpCode.C_422 );
+                }
+                return dataManager.instance.fetchEvaluation( evaluationID );
+            } ).then( ( evaluation ) => {
+                if ( evaluation.status !== configurationLoader.evaluationStatus.READY ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-in-review" }, exceptions.httpCode.C_422 );
+                }
+                targetEvaluation = evaluation;
+
+                targetSlot.status = configurationLoader.slotStatus.BOOKED;
+                targetSlot.booking = {
+                    evaluationID: evaluationID,
+                    employeeID: evaluation.employeeID,
+                    employeeName: organizationManager.instance.resolveEmployeeName( evaluation.employeeID ) || evaluation.employeeID,
+                    bookedAt: new Date().toISOString()
+                };
+
+                targetEvaluation.interviewDate = targetSlot.date;
+
+                return Promise.all( [
+                    dataManager.instance.saveCalendarSlot( targetSlot ),
+                    dataManager.instance.saveEvaluation( targetEvaluation )
+                ] );
+            } ).then( () => {
+                resolve( { slotID: slotID, interviewDate: targetSlot.date } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to cancel an existing interview booking, freeing the slot and clearing the evaluation's interview date.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.slotID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #cancelInterviewBooking( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const userID = session?.user?.employeeID;
+            if ( !userID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+            }
+
+            const userRoles = Array.isArray( session?.user?.roles ) ? session.user.roles : [];
+            if ( !userRoles.includes( configurationLoader.roleCode.SUPERVISOR ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+            }
+
+            const slotID = String( params?.slotID || "" ).trim();
+            if ( !slotID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { params } ) );
+            }
+
+            const parts = slotID.split( "|" );
+            if ( parts.length < 4 ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { slotID } ) );
+            }
+            const [ cycleID, managerID ] = parts;
+
+            let targetSlot;
+
+            dataManager.instance.fetchManagerCalendar( cycleID, managerID ).then( ( slots ) => {
+                targetSlot = slots.find( ( s ) => s.slotID === slotID );
+                if ( !targetSlot ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.calendar.slot-not-found" }, exceptions.httpCode.C_404 );
+                }
+                if ( targetSlot.status !== configurationLoader.slotStatus.BOOKED ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.calendar.slot-not-available" }, exceptions.httpCode.C_422 );
+                }
+
+                const evaluationID = targetSlot.booking?.evaluationID;
+                targetSlot.status = configurationLoader.slotStatus.AVAILABLE;
+                targetSlot.booking = null;
+
+                const saveSlotPromise = dataManager.instance.saveCalendarSlot( targetSlot );
+                const clearDatePromise = evaluationID
+                    ? dataManager.instance.fetchEvaluation( evaluationID ).then( ( evaluation ) => {
+                        evaluation.interviewDate = null;
+                        return dataManager.instance.saveEvaluation( evaluation );
+                    } )
+                    : Promise.resolve();
+
+                return Promise.all( [ saveSlotPromise, clearDatePromise ] );
+            } ).then( () => {
+                resolve( { slotID: slotID } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );

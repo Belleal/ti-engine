@@ -12,6 +12,10 @@ const tools = require( "@ti-engine/core/tools" );
 const _ = require( "lodash" );
 const configurationLoader = require( "#configuration-loader" );
 
+const cacheEntryKeyCalendars = "ti:competence:data:calendars";
+const cacheEntryKeyEmployees = "ti:competence:data:employees";
+const cacheEntryKeyEvaluations = "ti:competence:data:evaluations";
+
 /**
  * Used to create and/or return a Data Manager singleton instance.
  *
@@ -45,19 +49,20 @@ class DataManager {
      */
     initialize() {
         let promises = [];
-        promises.push( cache.instance.setJSON( `ti:competence:data:employees`, {}, "$", 1 ) );
-        promises.push( cache.instance.setJSON( `ti:competence:data:evaluations`, {}, "$", 1 ) );
+        promises.push( cache.instance.setJSON( cacheEntryKeyEmployees, {}, "$", 1 ) );
+        promises.push( cache.instance.setJSON( cacheEntryKeyEvaluations, {}, "$", 1 ) );
+        promises.push( cache.instance.setJSON( cacheEntryKeyCalendars, {}, "$", 1 ) );
 
         let preloadData = ( process.env.COMPETENCE_PRELOAD_DATA !== undefined ) ? tools.toBool( process.env.COMPETENCE_PRELOAD_DATA ) : false;
 
         if ( preloadData === true ) {
             const employees = require( "#data-employees" ).employees;
             employees.forEach( ( employee ) => {
-                promises.push( cache.instance.editJSON( `ti:competence:data:employees`, { [ employee.employeeID ]: employee } ) );
+                promises.push( cache.instance.editJSON( cacheEntryKeyEmployees, { [ employee.employeeID ]: employee } ) );
             } );
             const evaluations = require( "#data-evaluations" ).evaluations;
             evaluations.forEach( ( evaluation ) => {
-                promises.push( cache.instance.editJSON( `ti:competence:data:evaluations`, { [ evaluation.employeeID ]: { [ evaluation.evaluationID ]: evaluation } } ) );
+                promises.push( cache.instance.editJSON( cacheEntryKeyEvaluations, { [ evaluation.employeeID ]: { [ evaluation.evaluationID ]: evaluation } } ) );
             } );
         }
 
@@ -74,7 +79,7 @@ class DataManager {
     fetchEmployees() {
         return new Promise( ( resolve, reject ) => {
             if ( cache.instance.isOperational ) {
-                cache.instance.getJSON( `ti:competence:data:employees`, "$" ).then( ( result ) => {
+                cache.instance.getJSON( cacheEntryKeyEmployees, "$" ).then( ( result ) => {
                     const source = _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result );
                     if ( !source || typeof source !== "object" ) {
                         resolve( [] );
@@ -107,7 +112,7 @@ class DataManager {
             const resolvedEmployeeID = String( employeeID );
 
             if ( cache.instance.isOperational ) {
-                cache.instance.getJSON( `ti:competence:data:employees`, `${ resolvedEmployeeID }` ).then( ( result ) => {
+                cache.instance.getJSON( cacheEntryKeyEmployees, `${ resolvedEmployeeID }` ).then( ( result ) => {
                     if ( !result || result.length === 0 ) {
                         reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: `Employee with ID '${ employeeID }' not found!` } ) );
                     } else {
@@ -150,7 +155,7 @@ class DataManager {
             }
 
             if ( cache.instance.isOperational ) {
-                cache.instance.getJSON( `ti:competence:data:evaluations`, resolvedEmployeeID ? `${ resolvedEmployeeID }` : "$" ).then( ( result ) => {
+                cache.instance.getJSON( cacheEntryKeyEvaluations, resolvedEmployeeID ? `${ resolvedEmployeeID }` : "$" ).then( ( result ) => {
                     if ( !result || result.length === 0 ) {
                         resolve( [] );
                     } else {
@@ -195,7 +200,7 @@ class DataManager {
     fetchEvaluation( evaluationID ) {
         return new Promise( ( resolve, reject ) => {
             if ( cache.instance.isOperational ) {
-                cache.instance.getJSON( `ti:competence:data:evaluations`, `*.${ evaluationID }` ).then( ( result ) => {
+                cache.instance.getJSON( cacheEntryKeyEvaluations, `*.${ evaluationID }` ).then( ( result ) => {
                     const evaluation = _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result );
                     if ( !evaluation || evaluation.status === configurationLoader.evaluationStatus.DELETED ) {
                         reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: `Evaluation with ID '${ evaluationID }' not found!` } ) );
@@ -231,8 +236,100 @@ class DataManager {
             if ( !evaluation?.employeeID || !evaluation?.evaluationID ) {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluation } ) );
             }
-            cache.instance.editJSON( `ti:competence:data:evaluations`, { [ evaluation.employeeID ]: { [ evaluation.evaluationID ]: evaluation } } ).then( () => {
+            cache.instance.editJSON( cacheEntryKeyEvaluations, { [ evaluation.employeeID ]: { [ evaluation.evaluationID ]: evaluation } } ).then( () => {
                 resolve( evaluation );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to fetch all non-deleted calendar slots for a specific manager and cycle.
+     *
+     * @method
+     * @param {string} cycleID
+     * @param {string} managerID
+     * @returns {Promise<Array<Object>>}
+     * @public
+     */
+    fetchManagerCalendar( cycleID, managerID ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( cache.instance.isOperational ) {
+                cache.instance.getJSON( cacheEntryKeyCalendars, [ cycleID, managerID ] ).then( ( result ) => {
+                    if ( !result || result.length === 0 ) {
+                        return resolve( [] );
+                    }
+                    const source = _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result );
+                    if ( !source || typeof source !== "object" ) {
+                        return resolve( [] );
+                    }
+                    resolve( Object.values( source ).filter( ( slot ) => slot && slot.status !== "deleted" ) );
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                // NOTE: Only for development purposes. The system expects an actual DB to function properly.
+                resolve( [] );
+            }
+        } );
+    }
+
+    /**
+     * Used to fetch all non-deleted calendar slots for all managers in a cycle.
+     *
+     * @method
+     * @param {string} cycleID
+     * @returns {Promise<Array<Object>>}
+     * @public
+     */
+    fetchAllCalendarSlots( cycleID ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( cache.instance.isOperational ) {
+                cache.instance.getJSON( cacheEntryKeyCalendars, [ cycleID ] ).then( ( result ) => {
+                    if ( !result || result.length === 0 ) {
+                        return resolve( [] );
+                    }
+                    const source = _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result );
+                    if ( !source || typeof source !== "object" ) {
+                        return resolve( [] );
+                    }
+                    let slots = [];
+                    _.forEach( source, ( managerSlots ) => {
+                        if ( managerSlots && typeof managerSlots === "object" ) {
+                            _.forEach( managerSlots, ( slot ) => {
+                                if ( slot && slot.status !== "deleted" ) {
+                                    slots.push( slot );
+                                }
+                            } );
+                        }
+                    } );
+                    resolve( slots );
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                // NOTE: Only for development purposes. The system expects an actual DB to function properly.
+                return resolve( [] );
+            }
+        } );
+    }
+
+    /**
+     * Used to save a calendar slot to the data storage.
+     *
+     * @method
+     * @param {Object} slot
+     * @returns {Promise<Object>}
+     * @public
+     */
+    saveCalendarSlot( slot ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( !slot?.slotID || !slot?.managerID || !slot?.cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { slot } ) );
+            }
+            cache.instance.editJSON( cacheEntryKeyCalendars, { [ slot.cycleID ]: { [ slot.managerID ]: { [ slot.slotID ]: slot } } } ).then( () => {
+                resolve( slot );
             } ).catch( ( error ) => {
                 reject( error );
             } );

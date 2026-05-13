@@ -189,3 +189,7 @@
  * @property {string} [parent] - Parent organization unit ID.
  * @property {string[]|OrganizationUnit[]} [children] - List of child organization units or unit IDs.
  */
+
+/**
+ * @typedef {"available"|"booked"|"busy"|"deleted"} SlotStatusValue
+ */

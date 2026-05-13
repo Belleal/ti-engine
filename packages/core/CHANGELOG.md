@@ -2,6 +2,14 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.4.5
+
+* feat(cache): add array-based path support to all `*JSON` methods — passing an array of strings as `path` treats each element as a literal key name using bracket notation, preventing misinterpretation of key names containing dots or other JSONPath special characters
+
+## Version 1.4.4
+
+* build(deps): update `@dotenvx/dotenvx` from ^1.60.0 to ^1.65.0
+
 ## Version 1.4.3
 
 * build(deps): update `@dotenvx/dotenvx` from ^1.59.1 to ^1.60.0

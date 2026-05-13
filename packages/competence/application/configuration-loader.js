@@ -45,6 +45,21 @@ const careerPathCodeEnum = tools.enum( {
 module.exports.careerPathCode = careerPathCodeEnum;
 
 /**
+ * Enum for the calendar slot status values.
+ *
+ * @readonly
+ * @enum {SlotStatus}
+ * @typedef {SlotStatusValue} SlotStatus
+ */
+const slotStatusEnum = tools.enum( {
+    AVAILABLE: [ "available", "framework.slot.status.name.available", "framework.slot.status.description.available" ],
+    BOOKED: [ "booked", "framework.slot.status.name.booked", "framework.slot.status.description.booked" ],
+    BUSY: [ "busy", "framework.slot.status.name.busy", "framework.slot.status.description.busy" ],
+    DELETED: [ "deleted", "framework.slot.status.name.deleted", "framework.slot.status.description.deleted" ]
+} );
+module.exports.slotStatus = slotStatusEnum;
+
+/**
  * Enum for the evaluation status values.
  *
  * @readonly

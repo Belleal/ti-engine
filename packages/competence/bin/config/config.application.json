@@ -15,6 +15,18 @@
     "isTeamEvaluationCollective": true,
     "minTeamEvaluationMembers": 3,
     "numberOfNextPeriodGoals": 5,
+    "interviewCalendar": {
+      "slotDurationMinutes": 30,
+      "workingHoursStart": "09:00",
+      "workingHoursEnd": "18:00",
+      "workingDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
     "performanceThresholds": {
       "T1": 76,
       "T2": 89,
