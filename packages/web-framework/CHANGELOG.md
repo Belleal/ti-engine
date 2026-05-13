@@ -5,7 +5,10 @@ This document will contain the list of changes made to the framework. The format
 ## Version 1.6.3
 
 * feat(css): add `--ti-internal-padding` CSS variable to the design token system
+* feat(css): add `--ti-border-color` CSS variable for consistent border theming
+* feat(icons): add `.ti-icon.calendar` and `.ti-icon.schedule` icon variants with hover states
 * feat(css): add `.ti-data-value.fill-space` modifier for flex-grow behavior in inline data value layouts
+* fix(css): remove `min-width: 120px` constraint from `.ti-button.inline` for more flexible sizing
 * fix(css): update z-index stacking values for dropdown and overlay elements to prevent layering conflicts
 * build(deps): update `openid-client` from ^6.8.2 to ^6.8.4
 * build(deps): update bundled `@alpinejs/csp` from ^3.15.11 to ^3.15.12

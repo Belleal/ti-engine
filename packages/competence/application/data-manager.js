@@ -264,7 +264,7 @@ class DataManager {
                     if ( !source || typeof source !== "object" ) {
                         return resolve( [] );
                     }
-                    resolve( Object.values( source ).filter( ( slot ) => slot && slot.status !== "deleted" ) );
+                    resolve( Object.values( source ).filter( ( slot ) => slot && slot.status !== configurationLoader.slotStatus.DELETED ) );
                 } ).catch( ( error ) => {
                     reject( error );
                 } );
@@ -298,7 +298,7 @@ class DataManager {
                     _.forEach( source, ( managerSlots ) => {
                         if ( managerSlots && typeof managerSlots === "object" ) {
                             _.forEach( managerSlots, ( slot ) => {
-                                if ( slot && slot.status !== "deleted" ) {
+                                if ( slot && slot.status !== configurationLoader.slotStatus.DELETED ) {
                                     slots.push( slot );
                                 }
                             } );

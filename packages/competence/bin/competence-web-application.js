@@ -173,12 +173,8 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #loadEmployeeList( session ) {
         return new Promise( ( resolve, reject ) => {
-            const userID = session?.user?.employeeID;
-            if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
+            const { userID, userRoles } = this.#requireSessionUser( session );
 
-            const userRoles = Array.isArray( session?.user?.roles ) ? session.user.roles : [];
             const userUnitID = organizationManager.instance.resolveOrganizationUnitIDForEmployee( userID );
             if ( !userUnitID ) {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-employee-found" }, exceptions.httpCode.C_404 ) );
@@ -308,10 +304,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #submitEvaluation( session, evaluation ) {
         return new Promise( ( resolve, reject ) => {
-            const userID = session?.user?.employeeID;
-            if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
+            const { userID } = this.#requireSessionUser( session );
 
             let existingEvaluation = null;
             let isEmployee = false;
@@ -475,10 +468,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #saveEvaluationDraft( session, evaluation ) {
         return new Promise( ( resolve, reject ) => {
-            const userID = session?.user?.employeeID;
-            if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
+            const { userID } = this.#requireSessionUser( session );
 
             let existingEvaluation = null;
             let isEmployee = false;
@@ -563,10 +553,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #loadEvaluation( session, employeeID, evaluationID = null ) {
         return new Promise( ( resolve, reject ) => {
-            const userID = session?.user?.employeeID;
-            if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
+            const { userID } = this.#requireSessionUser( session );
 
             let currentEvaluation = null;
             let employee = null;
@@ -680,12 +667,8 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #startEvaluation( session, employeeID, team ) {
         return new Promise( ( resolve, reject ) => {
-            const userID = session?.user?.employeeID;
-            if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
-
-            const isSupervisor = Array.isArray( session?.user?.roles ) && session.user.roles.includes( configurationLoader.roleCode.SUPERVISOR );
+            const { userID, userRoles } = this.#requireSessionUser( session );
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
             let employee;
 
             dataManager.instance.fetchEmployee( employeeID ).then( ( result ) => {
@@ -720,7 +703,13 @@ class CompetenceWebApplication extends TiWebAppManager {
                 }
 
                 if ( Array.isArray( team ) ) {
-                    newEvaluation.workflow.team = team;
+                    const uniqueTeam = [ ...new Set( team.map( String ) ) ]
+                        .filter( ( id ) => id !== employee.employeeID && id !== resolvedManagerID );
+                    const invalidIDs = uniqueTeam.filter( ( id ) => !organizationManager.instance.resolveEmployeeName( id ) );
+                    if ( invalidIDs.length > 0 ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.evaluation.invalid-team-members" } );
+                    }
+                    newEvaluation.workflow.team = uniqueTeam;
                 }
 
                 // Populate the competencies based on the employee career path and the role configuration:
@@ -748,10 +737,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #loadNewEvaluationData( session, employeeID ) {
         return new Promise( ( resolve, reject ) => {
-            const userID = session?.user?.employeeID;
-            if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR, configurationLoader.roleCode.MANAGER );
 
             let employee;
             dataManager.instance.fetchEmployee( employeeID ).then( ( employeeData ) => {
@@ -797,7 +783,7 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
-      a* Used to load the manager's availability calendar for the current cycle.
+     * Used to load the manager's availability calendar for the current cycle.
      *
      * @method
      * @param {TiSession} session
@@ -806,23 +792,10 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #loadManagerCalendar( session ) {
         return new Promise( ( resolve, reject ) => {
-            const userID = session?.user?.employeeID;
-            if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
-
-            const userRoles = Array.isArray( session?.user?.roles ) ? session.user.roles : [];
-            if ( !userRoles.includes( configurationLoader.roleCode.MANAGER ) ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.MANAGER );
 
             const cycleID = competenceFramework.instance.evaluationCycleID;
-            const calendarConfig = {
-                slotDurationMinutes: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.slotDurationMinutes", 30 ),
-                workingHoursStart: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingHoursStart", "09:00" ),
-                workingHoursEnd: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingHoursEnd", "18:00" ),
-                workingDays: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingDays", [ 1, 2, 3, 4, 5 ] )
-            };
+            const calendarConfig = this.#getCalendarConfig();
 
             dataManager.instance.fetchManagerCalendar( cycleID, userID ).then( ( slots ) => {
                 resolve( {
@@ -848,25 +821,10 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #loadInterviewSchedule( session ) {
         return new Promise( ( resolve, reject ) => {
-            const userID = session?.user?.employeeID;
-            if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
-
-            const userRoles = Array.isArray( session?.user?.roles ) ? session.user.roles : [];
-            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
-            const isManager = userRoles.includes( configurationLoader.roleCode.MANAGER );
-            if ( !isSupervisor && !isManager ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR, configurationLoader.roleCode.MANAGER );
 
             const cycleID = competenceFramework.instance.evaluationCycleID;
-            const calendarConfig = {
-                slotDurationMinutes: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.slotDurationMinutes", 30 ),
-                workingHoursStart: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingHoursStart", "09:00" ),
-                workingHoursEnd: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingHoursEnd", "18:00" ),
-                workingDays: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingDays", [ 1, 2, 3, 4, 5 ] )
-            };
+            const calendarConfig = this.#getCalendarConfig();
 
             Promise.all( [
                 dataManager.instance.fetchEvaluations( null, false ),
@@ -929,15 +887,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #toggleCalendarSlot( session, params ) {
         return new Promise( ( resolve, reject ) => {
-            const userID = session?.user?.employeeID;
-            if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
-
-            const userRoles = Array.isArray( session?.user?.roles ) ? session.user.roles : [];
-            if ( !userRoles.includes( configurationLoader.roleCode.MANAGER ) ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.MANAGER );
 
             const date = String( params?.date || "" ).trim();
             const startTime = String( params?.startTime || "" ).trim();
@@ -1003,15 +953,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #bookInterviewSlot( session, params ) {
         return new Promise( ( resolve, reject ) => {
-            const userID = session?.user?.employeeID;
-            if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
-
-            const userRoles = Array.isArray( session?.user?.roles ) ? session.user.roles : [];
-            if ( !userRoles.includes( configurationLoader.roleCode.SUPERVISOR ) ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
 
             const slotID = String( params?.slotID || "" ).trim();
             const evaluationID = String( params?.evaluationID || "" ).trim();
@@ -1019,11 +961,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { params } ) );
             }
 
-            const parts = slotID.split( "|" );
-            if ( parts.length < 4 ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { slotID } ) );
-            }
-            const [ cycleID, managerID ] = parts;
+            const { cycleID, managerID } = this.#parseSlotID( slotID );
 
             let targetSlot;
             let targetEvaluation;
@@ -1039,7 +977,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 return dataManager.instance.fetchEvaluation( evaluationID );
             } ).then( ( evaluation ) => {
                 if ( evaluation.status !== configurationLoader.evaluationStatus.READY ) {
-                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-in-review" }, exceptions.httpCode.C_422 );
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-interview-status" }, exceptions.httpCode.C_422 );
                 }
                 targetEvaluation = evaluation;
 
@@ -1077,26 +1015,14 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #cancelInterviewBooking( session, params ) {
         return new Promise( ( resolve, reject ) => {
-            const userID = session?.user?.employeeID;
-            if ( !userID ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
-
-            const userRoles = Array.isArray( session?.user?.roles ) ? session.user.roles : [];
-            if ( !userRoles.includes( configurationLoader.roleCode.SUPERVISOR ) ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
-            }
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
 
             const slotID = String( params?.slotID || "" ).trim();
             if ( !slotID ) {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { params } ) );
             }
 
-            const parts = slotID.split( "|" );
-            if ( parts.length < 4 ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { slotID } ) );
-            }
-            const [ cycleID, managerID ] = parts;
+            const { cycleID, managerID } = this.#parseSlotID( slotID );
 
             let targetSlot;
 
@@ -1106,7 +1032,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.calendar.slot-not-found" }, exceptions.httpCode.C_404 );
                 }
                 if ( targetSlot.status !== configurationLoader.slotStatus.BOOKED ) {
-                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.calendar.slot-not-available" }, exceptions.httpCode.C_422 );
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.calendar.slot-not-booked" }, exceptions.httpCode.C_422 );
                 }
 
                 const evaluationID = targetSlot.booking?.evaluationID;
@@ -1141,6 +1067,76 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #canManagerPerformEvaluation( managerID, employeeID ) {
         return Promise.resolve( organizationManager.instance.isSuperiorManagerOfEmployee( managerID, employeeID ) );
+    }
+
+    /**
+     * Extracts the authenticated user context from the session.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {{ userID: string, userRoles: string[] }}
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} (401) If the session has no valid user identity.
+     * @private
+     */
+    #requireSessionUser( session ) {
+        const userID = session?.user?.employeeID;
+        if ( !userID ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+        }
+        const userRoles = Array.isArray( session?.user?.roles ) ? session.user.roles : [];
+        return { userID, userRoles };
+    }
+
+    /**
+     * Extracts the authenticated user context and verifies that the user holds at least one of the specified roles.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {...string} roles One or more role codes; at least one must be present in the session.
+     * @returns {{ userID: string, userRoles: string[] }}
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} (401) If the session is unauthenticated or no role matches.
+     * @private
+     */
+    #requireRole( session, ...roles ) {
+        const context = this.#requireSessionUser( session );
+        if ( !roles.some( ( role ) => context.userRoles.includes( role ) ) ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+        }
+        return context;
+    }
+
+    /**
+     * Returns the interview calendar configuration derived from application settings.
+     *
+     * @method
+     * @returns {Object}
+     * @private
+     */
+    #getCalendarConfig() {
+        return {
+            slotDurationMinutes: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.slotDurationMinutes", 30 ),
+            workingHoursStart: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingHoursStart", "09:00" ),
+            workingHoursEnd: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingHoursEnd", "18:00" ),
+            workingDays: configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.workingDays", [ 1, 2, 3, 4, 5 ] )
+        };
+    }
+
+    /**
+     * Parses a slot ID string into its component parts.
+     *
+     * @method
+     * @param {string} slotID
+     * @returns {{ cycleID: string, managerID: string, date: string, startTime: string }}
+     * @exception {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} If the format of the slot ID is invalid.
+     * @private
+     */
+    #parseSlotID( slotID ) {
+        const parts = slotID.split( "|" );
+        if ( parts.length < 4 ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { slotID } );
+        }
+        const [ cycleID, managerID, date, startTime ] = parts;
+        return { cycleID, managerID, date, startTime };
     }
 
 }

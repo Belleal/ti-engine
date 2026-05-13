@@ -2351,6 +2351,10 @@
         "en": "The Evaluation status must be 'Open' in order to submit it.",
         "bg": "Статусът на Оценката трябва да е 'Open', за да я изпратите."
       },
+      "invalid-interview-status": {
+        "en": "The Evaluation status must be in status 'Ready' in order to schedule an interview.",
+        "bg": "Статусът на Оценката трябва да бъде в статус 'Ready', за да планирате интервю."
+      },
       "no-draft-saving-possible": {
         "en": "Not possible to save a draft for team evaluation. Please submit all grades to proceed.",
         "bg": "Не е възможно запазване на чернова за екипна оценка. Моля, изпратете всички оценки, за да продължите."
@@ -2370,6 +2374,10 @@
       "unable-to-final-score": {
         "en": "Unable to calculate the final score for this Evaluation.",
         "bg": "Крайният резултат за тази Оценка не може да бъде изчислен."
+      },
+      "invalid-team-members": {
+        "en": "One or more team member IDs are not valid employees.",
+        "bg": "Един или повече идентификатори на членове на екипа не са валидни служители."
       }
     },
     "calendar": {
@@ -2380,6 +2388,10 @@
       "slot-not-available": {
         "en": "The selected slot is no longer available.",
         "bg": "Избраният слот вече не е свободен."
+      },
+      "slot-not-booked": {
+        "en": "The selected slot is not currently booked.",
+        "bg": "Избраният слот в момента не е запазен."
       },
       "slot-already-booked": {
         "en": "This slot is already booked.",

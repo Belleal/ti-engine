@@ -128,7 +128,7 @@ Thresholds are configurable in `bin/config/config.application.json`.
 
 Evaluations move through a defined sequence of statuses driven by submission events:
 
-```
+```text
 NOT_STARTED ──► OPEN ──► IN_REVIEW ──► READY ──► CLOSED*
                   │
                   └──► DELETED  (available from any active status)
@@ -323,10 +323,12 @@ raw_manager[category] = Σ ( grade_weight(manager_grade[c])     × relevancy(c, 
 
 ```
 category_score = ceil(
-    ( raw_self[category]    / max_score[category] ) × 0.20  +
-    ( raw_team[category]    / max_score[category] ) × 0.30  +
-    ( raw_manager[category] / max_score[category] ) × 0.50
-) × 100 )
+    (
+      ( raw_self[category]    / max_score[category] ) × 0.20 +
+      ( raw_team[category]    / max_score[category] ) × 0.30 +
+      ( raw_manager[category] / max_score[category] ) × 0.50
+    ) × 100
+)
 ```
 
 **3. Final score** (average across all categories):

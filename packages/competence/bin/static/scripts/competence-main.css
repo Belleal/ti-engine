@@ -890,9 +890,11 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    padding: 5px 8px;
+    padding: 8px 12px;
     text-align: left;
+    justify-content: flex-start;
     gap: 1px;
+    font-size: 13px;
 }
 
 .interview-slot-time {
@@ -907,13 +909,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 100%;
-}
-
-.interview-slot-item {
-    text-align: left;
-    justify-content: flex-start;
-    padding: 8px 12px;
-    font-size: 13px;
 }
 
 @media (max-width: 768px) {
