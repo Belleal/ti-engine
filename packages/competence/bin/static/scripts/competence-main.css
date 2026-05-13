@@ -919,7 +919,7 @@
     max-width: 100%;
 }
 
-@media (max-width: 768px) {
+@media screen and (width <= 720px) {
     .interview-schedule-head,
     .interview-schedule-row {
         grid-template-columns: 1fr;

@@ -2353,7 +2353,7 @@
       },
       "invalid-interview-status": {
         "en": "The Evaluation status must be 'Ready' in order to schedule an interview.",
-        "bg": "Статусът на Оценката трябва да бъде в статус 'Ready', за да планирате интервю."
+        "bg": "Статусът на Оценката трябва да е 'Ready', за да планирате интервю."
       },
       "no-draft-saving-possible": {
         "en": "Not possible to save a draft for team evaluation. Please submit all grades to proceed.",
