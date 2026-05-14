@@ -37,7 +37,7 @@
             </div>
 
             <!-- Team blocks -->
-            <template x-for="unit in units" :key="unit.id">
+            <template x-for="unit in units" x-bind:key="unit.id">
                 <div class="team-block">
                     <div class="team-block-head">
                         <div class="team-mark">
@@ -58,39 +58,54 @@
                     <template x-if="unit.employees.length > 0">
                         <div>
                             <div class="org-tree-head">
-                                <span></span> <span></span> <span>Employee</span> <span>Career Path</span> <span>Level</span> <span>Since</span> <span>Actions</span>
+                                <span></span>
+                                <span></span>
+                                <span>Employee</span>
+                                <span>Career Path</span>
+                                <span>Level</span>
+                                <span>Since</span>
+                                <span>Actions</span>
                             </div>
                             <div class="org-tree-rows">
-                                <template x-for="employee in unit.employees" :key="employee.id">
-                                    <div class="org-tree-row" :class="{ current: employee.isCurrentUser }">
+                                <template x-for="employee in unit.employees" x-bind:key="employee.id">
+                                    <div class="org-tree-row" x-bind:class="{ current: employee.isCurrentUser }">
                                         <div class="org-tree-connector"></div>
-                                        <div class="avatar sm" :class="$store.tiToolbox.generateAvatarClass(employee.id)" :aria-label="employee.name">
+                                        <div class="avatar sm" x-bind:class="$store.tiToolbox.generateAvatarClass(employee.id)"
+                                             x-bind:aria-label="employee.name">
                                             <span x-text="(employee.name || '?').charAt(0).toUpperCase()"></span>
                                         </div>
                                         <div class="org-employee-cell">
                                             <div class="org-employee-name">
-                                                <span x-text="employee.name"></span> <span class="you-tag" x-show="employee.isCurrentUser">You</span>
+                                                <span x-text="employee.name"></span>
+                                                <span class="you-tag" x-show="employee.isCurrentUser">You</span>
                                             </div>
                                             <div class="org-employee-id" x-text="employee.id"></div>
                                         </div>
                                         <div x-text="employee.career.careerPathName"></div>
                                         <div>
-                                            <span class="level-pip" :class="employee.career.level" x-text="employee.career.level + (employee.career.stage || '')"></span>
+                                            <span class="level-pip" x-bind:class="employee.career.level"
+                                                  x-text="employee.career.level + (employee.career.stage || '')"></span>
                                         </div>
                                         <div class="org-employee-since" x-text="formatDate(employee.career.startingDate)"></div>
                                         <div class="org-action-cell">
-                                            <button type="button" class="btn sm" x-show="employee.evaluation && (isManagerView || employee.isCurrentUser)" @click="openEvaluation(employee.id, employee.evaluation.evaluationID)">
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <button type="button" class="btn sm" x-show="employee.evaluation && (isManagerView || employee.isCurrentUser)"
+                                                    @click="openEvaluation(employee.id, employee.evaluation.evaluationID)">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                     aria-hidden="true">
                                                     <path d="M9 11l3 3L22 4"/>
                                                     <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
                                                 </svg>
                                                 Review
                                             </button>
-                                            <button type="button" class="btn sm primary" x-show="!employee.evaluation && isManagerView && !employee.isCurrentUser" @click="startNewEvaluation(employee.id)">
+                                            <button type="button" class="btn sm primary"
+                                                    x-show="!employee.evaluation && isManagerView && !employee.isCurrentUser"
+                                                    @click="startNewEvaluation(employee.id)">
                                                 Start Evaluation
                                             </button>
-                                            <span class="org-locked" x-show="(!isManagerView && !employee.isCurrentUser) || (employee.isCurrentUser && !employee.evaluation)">
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <span class="org-locked"
+                                                  x-show="(!isManagerView && !employee.isCurrentUser) || (employee.isCurrentUser && !employee.evaluation)">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                     aria-hidden="true">
                                                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                                                     <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                                                 </svg>

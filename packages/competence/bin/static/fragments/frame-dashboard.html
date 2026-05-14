@@ -29,7 +29,8 @@
                     </div>
                     <div class="dash-hero-actions" x-show="myEvaluation">
                         <button @click="openMyEvaluation()" class="btn primary" type="button">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                 stroke-linejoin="round" aria-hidden="true">
                                 <path d="M9 11l3 3L22 4"/>
                                 <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
                             </svg>
@@ -49,7 +50,8 @@
                 <!-- Cycle card -->
                 <div class="dash-cycle-card">
                     <div class="cycle-meta">
-                        <span>Active Cycle</span> <span class="status-pill success">
+                        <span>Active Cycle</span>
+                        <span class="status-pill success">
                             <span class="dot"></span>
                             Running
                         </span>
@@ -57,19 +59,22 @@
                     <div class="cycle-id" x-text="cycle.id || '—'"></div>
                     <div>
                         <div class="cycle-progress">
-                            <progress :value="stats.ready" :max="stats.total"></progress>
+                            <progress x-bind:value="stats.ready" x-bind:max="stats.total"></progress>
                         </div>
                         <div class="cycle-progress-meta">
-                            <span x-text="stats.ready + ' of ' + stats.total + ' ready'"></span> <span x-text="cycleProgressPct() + '%'"></span>
+                            <span x-text="stats.ready + ' of ' + stats.total + ' ready'"></span>
+                            <span x-text="cycleProgressPct() + '%'"></span>
                         </div>
                     </div>
                     <template x-if="myEvaluation">
                         <div>
                             <div class="kv-grid mt">
-                                <span class="kv-label">My Status</span> <span class="status-pill" :class="statusColorClass(myEvaluation.status)">
+                                <span class="kv-label">My Status</span> <span class="status-pill" x-bind:class="statusColorClass(myEvaluation.status)">
                                     <span class="dot"></span>
                                     <span x-text="myEvaluation.statusName"></span>
-                                </span> <span class="kv-label">Cycle Date</span> <span class="kv-value" x-text="formatDate(myEvaluation.cycleDate)"></span>
+                                </span>
+                                <span class="kv-label">Cycle Date</span>
+                                <span class="kv-value" x-text="formatDate(myEvaluation.cycleDate)"></span>
                             </div>
                         </div>
                     </template>
@@ -86,10 +91,12 @@
                             <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
                             <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                         </svg>
-                        <span>Total</span> <span class="spacer"></span>
+                        <span>Total</span>
+                        <span class="spacer"></span>
                     </div>
                     <div class="stat-card-value">
-                        <span x-text="stats.total"></span> <span class="stat-card-value-suffix">evals</span>
+                        <span x-text="stats.total"></span>
+                        <span class="stat-card-value-suffix">evals</span>
                     </div>
                     <div class="stat-card-sub">Team evaluations this cycle</div>
                     <div class="stat-card-viz" x-show="stats.total > 0">
@@ -105,11 +112,12 @@
                         <span>In Progress</span>
                     </div>
                     <div class="stat-card-value">
-                        <span x-text="stats.open"></span> <span class="stat-card-value-suffix">open</span>
+                        <span x-text="stats.open"></span>
+                        <span class="stat-card-value-suffix">open</span>
                     </div>
                     <div class="stat-card-sub">Awaiting self or team evaluation</div>
                     <div class="stat-card-viz info" x-show="stats.total > 0">
-                        <progress :value="stats.open" :max="stats.total"></progress>
+                        <progress x-bind:value="stats.open" x-bind:max="stats.total"></progress>
                     </div>
                 </div>
                 <div class="stat-card">
@@ -121,11 +129,12 @@
                         <span>In Review</span>
                     </div>
                     <div class="stat-card-value">
-                        <span x-text="stats.inReview"></span> <span class="stat-card-value-suffix">review</span>
+                        <span x-text="stats.inReview"></span>
+                        <span class="stat-card-value-suffix">review</span>
                     </div>
                     <div class="stat-card-sub">Awaiting manager evaluation</div>
                     <div class="stat-card-viz warn" x-show="stats.total > 0">
-                        <progress :value="stats.inReview" :max="stats.total"></progress>
+                        <progress x-bind:value="stats.inReview" x-bind:max="stats.total"></progress>
                     </div>
                 </div>
                 <div class="stat-card">
@@ -137,11 +146,12 @@
                         <span>Ready</span>
                     </div>
                     <div class="stat-card-value">
-                        <span x-text="stats.ready"></span> <span class="stat-card-value-suffix">ready</span>
+                        <span x-text="stats.ready"></span>
+                        <span class="stat-card-value-suffix">ready</span>
                     </div>
                     <div class="stat-card-sub">Awaiting interview scheduling</div>
                     <div class="stat-card-viz success" x-show="stats.total > 0">
-                        <progress :value="stats.ready" :max="stats.total"></progress>
+                        <progress x-bind:value="stats.ready" x-bind:max="stats.total"></progress>
                     </div>
                 </div>
             </div>
@@ -154,7 +164,8 @@
                         <div class="panel-title" x-show="isManager">Team Evaluations</div>
                         <div class="panel-title" x-show="!isManager">My Evaluation Status</div>
                         <div class="panel-head-actions">
-                            <button hx-get="/app/employees-list" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" class="btn sm ghost" type="button">View all
+                            <button hx-get="/app/employees-list" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" class="btn sm ghost"
+                                    type="button">View all
                             </button>
                         </div>
                     </div>
@@ -162,9 +173,9 @@
                     <!-- Manager: team list -->
                     <template x-if="isManager && teamEvaluations.length > 0">
                         <div class="task-list">
-                            <template x-for="e in teamEvaluations" :key="e.evaluationID">
+                            <template x-for="e in teamEvaluations" x-bind:key="e.evaluationID">
                                 <div class="task-item static">
-                                    <div class="task-item-icon" :class="statusColorClass(e.status)">
+                                    <div class="task-item-icon" x-bind:class="statusColorClass(e.status)">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                             <path d="M9 11l3 3L22 4"/>
                                             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
@@ -174,7 +185,7 @@
                                         <div class="task-item-title" x-text="e.employeeName"></div>
                                         <div class="task-item-sub" x-text="e.statusName"></div>
                                     </div>
-                                    <span class="status-pill" :class="statusColorClass(e.status)">
+                                    <span class="status-pill" x-bind:class="statusColorClass(e.status)">
                                         <span class="dot"></span>
                                         <span x-text="e.statusName"></span>
                                     </span>
@@ -195,22 +206,28 @@
                     <template x-if="!isManager && myEvaluation">
                         <div>
                             <div class="state-track">
-                                <div class="state-step" :class="{ complete: myEvaluation.status !== 'NOT_STARTED', current: myEvaluation.status === 'NOT_STARTED' }">
+                                <div class="state-step"
+                                     x-bind:class="{ complete: myEvaluation.status !== 'NOT_STARTED', current: myEvaluation.status === 'NOT_STARTED' }">
                                     <div class="marker"></div>
                                     <span>Started</span>
                                 </div>
-                                <div class="state-step-line" :class="{ complete: myEvaluation.status === 'IN_REVIEW' || myEvaluation.status === 'READY' || myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'OPEN' }"></div>
-                                <div class="state-step" :class="{ complete: myEvaluation.status === 'IN_REVIEW' || myEvaluation.status === 'READY' || myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'OPEN' }">
+                                <div class="state-step-line"
+                                     x-bind:class="{ complete: myEvaluation.status === 'IN_REVIEW' || myEvaluation.status === 'READY' || myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'OPEN' }"></div>
+                                <div class="state-step"
+                                     x-bind:class="{ complete: myEvaluation.status === 'IN_REVIEW' || myEvaluation.status === 'READY' || myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'OPEN' }">
                                     <div class="marker"></div>
                                     <span>Open</span>
                                 </div>
-                                <div class="state-step-line" :class="{ complete: myEvaluation.status === 'READY' || myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'IN_REVIEW' }"></div>
-                                <div class="state-step" :class="{ complete: myEvaluation.status === 'READY' || myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'IN_REVIEW' }">
+                                <div class="state-step-line"
+                                     x-bind:class="{ complete: myEvaluation.status === 'READY' || myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'IN_REVIEW' }"></div>
+                                <div class="state-step"
+                                     x-bind:class="{ complete: myEvaluation.status === 'READY' || myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'IN_REVIEW' }">
                                     <div class="marker"></div>
                                     <span>In Review</span>
                                 </div>
-                                <div class="state-step-line" :class="{ complete: myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'READY' }"></div>
-                                <div class="state-step" :class="{ complete: myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'READY' }">
+                                <div class="state-step-line"
+                                     x-bind:class="{ complete: myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'READY' }"></div>
+                                <div class="state-step" x-bind:class="{ complete: myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'READY' }">
                                     <div class="marker"></div>
                                     <span>Ready</span>
                                 </div>
@@ -237,7 +254,7 @@
                     </div>
                     <template x-if="activity.length > 0">
                         <div class="activity-list">
-                            <template x-for="item in activity" :key="item.id">
+                            <template x-for="item in activity" x-bind:key="item.id">
                                 <div class="activity-item">
                                     <div class="activity-dot"></div>
                                     <div>

@@ -9,19 +9,31 @@
                     <div class="panel-title" x-text-label="interface.evaluation.personal.title"></div>
                 </div>
                 <div class="new-eval-employee-body">
-                    <div class="avatar lg" :class="$store.tiToolbox.generateAvatarClass(personal.id || personal.name)" :aria-label="personal.name">
+                    <div class="avatar lg" x-bind:class="$store.tiToolbox.generateAvatarClass(personal.id || personal.name)" x-bind:aria-label="personal.name">
                         <span x-text="(personal.name || '?').charAt(0).toUpperCase()"></span>
                     </div>
                     <div>
                         <div class="new-eval-employee-name" x-text="personal.name"></div>
                         <div class="new-eval-employee-sub">
-                            <span x-text="personal.organizationUnitName"></span> <span>·</span> <span x-text-label="interface.evaluation.personal.manager"></span>: <span x-text="manager.name"></span> <span>·</span> <span x-text-label="interface.evaluation.personal.starting-date"></span>: <span x-text="formatDate(personal.startingDate)"></span>
+                            <span x-text="personal.organizationUnitName"></span>
+                            <span>·</span>
+                            <span x-text-label="interface.evaluation.personal.manager"></span>:
+                            <span x-text="manager.name"></span>
+                            <span>·</span>
+                            <span x-text-label="interface.evaluation.personal.starting-date"></span>:
+                            <span x-text="formatDate(personal.startingDate)"></span>
                         </div>
                     </div>
                 </div>
                 <div class="kv-grid new-eval-kv-ext">
-                    <span class="kv-label" x-text-label="interface.evaluation.appraisal.cycle"></span> <span class="kv-value"><span class="tag mono" x-text="evaluation.cycleID"></span></span> <span class="kv-label" x-text-label="interface.evaluation.appraisal.career-path"></span> <span class="kv-value">
-                        <span class="level-pip" :class="evaluation.stageLevel ? evaluation.stageLevel.charAt(0) : ''" x-text="evaluation.stageLevel"></span>
+                    <span class="kv-label" x-text-label="interface.evaluation.appraisal.cycle"></span>
+                    <span class="kv-value">
+                        <span class="tag mono" x-text="evaluation.cycleID"></span>
+                    </span>
+                    <span class="kv-label" x-text-label="interface.evaluation.appraisal.career-path"></span>
+                    <span class="kv-value">
+                        <span class="level-pip" x-bind:class="evaluation.stageLevel ? evaluation.stageLevel.charAt(0) : ''"
+                              x-text="evaluation.stageLevel"></span>
                         <span x-text="evaluation.careerPathName"></span>
                     </span>
                 </div>
@@ -34,10 +46,10 @@
                 </div>
                 <div class="new-eval-team-body">
                     <div class="new-eval-select-row">
-                        <select class="select" :value="selectedTeamMemberID" @change="selectedTeamMemberID = $event.target.value">
+                        <select class="select" x-bind:value="selectedTeamMemberID" @change="selectedTeamMemberID = $event.target.value">
                             <option value="">Select a team member…</option>
-                            <template x-for="member in availableTeamMembers" :key="member.employeeID">
-                                <option :value="member.employeeID" x-text="member.name + ' — ' + member.careerPathName"></option>
+                            <template x-for="member in availableTeamMembers" x-bind:key="member.employeeID">
+                                <option x-bind:value="member.employeeID" x-text="member.name + ' — ' + member.careerPathName"></option>
                             </template>
                         </select>
                         <button type="button" class="btn primary" @click="addTeamMember()" x-text-label="interface.evaluation.actions.add-team-member"></button>
@@ -45,10 +57,11 @@
 
                     <!-- Selected team chips -->
                     <div class="team-chip-list">
-                        <template x-for="member in team" :key="member.employeeID">
+                        <template x-for="member in team" x-bind:key="member.employeeID">
                             <div class="team-chip">
                                 <span x-text="member.name"></span>
-                                <button type="button" class="team-chip-x" @click="removeTeamMember(member.employeeID)" :aria-label="'Remove ' + member.name">
+                                <button type="button" class="team-chip-x" @click="removeTeamMember(member.employeeID)"
+                                        x-bind:aria-label="'Remove ' + member.name">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                                         <path d="M18 6L6 18M6 6l12 12"/>
                                     </svg>

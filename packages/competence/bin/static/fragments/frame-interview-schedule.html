@@ -16,13 +16,18 @@
         <template x-if="evaluations.length > 0">
             <div class="interview-panel-body">
                 <div class="interview-list-head">
-                    <span></span> <span x-text-label="interface.schedule.columns.employee"></span> <span>Status</span> <span x-text-label="interface.schedule.columns.interview-date"></span> <span x-text-label="interface.schedule.columns.actions"></span>
+                    <span></span>
+                    <span x-text-label="interface.schedule.columns.employee"></span>
+                    <span>Status</span>
+                    <span x-text-label="interface.schedule.columns.interview-date"></span>
+                    <span x-text-label="interface.schedule.columns.actions"></span>
                 </div>
 
                 <div class="interview-list">
-                    <template x-for="evaluation in evaluations" :key="evaluation.evaluationID">
-                        <div class="interview-row" :class="{ selected: selectedEvaluationID === evaluation.evaluationID }">
-                            <div class="avatar sm" :class="$store.tiToolbox.generateAvatarClass(evaluation.employeeID || evaluation.evaluationID)" :aria-label="evaluation.employeeName">
+                    <template x-for="evaluation in evaluations" x-bind:key="evaluation.evaluationID">
+                        <div class="interview-row" x-bind:class="{ selected: selectedEvaluationID === evaluation.evaluationID }">
+                            <div class="avatar sm" x-bind:class="$store.tiToolbox.generateAvatarClass(evaluation.employeeID || evaluation.evaluationID)"
+                                 x-bind:aria-label="evaluation.employeeName">
                                 <span x-text="(evaluation.employeeName || '?').charAt(0).toUpperCase()"></span>
                             </div>
                             <div class="interview-emp-name" x-text="evaluation.employeeName"></div>
@@ -30,15 +35,18 @@
                                 <span class="status-pill info" x-show="!evaluation.interviewDate">
                                     <span class="dot"></span>
                                     Not Scheduled
-                                </span> <span class="status-pill success" x-show="!!evaluation.interviewDate">
+                                </span>
+                                <span class="status-pill success" x-show="!!evaluation.interviewDate">
                                     <span class="dot"></span>
                                     Scheduled
                                 </span>
                             </div>
                             <div class="interview-emp-date" x-text="evaluation.interviewDate ? formatDate(evaluation.interviewDate) : '—'"></div>
                             <div class="interview-actions">
-                                <button type="button" class="btn sm primary" x-show="!evaluation.interviewDate" @click="selectEvaluation(evaluation.evaluationID)" x-text-label="interface.schedule.actions.schedule"></button>
-                                <button type="button" class="btn sm danger" x-show="!!evaluation.interviewDate && !!evaluation.bookedSlotID" @click="cancelBooking(evaluation.bookedSlotID)" x-text-label="interface.schedule.actions.cancel-booking"></button>
+                                <button type="button" class="btn sm primary" x-show="!evaluation.interviewDate"
+                                        @click="selectEvaluation(evaluation.evaluationID)" x-text-label="interface.schedule.actions.schedule"></button>
+                                <button type="button" class="btn sm danger" x-show="!!evaluation.interviewDate && !!evaluation.bookedSlotID"
+                                        @click="cancelBooking(evaluation.bookedSlotID)" x-text-label="interface.schedule.actions.cancel-booking"></button>
                             </div>
                         </div>
                     </template>
@@ -52,8 +60,10 @@
         <div class="panel-head">
             <div class="panel-title" x-text-label="interface.schedule.pick-slot-title"></div>
             <div class="panel-head-actions">
-                <button type="button" class="btn sm ghost" @click="prevSlotWeeks()" :disabled="!canGoPrevSlotWeeks()" x-text-label="interface.schedule.week-nav-prev"></button>
-                <button type="button" class="btn sm ghost" @click="nextSlotWeeks()" :disabled="!canGoNextSlotWeeks()" x-text-label="interface.schedule.week-nav-next"></button>
+                <button type="button" class="btn sm ghost" @click="prevSlotWeeks()" x-bind:disabled="!canGoPrevSlotWeeks()"
+                        x-text-label="interface.schedule.week-nav-prev"></button>
+                <button type="button" class="btn sm ghost" @click="nextSlotWeeks()" x-bind:disabled="!canGoNextSlotWeeks()"
+                        x-text-label="interface.schedule.week-nav-next"></button>
             </div>
         </div>
 
@@ -67,16 +77,17 @@
         <template x-if="hasAvailableSlots()">
             <div class="interview-slot-body">
                 <div class="slot-picker-grid">
-                    <template x-for="week in getSlotViewWeeks()" :key="week.weekLabel">
+                    <template x-for="week in getSlotViewWeeks()" x-bind:key="week.weekLabel">
                         <div class="slot-week-col">
                             <div class="slot-week-head" x-text="week.weekLabel"></div>
                             <div class="slot-week-body">
                                 <template x-if="week.slots.length === 0">
                                     <div class="slot-empty-week">No slots available</div>
                                 </template>
-                                <template x-for="slot in week.slots" :key="slot.slotID">
+                                <template x-for="slot in week.slots" x-bind:key="slot.slotID">
                                     <button type="button" class="slot-btn" @click="bookSlot(slot.slotID)">
-                                        <span class="slot-time" x-text="formatSlotTime(slot)"></span> <span class="slot-mgr" x-text="slot.managerName || ''"></span>
+                                        <span class="slot-time" x-text="formatSlotTime(slot)"></span>
+                                        <span class="slot-mgr" x-text="slot.managerName || ''"></span>
                                     </button>
                                 </template>
                             </div>

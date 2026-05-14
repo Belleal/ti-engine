@@ -18,9 +18,9 @@
 
     <!-- Calendar toolbar -->
     <div class="calendar-toolbar">
-        <button type="button" class="btn sm ghost" @click="prevWeek()" :disabled="!canGoPrev()" x-text-label="interface.calendar.week-nav-prev"></button>
+        <button type="button" class="btn sm ghost" @click="prevWeek()" x-bind:disabled="!canGoPrev()" x-text-label="interface.calendar.week-nav-prev"></button>
         <div class="calendar-week-label" x-text="getWeekLabel()"></div>
-        <button type="button" class="btn sm ghost" @click="nextWeek()" :disabled="!canGoNext()" x-text-label="interface.calendar.week-nav-next"></button>
+        <button type="button" class="btn sm ghost" @click="nextWeek()" x-bind:disabled="!canGoNext()" x-text-label="interface.calendar.week-nav-next"></button>
     </div>
 
     <!-- Calendar grid -->
@@ -29,7 +29,7 @@
             <!-- Header row -->
             <div class="cal-header-row">
                 <div class="cal-corner"></div>
-                <template x-for="day in getWeekDays()" :key="'header-' + day.date">
+                <template x-for="day in getWeekDays()" x-bind:key="'header-' + day.date">
                     <div class="cal-header-cell">
                         <div class="cal-header-day" x-text="day.dayLabel"></div>
                         <div class="cal-header-date" x-text="day.dateLabel"></div>
@@ -38,15 +38,17 @@
             </div>
 
             <!-- Time slot rows -->
-            <template x-for="slot in getTimeSlots()" :key="slot.startTime">
+            <template x-for="slot in getTimeSlots()" x-bind:key="slot.startTime">
                 <div class="cal-row">
                     <div class="cal-time-cell" x-text="slot.startTime"></div>
-                    <template x-for="day in getWeekDays()" :key="day.date + '-' + slot.startTime">
-                        <div class="cal-slot" :class="getSlotState(day.date, slot.startTime)" @click="handleSlotClick(day.date, slot.startTime)">
+                    <template x-for="day in getWeekDays()" x-bind:key="day.date + '-' + slot.startTime">
+                        <div class="cal-slot" x-bind:class="getSlotState(day.date, slot.startTime)" @click="handleSlotClick(day.date, slot.startTime)">
                             <div class="cal-slot-split">
-                                <button type="button" class="cal-slot-split-half available" @click.stop="toggleSlot(day.date, slot.startTime, 'available')" :title="getLabel('interface.calendar.mark-available')">✓
+                                <button type="button" class="cal-slot-split-half available" @click.stop="toggleSlot(day.date, slot.startTime, 'available')"
+                                        x-bind:title="getLabel('interface.calendar.mark-available')">✓
                                 </button>
-                                <button type="button" class="cal-slot-split-half busy" @click.stop="toggleSlot(day.date, slot.startTime, 'busy')" :title="getLabel('interface.calendar.mark-busy')">✕
+                                <button type="button" class="cal-slot-split-half busy" @click.stop="toggleSlot(day.date, slot.startTime, 'busy')"
+                                        x-bind:title="getLabel('interface.calendar.mark-busy')">✕
                                 </button>
                             </div>
                             <span class="calendar-slot-label" x-text="getSlotBookingLabel(day.date, slot.startTime)"></span>
