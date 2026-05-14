@@ -12,11 +12,12 @@
             <div class="sidebar-brand-text-block">
                 <span class="sidebar-brand-text">Competence</span>
                 <span class="sidebar-brand-sub"
-                      x-text="($store.tiApplication.configuration && $store.tiApplication.configuration.cycle && $store.tiApplication.configuration.cycle.id) || 'Loading...'">Cycle</span>
+                      x-text="($store.tiApplication.configuration && $store.tiApplication.configuration.cycle && $store.tiApplication.configuration.cycle.name) || $store.tiApplication.getLabel('interface.sidebar.cycle-loading', 'Loading…')">Cycle</span>
             </div>
         </div>
 
-        <!-- Main navigation -->
+        <!-- Workspace navigation -->
+        <div class="sidebar-section-label" x-text-label="interface.navigation.workspace">Workspace</div>
         <div class="sidebar-nav" x-data="{ active: 'dashboard' }">
             <button hx-get="/app/dashboard" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'dashboard'"
                     x-bind:class="{ active: active === 'dashboard' }" class="sidebar-item" data-tip="Dashboard" aria-label="Dashboard" type="button">
@@ -29,7 +30,7 @@
                         <rect x="14" y="14" width="7" height="7" rx="1.5"/>
                     </svg>
                 </span>
-                <span class="sidebar-item-label">Dashboard</span>
+                <span class="sidebar-item-label" x-text-label="interface.topbar.dashboard">Dashboard</span>
             </button>
 
             <button hx-get="/app/employees-list" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'employees'"
@@ -43,7 +44,7 @@
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                     </svg>
                 </span>
-                <span class="sidebar-item-label">Employees</span>
+                <span class="sidebar-item-label" x-text-label="interface.topbar.employees">Employees</span>
             </button>
 
             <button hx-get="/app/competence-evaluation" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'evaluation'"
@@ -55,7 +56,7 @@
                         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
                     </svg>
                 </span>
-                <span class="sidebar-item-label">My Evaluation</span>
+                <span class="sidebar-item-label" x-text-label="interface.topbar.evaluation">My Evaluation</span>
             </button>
 
             <button hx-get="/app/manager-calendar" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'calendar'"
@@ -70,7 +71,7 @@
                         <line x1="3" y1="10" x2="21" y2="10"/>
                     </svg>
                 </span>
-                <span class="sidebar-item-label">Availability</span>
+                <span class="sidebar-item-label" x-text-label="interface.topbar.calendar">Availability</span>
             </button>
 
             <button hx-get="/app/interview-schedule" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'interviews'"
@@ -82,23 +83,26 @@
                         <polyline points="12 6 12 12 16 14"/>
                     </svg>
                 </span>
-                <span class="sidebar-item-label">Interviews</span>
+                <span class="sidebar-item-label" x-text-label="interface.topbar.interviews">Interviews</span>
             </button>
         </div>
 
         <!-- Quick links section -->
-        <div class="sidebar-section-label">Quick links</div>
+        <div class="sidebar-section-label" x-text-label="interface.navigation.quick-links">Quick links</div>
         <div class="sidebar-nav">
-            <button class="sidebar-item" type="button" data-tip="Process Guide" aria-label="Process Guide" disabled>
+            <button class="sidebar-item" type="button" x-text-label:data-tip="interface.navigation.process-guide"
+                    x-text-label:aria-label="interface.navigation.process-guide" disabled>
                 <span class="sidebar-item-icon">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
                          stroke-linejoin="round" aria-hidden="true">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
                     </svg>
                 </span>
-                <span class="sidebar-item-label">Process Guide</span>
+                <span class="sidebar-item-label" x-text-label="interface.navigation.process-guide">Process Guide</span>
             </button>
-            <button class="sidebar-item" type="button" data-tip="Help" aria-label="Help" disabled>
+            <button class="sidebar-item" type="button" x-text-label:data-tip="interface.navigation.help" x-text-label:aria-label="interface.navigation.help"
+                    disabled>
                 <span class="sidebar-item-icon">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
                          stroke-linejoin="round" aria-hidden="true">
@@ -107,7 +111,7 @@
                         <line x1="12" y1="17" x2="12.01" y2="17"/>
                     </svg>
                 </span>
-                <span class="sidebar-item-label">Help</span>
+                <span class="sidebar-item-label" x-text-label="interface.navigation.help">Help</span>
             </button>
         </div>
 
@@ -128,15 +132,55 @@
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
                     </svg>
                 </span>
-                <span class="sidebar-item-label" x-text="theme === 'daylight' ? 'Glass Theme' : 'Daylight Theme'">Toggle Theme</span>
+                <span class="sidebar-item-label"
+                      x-text="theme === 'daylight' ? $store.tiApplication.getLabel('interface.sidebar.theme-glass') : $store.tiApplication.getLabel('interface.sidebar.theme-daylight')">Toggle Theme</span>
+            </button>
+
+            <button class="sidebar-user" type="button"
+                    x-text-label:data-tip="interface.topbar.user-profile"
+                    data-tip="Your profile">
+                <span class="avatar sm" aria-hidden="true"
+                      x-text="(($store.tiApplication.user && $store.tiApplication.user.name) || '?').charAt(0).toUpperCase()">?</span>
+                <span class="sidebar-user-text">
+                    <span class="sidebar-user-name" x-text="($store.tiApplication.user && $store.tiApplication.user.name) || ''"></span>
+                    <span class="sidebar-user-sub"
+                          x-text="($store.tiApplication.configuration && $store.tiApplication.configuration.employeeLevel && $store.tiApplication.configuration.employeeLevel.careerPathName && $store.tiApplication.configuration.employeeLevel.level) ? ($store.tiApplication.configuration.employeeLevel.careerPathName + ' · ' + $store.tiApplication.configuration.employeeLevel.level) : (($store.tiApplication.user && $store.tiApplication.user.roles) || []).join(' · ')"></span>
+                </span>
             </button>
         </div>
     </nav>
 
     <!-- Content -->
-    <div class="content" id="ti-content-wrapper">
+    <div id="ti-content-wrapper" class="content">
+        <!-- Topbar -->
+        <header class="topbar">
+            <div id="ti-topbar-info">
+                <div class="topbar-title" hx-swap-oob="outerHTML">{ti-title-placeholder}</div>
+                <div class="topbar-sub"
+                     x-text="($store.tiApplication.configuration && $store.tiApplication.configuration.cycle && $store.tiApplication.configuration.cycle.name) || ''"></div>
+            </div>
+            <div class="topbar-spacer"></div>
+            <div class="topbar-actions">
+                <button class="btn icon ghost" type="button" x-text-label:aria-label="interface.topbar.search" aria-label="Search">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                </button>
+                <button class="btn icon ghost" type="button" x-text-label:aria-label="interface.topbar.notifications" aria-label="Notifications">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" aria-hidden="true">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
         <div id="ti-content" class="page-scrollable">
-            <ti-nested-frame-placeholder hx-get="/app/dashboard" hx-trigger="load" hx-target="this" hx-swap="outerHTML" hx-push-url="true"/>
+            <ti-nested-frame-placeholder hx-get="/app/dashboard" hx-trigger="load" hx-target="this" hx-swap="outerHTML"
+                                         hx-push-url="true"></ti-nested-frame-placeholder>
         </div>
     </div>
 
@@ -144,12 +188,32 @@
     <div id="ti-notifications" x-data="tiComponentNotificationBar" class="toast-stack" aria-live="polite" aria-atomic="false">
         <template x-for="n in notifications" x-bind:key="n.id">
             <div class="toast" x-bind:class="n.tone || 'info'" role="alert">
+                <div class="toast-bar" aria-hidden="true"></div>
                 <div class="toast-icon" aria-hidden="true">
-                    <span x-text="n.tone === 'success' ? '✓' : n.tone === 'danger' ? '✕' : n.tone === 'warn' ? '!' : 'i'"></span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" aria-hidden="true" x-show="n.tone === 'success'">
+                        <path d="M20 6L9 17l-5-5"/>
+                    </svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" aria-hidden="true" x-show="n.tone === 'danger'">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" aria-hidden="true" x-show="n.tone === 'warn'">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" aria-hidden="true" x-show="!n.tone || n.tone === 'info'">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
                 </div>
                 <div class="toast-body">
                     <div class="toast-title" x-text="n.title || ''"></div>
-                    <div class="toast-desc" x-text="n.message || ''"></div>
+                    <div class="toast-msg" x-text="n.message || ''"></div>
                 </div>
                 <button class="toast-close" @click="remove(n.id)" aria-label="Dismiss notification" type="button">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">

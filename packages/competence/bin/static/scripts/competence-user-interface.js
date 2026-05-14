@@ -900,6 +900,8 @@ const configureDashboard = () => {
         teamEvaluations: [],
         stats: { total: 0, open: 0, inReview: 0, ready: 0 },
         activity: [],
+        tasks: [],
+        employeeMetrics: { peerFeedback: { submitted: 0, requested: 0 }, selfGrades: { completed: 0, total: 0 }, teamCoverage: { started: 0, total: 0 } },
 
         init() {
             const onInitialized = () => {
@@ -927,6 +929,8 @@ const configureDashboard = () => {
                 this.teamEvaluations = Array.isArray( data.teamEvaluations ) ? tiToolbox.structuredClone( data.teamEvaluations ) : [];
                 this.stats = data.stats ? tiToolbox.structuredClone( data.stats ) : { total: 0, open: 0, inReview: 0, ready: 0 };
                 this.activity = Array.isArray( data.activity ) ? tiToolbox.structuredClone( data.activity ) : [];
+                this.tasks = this._buildTasks();
+                this.employeeMetrics = data.employeeMetrics ? tiToolbox.structuredClone( data.employeeMetrics ) : { peerFeedback: { submitted: 0, requested: 0 }, selfGrades: { completed: 0, total: 0 }, teamCoverage: { started: 0, total: 0 } };
                 this.isLoading = false;
             } ).catch( ( error ) => {
                 if ( error?.name === "AbortError" || error?.isAborted ) {
@@ -947,9 +951,9 @@ const configureDashboard = () => {
 
         getGreeting() {
             const hour = new Date().getHours();
-            if ( hour < 12 ) return "Good morning";
-            if ( hour < 17 ) return "Good afternoon";
-            return "Good evening";
+            if ( hour < 12 ) return tiApplication.getLabel( "interface.dashboard.greeting-morning", "Good morning" );
+            if ( hour < 17 ) return tiApplication.getLabel( "interface.dashboard.greeting-afternoon", "Good afternoon" );
+            return tiApplication.getLabel( "interface.dashboard.greeting-evening", "Good evening" );
         },
 
         getUserName() {
@@ -974,6 +978,104 @@ const configureDashboard = () => {
                 return 0;
             }
             return Math.round( ( this.stats.ready / this.stats.total ) * 100 );
+        },
+
+        cycleTimePct() {
+            if ( !this.cycle.startDate || !this.cycle.date ) return 0;
+            const start = new Date( this.cycle.startDate ).getTime();
+            const end = new Date( this.cycle.date ).getTime();
+            const now = Date.now();
+            const elapsed = now - start;
+            const total = end - start;
+            return Math.min( 100, Math.max( 0, Math.round( ( elapsed / total ) * 100 ) ) );
+        },
+
+        daysToDeadline() {
+            if ( !this.cycle.date ) return 0;
+            const diff = new Date( this.cycle.date ).getTime() - Date.now();
+            return Math.max( 0, Math.ceil( diff / ( 1000 * 60 * 60 * 24 ) ) );
+        },
+
+        stageProgressPct() {
+            const order = [ "NOT_STARTED", "OPEN", "IN_REVIEW", "READY", "CLOSED" ];
+            if ( !this.myEvaluation ) return 0;
+            const idx = order.indexOf( this.myEvaluation.status );
+            return idx < 0 ? 0 : Math.round( ( idx / ( order.length - 1 ) ) * 100 );
+        },
+
+        _buildTasks() {
+            const tasks = [];
+            if ( this.myEvaluation ) {
+                const s = this.myEvaluation.status;
+                if ( s === "NOT_STARTED" || s === "OPEN" ) {
+                    tasks.push( {
+                        id: "self-eval",
+                        tone: "info",
+                        title: tiApplication.getLabel( "interface.evaluation.appraisal.title", "Complete self-evaluation" ),
+                        sub: tiApplication.getLabel( "interface.dashboard.no-evaluation", "Your evaluation is open and waiting for your input" ),
+                        action: "evaluation"
+                    } );
+                }
+                if ( s === "READY" ) {
+                    tasks.push( {
+                        id: "interview",
+                        tone: "success",
+                        title: tiApplication.getLabel( "interface.schedule.title", "Schedule your interview" ),
+                        sub: tiApplication.getLabel( "interface.schedule.no-evaluations", "Your evaluation is ready for interview scheduling" ),
+                        action: "schedule"
+                    } );
+                }
+            }
+            if ( this.isManager ) {
+                const pendingReview = this.teamEvaluations.filter( ( e ) => e.status === "IN_REVIEW" ).length;
+                if ( pendingReview > 0 ) {
+                    tasks.push( {
+                        id: "manager-review",
+                        tone: "warn",
+                        title: tiApplication.getLabel( "interface.topbar.employees", "Review pending evaluations" ) + " (" + pendingReview + ")",
+                        sub: tiApplication.getLabel( "interface.dashboard.stats.review-desc", "Team evaluations await your manager review" ),
+                        action: "employees"
+                    } );
+                }
+            }
+            if ( tasks.length === 0 ) {
+                tasks.push( {
+                    id: "stub-1",
+                    tone: "info",
+                    title: tiApplication.getLabel( "interface.evaluation.appraisal.title", "Complete self-evaluation" ),
+                    sub: "21 competencies · saved 2h ago · due 21 May",
+                    action: "evaluation"
+                } );
+                tasks.push( {
+                    id: "stub-2",
+                    tone: "muted",
+                    title: tiApplication.getLabel( "interface.dashboard.task-team-feedback", "Provide team feedback for a colleague" ),
+                    sub: "Software Engineer · R3 · due 21 May",
+                    action: "evaluation"
+                } );
+                tasks.push( {
+                    id: "stub-3",
+                    tone: "muted",
+                    title: tiApplication.getLabel( "interface.schedule.title", "Block your availability for interviews" ),
+                    sub: "Your team needs ~6 slots in late May",
+                    action: "schedule"
+                } );
+            }
+            return tasks;
+        },
+
+        handleTaskClick( task ) {
+            if ( task.action ) {
+                tiApplication.openScreen( task.action === "evaluation" ? "competence-evaluation" :
+                    task.action === "schedule" ? "interview-schedule" : "employees-list" );
+            }
+        },
+
+        getDayInfo() {
+            const now = new Date();
+            const months = [ "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" ];
+            const days = [ "SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY" ];
+            return months[ now.getMonth() ] + " " + now.getFullYear() + " · " + days[ now.getDay() ];
         },
 
         formatDate( value, placeholder = "" ) {

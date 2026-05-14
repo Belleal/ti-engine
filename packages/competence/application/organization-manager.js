@@ -303,6 +303,27 @@ class OrganizationManager {
     }
 
     /**
+     * Resolves the career attributes (level, careerPath, careerPathName) for the specified employee ID.
+     *
+     * @method
+     * @param {string} employeeID
+     * @returns {{level: string, careerPath: string, careerPathName: string}|null}
+     * @public
+     */
+    resolveEmployeeAttributes( employeeID ) {
+        const nodeID = this.toEmployeeNodeID( employeeID );
+        if ( !this.#organizationChart || !this.#organizationChart.hasNode( nodeID ) ) {
+            return null;
+        }
+
+        const level = this.#organizationChart.getNodeAttribute( nodeID, "level" );
+        const careerPath = this.#organizationChart.getNodeAttribute( nodeID, "careerPath" );
+        const careerPathName = configurationLoader.careerPathCode.name( careerPath ) || careerPath;
+
+        return { level, careerPath, careerPathName };
+    }
+
+    /**
      * Resolves the parent unit names for the specified unit ID.
      * The resulting array is ordered from top parent to direct parent.
      *

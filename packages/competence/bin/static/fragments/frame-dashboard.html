@@ -1,10 +1,10 @@
-<title id="ti-page-title" hx-swap-oob="outerHTML">Dashboard — Competence</title>
+<title id="ti-page-title" hx-swap-oob="outerHTML">{ti-title-placeholder}</title>
 <div x-data="competenceDashboard" class="page">
 
     <!-- Loading state -->
     <template x-if="isLoading">
         <div class="empty-state">
-            <div class="empty-state-title">Loading dashboard…</div>
+            <div class="empty-state-title" x-text-label="interface.dashboard.loading">Loading dashboard…</div>
         </div>
     </template>
 
@@ -15,16 +15,18 @@
             <div class="dash-hero">
                 <!-- Greeting card -->
                 <div class="dash-hero-card">
+                    <div class="dash-hero-date" x-text="getDayInfo()"></div>
                     <div class="dash-hero-greeting" x-text="getGreeting() + ','"></div>
                     <div class="dash-hero-title" x-text="getUserName() + '.'"></div>
                     <div class="dash-hero-msg">
                         <template x-if="myEvaluation">
-                            <span>Your evaluation is currently
+                            <span>
+                                <span x-text-label="interface.dashboard.my-eval-status">Your evaluation is currently</span>
                                 <strong x-text="myEvaluation.statusName"></strong>.
                             </span>
                         </template>
                         <template x-if="!myEvaluation">
-                            <span>No active evaluation found for this cycle.</span>
+                            <span x-text-label="interface.dashboard.no-evaluation">No active evaluation found for this cycle.</span>
                         </template>
                     </div>
                     <div class="dash-hero-actions" x-show="myEvaluation">
@@ -34,7 +36,7 @@
                                 <path d="M9 11l3 3L22 4"/>
                                 <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
                             </svg>
-                            Open My Evaluation
+                            <span x-text-label="interface.dashboard.open-evaluation">Open My Evaluation</span>
                         </button>
                     </div>
 
@@ -50,199 +52,252 @@
                 <!-- Cycle card -->
                 <div class="dash-cycle-card">
                     <div class="cycle-meta">
-                        <span>Active Cycle</span>
+                        <span x-text-label="interface.dashboard.cycle-active">Active Cycle</span>
                         <span class="status-pill success">
                             <span class="dot"></span>
-                            Running
+                            <span x-text-label="interface.dashboard.cycle-running">Running</span>
                         </span>
                     </div>
                     <div class="cycle-id" x-text="cycle.id || '—'"></div>
+
+                    <!-- Time-elapsed bar -->
                     <div>
-                        <div class="cycle-progress">
-                            <progress x-bind:value="stats.ready" x-bind:max="stats.total"></progress>
+                        <div class="bar" x-bind:style="{ '--pct': cycleTimePct() + '%' }">
+                            <div class="fill"></div>
                         </div>
                         <div class="cycle-progress-meta">
-                            <span x-text="stats.ready + ' of ' + stats.total + ' ready'"></span>
-                            <span x-text="cycleProgressPct() + '%'"></span>
+                            <span>
+                                <span x-text="daysToDeadline()"></span>
+                                <span x-text-label="interface.dashboard.cycle-days-left">days left</span>
+                            </span>
+                            <span>
+                                <span x-text="cycleTimePct()"></span>% <span x-text-label="interface.dashboard.cycle-elapsed">elapsed</span>
+                            </span>
                         </div>
                     </div>
-                    <template x-if="myEvaluation">
-                        <div>
-                            <div class="kv-grid mt">
-                                <span class="kv-label">My Status</span> <span class="status-pill" x-bind:class="statusColorClass(myEvaluation.status)">
-                                    <span class="dot"></span>
-                                    <span x-text="myEvaluation.statusName"></span>
-                                </span>
-                                <span class="kv-label">Cycle Date</span>
-                                <span class="kv-value" x-text="formatDate(myEvaluation.cycleDate)"></span>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-            </div>
 
-            <!-- Stat cards (manager view) -->
-            <div class="dash-stats" x-show="isManager">
-                <div class="stat-card accent">
-                    <div class="stat-card-head">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                            <circle cx="9" cy="7" r="4"/>
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                        </svg>
-                        <span>Total</span>
-                        <span class="spacer"></span>
-                    </div>
-                    <div class="stat-card-value">
-                        <span x-text="stats.total"></span>
-                        <span class="stat-card-value-suffix">evals</span>
-                    </div>
-                    <div class="stat-card-sub">Team evaluations this cycle</div>
-                    <div class="stat-card-viz" x-show="stats.total > 0">
-                        <progress value="1" max="1"></progress>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-card-head">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <circle cx="12" cy="12" r="10"/>
-                            <polyline points="12 6 12 12 16 14"/>
-                        </svg>
-                        <span>In Progress</span>
-                    </div>
-                    <div class="stat-card-value">
-                        <span x-text="stats.open"></span>
-                        <span class="stat-card-value-suffix">open</span>
-                    </div>
-                    <div class="stat-card-sub">Awaiting self or team evaluation</div>
-                    <div class="stat-card-viz info" x-show="stats.total > 0">
-                        <progress x-bind:value="stats.open" x-bind:max="stats.total"></progress>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-card-head">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                        </svg>
-                        <span>In Review</span>
-                    </div>
-                    <div class="stat-card-value">
-                        <span x-text="stats.inReview"></span>
-                        <span class="stat-card-value-suffix">review</span>
-                    </div>
-                    <div class="stat-card-sub">Awaiting manager evaluation</div>
-                    <div class="stat-card-viz warn" x-show="stats.total > 0">
-                        <progress x-bind:value="stats.inReview" x-bind:max="stats.total"></progress>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-card-head">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                            <polyline points="22 4 12 14.01 9 11.01"/>
-                        </svg>
-                        <span>Ready</span>
-                    </div>
-                    <div class="stat-card-value">
-                        <span x-text="stats.ready"></span>
-                        <span class="stat-card-value-suffix">ready</span>
-                    </div>
-                    <div class="stat-card-sub">Awaiting interview scheduling</div>
-                    <div class="stat-card-viz success" x-show="stats.total > 0">
-                        <progress x-bind:value="stats.ready" x-bind:max="stats.total"></progress>
+                    <!-- Deadline grid -->
+                    <div class="cycle-deadline-grid">
+                        <div class="cycle-deadline-item">
+                            <span class="cycle-deadline-label" x-text-label="interface.dashboard.cycle-start">Start</span>
+                            <span class="cycle-deadline-date" x-text="formatDate(cycle.startDate)"></span>
+                        </div>
+                        <div class="cycle-deadline-item">
+                            <span class="cycle-deadline-label" x-text-label="interface.dashboard.manager-review">Manager Review</span>
+                            <span class="cycle-deadline-date" x-text="formatDate(cycle.date)"></span>
+                        </div>
+                        <div class="cycle-deadline-item">
+                            <span class="cycle-deadline-label" x-text-label="interface.dashboard.cycle-closes">Closes</span>
+                            <span class="cycle-deadline-date" x-text="formatDate(cycle.endDate)"></span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Two-column: team + activity -->
+            <!-- Stat cards — manager view -->
+            <template x-if="isManager">
+                <div class="dash-stats">
+                    <div class="stat-card accent">
+                        <div class="stat-card-head">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                            </svg>
+                            <span x-text-label="interface.dashboard.stats.total">Total</span>
+                            <span class="spacer"></span>
+                        </div>
+                        <div class="stat-card-value">
+                            <span x-text="stats.total"></span>
+                            <span class="stat-card-value-suffix" x-text-label="interface.dashboard.stats.total-suffix">evals</span>
+                        </div>
+                        <div class="stat-card-sub" x-text-label="interface.dashboard.stats.total-desc">Team evaluations this cycle</div>
+                        <div class="stat-card-viz" x-show="stats.total > 0">
+                            <div class="fill"></div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-head">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                            <span x-text-label="interface.dashboard.stats.open">In Progress</span>
+                        </div>
+                        <div class="stat-card-value">
+                            <span x-text="stats.open"></span>
+                            <span class="stat-card-value-suffix" x-text-label="interface.dashboard.stats.open-suffix">open</span>
+                        </div>
+                        <div class="stat-card-sub" x-text-label="interface.dashboard.stats.open-desc">Awaiting self or team evaluation</div>
+                        <div class="stat-card-viz info" x-show="stats.total > 0"
+                             x-bind:style="{ '--pct': (stats.open / stats.total * 100) + '%' }">
+                            <div class="fill"></div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-head">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            <span x-text-label="interface.dashboard.stats.review">In Review</span>
+                        </div>
+                        <div class="stat-card-value">
+                            <span x-text="stats.inReview"></span>
+                            <span class="stat-card-value-suffix" x-text-label="interface.dashboard.stats.review-suffix">review</span>
+                        </div>
+                        <div class="stat-card-sub" x-text-label="interface.dashboard.stats.review-desc">Awaiting manager evaluation</div>
+                        <div class="stat-card-viz warn" x-show="stats.total > 0"
+                             x-bind:style="{ '--pct': (stats.inReview / stats.total * 100) + '%' }">
+                            <div class="fill"></div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-head">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                            <span x-text-label="interface.dashboard.stats.ready">Ready</span>
+                        </div>
+                        <div class="stat-card-value">
+                            <span x-text="stats.ready"></span>
+                            <span class="stat-card-value-suffix" x-text-label="interface.dashboard.stats.ready-suffix">ready</span>
+                        </div>
+                        <div class="stat-card-sub" x-text-label="interface.dashboard.stats.ready-desc">Awaiting interview scheduling</div>
+                        <div class="stat-card-viz success" x-show="stats.total > 0"
+                             x-bind:style="{ '--pct': (stats.ready / stats.total * 100) + '%' }">
+                            <div class="fill"></div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Stat cards — employee view -->
+            <template x-if="!isManager">
+                <div class="dash-stats">
+                    <!-- Team Feedback -->
+                    <div class="stat-card">
+                        <div class="stat-card-head">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                            </svg>
+                            <span x-text-label="interface.dashboard.peer-feedback">Team Feedback</span>
+                        </div>
+                        <div class="stat-card-value">
+                            <span x-text="employeeMetrics.peerFeedback.submitted + ' / ' + employeeMetrics.peerFeedback.requested"></span>
+                            <span class="stat-card-value-suffix" x-text-label="interface.dashboard.peer-feedback-suffix">submitted</span>
+                        </div>
+                        <div class="stat-card-sub" x-text-label="interface.dashboard.peer-feedback-desc">Peer reviews submitted of requested</div>
+                        <div class="stat-card-viz info"
+                             x-bind:style="{ '--pct': (employeeMetrics.peerFeedback.requested > 0 ? (employeeMetrics.peerFeedback.submitted / employeeMetrics.peerFeedback.requested * 100) : 0) + '%' }">
+                            <div class="fill"></div>
+                        </div>
+                    </div>
+                    <!-- Your Self-Grades -->
+                    <div class="stat-card">
+                        <div class="stat-card-head">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M9 11l3 3L22 4"/>
+                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                            </svg>
+                            <span x-text-label="interface.dashboard.self-grades">Your Self-Grades</span>
+                        </div>
+                        <div class="stat-card-value">
+                            <span x-text="employeeMetrics.selfGrades.completed + ' / ' + employeeMetrics.selfGrades.total"></span>
+                            <span class="stat-card-value-suffix" x-text-label="interface.dashboard.self-grades-suffix">complete</span>
+                        </div>
+                        <div class="stat-card-sub" x-text-label="interface.dashboard.self-grades-desc">Competencies submitted — awaiting manager</div>
+                        <div class="stat-card-viz"
+                             x-bind:style="{ '--pct': (employeeMetrics.selfGrades.total > 0 ? (employeeMetrics.selfGrades.completed / employeeMetrics.selfGrades.total * 100) : 0) + '%' }">
+                            <div class="fill"></div>
+                        </div>
+                    </div>
+                    <!-- Next Deadline -->
+                    <div class="stat-card accent">
+                        <div class="stat-card-head">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                            <span x-text-label="interface.dashboard.next-deadline">Next Deadline</span>
+                        </div>
+                        <div class="stat-card-value">
+                            <span x-text="daysToDeadline()"></span>
+                            <span class="stat-card-value-suffix" x-text-label="interface.dashboard.next-deadline-suffix">days</span>
+                        </div>
+                        <div class="stat-card-sub" x-text-label="interface.dashboard.next-deadline-desc">Until manager review closes</div>
+                        <div class="stat-card-viz" x-bind:style="{ '--pct': cycleTimePct() + '%' }">
+                            <div class="fill"></div>
+                        </div>
+                    </div>
+                    <!-- Team Coverage -->
+                    <div class="stat-card">
+                        <div class="stat-card-head">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <line x1="18" y1="20" x2="18" y2="10"/>
+                                <line x1="12" y1="20" x2="12" y2="4"/>
+                                <line x1="6" y1="20" x2="6" y2="14"/>
+                            </svg>
+                            <span x-text-label="interface.dashboard.team-coverage">Team Coverage</span>
+                        </div>
+                        <div class="stat-card-value">
+                            <span x-text="employeeMetrics.teamCoverage.started + ' / ' + employeeMetrics.teamCoverage.total"></span>
+                            <span class="stat-card-value-suffix" x-text-label="interface.dashboard.team-coverage-suffix">started</span>
+                        </div>
+                        <div class="stat-card-sub" x-text-label="interface.dashboard.team-coverage-desc">Teammates have started their evaluations</div>
+                        <div class="stat-card-viz success"
+                             x-bind:style="{ '--pct': (employeeMetrics.teamCoverage.total > 0 ? (employeeMetrics.teamCoverage.started / employeeMetrics.teamCoverage.total * 100) : 0) + '%' }">
+                            <div class="fill"></div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Two-column: tasks + activity -->
             <div class="dash-cols">
-                <!-- Team evaluations -->
+                <!-- Tasks for you -->
                 <div class="panel">
                     <div class="panel-head">
-                        <div class="panel-title" x-show="isManager">Team Evaluations</div>
-                        <div class="panel-title" x-show="!isManager">My Evaluation Status</div>
+                        <div class="panel-title" x-text-label="interface.dashboard.tasks-title">Tasks for you</div>
                         <div class="panel-head-actions">
-                            <button hx-get="/app/employees-list" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" class="btn sm ghost"
-                                    type="button">View all
-                            </button>
+                            <span class="panel-head-count" x-text="tasks.length" x-show="tasks.length > 0"></span>
+                            <button class="btn sm ghost" type="button" x-text-label="interface.dashboard.view-all">View all</button>
                         </div>
                     </div>
 
-                    <!-- Manager: team list -->
-                    <template x-if="isManager && teamEvaluations.length > 0">
+                    <template x-if="tasks.length > 0">
                         <div class="task-list">
-                            <template x-for="e in teamEvaluations" x-bind:key="e.evaluationID">
-                                <div class="task-item static">
-                                    <div class="task-item-icon" x-bind:class="statusColorClass(e.status)">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <template x-for="task in tasks" x-bind:key="task.id">
+                                <div class="task-item" @click="handleTaskClick(task)">
+                                    <div class="task-item-icon" x-bind:class="task.tone">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                             stroke-linecap="round"
+                                             stroke-linejoin="round" aria-hidden="true">
                                             <path d="M9 11l3 3L22 4"/>
                                             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
                                         </svg>
                                     </div>
                                     <div>
-                                        <div class="task-item-title" x-text="e.employeeName"></div>
-                                        <div class="task-item-sub" x-text="e.statusName"></div>
+                                        <div class="task-item-title" x-text="task.title"></div>
+                                        <div class="task-item-sub" x-text="task.sub"></div>
                                     </div>
-                                    <span class="status-pill" x-bind:class="statusColorClass(e.status)">
-                                        <span class="dot"></span>
-                                        <span x-text="e.statusName"></span>
-                                    </span>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                         stroke-linejoin="round" aria-hidden="true">
+                                        <polyline points="9 18 15 12 9 6"/>
+                                    </svg>
                                 </div>
                             </template>
                         </div>
                     </template>
 
-                    <!-- Manager: no evaluations -->
-                    <template x-if="isManager && teamEvaluations.length === 0">
+                    <template x-if="tasks.length === 0">
                         <div class="empty-state">
-                            <div class="empty-state-title">No active evaluations</div>
-                            <div class="empty-state-desc">Your team has no evaluations in progress for this cycle.</div>
-                        </div>
-                    </template>
-
-                    <!-- Employee: my eval state track -->
-                    <template x-if="!isManager && myEvaluation">
-                        <div>
-                            <div class="state-track">
-                                <div class="state-step"
-                                     x-bind:class="{ complete: myEvaluation.status !== 'NOT_STARTED', current: myEvaluation.status === 'NOT_STARTED' }">
-                                    <div class="marker"></div>
-                                    <span>Started</span>
-                                </div>
-                                <div class="state-step-line"
-                                     x-bind:class="{ complete: myEvaluation.status === 'IN_REVIEW' || myEvaluation.status === 'READY' || myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'OPEN' }"></div>
-                                <div class="state-step"
-                                     x-bind:class="{ complete: myEvaluation.status === 'IN_REVIEW' || myEvaluation.status === 'READY' || myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'OPEN' }">
-                                    <div class="marker"></div>
-                                    <span>Open</span>
-                                </div>
-                                <div class="state-step-line"
-                                     x-bind:class="{ complete: myEvaluation.status === 'READY' || myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'IN_REVIEW' }"></div>
-                                <div class="state-step"
-                                     x-bind:class="{ complete: myEvaluation.status === 'READY' || myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'IN_REVIEW' }">
-                                    <div class="marker"></div>
-                                    <span>In Review</span>
-                                </div>
-                                <div class="state-step-line"
-                                     x-bind:class="{ complete: myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'READY' }"></div>
-                                <div class="state-step" x-bind:class="{ complete: myEvaluation.status === 'CLOSED', current: myEvaluation.status === 'READY' }">
-                                    <div class="marker"></div>
-                                    <span>Ready</span>
-                                </div>
-                            </div>
-
-                            <div class="dash-hero-actions">
-                                <button @click="openMyEvaluation()" class="btn primary" type="button">Open My Evaluation</button>
-                            </div>
-                        </div>
-                    </template>
-
-                    <template x-if="!isManager && !myEvaluation">
-                        <div class="empty-state">
-                            <div class="empty-state-title">No evaluation found</div>
-                            <div class="empty-state-desc">No active evaluation exists for you in this cycle.</div>
+                            <div class="empty-state-title" x-text-label="interface.dashboard.no-tasks">All caught up!</div>
                         </div>
                     </template>
                 </div>
@@ -250,15 +305,29 @@
                 <!-- Activity feed -->
                 <div class="panel">
                     <div class="panel-head">
-                        <div class="panel-title">Recent Activity</div>
+                        <div class="panel-title" x-text-label="interface.dashboard.activity-title">Recent Activity</div>
+                        <div class="panel-head-actions">
+                            <button class="btn sm ghost" type="button" x-text-label="interface.dashboard.view-all">View all</button>
+                        </div>
                     </div>
                     <template x-if="activity.length > 0">
                         <div class="activity-list">
                             <template x-for="item in activity" x-bind:key="item.id">
                                 <div class="activity-item">
-                                    <div class="activity-dot"></div>
+                                    <div class="avatar xs"
+                                         x-bind:class="$store.tiToolbox.generateAvatarClass(item.actorID || item.id)"
+                                         x-bind:aria-label="item.actorName">
+                                        <span x-text="(item.actorName || '?').charAt(0).toUpperCase()"></span>
+                                    </div>
                                     <div>
-                                        <div class="activity-text" x-text="item.text"></div>
+                                        <div class="activity-text">
+                                            <strong x-text="item.actorName"></strong>
+                                            <span x-text="item.action"></span>
+                                            <span class="status-pill" x-bind:class="item.statusTone" x-show="item.statusLabel">
+                                                <span class="dot"></span>
+                                                <span x-text="item.statusLabel"></span>
+                                            </span>
+                                        </div>
                                         <div class="activity-time" x-text="item.time"></div>
                                     </div>
                                 </div>
@@ -267,7 +336,7 @@
                     </template>
                     <template x-if="activity.length === 0">
                         <div class="empty-state">
-                            <div class="empty-state-title">No recent activity</div>
+                            <div class="empty-state-title" x-text-label="interface.dashboard.no-activity">No recent activity</div>
                         </div>
                     </template>
                 </div>

@@ -46,7 +46,10 @@ class CompetenceFramework {
 
     // TODO: These need to be configurable!
     #evaluationCycleID = "2026-H1";
+    #evaluationCycleStart = "2026-01-15";
     #evaluationCycleDate = "2026-06-30";
+    #evaluationCycleEnd = "2026-09-15";
+    #evaluationCycleName = "Spring '26 cycle";
     #evaluationScoreMatrices = {};
 
     /**
@@ -77,6 +80,17 @@ class CompetenceFramework {
     }
 
     /**
+     * Property returning the current evaluation cycle start date.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get evaluationCycleStart() {
+        return this.#evaluationCycleStart;
+    }
+
+    /**
      * Property returning the current evaluation cycle date.
      *
      * @property
@@ -85,6 +99,28 @@ class CompetenceFramework {
      */
     get evaluationCycleDate() {
         return this.#evaluationCycleDate;
+    }
+
+    /**
+     * Property returning the current evaluation cycle end date.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get evaluationCycleEnd() {
+        return this.#evaluationCycleEnd;
+    }
+
+    /**
+     * Property returning the current evaluation cycle name.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get evaluationCycleName() {
+        return this.#evaluationCycleName;
     }
 
     /**

@@ -6,6 +6,11 @@
     <meta name="htmx-config" content='{ti-htmx-config-placeholder}'/>
     <title id="ti-page-title">Competence</title>
     <link rel="icon" href="/static/favicon.ico" type="image/ico">
+    <!-- Typography: General Sans (Fontshare) + JetBrains Mono (Google Fonts) -->
+    <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+    <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script defer src="/static/scripts/ti-framework.js" nonce='{ti-nonce-placeholder}'></script>
     <script defer src="/static/scripts/competence-user-interface.js" nonce='{ti-nonce-placeholder}'></script>
     <script defer src="/static/scripts/lib/alpinejs-csp.min.js" nonce='{ti-nonce-placeholder}'></script>
@@ -18,8 +23,8 @@
 </head>
 <body hx-ext="safe-nonce">
 <div id="ti-main" class="ti-main">
-    <ti-component-notification-bar-placeholder/>
-    <ti-nested-frame-placeholder hx-get="/app/enter" hx-trigger="load" hx-target="this" hx-swap="outerHTML"/>
+    <ti-component-notification-bar-placeholder></ti-component-notification-bar-placeholder>
+    <ti-nested-frame-placeholder hx-get="/app/enter" hx-trigger="load" hx-target="this" hx-swap="outerHTML"></ti-nested-frame-placeholder>
 </div>
 </body>
 </html>

@@ -1,4 +1,8 @@
 <title id="ti-page-title" hx-swap-oob="outerHTML">New Evaluation — Competence</title>
+<div id="ti-topbar-info" hx-swap-oob="outerHTML">
+    <div class="topbar-title" x-text-label="interface.topbar.new-evaluation">New Evaluation</div>
+    <div class="topbar-sub" x-text="($store.tiApplication.configuration && $store.tiApplication.configuration.cycle && $store.tiApplication.configuration.cycle.id) || ''"></div>
+</div>
 <div class="page" x-data="newEvaluation()">
 
     <template x-if="personal.name">

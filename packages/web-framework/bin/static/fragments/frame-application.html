@@ -44,7 +44,8 @@
 
     <div class="content" id="ti-content-wrapper">
         <div id="ti-content" class="page-scrollable">
-            <ti-nested-frame-placeholder hx-get="/app/dashboard" hx-trigger="load" hx-target="this" hx-swap="outerHTML" hx-push-url="true"/>
+            <ti-nested-frame-placeholder hx-get="/app/dashboard" hx-trigger="load" hx-target="this" hx-swap="outerHTML"
+                                         hx-push-url="true"></ti-nested-frame-placeholder>
         </div>
     </div>
 
@@ -52,12 +53,40 @@
     <div id="ti-notifications" x-data="tiComponentNotificationBar" class="toast-stack" aria-live="polite" aria-atomic="false">
         <template x-for="n in notifications" x-bind:key="n.id">
             <div class="toast" x-bind:class="n.tone || 'info'" role="alert">
+                <div class="toast-bar" aria-hidden="true"></div>
                 <div class="toast-icon" aria-hidden="true">
-                    <span x-text="n.tone === 'success' ? '✓' : n.tone === 'danger' ? '✕' : n.tone === 'warn' ? '!' : 'i'"></span>
+                    <template x-if="n.tone === 'success'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round">
+                            <path d="M20 6L9 17l-5-5"/>
+                        </svg>
+                    </template>
+                    <template x-if="n.tone === 'danger'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round">
+                            <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                    </template>
+                    <template x-if="n.tone === 'warn'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                    </template>
+                    <template x-if="!n.tone || n.tone === 'info'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                    </template>
                 </div>
                 <div class="toast-body">
                     <div class="toast-title" x-text="n.title || ''"></div>
-                    <div class="toast-desc" x-text="n.message || ''"></div>
+                    <div class="toast-msg" x-text="n.message || ''"></div>
                 </div>
                 <button class="toast-close" @click="remove(n.id)" aria-label="Dismiss notification" type="button">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">

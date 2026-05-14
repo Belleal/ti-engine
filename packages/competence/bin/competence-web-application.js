@@ -98,7 +98,18 @@ class CompetenceWebApplication extends TiWebAppManager {
 
             return super.processDataRequest( session, view, options ).then( ( result ) => ( {
                 ...result,
-                grades: grades
+                grades: grades,
+                cycle: {
+                    id: competenceFramework.instance.evaluationCycleID,
+                    name: competenceFramework.instance.evaluationCycleName,
+                    startDate: competenceFramework.instance.evaluationCycleStart,
+                    date: competenceFramework.instance.evaluationCycleDate,
+                    endDate: competenceFramework.instance.evaluationCycleEnd
+                },
+                employeeLevel: ( () => {
+                    const userID = session && session.user && session.user.employeeID;
+                    return userID ? organizationManager.instance.resolveEmployeeAttributes( userID ) : null;
+                } )()
             } ) );
         } else if ( view === "load-dashboard" ) {
             return this.#loadDashboard( session );
@@ -1117,16 +1128,23 @@ class CompetenceWebApplication extends TiWebAppManager {
                         isManager: isManager,
                         cycle: {
                             id: cycleID,
-                            date: cycleDate
+                            startDate: competenceFramework.instance.evaluationCycleStart,
+                            date: cycleDate,
+                            endDate: competenceFramework.instance.evaluationCycleEnd
                         },
                         myEvaluation: myEvalStatus,
                         teamEvaluations: teamEvals,
                         stats: stats,
+                        employeeMetrics: {
+                            peerFeedback: { submitted: 0, requested: 4 },
+                            selfGrades: { completed: 0, total: 0 },
+                            teamCoverage: { started: 0, total: teamEvals.length || 0 }
+                        },
                         activity: [
-                            { id: 1, type: "evaluation_open", text: "Evaluation cycle opened", time: "2 days ago" },
-                            { id: 2, type: "evaluation_submit", text: "Self-evaluation submitted", time: "1 day ago" },
-                            { id: 3, type: "team_evaluation", text: "Team evaluation received", time: "6 hours ago" },
-                            { id: 4, type: "review_started", text: "Manager review started", time: "2 hours ago" }
+                            { id: 1, type: "cycle_opened", actorID: null, actorName: "System", action: "opened the evaluation cycle", statusLabel: null, statusTone: null, time: "2 days ago" },
+                            { id: 2, type: "self_eval", actorID: userID, actorName: organizationManager.instance.resolveEmployeeName( userID ) || "You", action: "submitted a self-evaluation", statusLabel: "Open", statusTone: "info", time: "1 day ago" },
+                            { id: 3, type: "peer_eval", actorID: null, actorName: "A colleague", action: "submitted peer feedback for you", statusLabel: null, statusTone: null, time: "6 hours ago" },
+                            { id: 4, type: "review_started", actorID: null, actorName: "Your manager", action: "started the manager review", statusLabel: "In Review", statusTone: "warn", time: "2 hours ago" }
                         ]
                     } );
                 } );
