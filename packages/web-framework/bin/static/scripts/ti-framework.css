@@ -281,7 +281,7 @@ body {
     padding: var(--ti-padding);
     border-radius: 12px;
     max-width: 60%;
-    width: fit-content; /* Ensures the container shrinks to fit content if text is short */
+    width: fit-content; /* Ensures the container shrinks to fit ti-content if text is short */
     margin-left: auto; /* Centers the container if it has relative positioning */
     margin-right: auto;
 }
@@ -451,9 +451,9 @@ body {
 }
 
 /* ============================================================
-   App shell — CSS grid with collapsible sidebar
+   App shell — CSS grid with collapsible ti-sidebar
    ============================================================ */
-.app-shell {
+.ti-app-shell {
     display: grid;
     grid-template-columns: var(--sidebar-w) 1fr;
     min-height: 100vh;
@@ -462,14 +462,14 @@ body {
     transition: grid-template-columns var(--dur-base) var(--ease-out);
 }
 
-.app-shell.collapsed {
+.ti-app-shell.collapsed {
     grid-template-columns: var(--sidebar-w-collapsed) 1fr;
 }
 
 /* ============================================================
    Sidebar
    ============================================================ */
-.sidebar {
+.ti-sidebar {
     background: var(--sidebar-bg);
     color: var(--sidebar-fg);
     display: flex;
@@ -482,7 +482,7 @@ body {
     overflow: hidden;
 }
 
-.sidebar-collapse-btn {
+.ti-sidebar-collapse-btn {
     position: absolute;
     top: 20px;
     right: -12px;
@@ -502,27 +502,27 @@ body {
     transition: opacity var(--dur-fast), transform var(--dur-fast), background var(--dur-fast);
 }
 
-.app-shell:hover .sidebar-collapse-btn,
-.sidebar-collapse-btn:focus-visible {
+.ti-app-shell:hover .ti-sidebar-collapse-btn,
+.ti-sidebar-collapse-btn:focus-visible {
     opacity: 1;
     transform: translateX(0);
 }
 
-.sidebar-collapse-btn:hover {
+.ti-sidebar-collapse-btn:hover {
     background: var(--accent);
     color: #fff;
     border-color: var(--accent);
 }
 
-.app-shell.collapsed .sidebar-collapse-btn svg {
+.ti-app-shell.collapsed .ti-sidebar-collapse-btn svg {
     transform: rotate(180deg);
 }
 
-.sidebar-collapse-btn svg {
+.ti-sidebar-collapse-btn svg {
     transition: transform var(--dur-base) var(--ease-out);
 }
 
-.sidebar-brand {
+.ti-sidebar-brand {
     display: flex;
     align-items: center;
     gap: var(--s-3);
@@ -532,24 +532,24 @@ body {
     min-height: 56px;
 }
 
-.app-shell.collapsed .sidebar-brand {
+.ti-app-shell.collapsed .ti-sidebar-brand {
     padding-left: 16px;
     padding-right: 16px;
 }
 
-.app-shell.collapsed .sidebar-brand-text-block {
+.ti-app-shell.collapsed .ti-sidebar-brand-text-block {
     opacity: 0;
     pointer-events: none;
 }
 
-.sidebar-brand-text-block {
+.ti-sidebar-brand-text-block {
     display: flex;
     flex-direction: column;
     min-width: 0;
     transition: opacity var(--dur-fast);
 }
 
-.sidebar-brand-mark {
+.ti-sidebar-brand-mark {
     width: 30px;
     height: 30px;
     display: grid;
@@ -564,19 +564,19 @@ body {
     flex: 0 0 auto;
 }
 
-.sidebar-brand-text {
+.ti-sidebar-brand-text {
     font-weight: 600;
     font-size: 15px;
     letter-spacing: -0.01em;
 }
 
-.sidebar-brand-sub {
+.ti-sidebar-brand-sub {
     font-size: 11px;
     color: var(--sidebar-fg);
     font-weight: 400;
 }
 
-.sidebar-section-label {
+.ti-sidebar-section-label {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -590,7 +590,7 @@ body {
     transition: opacity var(--dur-fast), padding var(--dur-fast);
 }
 
-.app-shell.collapsed .sidebar-section-label {
+.ti-app-shell.collapsed .ti-sidebar-section-label {
     font-size: 0;
     padding-top: var(--s-3);
     padding-bottom: 0;
@@ -599,7 +599,7 @@ body {
     position: relative;
 }
 
-.app-shell.collapsed .sidebar-section-label::after {
+.ti-app-shell.collapsed .ti-sidebar-section-label::after {
     content: "";
     position: absolute;
     left: 18px;
@@ -609,14 +609,14 @@ body {
     background: var(--sidebar-divider);
 }
 
-.sidebar-nav {
+.ti-sidebar-nav {
     display: flex;
     flex-direction: column;
     gap: 2px;
     padding: 0 var(--s-3);
 }
 
-.sidebar-item {
+.ti-sidebar-item {
     position: relative;
     display: flex;
     align-items: center;
@@ -638,14 +638,14 @@ body {
     text-decoration: none;
 }
 
-.sidebar-item-label {
+.ti-sidebar-item-label {
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     transition: opacity var(--dur-fast);
 }
 
-.app-shell.collapsed .sidebar-item-label {
+.ti-app-shell.collapsed .ti-sidebar-item-label {
     opacity: 0;
     pointer-events: none;
     flex: 0 0 0;
@@ -654,30 +654,30 @@ body {
     overflow: hidden;
 }
 
-.app-shell.collapsed .sidebar-nav {
+.ti-app-shell.collapsed .ti-sidebar-nav {
     padding-left: var(--s-2);
     padding-right: var(--s-2);
 }
 
-.app-shell.collapsed .sidebar-foot {
+.ti-app-shell.collapsed .ti-sidebar-foot {
     padding-left: var(--s-2);
     padding-right: var(--s-2);
 }
 
-.app-shell.collapsed .sidebar-item {
+.ti-app-shell.collapsed .ti-sidebar-item {
     justify-content: center;
     padding-left: 0;
     padding-right: 0;
     gap: 0;
 }
 
-.app-shell.collapsed .sidebar-item .sidebar-item-icon {
+.ti-app-shell.collapsed .ti-sidebar-item .ti-sidebar-item-icon {
     margin: 0;
 }
 
 /* Collapsed tooltip */
-.app-shell.collapsed .sidebar-item:hover::after,
-.app-shell.collapsed .sidebar-user:hover::after {
+.ti-app-shell.collapsed .ti-sidebar-item:hover::after,
+.ti-app-shell.collapsed .ti-sidebar-user:hover::after {
     content: attr(data-tip);
     position: absolute;
     left: calc(100% + 12px);
@@ -695,17 +695,17 @@ body {
     box-shadow: var(--shadow-md);
 }
 
-.sidebar-item:hover {
+.ti-sidebar-item:hover {
     background: var(--sidebar-hover-bg);
     color: var(--sidebar-fg-active);
 }
 
-.sidebar-item.active {
+.ti-sidebar-item.active {
     background: var(--sidebar-active-bg);
     color: var(--sidebar-fg-active);
 }
 
-.sidebar-item.active::before {
+.ti-sidebar-item.active::before {
     content: "";
     position: absolute;
     left: calc(-1 * var(--s-3));
@@ -716,17 +716,17 @@ body {
     background: var(--sidebar-accent);
 }
 
-.app-shell.collapsed .sidebar-item.active::before {
+.ti-app-shell.collapsed .ti-sidebar-item.active::before {
     left: calc(-1 * var(--s-2));
 }
 
-.sidebar-item:disabled {
+.ti-sidebar-item:disabled {
     opacity: 0.5;
     cursor: not-allowed;
     pointer-events: none;
 }
 
-.sidebar-item-icon {
+.ti-sidebar-item-icon {
     width: 18px;
     height: 18px;
     flex: 0 0 auto;
@@ -735,12 +735,12 @@ body {
     opacity: 0.85;
 }
 
-.sidebar-item.active .sidebar-item-icon {
+.ti-sidebar-item.active .ti-sidebar-item-icon {
     opacity: 1;
 }
 
 
-.sidebar-foot {
+.ti-sidebar-foot {
     margin-top: auto;
     padding: var(--s-2) var(--s-3) 0;
     display: flex;
@@ -749,7 +749,7 @@ body {
     border-top: 1px solid var(--sidebar-divider);
 }
 
-.sidebar-user {
+.ti-sidebar-user {
     display: flex;
     align-items: center;
     gap: var(--s-3);
@@ -766,53 +766,54 @@ body {
     position: relative;
 }
 
-.app-shell.collapsed .sidebar-user {
+.ti-app-shell.collapsed .ti-sidebar-user {
     justify-content: center;
     padding-left: 0;
     padding-right: 0;
     gap: 0;
 }
 
-.app-shell.collapsed .sidebar-user-text {
+.ti-app-shell.collapsed .ti-sidebar-user-text {
     display: none;
     opacity: 0;
     pointer-events: none;
 }
 
-.sidebar-user-text {
+.ti-sidebar-user-text {
     display: flex;
     flex-direction: column;
     min-width: 0;
     transition: opacity var(--dur-fast);
 }
 
-.sidebar-user:hover {
+.ti-sidebar-user:hover {
     background: var(--sidebar-hover-bg);
 }
 
-.sidebar-user-name {
+.ti-sidebar-user-name {
     font-weight: 600;
     font-size: 13px;
     color: var(--sidebar-fg-active);
 }
 
-.sidebar-user-sub {
+.ti-sidebar-user-sub {
     font-size: 11px;
     opacity: 0.7;
 }
 
 /* ============================================================
-   Content area & topbar
+   Content area & ti-topbar
    ============================================================ */
-.content {
+.ti-content {
     display: flex;
     flex-direction: column;
     min-width: 0;
     overflow: hidden;
 }
 
-.topbar {
+.ti-topbar {
     height: var(--header-h);
+    width: 100%;
     display: flex;
     align-items: center;
     gap: var(--s-4);
@@ -825,7 +826,7 @@ body {
     flex: 0 0 auto;
 }
 
-.topbar-title {
+.ti-topbar-title {
     font-size: var(--fs-lg);
     font-weight: 600;
     letter-spacing: -0.015em;
@@ -833,7 +834,7 @@ body {
     white-space: nowrap;
 }
 
-.topbar-sub {
+.ti-topbar-sub {
     color: var(--fg-tertiary);
     font-size: var(--fs-sm);
     margin-left: var(--s-3);
@@ -848,17 +849,17 @@ body {
     gap: var(--s-3);
 }
 
-.topbar-spacer {
+.ti-topbar-spacer {
     flex: 1;
 }
 
-.topbar-actions {
+.ti-topbar-actions {
     display: flex;
     align-items: center;
     gap: var(--s-3);
 }
 
-.page {
+.ti-page {
     padding: var(--s-3) var(--s-5) var(--s-5);
     max-width: var(--content-max);
     margin: 0 auto;
@@ -867,32 +868,33 @@ body {
 }
 
 
-.page-scrollable {
+.ti-page-scrollable {
     flex: 1;
     overflow-y: auto;
     min-height: 0;
+    width: 100%;
 }
 
-/* Hide OOB elements that land in the content area before HTMX swaps them out */
+/* Hide OOB elements that land in the ti-content area before HTMX swaps them out */
 #ti-content [hx-swap-oob] {
     display: none;
 }
 
 /* ============================================================
-   Panel & card
+   Panel & ti-card
    ============================================================ */
-.panel, .card {
+.ti-panel, .ti-card {
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--r-lg);
     box-shadow: var(--shadow-xs);
 }
 
-.panel {
+.ti-panel {
     padding: var(--s-5);
 }
 
-.panel-head {
+.ti-panel-head {
     display: flex;
     align-items: center;
     gap: var(--s-3);
@@ -901,14 +903,14 @@ body {
     border-bottom: 1px solid var(--border-soft);
 }
 
-.panel-title {
+.ti-panel-title {
     font-size: var(--fs-md);
     font-weight: 600;
     letter-spacing: -0.01em;
 }
 
 
-.panel-head-actions {
+.ti-panel-head-actions {
     margin-left: auto;
     display: flex;
     gap: var(--s-2);
@@ -917,7 +919,7 @@ body {
 /* ============================================================
    Buttons
    ============================================================ */
-.btn {
+.ti-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -938,78 +940,78 @@ body {
     transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 
-.btn:hover {
+.ti-btn:hover {
     background: var(--bg-sunken);
     border-color: var(--border-strong);
 }
 
-.btn:active {
+.ti-btn:active {
     transform: translateY(1px);
 }
 
-.btn:focus-visible {
+.ti-btn:focus-visible {
     outline: none;
     box-shadow: var(--shadow-focus);
 }
 
-.btn[disabled] {
+.ti-btn[disabled] {
     opacity: 0.45;
     cursor: not-allowed;
     pointer-events: none;
 }
 
-.btn.primary {
+.ti-btn.primary {
     background: var(--accent);
     color: var(--fg-on-accent);
     border-color: transparent;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px color-mix(in oklab, var(--accent) 18%, transparent);
 }
 
-.btn.primary:hover {
+.ti-btn.primary:hover {
     background: var(--accent-hover);
 }
 
-.btn.ghost {
+.ti-btn.ghost {
     background: transparent;
     border-color: transparent;
     color: var(--fg-secondary);
 }
 
-.btn.ghost:hover {
+.ti-btn.ghost:hover {
     background: var(--bg-tint);
     color: var(--fg-primary);
 }
 
-.btn.danger {
+.ti-btn.danger {
     background: transparent;
     border-color: var(--border);
     color: var(--danger);
 }
 
-.btn.danger:hover {
+.ti-btn.danger:hover {
     background: var(--danger-soft);
     border-color: var(--danger);
 }
 
-.btn.lg {
+.ti-btn.lg {
     height: 42px;
     padding: 0 18px;
     font-size: var(--fs-md);
 }
 
-.btn.sm {
+.ti-btn.sm {
     height: 28px;
     padding: 0 10px;
     font-size: var(--fs-sm);
     border-radius: 7px;
 }
 
-.btn.icon {
+.ti-btn.icon {
     width: 36px;
     padding: 0;
 }
 
-.btn.sm.icon {
+.ti-btn.sm.icon {
     width: 28px;
 }
 
@@ -1017,7 +1019,7 @@ body {
 /* ============================================================
    Inputs
    ============================================================ */
-.input, .select, .textarea {
+.ti-input, .ti-select, .ti-textarea {
     width: 100%;
     height: 38px;
     padding: 0 12px;
@@ -1032,16 +1034,16 @@ body {
     box-sizing: border-box;
 }
 
-.input:hover, .select:hover, .textarea:hover {
+.ti-input:hover, .ti-select:hover, .ti-textarea:hover {
     border-color: var(--border-strong);
 }
 
-.input:focus, .select:focus, .textarea:focus {
+.ti-input:focus, .ti-select:focus, .ti-textarea:focus {
     border-color: var(--accent);
     box-shadow: var(--shadow-focus);
 }
 
-.textarea {
+.ti-textarea {
     height: auto;
     padding: 10px 12px;
     resize: vertical;
@@ -1049,7 +1051,7 @@ body {
     line-height: 1.5;
 }
 
-.field-label {
+.ti-field-label {
     display: block;
     font-size: var(--fs-sm);
     font-weight: 500;
@@ -1061,7 +1063,7 @@ body {
 /* ============================================================
    Status pill
    ============================================================ */
-.status-pill {
+.ti-status-pill {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -1076,7 +1078,7 @@ body {
     white-space: nowrap;
 }
 
-.status-pill .dot {
+.ti-status-pill .dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
@@ -1084,16 +1086,16 @@ body {
     position: relative;
 }
 
-.status-pill.success {
+.ti-status-pill.success {
     background: var(--success-soft);
     color: var(--success);
 }
 
-.status-pill.success .dot {
+.ti-status-pill.success .dot {
     background: var(--success);
 }
 
-.status-pill.success .dot::after {
+.ti-status-pill.success .dot::after {
     content: "";
     position: absolute;
     inset: -3px;
@@ -1103,34 +1105,34 @@ body {
     animation: statusPulse 1.6s var(--ease-out) infinite;
 }
 
-.status-pill.info {
+.ti-status-pill.info {
     background: var(--info-soft);
     color: var(--info);
 }
 
-.status-pill.info .dot {
+.ti-status-pill.info .dot {
     background: var(--info);
 }
 
-.status-pill.warn {
+.ti-status-pill.warn {
     background: var(--warn-soft);
     color: var(--warn);
 }
 
-.status-pill.warn .dot {
+.ti-status-pill.warn .dot {
     background: var(--warn);
 }
 
-.status-pill.danger {
+.ti-status-pill.danger {
     background: var(--danger-soft);
     color: var(--danger);
 }
 
-.status-pill.danger .dot {
+.ti-status-pill.danger .dot {
     background: var(--danger);
 }
 
-.status-pill.muted {
+.ti-status-pill.muted {
     background: var(--muted-soft);
     color: var(--fg-tertiary);
 }
@@ -1150,7 +1152,7 @@ body {
 /* ============================================================
    Grade chips
    ============================================================ */
-.grade-chip {
+.ti-grade-chip {
     --c: var(--grade-N);
     --c-soft: var(--grade-N-soft);
     display: inline-flex;
@@ -1168,51 +1170,51 @@ body {
     transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast), border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
 
-.grade-chip[data-grade="S"] {
+.ti-grade-chip[data-grade="S"] {
     --c: var(--grade-S);
     --c-soft: var(--grade-S-soft);
 }
 
-.grade-chip[data-grade="R"] {
+.ti-grade-chip[data-grade="R"] {
     --c: var(--grade-R);
     --c-soft: var(--grade-R-soft);
 }
 
-.grade-chip[data-grade="U"] {
+.ti-grade-chip[data-grade="U"] {
     --c: var(--grade-U);
     --c-soft: var(--grade-U-soft);
 }
 
-.grade-chip[data-grade="N"] {
+.ti-grade-chip[data-grade="N"] {
     --c: var(--grade-N);
     --c-soft: var(--grade-N-soft);
 }
 
-.grade-chip.empty {
+.ti-grade-chip.empty {
     background: transparent;
     color: var(--fg-tertiary);
     border: 1px dashed var(--border-strong);
 }
 
-.grade-chip.selectable:hover {
+.ti-grade-chip.selectable:hover {
     transform: translateY(-1px);
     border-color: var(--c);
     box-shadow: 0 4px 10px color-mix(in oklab, var(--c) 24%, transparent);
 }
 
-.grade-chip.selected {
+.ti-grade-chip.selected {
     background: var(--c);
     color: var(--fg-on-accent);
     box-shadow: 0 4px 12px color-mix(in oklab, var(--c) 28%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.18);
     border-color: var(--c);
 }
 
-.grade-chip.locked {
+.ti-grade-chip.locked {
     cursor: default;
     opacity: 0.65;
 }
 
-.grade-chip.locked.empty {
+.ti-grade-chip.locked.empty {
     opacity: 0.4;
 }
 
@@ -1220,7 +1222,7 @@ body {
 /* ============================================================
    Avatar
    ============================================================ */
-.avatar {
+.ti-avatar {
     display: inline-grid;
     place-items: center;
     border-radius: 50%;
@@ -1235,25 +1237,25 @@ body {
     text-transform: uppercase;
 }
 
-.avatar.lg {
+.ti-avatar.lg {
     width: 44px;
     height: 44px;
     font-size: 15px;
 }
 
-.avatar.xl {
+.ti-avatar.xl {
     width: 60px;
     height: 60px;
     font-size: 20px;
 }
 
-.avatar.sm {
+.ti-avatar.sm {
     width: 24px;
     height: 24px;
     font-size: 10.5px;
 }
 
-.avatar.xs {
+.ti-avatar.xs {
     width: 20px;
     height: 20px;
     font-size: 9px;
@@ -1262,7 +1264,7 @@ body {
 /* ============================================================
    Toast stack (replaces old notification bar)
    ============================================================ */
-.toast-stack {
+.ti-toast-stack {
     position: fixed;
     bottom: var(--s-5);
     left: 50%;
@@ -1274,7 +1276,7 @@ body {
     pointer-events: none;
 }
 
-.toast {
+.ti-toast {
     pointer-events: auto;
     display: flex;
     align-items: flex-start;
@@ -1291,7 +1293,7 @@ body {
     overflow: hidden;
 }
 
-.toast-bar {
+.ti-toast-bar {
     position: absolute;
     left: 0;
     top: 0;
@@ -1300,27 +1302,27 @@ body {
     background: var(--accent);
 }
 
-.toast.success .toast-bar {
+.ti-toast.success .ti-toast-bar {
     background: var(--success);
 }
 
-.toast.warn .toast-bar {
+.ti-toast.warn .ti-toast-bar {
     background: var(--warn);
 }
 
-.toast.danger .toast-bar {
+.ti-toast.danger .ti-toast-bar {
     background: var(--danger);
 }
 
-.toast.info .toast-bar {
+.ti-toast.info .ti-toast-bar {
     background: var(--info);
 }
 
-.toast.leaving {
+.ti-toast.leaving {
     animation: toastOut 300ms var(--ease-in-out) forwards;
 }
 
-.toast-icon {
+.ti-toast-icon {
     width: 18px;
     height: 18px;
     flex: 0 0 auto;
@@ -1330,46 +1332,46 @@ body {
     color: var(--fg-secondary);
 }
 
-.toast-icon svg {
+.ti-toast-icon svg {
     width: 18px;
     height: 18px;
 }
 
-.toast.success .toast-icon {
+.ti-toast.success .ti-toast-icon {
     color: var(--success);
 }
 
-.toast.warn .toast-icon {
+.ti-toast.warn .ti-toast-icon {
     color: var(--warn);
 }
 
-.toast.danger .toast-icon {
+.ti-toast.danger .ti-toast-icon {
     color: var(--danger);
 }
 
-.toast.info .toast-icon {
+.ti-toast.info .ti-toast-icon {
     color: var(--info);
 }
 
-.toast-body {
+.ti-toast-body {
     flex: 1;
     min-width: 0;
 }
 
-.toast-title {
+.ti-toast-title {
     font-weight: 600;
     font-size: var(--fs-base);
     color: var(--fg-primary);
 }
 
-.toast-desc,
-.toast-msg {
+.ti-toast-desc,
+.ti-toast-msg {
     font-size: var(--fs-sm);
     color: var(--fg-secondary);
     margin-top: 2px;
 }
 
-.toast-close {
+.ti-toast-close {
     flex: 0 0 auto;
     background: none;
     border: none;
@@ -1381,7 +1383,7 @@ body {
     transition: color var(--dur-fast), background var(--dur-fast);
 }
 
-.toast-close:hover {
+.ti-toast-close:hover {
     color: var(--fg-primary);
     background: var(--bg-tint);
 }
@@ -1411,21 +1413,21 @@ body {
 /* ============================================================
    KV grid (label / value pairs)
    ============================================================ */
-.kv-grid {
+.ti-kv-grid {
     display: grid;
     grid-template-columns: auto 1fr;
     gap: var(--s-2) var(--s-4);
     align-items: baseline;
 }
 
-.kv-label {
+.ti-kv-label {
     font-size: var(--fs-sm);
     color: var(--fg-tertiary);
     font-weight: 500;
     white-space: nowrap;
 }
 
-.kv-value {
+.ti-kv-value {
     font-size: var(--fs-base);
     color: var(--fg-primary);
 }
@@ -1433,7 +1435,7 @@ body {
 /* ============================================================
    Tag / pill label
    ============================================================ */
-.tag {
+.ti-tag {
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -1449,7 +1451,7 @@ body {
     white-space: nowrap;
 }
 
-.tag.mono {
+.ti-tag.mono {
     font-family: "JetBrains Mono", monospace;
     letter-spacing: 0;
     text-transform: none;
@@ -1458,7 +1460,7 @@ body {
 /* ============================================================
    Empty state
    ============================================================ */
-.empty-state {
+.ti-empty-state {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1468,19 +1470,19 @@ body {
     text-align: center;
 }
 
-.empty-state-icon {
+.ti-empty-state-icon {
     width: 48px;
     height: 48px;
     opacity: 0.3;
 }
 
-.empty-state-title {
+.ti-empty-state-title {
     font-size: var(--fs-md);
     font-weight: 600;
     color: var(--fg-primary);
 }
 
-.empty-state-desc {
+.ti-empty-state-desc {
     font-size: var(--fs-base);
     color: var(--fg-tertiary);
     max-width: 40ch;
@@ -1490,14 +1492,14 @@ body {
 /* ============================================================
    Page layout helpers
    ============================================================ */
-.page-head {
+.ti-page-head {
     display: flex;
     align-items: flex-end;
     gap: var(--s-5);
     margin-bottom: var(--s-5);
 }
 
-.page-eyebrow {
+.ti-page-eyebrow {
     font-size: 11.5px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -1505,7 +1507,7 @@ body {
     margin-bottom: 6px;
 }
 
-.page-title {
+.ti-page-title {
     font-size: var(--fs-2xl);
     font-weight: 600;
     letter-spacing: -0.025em;
@@ -1514,7 +1516,7 @@ body {
     margin: 0;
 }
 
-.page-subtitle {
+.ti-page-subtitle {
     color: var(--fg-secondary);
     margin-top: 6px;
     max-width: 60ch;
@@ -1523,7 +1525,7 @@ body {
 }
 
 /* ============================================================
-   Login page
+   Login ti-page
    ============================================================ */
 #ti-login {
     display: flex;
@@ -1534,13 +1536,13 @@ body {
     background: var(--bg-app);
 }
 
-.login-container {
+.ti-login-container {
     width: 100%;
     max-width: 400px;
     padding: var(--s-5);
 }
 
-.login-brand {
+.ti-login-brand {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1548,7 +1550,7 @@ body {
     margin-bottom: var(--s-7);
 }
 
-.login-brand-mark {
+.ti-login-brand-mark {
     width: 48px;
     height: 48px;
     border-radius: 14px;
@@ -1563,24 +1565,24 @@ body {
     inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
-.login-brand-text {
+.ti-login-brand-text {
     text-align: center;
 }
 
-.login-brand-title {
+.ti-login-brand-title {
     font-size: var(--fs-xl);
     font-weight: 700;
     letter-spacing: -0.025em;
     color: var(--fg-primary);
 }
 
-.login-brand-sub {
+.ti-login-brand-sub {
     font-size: var(--fs-base);
     color: var(--fg-tertiary);
     margin-top: 4px;
 }
 
-.login-card {
+.ti-login-card {
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--r-xl);
@@ -1588,7 +1590,7 @@ body {
     box-shadow: var(--shadow-lg);
 }
 
-.login-error {
+.ti-login-error {
     display: none;
     color: var(--danger);
     font-size: var(--fs-sm);
@@ -1598,30 +1600,30 @@ body {
     border-radius: var(--r-md);
 }
 
-.login-form {
+.ti-login-form {
     display: flex;
     flex-direction: column;
     gap: var(--s-4);
 }
 
-.login-submit {
+.ti-login-submit {
     margin-top: var(--s-1);
 }
 
-.login-divider {
+.ti-login-divider {
     display: flex;
     align-items: center;
     gap: var(--s-3);
     margin: var(--s-5) 0;
 }
 
-.login-divider-line {
+.ti-login-divider-line {
     flex: 1;
     height: 1px;
     background: var(--border);
 }
 
-.login-divider-label {
+.ti-login-divider-label {
     font-size: var(--fs-xs);
     color: var(--fg-tertiary);
     text-transform: uppercase;
@@ -1629,13 +1631,13 @@ body {
     font-weight: 600;
 }
 
-.login-social {
+.ti-login-social {
     display: flex;
     flex-direction: column;
     gap: var(--s-2);
 }
 
-.btn.full {
+.ti-btn.full {
     width: 100%;
 }
 

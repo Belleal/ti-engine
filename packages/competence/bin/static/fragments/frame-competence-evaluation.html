@@ -1,26 +1,26 @@
 <title id="ti-page-title" hx-swap-oob="outerHTML">Evaluation — Competence</title>
 <div id="ti-topbar-info" hx-swap-oob="outerHTML">
-    <div class="topbar-title" x-text-label="interface.topbar.evaluation">My Evaluation</div>
-    <div class="topbar-sub" x-text="($store.tiApplication.configuration && $store.tiApplication.configuration.cycle && $store.tiApplication.configuration.cycle.id) || ''"></div>
+    <div class="ti-topbar-title" x-text-label="interface.topbar.evaluation">My Evaluation</div>
+    <div class="ti-topbar-sub" x-text="($store.tiApplication.configuration && $store.tiApplication.configuration.cycle && $store.tiApplication.configuration.cycle.id) || ''"></div>
 </div>
-<div class="page" x-data="competencyEvaluation()">
+<div class="ti-page" x-data="competencyEvaluation()">
 
     <template x-if="showEvaluationForm && personal.name && manager.name">
         <div>
             <!-- Evaluation head -->
-            <div class="eval-head">
-                <div class="eval-head-info">
-                    <div class="eval-meta-row">
-                        <div class="eval-employee-block">
-                            <div class="avatar lg" x-bind:class="$store.tiToolbox.generateAvatarClass(personal.id || personal.name)"
+            <div class="competence-eval-head">
+                <div class="competence-eval-head-info">
+                    <div class="competence-eval-meta-row">
+                        <div class="competence-eval-employee-block">
+                            <div class="ti-avatar lg" x-bind:class="$store.tiToolbox.generateAvatarClass(personal.id || personal.name)"
                                  x-bind:aria-label="personal.name">
                                 <span x-text="(personal.name || '?').charAt(0).toUpperCase()"></span>
                             </div>
                             <div>
-                                <div class="eval-employee-name" x-text="personal.name"></div>
-                                <div class="eval-employee-sub">
+                                <div class="competence-eval-employee-name" x-text="personal.name"></div>
+                                <div class="competence-eval-employee-sub">
                                     <span x-text="personal.organizationUnitName"></span>
-                                    <span class="eval-sub-sep">·</span>
+                                    <span class="competence-eval-sub-sep">·</span>
                                     <span x-text-label="interface.evaluation.personal.manager"></span>
                                     <span x-text="manager.name"></span>
                                 </div>
@@ -28,31 +28,31 @@
                         </div>
                     </div>
 
-                    <div class="kv-grid">
-                        <span class="kv-label" x-text-label="interface.evaluation.appraisal.cycle"></span>
-                        <span class="kv-value">
-                            <span class="tag mono" x-text="evaluation.cycleID"></span>
+                    <div class="ti-kv-grid">
+                        <span class="ti-kv-label" x-text-label="interface.evaluation.appraisal.cycle"></span>
+                        <span class="ti-kv-value">
+                            <span class="ti-tag mono" x-text="evaluation.cycleID"></span>
                             <span x-text="formatDate(evaluation.cycleDate)"></span>
                         </span>
-                        <span class="kv-label" x-text-label="interface.evaluation.appraisal.career-path"></span>
-                        <span class="kv-value">
-                            <span class="level-pip" x-bind:class="evaluation.stageLevel ? evaluation.stageLevel.charAt(0) : ''"
+                        <span class="ti-kv-label" x-text-label="interface.evaluation.appraisal.career-path"></span>
+                        <span class="ti-kv-value">
+                            <span class="competence-level-pip" x-bind:class="evaluation.stageLevel ? evaluation.stageLevel.charAt(0) : ''"
                                   x-text="evaluation.stageLevel"></span>
                             <span x-text="evaluation.careerPathName"></span>
                         </span>
-                        <span class="kv-label" x-text-label="interface.evaluation.appraisal.current-status"></span>
-                        <span class="kv-value" x-text="getLabel(evaluation.statusName)"></span>
-                        <span class="kv-label" x-show="userRole !== 4" x-text-label="interface.evaluation.appraisal.final-score"></span>
-                        <span class="kv-value" x-show="userRole !== 4">
+                        <span class="ti-kv-label" x-text-label="interface.evaluation.appraisal.current-status"></span>
+                        <span class="ti-kv-value" x-text="getLabel(evaluation.statusName)"></span>
+                        <span class="ti-kv-label" x-show="userRole !== 4" x-text-label="interface.evaluation.appraisal.final-score"></span>
+                        <span class="ti-kv-value" x-show="userRole !== 4">
                             <span x-text="evaluation.finalScore && evaluation.finalScore.score ? evaluation.finalScore.score : '—'"></span>
                             <span x-text="evaluation.finalScore && evaluation.finalScore.interpretationName ? getLabel(evaluation.finalScore.interpretationName) : ''"></span>
                         </span>
                     </div>
                 </div>
 
-                <div class="eval-head-side">
-                    <div class="deadline-card" x-show="userRole !== 4">
-                        <div class="deadline-card-icon">
+                <div class="competence-eval-head-side">
+                    <div class="competence-deadline-card" x-show="userRole !== 4">
+                        <div class="competence-deadline-card-icon">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <rect x="3" y="4" width="18" height="18" rx="2"/>
                                 <line x1="16" y1="2" x2="16" y2="6"/>
@@ -61,44 +61,44 @@
                             </svg>
                         </div>
                         <div>
-                            <div class="deadline-card-label" x-text-label="interface.evaluation.appraisal.submission-deadline"></div>
-                            <div class="deadline-card-value"
+                            <div class="competence-deadline-card-label" x-text-label="interface.evaluation.appraisal.submission-deadline"></div>
+                            <div class="competence-deadline-card-value"
                                  x-text="formatDate(deadlineDate, 'interface.evaluation.appraisal.submission-deadline-not-set')"></div>
                         </div>
                     </div>
-                    <div class="deadline-card" x-show="userRole !== 4">
-                        <div class="deadline-card-icon info">
+                    <div class="competence-deadline-card" x-show="userRole !== 4">
+                        <div class="competence-deadline-card-icon info">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <circle cx="12" cy="12" r="10"/>
                                 <polyline points="12 6 12 12 16 14"/>
                             </svg>
                         </div>
                         <div>
-                            <div class="deadline-card-label" x-text-label="interface.evaluation.appraisal.interview-date"></div>
-                            <div class="deadline-card-value"
+                            <div class="competence-deadline-card-label" x-text-label="interface.evaluation.appraisal.interview-date"></div>
+                            <div class="competence-deadline-card-value"
                                  x-text="formatDate(evaluation.interviewDate, 'interface.evaluation.appraisal.interview-date-not-set')"></div>
                         </div>
                     </div>
 
                     <!-- Action buttons -->
-                    <div class="eval-action-col" x-show="(userRole === 1 || userRole === 2 || userRole === 4) && canEdit">
-                        <button type="button" class="btn ghost sm" @click="resetGrades()" x-text-label="interface.evaluation.actions.reset"></button>
-                        <button type="button" class="btn sm" x-show="(userRole === 1 || userRole === 2) && canEdit" @click="saveDraft()"
+                    <div class="competence-eval-action-col" x-show="(userRole === 1 || userRole === 2 || userRole === 4) && canEdit">
+                        <button type="button" class="ti-btn ghost sm" @click="resetGrades()" x-text-label="interface.evaluation.actions.reset"></button>
+                        <button type="button" class="ti-btn sm" x-show="(userRole === 1 || userRole === 2) && canEdit" @click="saveDraft()"
                                 x-text-label="interface.evaluation.actions.save-draft"></button>
-                        <button type="button" class="btn primary sm" @click="submitEvaluation()" x-text-label="interface.evaluation.actions.submit"></button>
+                        <button type="button" class="ti-btn primary sm" @click="submitEvaluation()" x-text-label="interface.evaluation.actions.submit"></button>
                     </div>
                 </div>
             </div>
 
             <!-- Role indicator + warning -->
-            <div class="panel panel-mb" x-show="evaluation">
-                <div class="eval-role-bar">
-                    <span class="status-pill" x-bind:class="userRole === 1 ? 'info' : userRole === 4 ? 'success' : ''">
+            <div class="ti-panel competence-panel-mb" x-show="evaluation">
+                <div class="competence-eval-role-bar">
+                    <span class="ti-status-pill" x-bind:class="userRole === 1 ? 'info' : userRole === 4 ? 'success' : ''">
                         <span class="dot"></span>
                         <span x-show="userRole === 1" x-text-label="interface.evaluation.banners.employee"></span>
                         <span x-show="userRole === 2" x-text-label="interface.evaluation.banners.manager"></span>
                         <span x-show="userRole === 4" x-text-label="interface.evaluation.banners.team"></span>
-                    </span> <span class="eval-warning" x-show="warningMessage">
+                    </span> <span class="competence-eval-warning" x-show="warningMessage">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                             <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
@@ -109,18 +109,18 @@
             </div>
 
             <!-- Grade legend -->
-            <div class="panel panel-mb">
-                <div class="panel-head">
-                    <div class="panel-title" x-text-label="interface.evaluation.instructions.title"></div>
+            <div class="ti-panel competence-panel-mb">
+                <div class="ti-panel-head">
+                    <div class="ti-panel-title" x-text-label="interface.evaluation.instructions.title"></div>
                 </div>
-                <div class="eval-grade-legend-body">
-                    <div class="eval-grade-legend-intro" x-text-label="interface.evaluation.instructions.grades"></div>
-                    <div class="eval-grade-legend-intro" x-show="userRole === 4" x-text-label="interface.evaluation.instructions.team-grading"></div>
-                    <div class="eval-grade-grid">
+                <div class="competence-eval-grade-legend-body">
+                    <div class="competence-eval-grade-legend-intro" x-text-label="interface.evaluation.instructions.grades"></div>
+                    <div class="competence-eval-grade-legend-intro" x-show="userRole === 4" x-text-label="interface.evaluation.instructions.team-grading"></div>
+                    <div class="competence-eval-grade-grid">
                         <template x-for="(grade, gradeKey) in grades" x-bind:key="gradeKey">
-                            <div class="eval-grade-item">
-                                <span class="grade-chip" x-text="gradeKey"></span>
-                                <span class="eval-grade-desc" x-text="grade.name + ' — ' + grade.description"></span>
+                            <div class="competence-eval-grade-item">
+                                <span class="ti-grade-chip" x-text="gradeKey"></span>
+                                <span class="competence-eval-grade-desc" x-text="grade.name + ' — ' + grade.description"></span>
                             </div>
                         </template>
                     </div>
@@ -129,55 +129,55 @@
 
             <!-- Competency categories -->
             <template x-for="category in competencies" x-bind:key="category.id">
-                <div class="cat-card" x-bind:class="category.id ? category.id.charAt(0) : ''">
-                    <div class="cat-card-head">
-                        <div class="cat-letter" x-text="category.id ? category.id.charAt(0) : '?'"></div>
+                <div class="competence-cat-card" x-bind:class="category.id ? category.id.charAt(0) : ''">
+                    <div class="competence-cat-card-head">
+                        <div class="competence-cat-letter" x-text="category.id ? category.id.charAt(0) : '?'"></div>
                         <div>
-                            <div class="cat-card-name" x-text="category.name"></div>
-                            <div class="cat-card-desc" x-text="category.description"></div>
+                            <div class="competence-cat-card-name" x-text="category.name"></div>
+                            <div class="competence-cat-card-desc" x-text="category.description"></div>
                         </div>
-                        <div class="cat-progress-mini" x-show="userRole !== 4">
-                            <div class="cat-progress-mini-bar">
-                                <div class="fill"
+                        <div class="competence-cat-progress-mini" x-show="userRole !== 4">
+                            <div class="competence-cat-progress-mini-bar">
+                                <div class="competence-fill"
                                      x-bind:class="{ full: evaluation.scores && evaluation.scores[category.id] && evaluation.scores[category.id].score }"></div>
                             </div>
-                            <span class="cat-progress-mini-text"
+                            <span class="competence-cat-progress-mini-text"
                                   x-text="evaluation.scores && evaluation.scores[category.id] ? evaluation.scores[category.id].score || '—' : '—'"></span>
                         </div>
                     </div>
 
-                    <div class="comp-table-head">
+                    <div class="competence-comp-table-head">
                         <span x-text-label="interface.evaluation.competencies.title"></span>
-                        <span class="h-self" x-show="userRole !== 4" x-text-label="interface.evaluation.competencies.self"></span>
-                        <span class="h-self" x-show="userRole === 4">—</span>
-                        <span class="h-mgr" x-text-label="interface.evaluation.competencies.manager"></span>
-                        <span class="h-team" x-text-label="interface.evaluation.competencies.team"></span>
+                        <span class="competence-h-self" x-show="userRole !== 4" x-text-label="interface.evaluation.competencies.self"></span>
+                        <span class="competence-h-self" x-show="userRole === 4">—</span>
+                        <span class="competence-h-mgr" x-text-label="interface.evaluation.competencies.manager"></span>
+                        <span class="competence-h-team" x-text-label="interface.evaluation.competencies.team"></span>
                     </div>
 
                     <template x-for="sub in category.subcategories" x-bind:key="sub.id">
-                        <div class="subcat-block">
-                            <div class="subcat-head">
-                                <span class="subcat-id" x-text="sub.id"></span>
-                                <span class="subcat-name" x-text="sub.name"></span>
-                                <span class="subcat-desc" x-text="sub.description"></span>
+                        <div class="competence-subcat-block">
+                            <div class="competence-subcat-head">
+                                <span class="competence-subcat-id" x-text="sub.id"></span>
+                                <span class="competence-subcat-name" x-text="sub.name"></span>
+                                <span class="competence-subcat-desc" x-text="sub.description"></span>
                             </div>
 
                             <!-- Collective subcategory row (team view only) -->
-                            <div class="comp-row" x-show="userRole === 4 && isTeamEvaluationCollective">
-                                <div class="comp-info">
-                                    <div class="comp-id-name">
-                                        <span class="comp-id" x-text="sub.id"></span>
-                                        <span class="comp-name" x-text="sub.name"></span>
+                            <div class="competence-comp-row" x-show="userRole === 4 && isTeamEvaluationCollective">
+                                <div class="competence-comp-info">
+                                    <div class="competence-comp-id-name">
+                                        <span class="competence-comp-id" x-text="sub.id"></span>
+                                        <span class="competence-comp-name" x-text="sub.name"></span>
                                     </div>
                                 </div>
-                                <div class="comp-cell">
+                                <div class="competence-comp-cell">
                                     <span class="ti-icon lock dark-style" role="img" x-text-label:aria-label="interface.evaluation.competencies.locked"></span>
                                 </div>
-                                <div class="comp-cell">
+                                <div class="competence-comp-cell">
                                     <span class="ti-icon lock dark-style" role="img" x-text-label:aria-label="interface.evaluation.competencies.locked"></span>
                                 </div>
-                                <div class="comp-cell">
-                                    <select x-bind:name="'grade-team-collective-' + sub.id" class="select"
+                                <div class="competence-comp-cell">
+                                    <select x-bind:name="'grade-team-collective-' + sub.id" class="ti-select"
                                             x-bind:aria-label="'Team grade for ' + sub.id + ' ' + sub.name"
                                             @change="setItemGrade(sub.id, 'team', $event.target.value)" x-show="canEdit">
                                         <option value="" x-bind:selected="!getItemGrade(sub.id, 'team')">—</option>
@@ -186,24 +186,24 @@
                                                     x-bind:selected="getItemGrade(sub.id, 'team') == gradeKey"></option>
                                         </template>
                                     </select>
-                                    <span class="grade-chip" x-text="getItemGrade(sub.id, 'team') || '—'" x-show="!canEdit"></span>
+                                    <span class="ti-grade-chip" x-text="getItemGrade(sub.id, 'team') || '—'" x-show="!canEdit"></span>
                                 </div>
                             </div>
 
                             <!-- Individual competency rows -->
                             <template x-for="item in sub.items" x-bind:key="item.id">
-                                <div class="comp-row" x-show="userRole !== 4 || !isTeamEvaluationCollective">
-                                    <div class="comp-info">
-                                        <div class="comp-id-name">
-                                            <span class="comp-id" x-text="item.id"></span>
-                                            <span class="comp-name" x-text="item.name"></span>
+                                <div class="competence-comp-row" x-show="userRole !== 4 || !isTeamEvaluationCollective">
+                                    <div class="competence-comp-info">
+                                        <div class="competence-comp-id-name">
+                                            <span class="competence-comp-id" x-text="item.id"></span>
+                                            <span class="competence-comp-name" x-text="item.name"></span>
                                         </div>
-                                        <div class="comp-desc" x-text="item.description"></div>
+                                        <div class="competence-comp-desc" x-text="item.description"></div>
                                     </div>
 
                                     <!-- Self-grade -->
-                                    <div class="comp-cell">
-                                        <select x-bind:name="'grade-employee-' + item.id" class="select"
+                                    <div class="competence-comp-cell">
+                                        <select x-bind:name="'grade-employee-' + item.id" class="ti-select"
                                                 x-bind:aria-label="'Self grade for ' + item.id + ' ' + item.name"
                                                 @change="setItemGrade(item.id, 'employee', $event.target.value)" x-show="userRole === 1 && canEdit">
                                             <option value="" x-bind:selected="!getItemGrade(item.id, 'employee')">—</option>
@@ -212,15 +212,15 @@
                                                         x-bind:selected="getItemGrade(item.id, 'employee') == gradeKey"></option>
                                             </template>
                                         </select>
-                                        <span class="grade-chip" x-text="getItemGrade(item.id, 'employee', '—')"
+                                        <span class="ti-grade-chip" x-text="getItemGrade(item.id, 'employee', '—')"
                                               x-show="userRole === 2 || (userRole === 1 && !canEdit)"></span>
                                         <span class="ti-icon lock dark-style" role="img" x-show="userRole === 4"
                                               x-text-label:aria-label="interface.evaluation.competencies.locked"></span>
                                     </div>
 
                                     <!-- Manager grade -->
-                                    <div class="comp-cell">
-                                        <select x-bind:name="'grade-manager-' + item.id" class="select"
+                                    <div class="competence-comp-cell">
+                                        <select x-bind:name="'grade-manager-' + item.id" class="ti-select"
                                                 x-bind:aria-label="'Manager grade for ' + item.id + ' ' + item.name"
                                                 @change="setItemGrade(item.id, 'manager', $event.target.value)" x-show="userRole === 2 && canEdit">
                                             <option value="" x-bind:selected="!getItemGrade(item.id, 'manager')">—</option>
@@ -229,15 +229,15 @@
                                                         x-bind:selected="getItemGrade(item.id, 'manager') == gradeKey"></option>
                                             </template>
                                         </select>
-                                        <span class="grade-chip" x-text="getItemGrade(item.id, 'manager', '—')"
+                                        <span class="ti-grade-chip" x-text="getItemGrade(item.id, 'manager', '—')"
                                               x-show="userRole === 2 && !canEdit"></span>
                                         <span class="ti-icon lock dark-style" role="img" x-show="userRole === 1 || userRole === 4"
                                               x-text-label:aria-label="interface.evaluation.competencies.locked"></span>
                                     </div>
 
                                     <!-- Team grade -->
-                                    <div class="comp-cell">
-                                        <select x-bind:name="'grade-team-' + item.id" class="select"
+                                    <div class="competence-comp-cell">
+                                        <select x-bind:name="'grade-team-' + item.id" class="ti-select"
                                                 x-bind:aria-label="'Team grade for ' + item.id + ' ' + item.name"
                                                 @change="setItemGrade(item.id, 'team', $event.target.value)" x-show="userRole === 4 && canEdit">
                                             <option value="" x-bind:selected="!getItemGrade(item.id, 'team')">—</option>
@@ -246,7 +246,7 @@
                                                         x-bind:selected="getItemGrade(item.id, 'team') == gradeKey"></option>
                                             </template>
                                         </select>
-                                        <span class="grade-chip" x-text="getItemGrade(item.id, 'team', '—')"
+                                        <span class="ti-grade-chip" x-text="getItemGrade(item.id, 'team', '—')"
                                               x-show="userRole === 2 || (userRole === 4 && !canEdit)"></span>
                                         <span class="ti-icon lock dark-style" role="img" x-show="userRole === 1"
                                               x-text-label:aria-label="interface.evaluation.competencies.locked"></span>
@@ -259,38 +259,38 @@
             </template>
 
             <!-- Feedback section -->
-            <div class="panel panel-mb" x-show="userRole === 1 || userRole === 2 || (userRole === 4 && canEdit)">
-                <div class="panel-head">
-                    <div class="panel-title" x-text-label="interface.evaluation.appraisal.feedback-title"></div>
+            <div class="ti-panel competence-panel-mb" x-show="userRole === 1 || userRole === 2 || (userRole === 4 && canEdit)">
+                <div class="ti-panel-head">
+                    <div class="ti-panel-title" x-text-label="interface.evaluation.appraisal.feedback-title"></div>
                 </div>
-                <div class="eval-feedback-body">
+                <div class="competence-eval-feedback-body">
                     <!-- Employee comment -->
                     <div x-show="userRole === 1 || userRole === 2">
-                        <label for="employeeFeedbackText" class="field-label" x-text-label="interface.evaluation.appraisal.employee-comment"></label>
-                        <textarea id="employeeFeedbackText" name="employeeFeedbackText" class="textarea" rows="4" x-bind:value="getFeedbackComment('employee')"
-                                  @input="setFeedbackComment('employee', $event.target.value)" x-show="userRole === 1 && canEdit"></textarea>
-                        <div class="eval-feedback-text" x-text="getFeedbackComment('employee')" x-show="userRole === 2 || (userRole === 1 && !canEdit)"></div>
+                        <label for="employeeFeedbackText" class="ti-field-label" x-text-label="interface.evaluation.appraisal.employee-comment"></label>
+                        <textarea id="employeeFeedbackText" name="employeeFeedbackText" class="ti-textarea" rows="4" x-bind:value="getFeedbackComment('employee')"
+                                  @ti-input="setFeedbackComment('employee', $event.target.value)" x-show="userRole === 1 && canEdit"></textarea>
+                        <div class="competence-eval-feedback-text" x-text="getFeedbackComment('employee')" x-show="userRole === 2 || (userRole === 1 && !canEdit)"></div>
                     </div>
 
                     <!-- Manager comment -->
                     <div x-show="userRole === 1 || userRole === 2">
-                        <label for="managerFeedbackText" class="field-label" x-text-label="interface.evaluation.appraisal.manager-comment"></label>
-                        <textarea id="managerFeedbackText" name="managerFeedbackText" class="textarea" rows="4" x-bind:value="getFeedbackComment('manager')"
-                                  @input="setFeedbackComment('manager', $event.target.value)" x-show="userRole === 2 && canEdit"></textarea>
-                        <div class="eval-feedback-text" x-text="getFeedbackComment('manager')" x-show="userRole === 1 || (userRole === 2 && !canEdit)"></div>
+                        <label for="managerFeedbackText" class="ti-field-label" x-text-label="interface.evaluation.appraisal.manager-comment"></label>
+                        <textarea id="managerFeedbackText" name="managerFeedbackText" class="ti-textarea" rows="4" x-bind:value="getFeedbackComment('manager')"
+                                  @ti-input="setFeedbackComment('manager', $event.target.value)" x-show="userRole === 2 && canEdit"></textarea>
+                        <div class="competence-eval-feedback-text" x-text="getFeedbackComment('manager')" x-show="userRole === 1 || (userRole === 2 && !canEdit)"></div>
                     </div>
 
                     <!-- Team comments -->
                     <div x-show="userRole === 2 || (userRole === 4 && canEdit)">
-                        <label for="teamFeedbackText" class="field-label" x-text-label="interface.evaluation.appraisal.team-comment"></label>
-                        <textarea id="teamFeedbackText" name="teamFeedbackText" class="textarea" rows="4"
-                                  @input="setFeedbackComment('team', $event.target.value)" x-show="userRole === 4 && canEdit"></textarea>
-                        <div class="eval-team-comments" x-show="userRole === 2">
+                        <label for="teamFeedbackText" class="ti-field-label" x-text-label="interface.evaluation.appraisal.team-comment"></label>
+                        <textarea id="teamFeedbackText" name="teamFeedbackText" class="ti-textarea" rows="4"
+                                  @ti-input="setFeedbackComment('team', $event.target.value)" x-show="userRole === 4 && canEdit"></textarea>
+                        <div class="competence-eval-team-comments" x-show="userRole === 2">
                             <template x-for="(comment, index) in getFeedbackComment('team')" x-bind:key="index">
-                                <div class="eval-team-comment-item" x-text="comment || getLabel('interface.evaluation.default.not-provided')"></div>
+                                <div class="competence-eval-team-comment-item" x-text="comment || getLabel('interface.evaluation.default.not-provided')"></div>
                             </template>
                             <template x-if="getFeedbackComment('team').length === 0">
-                                <div class="eval-empty-comment" x-text-label="interface.evaluation.default.not-provided"></div>
+                                <div class="competence-eval-empty-comment" x-text-label="interface.evaluation.default.not-provided"></div>
                             </template>
                         </div>
                     </div>

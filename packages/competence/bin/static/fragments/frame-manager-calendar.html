@@ -1,12 +1,12 @@
 <title id="ti-page-title" hx-swap-oob="outerHTML">Availability — Competence</title>
 <div id="ti-topbar-info" hx-swap-oob="outerHTML">
-    <div class="topbar-title" x-text-label="interface.topbar.calendar">Availability</div>
+    <div class="ti-topbar-title" x-text-label="interface.topbar.calendar">Availability</div>
 </div>
-<div class="page" x-data="managerCalendar()">
+<div class="ti-page" x-data="managerCalendar()">
 
     <!-- Help banner -->
-    <div class="cal-help-card">
-        <div class="cal-help-icon">
+    <div class="competence-cal-help-card">
+        <div class="competence-cal-help-icon">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <circle cx="12" cy="12" r="10"/>
                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
@@ -14,47 +14,47 @@
             </svg>
         </div>
         <div>
-            <div class="cal-help-title" x-text-label="interface.calendar.title"></div>
-            <div class="cal-help-msg">Click any empty slot to mark your availability. Booked slots cannot be changed.</div>
+            <div class="competence-cal-help-title" x-text-label="interface.calendar.title"></div>
+            <div class="competence-cal-help-msg">Click any empty slot to mark your availability. Booked slots cannot be changed.</div>
         </div>
     </div>
 
     <!-- Calendar toolbar -->
-    <div class="calendar-toolbar">
-        <button type="button" class="btn sm ghost" @click="prevWeek()" x-bind:disabled="!canGoPrev()" x-text-label="interface.calendar.week-nav-prev"></button>
-        <div class="calendar-week-label" x-text="getWeekLabel()"></div>
-        <button type="button" class="btn sm ghost" @click="nextWeek()" x-bind:disabled="!canGoNext()" x-text-label="interface.calendar.week-nav-next"></button>
+    <div class="competence-calendar-toolbar">
+        <button type="button" class="ti-btn sm ghost" @click="prevWeek()" x-bind:disabled="!canGoPrev()" x-text-label="interface.calendar.week-nav-prev"></button>
+        <div class="competence-calendar-week-label" x-text="getWeekLabel()"></div>
+        <button type="button" class="ti-btn sm ghost" @click="nextWeek()" x-bind:disabled="!canGoNext()" x-text-label="interface.calendar.week-nav-next"></button>
     </div>
 
     <!-- Calendar grid -->
-    <div class="calendar-grid">
-        <div class="calendar-table">
+    <div class="competence-calendar-grid">
+        <div class="competence-calendar-table">
             <!-- Header row -->
-            <div class="cal-header-row">
-                <div class="cal-corner"></div>
+            <div class="competence-cal-header-row">
+                <div class="competence-cal-corner"></div>
                 <template x-for="day in getWeekDays()" x-bind:key="'header-' + day.date">
-                    <div class="cal-header-cell">
-                        <div class="cal-header-day" x-text="day.dayLabel"></div>
-                        <div class="cal-header-date" x-text="day.dateLabel"></div>
+                    <div class="competence-cal-header-cell">
+                        <div class="competence-cal-header-day" x-text="day.dayLabel"></div>
+                        <div class="competence-cal-header-date" x-text="day.dateLabel"></div>
                     </div>
                 </template>
             </div>
 
             <!-- Time slot rows -->
             <template x-for="slot in getTimeSlots()" x-bind:key="slot.startTime">
-                <div class="cal-row">
-                    <div class="cal-time-cell" x-text="slot.startTime"></div>
+                <div class="competence-cal-row">
+                    <div class="competence-cal-time-cell" x-text="slot.startTime"></div>
                     <template x-for="day in getWeekDays()" x-bind:key="day.date + '-' + slot.startTime">
-                        <div class="cal-slot" x-bind:class="getSlotState(day.date, slot.startTime)" @click="handleSlotClick(day.date, slot.startTime)">
-                            <div class="cal-slot-split">
-                                <button type="button" class="cal-slot-split-half available" @click.stop="toggleSlot(day.date, slot.startTime, 'available')"
+                        <div class="competence-cal-slot" x-bind:class="getSlotCssClass(day.date, slot.startTime)" @click="handleSlotClick(day.date, slot.startTime)">
+                            <div class="competence-cal-slot-split">
+                                <button type="button" class="competence-cal-slot-split-half competence-available" @click.stop="toggleSlot(day.date, slot.startTime, 'available')"
                                         x-bind:title="getLabel('interface.calendar.mark-available')">✓
                                 </button>
-                                <button type="button" class="cal-slot-split-half busy" @click.stop="toggleSlot(day.date, slot.startTime, 'busy')"
+                                <button type="button" class="competence-cal-slot-split-half competence-busy" @click.stop="toggleSlot(day.date, slot.startTime, 'busy')"
                                         x-bind:title="getLabel('interface.calendar.mark-busy')">✕
                                 </button>
                             </div>
-                            <span class="calendar-slot-label" x-text="getSlotBookingLabel(day.date, slot.startTime)"></span>
+                            <span class="competence-calendar-slot-label" x-text="getSlotBookingLabel(day.date, slot.startTime)"></span>
                         </div>
                     </template>
                 </div>
@@ -63,21 +63,21 @@
     </div>
 
     <!-- Legend -->
-    <div class="cal-legend">
-        <div class="cal-legend-item">
-            <div class="cal-legend-swatch available"></div>
+    <div class="competence-cal-legend">
+        <div class="competence-cal-legend-item">
+            <div class="competence-cal-legend-swatch competence-available"></div>
             <span x-text-label="interface.calendar.slot-available"></span>
         </div>
-        <div class="cal-legend-item">
-            <div class="cal-legend-swatch booked"></div>
+        <div class="competence-cal-legend-item">
+            <div class="competence-cal-legend-swatch competence-booked"></div>
             <span x-text-label="interface.calendar.slot-booked"></span>
         </div>
-        <div class="cal-legend-item">
-            <div class="cal-legend-swatch busy"></div>
+        <div class="competence-cal-legend-item">
+            <div class="competence-cal-legend-swatch competence-busy"></div>
             <span x-text-label="interface.calendar.slot-busy"></span>
         </div>
-        <div class="cal-legend-item">
-            <div class="cal-legend-swatch empty"></div>
+        <div class="competence-cal-legend-item">
+            <div class="competence-cal-legend-swatch empty"></div>
             <span x-text-label="interface.calendar.slot-empty"></span>
         </div>
     </div>

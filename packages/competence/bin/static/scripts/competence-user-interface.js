@@ -615,6 +615,20 @@ const configureManagerCalendar = () => {
             return slot.status;
         },
 
+        getSlotCssClass( date, startTime ) {
+            const state = this.getSlotState( date, startTime );
+            if ( state === "available" ) {
+                return "competence-available";
+            }
+            if ( state === "busy" ) {
+                return "competence-busy";
+            }
+            if ( state === "booked" ) {
+                return "competence-booked";
+            }
+            return state;
+        },
+
         handleSlotClick( date, startTime ) {
             const state = this.getSlotState( date, startTime );
             if ( state !== "empty" && state !== "booked" ) {
@@ -930,7 +944,12 @@ const configureDashboard = () => {
                 this.stats = data.stats ? tiToolbox.structuredClone( data.stats ) : { total: 0, open: 0, inReview: 0, ready: 0 };
                 this.activity = Array.isArray( data.activity ) ? tiToolbox.structuredClone( data.activity ) : [];
                 this.tasks = this._buildTasks();
-                this.employeeMetrics = data.employeeMetrics ? tiToolbox.structuredClone( data.employeeMetrics ) : { peerFeedback: { submitted: 0, requested: 0 }, selfGrades: { completed: 0, total: 0 }, teamCoverage: { started: 0, total: 0 } };
+                this.employeeMetrics = data.employeeMetrics ? tiToolbox.structuredClone( data.employeeMetrics ) : {
+                    peerFeedback: {
+                        submitted: 0,
+                        requested: 0
+                    }, selfGrades: { completed: 0, total: 0 }, teamCoverage: { started: 0, total: 0 }
+                };
                 this.isLoading = false;
             } ).catch( ( error ) => {
                 if ( error?.name === "AbortError" || error?.isAborted ) {

@@ -1,44 +1,44 @@
 <title id="ti-page-title" hx-swap-oob="outerHTML">{ti-title-placeholder}</title>
 <div id="ti-login">
-    <div class="login-container">
+    <div class="ti-login-container">
         <!-- Brand mark -->
-        <div class="login-brand">
-            <div class="login-brand-mark">T</div>
-            <div class="login-brand-text">
-                <div class="login-brand-title">Welcome back</div>
-                <div class="login-brand-sub">Sign in to continue</div>
+        <div class="ti-login-brand">
+            <div class="ti-login-brand-mark">T</div>
+            <div class="ti-login-brand-text">
+                <div class="ti-login-brand-title">Welcome back</div>
+                <div class="ti-login-brand-sub">Sign in to continue</div>
             </div>
         </div>
 
         <!-- Login card -->
-        <div class="login-card">
+        <div class="ti-login-card">
             <!-- Error message -->
-            <div id="ti-error" class="login-error"></div>
+            <div id="ti-error" class="ti-login-error"></div>
 
             <!-- Local auth form -->
-            <form id="ti-login-form" action="/login/local" method="post" class="login-form">
+            <form id="ti-login-form" action="/login/local" method="post" class="ti-login-form">
                 <input type="hidden" name="_csrf" value='{ti-csrf-placeholder}'>
                 <div>
-                    <label class="field-label" x-text-label="interface.default.login.username" for="ti-username">Username</label>
+                    <label class="ti-field-label" x-text-label="interface.default.login.username" for="ti-username">Username</label>
                     <input id="ti-username"
                            name="username"
                            autocomplete="username"
                            autocapitalize="none"
                            spellcheck="false"
-                           required class="input"
+                           required class="ti-input"
                            placeholder="Enter your username"/>
                 </div>
                 <div>
-                    <label class="field-label" x-text-label="interface.default.login.password" for="ti-password">Password</label>
+                    <label class="ti-field-label" x-text-label="interface.default.login.password" for="ti-password">Password</label>
                     <input id="ti-password"
                            name="password"
                            type="password"
                            autocomplete="current-password"
                            enterkeyhint="go"
-                           required class="input"
+                           required class="ti-input"
                            placeholder="Enter your password"/>
                 </div>
-                <button type="submit" class="btn primary lg full login-submit">
+                <button type="submit" class="ti-btn primary lg full ti-login-submit">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                          stroke-linejoin="round" aria-hidden="true">
                         <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/>
@@ -48,15 +48,15 @@
             </form>
 
             <!-- Divider -->
-            <div class="login-divider">
-                <div class="login-divider-line"></div>
-                <span class="login-divider-label">or continue with</span>
-                <div class="login-divider-line"></div>
+            <div class="ti-login-divider">
+                <div class="ti-login-divider-line"></div>
+                <span class="ti-login-divider-label">or continue with</span>
+                <div class="ti-login-divider-line"></div>
             </div>
 
             <!-- Social auth -->
-            <div class="login-social">
-                <a href="/login/openid-google" class="btn full">
+            <div class="ti-login-social">
+                <a href="/login/openid-google" class="ti-btn full">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <path d="M21.6 12.23c0-.68-.06-1.33-.17-1.96H12v3.71h5.39a4.6 4.6 0 0 1-2 3.02v2.51h3.23c1.9-1.74 2.98-4.31 2.98-7.28Z" fill="#4285F4"/>
                         <path d="M12 22c2.7 0 4.97-.9 6.62-2.42l-3.23-2.51c-.9.6-2.04.96-3.39.96-2.6 0-4.81-1.76-5.6-4.12H3.07v2.6A10 10 0 0 0 12 22Z"
@@ -68,7 +68,7 @@
                     </svg>
                     <span x-text-label="interface.default.login.sign-in-google">Sign in with Google</span>
                 </a>
-                <a href="/login/openid-azure" class="btn full">
+                <a href="/login/openid-azure" class="ti-btn full">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <path d="M11.5 2L4 8.5l4 1-4 6.5h8l-2-4 4-1-2.5 8H20L14 2h-2.5Z" fill="#0078D4"/>
                     </svg>
