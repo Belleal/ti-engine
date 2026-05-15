@@ -467,6 +467,35 @@ const configureComponentSidebarFlyout = ( options = {} ) => {
 };
 
 /**
+ * Returns a configuration object for the topbar component "component-topbar.html".
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureComponentTopbar = () => {
+    /**
+     * @typedef {Object} TiTopbar
+     */
+    return {
+
+        /**
+         * The title for the currently active screen, resolved from the application label store.
+         *
+         * @property
+         * @returns {string}
+         * @public
+         */
+        get screenTitle() {
+            const tiApplication = Alpine.store( "tiApplication" );
+            const screen = ( tiApplication && tiApplication.currentScreen ) || "";
+            return screen ? tiApplication.getLabel( `interface.topbar.${ screen }`, "" ) : "";
+        }
+
+    };
+};
+
+/**
  * Returns a configuration object for the notification component "component-notification-bar.html".
  *
  * @method
@@ -621,6 +650,10 @@ const configureComponentTooltip = () => {
  * @public
  */
 const configureApplication = () => {
+    const STORAGE_KEY_COLLAPSED = "ti-sidebar-collapsed";
+    const STORAGE_KEY_THEME = "ti-theme";
+    const DEFAULT_THEME = "daylight";
+
     const tiToolbox = Alpine.store( "tiToolbox" );
 
     /**
@@ -657,6 +690,8 @@ const configureApplication = () => {
         currentScreen: "",
         notificationIDCounter: 1,
         requestControllers: new Map(),
+        collapsed: false,
+        theme: DEFAULT_THEME,
 
         /**
          * Used to initialize the web application.
@@ -665,6 +700,17 @@ const configureApplication = () => {
             document.addEventListener( "ti:error", ( event ) => {
                 this.notify( this.formatException( event.detail ) );
             } );
+
+            try {
+                const savedCollapsed = localStorage.getItem( STORAGE_KEY_COLLAPSED );
+                if ( savedCollapsed !== null ) this.collapsed = savedCollapsed === "true";
+
+                const savedTheme = localStorage.getItem( STORAGE_KEY_THEME );
+                if ( savedTheme ) this.theme = savedTheme;
+            } catch {
+                // localStorage may be unavailable (private browsing, security policy).
+            }
+            this._applyTheme( this.theme );
 
             // Use application settings to configure the application at load-time:
             this.sendRequest( "/app/config" ).then( ( result ) => {
@@ -765,13 +811,15 @@ const configureApplication = () => {
          * @public
          */
         openScreen( screen ) {
-            if ( !screen || !/^[\w-]+$/.test( screen ) || !window.htmx ) {
+            const [ basePath, ...queryParts ] = ( screen || "" ).split( "?" );
+            const query = queryParts.length ? "?" + queryParts.join( "?" ) : "";
+            if ( !basePath || !/^[\w-]+$/.test( basePath ) || !window.htmx ) {
                 window.location.href = "/";
             } else {
-                let screenUrl = "/app/" + screen;
+                const screenUrl = "/app/" + basePath + query;
                 window.htmx.ajax( "get", screenUrl, { target: "#ti-content", swap: "innerHTML" } ).then( () => {
                     window.history.pushState( null, "", screenUrl );
-                    this.currentScreen = screen;
+                    this.currentScreen = basePath;
                 } ).catch( () => {
                     window.location.href = "/";
                 } );
@@ -786,7 +834,9 @@ const configureApplication = () => {
          * @public
          */
         setCurrentScreen( screen ) {
-            if ( screen ) this.currentScreen = screen;
+            if ( screen ) {
+                this.currentScreen = screen;
+            }
         },
 
         /**
@@ -835,6 +885,46 @@ const configureApplication = () => {
             } else {
                 return extractLabel( this.configuration.labels || {}, label.split( "." ).filter( Boolean ), fallback );
             }
+        },
+
+        /**
+         * Toggle the sidebar between expanded and collapsed states.
+         *
+         * @method
+         * @public
+         */
+        toggleCollapse() {
+            this.collapsed = !this.collapsed;
+            try {
+                localStorage.setItem( STORAGE_KEY_COLLAPSED, String( this.collapsed ) );
+            } catch { /* ignore */
+            }
+        },
+
+        /**
+         * Toggle between daylight and glass themes.
+         *
+         * @method
+         * @public
+         */
+        toggleTheme() {
+            this.theme = ( this.theme === "daylight" ) ? "glass" : "daylight";
+            this._applyTheme( this.theme );
+            try {
+                localStorage.setItem( STORAGE_KEY_THEME, this.theme );
+            } catch { /* ignore */
+            }
+        },
+
+        /**
+         * Apply a theme by setting the data-theme attribute on <html>.
+         *
+         * @method
+         * @param {string} theme
+         * @private
+         */
+        _applyTheme( theme ) {
+            document.documentElement.dataset.theme = theme;
         }
 
     };
@@ -882,88 +972,6 @@ const configureDirectiveTextLabel = () => {
 };
 
 /**
- * Returns a configuration object for the app shell (sidebar collapse + theme toggle).
- * Bind to the root .app-shell element via x-data="tiAppShell".
- *
- * @method
- * @returns {Object}
- * @public
- */
-const configureAppShell = () => {
-    const STORAGE_KEY_COLLAPSED = "ti-sidebar-collapsed";
-    const STORAGE_KEY_THEME = "ti-theme";
-    const DEFAULT_THEME = "daylight";
-
-    /**
-     * @typedef {Object} TiAppShell
-     */
-    return {
-        collapsed: false,
-        theme: DEFAULT_THEME,
-
-        /**
-         * Initialize from localStorage and apply the saved theme.
-         *
-         * @method
-         * @public
-         */
-        init() {
-            try {
-                const savedCollapsed = localStorage.getItem( STORAGE_KEY_COLLAPSED );
-                if ( savedCollapsed !== null ) this.collapsed = savedCollapsed === "true";
-
-                const savedTheme = localStorage.getItem( STORAGE_KEY_THEME );
-                if ( savedTheme ) this.theme = savedTheme;
-            } catch {
-                // localStorage may be unavailable (private browsing, security policy).
-            }
-            this._applyTheme( this.theme );
-        },
-
-        /**
-         * Toggle the sidebar between expanded and collapsed states.
-         *
-         * @method
-         * @public
-         */
-        toggleCollapse() {
-            this.collapsed = !this.collapsed;
-            try {
-                localStorage.setItem( STORAGE_KEY_COLLAPSED, String( this.collapsed ) );
-            } catch { /* ignore */
-            }
-        },
-
-        /**
-         * Toggle between daylight and glass themes.
-         *
-         * @method
-         * @public
-         */
-        toggleTheme() {
-            this.theme = ( this.theme === "daylight" ) ? "glass" : "daylight";
-            this._applyTheme( this.theme );
-            try {
-                localStorage.setItem( STORAGE_KEY_THEME, this.theme );
-            } catch { /* ignore */
-            }
-        },
-
-        /**
-         * Apply a theme by setting the data-theme attribute on <html>.
-         *
-         * @method
-         * @param {string} theme
-         * @private
-         */
-        _applyTheme( theme ) {
-            document.documentElement.dataset.theme = theme;
-        }
-
-    };
-};
-
-/**
  * Perform a one-time configuration of the HTMX framework.
  */
 document.addEventListener( "htmx:configRequest", ( event ) => {
@@ -978,6 +986,19 @@ document.addEventListener( "htmx:configRequest", ( event ) => {
 /**
  * Add a custom event listener to the HTMX framework.
  */
+document.addEventListener( "htmx:afterSwap", ( event ) => {
+    const target = event.detail.target;
+    if ( target.id !== "ti-content" && target.tagName !== "TI-NESTED-FRAME-PLACEHOLDER" ) return;
+    const path = ( event.detail.pathInfo && event.detail.pathInfo.requestPath ) || "";
+    const match = path.match( /^\/app\/([\w-]+)/ );
+    if ( match ) {
+        const tiApplication = Alpine.store( "tiApplication" );
+        if ( tiApplication ) {
+            tiApplication.setCurrentScreen( match[ 1 ] );
+        }
+    }
+} );
+
 document.addEventListener( "htmx:responseError", ( event ) => {
     // If the server sent HX-Trigger with our payload, it will also emit a separate event,
     // But here we parse body as fallback when body is JSON
@@ -1015,8 +1036,22 @@ document.addEventListener( "alpine:init", () => {
     Alpine.store( "tiComponentsConfig", {
         sidebarApplicationMenu: Alpine.store( "tiToolbox" ).deepMerge( defaultComponentConfig, configSidebarApplicationMenu )
     } );
+    Alpine.data( "tiApplication", () => ( {
+        get collapsed() {
+            return Alpine.store( "tiApplication" ).collapsed;
+        },
+        get theme() {
+            return Alpine.store( "tiApplication" ).theme;
+        },
+        toggleCollapse() {
+            Alpine.store( "tiApplication" ).toggleCollapse();
+        },
+        toggleTheme() {
+            Alpine.store( "tiApplication" ).toggleTheme();
+        }
+    } ) );
+    Alpine.data( "tiComponentTopbar", configureComponentTopbar );
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
     Alpine.data( "tiComponentTooltip", configureComponentTooltip );
-    Alpine.data( "tiAppShell", configureAppShell );
 } );

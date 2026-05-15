@@ -59,7 +59,7 @@ class TiWebAppManager {
         this.#fragments[ 'application-main' ] = {
             title: "Application",
             path: "fragments/frame-application.html",
-            components: [ "component-sidebar-flyout", "component-sidebar-flyout" ]
+            components: [ "component-topbar", "component-sidebar-flyout" ]
         };
         this.#fragments[ 'login' ] = {
             title: "Login",

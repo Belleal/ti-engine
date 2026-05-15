@@ -1,8 +1,5 @@
-<title id="ti-page-title" hx-swap-oob="outerHTML">Employees — Competence</title>
-<div id="ti-topbar-info" hx-swap-oob="outerHTML">
-    <div class="ti-topbar-title" x-text-label="interface.topbar.employees">Employees</div>
-</div>
-<div class="ti-page" x-data="employeesList()">
+<title id="ti-page-title" hx-swap-oob="outerHTML">{ti-title-placeholder}</title>
+<div class="ti-page" x-data="competenceEmployeesList">
 
     <template x-if="units.length === 0">
         <div class="ti-empty-state">

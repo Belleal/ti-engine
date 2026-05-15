@@ -453,7 +453,7 @@ body {
 /* ============================================================
    App shell — CSS grid with collapsible ti-sidebar
    ============================================================ */
-.ti-app-shell {
+.ti-application {
     display: grid;
     grid-template-columns: var(--sidebar-w) 1fr;
     min-height: 100vh;
@@ -462,7 +462,7 @@ body {
     transition: grid-template-columns var(--dur-base) var(--ease-out);
 }
 
-.ti-app-shell.collapsed {
+.ti-application.collapsed {
     grid-template-columns: var(--sidebar-w-collapsed) 1fr;
 }
 
@@ -502,7 +502,7 @@ body {
     transition: opacity var(--dur-fast), transform var(--dur-fast), background var(--dur-fast);
 }
 
-.ti-app-shell:hover .ti-sidebar-collapse-btn,
+.ti-application:hover .ti-sidebar-collapse-btn,
 .ti-sidebar-collapse-btn:focus-visible {
     opacity: 1;
     transform: translateX(0);
@@ -514,7 +514,7 @@ body {
     border-color: var(--accent);
 }
 
-.ti-app-shell.collapsed .ti-sidebar-collapse-btn svg {
+.ti-application.collapsed .ti-sidebar-collapse-btn svg {
     transform: rotate(180deg);
 }
 
@@ -532,12 +532,12 @@ body {
     min-height: 56px;
 }
 
-.ti-app-shell.collapsed .ti-sidebar-brand {
+.ti-application.collapsed .ti-sidebar-brand {
     padding-left: 16px;
     padding-right: 16px;
 }
 
-.ti-app-shell.collapsed .ti-sidebar-brand-text-block {
+.ti-application.collapsed .ti-sidebar-brand-text-block {
     opacity: 0;
     pointer-events: none;
 }
@@ -590,7 +590,7 @@ body {
     transition: opacity var(--dur-fast), padding var(--dur-fast);
 }
 
-.ti-app-shell.collapsed .ti-sidebar-section-label {
+.ti-application.collapsed .ti-sidebar-section-label {
     font-size: 0;
     padding-top: var(--s-3);
     padding-bottom: 0;
@@ -599,7 +599,7 @@ body {
     position: relative;
 }
 
-.ti-app-shell.collapsed .ti-sidebar-section-label::after {
+.ti-application.collapsed .ti-sidebar-section-label::after {
     content: "";
     position: absolute;
     left: 18px;
@@ -645,7 +645,7 @@ body {
     transition: opacity var(--dur-fast);
 }
 
-.ti-app-shell.collapsed .ti-sidebar-item-label {
+.ti-application.collapsed .ti-sidebar-item-label {
     opacity: 0;
     pointer-events: none;
     flex: 0 0 0;
@@ -654,30 +654,30 @@ body {
     overflow: hidden;
 }
 
-.ti-app-shell.collapsed .ti-sidebar-nav {
+.ti-application.collapsed .ti-sidebar-nav {
     padding-left: var(--s-2);
     padding-right: var(--s-2);
 }
 
-.ti-app-shell.collapsed .ti-sidebar-foot {
+.ti-application.collapsed .ti-sidebar-foot {
     padding-left: var(--s-2);
     padding-right: var(--s-2);
 }
 
-.ti-app-shell.collapsed .ti-sidebar-item {
+.ti-application.collapsed .ti-sidebar-item {
     justify-content: center;
     padding-left: 0;
     padding-right: 0;
     gap: 0;
 }
 
-.ti-app-shell.collapsed .ti-sidebar-item .ti-sidebar-item-icon {
+.ti-application.collapsed .ti-sidebar-item .ti-sidebar-item-icon {
     margin: 0;
 }
 
 /* Collapsed tooltip */
-.ti-app-shell.collapsed .ti-sidebar-item:hover::after,
-.ti-app-shell.collapsed .ti-sidebar-user:hover::after {
+.ti-application.collapsed .ti-sidebar-item:hover::after,
+.ti-application.collapsed .ti-sidebar-user:hover::after {
     content: attr(data-tip);
     position: absolute;
     left: calc(100% + 12px);
@@ -716,7 +716,7 @@ body {
     background: var(--sidebar-accent);
 }
 
-.ti-app-shell.collapsed .ti-sidebar-item.active::before {
+.ti-application.collapsed .ti-sidebar-item.active::before {
     left: calc(-1 * var(--s-2));
 }
 
@@ -766,14 +766,14 @@ body {
     position: relative;
 }
 
-.ti-app-shell.collapsed .ti-sidebar-user {
+.ti-application.collapsed .ti-sidebar-user {
     justify-content: center;
     padding-left: 0;
     padding-right: 0;
     gap: 0;
 }
 
-.ti-app-shell.collapsed .ti-sidebar-user-text {
+.ti-application.collapsed .ti-sidebar-user-text {
     display: none;
     opacity: 0;
     pointer-events: none;

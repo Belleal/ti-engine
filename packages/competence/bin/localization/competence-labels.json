@@ -2972,10 +2972,14 @@
     "topbar": {
       "dashboard": { "en": "Dashboard", "bg": "Табло" },
       "employees": { "en": "Employees", "bg": "Служители" },
+      "employees-list": { "en": "Employees", "bg": "Служители" },
       "evaluation": { "en": "My Evaluation", "bg": "Моята Оценка" },
+      "competence-evaluation": { "en": "My Evaluation", "bg": "Моята Оценка" },
       "new-evaluation": { "en": "New Evaluation", "bg": "Нова Оценка" },
       "calendar": { "en": "Availability", "bg": "Наличност" },
+      "manager-calendar": { "en": "Availability", "bg": "Наличност" },
       "interviews": { "en": "Interviews", "bg": "Интервюта" },
+      "interview-schedule": { "en": "Interviews", "bg": "Интервюта" },
       "search": { "en": "Search", "bg": "Търси" },
       "notifications": { "en": "Notifications", "bg": "Известия" },
       "user-profile": { "en": "Your profile", "bg": "Вашият профил" }

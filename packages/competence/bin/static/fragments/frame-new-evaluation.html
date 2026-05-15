@@ -1,9 +1,5 @@
-<title id="ti-page-title" hx-swap-oob="outerHTML">New Evaluation — Competence</title>
-<div id="ti-topbar-info" hx-swap-oob="outerHTML">
-    <div class="ti-topbar-title" x-text-label="interface.topbar.new-evaluation">New Evaluation</div>
-    <div class="ti-topbar-sub" x-text="($store.tiApplication.configuration && $store.tiApplication.configuration.cycle && $store.tiApplication.configuration.cycle.id) || ''"></div>
-</div>
-<div class="ti-page" x-data="newEvaluation()">
+<title id="ti-page-title" hx-swap-oob="outerHTML">{ti-title-placeholder}</title>
+<div class="ti-page" x-data="competenceNewEvaluation">
 
     <template x-if="personal.name">
         <div>
@@ -13,7 +9,8 @@
                     <div class="ti-panel-title" x-text-label="interface.evaluation.personal.title"></div>
                 </div>
                 <div class="competence-new-eval-employee-body">
-                    <div class="ti-avatar lg" x-bind:class="$store.tiToolbox.generateAvatarClass(personal.id || personal.name)" x-bind:aria-label="personal.name">
+                    <div class="ti-avatar lg" x-bind:class="$store.tiToolbox.generateAvatarClass(personal.id || personal.name)"
+                         x-bind:aria-label="personal.name">
                         <span x-text="(personal.name || '?').charAt(0).toUpperCase()"></span>
                     </div>
                     <div>
@@ -56,7 +53,8 @@
                                 <option x-bind:value="member.employeeID" x-text="member.name + ' — ' + member.careerPathName"></option>
                             </template>
                         </select>
-                        <button type="button" class="ti-btn primary" @click="addTeamMember()" x-text-label="interface.evaluation.actions.add-team-member"></button>
+                        <button type="button" class="ti-btn primary" @click="addTeamMember()"
+                                x-text-label="interface.evaluation.actions.add-team-member"></button>
                     </div>
 
                     <!-- Selected team chips -->
@@ -72,7 +70,8 @@
                                 </button>
                             </div>
                         </template>
-                        <div class="competence-new-eval-chip-empty" x-show="team.length === 0" x-text-label="interface.evaluation.appraisal.empty-team-list"></div>
+                        <div class="competence-new-eval-chip-empty" x-show="team.length === 0"
+                             x-text-label="interface.evaluation.appraisal.empty-team-list"></div>
                     </div>
                 </div>
             </div>

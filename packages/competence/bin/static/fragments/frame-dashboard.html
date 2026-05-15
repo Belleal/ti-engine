@@ -1,5 +1,5 @@
 <title id="ti-page-title" hx-swap-oob="outerHTML">{ti-title-placeholder}</title>
-<div x-data="competenceDashboard" class="ti-page">
+<div class="ti-page" x-data="competenceDashboard">
 
     <!-- Loading state -->
     <template x-if="isLoading">
@@ -211,7 +211,8 @@
                             <span x-text="employeeMetrics.selfGrades.completed + ' / ' + employeeMetrics.selfGrades.total"></span>
                             <span class="competence-stat-card-value-suffix" x-text-label="interface.dashboard.self-grades-suffix">complete</span>
                         </div>
-                        <div class="competence-stat-card-sub" x-text-label="interface.dashboard.self-grades-desc">Competencies submitted — awaiting manager</div>
+                        <div class="competence-stat-card-sub" x-text-label="interface.dashboard.self-grades-desc">Competencies submitted — awaiting manager
+                        </div>
                         <div class="competence-stat-card-viz"
                              x-bind:style="{ '--pct': (employeeMetrics.selfGrades.total > 0 ? (employeeMetrics.selfGrades.completed / employeeMetrics.selfGrades.total * 100) : 0) + '%' }">
                             <div class="competence-fill"></div>
@@ -249,7 +250,8 @@
                             <span x-text="employeeMetrics.teamCoverage.started + ' / ' + employeeMetrics.teamCoverage.total"></span>
                             <span class="competence-stat-card-value-suffix" x-text-label="interface.dashboard.team-coverage-suffix">started</span>
                         </div>
-                        <div class="competence-stat-card-sub" x-text-label="interface.dashboard.team-coverage-desc">Teammates have started their evaluations</div>
+                        <div class="competence-stat-card-sub" x-text-label="interface.dashboard.team-coverage-desc">Teammates have started their evaluations
+                        </div>
                         <div class="competence-stat-card-viz success"
                              x-bind:style="{ '--pct': (employeeMetrics.teamCoverage.total > 0 ? (employeeMetrics.teamCoverage.started / employeeMetrics.teamCoverage.total * 100) : 0) + '%' }">
                             <div class="competence-fill"></div>

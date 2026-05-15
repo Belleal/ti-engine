@@ -13,7 +13,7 @@
  * @returns {Object}
  * @public
  */
-const configureCompetencyEvaluation = () => {
+const configureCompetenceEvaluation = () => {
     const tiToolbox = Alpine.store( "tiToolbox" );
     const tiApplication = Alpine.store( "tiApplication" );
 
@@ -305,26 +305,15 @@ const configureEmployeesList = () => {
         },
 
         startNewEvaluation( employeeID ) {
-            const url = "/app/new-evaluation?employeeID=" + encodeURIComponent( employeeID );
-            if ( window.htmx ) {
-                window.htmx.ajax( "GET", url, { target: "#ti-content", swap: "innerHTML" } );
-                window.history.pushState( null, "", url );
-            } else {
-                window.location.href = url;
-            }
+            tiApplication.openScreen( "new-evaluation?employeeID=" + encodeURIComponent( employeeID ) );
         },
 
         openEvaluation( employeeID, evaluationID ) {
-            let url = "/app/competence-evaluation?employeeID=" + encodeURIComponent( employeeID );
+            let screen = "competence-evaluation?employeeID=" + encodeURIComponent( employeeID );
             if ( evaluationID ) {
-                url += "&evaluationID=" + encodeURIComponent( evaluationID );
+                screen += "&evaluationID=" + encodeURIComponent( evaluationID );
             }
-            if ( window.htmx ) {
-                window.htmx.ajax( "GET", url, { target: "#ti-content", swap: "innerHTML" } );
-                window.history.pushState( null, "", url );
-            } else {
-                window.location.href = url;
-            }
+            tiApplication.openScreen( screen );
         },
 
         totalEmployees() {
@@ -1104,10 +1093,10 @@ const configureDashboard = () => {
 };
 
 document.addEventListener( "alpine:init", () => {
-    Alpine.data( "competencyEvaluation", configureCompetencyEvaluation );
-    Alpine.data( "employeesList", configureEmployeesList );
-    Alpine.data( "newEvaluation", configureNewEvaluation );
-    Alpine.data( "managerCalendar", configureManagerCalendar );
-    Alpine.data( "interviewSchedule", configureInterviewSchedule );
+    Alpine.data( "competenceEvaluation", configureCompetenceEvaluation );
+    Alpine.data( "competenceEmployeesList", configureEmployeesList );
+    Alpine.data( "competenceNewEvaluation", configureNewEvaluation );
+    Alpine.data( "competenceManagerCalendar", configureManagerCalendar );
+    Alpine.data( "competenceInterviewSchedule", configureInterviewSchedule );
     Alpine.data( "competenceDashboard", configureDashboard );
 } );

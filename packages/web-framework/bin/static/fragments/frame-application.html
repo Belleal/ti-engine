@@ -1,4 +1,4 @@
-<div class="ti-app-shell" x-data="tiAppShell" x-bind:class="{ collapsed: collapsed }">
+<div class="ti-application" x-data="tiApplication" x-bind:class="{ collapsed: collapsed }">
     <nav class="ti-sidebar" aria-label="Main navigation">
         <button class="ti-sidebar-collapse-btn" @click="toggleCollapse()" x-bind:aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'" type="button">
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
@@ -42,7 +42,12 @@
         </div>
     </nav>
 
-    <div class="ti-content" id="ti-content-wrapper">
+    <div id="ti-content-wrapper" class="ti-content">
+        <!-- Topbar -->
+        <header id="ti-topbar" class="ti-topbar" x-data="tiComponentTopbar">
+            <ti-component-topbar-placeholder></ti-component-topbar-placeholder>
+        </header>
+
         <div id="ti-content" class="ti-page-scrollable">
             <ti-nested-frame-placeholder hx-get="/app/dashboard" hx-trigger="load" hx-target="this" hx-swap="outerHTML"
                                          hx-push-url="true"></ti-nested-frame-placeholder>

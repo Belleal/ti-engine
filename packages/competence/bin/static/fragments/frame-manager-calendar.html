@@ -1,8 +1,5 @@
-<title id="ti-page-title" hx-swap-oob="outerHTML">Availability — Competence</title>
-<div id="ti-topbar-info" hx-swap-oob="outerHTML">
-    <div class="ti-topbar-title" x-text-label="interface.topbar.calendar">Availability</div>
-</div>
-<div class="ti-page" x-data="managerCalendar()">
+<title id="ti-page-title" hx-swap-oob="outerHTML">{ti-title-placeholder}</title>
+<div class="ti-page" x-data="competenceManagerCalendar">
 
     <!-- Help banner -->
     <div class="competence-cal-help-card">
@@ -21,9 +18,11 @@
 
     <!-- Calendar toolbar -->
     <div class="competence-calendar-toolbar">
-        <button type="button" class="ti-btn sm ghost" @click="prevWeek()" x-bind:disabled="!canGoPrev()" x-text-label="interface.calendar.week-nav-prev"></button>
+        <button type="button" class="ti-btn sm ghost" @click="prevWeek()" x-bind:disabled="!canGoPrev()"
+                x-text-label="interface.calendar.week-nav-prev"></button>
         <div class="competence-calendar-week-label" x-text="getWeekLabel()"></div>
-        <button type="button" class="ti-btn sm ghost" @click="nextWeek()" x-bind:disabled="!canGoNext()" x-text-label="interface.calendar.week-nav-next"></button>
+        <button type="button" class="ti-btn sm ghost" @click="nextWeek()" x-bind:disabled="!canGoNext()"
+                x-text-label="interface.calendar.week-nav-next"></button>
     </div>
 
     <!-- Calendar grid -->
@@ -45,12 +44,15 @@
                 <div class="competence-cal-row">
                     <div class="competence-cal-time-cell" x-text="slot.startTime"></div>
                     <template x-for="day in getWeekDays()" x-bind:key="day.date + '-' + slot.startTime">
-                        <div class="competence-cal-slot" x-bind:class="getSlotCssClass(day.date, slot.startTime)" @click="handleSlotClick(day.date, slot.startTime)">
+                        <div class="competence-cal-slot" x-bind:class="getSlotCssClass(day.date, slot.startTime)"
+                             @click="handleSlotClick(day.date, slot.startTime)">
                             <div class="competence-cal-slot-split">
-                                <button type="button" class="competence-cal-slot-split-half competence-available" @click.stop="toggleSlot(day.date, slot.startTime, 'available')"
+                                <button type="button" class="competence-cal-slot-split-half competence-available"
+                                        @click.stop="toggleSlot(day.date, slot.startTime, 'available')"
                                         x-bind:title="getLabel('interface.calendar.mark-available')">✓
                                 </button>
-                                <button type="button" class="competence-cal-slot-split-half competence-busy" @click.stop="toggleSlot(day.date, slot.startTime, 'busy')"
+                                <button type="button" class="competence-cal-slot-split-half competence-busy"
+                                        @click.stop="toggleSlot(day.date, slot.startTime, 'busy')"
                                         x-bind:title="getLabel('interface.calendar.mark-busy')">✕
                                 </button>
                             </div>
