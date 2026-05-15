@@ -59,7 +59,7 @@ class TiWebAppManager {
         this.#fragments[ 'application-main' ] = {
             title: "Application",
             path: "fragments/frame-application.html",
-            components: [ "component-topbar", "component-sidebar-flyout" ]
+            components: [ "component-topbar", "component-sidebar", "component-notification-bar", "component-sidebar-flyout" ]
         };
         this.#fragments[ 'login' ] = {
             title: "Login",
@@ -162,9 +162,7 @@ class TiWebAppManager {
             const csrfToken = ( typeof options?.csrfToken === "string" ) ? options?.csrfToken : "";
             transformedHtml = transformedHtml.replaceAll( RE_CSRF_ATTR, csrfToken );
 
-            if ( options.title ) {
-                transformedHtml = transformedHtml.replace( "{ti-title-placeholder}", options.title );
-            }
+            transformedHtml = transformedHtml.replace( "{ti-title-placeholder}", options.title || "" );
 
             resolve( transformedHtml );
         } );
@@ -201,7 +199,7 @@ class TiWebAppManager {
                 fragment = ( session && session.user ) ? this.#fragments[ 'application-main' ] : this.#fragments[ 'login' ];
                 getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, fragment, localOptions ) );
             } else if ( route === "/not-found" ) {
-                getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, this.#fragments[ 'home' ], { ...localOptions, isHome: true } ) );
+                getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, this.#fragments[ 'home' ], { ...localOptions, isHome: true, title: this.#fragments[ 'not-found' ].title } ) );
                 getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, this.#fragments[ 'not-found' ], localOptions ) );
             } else {
                 fragment = this.#fragments[ options.view ];
@@ -213,7 +211,8 @@ class TiWebAppManager {
                     if ( options.isPartial !== true ) {
                         getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, this.#fragments[ 'home' ], {
                             ...localOptions,
-                            isHome: true
+                            isHome: true,
+                            title: fragment.title
                         } ) );
                         getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, this.#fragments[ 'application-main' ], localOptions ) );
                     }
@@ -316,7 +315,7 @@ class TiWebAppManager {
             } ).then( ( fileData ) => {
                 return this.#replaceComponentPlaceholders( fileData, staticContentPaths, fragment.components );
             } ).then( ( fileData ) => {
-                return this.transformHtml( fileData, { ...options, title: fragment.title } );
+                return this.transformHtml( fileData, { ...options, title: fragment.title || options.title } );
             } ).then( ( fileData ) => {
                 resolve( fileData );
             } ).catch( ( error ) => {

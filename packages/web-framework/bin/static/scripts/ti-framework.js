@@ -467,6 +467,56 @@ const configureComponentSidebarFlyout = ( options = {} ) => {
 };
 
 /**
+ * Returns a configuration object for the sidebar navigation component.
+ * The screen-to-active-key mapping is read at runtime from tiApplication.configuration.sidebarNavMapping,
+ * allowing each application to define its own mapping without changing the framework.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureSidebarNav = () => {
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    const getActiveFromScreen = ( screen ) => {
+        const mapping = ( tiApplication.configuration && tiApplication.configuration.sidebarNavMapping ) || {};
+        return mapping[ screen ] || "";
+    };
+
+    const getActiveFromUrl = () => {
+        const match = window.location.pathname.match( /^\/app\/([\w-]+)/ );
+        return match ? getActiveFromScreen( match[ 1 ] ) : "";
+    };
+
+    return {
+        active: "",
+
+        init() {
+            this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                if ( isInitialized ) {
+                    const fromUrl = getActiveFromUrl();
+                    if ( fromUrl ) {
+                        this.active = fromUrl;
+                    }
+                }
+            } );
+            this.$watch( () => tiApplication.currentScreen, ( screen ) => {
+                const mapped = getActiveFromScreen( screen );
+                if ( mapped ) {
+                    this.active = mapped;
+                }
+            } );
+            if ( tiApplication.isInitialized ) {
+                const fromUrl = getActiveFromUrl();
+                if ( fromUrl ) {
+                    this.active = fromUrl;
+                }
+            }
+        }
+    };
+};
+
+/**
  * Returns a configuration object for the topbar component "component-topbar.html".
  *
  * @method
@@ -479,17 +529,32 @@ const configureComponentTopbar = () => {
      */
     return {
 
-        /**
-         * The title for the currently active screen, resolved from the application label store.
-         *
-         * @property
-         * @returns {string}
-         * @public
-         */
-        get screenTitle() {
+        screenTitle: "",
+
+        init() {
             const tiApplication = Alpine.store( "tiApplication" );
-            const screen = ( tiApplication && tiApplication.currentScreen ) || "";
-            return screen ? tiApplication.getLabel( `interface.topbar.${ screen }`, "" ) : "";
+
+            const updateTitle = () => {
+                const screen = ( tiApplication && tiApplication.currentScreen ) || "";
+                const title = screen ? tiApplication.getLabel( `interface.topbar.${ screen }`, "" ) : "";
+                this.screenTitle = title;
+                if ( title ) {
+                    document.title = title;
+                }
+            };
+
+            // If the htmx:afterSwap listener was registered after the initial swap already fired,
+            // currentScreen won't be set yet — fall back to reading the URL that hx-push-url already updated:
+            if ( tiApplication && !tiApplication.currentScreen ) {
+                const match = window.location.pathname.match( /^\/app\/([\w-]+)/ );
+                if ( match ) {
+                    tiApplication.setCurrentScreen( match[ 1 ] );
+                }
+            }
+
+            updateTitle();
+            this.$watch( () => tiApplication.currentScreen, updateTitle );
+            this.$watch( () => tiApplication.isInitialized, updateTitle );
         }
 
     };
@@ -1050,6 +1115,7 @@ document.addEventListener( "alpine:init", () => {
             Alpine.store( "tiApplication" ).toggleTheme();
         }
     } ) );
+    Alpine.data( "tiComponentSidebarNav", configureSidebarNav );
     Alpine.data( "tiComponentTopbar", configureComponentTopbar );
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
