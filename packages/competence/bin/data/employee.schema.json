@@ -2,11 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ti-engine.dev/schemas/competence/employee.json",
   "title": "Employee Profile",
-  "description": "A single employee record containing personal and professional details.",
+  "description": "A single employee record containing personal and career details.",
   "type": "object",
   "required": [
     "employeeID",
-    "personal"
+    "managerID",
+    "personal",
+    "career"
   ],
   "additionalProperties": false,
   "properties": {
@@ -15,37 +17,85 @@
       "minLength": 1,
       "description": "Unique identifier for the employee"
     },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Corporate email address"
+    },
+    "managerID": {
+      "type": "string",
+      "description": "Employee ID of the direct administrative manager"
+    },
     "personal": {
       "type": "object",
       "description": "Personal information about the employee",
       "required": [
-        "name",
-        "careerPath",
+        "firstName",
+        "lastName",
+        "workMode",
+        "workLocation"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "firstName": {
+          "type": "string",
+          "minLength": 1,
+          "description": "First name of the employee"
+        },
+        "lastName": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Last name of the employee"
+        },
+        "birthDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Birth date of the employee"
+        },
+        "gender": {
+          "type": "string",
+          "description": "Gender of the employee"
+        },
+        "workMode": {
+          "type": "string",
+          "enum": [
+            "Full-time",
+            "Part-time",
+            "Contract"
+          ],
+          "description": "Employment mode"
+        },
+        "workLocation": {
+          "type": "string",
+          "enum": [
+            "On-site",
+            "Hybrid",
+            "Remote"
+          ],
+          "description": "Work location arrangement"
+        }
+      }
+    },
+    "career": {
+      "type": "object",
+      "description": "Career information about the employee",
+      "required": [
         "organizationUnitID",
+        "careerPath",
         "level",
         "stage"
       ],
       "additionalProperties": false,
       "properties": {
-        "name": {
+        "organizationUnitID": {
           "type": "string",
           "minLength": 1,
-          "description": "Full name of the employee"
-        },
-        "email": {
-          "type": "string",
-          "format": "email",
-          "description": "Corporate email address"
+          "description": "Organization unit ID"
         },
         "careerPath": {
           "type": "string",
           "minLength": 1,
           "description": "Career path"
-        },
-        "organizationUnitID": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Organization unit ID"
         },
         "level": {
           "type": "string",

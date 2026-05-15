@@ -239,7 +239,14 @@ class CompetenceWebApplication extends TiWebAppManager {
                     }
                 } );
 
-                const toEmployeeEntry = ( employeeNode ) => {
+                const evalStatusTone = ( status ) => {
+                    if ( status === configurationLoader.evaluationStatus.OPEN ) return "info";
+                    if ( status === configurationLoader.evaluationStatus.IN_REVIEW ) return "warn";
+                    if ( status === configurationLoader.evaluationStatus.READY ) return "success";
+                    return "";
+                };
+
+                const toEmployeeEntry = ( employeeNode, unitManagerID = null ) => {
                     if ( !employeeNode ) {
                         return null;
                     }
@@ -249,15 +256,19 @@ class CompetenceWebApplication extends TiWebAppManager {
                     const canSeePersonalData = ( isManagerOfCurrentUnit || employeeNode.employeeID === userID );
 
                     let evaluationDate = "";
+                    let evaluationDateType = "";
                     if ( latestEvaluation ) {
                         if ( latestEvaluation.status === configurationLoader.evaluationStatus.OPEN ) {
                             const selfDeadline = latestEvaluation.workflow?.selfEvaluationDeadline || "";
                             const teamDeadline = latestEvaluation.workflow?.teamEvaluationDeadline || "";
                             evaluationDate = selfDeadline > teamDeadline ? selfDeadline : teamDeadline;
+                            evaluationDateType = "due";
                         } else if ( latestEvaluation.status === configurationLoader.evaluationStatus.IN_REVIEW ) {
                             evaluationDate = latestEvaluation.workflow?.managerEvaluationDeadline || "";
+                            evaluationDateType = "due";
                         } else if ( latestEvaluation.status === configurationLoader.evaluationStatus.READY ) {
                             evaluationDate = latestEvaluation.interviewDate || "";
+                            evaluationDateType = "interview";
                         }
                     }
 
@@ -265,7 +276,13 @@ class CompetenceWebApplication extends TiWebAppManager {
                         id: employeeNode.employeeID,
                         name: employeeNode.name,
                         isCurrentUser: employeeNode.employeeID === userID,
+                        isManager: unitManagerID !== null && unitManagerID === employeeNode.employeeID,
                         organizationUnitID: employeeNode.organizationUnitID,
+                        personal: canSeePersonalData ? {
+                            email: employeeNode.email,
+                            workMode: employeeNode.workMode,
+                            workLocation: employeeNode.workLocation
+                        } : null,
                         career: {
                             careerPath: employeeNode.careerPath,
                             careerPathName: configurationLoader.careerPathCode.name( employeeNode.careerPath ) || employeeNode.careerPath,
@@ -281,8 +298,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                             evaluationID: latestEvaluation.evaluationID,
                             status: latestEvaluation.status,
                             statusName: configurationLoader.evaluationStatus.name( latestEvaluation.status ),
-                            date: evaluationDate
-                        } : null
+                            statusTone: evalStatusTone( latestEvaluation.status ),
+                            date: evaluationDate,
+                            dateType: evaluationDateType
+                        } : null,
+                        evaluationHidden: !canSeePersonalData
                     };
                 };
 
@@ -291,13 +311,26 @@ class CompetenceWebApplication extends TiWebAppManager {
                         return null;
                     }
 
+                    const rawEmployees = Array.isArray( unitNode.employees ) ? unitNode.employees : [];
+                    const employees = rawEmployees.map( ( e ) => toEmployeeEntry( e, unitNode.managerID ) );
+                    const inCycle = employees.filter( ( e ) => e && e.evaluation ).length;
+                    const ready = employees.filter( ( e ) => e && e.evaluation && e.evaluation.status === configurationLoader.evaluationStatus.READY ).length;
+
+                    const managerRawEmployee = rawEmployees.find( ( e ) => e.employeeID === unitNode.managerID );
+                    const managerWorkLocation = managerRawEmployee ? ( managerRawEmployee.workLocation || null ) : null;
+
                     return {
                         id: unitNode.id,
                         type: unitNode.type,
                         name: unitNode.name,
                         description: unitNode.description,
+                        branch: unitNode.branch || null,
+                        location: unitNode.location || null,
+                        managerWorkLocation: managerWorkLocation,
                         managers: toUnitManagers( unitNode ),
-                        employees: ( Array.isArray( unitNode.employees ) ? unitNode.employees : [] ).map( toEmployeeEntry ),
+                        employees: employees,
+                        inCycle: inCycle,
+                        ready: ready,
                         parents: organizationManager.instance.resolveParentUnitNames( unitNode.id ),
                         children: ( Array.isArray( unitNode.children ) ? unitNode.children : [] ).map( toUnitEntry )
                     };
@@ -648,7 +681,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     personal: {
                         ...employee.personal,
                         organizationUnitName: organizationContext.organizationUnitName,
-                        positionName: configurationLoader.careerPathCode.name( employee.personal?.careerPath )
+                        positionName: configurationLoader.careerPathCode.name( employee.career?.careerPath )
                     },
                     manager: {
                         managerID: organizationContext.managerID,
@@ -667,7 +700,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     competencies: competenceFramework.instance.buildCompetenciesTree(
                         configurationLoader.configCompetencies,
                         session?.language,
-                        competenceFramework.instance.getAllowedCompetencyCodes( employee.personal.careerPath, currentEvaluation.cycleID )
+                        competenceFramework.instance.getAllowedCompetencyCodes( employee.career.careerPath, currentEvaluation.cycleID )
                     )
                 } );
             } ).catch( ( error ) => {
@@ -718,7 +751,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 }
 
                 const newEvaluation = competenceFramework.instance.createNewEvaluation( employee );
-                const resolvedManagerID = organizationManager.instance.resolveManagerIDForEmployee( employee.employeeID, employee.personal?.organizationUnitID );
+                const resolvedManagerID = organizationManager.instance.resolveManagerIDForEmployee( employee.employeeID, employee.career?.organizationUnitID );
                 if ( resolvedManagerID ) {
                     newEvaluation.managerID = resolvedManagerID;
                 }
@@ -734,7 +767,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 }
 
                 // Populate the competencies based on the employee career path and the role configuration:
-                for ( const competencyCode of competenceFramework.instance.getAllowedCompetencyCodes( employee.personal.careerPath, newEvaluation.cycleID ) ) {
+                for ( const competencyCode of competenceFramework.instance.getAllowedCompetencyCodes( employee.career.careerPath, newEvaluation.cycleID ) ) {
                     newEvaluation.grades[ competencyCode ] = competenceFramework.instance.normalizeGrades( newEvaluation.grades, competencyCode );
                 }
 
@@ -772,10 +805,12 @@ class CompetenceWebApplication extends TiWebAppManager {
                 let availableTeamMembers = [];
                 allEmployees.forEach( ( currentEmployee ) => {
                     if ( currentEmployee.employeeID !== employeeID && currentEmployee.employeeID !== organizationContext.managerID ) {
+                        const firstName = currentEmployee.personal.firstName || "";
+                        const lastName = currentEmployee.personal.lastName || "";
                         availableTeamMembers.push( {
                             employeeID: currentEmployee.employeeID,
-                            name: currentEmployee.personal.name,
-                            careerPathName: configurationLoader.careerPathCode.name( currentEmployee.personal.careerPath )
+                            name: `${ firstName } ${ lastName }`.trim(),
+                            careerPathName: configurationLoader.careerPathCode.name( currentEmployee.career.careerPath )
                         } );
                     }
                 } );
@@ -792,8 +827,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                     evaluation: {
                         cycleID: competenceFramework.instance.evaluationCycleID,
                         cycleDate: competenceFramework.instance.evaluationCycleDate,
-                        careerPathName: configurationLoader.careerPathCode.name( employee.personal.careerPath ),
-                        stageLevel: `${ employee.personal.level }${ employee.personal.stage }`
+                        careerPathName: configurationLoader.careerPathCode.name( employee.career.careerPath ),
+                        stageLevel: `${ employee.career.level }${ employee.career.stage }`
                     },
                     availableTeamMembers: availableTeamMembers
                 } );

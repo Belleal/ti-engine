@@ -450,6 +450,33 @@
    Employees list / org tree
    ============================================================ */
 
+.competence-page-info {
+    margin-bottom: var(--s-5);
+}
+
+.competence-page-info-eyebrow {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--fg-tertiary);
+    margin-bottom: var(--s-1);
+}
+
+.competence-page-info-title {
+    font-size: var(--fs-2xl);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--fg-primary);
+    margin-bottom: var(--s-1);
+}
+
+.competence-page-info-desc {
+    font-size: var(--fs-sm);
+    color: var(--fg-tertiary);
+    max-width: 520px;
+}
+
 .competence-org-summary {
     display: flex;
     gap: var(--s-5);
@@ -501,6 +528,7 @@
 
 .competence-org-summary-stats > div {
     text-align: right;
+    min-width: 60px;
 }
 
 .competence-org-stat-num {
@@ -584,7 +612,7 @@
 
 .competence-org-tree-head {
     display: grid;
-    grid-template-columns: 22px 40px 1.8fr 1.2fr 80px 1.5fr 220px;
+    grid-template-columns: 22px 40px 2.2fr 1.2fr 80px 1.2fr 200px;
     gap: var(--s-3);
     padding: 8px var(--s-5);
     font-size: 10px;
@@ -605,7 +633,7 @@
     position: relative;
     padding: var(--s-2) var(--s-5);
     display: grid;
-    grid-template-columns: 22px 40px 1.8fr 1.2fr 80px 1.5fr 220px;
+    grid-template-columns: 22px 40px 2.2fr 1.2fr 80px 1.2fr 200px;
     gap: var(--s-3);
     align-items: center;
     transition: background var(--dur-fast);
@@ -679,9 +707,84 @@
 }
 
 .competence-org-employee-id {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     font-size: 11px;
+    line-height: 1.5;
     color: var(--fg-tertiary);
     font-family: "JetBrains Mono", monospace;
+}
+
+.competence-org-employee-email {
+    font-family: var(--font-sans, system-ui, sans-serif);
+}
+
+.competence-manager-tag {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border-radius: var(--r-sm);
+    background: var(--bg-sunken);
+    color: var(--fg-secondary);
+    border: 1px solid var(--border);
+    margin-left: 4px;
+}
+
+.competence-org-career-cell {
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+}
+
+.competence-org-eval-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.competence-org-eval-date {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    color: var(--fg-tertiary);
+}
+
+.competence-org-sub-sep {
+    color: var(--fg-tertiary);
+    margin: 0 2px;
+}
+
+.competence-manager-name {
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.competence-col-center {
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.competence-col-right {
+    text-align: right;
+}
+
+.competence-team-incycle {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 2px 8px;
+    border-radius: var(--r-pill);
 }
 
 .competence-org-employee-since {

@@ -98,27 +98,30 @@
 
 /**
  * @typedef {Object} EmployeePersonalInformation
- * @property {string} name - Full name of the employee.
- * @property {string} [email] - Corporate email address.
- * @property {CareerPathCodeValue} careerPath - Career path.
- * @property {CareerLevelCodeValue} level - Career path level.
- * @property {CareerLevelStageCodeValue} stage - Progression stage within the level.
- * @property {string} organizationUnitID - Organization unit ID.
- * @property {string} [organizationUnitName] - Organization unit display name.
- * @property {string} [startingDate] - Date of joining the company (YYYY-MM-DD).
+ * @property {string} firstName - First name of the employee.
+ * @property {string} lastName - Last name of the employee.
+ * @property {string} [birthDate] - Birth date of the employee.
+ * @property {string} [gender] - Gender of the employee.
+ * @property {string} workMode - Work mode of the employee (e.g., "Full-time", "Part-time", "Contract").
+ * @property {string} workLocation - Work location of the employee (e.g., "Remote", "On-site").
  */
 
 /**
- * @typedef {Object} EmployeeManagerInformation
- * @property {string} [name] - Name of the direct manager.
- * @property {string} managerID - Employee ID of the direct manager.
+ * @typedef {Object} EmployeeCareerInformation
+ * @property {string} organizationUnitID - Organization unit ID.
+ * @property {CareerPathCodeValue} careerPath - Career path.
+ * @property {CareerLevelCodeValue} level - Career path level.
+ * @property {CareerLevelStageCodeValue} stage - Progression stage within the level.
+ * @property {string} [startingDate] - Date of joining the company (YYYY-MM-DD).
  */
 
 /**
  * @typedef {Object} Employee
  * @property {string} employeeID - Unique identifier for the employee.
+ * @property {string} [email] - Corporate email address.
+ * @property {string} managerID - Employee ID of the direct administrative manager.
  * @property {EmployeePersonalInformation} personal - Personal information about the employee.
- * @property {EmployeeManagerInformation} [manager] - Information about the direct manager.
+ * @property {EmployeeCareerInformation} career - Career information about the employee.
  */
 
 /**
@@ -183,7 +186,9 @@
  * @property {string} name - System name of the organization unit.
  * @property {string} [displayName] - Display name of the organization unit.
  * @property {string} description - Description of the organization unit.
- * @property {string} type - Type of the organization unit (e.g., "Department", "Division", "Team").
+ * @property {string} type - Type of the organization unit (e.g., "Department", "Division", "Unit", "Team").
+ * @property {string} [branch] - The branch structure the organization unit belongs to (e.g., "HQ", "Branch City A", "Branch Country B").
+ * @property {string} [location] - The address location of the organization unit.
  * @property {string} managerID - Employee ID of the manager of the organization unit.
  * @property {Employee[]} [employees] - List of employees in the organization unit.
  * @property {string} [parent] - Parent organization unit ID.

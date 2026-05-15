@@ -2781,6 +2781,40 @@
       }
     },
     "employees": {
+      "header-eyebrow": { "en": "ORGANIZATION", "bg": "ОРГАНИЗАЦИЯ" },
+      "header-title": { "en": "Employees", "bg": "Служители" },
+      "header-desc": { "en": "Your department and the teams beneath it.", "bg": "Вашият отдел и екипите под него." },
+      "empty-state": { "en": "No employees found", "bg": "Няма намерени служители" },
+      "empty-team": { "en": "No employees in this team", "bg": "Няма служители в този екип" },
+      "headed-by": { "en": "Headed by", "bg": "Ръководено от" },
+      "led-by": { "en": "Led by", "bg": "Ръководи" },
+      "people": { "en": "people", "bg": "служители" },
+      "in-cycle": { "en": "in cycle", "bg": "в цикъл" },
+      "private": { "en": "Private", "bg": "Частно" },
+      "you-tag": { "en": "You", "bg": "Вие" },
+      "manager-tag": { "en": "Manager", "bg": "Мениджър" },
+      "stats": {
+        "people": { "en": "PEOPLE", "bg": "СЛУЖИТЕЛИ" },
+        "teams": { "en": "TEAMS", "bg": "ЕКИПИ" },
+        "in-cycle": { "en": "IN CYCLE", "bg": "В ЦИКЪЛ" },
+        "ready": { "en": "READY", "bg": "ГОТОВИ" }
+      },
+      "col": {
+        "person": { "en": "PERSON", "bg": "СЛУЖИТЕЛ" },
+        "career-path": { "en": "CAREER PATH", "bg": "КАРИЕРЕН ПЪТ" },
+        "level": { "en": "LEVEL", "bg": "НИВО" },
+        "evaluation": { "en": "EVALUATION", "bg": "ОЦЕНКА" },
+        "actions": { "en": "ACTIONS", "bg": "ДЕЙСТВИЯ" }
+      },
+      "action": {
+        "open": { "en": "Open", "bg": "Преглед" },
+        "start": { "en": "Start Evaluation", "bg": "Нова Оценка" },
+        "locked": { "en": "Locked", "bg": "Заключено" }
+      },
+      "eval-date": {
+        "due": { "en": "Due", "bg": "До" },
+        "interview": { "en": "Interview", "bg": "Интервю" }
+      },
       "organization-title": {
         "en": "Organization Unit",
         "bg": "Организационна единица"

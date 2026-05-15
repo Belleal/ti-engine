@@ -87,6 +87,8 @@ class OrganizationManager {
                         name: unit.name || unitID,
                         displayName: unit.displayName,
                         description: unit.description,
+                        branch: unit.branch,
+                        location: unit.location,
                         managerID: unit.managerID,
                         parent: unit.parent
                     } );
@@ -119,17 +121,22 @@ class OrganizationManager {
                         return;
                     }
 
-                    const organizationUnitID = employee.personal?.organizationUnitID;
+                    const organizationUnitID = employee.career?.organizationUnitID;
                     const employeeNodeID = this.toEmployeeNodeID( employeeID );
+                    const firstName = employee.personal?.firstName || "";
+                    const lastName = employee.personal?.lastName || "";
                     graph.mergeNode( employeeNodeID, {
                         nodeType: "employee",
                         id: employeeID,
-                        name: employee.personal?.name,
-                        careerPath: employee.personal?.careerPath,
-                        level: employee.personal?.level,
-                        stage: employee.personal?.stage,
-                        startingDate: employee.personal?.startingDate,
-                        organizationUnitID: organizationUnitID
+                        name: `${ firstName } ${ lastName }`.trim(),
+                        careerPath: employee.career?.careerPath,
+                        level: employee.career?.level,
+                        stage: employee.career?.stage,
+                        startingDate: employee.career?.startingDate,
+                        organizationUnitID: organizationUnitID,
+                        workMode: employee.personal?.workMode,
+                        workLocation: employee.personal?.workLocation,
+                        email: employee.email
                     } );
 
                     const unitNodeID = this.toUnitNodeID( organizationUnitID );
@@ -240,7 +247,7 @@ class OrganizationManager {
      * @public
      */
     resolveEmployeeOrganizationContext( employee ) {
-        const organizationUnitID = employee?.personal?.organizationUnitID;
+        const organizationUnitID = employee?.career?.organizationUnitID;
         if ( !organizationUnitID ) {
             return null;
         }
@@ -422,7 +429,10 @@ class OrganizationManager {
                 level: employeeAttributes.level,
                 stage: employeeAttributes.stage,
                 startingDate: employeeAttributes.startingDate,
-                organizationUnitID: employeeAttributes.organizationUnitID
+                organizationUnitID: employeeAttributes.organizationUnitID,
+                workMode: employeeAttributes.workMode,
+                workLocation: employeeAttributes.workLocation,
+                email: employeeAttributes.email
             } : null;
         } );
         employees.sort( ( firstEmployee, secondEmployee ) => firstEmployee.name.localeCompare( secondEmployee.name ) );
@@ -437,6 +447,8 @@ class OrganizationManager {
             type: unitAttributes.type,
             name: unitAttributes.displayName || unitAttributes.name,
             description: unitAttributes.description,
+            branch: unitAttributes.branch,
+            location: unitAttributes.location,
             managerID: unitAttributes.managerID,
             parent: unitAttributes.parent,
             employees: employees,

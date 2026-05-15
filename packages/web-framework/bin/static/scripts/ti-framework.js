@@ -753,6 +753,7 @@ const configureApplication = () => {
         user: null,
         configuration: {},
         currentScreen: "",
+        topbarSubtitle: "",
         notificationIDCounter: 1,
         requestControllers: new Map(),
         collapsed: false,
@@ -901,7 +902,20 @@ const configureApplication = () => {
         setCurrentScreen( screen ) {
             if ( screen ) {
                 this.currentScreen = screen;
+                this.topbarSubtitle = "";
             }
+        },
+
+        /**
+         * Used to set a per-screen subtitle in the topbar, overriding the default cycle name.
+         * Automatically cleared on screen navigation.
+         *
+         * @method
+         * @param {string} subtitle
+         * @public
+         */
+        setTopbarSubtitle( subtitle ) {
+            this.topbarSubtitle = String( subtitle || "" ).trim();
         },
 
         /**

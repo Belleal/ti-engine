@@ -2,10 +2,17 @@
   "employees": [
     {
       "employeeID": "1",
+      "email": "geatrks.frkats@example.com",
+      "managerID": "8",
       "personal": {
-        "name": "Geatrks Frkats",
-        "careerPath": "SE01",
+        "firstName": "Geatrks",
+        "lastName": "Frkats",
+        "workMode": "Full-time",
+        "workLocation": "On-site"
+      },
+      "career": {
         "organizationUnitID": "1-1-1",
+        "careerPath": "SE01",
         "level": "R",
         "stage": 2,
         "startingDate": "2022-03-14"
@@ -13,10 +20,17 @@
     },
     {
       "employeeID": "2",
+      "email": "mrkius.brhajas@example.com",
+      "managerID": "11",
       "personal": {
-        "name": "Mrkius Brhajas",
-        "careerPath": "PM01",
+        "firstName": "Mrkius",
+        "lastName": "Brhajas",
+        "workMode": "Full-time",
+        "workLocation": "On-site"
+      },
+      "career": {
         "organizationUnitID": "1-1-2",
+        "careerPath": "PM01",
         "level": "J",
         "stage": 3,
         "startingDate": "2020-11-02"
@@ -24,10 +38,17 @@
     },
     {
       "employeeID": "3",
+      "email": "trguf.gjkurans@example.com",
+      "managerID": "8",
       "personal": {
-        "name": "Trguf Gjkurans",
-        "careerPath": "SE01",
+        "firstName": "Trguf",
+        "lastName": "Gjkurans",
+        "workMode": "Contract",
+        "workLocation": "On-site"
+      },
+      "career": {
         "organizationUnitID": "1-1-1",
+        "careerPath": "SE01",
         "level": "S",
         "stage": 1,
         "startingDate": "2021-02-21"
@@ -35,10 +56,17 @@
     },
     {
       "employeeID": "4",
+      "email": "kjurtha.lmhjafs@example.com",
+      "managerID": "8",
       "personal": {
-        "name": "Kjurtha Lmhjafs",
-        "careerPath": "SE01",
+        "firstName": "Kjurtha",
+        "lastName": "Lmhjafs",
+        "workMode": "Full-time",
+        "workLocation": "Hybrid"
+      },
+      "career": {
         "organizationUnitID": "1-1-1",
+        "careerPath": "SE01",
         "level": "J",
         "stage": 3,
         "startingDate": "2025-07-22"
@@ -46,10 +74,17 @@
     },
     {
       "employeeID": "8",
+      "email": "sdfaer.ltruajs@example.com",
+      "managerID": "20",
       "personal": {
-        "name": "Sdfaer Ltruajs",
-        "careerPath": "SE01",
+        "firstName": "Sdfaer",
+        "lastName": "Ltruajs",
+        "workMode": "Full-time",
+        "workLocation": "On-site"
+      },
+      "career": {
         "organizationUnitID": "1-1-1",
+        "careerPath": "SE01",
         "level": "T",
         "stage": 1,
         "startingDate": "2018-09-03"
@@ -57,10 +92,17 @@
     },
     {
       "employeeID": "11",
+      "email": "hjrtva.klprtah@example.com",
+      "managerID": "20",
       "personal": {
-        "name": "Hjrtva Klprtah",
-        "careerPath": "PM01",
+        "firstName": "Hjrtva",
+        "lastName": "Klprtah",
+        "workMode": "Full-time",
+        "workLocation": "On-site"
+      },
+      "career": {
         "organizationUnitID": "1-1-2",
+        "careerPath": "PM01",
         "level": "T",
         "stage": 1,
         "startingDate": "2019-01-22"
@@ -68,10 +110,17 @@
     },
     {
       "employeeID": "20",
+      "email": "ghrtyf.frtadsr@example.com",
+      "managerID": "22",
       "personal": {
-        "name": "Ghrtyf Frtadsr",
-        "careerPath": "PM01",
+        "firstName": "Ghrtyf",
+        "lastName": "Frtadsr",
+        "workMode": "Full-time",
+        "workLocation": "Hybrid"
+      },
+      "career": {
         "organizationUnitID": "1-1",
+        "careerPath": "PM01",
         "level": "T",
         "stage": 1,
         "startingDate": "2015-02-27"
@@ -79,10 +128,17 @@
     },
     {
       "employeeID": "22",
+      "email": "mrfgutr.asrtguvs@example.com",
+      "managerID": "",
       "personal": {
-        "name": "Mrfgutr Asrtguvs",
-        "careerPath": "PM01",
+        "firstName": "Mrfgutr",
+        "lastName": "Asrtguvs",
+        "workMode": "Full-time",
+        "workLocation": "On-site"
+      },
+      "career": {
         "organizationUnitID": "1",
+        "careerPath": "PM01",
         "level": "T",
         "stage": 1,
         "startingDate": "2022-05-13"

@@ -2,7 +2,7 @@
     <div id="ti-topbar-info">
         <div class="ti-topbar-title" x-text="screenTitle"></div>
         <div class="ti-topbar-sub"
-             x-text="($store.tiApplication.configuration && $store.tiApplication.configuration.cycle && $store.tiApplication.configuration.cycle.name) || ''"></div>
+             x-text="$store.tiApplication.topbarSubtitle || ($store.tiApplication.configuration && $store.tiApplication.configuration.cycle && $store.tiApplication.configuration.cycle.name) || ''"></div>
     </div>
     <div class="ti-topbar-spacer"></div>
     <div class="ti-topbar-actions">

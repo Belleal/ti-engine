@@ -2,35 +2,74 @@
 
     <template x-if="units.length === 0">
         <div class="ti-empty-state">
-            <div class="ti-empty-state-title">No employees found</div>
-            <div class="ti-empty-state-desc">No employees could be loaded for your organization unit.</div>
+            <div class="ti-empty-state-title" x-text-label="interface.employees.empty-state">No employees found</div>
         </div>
     </template>
 
     <template x-if="units.length > 0">
         <div>
-            <!-- Org summary header -->
+            <!-- [1] Page info header -->
+            <div class="competence-page-info">
+                <div class="competence-page-info-eyebrow" x-text-label="interface.employees.header-eyebrow">ORGANIZATION</div>
+                <div class="competence-page-info-title" x-text-label="interface.employees.header-title">Employees</div>
+                <div class="competence-page-info-desc" x-text-label="interface.employees.header-desc">Your department and the teams beneath it.</div>
+            </div>
+
+            <!-- Org summary card -->
             <div class="competence-org-summary">
                 <div class="competence-org-mark">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        <rect x="2" y="7" width="20" height="14" rx="2"/>
+                        <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+                        <line x1="12" y1="12" x2="12" y2="16"/>
+                        <line x1="10" y1="14" x2="14" y2="14"/>
                     </svg>
                 </div>
                 <div class="competence-org-meta">
                     <div class="competence-org-name" x-text="unitName || 'Organization'"></div>
-                    <div class="competence-org-sub" x-text="unitManagers"></div>
+                    <!-- [1] Department · Branch · Location · headed by Manager -->
+                    <div class="competence-org-sub">
+                        <span x-show="unitType" x-text="unitType"></span>
+                        <template x-if="unitBranch">
+                            <span class="competence-org-sub-sep">·</span>
+                        </template>
+                        <template x-if="unitBranch">
+                            <span x-text="unitBranch"></span>
+                        </template>
+                        <template x-if="unitLocation">
+                            <span class="competence-org-sub-sep">·</span>
+                        </template>
+                        <template x-if="unitLocation">
+                            <span x-text="unitLocation"></span>
+                        </template>
+                        <template x-if="unitManagers">
+                            <span class="competence-org-sub-sep">·</span>
+                        </template>
+                        <template x-if="unitManagers">
+                            <span>
+                                <span x-text-label="interface.employees.headed-by">headed by</span>
+                                <span class="competence-manager-name" x-text="unitManagers"></span>
+                            </span>
+                        </template>
+                    </div>
                 </div>
+                <!-- [5] Equal-width stats -->
                 <div class="competence-org-summary-stats">
                     <div>
                         <div class="competence-org-stat-num" x-text="totalEmployees()"></div>
-                        <div class="competence-org-stat-label">Employees</div>
+                        <div class="competence-org-stat-label" x-text-label="interface.employees.stats.people">PEOPLE</div>
                     </div>
                     <div>
                         <div class="competence-org-stat-num" x-text="units.length"></div>
-                        <div class="competence-org-stat-label">Teams</div>
+                        <div class="competence-org-stat-label" x-text-label="interface.employees.stats.teams">TEAMS</div>
+                    </div>
+                    <div>
+                        <div class="competence-org-stat-num" x-text="totalInCycle()"></div>
+                        <div class="competence-org-stat-label" x-text-label="interface.employees.stats.in-cycle">IN CYCLE</div>
+                    </div>
+                    <div>
+                        <div class="competence-org-stat-num" x-text="totalReady()"></div>
+                        <div class="competence-org-stat-label" x-text-label="interface.employees.stats.ready">READY</div>
                     </div>
                 </div>
             </div>
@@ -38,32 +77,65 @@
             <!-- Team blocks -->
             <template x-for="unit in units" x-bind:key="unit.id">
                 <div class="competence-team-block">
+
+                    <!-- Team block header -->
                     <div class="competence-team-block-head">
                         <div class="competence-team-mark">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                                <circle cx="9" cy="7" r="4"/>
+                                <rect x="2" y="7" width="20" height="14" rx="2"/>
+                                <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
                             </svg>
                         </div>
                         <div>
                             <div class="competence-team-block-title" x-text="unit.name"></div>
-                            <div class="competence-team-block-sub" x-text="formatList(unit.managers)"></div>
+                            <!-- [2] Led by (bold) · Location · Work Location -->
+                            <div class="competence-team-block-sub">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="12" cy="7" r="4"/>
+                                </svg>
+                                <span x-text-label="interface.employees.led-by">Led by</span>
+                                <span class="competence-manager-name" x-text="formatList(unit.managers)"></span>
+                                <template x-if="unit.location">
+                                    <span class="competence-org-sub-sep">·</span>
+                                </template>
+                                <template x-if="unit.location">
+                                    <span x-text="unit.location"></span>
+                                </template>
+                                <template x-if="unit.managerWorkLocation">
+                                    <span class="competence-org-sub-sep">·</span>
+                                </template>
+                                <template x-if="unit.managerWorkLocation">
+                                    <span x-text="unit.managerWorkLocation"></span>
+                                </template>
+                            </div>
                         </div>
+                        <!-- People + in-cycle count -->
                         <div class="competence-team-block-meta">
-                            <span><strong x-text="unit.employees.length"></strong>&nbsp;members</span>
+                            <span>
+                                <strong x-text="unit.employees.length"></strong>
+                                <span x-text-label="interface.employees.people">people</span>
+                            </span>
+                            <template x-if="unit.inCycle > 0">
+                                <span class="competence-team-incycle">
+                                    <span x-text="unit.inCycle"></span>
+                                    <span x-text-label="interface.employees.in-cycle">in cycle</span>
+                                </span>
+                            </template>
                         </div>
                     </div>
 
                     <template x-if="unit.employees.length > 0">
                         <div>
+                            <!-- Column headers -->
                             <div class="competence-org-tree-head">
                                 <span></span>
                                 <span></span>
-                                <span>Employee</span>
-                                <span>Career Path</span>
-                                <span>Level</span>
-                                <span>Since</span>
-                                <span>Actions</span>
+                                <span x-text-label="interface.employees.col.person">PERSON</span>
+                                <span x-text-label="interface.employees.col.career-path">CAREER PATH</span>
+                                <span class="competence-col-center" x-text-label="interface.employees.col.level">LEVEL</span>
+                                <span x-text-label="interface.employees.col.evaluation">EVALUATION</span>
+                                <span class="competence-col-right" x-text-label="interface.employees.col.actions">ACTIONS</span>
                             </div>
                             <div class="competence-org-tree-rows">
                                 <template x-for="employee in unit.employees" x-bind:key="employee.id">
@@ -73,42 +145,94 @@
                                              x-bind:aria-label="employee.name">
                                             <span x-text="(employee.name || '?').charAt(0).toUpperCase()"></span>
                                         </div>
+                                        <!-- [3+4] Employee cell: name + tags + ID · Email -->
                                         <div class="competence-org-employee-cell">
                                             <div class="competence-org-employee-name">
                                                 <span x-text="employee.name"></span>
-                                                <span class="competence-you-tag" x-show="employee.isCurrentUser">You</span>
+                                                <span class="competence-you-tag" x-show="employee.isCurrentUser"
+                                                      x-text-label="interface.employees.you-tag">You</span>
+                                                <span class="competence-manager-tag" x-show="employee.isManager"
+                                                      x-text-label="interface.employees.manager-tag">Manager</span>
                                             </div>
-                                            <div class="competence-org-employee-id" x-text="employee.id"></div>
+                                            <div class="competence-org-employee-id">
+                                                <span x-text="employee.id"></span>
+                                                <template x-if="employee.personal && employee.personal.email">
+                                                    <span class="competence-org-sub-sep">·</span>
+                                                </template>
+                                                <template x-if="employee.personal && employee.personal.email">
+                                                    <span class="competence-org-employee-email" x-text="employee.personal.email"></span>
+                                                </template>
+                                            </div>
                                         </div>
-                                        <div x-text="employee.career.careerPathName"></div>
-                                        <div>
+                                        <div class="competence-org-career-cell">
+                                            <span x-text="employee.career.careerPathName"></span>
+                                        </div>
+                                        <div class="competence-col-center">
                                             <span class="competence-level-pip" x-bind:class="employee.career.level"
-                                                  x-text="employee.career.level + (employee.career.stage || '')"></span>
+                                                  x-text="employee.career.level + ( employee.career.stage || '' )"></span>
                                         </div>
-                                        <div class="competence-org-employee-since" x-text="formatDate(employee.career.startingDate)"></div>
+                                        <!-- [4+6] Evaluation column: status pill + labeled date -->
+                                        <div class="competence-org-eval-cell">
+                                            <template x-if="employee.evaluation">
+                                                <div>
+                                                    <span class="ti-status-pill" x-bind:class="employee.evaluation.statusTone">
+                                                        <span class="dot"></span>
+                                                        <span x-text="getLabel( employee.evaluation.statusName )"></span>
+                                                    </span>
+                                                    <div class="competence-org-eval-date" x-show="employee.evaluation.date">
+                                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                                            <line x1="16" y1="2" x2="16" y2="6"/>
+                                                            <line x1="8" y1="2" x2="8" y2="6"/>
+                                                            <line x1="3" y1="10" x2="21" y2="10"/>
+                                                        </svg>
+                                                        <template x-if="employee.evaluation.dateType === 'due'">
+                                                            <span x-text-label="interface.employees.eval-date.due">Due</span>
+                                                        </template>
+                                                        <template x-if="employee.evaluation.dateType === 'interview'">
+                                                            <span x-text-label="interface.employees.eval-date.interview">Interview</span>
+                                                        </template>
+                                                        <span x-text="formatDate( employee.evaluation.date )"></span>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            <!-- [4] Only show lock when data is actually hidden (not when no evaluation exists) -->
+                                            <template x-if="!employee.evaluation && employee.evaluationHidden">
+                                                <span class="competence-org-locked">
+                                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                         aria-hidden="true">
+                                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                                    </svg>
+                                                    <span x-text-label="interface.employees.private">Private</span>
+                                                </span>
+                                            </template>
+                                        </div>
+                                        <!-- Actions -->
                                         <div class="competence-org-action-cell">
-                                            <button type="button" class="ti-btn sm" x-show="employee.evaluation && (isManagerView || employee.isCurrentUser)"
+                                            <button type="button" class="ti-btn sm"
+                                                    x-show="employee.evaluation && (isManagerView || employee.isCurrentUser)"
                                                     @click="openEvaluation(employee.id, employee.evaluation.evaluationID)">
                                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                                      aria-hidden="true">
                                                     <path d="M9 11l3 3L22 4"/>
                                                     <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
                                                 </svg>
-                                                Review
+                                                <span x-text-label="interface.employees.action.open">Open</span>
                                             </button>
                                             <button type="button" class="ti-btn sm primary"
                                                     x-show="!employee.evaluation && isManagerView && !employee.isCurrentUser"
                                                     @click="startNewEvaluation(employee.id)">
-                                                Start Evaluation
+                                                <span x-text-label="interface.employees.action.start">Start Evaluation</span>
                                             </button>
                                             <span class="competence-org-locked"
                                                   x-show="(!isManagerView && !employee.isCurrentUser) || (employee.isCurrentUser && !employee.evaluation)">
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                                      aria-hidden="true">
                                                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                                                     <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                                                 </svg>
-                                                Locked
+                                                <span x-text-label="interface.employees.action.locked">Locked</span>
                                             </span>
                                         </div>
                                     </div>
@@ -119,7 +243,7 @@
 
                     <template x-if="unit.employees.length === 0">
                         <div class="ti-empty-state">
-                            <div class="ti-empty-state-title">No employees in this team</div>
+                            <div class="ti-empty-state-title" x-text-label="interface.employees.empty-team">No employees in this team</div>
                         </div>
                     </template>
                 </div>

@@ -249,8 +249,9 @@ const configureEmployeesList = () => {
     return {
         unitType: "",
         unitName: "",
-        unitManagers: "",
+        unitBranch: "",
         unitLocation: "",
+        unitManagers: "",
         units: [],
         isManagerView: false,
 
@@ -288,10 +289,12 @@ const configureEmployeesList = () => {
                 this.isManagerView = !!data.isManagerView;
                 this.unitType = String( rootUnit.type || "" ).trim();
                 this.unitName = String( rootUnit.name || "" ).trim();
+                this.unitBranch = String( rootUnit.branch || "" ).trim();
+                this.unitLocation = String( rootUnit.location || "" ).trim();
                 this.unitManagers = this.formatList( rootUnit.managers );
-                this.unitLocation = this.formatList( rootUnit.parents, " / " );
                 this.units = [];
                 this.flattenUnits( organizationUnits, this.units );
+                tiApplication.setTopbarSubtitle( this.unitName );
             } ).catch( ( error ) => {
                 if ( error?.name === "AbortError" || error?.isAborted ) {
                     return;
@@ -322,6 +325,26 @@ const configureEmployeesList = () => {
                 total += this.units[ i ].employees.length;
             }
             return total;
+        },
+
+        totalInCycle() {
+            let total = 0;
+            for ( let i = 0; i < this.units.length; i++ ) {
+                total += ( this.units[ i ].inCycle || 0 );
+            }
+            return total;
+        },
+
+        totalReady() {
+            let total = 0;
+            for ( let i = 0; i < this.units.length; i++ ) {
+                total += ( this.units[ i ].ready || 0 );
+            }
+            return total;
+        },
+
+        getEvalTone( statusTone ) {
+            return statusTone || "";
         },
 
         formatList( values, separator = ", " ) {
