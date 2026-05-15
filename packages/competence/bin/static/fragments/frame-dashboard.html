@@ -265,8 +265,11 @@
                 <div class="ti-panel">
                     <div class="ti-panel-head">
                         <div class="ti-panel-title" x-text-label="interface.dashboard.tasks-title">Tasks for you</div>
+                        <span class="competence-panel-head-count" x-show="tasks.length > 0">
+                            <span x-text="tasks.length"></span>
+                            <span x-text-label="interface.dashboard.tasks-count-suffix">items</span>
+                        </span>
                         <div class="ti-panel-head-actions">
-                            <span class="competence-panel-head-count" x-text="tasks.length" x-show="tasks.length > 0"></span>
                             <button class="ti-btn sm ghost" type="button" x-text-label="interface.dashboard.view-all">View all</button>
                         </div>
                     </div>

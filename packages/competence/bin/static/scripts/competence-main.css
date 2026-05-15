@@ -130,6 +130,13 @@
     color: var(--fg-tertiary);
 }
 
+.competence-cycle-meta > span:first-child {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+}
+
 .competence-cycle-id {
     font-family: "JetBrains Mono", monospace;
     font-size: var(--fs-2xl);
@@ -426,6 +433,17 @@
 .competence-dash-cols .ti-panel > template + div,
 .competence-dash-cols .ti-panel > template + template + div {
     flex: 1;
+}
+
+.competence-panel-head-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25em;
+    color: var(--fg-tertiary);
+    font-size: var(--fs-sm);
+    padding-left: var(--s-3);
+    border-left: 1px solid var(--border);
+    white-space: nowrap;
 }
 
 /* ============================================================
