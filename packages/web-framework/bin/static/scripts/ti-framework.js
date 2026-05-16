@@ -512,6 +512,11 @@ const configureSidebarNav = () => {
                     this.active = fromUrl;
                 }
             }
+        },
+
+        navigate( activeKey, screen ) {
+            this.active = activeKey;
+            tiApplication.openScreen( screen );
         }
     };
 };
@@ -883,10 +888,11 @@ const configureApplication = () => {
                 window.location.href = "/";
             } else {
                 const screenUrl = "/app/" + basePath + query;
-                window.htmx.ajax( "get", screenUrl, { target: "#ti-content", swap: "innerHTML" } ).then( () => {
-                    window.history.pushState( null, "", screenUrl );
-                    this.currentScreen = basePath;
-                } ).catch( () => {
+                // Push the URL before the HTMX swap so that any Alpine component initialized
+                // during the swap (via MutationObserver microtask) already sees the correct URL.
+                window.history.pushState( null, "", screenUrl );
+                this.currentScreen = basePath;
+                window.htmx.ajax( "get", screenUrl, { target: "#ti-content", swap: "innerHTML" } ).catch( () => {
                     window.location.href = "/";
                 } );
             }

@@ -2777,6 +2777,14 @@
         "deadline-expired": {
           "en": "The deadline for submitting rating to this Evaluation has passed.",
           "bg": "Срокът за подаване на оценки за тази Оценка е изтекъл."
+        },
+        "no-evaluation-title": {
+          "en": "No Active Evaluation",
+          "bg": "Няма Активна Оценка"
+        },
+        "no-evaluation-desc": {
+          "en": "You don't have an active evaluation for the current cycle. When a new evaluation is opened for you, it will appear here.",
+          "bg": "Нямате активна оценка за текущия цикъл. Когато бъде отворена нова оценка за Вас, тя ще се появи тук."
         }
       }
     },

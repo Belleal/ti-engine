@@ -609,11 +609,16 @@ class CompetenceWebApplication extends TiWebAppManager {
         return new Promise( ( resolve, reject ) => {
             const { userID } = this.#requireSessionUser( session );
 
+            // When no employeeID is supplied (e.g., an employee opening their own evaluation),
+            // fall back to the session user's own ID so the server can resolve the record.
+            const resolvedEmployeeID = employeeID || userID;
+            const noEvaluationSentinel = Symbol();
+
             let currentEvaluation = null;
             let employee = null;
             let isEmployee = false;
             let isTeamMember = false;
-            dataManager.instance.fetchEmployee( employeeID ).then( ( employeeData ) => {
+            dataManager.instance.fetchEmployee( resolvedEmployeeID ).then( ( employeeData ) => {
                 if ( !employeeData ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-employee-found" }, exceptions.httpCode.C_404 );
                 }
@@ -630,7 +635,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 } else if ( evaluations.length > 0 ) {
                     currentEvaluation = evaluations.slice().sort( ( a, b ) => new Date( b.cycleDate ) - new Date( a.cycleDate ) )[ 0 ];
                 } else {
-                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-evaluation-found" }, exceptions.httpCode.C_404 );
+                    throw noEvaluationSentinel;
                 }
 
                 if ( currentEvaluation.status === configurationLoader.evaluationStatus.CLOSED ) {
@@ -677,9 +682,10 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee );
                 resolve( {
-                    employeeID: employeeID,
+                    employeeID: resolvedEmployeeID,
                     personal: {
                         ...employee.personal,
+                        name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
                         organizationUnitName: organizationContext.organizationUnitName,
                         positionName: configurationLoader.careerPathCode.name( employee.career?.careerPath )
                     },
@@ -704,6 +710,9 @@ class CompetenceWebApplication extends TiWebAppManager {
                     )
                 } );
             } ).catch( ( error ) => {
+                if ( error === noEvaluationSentinel ) {
+                    return resolve( { noEvaluation: true } );
+                }
                 reject( exceptions.raise( error ) );
             } );
         } );

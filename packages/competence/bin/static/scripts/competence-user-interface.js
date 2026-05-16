@@ -43,6 +43,7 @@ const configureCompetenceEvaluation = () => {
         competencies: {},
         grades: {},
         showEvaluationForm: false,
+        noEvaluationState: null,
         warningMessage: "",
 
         init() {
@@ -77,34 +78,43 @@ const configureCompetenceEvaluation = () => {
             };
             this.competencies = fresh.competencies ? tiToolbox.structuredClone( fresh.competencies ) : {};
 
+            tiApplication.setTopbarSubtitle( this.personal.name || "" );
             this.warningMessage = this.getEvaluationWarning();
         },
 
         loadEmployeeEvaluation( employeeID ) {
             const resolvedID = String( employeeID || "" ).trim();
-            if ( !resolvedID ) {
-                this.showEvaluationForm = false;
-                this.reset();
-            } else {
+            if ( resolvedID ) {
                 this.employeeID = resolvedID;
-                const evaluationID = getEvaluationIDFromUrl();
-                const url = `/app/load-evaluation?employeeID=${ encodeURIComponent( resolvedID ) }${ evaluationID ? `&evaluationID=${ encodeURIComponent( evaluationID ) }` : "" }`;
-                tiApplication.sendRequest( url ).then( ( result ) => {
-                    this.showEvaluationForm = true;
-                    this.applyData( result?.data );
-                } ).catch( ( error ) => {
-                    if ( error?.name === "AbortError" || error?.isAborted ) {
-                        return;
-                    }
-
+            }
+            const evaluationID = getEvaluationIDFromUrl();
+            const params = new URLSearchParams();
+            if ( resolvedID ) params.set( "employeeID", resolvedID );
+            if ( evaluationID ) params.set( "evaluationID", evaluationID );
+            const paramString = params.toString();
+            const url = `/app/load-evaluation${ paramString ? `?${ paramString }` : "" }`;
+            tiApplication.sendRequest( url ).then( ( result ) => {
+                if ( result?.data?.noEvaluation ) {
                     this.showEvaluationForm = false;
                     this.applyData( {} );
-                    tiApplication.notify( tiApplication.formatException( error ) );
-                    if ( error.exception?.httpCode === 401 ) {
-                        tiApplication.openScreen( "dashboard" );
-                    }
-                } );
-            }
+                    this.noEvaluationState = "none";
+                    return;
+                }
+                this.noEvaluationState = null;
+                this.showEvaluationForm = true;
+                this.applyData( result?.data );
+            } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) {
+                    return;
+                }
+                this.showEvaluationForm = false;
+                this.applyData( {} );
+                this.noEvaluationState = null;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                if ( error.exception?.httpCode === 401 ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
         },
 
         reset() {
@@ -112,10 +122,8 @@ const configureCompetenceEvaluation = () => {
             if ( schema ) {
                 const initial = JSON.parse( schema.textContent || '{}' );
                 this.applyData( initial );
-            } else if ( this.employeeID ) {
-                this.loadEmployeeEvaluation( this.employeeID );
             } else {
-                this.applyData( {} );
+                this.loadEmployeeEvaluation( this.employeeID );
             }
         },
 

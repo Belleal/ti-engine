@@ -46,7 +46,7 @@
             <span class="ti-sidebar-item-label" x-text-label="interface.topbar.employees">Employees</span>
         </button>
 
-        <button hx-get="/app/competence-evaluation" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'evaluation'"
+        <button @click="navigate('evaluation', 'competence-evaluation')"
                 x-bind:class="{ active: active === 'evaluation' }" class="ti-sidebar-item" data-tip="My Evaluation" aria-label="My Evaluation"
                 type="button">
                 <span class="ti-sidebar-item-icon">
