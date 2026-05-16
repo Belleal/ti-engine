@@ -31,6 +31,7 @@ const configureCompetenceEvaluation = () => {
         employeeID: null,
         userRole: null,
         deadlineDate: null,
+        teamReviewers: null,
         isTeamEvaluationCollective: false,
         canEdit: false,
         manager: {},
@@ -71,6 +72,7 @@ const configureCompetenceEvaluation = () => {
             this.manager = fresh.manager ? tiToolbox.structuredClone( fresh.manager ) : {};
             this.userRole = fresh.userRole;
             this.deadlineDate = fresh.deadlineDate;
+            this.teamReviewers = fresh.teamReviewers ? tiToolbox.structuredClone( fresh.teamReviewers ) : null;
             this.canEdit = fresh.canEdit;
             this.evaluation = fresh.evaluation ? tiToolbox.structuredClone( fresh.evaluation ) : {
                 scores: {},
@@ -238,6 +240,173 @@ const configureCompetenceEvaluation = () => {
 
         formatDate( value, placeholder = "" ) {
             return tiToolbox.formatDate( value, tiApplication.getLabel( placeholder, "" ) );
+        },
+
+        toggleGrade( competencyCode, role, gradeKey ) {
+            const current = this.getItemGrade( competencyCode, role );
+            this.setItemGrade( competencyCode, role, current === gradeKey ? "" : gradeKey );
+        },
+
+        getGradeChipClass( competencyCode, role, gradeKey ) {
+            const current = this.getItemGrade( competencyCode, role );
+            return current === gradeKey ? "selectable selected" : "selectable";
+        },
+
+        getGradeShortDesc( gradeKey ) {
+            return tiApplication.getLabel( `interface.evaluation.grades.short.${ gradeKey }`, "" );
+        },
+
+        getPageTitle() {
+            if ( this.userRole === 1 ) return "interface.evaluation.page.employee-title";
+            if ( this.userRole === 2 ) return "interface.evaluation.page.manager-title";
+            if ( this.userRole === 4 ) return "interface.evaluation.page.team-title";
+            return "";
+        },
+
+        getPageDesc() {
+            if ( this.userRole === 1 ) return "interface.evaluation.page.employee-desc";
+            if ( this.userRole === 2 ) return "interface.evaluation.page.manager-desc";
+            if ( this.userRole === 4 ) return "interface.evaluation.page.team-desc";
+            return "";
+        },
+
+        getRolePanelTitle() {
+            if ( this.userRole === 1 ) return "interface.evaluation.banners.employee-title";
+            if ( this.userRole === 2 ) return "interface.evaluation.banners.manager-title";
+            if ( this.userRole === 4 ) return "interface.evaluation.banners.team-title";
+            return "";
+        },
+
+        getRolePanelDesc() {
+            if ( this.userRole === 1 ) return "interface.evaluation.banners.employee-desc";
+            if ( this.userRole === 2 ) return "interface.evaluation.banners.manager-desc";
+            if ( this.userRole === 4 ) return "interface.evaluation.banners.team-desc";
+            return "";
+        },
+
+        getContextualDeadline() {
+            if ( this.evaluation?.status === "Ready" ) {
+                return this.evaluation?.interviewDate || null;
+            }
+            return this.deadlineDate || null;
+        },
+
+        getDeadlineLabel() {
+            if ( this.evaluation?.status === "Ready" ) {
+                return "interface.evaluation.appraisal.interview-date";
+            }
+            return "interface.evaluation.appraisal.submission-deadline";
+        },
+
+        getDaysLeft( dateStr ) {
+            if ( !dateStr ) return null;
+            const diffMs = new Date( dateStr ).getTime() - Date.now();
+            const diffDays = Math.ceil( diffMs / ( 1000 * 60 * 60 * 24 ) );
+            return diffDays > 0 ? diffDays : null;
+        },
+
+        getStatusPillTone() {
+            const status = this.evaluation?.status;
+            if ( status === "Open" ) return "info";
+            if ( status === "In Review" ) return "warn";
+            if ( status === "Ready" ) return "success";
+            return "";
+        },
+
+        getEvalStatusSteps() {
+            return [
+                tiApplication.getLabel( "framework.status.name.open", "Open" ),
+                tiApplication.getLabel( "framework.status.name.in-review", "In Review" ),
+                tiApplication.getLabel( "framework.status.name.ready", "Ready" ),
+                tiApplication.getLabel( "framework.status.name.closed", "Closed" )
+            ];
+        },
+
+        getStatusStageIndex() {
+            const status = this.evaluation?.status;
+            if ( status === "Open" ) return 0;
+            if ( status === "In Review" ) return 1;
+            if ( status === "Ready" ) return 2;
+            if ( status === "Closed" ) return 3;
+            return -1;
+        },
+
+        getStepClass( i ) {
+            const idx = this.getStatusStageIndex();
+            const isComplete = idx > i || idx === 3;
+            const isCurrent = idx === i && idx !== 3;
+            return ( isComplete ? "complete" : "" ) + ( isCurrent ? " current" : "" );
+        },
+
+        getLineClass( i ) {
+            const idx = this.getStatusStageIndex();
+            const isComplete = idx > i;
+            const isCurrent = idx === i;
+            return ( isComplete ? "complete" : "" ) + ( isCurrent ? " current" : "" );
+        },
+
+        getGradeCount() {
+            return Object.keys( this.grades || {} ).length;
+        },
+
+        getGradeScaleLabel() {
+            const count = this.getGradeCount();
+            const scale = tiApplication.getLabel( "interface.evaluation.instructions.point-scale", "point scale" );
+            return `${ count }-${ scale }`;
+        },
+
+        getStickyProgressText() {
+            const of = tiApplication.getLabel( "interface.evaluation.sticky.of", "of" );
+            const total = this.getTotalCount();
+            const graded = tiApplication.getLabel( "interface.evaluation.sticky.graded", "competencies graded" );
+            return `${ of } ${ total } ${ graded }`;
+        },
+
+        getCategoryGradedCount( categoryId ) {
+            if ( !this.evaluation?.grades ) return 0;
+            const role = this.getUserRoleAsText();
+            if ( !role ) return 0;
+            const prefix = categoryId ? categoryId.charAt( 0 ) : "";
+            return Object.entries( this.evaluation.grades )
+                .filter( ( [ code, g ] ) => code.startsWith( prefix ) && g && g[ role ] )
+                .length;
+        },
+
+        getCategoryTotalCount( categoryId ) {
+            if ( !this.evaluation?.grades ) return 0;
+            const prefix = categoryId ? categoryId.charAt( 0 ) : "";
+            return Object.keys( this.evaluation.grades )
+                .filter( ( code ) => code.startsWith( prefix ) )
+                .length;
+        },
+
+        getCategoryGradedPct( categoryId ) {
+            const total = this.getCategoryTotalCount( categoryId );
+            if ( total === 0 ) return 0;
+            return Math.round( ( this.getCategoryGradedCount( categoryId ) / total ) * 100 );
+        },
+
+        getTotalCount() {
+            if ( !this.evaluation?.grades ) return 0;
+            return Object.keys( this.evaluation.grades ).length;
+        },
+
+        getGradedCount() {
+            if ( !this.evaluation?.grades ) return 0;
+            const role = this.getUserRoleAsText();
+            if ( !role ) return 0;
+            return Object.values( this.evaluation.grades ).filter( ( g ) => g && g[ role ] ).length;
+        },
+
+        getGradedPct() {
+            const total = this.getTotalCount();
+            if ( total === 0 ) return 0;
+            return Math.round( ( this.getGradedCount() / total ) * 100 );
+        },
+
+        getTeamReviewersPct() {
+            if ( !this.teamReviewers || !this.teamReviewers.total ) return 0;
+            return Math.round( ( this.teamReviewers.submitted / this.teamReviewers.total ) * 100 );
         }
 
     };

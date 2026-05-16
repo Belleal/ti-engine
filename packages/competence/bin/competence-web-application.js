@@ -677,6 +677,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                 competenceFramework.instance.anonymizeEvaluationGrades( currentEvaluation, userRole );
                 competenceFramework.instance.anonymizeEvaluationScores( currentEvaluation, userRole );
 
+                // Extract team reviewer counts before deleting workflow:
+                const teamSubmitted = currentEvaluation.workflow?.teamEvaluationsSubmitted || 0;
+                const teamRemaining = Array.isArray( currentEvaluation.workflow?.team ) ? currentEvaluation.workflow.team.length : 0;
+                const teamTotal = teamSubmitted + teamRemaining;
+
                 // NOTE: Make sure to delete the workflow system information:
                 delete currentEvaluation.workflow;
 
@@ -687,7 +692,9 @@ class CompetenceWebApplication extends TiWebAppManager {
                         ...employee.personal,
                         name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
                         organizationUnitName: organizationContext.organizationUnitName,
-                        positionName: configurationLoader.careerPathCode.name( employee.career?.careerPath )
+                        positionName: configurationLoader.careerPathCode.name( employee.career?.careerPath ),
+                        startingDate: employee.career?.startingDate || null,
+                        stageLevel: ( employee.career?.level && employee.career?.stage ) ? `${ employee.career.level }${ employee.career.stage }` : ""
                     },
                     manager: {
                         managerID: organizationContext.managerID,
@@ -701,6 +708,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     },
                     userRole: userRole,
                     deadlineDate: deadlineDate,
+                    teamReviewers: teamTotal > 0 ? { total: teamTotal, submitted: teamSubmitted } : null,
                     canEdit: canEdit, // Used only for UI visualization purposes - do NOT rely on this!
                     isTeamEvaluationCollective: configurationLoader.getSetting( "performanceAppraisals.isTeamEvaluationCollective" ),
                     competencies: competenceFramework.instance.buildCompetenciesTree(

@@ -1000,15 +1000,11 @@
 }
 
 .competence-cat-progress-mini-bar .competence-fill {
-    width: 0;
     height: 100%;
+    width: var(--pct, 0%);
     background: var(--accent);
     border-radius: var(--r-pill);
     transition: width var(--dur-base);
-}
-
-.competence-cat-progress-mini-bar .competence-fill.full {
-    width: 100%;
 }
 
 .competence-cat-progress-mini-text {
@@ -1029,7 +1025,7 @@
 .competence-subcat-head {
     padding: var(--s-4) var(--s-6) var(--s-2);
     display: flex;
-    align-items: baseline;
+    align-items: flex-start;
     gap: var(--s-3);
 }
 
@@ -1037,10 +1033,20 @@
     font-family: "JetBrains Mono", monospace;
     font-size: 11.5px;
     font-weight: 600;
-    color: var(--fg-tertiary);
-    padding: 1px 6px;
-    background: var(--bg-sunken);
+    color: var(--fg-secondary);
+    padding: 2px 7px;
+    background: var(--bg-tint);
+    border: 1px solid var(--border-soft);
     border-radius: var(--r-xs);
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.competence-subcat-name-block {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
 }
 
 .competence-subcat-name {
@@ -1051,6 +1057,18 @@
 .competence-subcat-desc {
     font-size: var(--fs-sm);
     color: var(--fg-tertiary);
+    line-height: 1.4;
+}
+
+.competence-comp-id {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--fg-secondary);
+    font-weight: 600;
+    padding: 1px 5px;
+    background: var(--bg-sunken);
+    border-radius: var(--r-xs);
+    flex-shrink: 0;
 }
 
 .competence-comp-row {
@@ -1083,13 +1101,6 @@
     align-items: baseline;
 }
 
-.competence-comp-id {
-    font-family: "JetBrains Mono", monospace;
-    font-size: 11px;
-    color: var(--fg-tertiary);
-    font-weight: 500;
-}
-
 .competence-comp-name {
     font-size: var(--fs-base);
     font-weight: 500;
@@ -1117,7 +1128,6 @@
     letter-spacing: 0.08em;
     color: var(--fg-tertiary);
     font-weight: 600;
-    border-bottom: 1px solid var(--border-soft);
 }
 
 .competence-comp-table-head .competence-h-self,
@@ -1901,4 +1911,456 @@
 /* Eval employee sub-meta separator */
 .competence-eval-sub-sep {
     color: var(--fg-tertiary);
+}
+
+/* ============================================================
+   Evaluation form — redesigned components
+   ============================================================ */
+
+/* Page header */
+.competence-eval-page-header {
+    margin-bottom: var(--s-5);
+}
+
+.competence-eval-page-eyebrow {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--fg-tertiary);
+    margin-bottom: var(--s-1);
+    font-family: "JetBrains Mono", monospace;
+}
+
+.competence-eval-page-title {
+    font-size: var(--fs-2xl);
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    color: var(--fg-primary);
+    margin: 0 0 var(--s-1);
+    line-height: 1.2;
+}
+
+.competence-eval-page-desc {
+    font-size: var(--fs-sm);
+    color: var(--fg-tertiary);
+    margin: 0;
+}
+
+/* Role info panel */
+.competence-eval-role-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: var(--s-4) var(--s-5);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--border-strong);
+    border-radius: var(--r-md);
+    margin-bottom: var(--s-4);
+}
+
+.competence-eval-role-info.employee {
+    border-left-color: var(--info);
+    background: color-mix(in oklab, var(--info-soft) 50%, var(--bg-surface));
+}
+
+.competence-eval-role-info.manager {
+    border-left-color: var(--accent);
+    background: color-mix(in oklab, var(--accent-soft) 50%, var(--bg-surface));
+}
+
+.competence-eval-role-info.team {
+    border-left-color: var(--success);
+    background: color-mix(in oklab, var(--success-soft) 50%, var(--bg-surface));
+}
+
+.competence-eval-role-info-title {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.competence-eval-role-info-desc {
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+    line-height: 1.5;
+}
+
+/* Top grid */
+.competence-eval-top-grid {
+    display: flex;
+    gap: var(--s-4);
+    margin-bottom: var(--s-4);
+    align-items: stretch;
+}
+
+/* Employee card */
+.competence-eval-employee-card {
+    flex: 1;
+    min-width: 0;
+    background: radial-gradient(400px 200px at 100% 100%, var(--accent-soft), transparent 60%),
+    var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: var(--s-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+}
+
+.competence-eval-top-right-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    flex: 0 0 220px;
+    align-self: start;
+}
+
+.competence-eval-emp-top-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-4);
+    border-bottom: 1px solid var(--border-soft);
+    padding-bottom: var(--s-5);
+}
+
+.competence-eval-emp-avatar-block {
+    display: flex;
+    gap: var(--s-4);
+    align-items: flex-start;
+    flex: 1;
+    min-width: 0;
+}
+
+.competence-eval-emp-status-pill {
+    flex: 0 0 auto;
+}
+
+.competence-eval-emp-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.competence-eval-emp-name {
+    font-size: var(--fs-xl);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+}
+
+.competence-eval-emp-career {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+    flex-wrap: wrap;
+}
+
+.competence-eval-emp-meta {
+    font-size: var(--fs-sm);
+    color: var(--fg-tertiary);
+    display: flex;
+    gap: 4px;
+}
+
+/* Evaluation status milestone track — ported from design system */
+.state-track {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 4px 0;
+}
+
+.state-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-sm);
+    color: var(--fg-tertiary);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.state-step .marker {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    background: var(--bg-surface);
+    display: grid;
+    place-items: center;
+    position: relative;
+    flex-shrink: 0;
+    transition: all var(--dur-base) var(--ease-out);
+}
+
+.state-step.complete .marker {
+    background: var(--success);
+    border-color: var(--success);
+}
+
+.state-step.complete .marker::after {
+    content: '';
+    width: 4px;
+    height: 7px;
+    margin-top: -2px;
+    border: solid var(--bg-surface);
+    border-width: 0 1.5px 1.5px 0;
+    transform: rotate(45deg);
+}
+
+.state-step.current .marker {
+    border-color: var(--accent);
+    background: var(--bg-surface);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 25%, transparent);
+}
+
+.state-step.current {
+    color: var(--fg-primary);
+    font-weight: 600;
+}
+
+.state-step.complete {
+    color: var(--fg-secondary);
+}
+
+.state-step-line {
+    flex: 1;
+    height: 1.5px;
+    background: var(--border);
+    margin: 0 8px;
+    position: relative;
+    overflow: hidden;
+    min-width: 24px;
+}
+
+.state-step-line.complete {
+    background: var(--success);
+}
+
+.state-step-line.current::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, var(--success) 0%, var(--accent) 50%, var(--border) 50%, var(--border) 100%);
+    background-size: 200% 100%;
+    animation: trackFlow 1.8s var(--ease-in-out) infinite;
+}
+
+@keyframes trackFlow {
+    0% {
+        background-position: 100% 0;
+    }
+    100% {
+        background-position: 0 0;
+    }
+}
+
+.competence-eval-emp-warn {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-size: var(--fs-sm);
+    color: var(--warn);
+}
+
+/* Contextual deadline card — reuses .competence-deadline-card, added sub-line */
+.competence-deadline-card-sub {
+    font-size: 11px;
+    color: var(--fg-tertiary);
+    margin-top: 2px;
+    display: flex;
+    gap: 3px;
+}
+
+/* Team reviewers card — matches deadline card layout */
+.competence-team-reviewers-card {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-4);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    position: relative;
+    overflow: hidden;
+}
+
+.competence-team-reviewers-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(120px 60px at 100% 0%, var(--success-soft), transparent 70%);
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.competence-team-reviewers-card > * {
+    position: relative;
+    z-index: 1;
+}
+
+.competence-deadline-card-icon.team {
+    background: var(--success-soft);
+    color: var(--success);
+}
+
+/* How to grade guide */
+.competence-eval-grade-guide {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    margin-bottom: var(--s-4);
+    padding: var(--s-5);
+    overflow: hidden;
+}
+
+.competence-eval-grade-guide .ti-panel-head {
+    border-bottom: 1px solid var(--border-soft);
+    margin-bottom: 0;
+}
+
+.competence-eval-grade-scale-tag {
+    color: var(--fg-tertiary);
+    font-size: var(--fs-sm);
+    margin-left: var(--s-3);
+    padding-left: var(--s-3);
+    border-left: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.competence-eval-grade-guide-intro {
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+    padding: var(--s-3) var(--s-5);
+    line-height: 1.5;
+}
+
+.competence-eval-grade-guide-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--s-3);
+}
+
+.competence-eval-grade-card {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-4);
+    background: var(--bg-sunken);
+    border-radius: var(--r-md);
+    border: 1px solid var(--border-soft);
+    cursor: default;
+    transition: border-color var(--dur-fast);
+}
+
+.competence-eval-grade-card:hover {
+    border-color: var(--border-strong);
+}
+
+.competence-eval-grade-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.competence-eval-grade-card-name {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.competence-eval-grade-card-short {
+    font-size: 11.5px;
+    color: var(--fg-tertiary);
+    line-height: 1.35;
+}
+
+/* Grade pill group in competency table */
+.competence-grade-pill-group {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Updated competency table columns (wider grade cols for pills) */
+.competence-comp-table-head,
+.competence-comp-row {
+    grid-template-columns: 1fr 140px 140px 140px;
+}
+
+/* Sticky action bar */
+.competence-eval-sticky-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: var(--s-5);
+    padding: var(--s-3) var(--s-5);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    margin-top: var(--s-4);
+    box-shadow: 0 -4px 24px color-mix(in oklab, var(--fg-primary) 6%, transparent);
+}
+
+.competence-eval-sticky-label {
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.competence-eval-sticky-label strong {
+    color: var(--fg-primary);
+    font-weight: 700;
+}
+
+.competence-eval-sticky-track {
+    flex: 1;
+    height: 4px;
+    background: var(--bg-sunken);
+    border-radius: var(--r-pill);
+    overflow: hidden;
+    position: relative;
+    min-width: 60px;
+}
+
+.competence-eval-sticky-pct {
+    font-size: var(--fs-sm);
+    font-family: "JetBrains Mono", monospace;
+    color: var(--fg-tertiary);
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 36px;
+    text-align: right;
+}
+
+.competence-eval-sticky-track .competence-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: var(--pct, 0%);
+    background: linear-gradient(90deg, var(--accent), color-mix(in oklab, var(--accent) 70%, var(--success)));
+    border-radius: var(--r-pill);
+    transition: width 0.5s var(--ease-out);
+}
+
+.competence-eval-sticky-actions {
+    display: flex;
+    gap: var(--s-2);
+    align-items: center;
+    flex-shrink: 0;
 }

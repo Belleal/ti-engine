@@ -16,16 +16,16 @@
     },
     "description": {
       "E": {
-        "en": "",
-        "bg": ""
+        "en": "Encompasses the knowledge, skills, and practical experience that define professional capability in the role. Expertise is the foundation of effective performance and career growth.",
+        "bg": "Обхваща знанията, уменията и практическия опит, определящи професионалната компетентност в ролята. Експертизата е в основата на ефективното представяне и кариерното израстване."
       },
       "I": {
-        "en": "",
-        "bg": ""
+        "en": "Covers the ability to understand processes, plan effectively, and estimate accurately. Insight drives informed decision-making and systematic problem-solving.",
+        "bg": "Обхваща способността за разбиране на процеси, ефективно планиране и точно оценяване. Вникването е в основата на информираното вземане на решения и системното решаване на проблеми."
       },
       "C": {
-        "en": "",
-        "bg": ""
+        "en": "Reflects the professional values and interpersonal qualities that shape contribution to the team and organization. Commitment drives collaboration, accountability, and long-term impact.",
+        "bg": "Отразява професионалните ценности и междуличностните качества, определящи приноса към екипа и организацията. Ангажираността движи сътрудничеството, отговорността и дългосрочното въздействие."
       }
     },
     "sub": {
@@ -2583,22 +2583,96 @@
       },
       "banners": {
         "employee": {
-          "en": "This is your own Evaluation form",
-          "bg": "Това е Вашата собствена форма за Оценка"
+          "en": "Self-Evaluation",
+          "bg": "Самооценка"
         },
         "manager": {
-          "en": "This is the Evaluation form of your employee",
-          "bg": "Това е формата за Оценка на Вашия служител"
+          "en": "Manager Review",
+          "bg": "Мениджър Преглед"
         },
         "team": {
-          "en": "This is the Evaluation form of your colleague",
-          "bg": "Това е формата за Оценка на Ваш колега"
+          "en": "Peer Evaluation",
+          "bg": "Колегиална Оценка"
+        },
+        "employee-title": {
+          "en": "Self-Evaluation",
+          "bg": "Самооценка"
+        },
+        "employee-desc": {
+          "en": "You are completing your own performance self-evaluation. Rate yourself honestly across each competency — your input is a key part of the review process.",
+          "bg": "Попълвате собствената си оценка на представянето. Оценявайте се честно по всяка компетенция — вашият принос е ключова част от процеса."
+        },
+        "manager-title": {
+          "en": "Manager Review",
+          "bg": "Мениджър Преглед"
+        },
+        "manager-desc": {
+          "en": "You are reviewing the performance of your direct report. Your grades and written feedback will finalize this evaluation and inform the performance interview.",
+          "bg": "Преглеждате представянето на вашия пряк подчинен. Вашите оценки и обратна връзка ще приключат оценяването и ще насочат интервюто за представяне."
+        },
+        "team-title": {
+          "en": "Peer Evaluation",
+          "bg": "Колегиална Оценка"
+        },
+        "team-desc": {
+          "en": "You are providing peer feedback for a colleague. Your rating reflects how they collaborated and contributed to your shared work during this cycle.",
+          "bg": "Предоставяте колегиална обратна връзка за колега. Вашата оценка отразява как те са работили съвместно и допринесли за общата ви работа."
         }
+      },
+      "page": {
+        "employee-title": {
+          "en": "Your Performance Self-Evaluation",
+          "bg": "Вашата Самооценка на Представянето"
+        },
+        "employee-desc": {
+          "en": "Rate your own competencies for the current performance cycle. Be honest, thorough, and constructive.",
+          "bg": "Оценете собствените си компетенции за текущия цикъл. Бъдете честни, задълбочени и конструктивни."
+        },
+        "manager-title": {
+          "en": "Manager Performance Review",
+          "bg": "Мениджърски Преглед на Представянето"
+        },
+        "manager-desc": {
+          "en": "Review and finalize the performance evaluation for your direct report. Your assessment determines the final outcome of this cycle.",
+          "bg": "Прегледайте и финализирайте оценката на представянето на вашия подчинен. Вашата оценка определя крайния резултат на цикъла."
+        },
+        "team-title": {
+          "en": "Peer Performance Feedback",
+          "bg": "Колегиална Обратна Връзка"
+        },
+        "team-desc": {
+          "en": "Provide your honest assessment of your colleague's performance. Focus on observable behaviors and outcomes from your collaboration.",
+          "bg": "Предоставете честна оценка на представянето на вашия колега. Фокусирайте се върху наблюдаеми поведения и резултати от сътрудничеството ви."
+        }
+      },
+      "grades": {
+        "short": {
+          "S": { "en": "Consistently exceeds expectations", "bg": "Постоянно надхвърля очакванията" },
+          "R": { "en": "Fully meets expectations", "bg": "Изцяло отговаря на очакванията" },
+          "U": { "en": "Partially meets expectations", "bg": "Частично отговаря на очакванията" },
+          "N": { "en": "Not assessed for this cycle", "bg": "Не е оценявано за този цикъл" }
+        }
+      },
+      "team-reviewers-label": {
+        "en": "Peer Reviewers",
+        "bg": "Колегиални Оценители"
+      },
+      "team-feedback-given": {
+        "en": "gave feedback",
+        "bg": "дадоха обратна връзка"
+      },
+      "you-tag": {
+        "en": "You",
+        "bg": "Вие"
+      },
+      "sticky": {
+        "of": { "en": "of", "bg": "от" },
+        "graded": { "en": "competencies graded", "bg": "компетенции оценени" }
       },
       "instructions": {
         "title": {
-          "en": "Grading Instructions",
-          "bg": "Инструкции за оценяване"
+          "en": "How to Grade",
+          "bg": "Как да оценявате"
         },
         "grades": {
           "en": "Please rate each competency with one of the following grades while maintaining objectivity and fairness. For each given rating you might be asked to provide additional feedback and justification.",
@@ -2607,6 +2681,10 @@
         "team-grading": {
           "en": "When rating a team member, please consider how their individual performance and contribution in each particular competency category has affected the outcomes of your mutual work.",
           "bg": "Когато оценявате член на екипа, моля вземете под внимание как тяхната индивидуална дейност и принос във всяка конкретна категория компетенции са повлияли на резултатите от вашата съвместна работа."
+        },
+        "point-scale": {
+          "en": "point scale",
+          "bg": "точкова скала"
         }
       },
       "personal": {
@@ -2629,6 +2707,10 @@
         "starting-date": {
           "en": "Employee Since:",
           "bg": "Стартова дата:"
+        },
+        "joined": {
+          "en": "Joined",
+          "bg": "Член от"
         }
       },
       "appraisal": {
@@ -2703,6 +2785,10 @@
         "empty-team-list": {
           "en": "No team members selected",
           "bg": "Няма избрани членове на екипа"
+        },
+        "days-left": {
+          "en": "days left",
+          "bg": "дни оставащи"
         }
       },
       "competencies": {
@@ -3016,7 +3102,7 @@
       "employees": { "en": "Employees", "bg": "Служители" },
       "employees-list": { "en": "Employees", "bg": "Служители" },
       "evaluation": { "en": "My Evaluation", "bg": "Моята Оценка" },
-      "competence-evaluation": { "en": "My Evaluation", "bg": "Моята Оценка" },
+      "competence-evaluation": { "en": "Performance Evaluation", "bg": "Оценка на Представянето" },
       "new-evaluation": { "en": "New Evaluation", "bg": "Нова Оценка" },
       "calendar": { "en": "Availability", "bg": "Наличност" },
       "manager-calendar": { "en": "Availability", "bg": "Наличност" },
