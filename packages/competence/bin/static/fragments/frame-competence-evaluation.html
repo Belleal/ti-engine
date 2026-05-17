@@ -357,44 +357,59 @@
             </template>
 
             <!-- Feedback section -->
-            <div class="ti-panel competence-panel-mb" x-show="userRole === 1 || userRole === 2 || (userRole === 4 && canEdit)">
+            <div class="ti-panel competence-panel-mt competence-panel-mb" x-show="userRole === 1 || userRole === 2 || ( userRole === 4 && canEdit )">
                 <div class="ti-panel-head">
                     <div class="ti-panel-title" x-text-label="interface.evaluation.appraisal.feedback-title"></div>
+                    <span class="competence-eval-feedback-intro" x-text-label="interface.evaluation.appraisal.feedback-desc"></span>
                 </div>
                 <div class="competence-eval-feedback-body">
-                    <!-- Employee comment -->
-                    <div x-show="userRole === 1 || userRole === 2">
-                        <label for="employeeFeedbackText" class="ti-field-label" x-text-label="interface.evaluation.appraisal.employee-comment"></label>
-                        <textarea id="employeeFeedbackText" name="employeeFeedbackText" class="ti-textarea" rows="4"
-                                  x-bind:value="getFeedbackComment('employee')"
-                                  @ti-input="setFeedbackComment('employee', $event.target.value)"
-                                  x-show="userRole === 1 && canEdit"></textarea>
-                        <div class="competence-eval-feedback-text" x-text="getFeedbackComment('employee')"
-                             x-show="userRole === 2 || (userRole === 1 && !canEdit)"></div>
+
+                    <!-- Two-column grid: self-reflection + manager (employee and manager only) -->
+                    <div class="competence-eval-feedback-grid" x-show="userRole === 1 || userRole === 2">
+
+                        <!-- Employee (self-reflection) column -->
+                        <div class="competence-eval-feedback-col">
+                            <div class="competence-eval-feedback-col-label" x-text-label="interface.evaluation.appraisal.employee-comment"></div>
+                            <textarea id="employeeFeedbackText" name="employeeFeedbackText" class="ti-textarea" rows="4"
+                                      x-bind:value="getFeedbackComment( 'employee' )"
+                                      @ti-input="setFeedbackComment( 'employee', $event.target.value )"
+                                      x-show="userRole === 1 && canEdit"></textarea>
+                            <div class="competence-eval-feedback-value"
+                                 x-text="getFeedbackComment( 'employee' ) || getLabel( 'interface.evaluation.default.not-provided' )"
+                                 x-show="userRole === 2 || ( userRole === 1 && !canEdit )"></div>
+                        </div>
+
+                        <!-- Manager comment column -->
+                        <div class="competence-eval-feedback-col">
+                            <div class="competence-eval-feedback-col-label" x-text-label="interface.evaluation.appraisal.manager-comment"></div>
+                            <textarea id="managerFeedbackText" name="managerFeedbackText" class="ti-textarea" rows="4"
+                                      x-bind:value="getFeedbackComment( 'manager' )"
+                                      @ti-input="setFeedbackComment( 'manager', $event.target.value )"
+                                      x-show="userRole === 2 && canEdit"></textarea>
+                            <div class="competence-eval-feedback-value"
+                                 x-text="getFeedbackComment( 'manager' ) || getLabel( 'interface.evaluation.appraisal.manager-comment-placeholder' )"
+                                 x-show="userRole === 1"></div>
+                            <div class="competence-eval-feedback-value"
+                                 x-text="getFeedbackComment( 'manager' ) || getLabel( 'interface.evaluation.default.not-provided' )"
+                                 x-show="userRole === 2 && !canEdit"></div>
+                        </div>
                     </div>
 
-                    <!-- Manager comment -->
-                    <div x-show="userRole === 1 || userRole === 2">
-                        <label for="managerFeedbackText" class="ti-field-label" x-text-label="interface.evaluation.appraisal.manager-comment"></label>
-                        <textarea id="managerFeedbackText" name="managerFeedbackText" class="ti-textarea" rows="4"
-                                  x-bind:value="getFeedbackComment('manager')"
-                                  @ti-input="setFeedbackComment('manager', $event.target.value)"
-                                  x-show="userRole === 2 && canEdit"></textarea>
-                        <div class="competence-eval-feedback-text" x-text="getFeedbackComment('manager')"
-                             x-show="userRole === 1 || (userRole === 2 && !canEdit)"></div>
-                    </div>
-
-                    <!-- Team comments -->
-                    <div x-show="userRole === 2 || (userRole === 4 && canEdit)">
+                    <!-- Team comment input (team reviewer during open phase) -->
+                    <div x-show="userRole === 4 && canEdit">
                         <label for="teamFeedbackText" class="ti-field-label" x-text-label="interface.evaluation.appraisal.team-comment"></label>
                         <textarea id="teamFeedbackText" name="teamFeedbackText" class="ti-textarea" rows="4"
-                                  @ti-input="setFeedbackComment('team', $event.target.value)"
-                                  x-show="userRole === 4 && canEdit"></textarea>
-                        <div class="competence-eval-team-comments" x-show="userRole === 2">
-                            <template x-for="(comment, index) in getFeedbackComment('team')" x-bind:key="index">
-                                <div class="competence-eval-team-comment-item" x-text="comment || getLabel('interface.evaluation.default.not-provided')"></div>
+                                  @ti-input="setFeedbackComment( 'team', $event.target.value )"></textarea>
+                    </div>
+
+                    <!-- Team comments list (manager only) -->
+                    <div x-show="userRole === 2">
+                        <div class="competence-eval-feedback-col-label" x-text-label="interface.evaluation.appraisal.team-comment"></div>
+                        <div class="competence-eval-team-comments">
+                            <template x-for="( comment, index ) in getFeedbackComment( 'team' )" x-bind:key="index">
+                                <div class="competence-eval-team-comment-item" x-text="comment || getLabel( 'interface.evaluation.default.not-provided' )"></div>
                             </template>
-                            <template x-if="getFeedbackComment('team').length === 0">
+                            <template x-if="getFeedbackComment( 'team' ).length === 0">
                                 <div class="competence-eval-empty-comment" x-text-label="interface.evaluation.default.not-provided"></div>
                             </template>
                         </div>
@@ -403,7 +418,7 @@
             </div>
 
             <!-- Sticky action bar -->
-            <div class="competence-eval-sticky-bar" x-show="(userRole === 1 || userRole === 2 || userRole === 4) && canEdit">
+            <div class="competence-eval-sticky-bar" x-show="( userRole === 1 || userRole === 2 || userRole === 4 ) && canEdit">
                 <div class="competence-eval-sticky-label">
                     <strong x-text="getGradedCount()"></strong>
                     <span x-text="getStickyProgressText()"></span>

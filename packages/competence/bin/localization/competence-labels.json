@@ -2755,20 +2755,28 @@
           "bg": "Позиция & Ниво:"
         },
         "feedback-title": {
-          "en": "Feedback & Comments",
-          "bg": "Обратна Връзка & Коментари"
+          "en": "Written Feedback",
+          "bg": "Обратна Връзка в Писмена Форма"
+        },
+        "feedback-desc": {
+          "en": "Comments matter — these go straight into the performance interview discussion.",
+          "bg": "Коментарите са важни — те директно информират дискусията на интервюто за представяне."
         },
         "employee-comment": {
-          "en": "Employee Comment:",
-          "bg": "Коментар от Служител:"
+          "en": "Self-reflection (employee)",
+          "bg": "Самооценка (служител)"
         },
         "team-comment": {
-          "en": "Team Member Comment:",
-          "bg": "Коментар от Член на Екипа:"
+          "en": "Team Feedback",
+          "bg": "Обратна връзка от членове на екипа"
         },
         "manager-comment": {
-          "en": "Manager Comment:",
-          "bg": "Коментар от Мениджър:"
+          "en": "Manager Feedback",
+          "bg": "Обратна връзка от мениджъра"
+        },
+        "manager-comment-placeholder": {
+          "en": "Not available yet — your manager submits this last.",
+          "bg": "Все още не е налично — мениджърът ви го попълва последен."
         },
         "final-score": {
           "en": "Final Score:",

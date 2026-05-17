@@ -1698,6 +1698,10 @@
 
 
 /* Panel spacing helpers */
+.competence-panel-mt {
+    margin-top: var(--s-5);
+}
+
 .competence-panel-mb {
     margin-bottom: var(--s-5);
 }
@@ -1765,15 +1769,48 @@
 }
 
 .competence-eval-feedback-body {
-    padding: var(--s-5);
     display: flex;
     flex-direction: column;
+    gap: var(--s-4);
+}
+
+.competence-eval-feedback-intro {
+    color: var(--fg-tertiary);
+    font-size: var(--fs-sm);
+    margin-left: var(--s-3);
+    padding-left: var(--s-3);
+    border-left: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.competence-eval-feedback-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: var(--s-5);
 }
 
-.competence-eval-feedback-text {
+.competence-eval-feedback-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: stretch;
+    height: 100%;
+}
+
+.competence-eval-feedback-col-label {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--fg-secondary);
+    margin-bottom: var(--s-2);
+}
+
+.competence-eval-feedback-value {
     font-size: var(--fs-sm);
     color: var(--fg-secondary);
+    padding: var(--s-3);
+    background: var(--bg-sunken);
+    border-radius: var(--r-md);
+    min-height: 80px;
+    height: 100%;
 }
 
 .competence-eval-team-comments {
@@ -1793,6 +1830,9 @@
 .competence-eval-empty-comment {
     font-size: var(--fs-sm);
     color: var(--fg-tertiary);
+    padding: var(--s-3);
+    background: var(--bg-sunken);
+    border-radius: var(--r-md);
 }
 
 /* Deadline ti-card icon variant */
