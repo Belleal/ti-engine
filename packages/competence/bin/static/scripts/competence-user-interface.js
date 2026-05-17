@@ -738,6 +738,7 @@ const configureManagerCalendar = () => {
                         this.slots[ `${ slot.date }|${ slot.startTime }` ] = slot;
                     } );
                 }
+                tiApplication.setTopbarSubtitle( this.getLabel( 'interface.calendar.page-subtitle' ) + ' ' + this.cycleID );
             } ).catch( ( error ) => {
                 if ( error?.name === "AbortError" || error?.isAborted ) {
                     return;
@@ -884,6 +885,57 @@ const configureManagerCalendar = () => {
 
         formatDate( value, placeholder = "" ) {
             return tiToolbox.formatDate( value, tiApplication.getLabel( placeholder, "" ) );
+        },
+
+        isToday( dateStr ) {
+            return dateStr === toDateString( new Date() );
+        },
+
+        getAvailableCount() {
+            const weekDates = new Set( this.getWeekDays().map( d => d.date ) );
+            return Object.entries( this.slots ).filter( ( [ key, slot ] ) =>
+                slot.status === "available" && weekDates.has( key.split( "|" )[ 0 ] )
+            ).length;
+        },
+
+        getBookedCount() {
+            const weekDates = new Set( this.getWeekDays().map( d => d.date ) );
+            return Object.entries( this.slots ).filter( ( [ key, slot ] ) =>
+                slot.status === "booked" && weekDates.has( key.split( "|" )[ 0 ] )
+            ).length;
+        },
+
+        getCycleDaysLeft() {
+            if ( !this.cycleDate ) {
+                return null;
+            }
+            const end = new Date( this.cycleDate );
+            const today = new Date();
+            today.setHours( 0, 0, 0, 0 );
+            end.setHours( 0, 0, 0, 0 );
+            return Math.max( 0, Math.ceil( ( end - today ) / ( 1000 * 60 * 60 * 24 ) ) );
+        },
+
+        getCycleSubText() {
+            if ( !this.cycleID ) {
+                return "";
+            }
+            const days = this.getCycleDaysLeft();
+            if ( days === null ) {
+                return this.cycleID;
+            }
+            return `${ this.cycleID } · ${ days } ${ this.getLabel( "interface.calendar.days-left" ) }`;
+        },
+
+        getSlotLabel( date, startTime ) {
+            const state = this.getSlotState( date, startTime );
+            if ( state === "available" ) {
+                return this.getLabel( "interface.calendar.slot-free" );
+            }
+            if ( state === "busy" ) {
+                return this.getLabel( "interface.calendar.slot-busy" );
+            }
+            return "";
         }
 
     };

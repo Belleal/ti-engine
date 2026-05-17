@@ -1155,6 +1155,7 @@
 .competence-calendar-toolbar {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: var(--s-4);
     margin-bottom: var(--s-5);
     background: var(--bg-surface);
@@ -1163,17 +1164,78 @@
     padding: var(--s-3) var(--s-4);
 }
 
+.competence-cal-nav-group {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.competence-cal-nav-center {
+    min-width: 180px;
+    text-align: center;
+}
+
 .competence-calendar-week-label {
     font-size: var(--fs-md);
     font-weight: 600;
     letter-spacing: -0.01em;
 }
 
+.competence-cal-cycle-sub {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+    margin-top: 2px;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.competence-cal-slot-counts {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding-left: var(--s-4);
+    border-left: 1px solid var(--border);
+}
+
+.competence-cal-count-sep {
+    width: 1px;
+    height: 28px;
+    background: var(--border);
+}
+
+.competence-cal-count-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+}
+
+.competence-cal-count-item > span:first-child {
+    font-family: "JetBrains Mono", monospace;
+    font-size: var(--fs-base);
+    font-weight: 700;
+    line-height: 1;
+}
+
+.competence-cal-count-item > span:last-child {
+    font-size: 10px;
+    color: var(--fg-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.competence-cal-count-item.competence-available > span:first-child {
+    color: var(--success);
+}
+
+.competence-cal-count-item.competence-booked > span:first-child {
+    color: var(--info);
+}
+
 .competence-calendar-grid {
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--r-lg);
-    padding: var(--s-3);
+    padding: var(--s-5);
     overflow: hidden;
 }
 
@@ -1412,6 +1474,36 @@
     font-size: var(--fs-sm);
     margin-top: 2px;
     color: var(--accent);
+}
+
+.competence-cal-booked-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    width: 100%;
+}
+
+.competence-cal-booked-name {
+    font-weight: 700;
+    font-size: 10.5px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.competence-cal-booked-sub {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.75;
+    line-height: 1.1;
+}
+
+.competence-calendar-grid .competence-cal-legend {
+    border-top: 1px solid var(--border);
+    padding-top: var(--s-3);
+    margin-top: var(--s-3);
 }
 
 /* ============================================================
@@ -1859,7 +1951,7 @@
 
 .competence-cal-legend-swatch.empty {
     background: var(--bg-surface);
-    border: 1px solid var(--border);
+    border: 1px dashed var(--border);
 }
 
 /* Interview schedule */
@@ -1969,7 +2061,6 @@
     letter-spacing: 0.12em;
     color: var(--fg-tertiary);
     margin-bottom: var(--s-1);
-    font-family: "JetBrains Mono", monospace;
 }
 
 .competence-eval-page-title {

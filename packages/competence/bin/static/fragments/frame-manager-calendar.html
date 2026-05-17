@@ -1,27 +1,45 @@
 <div class="ti-page" x-data="competenceManagerCalendar">
 
-    <!-- Help banner -->
-    <div class="competence-cal-help-card">
-        <div class="competence-cal-help-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-        </div>
-        <div>
-            <div class="competence-cal-help-title" x-text-label="interface.calendar.title"></div>
-            <div class="competence-cal-help-msg">Click any empty slot to mark your availability. Booked slots cannot be changed.</div>
-        </div>
+    <!-- Page header [1, 2] -->
+    <div class="competence-eval-page-header">
+        <div class="competence-eval-page-eyebrow" x-text-label="interface.calendar.eyebrow"></div>
+        <h1 class="competence-eval-page-title" x-text-label="interface.calendar.page-title"></h1>
+        <p class="competence-eval-page-desc" x-text-label="interface.calendar.page-description"></p>
     </div>
 
-    <!-- Calendar toolbar -->
+    <!-- Info card [3] -->
+    <div class="competence-eval-role-info">
+        <div class="competence-eval-role-info-title" x-text-label="interface.calendar.how-it-works"></div>
+        <div class="competence-eval-role-info-desc" x-text-label="interface.calendar.how-it-works-desc"></div>
+    </div>
+
+    <!-- Calendar toolbar [4, 5, 6] -->
     <div class="competence-calendar-toolbar">
-        <button type="button" class="ti-btn sm ghost" @click="prevWeek()" x-bind:disabled="!canGoPrev()"
-                x-text-label="interface.calendar.week-nav-prev"></button>
-        <div class="competence-calendar-week-label" x-text="getWeekLabel()"></div>
-        <button type="button" class="ti-btn sm ghost" @click="nextWeek()" x-bind:disabled="!canGoNext()"
-                x-text-label="interface.calendar.week-nav-next"></button>
+        <div class="competence-cal-nav-group">
+            <button type="button" class="ti-btn sm ghost icon" @click="prevWeek()" x-bind:disabled="!canGoPrev()"
+                    x-bind:aria-label="getLabel('interface.calendar.week-nav-prev')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div class="competence-cal-nav-center">
+                <div class="competence-calendar-week-label" x-text="getWeekLabel()"></div>
+                <div class="competence-cal-cycle-sub" x-show="cycleID" x-text="getCycleSubText()"></div>
+            </div>
+            <button type="button" class="ti-btn sm ghost icon" @click="nextWeek()" x-bind:disabled="!canGoNext()"
+                    x-bind:aria-label="getLabel('interface.calendar.week-nav-next')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+        </div>
+        <div class="competence-cal-slot-counts">
+            <div class="competence-cal-count-item competence-available">
+                <span x-text="getAvailableCount()"></span>
+                <span x-text-label="interface.calendar.available-count"></span>
+            </div>
+            <div class="competence-cal-count-sep"></div>
+            <div class="competence-cal-count-item competence-booked">
+                <span x-text="getBookedCount()"></span>
+                <span x-text-label="interface.calendar.booked-count"></span>
+            </div>
+        </div>
     </div>
 
     <!-- Calendar grid -->
@@ -33,7 +51,10 @@
                 <template x-for="day in getWeekDays()" x-bind:key="'header-' + day.date">
                     <div class="competence-cal-header-cell">
                         <div class="competence-cal-header-day" x-text="day.dayLabel"></div>
-                        <div class="competence-cal-header-date" x-text="day.dateLabel"></div>
+                        <!-- [7] Today indicator applied via class binding -->
+                        <div class="competence-cal-header-date"
+                             x-bind:class="isToday(day.date) ? 'competence-today' : ''"
+                             x-text="day.dateLabel"></div>
                     </div>
                 </template>
             </div>
@@ -55,31 +76,47 @@
                                         x-bind:title="getLabel('interface.calendar.mark-busy')">✕
                                 </button>
                             </div>
-                            <span class="competence-calendar-slot-label" x-text="getSlotBookingLabel(day.date, slot.startTime)"></span>
+                            <!-- [10] Booked slot content -->
+                            <div class="competence-cal-booked-content"
+                                 x-show="getSlotState(day.date, slot.startTime) === 'booked'">
+                                <span class="competence-cal-booked-name" x-text="getSlotBookingLabel(day.date, slot.startTime)"></span>
+                                <span class="competence-cal-booked-sub" x-text-label="interface.calendar.slot-booked"></span>
+                            </div>
+                            <svg class="competence-cal-booked-icon"
+                                 x-show="getSlotState(day.date, slot.startTime) === 'booked'"
+                                 width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                <polyline points="15 3 21 3 21 9"/>
+                                <line x1="10" y1="14" x2="21" y2="3"/>
+                            </svg>
+                            <!-- [8, 9] State label: Free / Busy -->
+                            <span class="competence-calendar-slot-label"
+                                  x-show="getSlotState(day.date, slot.startTime) !== 'booked'"
+                                  x-text="getSlotLabel(day.date, slot.startTime)"></span>
                         </div>
                     </template>
                 </div>
             </template>
         </div>
-    </div>
 
-    <!-- Legend -->
-    <div class="competence-cal-legend">
-        <div class="competence-cal-legend-item">
-            <div class="competence-cal-legend-swatch competence-available"></div>
-            <span x-text-label="interface.calendar.slot-available"></span>
-        </div>
-        <div class="competence-cal-legend-item">
-            <div class="competence-cal-legend-swatch competence-booked"></div>
-            <span x-text-label="interface.calendar.slot-booked"></span>
-        </div>
-        <div class="competence-cal-legend-item">
-            <div class="competence-cal-legend-swatch competence-busy"></div>
-            <span x-text-label="interface.calendar.slot-busy"></span>
-        </div>
-        <div class="competence-cal-legend-item">
-            <div class="competence-cal-legend-swatch empty"></div>
-            <span x-text-label="interface.calendar.slot-empty"></span>
+        <!-- [11] Legend inside the calendar panel -->
+        <div class="competence-cal-legend">
+            <div class="competence-cal-legend-item">
+                <div class="competence-cal-legend-swatch competence-available"></div>
+                <span x-text-label="interface.calendar.slot-available"></span>
+            </div>
+            <div class="competence-cal-legend-item">
+                <div class="competence-cal-legend-swatch competence-booked"></div>
+                <span x-text-label="interface.calendar.slot-booked"></span>
+            </div>
+            <div class="competence-cal-legend-item">
+                <div class="competence-cal-legend-swatch competence-busy"></div>
+                <span x-text-label="interface.calendar.slot-busy"></span>
+            </div>
+            <div class="competence-cal-legend-item">
+                <div class="competence-cal-legend-swatch empty"></div>
+                <span x-text-label="interface.calendar.slot-empty"></span>
+            </div>
         </div>
     </div>
 </div>

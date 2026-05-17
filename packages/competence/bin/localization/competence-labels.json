@@ -2647,10 +2647,22 @@
       },
       "grades": {
         "short": {
-          "S": { "en": "Consistently exceeds expectations", "bg": "Постоянно надхвърля очакванията" },
-          "R": { "en": "Fully meets expectations", "bg": "Изцяло отговаря на очакванията" },
-          "U": { "en": "Partially meets expectations", "bg": "Частично отговаря на очакванията" },
-          "N": { "en": "Not assessed for this cycle", "bg": "Не е оценявано за този цикъл" }
+          "S": {
+            "en": "Consistently exceeds expectations",
+            "bg": "Постоянно надхвърля очакванията"
+          },
+          "R": {
+            "en": "Fully meets expectations",
+            "bg": "Изцяло отговаря на очакванията"
+          },
+          "U": {
+            "en": "Partially meets expectations",
+            "bg": "Частично отговаря на очакванията"
+          },
+          "N": {
+            "en": "Not assessed for this cycle",
+            "bg": "Не е оценявано за този цикъл"
+          }
         }
       },
       "team-reviewers-label": {
@@ -2666,8 +2678,14 @@
         "bg": "Вие"
       },
       "sticky": {
-        "of": { "en": "of", "bg": "от" },
-        "graded": { "en": "competencies graded", "bg": "компетенции оценени" }
+        "of": {
+          "en": "of",
+          "bg": "от"
+        },
+        "graded": {
+          "en": "competencies graded",
+          "bg": "компетенции оценени"
+        }
       },
       "instructions": {
         "title": {
@@ -2883,39 +2901,117 @@
       }
     },
     "employees": {
-      "header-eyebrow": { "en": "ORGANIZATION", "bg": "ОРГАНИЗАЦИЯ" },
-      "header-title": { "en": "Employees", "bg": "Служители" },
-      "header-desc": { "en": "Your department and the teams beneath it.", "bg": "Вашият отдел и екипите под него." },
-      "empty-state": { "en": "No employees found", "bg": "Няма намерени служители" },
-      "empty-team": { "en": "No employees in this team", "bg": "Няма служители в този екип" },
-      "headed-by": { "en": "Headed by", "bg": "Ръководено от" },
-      "led-by": { "en": "Led by", "bg": "Ръководи" },
-      "people": { "en": "people", "bg": "служители" },
-      "in-cycle": { "en": "in cycle", "bg": "в цикъл" },
-      "private": { "en": "Private", "bg": "Частно" },
-      "you-tag": { "en": "You", "bg": "Вие" },
-      "manager-tag": { "en": "Manager", "bg": "Мениджър" },
+      "header-eyebrow": {
+        "en": "ORGANIZATION",
+        "bg": "ОРГАНИЗАЦИЯ"
+      },
+      "header-title": {
+        "en": "Employees",
+        "bg": "Служители"
+      },
+      "header-desc": {
+        "en": "Your department and the teams beneath it.",
+        "bg": "Вашият отдел и екипите под него."
+      },
+      "empty-state": {
+        "en": "No employees found",
+        "bg": "Няма намерени служители"
+      },
+      "empty-team": {
+        "en": "No employees in this team",
+        "bg": "Няма служители в този екип"
+      },
+      "headed-by": {
+        "en": "Headed by",
+        "bg": "Ръководено от"
+      },
+      "led-by": {
+        "en": "Led by",
+        "bg": "Ръководи"
+      },
+      "people": {
+        "en": "people",
+        "bg": "служители"
+      },
+      "in-cycle": {
+        "en": "in cycle",
+        "bg": "в цикъл"
+      },
+      "private": {
+        "en": "Private",
+        "bg": "Частно"
+      },
+      "you-tag": {
+        "en": "You",
+        "bg": "Вие"
+      },
+      "manager-tag": {
+        "en": "Manager",
+        "bg": "Мениджър"
+      },
       "stats": {
-        "people": { "en": "PEOPLE", "bg": "СЛУЖИТЕЛИ" },
-        "teams": { "en": "TEAMS", "bg": "ЕКИПИ" },
-        "in-cycle": { "en": "IN CYCLE", "bg": "В ЦИКЪЛ" },
-        "ready": { "en": "READY", "bg": "ГОТОВИ" }
+        "people": {
+          "en": "PEOPLE",
+          "bg": "СЛУЖИТЕЛИ"
+        },
+        "teams": {
+          "en": "TEAMS",
+          "bg": "ЕКИПИ"
+        },
+        "in-cycle": {
+          "en": "IN CYCLE",
+          "bg": "В ЦИКЪЛ"
+        },
+        "ready": {
+          "en": "READY",
+          "bg": "ГОТОВИ"
+        }
       },
       "col": {
-        "person": { "en": "PERSON", "bg": "СЛУЖИТЕЛ" },
-        "career-path": { "en": "CAREER PATH", "bg": "КАРИЕРЕН ПЪТ" },
-        "level": { "en": "LEVEL", "bg": "НИВО" },
-        "evaluation": { "en": "EVALUATION", "bg": "ОЦЕНКА" },
-        "actions": { "en": "ACTIONS", "bg": "ДЕЙСТВИЯ" }
+        "person": {
+          "en": "PERSON",
+          "bg": "СЛУЖИТЕЛ"
+        },
+        "career-path": {
+          "en": "CAREER PATH",
+          "bg": "КАРИЕРЕН ПЪТ"
+        },
+        "level": {
+          "en": "LEVEL",
+          "bg": "НИВО"
+        },
+        "evaluation": {
+          "en": "EVALUATION",
+          "bg": "ОЦЕНКА"
+        },
+        "actions": {
+          "en": "ACTIONS",
+          "bg": "ДЕЙСТВИЯ"
+        }
       },
       "action": {
-        "open": { "en": "Open", "bg": "Преглед" },
-        "start": { "en": "Start Evaluation", "bg": "Нова Оценка" },
-        "locked": { "en": "Locked", "bg": "Заключено" }
+        "open": {
+          "en": "Open",
+          "bg": "Преглед"
+        },
+        "start": {
+          "en": "Start Evaluation",
+          "bg": "Нова Оценка"
+        },
+        "locked": {
+          "en": "Locked",
+          "bg": "Заключено"
+        }
       },
       "eval-date": {
-        "due": { "en": "Due", "bg": "До" },
-        "interview": { "en": "Interview", "bg": "Интервю" }
+        "due": {
+          "en": "Due",
+          "bg": "До"
+        },
+        "interview": {
+          "en": "Interview",
+          "bg": "Интервю"
+        }
       },
       "organization-title": {
         "en": "Organization Unit",
@@ -3004,126 +3100,433 @@
         "bg": "Свободен"
       },
       "slot-booked": {
-        "en": "Booked",
-        "bg": "Запазен"
+        "en": "Booked (read-only)",
+        "bg": "Запазен (информативно)"
       },
       "slot-busy": {
         "en": "Busy",
         "bg": "Зает"
       },
       "slot-empty": {
-        "en": "Not Available",
-        "bg": "Неналичен"
+        "en": "Empty (hover)",
+        "bg": "Отворен (посочете)"
       },
       "mark-available": {
         "en": "Mark as Available",
-        "bg": "Маркирай като Свободен"
+        "bg": "Маркирай като свободен"
       },
       "mark-busy": {
         "en": "Mark as Busy",
-        "bg": "Маркирай като Зает"
+        "bg": "Маркирай като зает"
+      },
+      "slot-free": {
+        "en": "Free",
+        "bg": "Свободен"
+      },
+      "eyebrow": {
+        "en": "YOUR AVAILABILITY",
+        "bg": "ВАШАТА НАЛИЧНОСТ"
+      },
+      "page-title": {
+        "en": "Interview Availability Calendar",
+        "bg": "Календар за наличност за интервюта"
+      },
+      "page-description": {
+        "en": "Block slots when you're free to host evaluation interviews. Supervisors book directly from here — you'll be notified each time.",
+        "bg": "Маркира слотове за наличност за провеждане на интервюта за оценка на представянето. Супервайзорите запазват слотове за интервюта директно от този списък, за което ще бъдете нотифицирани всеки път."
+      },
+      "page-subtitle": {
+        "en": "Your slots for",
+        "bg": "Вашите слотове за"
+      },
+      "how-it-works": {
+        "en": "How this works",
+        "bg": "Как работи"
+      },
+      "how-it-works-desc": {
+        "en": "Mark any empty slot as available (✓) or busy (✗). Click a marked slot again to remove it. Booked slots are locked — they come from scheduled interviews.",
+        "bg": "Маркирайте всеки свободен слот като наличен (✓) или зает (✗). Кликнете върху маркиран слот отново, за да го премахнете. Запазените слотове са заключени — те идват от вече планирани интервюта."
+      },
+      "days-left": {
+        "en": "days until cycle closes",
+        "bg": "дни до края на цикъла"
+      },
+      "available-count": {
+        "en": "available",
+        "bg": "свободни"
+      },
+      "booked-count": {
+        "en": "booked",
+        "bg": "запазени"
       }
     },
     "dashboard": {
-      "loading": { "en": "Loading dashboard…", "bg": "Зарежда таблото…" },
-      "my-eval-status": { "en": "Your evaluation is currently", "bg": "Вашата оценка е в момента" },
-      "no-evaluation": { "en": "No active evaluation found for this cycle.", "bg": "Няма активна оценка за този цикъл." },
-      "open-evaluation": { "en": "Open My Evaluation", "bg": "Отвори Моята Оценка" },
-      "cycle-active": { "en": "Active Cycle", "bg": "Активен Цикъл" },
-      "cycle-running": { "en": "Running", "bg": "В ход" },
-      "cycle-my-status": { "en": "My Status", "bg": "Моят Статус" },
-      "cycle-date": { "en": "Cycle Date", "bg": "Дата на Цикъл" },
-      "team-title": { "en": "Team Evaluations", "bg": "Оценки на Екипа" },
-      "my-eval-title": { "en": "My Evaluation Status", "bg": "Статус на Моята Оценка" },
-      "view-all": { "en": "View all", "bg": "Виж всички" },
-      "no-team-evals": { "en": "No active evaluations", "bg": "Няма активни оценки" },
-      "no-team-evals-desc": { "en": "Your team has no evaluations in progress for this cycle.", "bg": "Вашият екип няма оценки в процес за този цикъл." },
-      "state-started": { "en": "Started", "bg": "Стартирано" },
-      "state-open": { "en": "Open", "bg": "Отворено" },
-      "state-in-review": { "en": "In Review", "bg": "В Преглед" },
-      "state-ready": { "en": "Ready", "bg": "Готово" },
-      "no-my-eval": { "en": "No evaluation found", "bg": "Не е намерена оценка" },
-      "no-my-eval-desc": { "en": "No active evaluation exists for you in this cycle.", "bg": "Няма активна оценка за вас в този цикъл." },
-      "activity-title": { "en": "Recent Activity", "bg": "Последна Активност" },
-      "no-activity": { "en": "No recent activity", "bg": "Няма последна активност" },
-      "tasks-title": { "en": "Tasks for you", "bg": "Задачи за вас" },
-      "no-tasks": { "en": "All caught up!", "bg": "Всичко е наред!" },
-      "cycle-start": { "en": "Start", "bg": "Начало" },
-      "cycle-deadline": { "en": "Deadline", "bg": "Краен срок" },
-      "cycle-closes": { "en": "Closes", "bg": "Затваря се" },
-      "cycle-elapsed": { "en": "elapsed", "bg": "изминали" },
-      "cycle-days-left": { "en": "days left", "bg": "дни оставащи" },
+      "loading": {
+        "en": "Loading dashboard…",
+        "bg": "Зарежда таблото…"
+      },
+      "my-eval-status": {
+        "en": "Your evaluation is currently",
+        "bg": "Вашата оценка е в момента"
+      },
+      "no-evaluation": {
+        "en": "No active evaluation found for this cycle.",
+        "bg": "Няма активна оценка за този цикъл."
+      },
+      "open-evaluation": {
+        "en": "Open My Evaluation",
+        "bg": "Отвори Моята Оценка"
+      },
+      "cycle-active": {
+        "en": "Active Cycle",
+        "bg": "Активен Цикъл"
+      },
+      "cycle-running": {
+        "en": "Running",
+        "bg": "В ход"
+      },
+      "cycle-my-status": {
+        "en": "My Status",
+        "bg": "Моят Статус"
+      },
+      "cycle-date": {
+        "en": "Cycle Date",
+        "bg": "Дата на Цикъл"
+      },
+      "team-title": {
+        "en": "Team Evaluations",
+        "bg": "Оценки на Екипа"
+      },
+      "my-eval-title": {
+        "en": "My Evaluation Status",
+        "bg": "Статус на Моята Оценка"
+      },
+      "view-all": {
+        "en": "View all",
+        "bg": "Виж всички"
+      },
+      "no-team-evals": {
+        "en": "No active evaluations",
+        "bg": "Няма активни оценки"
+      },
+      "no-team-evals-desc": {
+        "en": "Your team has no evaluations in progress for this cycle.",
+        "bg": "Вашият екип няма оценки в процес за този цикъл."
+      },
+      "state-started": {
+        "en": "Started",
+        "bg": "Стартирано"
+      },
+      "state-open": {
+        "en": "Open",
+        "bg": "Отворено"
+      },
+      "state-in-review": {
+        "en": "In Review",
+        "bg": "В Преглед"
+      },
+      "state-ready": {
+        "en": "Ready",
+        "bg": "Готово"
+      },
+      "no-my-eval": {
+        "en": "No evaluation found",
+        "bg": "Не е намерена оценка"
+      },
+      "no-my-eval-desc": {
+        "en": "No active evaluation exists for you in this cycle.",
+        "bg": "Няма активна оценка за вас в този цикъл."
+      },
+      "activity-title": {
+        "en": "Recent Activity",
+        "bg": "Последна Активност"
+      },
+      "no-activity": {
+        "en": "No recent activity",
+        "bg": "Няма последна активност"
+      },
+      "tasks-title": {
+        "en": "Tasks for you",
+        "bg": "Задачи за вас"
+      },
+      "no-tasks": {
+        "en": "All caught up!",
+        "bg": "Всичко е наред!"
+      },
+      "cycle-start": {
+        "en": "Start",
+        "bg": "Начало"
+      },
+      "cycle-deadline": {
+        "en": "Deadline",
+        "bg": "Краен срок"
+      },
+      "cycle-closes": {
+        "en": "Closes",
+        "bg": "Затваря се"
+      },
+      "cycle-elapsed": {
+        "en": "elapsed",
+        "bg": "изминали"
+      },
+      "cycle-days-left": {
+        "en": "days left",
+        "bg": "дни оставащи"
+      },
       "employee-stats": {
-        "days": { "en": "Days to Deadline", "bg": "Дни до Краен Срок" },
-        "days-suffix": { "en": "days", "bg": "дни" },
-        "days-desc": { "en": "Until evaluation deadline", "bg": "До крайния срок на оценяването" },
-        "stage": { "en": "My Stage", "bg": "Моят Етап" },
-        "stage-desc": { "en": "Current evaluation stage", "bg": "Текущ етап на оценяването" },
-        "progress": { "en": "Cycle Progress", "bg": "Напредък на Цикъла" },
-        "progress-suffix": { "en": "%", "bg": "%" },
-        "progress-desc": { "en": "Time elapsed this cycle", "bg": "Изминало време от цикъла" },
-        "activity": { "en": "Cycle Activity", "bg": "Активност на Цикъла" },
-        "activity-suffix": { "en": "events", "bg": "събития" },
-        "activity-desc": { "en": "Updates in this cycle", "bg": "Актуализации в този цикъл" }
+        "days": {
+          "en": "Days to Deadline",
+          "bg": "Дни до Краен Срок"
+        },
+        "days-suffix": {
+          "en": "days",
+          "bg": "дни"
+        },
+        "days-desc": {
+          "en": "Until evaluation deadline",
+          "bg": "До крайния срок на оценяването"
+        },
+        "stage": {
+          "en": "My Stage",
+          "bg": "Моят Етап"
+        },
+        "stage-desc": {
+          "en": "Current evaluation stage",
+          "bg": "Текущ етап на оценяването"
+        },
+        "progress": {
+          "en": "Cycle Progress",
+          "bg": "Напредък на Цикъла"
+        },
+        "progress-suffix": {
+          "en": "%",
+          "bg": "%"
+        },
+        "progress-desc": {
+          "en": "Time elapsed this cycle",
+          "bg": "Изминало време от цикъла"
+        },
+        "activity": {
+          "en": "Cycle Activity",
+          "bg": "Активност на Цикъла"
+        },
+        "activity-suffix": {
+          "en": "events",
+          "bg": "събития"
+        },
+        "activity-desc": {
+          "en": "Updates in this cycle",
+          "bg": "Актуализации в този цикъл"
+        }
       },
       "stats": {
-        "total": { "en": "Total", "bg": "Общо" },
-        "total-suffix": { "en": "evals", "bg": "оценки" },
-        "total-desc": { "en": "Team evaluations this cycle", "bg": "Оценки на екипа за този цикъл" },
-        "open": { "en": "In Progress", "bg": "В Процес" },
-        "open-suffix": { "en": "open", "bg": "отворени" },
-        "open-desc": { "en": "Awaiting self or team evaluation", "bg": "Чакат самооценка или оценка от екипа" },
-        "review": { "en": "In Review", "bg": "В Преглед" },
-        "review-suffix": { "en": "review", "bg": "в преглед" },
-        "review-desc": { "en": "Awaiting manager evaluation", "bg": "Чакат оценка от мениджъра" },
-        "ready": { "en": "Ready", "bg": "Готови" },
-        "ready-suffix": { "en": "ready", "bg": "готови" },
-        "ready-desc": { "en": "Awaiting interview scheduling", "bg": "Чакат насрочване на интервю" }
+        "total": {
+          "en": "Total",
+          "bg": "Общо"
+        },
+        "total-suffix": {
+          "en": "evals",
+          "bg": "оценки"
+        },
+        "total-desc": {
+          "en": "Team evaluations this cycle",
+          "bg": "Оценки на екипа за този цикъл"
+        },
+        "open": {
+          "en": "In Progress",
+          "bg": "В Процес"
+        },
+        "open-suffix": {
+          "en": "open",
+          "bg": "отворени"
+        },
+        "open-desc": {
+          "en": "Awaiting self or team evaluation",
+          "bg": "Чакат самооценка или оценка от екипа"
+        },
+        "review": {
+          "en": "In Review",
+          "bg": "В Преглед"
+        },
+        "review-suffix": {
+          "en": "review",
+          "bg": "в преглед"
+        },
+        "review-desc": {
+          "en": "Awaiting manager evaluation",
+          "bg": "Чакат оценка от мениджъра"
+        },
+        "ready": {
+          "en": "Ready",
+          "bg": "Готови"
+        },
+        "ready-suffix": {
+          "en": "ready",
+          "bg": "готови"
+        },
+        "ready-desc": {
+          "en": "Awaiting interview scheduling",
+          "bg": "Чакат насрочване на интервю"
+        }
       },
-      "tasks-count-suffix": { "en": "items", "bg": "задачи" },
-      "manager-review": { "en": "Manager Review", "bg": "Мениджър Преглед" },
-      "peer-feedback": { "en": "Team Feedback", "bg": "Обратна Връзка" },
-      "peer-feedback-suffix": { "en": "submitted", "bg": "изпратени" },
-      "peer-feedback-desc": { "en": "Peer reviews submitted of requested", "bg": "Изпратени рецензии от исканите" },
-      "self-grades": { "en": "Your Self-Grades", "bg": "Вашите Оценки" },
-      "self-grades-suffix": { "en": "complete", "bg": "завършени" },
-      "self-grades-desc": { "en": "Competencies submitted — awaiting manager", "bg": "Изпратени компетенции — чакат мениджъра" },
-      "next-deadline": { "en": "Next Deadline", "bg": "Следващ Краен Срок" },
-      "next-deadline-suffix": { "en": "days", "bg": "дни" },
-      "next-deadline-desc": { "en": "Until manager review closes", "bg": "До затварянето на мениджър прегледа" },
-      "team-coverage": { "en": "Team Coverage", "bg": "Покритие на Екипа" },
-      "team-coverage-suffix": { "en": "started", "bg": "стартирали" },
-      "team-coverage-desc": { "en": "Teammates have started their evaluations", "bg": "Съотборници са започнали своите оценявания" },
-      "greeting-morning": { "en": "Good morning", "bg": "Добро утро" },
-      "greeting-afternoon": { "en": "Good afternoon", "bg": "Добър ден" },
-      "greeting-evening": { "en": "Good evening", "bg": "Добър вечер" },
-      "task-team-feedback": { "en": "Provide team feedback for a colleague", "bg": "Дайте обратна връзка на колега" }
+      "tasks-count-suffix": {
+        "en": "items",
+        "bg": "задачи"
+      },
+      "manager-review": {
+        "en": "Manager Review",
+        "bg": "Мениджър Преглед"
+      },
+      "peer-feedback": {
+        "en": "Team Feedback",
+        "bg": "Обратна Връзка"
+      },
+      "peer-feedback-suffix": {
+        "en": "submitted",
+        "bg": "изпратени"
+      },
+      "peer-feedback-desc": {
+        "en": "Peer reviews submitted of requested",
+        "bg": "Изпратени рецензии от исканите"
+      },
+      "self-grades": {
+        "en": "Your Self-Grades",
+        "bg": "Вашите Оценки"
+      },
+      "self-grades-suffix": {
+        "en": "complete",
+        "bg": "завършени"
+      },
+      "self-grades-desc": {
+        "en": "Competencies submitted — awaiting manager",
+        "bg": "Изпратени компетенции — чакат мениджъра"
+      },
+      "next-deadline": {
+        "en": "Next Deadline",
+        "bg": "Следващ Краен Срок"
+      },
+      "next-deadline-suffix": {
+        "en": "days",
+        "bg": "дни"
+      },
+      "next-deadline-desc": {
+        "en": "Until manager review closes",
+        "bg": "До затварянето на мениджър прегледа"
+      },
+      "team-coverage": {
+        "en": "Team Coverage",
+        "bg": "Покритие на Екипа"
+      },
+      "team-coverage-suffix": {
+        "en": "started",
+        "bg": "стартирали"
+      },
+      "team-coverage-desc": {
+        "en": "Teammates have started their evaluations",
+        "bg": "Съотборници са започнали своите оценявания"
+      },
+      "greeting-morning": {
+        "en": "Good morning",
+        "bg": "Добро утро"
+      },
+      "greeting-afternoon": {
+        "en": "Good afternoon",
+        "bg": "Добър ден"
+      },
+      "greeting-evening": {
+        "en": "Good evening",
+        "bg": "Добър вечер"
+      },
+      "task-team-feedback": {
+        "en": "Provide team feedback for a colleague",
+        "bg": "Дайте обратна връзка на колега"
+      }
     },
     "navigation": {
-      "workspace": { "en": "Workspace", "bg": "Работно пространство" },
-      "quick-links": { "en": "Quick links", "bg": "Бързи връзки" },
-      "process-guide": { "en": "Process Guide", "bg": "Ръководство" },
-      "help": { "en": "Help", "bg": "Помощ" }
+      "workspace": {
+        "en": "Workspace",
+        "bg": "Работно пространство"
+      },
+      "quick-links": {
+        "en": "Quick links",
+        "bg": "Бързи връзки"
+      },
+      "process-guide": {
+        "en": "Process Guide",
+        "bg": "Ръководство"
+      },
+      "help": {
+        "en": "Help",
+        "bg": "Помощ"
+      }
     },
     "topbar": {
-      "dashboard": { "en": "Dashboard", "bg": "Табло" },
-      "employees": { "en": "Employees", "bg": "Служители" },
-      "employees-list": { "en": "Employees", "bg": "Служители" },
-      "evaluation": { "en": "My Evaluation", "bg": "Моята Оценка" },
-      "competence-evaluation": { "en": "Performance Evaluation", "bg": "Оценка на Представянето" },
-      "new-evaluation": { "en": "New Evaluation", "bg": "Нова Оценка" },
-      "calendar": { "en": "Availability", "bg": "Наличност" },
-      "manager-calendar": { "en": "Availability", "bg": "Наличност" },
-      "interviews": { "en": "Interviews", "bg": "Интервюта" },
-      "interview-schedule": { "en": "Interviews", "bg": "Интервюта" },
-      "search": { "en": "Search", "bg": "Търси" },
-      "notifications": { "en": "Notifications", "bg": "Известия" },
-      "user-profile": { "en": "Your profile", "bg": "Вашият профил" }
+      "dashboard": {
+        "en": "Dashboard",
+        "bg": "Табло"
+      },
+      "employees": {
+        "en": "Employees",
+        "bg": "Служители"
+      },
+      "employees-list": {
+        "en": "Employees",
+        "bg": "Служители"
+      },
+      "evaluation": {
+        "en": "My Evaluation",
+        "bg": "Моята Оценка"
+      },
+      "competence-evaluation": {
+        "en": "Performance Evaluation",
+        "bg": "Оценка на Представянето"
+      },
+      "new-evaluation": {
+        "en": "New Evaluation",
+        "bg": "Нова Оценка"
+      },
+      "calendar": {
+        "en": "Availability",
+        "bg": "Наличност"
+      },
+      "manager-calendar": {
+        "en": "Availability",
+        "bg": "Наличност"
+      },
+      "interviews": {
+        "en": "Interviews",
+        "bg": "Интервюта"
+      },
+      "interview-schedule": {
+        "en": "Interviews",
+        "bg": "Интервюта"
+      },
+      "search": {
+        "en": "Search",
+        "bg": "Търси"
+      },
+      "notifications": {
+        "en": "Notifications",
+        "bg": "Известия"
+      },
+      "user-profile": {
+        "en": "Your profile",
+        "bg": "Вашият профил"
+      }
     },
     "sidebar": {
-      "theme-daylight": { "en": "Daylight Theme", "bg": "Светла Тема" },
-      "theme-glass": { "en": "Glass Theme", "bg": "Стъклена Тема" },
-      "cycle-loading": { "en": "Loading…", "bg": "Зарежда…" }
+      "theme-daylight": {
+        "en": "Daylight Theme",
+        "bg": "Светла Тема"
+      },
+      "theme-glass": {
+        "en": "Glass Theme",
+        "bg": "Стъклена Тема"
+      },
+      "cycle-loading": {
+        "en": "Loading…",
+        "bg": "Зарежда…"
+      }
     },
     "schedule": {
       "title": {
