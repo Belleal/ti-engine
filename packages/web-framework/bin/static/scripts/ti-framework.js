@@ -10,7 +10,7 @@
  * @typedef {Object} SidebarFlyoutConfig
  * @property {string} menuTitle
  * @property {number} [offset]
- * @property {string} icon
+ * @property {string} [icon]
  * @property {string} [placement]
  * @property {boolean} [fixed]
  * @property {Array<SidebarFlyoutButtonConfig>} [buttonConfigs]
@@ -28,47 +28,17 @@
  */
 
 /**
+ * Default configuration applied as a base when an application-supplied flyout config is merged into the store.
+ *
  * @constant
  * @type {SidebarFlyoutConfig}
  */
-const configSidebarApplicationMenu = {
-    menuTitle: "Application Menu",
-    offset: 20,
-    icon: "app-menu",
-    buttonConfigs: [ {
-        title: "Error",
-        icon: "error",
-        action: {
-            href: "/app/error",
-            target: "#ti-content",
-            swap: "innerHTML"
-        }
-    }, {
-        title: "Profile",
-        icon: "user-profile",
-        action: {
-            href: "/app/profile",
-            target: "#ti-content",
-            swap: "innerHTML"
-        }
-    }, {
-        title: "Settings",
-        icon: "settings",
-        action: {
-            href: "/app/administration",
-            target: "#ti-content",
-            swap: "innerHTML"
-        }
-    }, {
-        title: "Logout",
-        icon: "logout",
-        action: {
-            href: "/logout",
-            method: "post",
-            target: "body",
-            swap: "outerHTML"
-        }
-    } ]
+const defaultSidebarFlyoutConfig = {
+    menuTitle: "Menu",
+    placement: "right-start",
+    offset: 10,
+    fixed: true,
+    buttonConfigs: []
 };
 
 /**
@@ -305,13 +275,17 @@ const configureToolbox = () => {
 
 /**
  * Returns a configuration object for the sidebar flyout component "component-sidebar-flyout.html".
+ * <br/>
+ * The component looks up its menu definition from the "tiComponentsConfig" Alpine store using the supplied
+ * configuration key. This allows each application to register its own flyout menus via the application
+ * configuration response without modifying the framework.
  *
  * @method
- * @param {Object} options
+ * @param {string} configKey Key into the "tiComponentsConfig" store identifying the flyout configuration to use.
  * @returns {Object}
  * @public
  */
-const configureComponentSidebarFlyout = ( options = {} ) => {
+const configureComponentSidebarFlyout = ( configKey ) => {
     const tiToolbox = Alpine.store( "tiToolbox" );
     const TI_EVENT_CLOSE_ALL_FLYOUT = "ti-close-all-flyout";
 
@@ -319,11 +293,31 @@ const configureComponentSidebarFlyout = ( options = {} ) => {
      * @typedef {Object} TiSidebarFlyout
      */
     return {
-        placement: options.placement ?? "right-start",
-        offset: options.offset ?? 10,
-        fixed: options.fixed ?? true,
-        icon: options.icon ?? "app-menu",
+        configKey: configKey || "",
         isOpen: false,
+
+        get config() {
+            const store = Alpine.store( "tiComponentsConfig" ) || {};
+            return store[ this.configKey ] || defaultSidebarFlyoutConfig;
+        },
+        get menuTitle() {
+            return this.config.menuTitle || "";
+        },
+        get placement() {
+            return this.config.placement || "right-start";
+        },
+        get offset() {
+            return ( typeof this.config.offset === "number" ) ? this.config.offset : 10;
+        },
+        get fixed() {
+            return ( typeof this.config.fixed === "boolean" ) ? this.config.fixed : true;
+        },
+        get icon() {
+            return this.config.icon || "";
+        },
+        get buttonConfigs() {
+            return Array.isArray( this.config.buttonConfigs ) ? this.config.buttonConfigs : [];
+        },
 
         /**
          * Used to initialize the sidebar flyout component.
@@ -786,6 +780,7 @@ const configureApplication = () => {
             // Use application settings to configure the application at load-time:
             this.sendRequest( "/app/config" ).then( ( result ) => {
                 this.configuration = result?.data || {};
+                this._mergeComponentsConfig( this.configuration?.componentsConfig );
                 return ( this.configuration?.auth?.isAuthenticated ) ? this.sendRequest( "/me" ) : {};
             } ).then( ( result ) => {
                 this.user = result?.data?.user || null;
@@ -1010,6 +1005,25 @@ const configureApplication = () => {
          */
         _applyTheme( theme ) {
             document.documentElement.dataset.theme = theme;
+        },
+
+        /**
+         * Merges app-supplied component configurations into the "tiComponentsConfig" Alpine store.
+         * Each entry is deep-merged on top of the framework's default flyout config, so apps only need
+         * to supply the differences.
+         *
+         * @method
+         * @param {Object} [componentsConfig]
+         * @private
+         */
+        _mergeComponentsConfig( componentsConfig ) {
+            if ( !componentsConfig || typeof componentsConfig !== "object" ) {
+                return;
+            }
+            const store = Alpine.store( "tiComponentsConfig" );
+            Object.keys( componentsConfig ).forEach( ( key ) => {
+                store[ key ] = tiToolbox.deepMerge( defaultSidebarFlyoutConfig, componentsConfig[ key ] || {} );
+            } );
         }
 
     };
@@ -1103,24 +1117,79 @@ document.addEventListener( "htmx:responseError", ( event ) => {
 } );
 
 /**
+ * Returns a configuration object for the login screen test user pill panel.
+ * <br/>
+ * NOTE: This is a TEMPORARY testing aid that injects an employeeID and roles into the session via a cookie
+ * which the server-side {@link augmentSession} reads. Remove together with the panel HTML once real identity
+ * propagation is in place.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureLoginTestUserPanel = () => {
+    const COOKIE_NAME = "ti-test-user";
+    const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+
+    const readCookie = () => {
+        try {
+            const tiToolbox = Alpine.store( "tiToolbox" );
+            const raw = tiToolbox.getCookie( COOKIE_NAME );
+            if ( !raw ) return null;
+            const parsed = JSON.parse( raw );
+            return ( parsed && parsed.employeeID ) ? parsed : null;
+        } catch {
+            return null;
+        }
+    };
+
+    const writeCookie = ( value ) => {
+        const encoded = encodeURIComponent( JSON.stringify( value ) );
+        document.cookie = `${ COOKIE_NAME }=${ encoded }; path=/; max-age=${ COOKIE_MAX_AGE_SECONDS }; SameSite=Lax`;
+    };
+
+    const clearCookie = () => {
+        document.cookie = `${ COOKIE_NAME }=; path=/; max-age=0; SameSite=Lax`;
+    };
+
+    return {
+        profiles: [
+            { employeeID: "22", roles: [ 1, 2, 3 ] },
+            { employeeID: "20", roles: [ 1, 2 ] },
+            { employeeID: "1", roles: [ 1 ] },
+            { employeeID: "4", roles: [ 1 ] }
+        ],
+        selected: null,
+
+        init() {
+            this.selected = readCookie();
+        },
+
+        isSelected( profile ) {
+            return Boolean( this.selected && this.selected.employeeID === profile.employeeID );
+        },
+
+        select( profile ) {
+            this.selected = { employeeID: profile.employeeID, roles: profile.roles.slice() };
+            writeCookie( this.selected );
+        },
+
+        clear() {
+            this.selected = null;
+            clearCookie();
+        }
+    };
+};
+
+/**
  * Register on-initialization tasks for the Alpine.js framework.
  */
 document.addEventListener( "alpine:init", () => {
-    const defaultComponentConfig = {
-        menuTitle: "Menu",
-        placement: "right-start",
-        offset: 10,
-        fixed: true,
-        buttonConfigs: []
-    };
-
     // Note: Sequence here is important!
     Alpine.directive( "text-label", configureDirectiveTextLabel() );
     Alpine.store( "tiToolbox", configureToolbox() );
     Alpine.store( "tiApplication", configureApplication() );
-    Alpine.store( "tiComponentsConfig", {
-        sidebarApplicationMenu: Alpine.store( "tiToolbox" ).deepMerge( defaultComponentConfig, configSidebarApplicationMenu )
-    } );
+    Alpine.store( "tiComponentsConfig", {} );
     Alpine.data( "tiApplication", () => ( {
         get collapsed() {
             return Alpine.store( "tiApplication" ).collapsed;
@@ -1140,4 +1209,5 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
     Alpine.data( "tiComponentTooltip", configureComponentTooltip );
+    Alpine.data( "tiLoginTestUserPanel", configureLoginTestUserPanel );
 } );

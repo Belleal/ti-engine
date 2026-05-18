@@ -1,4 +1,4 @@
-<div id="ti-login">
+<div id="ti-login" x-data="tiLoginTestUserPanel">
     <div class="ti-login-container">
         <!-- Brand mark -->
         <div class="ti-login-brand">
@@ -73,6 +73,28 @@
                     </svg>
                     <span x-text-label="interface.default.login.sign-in-azure">Sign in with Azure</span>
                 </a>
+            </div>
+        </div>
+
+        <!-- TEMPORARY: Test user selector for augmentSession() experimentation. Remove once AD-driven identity is wired up. -->
+        <div class="ti-login-test-panel" role="group" aria-label="Test user selector">
+            <div class="ti-login-test-panel-title">Test user</div>
+            <div class="ti-login-test-panel-sub">Pick an identity to inject on login (any sign-in method).</div>
+            <div class="ti-login-test-panel-pills">
+                <template x-for="profile in profiles" :key="profile.employeeID">
+                    <button type="button"
+                            class="ti-login-test-pill"
+                            x-bind:class="{ selected: isSelected(profile) }"
+                            x-bind:aria-pressed="isSelected(profile)"
+                            x-on:click="select(profile)">
+                        <span class="ti-login-test-pill-id" x-text="'#' + profile.employeeID"></span>
+                        <span class="ti-login-test-pill-roles" x-text="'roles ' + profile.roles.join(', ')"></span>
+                    </button>
+                </template>
+                <button type="button"
+                        class="ti-login-test-pill ghost"
+                        x-show="selected"
+                        x-on:click="clear()">Clear</button>
             </div>
         </div>
     </div>

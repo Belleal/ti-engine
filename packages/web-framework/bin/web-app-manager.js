@@ -404,6 +404,13 @@ class TiWebAppManager {
 
     /**
      * Used to replace a placeholder element in the HTML with the provided replacement.
+     * <br/>
+     * The placeholder's attributes are exposed to the replacement HTML as `{ti-<attr-name>}` tokens, allowing the
+     * component template to consume initial data without changing its `x-data` factory.
+     * <br/>
+     * If the replacement HTML contains a `<ti-slot></ti-slot>` (or self-closing `<ti-slot/>`) marker, the placeholder's
+     * inner content replaces it precisely; otherwise, inner content is appended before the replacement's last closing
+     * tag (legacy behaviour) so existing components keep working.
      *
      * @method
      * @param {string} html
@@ -439,17 +446,59 @@ class TiWebAppManager {
             end += close.length;
         }
 
-        let replacementWithInner = replacement;
-        if ( inner ) {
-            const insertAt = replacement.lastIndexOf( "</" );
-            if ( insertAt !== -1 ) {
-                replacementWithInner = replacement.slice( 0, insertAt ) + inner + replacement.slice( insertAt );
+        // Substitute the placeholder's attributes as `{ti-<name>}` tokens inside the replacement HTML:
+        const placeholderAttributes = this.#parsePlaceholderAttributes( html.slice( start, gt + 1 ) );
+        let processedReplacement = replacement;
+        Object.keys( placeholderAttributes ).forEach( ( name ) => {
+            const value = placeholderAttributes[ name ];
+            const token = `{ti-${ name }}`;
+            // Use split/join for a literal replaceAll without regex escaping concerns:
+            processedReplacement = processedReplacement.split( token ).join( value );
+        } );
+
+        let replacementWithInner = processedReplacement;
+        const slotMatch = processedReplacement.match( /<ti-slot\b[^>]*>[\s\S]*?<\/ti-slot>|<ti-slot\b[^>]*\/>/ );
+        if ( slotMatch ) {
+            // If a slot marker exists, the placeholder's inner content (when present) replaces it. When inner is
+            // empty, the slot's own default content (between <ti-slot> and </ti-slot>) is kept by unwrapping it:
+            if ( inner ) {
+                replacementWithInner = processedReplacement.replace( slotMatch[ 0 ], inner );
             } else {
-                replacementWithInner = replacement + inner;
+                replacementWithInner = processedReplacement.replace( slotMatch[ 0 ], ( match ) => {
+                    const defaultMatch = match.match( /<ti-slot\b[^>]*>([\s\S]*?)<\/ti-slot>/ );
+                    return defaultMatch ? defaultMatch[ 1 ] : "";
+                } );
+            }
+        } else if ( inner ) {
+            const insertAt = processedReplacement.lastIndexOf( "</" );
+            if ( insertAt !== -1 ) {
+                replacementWithInner = processedReplacement.slice( 0, insertAt ) + inner + processedReplacement.slice( insertAt );
+            } else {
+                replacementWithInner = processedReplacement + inner;
             }
         }
 
         return html.slice( 0, start ) + replacementWithInner + html.slice( end );
+    }
+
+    /**
+     * Parses the attribute name/value pairs declared on a placeholder element's opening tag.
+     *
+     * @method
+     * @param {string} openingTag The full opening tag text, e.g. `<ti-foo-placeholder bar="baz">`.
+     * @returns {Object<string, string>}
+     * @private
+     */
+    #parsePlaceholderAttributes( openingTag ) {
+        const attributes = {};
+        // Strip the element name and the surrounding angle brackets so only the attribute string remains:
+        const trimmed = openingTag.replace( /^<[^\s>/]+/, "" ).replace( /\/?>\s*$/, "" );
+        const regex = /([a-zA-Z_][\w:.-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g;
+        let match;
+        while ( ( match = regex.exec( trimmed ) ) !== null ) {
+            attributes[ match[ 1 ] ] = match[ 2 ] ?? match[ 3 ] ?? match[ 4 ] ?? "";
+        }
+        return attributes;
     }
 
 }

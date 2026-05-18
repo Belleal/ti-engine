@@ -1,20 +1,27 @@
 <div x-id="['component-flyout']"
-     x-data="tiComponentSidebarFlyout({ placement: placement, offset: offset, fixed: fixed })"
+     x-data="tiComponentSidebarFlyout('{ti-config-key}')"
      class="ti-sidebar-flyout-container">
-    <button x-on:click.stop="toggle()"
-            x-on:ti-close-all-flyout="close()"
-            x-bind:aria-expanded="isOpen"
-            x-bind:aria-controls="$id('component-flyout')"
-            x-bind:aria-label="menuTitle"
-            x-ref="flyoutButton"
-            type="button" class="ti-sidebar-button ti-glass-btn-black">
-        <span class="ti-icon" x-bind:class="icon" aria-hidden="true"></span>
-    </button>
+    <!--
+        Trigger slot. The placeholder consumer can replace this with any custom button — typically a user avatar
+        or app menu trigger. The trigger MUST set x-ref="flyoutButton" and call toggle() to integrate with the
+        encapsulated flyout state. If the consumer omits inner content, this default icon button is used.
+    -->
+    <ti-slot>
+        <button x-on:click.stop="toggle()"
+                x-on:ti-close-all-flyout="close()"
+                x-bind:aria-expanded="isOpen"
+                x-bind:aria-controls="$id('component-flyout')"
+                x-bind:aria-label="menuTitle"
+                x-ref="flyoutButton"
+                type="button" class="ti-sidebar-button">
+            <span class="ti-icon" x-bind:class="icon" aria-hidden="true"></span>
+        </button>
+    </ti-slot>
     <div x-on:click.outside="close()"
          x-bind:id="$id('component-flyout')"
          x-show="isOpen"
          x-ref="flyoutPanel"
-         role="menu" class="ti-sidebar-flyout ti-glass-panel-black">
+         role="menu" class="ti-sidebar-flyout">
         <template x-for="(buttonConfig, index) in buttonConfigs">
             <button x-on:click="close()"
                     x-bind:hx-get="(!buttonConfig.action.method || buttonConfig.action.method === 'get') ? buttonConfig.action.href : null"
@@ -22,7 +29,7 @@
                     x-bind:hx-target="buttonConfig.action.target"
                     x-bind:hx-swap="buttonConfig.action.swap"
                     hx-push-url="true"
-                    type="button" class="ti-sidebar-flyout-item ti-glass-btn-black large">
+                    type="button" class="ti-sidebar-flyout-item">
                 <span class="ti-icon" x-bind:class="buttonConfig.icon" aria-hidden="true"></span><span x-text="buttonConfig.title"></span>
             </button>
         </template>
