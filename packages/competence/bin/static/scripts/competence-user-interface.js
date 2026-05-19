@@ -298,6 +298,13 @@ const configureCompetenceEvaluation = () => {
             return "interface.evaluation.appraisal.submission-deadline";
         },
 
+        getContextualDeadlinePlaceholder() {
+            if ( this.evaluation?.status === "Ready" ) {
+                return "interface.evaluation.appraisal.interview-date-not-set";
+            }
+            return "interface.evaluation.appraisal.submission-deadline-not-set";
+        },
+
         getDaysLeft( dateStr ) {
             if ( !dateStr ) return null;
             const diffMs = new Date( dateStr ).getTime() - Date.now();
