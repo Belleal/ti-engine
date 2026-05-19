@@ -3584,12 +3584,12 @@
         "bg": "Изберете Свободен Слот"
       },
       "week-nav-prev": {
-        "en": "< Earlier",
-        "bg": "< Предишни"
+        "en": "Earlier",
+        "bg": "Предишни"
       },
       "week-nav-next": {
-        "en": "Later >",
-        "bg": "Следващи >"
+        "en": "Later",
+        "bg": "Следващи"
       },
       "no-evaluations-title": {
         "en": "No Interviews to Schedule",
@@ -3611,6 +3611,10 @@
         "schedule": {
           "en": "Schedule",
           "bg": "Насрочи"
+        },
+        "cancel-selection": {
+          "en": "Cancel Selection",
+          "bg": "Отмени Избора"
         },
         "cancel-booking": {
           "en": "Cancel Interview",

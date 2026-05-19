@@ -54,11 +54,15 @@
                             <div class="competence-interview-col-label" x-text-label="interface.schedule.interview-label"></div>
                             <div class="competence-interview-date-value"
                                  x-bind:class="{ 'not-scheduled': !evaluation.interviewDate }"
-                                 x-text="evaluation.interviewDate ? formatDate(evaluation.interviewDate) : getLabel('interface.schedule.not-scheduled')"></div>
+                                 x-text="evaluation.interviewDate ? formatDate( evaluation.interviewDate ) : getLabel( 'interface.schedule.not-scheduled' )"></div>
                         </div>
                         <div class="competence-interview-actions">
-                            <button type="button" class="ti-btn sm primary" x-show="!evaluation.interviewDate"
-                                    @click="selectEvaluation(evaluation.evaluationID)" x-text-label="interface.schedule.actions.schedule"></button>
+                            <button type="button" x-show="!evaluation.interviewDate"
+                                    class="ti-btn sm primary"
+                                    @click="selectEvaluation( evaluation.evaluationID )">
+                                <span x-show="selectedEvaluationID !== evaluation.evaluationID" x-text-label="interface.schedule.actions.schedule"></span>
+                                <span x-show="selectedEvaluationID === evaluation.evaluationID" x-text-label="interface.schedule.actions.cancel-selection"></span>
+                            </button>
                             <button type="button" class="ti-btn sm ghost" x-show="!!evaluation.interviewDate && !!evaluation.bookedSlotID"
                                     @click="cancelBooking(evaluation.bookedSlotID)">
                                 <span aria-hidden="true">×</span>
@@ -76,10 +80,18 @@
         <div class="ti-panel-head">
             <div class="ti-panel-title" x-text-label="interface.schedule.pick-slot-title"></div>
             <div class="ti-panel-head-actions">
-                <button type="button" class="ti-btn sm ghost" @click="prevSlotWeeks()" x-bind:disabled="!canGoPrevSlotWeeks()"
-                        x-text-label="interface.schedule.week-nav-prev"></button>
-                <button type="button" class="ti-btn sm ghost" @click="nextSlotWeeks()" x-bind:disabled="!canGoNextSlotWeeks()"
-                        x-text-label="interface.schedule.week-nav-next"></button>
+                <button type="button" class="ti-btn sm ghost" @click="prevSlotWeeks()" x-bind:disabled="!canGoPrevSlotWeeks()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                    <span x-text-label="interface.schedule.week-nav-prev"></span>
+                </button>
+                <button type="button" class="ti-btn sm ghost" @click="nextSlotWeeks()" x-bind:disabled="!canGoNextSlotWeeks()">
+                    <span x-text-label="interface.schedule.week-nav-next"></span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                </button>
             </div>
         </div>
 
