@@ -2235,7 +2235,7 @@
 }
 
 .state-step.complete .marker::after {
-    content: '';
+    content: "";
     width: 4px;
     height: 7px;
     margin-top: -2px;
@@ -2274,7 +2274,7 @@
 }
 
 .state-step-line.current::after {
-    content: '';
+    content: "";
     position: absolute;
     inset: 0;
     background: linear-gradient(90deg, var(--success) 0%, var(--accent) 50%, var(--border) 50%, var(--border) 100%);
