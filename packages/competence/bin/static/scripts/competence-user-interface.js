@@ -17,16 +17,6 @@ const configureCompetenceEvaluation = () => {
     const tiToolbox = Alpine.store( "tiToolbox" );
     const tiApplication = Alpine.store( "tiApplication" );
 
-    const getEmployeeIDFromUrl = () => {
-        const params = new URLSearchParams( window.location.search );
-        return params.get( "employeeID" );
-    };
-
-    const getEvaluationIDFromUrl = () => {
-        const params = new URLSearchParams( window.location.search );
-        return params.get( "evaluationID" );
-    };
-
     return {
         employeeID: null,
         userRole: null,
@@ -50,7 +40,7 @@ const configureCompetenceEvaluation = () => {
         init() {
             const onInitialized = () => {
                 this.grades = tiApplication.configuration.grades;
-                this.employeeID = getEmployeeIDFromUrl();
+                this.employeeID = tiToolbox.getUrlParam( "employeeID" );
                 this.loadEmployeeEvaluation( this.employeeID );
             };
 
@@ -89,7 +79,7 @@ const configureCompetenceEvaluation = () => {
             if ( resolvedID ) {
                 this.employeeID = resolvedID;
             }
-            const evaluationID = getEvaluationIDFromUrl();
+            const evaluationID = tiToolbox.getUrlParam( "evaluationID" );
             const params = new URLSearchParams();
             if ( resolvedID ) params.set( "employeeID", resolvedID );
             if ( evaluationID ) params.set( "evaluationID", evaluationID );
@@ -562,11 +552,6 @@ const configureNewEvaluation = () => {
     const tiToolbox = Alpine.store( "tiToolbox" );
     const tiApplication = Alpine.store( "tiApplication" );
 
-    const getEmployeeIDFromUrl = () => {
-        const params = new URLSearchParams( window.location.search );
-        return params.get( "employeeID" );
-    };
-
     return {
         employeeID: null,
         personal: {},
@@ -578,7 +563,7 @@ const configureNewEvaluation = () => {
 
         init() {
             const onInitialized = () => {
-                this.employeeID = getEmployeeIDFromUrl();
+                this.employeeID = tiToolbox.getUrlParam( "employeeID" );
                 this.loadData( this.employeeID );
             };
 
@@ -690,22 +675,6 @@ const configureManagerCalendar = () => {
         return `${ String( h ).padStart( 2, "0" ) }:${ String( m ).padStart( 2, "0" ) }`;
     };
 
-    const toDateString = ( date ) => {
-        const y = date.getFullYear();
-        const m = String( date.getMonth() + 1 ).padStart( 2, "0" );
-        const d = String( date.getDate() ).padStart( 2, "0" );
-        return `${ y }-${ m }-${ d }`;
-    };
-
-    const getMonday = ( date ) => {
-        const d = new Date( date );
-        const day = d.getDay();
-        const diff = ( day === 0 ) ? -6 : 1 - day;
-        d.setDate( d.getDate() + diff );
-        d.setHours( 0, 0, 0, 0 );
-        return d;
-    };
-
     return {
         cycleID: "",
         cycleDate: "",
@@ -715,7 +684,7 @@ const configureManagerCalendar = () => {
         currentWeekStart: null,
 
         init() {
-            this.currentWeekStart = getMonday( new Date() );
+            this.currentWeekStart = tiToolbox.getMonday( new Date() );
 
             const onInitialized = () => {
                 this.loadCalendar();
@@ -784,7 +753,7 @@ const configureManagerCalendar = () => {
                 const dayOfWeek = d.getDay();
                 if ( workingDays.includes( dayOfWeek ) ) {
                     days.push( {
-                        date: toDateString( d ),
+                        date: tiToolbox.toDateString( d ),
                         dayLabel: DAY_NAMES[ dayOfWeek ],
                         dateLabel: `${ String( d.getDate() ).padStart( 2, "0" ) } ${ d.toLocaleString( "en", { month: "short" } ) }`
                     } );
@@ -873,7 +842,7 @@ const configureManagerCalendar = () => {
             if ( !this.currentWeekStart ) {
                 return false;
             }
-            return toDateString( this.currentWeekStart ) > toDateString( getMonday( new Date() ) );
+            return tiToolbox.toDateString( this.currentWeekStart ) > tiToolbox.toDateString( tiToolbox.getMonday( new Date() ) );
         },
 
         canGoNext() {
@@ -895,7 +864,7 @@ const configureManagerCalendar = () => {
         },
 
         isToday( dateStr ) {
-            return dateStr === toDateString( new Date() );
+            return dateStr === tiToolbox.toDateString( new Date() );
         },
 
         getAvailableCount() {
@@ -961,22 +930,6 @@ const configureInterviewSchedule = () => {
 
     const DAY_NAMES_SHORT = [ "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" ];
 
-    const toDateString = ( date ) => {
-        const y = date.getFullYear();
-        const m = String( date.getMonth() + 1 ).padStart( 2, "0" );
-        const d = String( date.getDate() ).padStart( 2, "0" );
-        return `${ y }-${ m }-${ d }`;
-    };
-
-    const getMonday = ( date ) => {
-        const d = new Date( date );
-        const day = d.getDay();
-        const diff = ( day === 0 ) ? -6 : 1 - day;
-        d.setDate( d.getDate() + diff );
-        d.setHours( 0, 0, 0, 0 );
-        return d;
-    };
-
     return {
         cycleID: "",
         evaluations: [],
@@ -1010,11 +963,11 @@ const configureInterviewSchedule = () => {
                 this.config = data.config || {};
                 this.selectedEvaluationID = null;
 
-                const todayMonday = getMonday( new Date() );
+                const todayMonday = tiToolbox.getMonday( new Date() );
                 const available = this.slots.filter( ( s ) => s.status === "available" );
                 if ( available.length > 0 ) {
                     const earliest = available.reduce( ( a, b ) => ( a.date <= b.date ? a : b ) );
-                    const earliestMonday = getMonday( new Date( earliest.date + "T00:00:00" ) );
+                    const earliestMonday = tiToolbox.getMonday( new Date( earliest.date + "T00:00:00" ) );
                     this.slotViewStart = earliestMonday < todayMonday ? todayMonday : earliestMonday;
                 } else {
                     this.slotViewStart = todayMonday;
@@ -1075,8 +1028,8 @@ const configureInterviewSchedule = () => {
                 weekStart.setDate( weekStart.getDate() + w * 7 );
                 const weekEnd = new Date( weekStart );
                 weekEnd.setDate( weekEnd.getDate() + 6 );
-                const weekStartStr = toDateString( weekStart );
-                const weekEndStr = toDateString( weekEnd );
+                const weekStartStr = tiToolbox.toDateString( weekStart );
+                const weekEndStr = tiToolbox.toDateString( weekEnd );
                 const weekSlots = available
                     .filter( ( s ) => s.date >= weekStartStr && s.date <= weekEndStr )
                     .sort( ( a, b ) => `${ a.date }|${ a.startTime }`.localeCompare( `${ b.date }|${ b.startTime }` ) );
@@ -1092,7 +1045,7 @@ const configureInterviewSchedule = () => {
             if ( !this.canGoPrevSlotWeeks() ) {
                 return;
             }
-            const todayMonday = getMonday( new Date() );
+            const todayMonday = tiToolbox.getMonday( new Date() );
             const d = new Date( this.slotViewStart );
             d.setDate( d.getDate() - 28 );
             this.slotViewStart = d < todayMonday ? todayMonday : d;
@@ -1111,7 +1064,7 @@ const configureInterviewSchedule = () => {
             if ( !this.slotViewStart ) {
                 return false;
             }
-            return toDateString( this.slotViewStart ) > toDateString( getMonday( new Date() ) );
+            return tiToolbox.toDateString( this.slotViewStart ) > tiToolbox.toDateString( tiToolbox.getMonday( new Date() ) );
         },
 
         canGoNextSlotWeeks() {
@@ -1120,7 +1073,7 @@ const configureInterviewSchedule = () => {
             }
             const windowEnd = new Date( this.slotViewStart );
             windowEnd.setDate( windowEnd.getDate() + 28 );
-            const windowEndStr = toDateString( windowEnd );
+            const windowEndStr = tiToolbox.toDateString( windowEnd );
             return this.slots.some( ( s ) => s.status === "available" && s.date >= windowEndStr );
         },
 

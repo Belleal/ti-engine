@@ -168,6 +168,34 @@ const configureToolbox = () => {
         },
 
         /**
+         * Used to get the Monday of the week for a given date.
+         *
+         * @method
+         * @param {Date} date
+         * @returns {Date}
+         * @public
+         */
+        getMonday( date ) {
+            const d = new Date( date );
+            const day = d.getDay();
+            d.setDate( d.getDate() + ( day === 0 ? -6 : 1 - day ) );
+            d.setHours( 0, 0, 0, 0 );
+            return d;
+        },
+
+        /**
+         * Used to get a URL query parameter value by name.
+         *
+         * @method
+         * @param {string} name
+         * @returns {string|null}
+         * @public
+         */
+        getUrlParam( name ) {
+            return new URLSearchParams( window.location.search ).get( name );
+        },
+
+        /**
          * Used to get the visible box of the document.
          *
          * @method
@@ -241,6 +269,21 @@ const configureToolbox = () => {
          */
         structuredClone( value, options ) {
             return ( typeof structuredClone === "function" ) ? structuredClone( value, options ) : JSON.parse( JSON.stringify( value ) );
+        },
+
+        /**
+         * Used to convert a Date object to an ISO date string (YYYY-MM-DD).
+         *
+         * @method
+         * @param {Date} date
+         * @returns {string}
+         * @public
+         */
+        toDateString( date ) {
+            const y = date.getFullYear();
+            const m = String( date.getMonth() + 1 ).padStart( 2, "0" );
+            const d = String( date.getDate() ).padStart( 2, "0" );
+            return `${ y }-${ m }-${ d }`;
         },
 
         /**
