@@ -80,6 +80,7 @@
 /**
  * @typedef {Object} Evaluation
  * @property {string} evaluationID - Unique identifier for the evaluation (UUID).
+ * @property {string} shortID - Short human-readable identifier for the evaluation.
  * @property {string} employeeID - ID of the employee being evaluated.
  * @property {string} [managerID] - ID of the manager who reviews the evaluation.
  * @property {string} cycleID - Identifier of the evaluation cycle (e.g., 2025.H1).

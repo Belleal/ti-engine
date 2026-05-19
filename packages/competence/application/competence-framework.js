@@ -125,7 +125,7 @@ class CompetenceFramework {
 
     /**
      * Used to generate a short display ID from a UUID.
-     * Deterministic: same UUID always produces the same base candidate.
+     * Deterministic: the same UUID always produces the same base candidate.
      * Collision-safe: if the candidate is already used within the cycle, increments until a free slot is found.
      *
      * @method
@@ -159,8 +159,10 @@ class CompetenceFramework {
      * @public
      */
     createNewEvaluation( employee ) {
+        const evaluationID = tools.getUUID();
         return {
-            evaluationID: tools.getUUID(),
+            evaluationID: evaluationID,
+            shortID: this.#evaluationCycleID + this.generateShortID( evaluationID ),
             employeeID: employee.employeeID,
             cycleID: this.#evaluationCycleID,
             cycleDate: this.#evaluationCycleDate,

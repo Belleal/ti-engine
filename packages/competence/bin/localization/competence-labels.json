@@ -3584,12 +3584,12 @@
         "bg": "Изберете Свободен Слот"
       },
       "week-nav-prev": {
-        "en": "← Previous",
-        "bg": "← Предишни"
+        "en": "< Earlier",
+        "bg": "< Предишни"
       },
       "week-nav-next": {
-        "en": "Next →",
-        "bg": "Следващи →"
+        "en": "Later >",
+        "bg": "Следващи >"
       },
       "no-evaluations-title": {
         "en": "No Interviews to Schedule",

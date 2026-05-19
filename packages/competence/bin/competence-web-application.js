@@ -818,9 +818,6 @@ class CompetenceWebApplication extends TiWebAppManager {
                     newEvaluation.workflow.team = uniqueTeam;
                 }
 
-                const usedShortIDs = new Set( allEvaluations.map( ( evaluation ) => evaluation.shortID ).filter( ( v ) => !!v ) );
-                newEvaluation.shortID = competenceFramework.instance.generateShortID( newEvaluation.evaluationID, usedShortIDs );
-
                 // Populate the competencies based on the employee career path and the role configuration:
                 for ( const competencyCode of competenceFramework.instance.getAllowedCompetencyCodes( employee.career.careerPath, newEvaluation.cycleID ) ) {
                     newEvaluation.grades[ competencyCode ] = competenceFramework.instance.normalizeGrades( newEvaluation.grades, competencyCode );
@@ -955,10 +952,9 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 const evaluations = readyEvaluations.map( ( evaluation ) => {
                     const bookedSlot = bookedSlotByEvaluationID.get( evaluation.evaluationID ) || null;
-                    const shortID = evaluation.shortID || competenceFramework.instance.generateShortID( evaluation.evaluationID, usedShortIDs );
                     return {
                         evaluationID: evaluation.evaluationID,
-                        shortID,
+                        shortID: evaluation.shortID,
                         employeeID: evaluation.employeeID,
                         employeeName: organizationManager.instance.resolveEmployeeName( evaluation.employeeID ) || evaluation.employeeID,
                         managerID: evaluation.managerID,

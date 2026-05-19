@@ -1574,12 +1574,12 @@
 }
 
 .competence-schedule-badge {
-    font-size: var(--fs-xs);
     color: var(--fg-tertiary);
-    background: var(--bg-sunken);
-    border: 1px solid var(--border-soft);
-    border-radius: var(--r-full);
-    padding: 2px var(--s-3);
+    font-size: var(--fs-sm);
+    margin-left: var(--s-3);
+    padding-left: var(--s-3);
+    border-left: 1px solid var(--border);
+    white-space: nowrap;
 }
 
 .competence-slot-picker-grid {

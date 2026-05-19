@@ -1090,7 +1090,7 @@ const configureInterviewSchedule = () => {
         },
 
         getEvalMeta( evaluation ) {
-            const displayID = evaluation.shortID ? ( this.cycleID + "-" + evaluation.shortID ) : evaluation.evaluationID;
+            const displayID = evaluation.shortID || evaluation.evaluationID;
             return [ displayID, evaluation.careerPathName, evaluation.stageLevel ]
                 .filter( ( v ) => !!v )
                 .join( " · " );
