@@ -156,11 +156,11 @@
                                             </div>
                                             <div class="competence-org-employee-id">
                                                 <span x-text="employee.id"></span>
-                                                <template x-if="employee.personal && employee.personal.email">
+                                                <template x-if="employee.personal && employee.email">
                                                     <span class="competence-org-sub-sep">·</span>
                                                 </template>
-                                                <template x-if="employee.personal && employee.personal.email">
-                                                    <span class="competence-org-employee-email" x-text="employee.personal.email"></span>
+                                                <template x-if="employee.personal && employee.email">
+                                                    <span class="competence-org-employee-email" x-text="employee.email"></span>
                                                 </template>
                                             </div>
                                         </div>

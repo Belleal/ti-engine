@@ -308,11 +308,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                     return {
                         id: employeeNode.employeeID,
                         name: employeeNode.name,
+                        email: employeeNode.email,
                         isCurrentUser: employeeNode.employeeID === userID,
                         isManager: unitManagerID !== null && unitManagerID === employeeNode.employeeID,
                         organizationUnitID: employeeNode.organizationUnitID,
                         personal: canSeePersonalData ? {
-                            email: employeeNode.email,
                             workMode: employeeNode.workMode,
                             workLocation: employeeNode.workLocation
                         } : null,
@@ -870,7 +870,9 @@ class CompetenceWebApplication extends TiWebAppManager {
                 resolve( {
                     personal: {
                         ...employee.personal,
-                        organizationUnitName: organizationContext.organizationUnitName
+                        name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
+                        organizationUnitName: organizationContext.organizationUnitName,
+                        startingDate: employee.career?.startingDate || null
                     },
                     manager: {
                         managerID: organizationContext.managerID,
