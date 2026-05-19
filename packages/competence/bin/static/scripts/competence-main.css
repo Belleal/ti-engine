@@ -1668,7 +1668,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 4px 4px 10px;
+    padding: 4px 4px 4px 4px;
     background: var(--accent-soft);
     border-radius: var(--r-pill);
     font-size: var(--fs-sm);
@@ -2005,32 +2005,31 @@
 .competence-new-eval-employee-body {
     padding: var(--s-5);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--s-5);
-}
-
-.competence-new-eval-employee-name {
-    font-size: var(--fs-xl);
-    font-weight: 600;
-    letter-spacing: -0.02em;
-}
-
-.competence-new-eval-employee-sub {
-    font-size: var(--fs-sm);
-    color: var(--fg-secondary);
-    margin-top: var(--s-1);
-    display: flex;
-    gap: var(--s-3);
-    flex-wrap: wrap;
-    align-items: center;
 }
 
 .competence-new-eval-kv-ext {
     padding: 0 var(--s-5) var(--s-5);
 }
 
+.competence-new-eval-team-desc {
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+    padding: 0 var(--s-5) var(--s-4);
+    line-height: 1.5;
+}
+
+.competence-new-eval-optional-tag {
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    color: var(--fg-tertiary);
+    margin-left: var(--s-2);
+}
+
 .competence-new-eval-team-body {
     padding: var(--s-5);
+    padding-top: 0;
 }
 
 .competence-new-eval-select-row {
@@ -2050,10 +2049,8 @@
     padding: var(--s-2);
 }
 
-.competence-new-eval-actions {
-    display: flex;
+.competence-new-eval-sticky {
     justify-content: flex-end;
-    gap: var(--s-3);
 }
 
 /* Eval employee sub-meta separator */

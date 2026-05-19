@@ -560,6 +560,8 @@ const configureNewEvaluation = () => {
         availableTeamMembers: [],
         team: [],
         selectedTeamMemberID: "",
+        competencyCount: 0,
+        categoryCount: 0,
 
         init() {
             const onInitialized = () => {
@@ -606,8 +608,26 @@ const configureNewEvaluation = () => {
             this.manager = fresh.manager ? tiToolbox.structuredClone( fresh.manager ) : {};
             this.evaluation = fresh.evaluation ? tiToolbox.structuredClone( fresh.evaluation ) : {};
             this.availableTeamMembers = fresh.availableTeamMembers ? tiToolbox.structuredClone( fresh.availableTeamMembers ) : [];
+            this.competencyCount = fresh.evaluation?.competencyCount || 0;
+            this.categoryCount = fresh.evaluation?.categoryCount || 0;
             this.team = [];
             this.selectedTeamMemberID = "";
+        },
+
+        getPageTitle() {
+            const label = tiApplication.getLabel( "interface.evaluation.new-eval.page-title" );
+            return ( label || "" ).replace( "{name}", this.personal.name || "" );
+        },
+
+        getCompetencyCountText() {
+            if ( !this.competencyCount ) { return ""; }
+            const across = tiApplication.getLabel( "interface.evaluation.new-eval.across-categories" );
+            return `${ this.competencyCount } ${ ( across || "across {n} categories" ).replace( "{n}", String( this.categoryCount ) ) }`;
+        },
+
+        getTeamPanelDesc() {
+            const label = tiApplication.getLabel( "interface.evaluation.new-eval.team-desc" );
+            return ( label || "" ).replace( "{name}", this.personal.name || "" );
         },
 
         addTeamMember() {
@@ -631,7 +651,11 @@ const configureNewEvaluation = () => {
                 team: teamIDs
             } ).then( ( result ) => {
                 const evaluationID = result?.data;
-                this.openEvaluation( this.employeeID, evaluationID );
+                let screen = "competence-evaluation?employeeID=" + encodeURIComponent( this.employeeID );
+                if ( evaluationID ) {
+                    screen += "&evaluationID=" + encodeURIComponent( evaluationID );
+                }
+                tiApplication.openScreen( screen );
             } ).catch( ( error ) => {
                 tiApplication.notify( tiApplication.formatException( error ) );
             } );

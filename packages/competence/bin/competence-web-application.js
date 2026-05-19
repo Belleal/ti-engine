@@ -867,6 +867,18 @@ class CompetenceWebApplication extends TiWebAppManager {
                     }
                 } );
 
+                const allowedCodes = competenceFramework.instance.getAllowedCompetencyCodes( employee.career.careerPath, competenceFramework.instance.evaluationCycleID );
+                const allCompetencies = configurationLoader.configCompetencies?.competencies || {};
+                const competencyCategories = new Set();
+                let competencyCount = 0;
+                allowedCodes.forEach( ( code ) => {
+                    const comp = allCompetencies[ code ];
+                    if ( comp && comp.category ) {
+                        competencyCategories.add( comp.category );
+                        competencyCount++;
+                    }
+                } );
+
                 resolve( {
                     personal: {
                         ...employee.personal,
@@ -881,8 +893,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                     evaluation: {
                         cycleID: competenceFramework.instance.evaluationCycleID,
                         cycleDate: competenceFramework.instance.evaluationCycleDate,
+                        cycleEndDate: competenceFramework.instance.evaluationCycleEnd,
                         careerPathName: configurationLoader.careerPathCode.name( employee.career.careerPath ),
-                        stageLevel: `${ employee.career.level }${ employee.career.stage }`
+                        stageLevel: `${ employee.career.level }${ employee.career.stage }`,
+                        competencyCount: competencyCount,
+                        categoryCount: competencyCategories.size
                     },
                     availableTeamMembers: availableTeamMembers
                 } );

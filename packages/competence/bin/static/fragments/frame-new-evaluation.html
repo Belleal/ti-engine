@@ -2,64 +2,101 @@
 
     <template x-if="personal.name">
         <div>
-            <!-- Employee info panel -->
+            <!-- #1 Page header -->
+            <div class="competence-eval-page-header">
+                <div class="competence-eval-page-eyebrow" x-text-label="interface.evaluation.new-eval.page-eyebrow"></div>
+                <h1 class="competence-eval-page-title" x-text="getPageTitle()"></h1>
+                <p class="competence-eval-page-desc" x-text-label="interface.evaluation.new-eval.page-desc"></p>
+            </div>
+
+            <!-- #2/#3 Employee panel -->
             <div class="ti-panel competence-panel-mb">
                 <div class="ti-panel-head">
-                    <div class="ti-panel-title" x-text-label="interface.evaluation.personal.title"></div>
+                    <div class="ti-panel-title" x-text-label="interface.evaluation.new-eval.employee-title"></div>
                 </div>
                 <div class="competence-new-eval-employee-body">
-                    <div class="ti-avatar lg" x-bind:class="$store.tiToolbox.generateAvatarClass(personal.id || personal.name)"
-                         x-bind:aria-label="personal.name">
-                        <span x-text="(personal.name || '?').charAt(0).toUpperCase()"></span>
-                    </div>
-                    <div>
-                        <div class="competence-new-eval-employee-name" x-text="personal.name"></div>
-                        <div class="competence-new-eval-employee-sub">
-                            <span x-text="personal.organizationUnitName"></span>
-                            <span>·</span>
-                            <span x-text-label="interface.evaluation.personal.manager"></span>:
-                            <span x-text="manager.name"></span>
-                            <span>·</span>
-                            <span x-text-label="interface.evaluation.personal.starting-date"></span>:
-                            <span x-text="formatDate(personal.startingDate)"></span>
+                    <div class="competence-eval-emp-avatar-block">
+                        <div class="ti-avatar xl" x-bind:class="$store.tiToolbox.generateAvatarClass(personal.name)"
+                             x-bind:aria-label="personal.name">
+                            <span x-text="(personal.name || '?').charAt(0).toUpperCase()"></span>
+                        </div>
+                        <div class="competence-eval-emp-info">
+                            <div class="competence-eval-emp-name" x-text="personal.name"></div>
+                            <div class="competence-eval-emp-career">
+                                <span x-text="evaluation.careerPathName"></span>
+                                <span class="competence-level-pip"
+                                      x-show="evaluation.stageLevel"
+                                      x-bind:class="evaluation.stageLevel ? evaluation.stageLevel.charAt(0) : ''"
+                                      x-text="evaluation.stageLevel"></span>
+                                <span class="competence-eval-sub-sep">·</span>
+                                <span x-text="personal.organizationUnitName"></span>
+                                <span class="competence-eval-sub-sep" x-show="personal.startingDate">·</span>
+                                <span x-show="personal.startingDate"
+                                      x-text="getLabel('interface.evaluation.personal.joined') + ' ' + formatDate(personal.startingDate)"></span>
+                            </div>
+                            <div class="competence-eval-emp-meta">
+                                <span x-text-label="interface.evaluation.personal.manager"></span>
+                                <span x-text="manager.name"></span>
+                            </div>
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- #4 Cycle & framework panel -->
+            <div class="ti-panel competence-panel-mb">
+                <div class="ti-panel-head">
+                    <div class="ti-panel-title" x-text-label="interface.evaluation.new-eval.cycle-title"></div>
+                    <span class="competence-eval-feedback-intro" x-text-label="interface.evaluation.new-eval.cycle-desc"></span>
+                </div>
                 <div class="ti-kv-grid competence-new-eval-kv-ext">
-                    <span class="ti-kv-label" x-text-label="interface.evaluation.appraisal.cycle"></span>
+                    <span class="ti-kv-label" x-text-label="interface.evaluation.new-eval.cycle-id"></span>
                     <span class="ti-kv-value">
                         <span class="ti-tag mono" x-text="evaluation.cycleID"></span>
                     </span>
-                    <span class="ti-kv-label" x-text-label="interface.evaluation.appraisal.career-path"></span>
+                    <span class="ti-kv-label" x-text-label="interface.evaluation.new-eval.closing-date"></span>
+                    <span class="ti-kv-value" x-text="formatDate(evaluation.cycleEndDate)"></span>
+                    <span class="ti-kv-label" x-text-label="interface.evaluation.new-eval.career-framework"></span>
                     <span class="ti-kv-value">
+                        <span x-text="evaluation.careerPathName"></span>
+                        <span class="competence-eval-sub-sep"> — </span>
                         <span class="competence-level-pip" x-bind:class="evaluation.stageLevel ? evaluation.stageLevel.charAt(0) : ''"
                               x-text="evaluation.stageLevel"></span>
-                        <span x-text="evaluation.careerPathName"></span>
                     </span>
+                    <span class="ti-kv-label" x-text-label="interface.evaluation.new-eval.competencies-to-grade"></span>
+                    <span class="ti-kv-value" x-text="getCompetencyCountText()"></span>
                 </div>
             </div>
 
-            <!-- Team selection panel -->
+            <!-- #5/#6/#7 Team reviewers panel -->
             <div class="ti-panel competence-panel-mb">
                 <div class="ti-panel-head">
-                    <div class="ti-panel-title" x-text-label="interface.evaluation.appraisal.team-selection"></div>
+                    <div class="ti-panel-title">
+                        <span x-text-label="interface.evaluation.new-eval.team-title"></span>
+                        <span class="competence-new-eval-optional-tag" x-text-label="interface.evaluation.new-eval.team-optional"></span>
+                    </div>
                 </div>
+                <div class="competence-new-eval-team-desc" x-text="getTeamPanelDesc()"></div>
                 <div class="competence-new-eval-team-body">
                     <div class="competence-new-eval-select-row">
                         <select class="ti-select" x-bind:value="selectedTeamMemberID" @change="selectedTeamMemberID = $event.target.value">
-                            <option value="">Select a team member…</option>
+                            <option value="" x-text-label="interface.evaluation.new-eval.choose-colleague"></option>
                             <template x-for="member in availableTeamMembers" x-bind:key="member.employeeID">
                                 <option x-bind:value="member.employeeID" x-text="member.name + ' — ' + member.careerPathName"></option>
                             </template>
                         </select>
                         <button type="button" class="ti-btn primary" @click="addTeamMember()"
-                                x-text-label="interface.evaluation.actions.add-team-member"></button>
+                                x-text-label="interface.evaluation.new-eval.add-reviewer"></button>
                     </div>
 
-                    <!-- Selected team chips -->
+                    <!-- Selected team chips with avatars -->
                     <div class="competence-team-chip-list">
                         <template x-for="member in team" x-bind:key="member.employeeID">
                             <div class="competence-team-chip">
+                                <div class="ti-avatar xs" x-bind:class="$store.tiToolbox.generateAvatarClass(member.employeeID || member.name)"
+                                     x-bind:aria-label="member.name">
+                                    <span x-text="(member.name || '?').charAt(0).toUpperCase()"></span>
+                                </div>
                                 <span x-text="member.name"></span>
                                 <button type="button" class="competence-team-chip-x" @click="removeTeamMember(member.employeeID)"
                                         x-bind:aria-label="'Remove ' + member.name">
@@ -77,9 +114,14 @@
         </div>
     </template>
 
-    <!-- Action bar -->
-    <div class="competence-new-eval-actions">
-        <button type="button" class="ti-btn ghost" @click="cancel()" x-text-label="interface.evaluation.actions.cancel"></button>
-        <button type="button" class="ti-btn primary" @click="submitNewEvaluation()" x-text-label="interface.evaluation.actions.submit"></button>
+    <!-- #8 Sticky action bar -->
+    <div class="competence-eval-sticky-bar competence-new-eval-sticky">
+        <button type="button" class="ti-btn ghost sm" @click="cancel()" x-text-label="interface.evaluation.actions.cancel"></button>
+        <button type="button" class="ti-btn primary sm" @click="submitNewEvaluation()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            <span x-text-label="interface.evaluation.new-eval.open-evaluation"></span>
+        </button>
     </div>
 </div>

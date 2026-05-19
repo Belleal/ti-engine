@@ -2869,6 +2869,100 @@
           "bg": "Добави член на екипа"
         }
       },
+      "new-eval": {
+        "page-eyebrow": {
+          "en": "START NEW EVALUATION",
+          "bg": "НОВА ОЦЕНКА"
+        },
+        "page-title": {
+          "en": "Open evaluation for {name}",
+          "bg": "Отвори оценка за {name}"
+        },
+        "page-desc": {
+          "en": "You're starting a new performance evaluation. The employee will be notified to begin their self-assessment.",
+          "bg": "Стартирате нова оценка на представянето. Служителят ще бъде уведомен да започне самооценката си."
+        },
+        "employee-title": {
+          "en": "Employee",
+          "bg": "Служител"
+        },
+        "kv-name": {
+          "en": "Name",
+          "bg": "Имe"
+        },
+        "kv-career-path": {
+          "en": "Career path",
+          "bg": "Кариерен път"
+        },
+        "kv-level": {
+          "en": "Level",
+          "bg": "Ниво"
+        },
+        "kv-manager": {
+          "en": "Manager",
+          "bg": "Мениджър"
+        },
+        "kv-since": {
+          "en": "With company since",
+          "bg": "В компанията от"
+        },
+        "kv-org-unit": {
+          "en": "Organization unit",
+          "bg": "Организационна единица"
+        },
+        "cycle-title": {
+          "en": "Cycle & framework",
+          "bg": "Цикъл & рамка"
+        },
+        "cycle-desc": {
+          "en": "Competencies are determined by career path and level",
+          "bg": "Компетенциите се определят от кариерния път и нивото"
+        },
+        "cycle-id": {
+          "en": "Cycle ID",
+          "bg": "Идентификатор на цикъл"
+        },
+        "closing-date": {
+          "en": "Closing date",
+          "bg": "Крайна дата"
+        },
+        "career-framework": {
+          "en": "Career framework",
+          "bg": "Кариерна рамка"
+        },
+        "competencies-to-grade": {
+          "en": "Competencies to grade",
+          "bg": "Компетенции за оценяване"
+        },
+        "across-categories": {
+          "en": "across {n} categories",
+          "bg": "в {n} категории"
+        },
+        "team-title": {
+          "en": "Team reviewers",
+          "bg": "Екипни оценители"
+        },
+        "team-optional": {
+          "en": "(optional)",
+          "bg": "(незадължително)"
+        },
+        "team-desc": {
+          "en": "Each peer reviewer will grade by subcategory (not individual competencies). Their grades are aggregated and anonymous to {name}.",
+          "bg": "Всеки колегиален оценител ще оцени по подкатегории (не индивидуални компетенции). Оценките им са агрегирани и анонимни за {name}."
+        },
+        "choose-colleague": {
+          "en": "Choose a colleague…",
+          "bg": "Изберете колега…"
+        },
+        "add-reviewer": {
+          "en": "Add reviewer",
+          "bg": "Добави оценител"
+        },
+        "open-evaluation": {
+          "en": "Open evaluation",
+          "bg": "Отвори оценката"
+        }
+      },
       "messages": {
         "draft-saved": {
           "en": "The Evaluation draft was saved successfully.",
