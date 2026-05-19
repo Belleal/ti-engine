@@ -124,6 +124,33 @@ class CompetenceFramework {
     }
 
     /**
+     * Used to generate a short display ID from a UUID.
+     * Deterministic: same UUID always produces the same base candidate.
+     * Collision-safe: if the candidate is already used within the cycle, increments until a free slot is found.
+     *
+     * @method
+     * @param {string} uuid
+     * @param {Set<string>} [usedShortIDs]
+     * @returns {string} 6-character uppercase base-36 string
+     * @public
+     */
+    generateShortID( uuid, usedShortIDs = new Set() ) {
+        const hex = uuid.replace( /-/g, "" );
+        const a = parseInt( hex.slice( 0, 8 ), 16 ) >>> 0;
+        const b = parseInt( hex.slice( 8, 16 ), 16 ) >>> 0;
+        const c = parseInt( hex.slice( 16, 24 ), 16 ) >>> 0;
+        const d = parseInt( hex.slice( 24, 32 ), 16 ) >>> 0;
+        const M = 2176782336; // 36^6 — 2.18 billion possible values
+        let seed = ( ( a ^ b ^ c ^ d ) >>> 0 ) % M;
+        let candidate = seed.toString( 36 ).toUpperCase().padStart( 6, "0" );
+        while ( usedShortIDs.has( candidate ) ) {
+            seed = ( seed + 1 ) % M;
+            candidate = seed.toString( 36 ).toUpperCase().padStart( 6, "0" );
+        }
+        return candidate;
+    }
+
+    /**
      * Used to create a new Evaluation object.
      *
      * @method

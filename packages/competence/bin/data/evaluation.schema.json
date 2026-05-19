@@ -19,6 +19,10 @@
       "format": "uuid",
       "description": "Unique identifier for the evaluation"
     },
+    "shortID": {
+      "type": "string",
+      "description": "Short human-readable display ID derived from the UUID, unique within the cycle (e.g., A3K9X2). Displayed as cycleID-shortID."
+    },
     "employeeID": {
       "type": "string",
       "description": "ID of the employee being evaluated"
