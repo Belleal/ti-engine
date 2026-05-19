@@ -313,6 +313,7 @@ body {
     /* Box model */
     min-width: 220px;
     padding: var(--s-2);
+    margin-left: 20px;
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--r-lg);
@@ -322,6 +323,10 @@ body {
     display: flex;
     flex-direction: column;
     gap: 2px;
+}
+
+.ti-application.collapsed .ti-sidebar-flyout {
+    margin-left: 16px;
 }
 
 /* Flyout items */

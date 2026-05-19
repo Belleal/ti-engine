@@ -307,6 +307,14 @@ const configureComponentSidebarFlyout = ( configKey ) => {
         get placement() {
             return this.config.placement || "right-start";
         },
+        get side() {
+            if ( this.config.side ) return this.config.side;
+            return this.placement.split( "-" )[ 0 ] || "right";
+        },
+        get align() {
+            if ( this.config.align ) return this.config.align;
+            return this.placement.split( "-" )[ 1 ] || "start";
+        },
         get offset() {
             return ( typeof this.config.offset === "number" ) ? this.config.offset : 10;
         },
@@ -419,7 +427,8 @@ const configureComponentSidebarFlyout = ( configKey ) => {
             let top = rect.top + ( this.fixed ? 0 : scrollY );
             let left = rect.left + ( this.fixed ? 0 : scrollX );
 
-            const [ side, align = "start" ] = this.placement.split( "-" );
+            const side = this.side;
+            const align = this.align;
             if ( side === "right" ) {
                 left = rect.right + ( this.fixed ? 0 : scrollX ) + this.offset;
             } else if ( side === "left" ) {

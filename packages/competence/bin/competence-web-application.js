@@ -122,7 +122,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     userProfileMenu: {
                         menuTitle: localization.getLabel( "interface.topbar.user-profile", session?.language ),
                         placement: "right-end",
-                        offset: 12,
+                        offset: 0,
                         buttonConfigs: [ {
                             title: localization.getLabel( "interface.user-menu.profile", session?.language ),
                             icon: "user-profile",

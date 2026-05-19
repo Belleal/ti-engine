@@ -18,7 +18,9 @@
         <div class="competence-cal-nav-group">
             <button type="button" class="ti-btn sm ghost icon" @click="prevWeek()" x-bind:disabled="!canGoPrev()"
                     x-bind:aria-label="getLabel('interface.calendar.week-nav-prev')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <polyline points="15 18 9 12 15 6"/>
+                </svg>
             </button>
             <div class="competence-cal-nav-center">
                 <div class="competence-calendar-week-label" x-text="getWeekLabel()"></div>
@@ -26,7 +28,9 @@
             </div>
             <button type="button" class="ti-btn sm ghost icon" @click="nextWeek()" x-bind:disabled="!canGoNext()"
                     x-bind:aria-label="getLabel('interface.calendar.week-nav-next')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <polyline points="9 18 15 12 9 6"/>
+                </svg>
             </button>
         </div>
         <div class="competence-cal-slot-counts">
@@ -80,7 +84,7 @@
                             <div class="competence-cal-booked-content"
                                  x-show="getSlotState(day.date, slot.startTime) === 'booked'">
                                 <span class="competence-cal-booked-name" x-text="getSlotBookingLabel(day.date, slot.startTime)"></span>
-                                <span class="competence-cal-booked-sub" x-text-label="interface.calendar.slot-booked"></span>
+                                <span class="competence-calendar-slot-label" x-text-label="interface.calendar.slot-interview"></span>
                             </div>
                             <svg class="competence-cal-booked-icon"
                                  x-show="getSlotState(day.date, slot.startTime) === 'booked'"

@@ -936,7 +936,7 @@
 }
 
 .competence-cat-card + .competence-cat-card {
-    margin-top: var(--s-5);
+    margin-top: var(--s-4);
 }
 
 .competence-cat-card-head {
@@ -1157,7 +1157,7 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--s-4);
-    margin-bottom: var(--s-5);
+    margin-bottom: var(--s-4);
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--r-md);
@@ -1492,9 +1492,9 @@
     text-overflow: ellipsis;
 }
 
-.competence-cal-booked-sub {
-    font-size: 9px;
-    text-transform: uppercase;
+.competence-calendar-slot-label {
+    font-size: 10px;
+    font-weight: 600;
     letter-spacing: 0.06em;
     opacity: 0.75;
     line-height: 1.1;
@@ -1791,11 +1791,11 @@
 
 /* Panel spacing helpers */
 .competence-panel-mt {
-    margin-top: var(--s-5);
+    margin-top: var(--s-4);
 }
 
 .competence-panel-mb {
-    margin-bottom: var(--s-5);
+    margin-bottom: var(--s-4);
 }
 
 .competence-panel-body {
@@ -1982,7 +1982,6 @@
 }
 
 .competence-interview-slot-body {
-    padding: var(--s-4);
 }
 
 /* New evaluation */

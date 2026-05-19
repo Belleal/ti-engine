@@ -3111,6 +3111,10 @@
         "en": "Empty (hover)",
         "bg": "Отворен (посочете)"
       },
+      "slot-interview": {
+        "en": "Interview",
+        "bg": "Интервю"
+      },
       "mark-available": {
         "en": "Mark as Available",
         "bg": "Маркирай като свободен"
