@@ -1518,7 +1518,7 @@
 
 .competence-interview-row {
     display: grid;
-    grid-template-columns: 40px 1.4fr 1fr 1fr 220px;
+    grid-template-columns: 40px 1fr 160px 180px auto;
     gap: var(--s-4);
     align-items: center;
     padding: var(--s-3) var(--s-4);
@@ -1537,10 +1537,49 @@
     background: var(--accent-soft);
 }
 
+.competence-interview-emp-meta {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+    margin-top: 2px;
+}
+
+.competence-interview-col-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-tertiary);
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.competence-interview-score-value {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.competence-interview-date-value {
+    font-size: var(--fs-sm);
+    color: var(--fg-primary);
+}
+
+.competence-interview-date-value.not-scheduled {
+    color: var(--fg-tertiary);
+}
+
 .competence-interview-actions {
     display: flex;
     gap: var(--s-2);
     justify-content: flex-end;
+}
+
+.competence-schedule-badge {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+    background: var(--bg-sunken);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-full);
+    padding: 2px var(--s-3);
 }
 
 .competence-slot-picker-grid {
@@ -1955,30 +1994,8 @@
 }
 
 /* Interview schedule */
-.competence-interview-list-head {
-    display: grid;
-    grid-template-columns: 40px 1.4fr 1fr 1fr 220px;
-    gap: var(--s-4);
-    padding: 8px var(--s-4);
-    font-size: 10.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--fg-tertiary);
-    font-weight: 600;
-    border-bottom: 1px solid var(--border-soft);
-}
-
-.competence-interview-panel-body {
-    padding: var(--s-3);
-}
-
 .competence-interview-emp-name {
     font-weight: 600;
-}
-
-.competence-interview-emp-date {
-    font-size: var(--fs-sm);
-    color: var(--fg-secondary);
 }
 
 .competence-interview-slot-body {

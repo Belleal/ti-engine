@@ -954,6 +954,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                         employeeName: organizationManager.instance.resolveEmployeeName( evaluation.employeeID ) || evaluation.employeeID,
                         managerID: evaluation.managerID,
                         managerName: organizationManager.instance.resolveEmployeeName( evaluation.managerID ) || evaluation.managerID,
+                        careerPathName: configurationLoader.careerPathCode.name( evaluation.careerPath ) || evaluation.careerPath || "",
+                        stageLevel: evaluation.stageLevel || "",
+                        finalScore: evaluation.finalScore?.score ?? null,
+                        finalScoreGrade: configurationLoader.performanceThreshold.name( evaluation.finalScore?.interpretation ) || "",
                         interviewDate: evaluation.interviewDate || null,
                         bookedSlotID: bookedSlot ? bookedSlot.slotID : null
                     };

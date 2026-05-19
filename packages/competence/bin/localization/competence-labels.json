@@ -3547,12 +3547,36 @@
       }
     },
     "schedule": {
+      "page-eyebrow": {
+        "en": "INTERVIEW SCHEDULING",
+        "bg": "НАСРОЧВАНЕ НА ИНТЕРВЮТА"
+      },
+      "page-title": {
+        "en": "Interviews Ready to Schedule",
+        "bg": "Интервюта готови за насрочване"
+      },
+      "page-desc": {
+        "en": "These evaluations are in status Ready. Pick one, then choose a slot from any manager's calendar.",
+        "bg": "Тези оценки са в статус Готово. Изберете една, след което изберете слот от календара на мениджър."
+      },
       "title": {
-        "en": "Interview Schedule",
-        "bg": "График за Интервюта"
+        "en": "Ready Evaluations",
+        "bg": "Готови оценки"
+      },
+      "awaiting-interview": {
+        "en": "awaiting interview",
+        "bg": "чакащи интервю"
+      },
+      "score-label": {
+        "en": "SCORE",
+        "bg": "РЕЗУЛТАТ"
+      },
+      "interview-label": {
+        "en": "INTERVIEW",
+        "bg": "ИНТЕРВЮ"
       },
       "not-scheduled": {
-        "en": "Not Scheduled",
+        "en": "Not scheduled",
         "bg": "Без насрочено интервю"
       },
       "pick-slot-title": {

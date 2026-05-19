@@ -1085,6 +1085,22 @@ const configureInterviewSchedule = () => {
             return `${ DAY_NAMES_SHORT[ d.getDay() ] || "" } ${ String( d.getDate() ).padStart( 2, "0" ) } ${ slot.startTime }`;
         },
 
+        pendingCount() {
+            return this.evaluations.filter( ( e ) => !e.interviewDate ).length;
+        },
+
+        getEvalMeta( evaluation ) {
+            return [ evaluation.evaluationID, evaluation.careerPathName, evaluation.stageLevel ]
+                .filter( ( v ) => !!v )
+                .join( " · " );
+        },
+
+        getScoreText( evaluation ) {
+            if ( evaluation.finalScore === null || evaluation.finalScore === undefined ) return "—";
+            const grade = evaluation.finalScoreGrade ? this.getLabel( evaluation.finalScoreGrade ) : "";
+            return grade ? `${ evaluation.finalScore } · ${ grade }` : String( evaluation.finalScore );
+        },
+
         getLabel( label ) {
             return tiApplication.getLabel( label );
         },

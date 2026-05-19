@@ -1,9 +1,22 @@
 <div class="ti-page" x-data="competenceInterviewSchedule">
 
+    <!-- Page header -->
+    <template x-if="evaluations.length > 0">
+        <div class="competence-eval-page-header">
+            <div class="competence-eval-page-eyebrow" x-text-label="interface.schedule.page-eyebrow"></div>
+            <h1 class="competence-eval-page-title" x-text-label="interface.schedule.page-title"></h1>
+            <p class="competence-eval-page-desc" x-text-label="interface.schedule.page-desc"></p>
+        </div>
+    </template>
+
     <!-- Interview list panel -->
     <div class="ti-panel competence-panel-mb">
         <div class="ti-panel-head" x-show="evaluations.length > 0">
             <div class="ti-panel-title" x-text-label="interface.schedule.title"></div>
+            <div class="competence-schedule-badge" x-show="pendingCount() > 0">
+                <span x-text="pendingCount()"></span>
+                <span x-text-label="interface.schedule.awaiting-interview"></span>
+            </div>
         </div>
 
         <template x-if="evaluations.length === 0">
@@ -21,43 +34,39 @@
         </template>
 
         <template x-if="evaluations.length > 0">
-            <div class="competence-interview-panel-body">
-                <div class="competence-interview-list-head">
-                    <span></span>
-                    <span x-text-label="interface.schedule.columns.employee"></span>
-                    <span>Status</span>
-                    <span x-text-label="interface.schedule.columns.interview-date"></span>
-                    <span x-text-label="interface.schedule.columns.actions"></span>
-                </div>
-
-                <div class="competence-interview-list">
-                    <template x-for="evaluation in evaluations" x-bind:key="evaluation.evaluationID">
-                        <div class="competence-interview-row" x-bind:class="{ selected: selectedEvaluationID === evaluation.evaluationID }">
-                            <div class="ti-avatar sm" x-bind:class="$store.tiToolbox.generateAvatarClass(evaluation.employeeID || evaluation.evaluationID)"
-                                 x-bind:aria-label="evaluation.employeeName">
-                                <span x-text="(evaluation.employeeName || '?').charAt(0).toUpperCase()"></span>
-                            </div>
-                            <div class="competence-interview-emp-name" x-text="evaluation.employeeName"></div>
-                            <div>
-                                <span class="ti-status-pill info" x-show="!evaluation.interviewDate">
-                                    <span class="dot"></span>
-                                    Not Scheduled
-                                </span>
-                                <span class="ti-status-pill success" x-show="!!evaluation.interviewDate">
-                                    <span class="dot"></span>
-                                    Scheduled
-                                </span>
-                            </div>
-                            <div class="competence-interview-emp-date" x-text="evaluation.interviewDate ? formatDate(evaluation.interviewDate) : '—'"></div>
-                            <div class="competence-interview-actions">
-                                <button type="button" class="ti-btn sm primary" x-show="!evaluation.interviewDate"
-                                        @click="selectEvaluation(evaluation.evaluationID)" x-text-label="interface.schedule.actions.schedule"></button>
-                                <button type="button" class="ti-btn sm danger" x-show="!!evaluation.interviewDate && !!evaluation.bookedSlotID"
-                                        @click="cancelBooking(evaluation.bookedSlotID)" x-text-label="interface.schedule.actions.cancel-booking"></button>
-                            </div>
+            <div class="competence-interview-list">
+                <template x-for="evaluation in evaluations" x-bind:key="evaluation.evaluationID">
+                    <div class="competence-interview-row" x-bind:class="{ selected: selectedEvaluationID === evaluation.evaluationID }">
+                        <div class="ti-avatar sm" x-bind:class="$store.tiToolbox.generateAvatarClass(evaluation.employeeID || evaluation.evaluationID)"
+                             x-bind:aria-label="evaluation.employeeName">
+                            <span x-text="(evaluation.employeeName || '?').charAt(0).toUpperCase()"></span>
                         </div>
-                    </template>
-                </div>
+                        <div>
+                            <div class="competence-interview-emp-name" x-text="evaluation.employeeName"></div>
+                            <div class="competence-interview-emp-meta"
+                                 x-text="getEvalMeta(evaluation)"></div>
+                        </div>
+                        <div>
+                            <div class="competence-interview-col-label" x-text-label="interface.schedule.score-label"></div>
+                            <div class="competence-interview-score-value" x-text="getScoreText(evaluation)"></div>
+                        </div>
+                        <div>
+                            <div class="competence-interview-col-label" x-text-label="interface.schedule.interview-label"></div>
+                            <div class="competence-interview-date-value"
+                                 x-bind:class="{ 'not-scheduled': !evaluation.interviewDate }"
+                                 x-text="evaluation.interviewDate ? formatDate(evaluation.interviewDate) : getLabel('interface.schedule.not-scheduled')"></div>
+                        </div>
+                        <div class="competence-interview-actions">
+                            <button type="button" class="ti-btn sm primary" x-show="!evaluation.interviewDate"
+                                    @click="selectEvaluation(evaluation.evaluationID)" x-text-label="interface.schedule.actions.schedule"></button>
+                            <button type="button" class="ti-btn sm ghost" x-show="!!evaluation.interviewDate && !!evaluation.bookedSlotID"
+                                    @click="cancelBooking(evaluation.bookedSlotID)">
+                                <span aria-hidden="true">×</span>
+                                <span x-text-label="interface.schedule.actions.cancel-booking"></span>
+                            </button>
+                        </div>
+                    </div>
+                </template>
             </div>
         </template>
     </div>

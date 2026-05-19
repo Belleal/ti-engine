@@ -133,14 +133,134 @@
       }
     },
     {
-      "evaluationID": "1735bb0a-62c5-415a-b37d-06a26c9939e3",
+      "evaluationID": "1e71f188-ce69-4419-b98b-6da8677aa006",
       "employeeID": "2",
+      "cycleID": "2026-H1",
+      "cycleDate": "2026-06-30",
+      "status": "Ready",
+      "grades": {
+        "E1-1": {
+          "employee": "R",
+          "manager": "R",
+          "team": {
+            "cumulative": "U",
+            "individual": []
+          }
+        },
+        "E1-2": {
+          "employee": "S",
+          "manager": "R",
+          "team": {
+            "cumulative": "R",
+            "individual": []
+          }
+        },
+        "E1-5": {
+          "employee": "R",
+          "manager": "R",
+          "team": {
+            "cumulative": "R",
+            "individual": []
+          }
+        },
+        "E2-3": {
+          "employee": "R",
+          "manager": "R",
+          "team": {
+            "cumulative": "R",
+            "individual": []
+          }
+        },
+        "E2-4": {
+          "employee": "U",
+          "manager": "R",
+          "team": {
+            "cumulative": "R",
+            "individual": []
+          }
+        },
+        "I2-1": {
+          "employee": "S",
+          "manager": "R",
+          "team": {
+            "cumulative": "S",
+            "individual": []
+          }
+        },
+        "C1-1": {
+          "employee": "R",
+          "manager": "R",
+          "team": {
+            "cumulative": "R",
+            "individual": []
+          }
+        },
+        "C3-2": {
+          "employee": "R",
+          "manager": "R",
+          "team": {
+            "cumulative": "U",
+            "individual": []
+          }
+        },
+        "C3-3": {
+          "employee": "R",
+          "manager": "R",
+          "team": {
+            "cumulative": "U",
+            "individual": []
+          }
+        }
+      },
+      "careerPath": "PM01",
+      "stageLevel": "J3",
+      "scores": {
+        "E": {
+          "score": 98,
+          "interpretation": "T3"
+        },
+        "I": {
+          "score": 115,
+          "interpretation": "T4"
+        },
+        "C": {
+          "score": 92,
+          "interpretation": "T3"
+        }
+      },
+      "finalScore": {
+        "score": 102,
+        "interpretation": "T3"
+      },
+      "comment": "This is an employee comment.",
+      "feedback": {
+        "managerComment": "This is a manager comment.",
+        "teamComments": [
+          "This is a team comment 1.",
+          "This is a team comment 2."
+        ]
+      },
+      "workflow": {
+        "currentStep": 1,
+        "selfEvaluationCompleted": true,
+        "selfEvaluationDeadline": "2026-07-17",
+        "managerEvaluationCompleted": true,
+        "managerEvaluationDeadline": "2026-07-17",
+        "teamEvaluationCompleted": true,
+        "teamEvaluationDeadline": "2026-07-17",
+        "teamEvaluationsSubmitted": 3,
+        "team": []
+      }
+    },
+    {
+      "evaluationID": "1735bb0a-62c5-415a-b37d-06a26c9939e3",
+      "employeeID": "4",
       "cycleID": "2026-H1",
       "cycleDate": "2026-06-30",
       "interviewDate": "2026-07-17",
       "status": "Open",
       "grades": {},
-      "careerPath": "PM01",
+      "careerPath": "SE01",
       "stageLevel": "J3",
       "scores": {},
       "finalScore": {},
