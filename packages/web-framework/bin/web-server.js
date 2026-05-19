@@ -374,10 +374,11 @@ class TiWebServer extends ServiceConsumer {
      * @method
      * @virtual
      * @param {TiSession} session
+     * @param {Object} [request] Optional Express request object that can be used to read body/cookies/query data.
      * @returns {TiSession}
      * @public
      */
-    augmentSession( session ) {
+    augmentSession( session, request ) {
         return session;
     }
 

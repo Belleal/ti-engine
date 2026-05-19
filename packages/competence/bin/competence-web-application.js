@@ -117,6 +117,39 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "new-evaluation": "evaluation",
                     "manager-calendar": "calendar",
                     "interview-schedule": "interviews"
+                },
+                componentsConfig: {
+                    userProfileMenu: {
+                        menuTitle: localization.getLabel( "interface.topbar.user-profile", session?.language ),
+                        placement: "right-end",
+                        offset: 12,
+                        buttonConfigs: [ {
+                            title: localization.getLabel( "interface.user-menu.profile", session?.language ),
+                            icon: "user-profile",
+                            action: {
+                                href: "/app/profile",
+                                target: "#ti-content",
+                                swap: "innerHTML"
+                            }
+                        }, {
+                            title: localization.getLabel( "interface.user-menu.settings", session?.language ),
+                            icon: "settings",
+                            action: {
+                                href: "/app/administration",
+                                target: "#ti-content",
+                                swap: "innerHTML"
+                            }
+                        }, {
+                            title: localization.getLabel( "interface.user-menu.logout", session?.language ),
+                            icon: "logout",
+                            action: {
+                                href: "/logout",
+                                method: "post",
+                                target: "body",
+                                swap: "outerHTML"
+                            }
+                        } ]
+                    }
                 }
             } ) );
         } else if ( view === "load-dashboard" ) {

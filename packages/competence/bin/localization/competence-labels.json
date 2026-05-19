@@ -3528,6 +3528,20 @@
         "bg": "Зарежда…"
       }
     },
+    "user-menu": {
+      "profile": {
+        "en": "Your profile",
+        "bg": "Вашият профил"
+      },
+      "settings": {
+        "en": "Settings",
+        "bg": "Настройки"
+      },
+      "logout": {
+        "en": "Logout",
+        "bg": "Изход"
+      }
+    },
     "schedule": {
       "title": {
         "en": "Interview Schedule",

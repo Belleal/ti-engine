@@ -295,6 +295,7 @@ body {
 .ti-sidebar-flyout-container {
     display: inline-flex;
     position: relative;
+    width: 100%;
 }
 
 .ti-sidebar-flyout[hidden] {
@@ -310,47 +311,64 @@ body {
     transform: none;
 
     /* Box model */
-    min-width: 180px;
-    padding: var(--ti-padding);
-    border-radius: 12px;
+    min-width: 220px;
+    padding: var(--s-2);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-lg);
 
     /* Layout */
     display: flex;
     flex-direction: column;
-    gap: var(--ti-gap);
+    gap: 2px;
 }
 
 /* Flyout items */
 .ti-sidebar-flyout-item {
     display: inline-flex;
     align-items: center;
-    justify-content: left;
-    flex-direction: row;
+    justify-content: flex-start;
     cursor: pointer;
-    gap: 5px;
-    font-family: var(--ti-font-family), system-ui;
-    font-size: var(--ti-font-size);
+    gap: var(--s-3);
+    font-family: inherit;
+    font-size: var(--fs-base);
+    font-weight: 500;
     -webkit-tap-highlight-color: transparent;
     appearance: none;
     width: 100%;
-    height: var(--ti-button-size);
     box-sizing: border-box;
     border: 0;
     background: transparent;
-    color: var(--ti-sidebar-fg);
+    color: var(--fg-primary);
     text-align: left;
-    padding: var(--ti-padding);
-    border-radius: var(--ti-button-radius);
-    box-shadow: var(--ti-flyout-item-shadow, inset 5px 5px 10px rgba(0, 0, 0, 0.35), inset -5px -5px 10px rgba(255, 255, 255, 0.03));
-    transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-md);
+    transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.ti-sidebar-flyout-item .ti-icon {
+    width: 18px;
+    height: 18px;
+    background-color: var(--fg-secondary);
+    flex-shrink: 0;
 }
 
 .ti-sidebar-flyout-item:hover {
-    background-color: var(--ti-flyout-item-hover-bg, rgba(255, 255, 255, 0.03));
+    background: var(--bg-tint);
+}
+
+.ti-sidebar-flyout-item:hover .ti-icon {
+    background-color: var(--fg-primary);
 }
 
 .ti-sidebar-flyout-item:active {
-    box-shadow: var(--ti-flyout-item-active-shadow, inset 8px 8px 16px rgba(0, 0, 0, 0.55), inset -8px -8px 16px rgba(255, 255, 255, 0.02));
+    background: var(--bg-sunken);
+}
+
+.ti-sidebar-flyout-item:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
 }
 
 
@@ -1638,6 +1656,89 @@ body {
 
 .ti-btn.full {
     width: 100%;
+}
+
+/* TEMPORARY: Test user selector panel — remove with the corresponding panel in frame-login.html */
+.ti-login-test-panel {
+    margin-top: var(--s-4);
+    padding: var(--s-4);
+    background: var(--bg-surface);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-xs);
+}
+
+.ti-login-test-panel-title {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--fg-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.ti-login-test-panel-sub {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+    margin-top: 2px;
+    margin-bottom: var(--s-3);
+}
+
+.ti-login-test-panel-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.ti-login-test-pill {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    padding: 6px 12px;
+    background: var(--bg-tint);
+    border: 1px solid var(--border);
+    border-radius: var(--r-pill);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+    transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.ti-login-test-pill:hover {
+    background: var(--bg-sunken);
+    border-color: var(--border-strong);
+    color: var(--fg-primary);
+}
+
+.ti-login-test-pill.selected {
+    background: var(--accent);
+    border-color: transparent;
+    color: var(--fg-on-accent);
+    box-shadow: 0 1px 2px color-mix(in oklab, var(--accent) 24%, transparent);
+}
+
+.ti-login-test-pill.selected .ti-login-test-pill-roles {
+    color: color-mix(in oklab, var(--fg-on-accent) 80%, transparent);
+}
+
+.ti-login-test-pill-id {
+    font-weight: 600;
+}
+
+.ti-login-test-pill-roles {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+}
+
+.ti-login-test-pill.ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--fg-tertiary);
+}
+
+.ti-login-test-pill.ghost:hover {
+    color: var(--fg-primary);
+    background: var(--bg-tint);
 }
 
 /* ============================================================

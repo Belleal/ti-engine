@@ -249,7 +249,7 @@ module.exports.authenticationHandler = ( instance ) => {
                     session.user = user.asJSON();
                     session.language = user.language || instance.serviceConfig.language;
 
-                    return instance.augmentSession( session );
+                    return instance.augmentSession( session, request );
                 } );
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
@@ -299,7 +299,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
 
                     delete session.oidc;
 
-                    return instance.augmentSession( session );
+                    return instance.augmentSession( session, request );
                 } );
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );

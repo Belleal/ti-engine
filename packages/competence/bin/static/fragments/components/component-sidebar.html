@@ -137,16 +137,23 @@
                   x-text="theme === 'daylight' ? $store.tiApplication.getLabel('interface.sidebar.theme-glass') : $store.tiApplication.getLabel('interface.sidebar.theme-daylight')">Toggle Theme</span>
         </button>
 
-        <button class="ti-sidebar-user" type="button"
-                x-text-label:data-tip="interface.topbar.user-profile"
-                data-tip="Your profile">
+        <ti-component-sidebar-flyout-placeholder config-key="userProfileMenu">
+            <button class="ti-sidebar-user" type="button"
+                    x-on:click.stop="toggle()"
+                    x-on:ti-close-all-flyout="close()"
+                    x-bind:aria-expanded="isOpen"
+                    x-bind:aria-controls="$id('component-flyout')"
+                    x-ref="flyoutButton"
+                    x-text-label:data-tip="interface.topbar.user-profile"
+                    data-tip="Your profile">
                 <span class="ti-avatar sm" aria-hidden="true"
                       x-text="(($store.tiApplication.user && $store.tiApplication.user.name) || '?').charAt(0).toUpperCase()">?</span>
-            <span class="ti-sidebar-user-text">
+                <span class="ti-sidebar-user-text">
                     <span class="ti-sidebar-user-name" x-text="($store.tiApplication.user && $store.tiApplication.user.name) || ''"></span>
                     <span class="ti-sidebar-user-sub"
                           x-text="($store.tiApplication.configuration && $store.tiApplication.configuration.employeeLevel && $store.tiApplication.configuration.employeeLevel.careerPathName && $store.tiApplication.configuration.employeeLevel.level) ? ($store.tiApplication.configuration.employeeLevel.careerPathName + ' · ' + $store.tiApplication.configuration.employeeLevel.level) : (($store.tiApplication.user && $store.tiApplication.user.roles) || []).join(' · ')"></span>
                 </span>
-        </button>
+            </button>
+        </ti-component-sidebar-flyout-placeholder>
     </div>
 </nav>
