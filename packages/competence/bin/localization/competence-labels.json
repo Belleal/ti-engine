@@ -3567,13 +3567,21 @@
         "en": "Next →",
         "bg": "Следващи →"
       },
+      "no-evaluations-title": {
+        "en": "No Interviews to Schedule",
+        "bg": "Без интервюта за насрочване"
+      },
       "no-evaluations": {
-        "en": "No evaluations awaiting interview scheduling.",
+        "en": "No evaluations are currently awaiting interview scheduling.",
         "bg": "Няма оценки, чакащи насрочване на интервю."
       },
+      "no-slots-title": {
+        "en": "No Available Slots",
+        "bg": "Няма свободни слотове"
+      },
       "no-slots": {
-        "en": "No available slots. Ask the manager to configure their calendar.",
-        "bg": "Няма свободни слотове. Помолете мениджъра да конфигурира своя календар."
+        "en": "No managers have marked availability for the selected period. Ask them to configure their calendar.",
+        "bg": "Нито един мениджър не е отбелязал наличност за избрания период. Помолете ги да конфигурират своя календар."
       },
       "actions": {
         "schedule": {
