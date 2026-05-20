@@ -800,8 +800,6 @@ class CompetenceWebApplication extends TiWebAppManager {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.active-evaluation-exists" }, exceptions.httpCode.C_409 );
                 }
 
-                return dataManager.instance.fetchEvaluations( null, false );
-            } ).then( ( allEvaluations ) => {
                 const newEvaluation = competenceFramework.instance.createNewEvaluation( employee );
                 const resolvedManagerID = organizationManager.instance.resolveManagerIDForEmployee( employee.employeeID, employee.career?.organizationUnitID );
                 if ( resolvedManagerID ) {
@@ -964,8 +962,6 @@ class CompetenceWebApplication extends TiWebAppManager {
                         bookedSlotByEvaluationID.set( slot.booking.evaluationID, slot );
                     }
                 } );
-
-                const usedShortIDs = new Set( allEvaluations.map( ( e ) => e.shortID ).filter( ( v ) => !!v ) );
 
                 const evaluations = readyEvaluations.map( ( evaluation ) => {
                     const bookedSlot = bookedSlotByEvaluationID.get( evaluation.evaluationID ) || null;

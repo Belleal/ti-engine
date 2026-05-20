@@ -12,6 +12,7 @@
  * @property {Object.<EvaluationGradeValue, decimal>} gradeWeights
  * @property {boolean} [isTeamEvaluationCollective]
  * @property {number} minTeamEvaluationMembers
+ * @property {number} maxTeamEvaluationMembers
  * @property {number} numberOfNextPeriodGoals
  * @property {Object.<PerformanceThresholdValue, number>} performanceThresholds
  */

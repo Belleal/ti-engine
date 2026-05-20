@@ -14,6 +14,7 @@
     },
     "isTeamEvaluationCollective": true,
     "minTeamEvaluationMembers": 3,
+    "maxTeamEvaluationMembers": 5,
     "numberOfNextPeriodGoals": 5,
     "interviewCalendar": {
       "slotDurationMinutes": 30,

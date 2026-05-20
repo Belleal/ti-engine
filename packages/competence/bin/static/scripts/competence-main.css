@@ -665,7 +665,7 @@
     left: 10px;
     top: 0;
     bottom: 0;
-    width: 1.5px;
+    width: 2px;
     background: var(--border-strong);
 }
 
@@ -679,7 +679,7 @@
     left: 10px;
     top: 50%;
     width: 10px;
-    height: 1.5px;
+    height: 2px;
     background: var(--border-strong);
 }
 
@@ -2003,14 +2003,12 @@
 
 /* New evaluation */
 .competence-new-eval-employee-body {
-    padding: var(--s-5);
     display: flex;
     align-items: flex-start;
     gap: var(--s-5);
 }
 
 .competence-new-eval-kv-ext {
-    padding: 0 var(--s-5) var(--s-5);
 }
 
 .competence-new-eval-team-desc {
@@ -2028,8 +2026,6 @@
 }
 
 .competence-new-eval-team-body {
-    padding: var(--s-5);
-    padding-top: 0;
 }
 
 .competence-new-eval-select-row {
