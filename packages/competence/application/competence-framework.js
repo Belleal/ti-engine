@@ -162,7 +162,7 @@ class CompetenceFramework {
         const evaluationID = tools.getUUID();
         return {
             evaluationID: evaluationID,
-            shortID: this.#evaluationCycleID + this.generateShortID( evaluationID ),
+            shortID: this.#evaluationCycleID + '-' + this.generateShortID( evaluationID ),
             employeeID: employee.employeeID,
             cycleID: this.#evaluationCycleID,
             cycleDate: this.#evaluationCycleDate,

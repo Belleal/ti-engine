@@ -232,11 +232,11 @@
                                 </div>
                                 <!-- Self (locked) -->
                                 <div class="competence-comp-cell">
-                                    <span class="ti-grade-chip locked empty" aria-hidden="true">—</span>
+                                    <span class="ti-grade-chip locked empty" aria-hidden="true">–</span>
                                 </div>
                                 <!-- Manager (locked) -->
                                 <div class="competence-comp-cell">
-                                    <span class="ti-grade-chip locked empty" aria-hidden="true">—</span>
+                                    <span class="ti-grade-chip locked empty" aria-hidden="true">–</span>
                                 </div>
                                 <!-- Team grade (editable pills or read-only chip) -->
                                 <div class="competence-comp-cell">
@@ -253,7 +253,7 @@
                                     <span class="ti-grade-chip"
                                           x-bind:data-grade="getItemGrade(sub.id, 'team')"
                                           x-bind:class="getItemGrade(sub.id, 'team') ? '' : 'empty'"
-                                          x-text="getItemGrade(sub.id, 'team') || '—'"
+                                          x-text="getItemGrade(sub.id, 'team') || '–'"
                                           x-show="!canEdit"></span>
                                 </div>
                             </div>
@@ -286,13 +286,13 @@
                                         <span class="ti-grade-chip"
                                               x-bind:data-grade="getItemGrade(item.id, 'employee')"
                                               x-bind:class="getItemGrade(item.id, 'employee') ? '' : 'empty'"
-                                              x-text="getItemGrade(item.id, 'employee') || '—'"
+                                              x-text="getItemGrade(item.id, 'employee') || '–'"
                                               x-show="(userRole === 1 && !canEdit) || userRole === 2"></span>
                                         <!-- Locked: team reviewer -->
                                         <span class="ti-grade-chip locked"
                                               x-bind:data-grade="getItemGrade(item.id, 'employee')"
                                               x-bind:class="getItemGrade(item.id, 'employee') ? 'locked' : 'locked empty'"
-                                              x-text="getItemGrade(item.id, 'employee') || '—'"
+                                              x-text="getItemGrade(item.id, 'employee') || '–'"
                                               x-show="userRole === 4"
                                               x-bind:aria-label="'Self grade: ' + (getItemGrade(item.id, 'employee') || 'not graded')"></span>
                                     </div>
@@ -314,13 +314,13 @@
                                         <span class="ti-grade-chip"
                                               x-bind:data-grade="getItemGrade(item.id, 'manager')"
                                               x-bind:class="getItemGrade(item.id, 'manager') ? '' : 'empty'"
-                                              x-text="getItemGrade(item.id, 'manager') || '—'"
+                                              x-text="getItemGrade(item.id, 'manager') || '–'"
                                               x-show="userRole === 2 && !canEdit"></span>
                                         <!-- Locked: employee or team reviewer -->
                                         <span class="ti-grade-chip locked"
                                               x-bind:data-grade="getItemGrade(item.id, 'manager')"
                                               x-bind:class="getItemGrade(item.id, 'manager') ? 'locked' : 'locked empty'"
-                                              x-text="getItemGrade(item.id, 'manager') || '—'"
+                                              x-text="getItemGrade(item.id, 'manager') || '–'"
                                               x-show="userRole === 1 || userRole === 4"
                                               x-bind:aria-label="'Manager grade: ' + (getItemGrade(item.id, 'manager') || 'not graded')"></span>
                                     </div>
@@ -342,13 +342,13 @@
                                         <span class="ti-grade-chip"
                                               x-bind:data-grade="getItemGrade(item.id, 'team')"
                                               x-bind:class="getItemGrade(item.id, 'team') ? '' : 'empty'"
-                                              x-text="getItemGrade(item.id, 'team') || '—'"
+                                              x-text="getItemGrade(item.id, 'team') || '–'"
                                               x-show="(userRole === 4 && !canEdit) || userRole === 2"></span>
                                         <!-- Locked: employee -->
                                         <span class="ti-grade-chip locked"
                                               x-bind:data-grade="getItemGrade(item.id, 'team')"
                                               x-bind:class="getItemGrade(item.id, 'team') ? 'locked' : 'locked empty'"
-                                              x-text="getItemGrade(item.id, 'team') || '—'"
+                                              x-text="getItemGrade(item.id, 'team') || '–'"
                                               x-show="userRole === 1"
                                               x-bind:aria-label="'Team grade: ' + (getItemGrade(item.id, 'team') || 'not graded')"></span>
                                     </div>
@@ -378,6 +378,7 @@
                                       @ti-input="setFeedbackComment( 'employee', $event.target.value )"
                                       x-show="userRole === 1 && canEdit"></textarea>
                             <div class="competence-eval-feedback-value"
+                                 x-bind:class="getFeedbackComment( 'employee' ) === getLabel( 'interface.evaluation.default.not-provided' ) ? 'empty' : ''"
                                  x-text="getFeedbackComment( 'employee' ) || getLabel( 'interface.evaluation.default.not-provided' )"
                                  x-show="userRole === 2 || ( userRole === 1 && !canEdit )"></div>
                         </div>
@@ -390,9 +391,11 @@
                                       @ti-input="setFeedbackComment( 'manager', $event.target.value )"
                                       x-show="userRole === 2 && canEdit"></textarea>
                             <div class="competence-eval-feedback-value"
+                                 x-bind:class="getFeedbackComment( 'manager' ) === getLabel( 'interface.evaluation.default.not-provided' ) ? 'empty' : ''"
                                  x-text="getFeedbackComment( 'manager' ) || getLabel( 'interface.evaluation.appraisal.manager-comment-placeholder' )"
                                  x-show="userRole === 1"></div>
                             <div class="competence-eval-feedback-value"
+                                 x-bind:class="getFeedbackComment( 'manager' ) === getLabel( 'interface.evaluation.default.not-provided' ) ? 'empty' : ''"
                                  x-text="getFeedbackComment( 'manager' ) || getLabel( 'interface.evaluation.default.not-provided' )"
                                  x-show="userRole === 2 && !canEdit"></div>
                         </div>

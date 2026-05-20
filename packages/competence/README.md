@@ -21,6 +21,7 @@ The following features are currently implemented:
 - **[Data]** Employee data management and retrieval from Redis
 - **[Data]** Evaluation persistence in Redis with full workflow state tracking
 - **[Data]** Calendar slot persistence in Redis with `available`, `booked`, `busy`, and `deleted` (logical) states
+- **[UI]** Dashboard screen — personalized landing page with appraisal cycle progress, evaluation status, role-specific metrics, a contextual task list, and an activity feed
 - **[UI]** Employees List screen — hierarchical organization chart view with role-aware data and evaluation status
 - **[UI]** Evaluation Form screen — role-specific grading interface with deadline and submit-state awareness
 - **[UI]** New Evaluation screen — form for starting a new evaluation with optional team member selection
@@ -385,6 +386,18 @@ When an evaluation is returned — whether on load or after a save/submit — it
 
 ## Implemented Screens
 
+### Dashboard
+
+The default landing screen after login. Presents a personalized summary of the current appraisal cycle and guides users to their most relevant next action.
+
+- A **hero section** displays a time-of-day greeting, the user's first name, and the status of their own most recent evaluation. A quick "Open My Evaluation" button is shown when an active evaluation exists.
+- A **cycle card** shows the current cycle ID, a time-elapsed progress bar (calculated from `startDate` to `cycleDate`), and the three key dates (start, manager review deadline, and close date).
+- **Stat cards** adapt to the active role:
+  - **Manager/Supervisor view**: four cards showing total team evaluations and the count in each active status (open, in-review, ready), each with a proportional fill bar
+  - **Employee view**: four cards showing peer feedback submitted vs. requested, self-grades completed vs. total, days until the manager review deadline, and team coverage (how many teammates have started their evaluations)
+- A **Tasks** panel lists the user's most relevant pending actions (e.g. "Complete self-evaluation", "Schedule your interview", "Review pending evaluations") with click-through navigation to the relevant screen.
+- An **Activity feed** panel lists recent evaluation lifecycle events.
+
 ### Employees List
 
 Shows the organization chart rooted at the current user's unit. Each employee entry displays their career path, level, manager, and the status and next relevant date of their most recent evaluation (self-evaluation deadline when `Open`; manager deadline when `In Review`; interview date when `Ready`).
@@ -428,6 +441,38 @@ The slot picker shows all `available` slots from all managers, organized into a 
 ---
 
 ## Information Flows
+
+### Load Dashboard
+
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant Client as Competence UI
+    participant Server as Competence Web Server
+    participant OrgMgr as Organization Manager
+    participant DataMgr as Data Manager
+    participant DB as Redis Database
+
+    rect rgba(100, 150, 200, 0.5)
+        note over User, DB: Load Dashboard Flow
+        User ->> Client: Open dashboard
+        Client ->> Server: POST /app/load-dashboard
+        Server -->> Server: Resolve userID and isManager flag
+        Server ->> DataMgr: fetchEvaluations(userID)
+        DataMgr ->> DB: GET evaluations for current user
+        DB -->> DataMgr: Employee's own evaluations
+        DataMgr -->> Server: Own evaluations (most recent selected)
+        opt isManager
+            Server ->> DataMgr: fetchEvaluations(null)
+            DataMgr ->> DB: GET all evaluations
+            DB -->> DataMgr: All active evaluations
+            DataMgr -->> Server: Team evaluations filtered to managerID = userID
+            Server -->> Server: Calculate team stats (total / open / inReview / ready)
+        end
+        Server -->> Client: {isManager, cycle, myEvaluation, teamEvaluations, stats, employeeMetrics, activity}
+        Client -->> User: Display greeting, cycle progress bar, stat cards, and tasks
+    end
+```
 
 ### Load Employee List
 
@@ -818,27 +863,28 @@ end
 
 All application settings are in `bin/config/config.application.json` and are validated against a JSON schema on startup.
 
-| Setting                                                       | Default       | Description                                                                        |
-|---------------------------------------------------------------|---------------|------------------------------------------------------------------------------------|
-| `performanceAppraisals.evaluationWeights.self`                | `0.20`        | Weight of self-evaluation in the final score                                       |
-| `performanceAppraisals.evaluationWeights.team`                | `0.30`        | Weight of team evaluation in the final score                                       |
-| `performanceAppraisals.evaluationWeights.manager`             | `0.50`        | Weight of manager evaluation in the final score                                    |
-| `performanceAppraisals.gradeWeights.S`                        | `1.3`         | Numeric weight for grade S (Superior)                                              |
-| `performanceAppraisals.gradeWeights.R`                        | `1.0`         | Numeric weight for grade R (Regular)                                               |
-| `performanceAppraisals.gradeWeights.U`                        | `0.6`         | Numeric weight for grade U (Unsatisfactory)                                        |
-| `performanceAppraisals.gradeWeights.N`                        | `0.0`         | Numeric weight for grade N (Not Utilized)                                          |
-| `performanceAppraisals.isTeamEvaluationCollective`            | `true`        | If `true`, team members grade by subcategory; if `false`, by individual competency |
-| `performanceAppraisals.minTeamEvaluationMembers`              | `3`           | Minimum number of team members recommended for peer evaluation                     |
-| `performanceAppraisals.numberOfNextPeriodGoals`               | `5`           | Maximum number of goals for the next period *(planned feature)*                    |
-| `performanceAppraisals.performanceThresholds.T1`              | `76`          | Score ceiling for T1 (Weak)                                                        |
-| `performanceAppraisals.performanceThresholds.T2`              | `89`          | Score ceiling for T2 (Insufficient)                                                |
-| `performanceAppraisals.performanceThresholds.T3`              | `105`         | Score ceiling for T3 (Expected)                                                    |
-| `performanceAppraisals.performanceThresholds.T4`              | `119`         | Score ceiling for T4 (Good)                                                        |
-| `performanceAppraisals.performanceThresholds.T5`              | `150`         | Score ceiling for T5 (Outstanding)                                                 |
-| `performanceAppraisals.interviewCalendar.slotDurationMinutes` | `30`          | Duration in minutes of each calendar slot                                          |
-| `performanceAppraisals.interviewCalendar.workingHoursStart`   | `"09:00"`     | First slot start time (HH:MM, local time)                                          |
-| `performanceAppraisals.interviewCalendar.workingHoursEnd`     | `"18:00"`     | No slot may start at or after this time (HH:MM, local time)                        |
-| `performanceAppraisals.interviewCalendar.workingDays`         | `[1,2,3,4,5]` | Working days shown in the calendar grid (0 = Sunday … 6 = Saturday)                |
+| Setting                                                       | Default       | Description                                                                         |
+|---------------------------------------------------------------|---------------|-------------------------------------------------------------------------------------|
+| `performanceAppraisals.evaluationWeights.self`                | `0.20`        | Weight of self-evaluation in the final score                                        |
+| `performanceAppraisals.evaluationWeights.team`                | `0.30`        | Weight of team evaluation in the final score                                        |
+| `performanceAppraisals.evaluationWeights.manager`             | `0.50`        | Weight of manager evaluation in the final score                                     |
+| `performanceAppraisals.gradeWeights.S`                        | `1.3`         | Numeric weight for grade S (Superior)                                               |
+| `performanceAppraisals.gradeWeights.R`                        | `1.0`         | Numeric weight for grade R (Regular)                                                |
+| `performanceAppraisals.gradeWeights.U`                        | `0.6`         | Numeric weight for grade U (Unsatisfactory)                                         |
+| `performanceAppraisals.gradeWeights.N`                        | `0.0`         | Numeric weight for grade N (Not Utilized)                                           |
+| `performanceAppraisals.isTeamEvaluationCollective`            | `true`        | If `true`, team members grade by subcategory; if `false`, by individual competency  |
+| `performanceAppraisals.minTeamEvaluationMembers`              | `3`           | Minimum number of team members required to start a peer evaluation (enforced)       |
+| `performanceAppraisals.maxTeamEvaluationMembers`              | `5`           | Maximum number of team members allowed per evaluation (enforced; `null` = no limit) |
+| `performanceAppraisals.numberOfNextPeriodGoals`               | `5`           | Maximum number of goals for the next period *(planned feature)*                     |
+| `performanceAppraisals.performanceThresholds.T1`              | `76`          | Score ceiling for T1 (Weak)                                                         |
+| `performanceAppraisals.performanceThresholds.T2`              | `89`          | Score ceiling for T2 (Insufficient)                                                 |
+| `performanceAppraisals.performanceThresholds.T3`              | `105`         | Score ceiling for T3 (Expected)                                                     |
+| `performanceAppraisals.performanceThresholds.T4`              | `119`         | Score ceiling for T4 (Good)                                                         |
+| `performanceAppraisals.performanceThresholds.T5`              | `150`         | Score ceiling for T5 (Outstanding)                                                  |
+| `performanceAppraisals.interviewCalendar.slotDurationMinutes` | `30`          | Duration in minutes of each calendar slot                                           |
+| `performanceAppraisals.interviewCalendar.workingHoursStart`   | `"09:00"`     | First slot start time (HH:MM, local time)                                           |
+| `performanceAppraisals.interviewCalendar.workingHoursEnd`     | `"18:00"`     | No slot may start at or after this time (HH:MM, local time)                         |
+| `performanceAppraisals.interviewCalendar.workingDays`         | `[1,2,3,4,5]` | Working days shown in the calendar grid (0 = Sunday … 6 = Saturday)                 |
 
 ### Environment Variables
 

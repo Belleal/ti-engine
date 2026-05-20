@@ -1209,10 +1209,17 @@ class CompetenceWebApplication extends TiWebAppManager {
 
             const isManager = userRoles.includes( configurationLoader.roleCode.MANAGER ) || userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
 
-            const cycleID = competenceFramework.instance.evaluationCycleID;
-            const cycleDate = competenceFramework.instance.evaluationCycleDate;
+            const evalStatusTone = ( status ) => {
+                if ( status === configurationLoader.evaluationStatus.OPEN ) return "info";
+                if ( status === configurationLoader.evaluationStatus.IN_REVIEW ) return "warn";
+                if ( status === configurationLoader.evaluationStatus.READY ) return "success";
+                return "";
+            };
 
-            dataManager.instance.fetchEvaluations( userID ).then( ( myEvaluations ) => {
+            Promise.all( [
+                dataManager.instance.fetchEvaluations( userID ),
+                dataManager.instance.fetchEvaluations( null, false )
+            ] ).then( ( [ myEvaluations, allEvaluations ] ) => {
                 const myLatestEvaluation = myEvaluations.length > 0
                     ? myEvaluations.slice().sort( ( a, b ) => new Date( b.cycleDate ) - new Date( a.cycleDate ) )[ 0 ]
                     : null;
@@ -1222,94 +1229,134 @@ class CompetenceWebApplication extends TiWebAppManager {
                         evaluationID: myLatestEvaluation.evaluationID,
                         status: myLatestEvaluation.status,
                         statusName: configurationLoader.evaluationStatus.name( myLatestEvaluation.status ),
+                        statusTone: evalStatusTone( myLatestEvaluation.status ),
                         cycleDate: myLatestEvaluation.cycleDate
                     }
                     : null;
 
+                // Self-grades progress from the user's own latest evaluation
+                let selfGrades = { completed: 0, total: 0 };
+                if ( myLatestEvaluation && myLatestEvaluation.grades ) {
+                    const gradeEntries = Object.values( myLatestEvaluation.grades );
+                    selfGrades.total = gradeEntries.length;
+                    selfGrades.completed = gradeEntries.filter( ( g ) => configurationLoader.evaluationGrade.contains( g.employee ) ).length;
+                }
+
+                // Peer feedback: evaluations still waiting for the current user's team review
+                const pendingTeamEvals = allEvaluations.filter( ( e ) =>
+                    e.status === configurationLoader.evaluationStatus.OPEN &&
+                    Array.isArray( e.workflow?.team ) &&
+                    e.workflow.team.includes( userID )
+                );
+                const peerFeedback = { submitted: 0, requested: pendingTeamEvals.length };
+
+                // Team coverage: active evaluations among teammates in the same org unit
+                const activeStatuses = [
+                    configurationLoader.evaluationStatus.OPEN,
+                    configurationLoader.evaluationStatus.IN_REVIEW,
+                    configurationLoader.evaluationStatus.READY
+                ];
+                const userUnitID = organizationManager.instance.resolveOrganizationUnitIDForEmployee( userID );
+                const unitSubtree = userUnitID ? organizationManager.instance.getOrganizationUnitSubtree( userUnitID ) : null;
+                const unitEmployees = unitSubtree && Array.isArray( unitSubtree.employees ) ? unitSubtree.employees : [];
+                const teammates = unitEmployees.filter( ( e ) => e.employeeID !== userID );
+
+                const latestEvalByEmployee = new Map();
+                allEvaluations.forEach( ( e ) => {
+                    const existing = latestEvalByEmployee.get( e.employeeID );
+                    if ( !existing || new Date( e.cycleDate ) > new Date( existing.cycleDate ) ) {
+                        latestEvalByEmployee.set( e.employeeID, e );
+                    }
+                } );
+                const teamCoverageStarted = teammates.filter( ( teammate ) => {
+                    const latestEval = latestEvalByEmployee.get( teammate.employeeID );
+                    return latestEval && activeStatuses.includes( latestEval.status );
+                } ).length;
+                const teamCoverage = { started: teamCoverageStarted, total: teammates.length };
+
+                // Team evaluations for managers
                 const teamEvaluations = isManager
-                    ? dataManager.instance.fetchEvaluations( null, false ).then( ( allEvals ) =>
-                        allEvals.filter( ( e ) =>
+                    ? allEvaluations
+                        .filter( ( e ) =>
                             e.managerID === userID &&
                             e.status !== configurationLoader.evaluationStatus.CLOSED &&
                             e.status !== configurationLoader.evaluationStatus.DELETED
-                        ).map( ( e ) => ( {
+                        )
+                        .map( ( e ) => ( {
                             evaluationID: e.evaluationID,
                             employeeID: e.employeeID,
                             employeeName: organizationManager.instance.resolveEmployeeName( e.employeeID ) || e.employeeID,
                             status: e.status,
                             statusName: configurationLoader.evaluationStatus.name( e.status )
                         } ) )
-                    )
-                    : Promise.resolve( [] );
+                    : [];
 
-                return Promise.all( [ teamEvaluations ] ).then( ( [ teamEvals ] ) => {
-                    const stats = {
-                        total: teamEvals.length,
-                        open: teamEvals.filter( ( e ) => e.status === configurationLoader.evaluationStatus.OPEN ).length,
-                        inReview: teamEvals.filter( ( e ) => e.status === configurationLoader.evaluationStatus.IN_REVIEW ).length,
-                        ready: teamEvals.filter( ( e ) => e.status === configurationLoader.evaluationStatus.READY ).length
-                    };
+                const stats = {
+                    total: teamEvaluations.length,
+                    open: teamEvaluations.filter( ( e ) => e.status === configurationLoader.evaluationStatus.OPEN ).length,
+                    inReview: teamEvaluations.filter( ( e ) => e.status === configurationLoader.evaluationStatus.IN_REVIEW ).length,
+                    ready: teamEvaluations.filter( ( e ) => e.status === configurationLoader.evaluationStatus.READY ).length
+                };
 
-                    resolve( {
-                        userID: userID,
-                        isManager: isManager,
-                        cycle: {
-                            id: cycleID,
-                            startDate: competenceFramework.instance.evaluationCycleStart,
-                            date: cycleDate,
-                            endDate: competenceFramework.instance.evaluationCycleEnd
+                resolve( {
+                    userID: userID,
+                    isManager: isManager,
+                    cycle: {
+                        id: competenceFramework.instance.evaluationCycleID,
+                        startDate: competenceFramework.instance.evaluationCycleStart,
+                        date: competenceFramework.instance.evaluationCycleDate,
+                        endDate: competenceFramework.instance.evaluationCycleEnd
+                    },
+                    myEvaluation: myEvalStatus,
+                    teamEvaluations: teamEvaluations,
+                    stats: stats,
+                    employeeMetrics: {
+                        peerFeedback: peerFeedback,
+                        selfGrades: selfGrades,
+                        teamCoverage: teamCoverage
+                    },
+                    activity: [
+                        {
+                            id: 1,
+                            type: "cycle_opened",
+                            actorID: null,
+                            actorName: "System",
+                            action: "opened the evaluation cycle",
+                            statusLabel: null,
+                            statusTone: null,
+                            time: "2 days ago"
                         },
-                        myEvaluation: myEvalStatus,
-                        teamEvaluations: teamEvals,
-                        stats: stats,
-                        employeeMetrics: {
-                            peerFeedback: { submitted: 0, requested: 4 },
-                            selfGrades: { completed: 0, total: 0 },
-                            teamCoverage: { started: 0, total: teamEvals.length || 0 }
+                        {
+                            id: 2,
+                            type: "self_eval",
+                            actorID: userID,
+                            actorName: organizationManager.instance.resolveEmployeeName( userID ) || "You",
+                            action: "submitted a self-evaluation",
+                            statusLabel: "Open",
+                            statusTone: "info",
+                            time: "1 day ago"
                         },
-                        activity: [
-                            {
-                                id: 1,
-                                type: "cycle_opened",
-                                actorID: null,
-                                actorName: "System",
-                                action: "opened the evaluation cycle",
-                                statusLabel: null,
-                                statusTone: null,
-                                time: "2 days ago"
-                            },
-                            {
-                                id: 2,
-                                type: "self_eval",
-                                actorID: userID,
-                                actorName: organizationManager.instance.resolveEmployeeName( userID ) || "You",
-                                action: "submitted a self-evaluation",
-                                statusLabel: "Open",
-                                statusTone: "info",
-                                time: "1 day ago"
-                            },
-                            {
-                                id: 3,
-                                type: "peer_eval",
-                                actorID: null,
-                                actorName: "A colleague",
-                                action: "submitted peer feedback for you",
-                                statusLabel: null,
-                                statusTone: null,
-                                time: "6 hours ago"
-                            },
-                            {
-                                id: 4,
-                                type: "review_started",
-                                actorID: null,
-                                actorName: "Your manager",
-                                action: "started the manager review",
-                                statusLabel: "In Review",
-                                statusTone: "warn",
-                                time: "2 hours ago"
-                            }
-                        ]
-                    } );
+                        {
+                            id: 3,
+                            type: "peer_eval",
+                            actorID: null,
+                            actorName: "A colleague",
+                            action: "submitted peer feedback for you",
+                            statusLabel: null,
+                            statusTone: null,
+                            time: "6 hours ago"
+                        },
+                        {
+                            id: 4,
+                            type: "review_started",
+                            actorID: null,
+                            actorName: "Your manager",
+                            action: "started the manager review",
+                            statusLabel: "In Review",
+                            statusTone: "warn",
+                            time: "2 hours ago"
+                        }
+                    ]
                 } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );

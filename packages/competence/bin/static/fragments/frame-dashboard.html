@@ -21,7 +21,10 @@
                         <template x-if="myEvaluation">
                             <span>
                                 <span x-text-label="interface.dashboard.my-eval-status">Your evaluation is currently</span>
-                                <strong x-text="myEvaluation.statusName"></strong>.
+                                <span class="ti-status-pill" x-bind:class="myEvaluation.statusTone">
+                                    <span class="dot"></span>
+                                    <span x-text="getLabel(myEvaluation.statusName)"></span>
+                                </span>
                             </span>
                         </template>
                         <template x-if="!myEvaluation">
@@ -41,10 +44,15 @@
 
                     <!-- Background mark -->
                     <div class="competence-dash-hero-mark" aria-hidden="true">
-                        <svg viewBox="0 0 120 120" fill="none">
+                        <svg viewBox="0 0 120 120" fill="none" class="competence-dash-hero-frame">
                             <path d="M60 10 L110 35 L110 85 L60 110 L10 85 L10 35 Z" stroke="currentColor" stroke-width="2" fill="none" opacity="0.5"/>
                             <circle cx="60" cy="60" r="30" stroke="currentColor" stroke-width="2" fill="none"/>
                         </svg>
+                        <div class="ti-avatar xl"
+                             x-bind:class="$store.tiToolbox.generateAvatarClass( $store.tiApplication.user && $store.tiApplication.user.employeeID )"
+                             x-bind:aria-label="getUserName()">
+                            <span x-text="( ( $store.tiApplication.user && $store.tiApplication.user.name ) || '?' ).charAt( 0 ).toUpperCase()"></span>
+                        </div>
                     </div>
                 </div>
 

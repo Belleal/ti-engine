@@ -1266,6 +1266,10 @@ const configureDashboard = () => {
             }
         },
 
+        getLabel( key, defaultText ) {
+            return tiApplication.getLabel( key, defaultText );
+        },
+
         getGreeting() {
             const hour = new Date().getHours();
             if ( hour < 12 ) return tiApplication.getLabel( "interface.dashboard.greeting-morning", "Good morning" );

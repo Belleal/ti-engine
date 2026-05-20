@@ -3301,11 +3301,11 @@
       },
       "open-evaluation": {
         "en": "Open My Evaluation",
-        "bg": "Отвори Моята Оценка"
+        "bg": "Отвори моята оценка"
       },
       "cycle-active": {
         "en": "Active Cycle",
-        "bg": "Активен Цикъл"
+        "bg": "Активен цикъл"
       },
       "cycle-running": {
         "en": "Running",
@@ -3313,19 +3313,19 @@
       },
       "cycle-my-status": {
         "en": "My Status",
-        "bg": "Моят Статус"
+        "bg": "Моят статус"
       },
       "cycle-date": {
         "en": "Cycle Date",
-        "bg": "Дата на Цикъл"
+        "bg": "Дата на цикъл"
       },
       "team-title": {
         "en": "Team Evaluations",
-        "bg": "Оценки на Екипа"
+        "bg": "Оценки на екипа"
       },
       "my-eval-title": {
         "en": "My Evaluation Status",
-        "bg": "Статус на Моята Оценка"
+        "bg": "Статус на моята оценка"
       },
       "view-all": {
         "en": "View all",
@@ -3365,7 +3365,7 @@
       },
       "activity-title": {
         "en": "Recent Activity",
-        "bg": "Последна Активност"
+        "bg": "Последна активност"
       },
       "no-activity": {
         "en": "No recent activity",
@@ -3402,7 +3402,7 @@
       "employee-stats": {
         "days": {
           "en": "Days to Deadline",
-          "bg": "Дни до Краен Срок"
+          "bg": "Дни до краен срок"
         },
         "days-suffix": {
           "en": "days",
@@ -3422,7 +3422,7 @@
         },
         "progress": {
           "en": "Cycle Progress",
-          "bg": "Напредък на Цикъла"
+          "bg": "Напредък на цикъла"
         },
         "progress-suffix": {
           "en": "%",
@@ -3434,7 +3434,7 @@
         },
         "activity": {
           "en": "Cycle Activity",
-          "bg": "Активност на Цикъла"
+          "bg": "Активност на цикъла"
         },
         "activity-suffix": {
           "en": "events",
@@ -3456,7 +3456,7 @@
         },
         "total-desc": {
           "en": "Team evaluations this cycle",
-          "bg": "Оценки на екипа за този цикъл"
+          "bg": "Оценки на екипа в този цикъл"
         },
         "open": {
           "en": "In Progress",
@@ -3468,7 +3468,7 @@
         },
         "open-desc": {
           "en": "Awaiting self or team evaluation",
-          "bg": "Чакат самооценка или оценка от екипа"
+          "bg": "Очакват самооценка или оценка от екипа"
         },
         "review": {
           "en": "In Review",
@@ -3480,7 +3480,7 @@
         },
         "review-desc": {
           "en": "Awaiting manager evaluation",
-          "bg": "Чакат оценка от мениджъра"
+          "bg": "Очакват оценка от мениджър"
         },
         "ready": {
           "en": "Ready",
@@ -3501,11 +3501,11 @@
       },
       "manager-review": {
         "en": "Manager Review",
-        "bg": "Мениджър Преглед"
+        "bg": "Преглед от мениджър"
       },
       "peer-feedback": {
-        "en": "Team Feedback",
-        "bg": "Обратна Връзка"
+        "en": "Your Team Feedback",
+        "bg": "Вашата обратна връзка"
       },
       "peer-feedback-suffix": {
         "en": "submitted",
@@ -3517,19 +3517,19 @@
       },
       "self-grades": {
         "en": "Your Self-Grades",
-        "bg": "Вашите Оценки"
+        "bg": "Вашите оценки"
       },
       "self-grades-suffix": {
         "en": "complete",
         "bg": "завършени"
       },
       "self-grades-desc": {
-        "en": "Competencies submitted — awaiting manager",
-        "bg": "Изпратени компетенции — чакат мениджъра"
+        "en": "Competencies submitted — awaiting manager review",
+        "bg": "Изпратени компетенции — очакват преглед от мениджър"
       },
       "next-deadline": {
         "en": "Next Deadline",
-        "bg": "Следващ Краен Срок"
+        "bg": "Следващ краен срок"
       },
       "next-deadline-suffix": {
         "en": "days",
@@ -3537,11 +3537,11 @@
       },
       "next-deadline-desc": {
         "en": "Until manager review closes",
-        "bg": "До затварянето на мениджър прегледа"
+        "bg": "До затварянето на преглед от мениджър"
       },
       "team-coverage": {
         "en": "Team Coverage",
-        "bg": "Покритие на Екипа"
+        "bg": "Покритие на екипа"
       },
       "team-coverage-suffix": {
         "en": "started",
@@ -3549,7 +3549,7 @@
       },
       "team-coverage-desc": {
         "en": "Teammates have started their evaluations",
-        "bg": "Съотборници са започнали своите оценявания"
+        "bg": "Колеги са започнали своите оценки"
       },
       "greeting-morning": {
         "en": "Good morning",
@@ -3565,7 +3565,7 @@
       },
       "task-team-feedback": {
         "en": "Provide team feedback for a colleague",
-        "bg": "Дайте обратна връзка на колега"
+        "bg": "Дайте обратна връзка за колега"
       }
     },
     "navigation": {
@@ -3574,7 +3574,7 @@
         "bg": "Работно пространство"
       },
       "quick-links": {
-        "en": "Quick links",
+        "en": "Quick Links",
         "bg": "Бързи връзки"
       },
       "process-guide": {

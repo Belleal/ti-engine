@@ -156,10 +156,10 @@
                                             </div>
                                             <div class="competence-org-employee-id">
                                                 <span x-text="employee.id"></span>
-                                                <template x-if="employee.personal && employee.email">
+                                                <template x-if="employee.email">
                                                     <span class="competence-org-sub-sep">·</span>
                                                 </template>
-                                                <template x-if="employee.personal && employee.email">
+                                                <template x-if="employee.email">
                                                     <span class="competence-org-employee-email" x-text="employee.email"></span>
                                                 </template>
                                             </div>
@@ -180,7 +180,8 @@
                                                         <span x-text="getLabel( employee.evaluation.statusName )"></span>
                                                     </span>
                                                     <div class="competence-org-eval-date" x-show="employee.evaluation.date">
-                                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                             aria-hidden="true">
                                                             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                                                             <line x1="16" y1="2" x2="16" y2="6"/>
                                                             <line x1="8" y1="2" x2="8" y2="6"/>
