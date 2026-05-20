@@ -562,6 +562,8 @@ const configureNewEvaluation = () => {
         selectedTeamMemberID: "",
         competencyCount: 0,
         categoryCount: 0,
+        minTeamMembers: 1,
+        maxTeamMembers: null,
 
         init() {
             const onInitialized = () => {
@@ -610,6 +612,8 @@ const configureNewEvaluation = () => {
             this.availableTeamMembers = fresh.availableTeamMembers ? tiToolbox.structuredClone( fresh.availableTeamMembers ) : [];
             this.competencyCount = fresh.evaluation?.competencyCount || 0;
             this.categoryCount = fresh.evaluation?.categoryCount || 0;
+            this.minTeamMembers = typeof fresh.minTeamMembers === "number" ? fresh.minTeamMembers : 1;
+            this.maxTeamMembers = typeof fresh.maxTeamMembers === "number" ? fresh.maxTeamMembers : null;
             this.team = [];
             this.selectedTeamMemberID = "";
         },
@@ -620,7 +624,9 @@ const configureNewEvaluation = () => {
         },
 
         getCompetencyCountText() {
-            if ( !this.competencyCount ) { return ""; }
+            if ( !this.competencyCount ) {
+                return "";
+            }
             const across = tiApplication.getLabel( "interface.evaluation.new-eval.across-categories" );
             return `${ this.competencyCount } ${ ( across || "across {n} categories" ).replace( "{n}", String( this.categoryCount ) ) }`;
         },
@@ -630,8 +636,36 @@ const configureNewEvaluation = () => {
             return ( label || "" ).replace( "{name}", this.personal.name || "" );
         },
 
+        getTeamHintText() {
+            const min = this.minTeamMembers;
+            const max = this.maxTeamMembers;
+            if ( !min ) return "";
+
+            const RECOMMENDED_MIN = 3;
+            if ( max !== null && max !== undefined ) {
+                const rangeLabel = tiApplication.getLabel( "interface.evaluation.new-eval.team-hint-range" ) || "Minimum: {min} — Maximum: {max} peers";
+                let text = rangeLabel.replace( "{min}", String( min ) ).replace( "{max}", String( max ) );
+                if ( min < RECOMMENDED_MIN ) {
+                    const recLabel = tiApplication.getLabel( "interface.evaluation.new-eval.team-hint-recommended" ) || "Recommended: {n}+";
+                    text += " · " + recLabel.replace( "{n}", String( RECOMMENDED_MIN ) );
+                }
+                return text;
+            }
+            const minLabel = tiApplication.getLabel( "interface.evaluation.new-eval.team-hint-min" ) || "Minimum: {n} peers";
+            let text = minLabel.replace( "{n}", String( min ) );
+            if ( min < RECOMMENDED_MIN ) {
+                const recLabel = tiApplication.getLabel( "interface.evaluation.new-eval.team-hint-recommended" ) || "Recommended: {n}+";
+                text += " · " + recLabel.replace( "{n}", String( RECOMMENDED_MIN ) );
+            }
+            return text;
+        },
+
         addTeamMember() {
             if ( this.selectedTeamMemberID && !this.team.find( m => m.employeeID === this.selectedTeamMemberID ) ) {
+                if ( this.maxTeamMembers !== null && this.team.length >= this.maxTeamMembers ) {
+                    this.selectedTeamMemberID = "";
+                    return;
+                }
                 const member = this.availableTeamMembers.find( m => m.employeeID === this.selectedTeamMemberID );
                 if ( member ) {
                     this.team.push( { employeeID: member.employeeID, name: member.name } );
@@ -646,6 +680,11 @@ const configureNewEvaluation = () => {
 
         submitNewEvaluation() {
             const teamIDs = this.team.map( m => m.employeeID );
+            if ( this.minTeamMembers > 0 && teamIDs.length < this.minTeamMembers ) {
+                const label = tiApplication.getLabel( "interface.evaluation.new-eval.team-min-error" ) || "Please add at least {min} team reviewers.";
+                tiApplication.notify( label.replace( "{min}", String( this.minTeamMembers ) ) );
+                return;
+            }
             tiApplication.sendRequest( "/app/start-evaluation", "POST", {
                 employeeID: this.employeeID,
                 team: teamIDs

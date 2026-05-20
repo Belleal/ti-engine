@@ -2378,6 +2378,14 @@
       "invalid-team-members": {
         "en": "One or more team member IDs are not valid employees.",
         "bg": "Един или повече идентификатори на членове на екипа не са валидни служители."
+      },
+      "team-below-minimum": {
+        "en": "Team reviewers must include at least {min} members.",
+        "bg": "Екипните оценители трябва да включват поне {min} члена."
+      },
+      "team-above-maximum": {
+        "en": "Team reviewers cannot exceed {max} members.",
+        "bg": "Екипните оценители не могат да надвишават {max} члена."
       }
     },
     "calendar": {
@@ -2961,6 +2969,22 @@
         "open-evaluation": {
           "en": "Open evaluation",
           "bg": "Отвори оценката"
+        },
+        "team-hint-range": {
+          "en": "Minimum: {min} — Maximum: {max} peers",
+          "bg": "Минимум: {min} — Максимум: {max} колеги"
+        },
+        "team-hint-min": {
+          "en": "Minimum: {n} peers",
+          "bg": "Минимум: {n} колеги"
+        },
+        "team-hint-recommended": {
+          "en": "Recommended: {n}+",
+          "bg": "Препоръчително: {n}+"
+        },
+        "team-min-error": {
+          "en": "Please add at least {min} team reviewers.",
+          "bg": "Моля, добавете поне {min} екипни оценители."
         }
       },
       "messages": {

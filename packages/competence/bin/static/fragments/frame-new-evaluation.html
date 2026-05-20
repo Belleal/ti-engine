@@ -73,8 +73,9 @@
                 <div class="ti-panel-head">
                     <div class="ti-panel-title">
                         <span x-text-label="interface.evaluation.new-eval.team-title"></span>
-                        <span class="competence-new-eval-optional-tag" x-text-label="interface.evaluation.new-eval.team-optional"></span>
+                        <span class="competence-new-eval-optional-tag" x-show="minTeamMembers === 0" x-text-label="interface.evaluation.new-eval.team-optional"></span>
                     </div>
+                    <span class="competence-eval-feedback-intro" x-show="getTeamHintText()" x-text="getTeamHintText()"></span>
                 </div>
                 <div class="competence-new-eval-team-desc" x-text="getTeamPanelDesc()"></div>
                 <div class="competence-new-eval-team-body">
@@ -86,6 +87,7 @@
                             </template>
                         </select>
                         <button type="button" class="ti-btn primary" @click="addTeamMember()"
+                                x-bind:disabled="maxTeamMembers !== null && team.length >= maxTeamMembers"
                                 x-text-label="interface.evaluation.new-eval.add-reviewer"></button>
                     </div>
 

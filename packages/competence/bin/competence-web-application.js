@@ -806,15 +806,25 @@ class CompetenceWebApplication extends TiWebAppManager {
                     newEvaluation.managerID = resolvedManagerID;
                 }
 
-                if ( Array.isArray( team ) ) {
-                    const uniqueTeam = [ ...new Set( team.map( String ) ) ]
-                        .filter( ( id ) => id !== employee.employeeID && id !== resolvedManagerID );
-                    const invalidIDs = uniqueTeam.filter( ( id ) => !organizationManager.instance.resolveEmployeeName( id ) );
-                    if ( invalidIDs.length > 0 ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.evaluation.invalid-team-members" } );
-                    }
-                    newEvaluation.workflow.team = uniqueTeam;
+                const uniqueTeam = Array.isArray( team )
+                    ? [ ...new Set( team.map( String ) ) ].filter( ( id ) => id !== employee.employeeID && id !== resolvedManagerID )
+                    : [];
+
+                const invalidIDs = uniqueTeam.filter( ( id ) => !organizationManager.instance.resolveEmployeeName( id ) );
+                if ( invalidIDs.length > 0 ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.evaluation.invalid-team-members" } );
                 }
+
+                const minTeam = configurationLoader.getSetting( "performanceAppraisals.minTeamEvaluationMembers", 1 );
+                const maxTeam = configurationLoader.getSetting( "performanceAppraisals.maxTeamEvaluationMembers", null );
+                if ( uniqueTeam.length < minTeam ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.team-below-minimum" }, exceptions.httpCode.C_422 );
+                }
+                if ( maxTeam !== null && uniqueTeam.length > maxTeam ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.team-above-maximum" }, exceptions.httpCode.C_422 );
+                }
+
+                newEvaluation.workflow.team = uniqueTeam;
 
                 // Populate the competencies based on the employee career path and the role configuration:
                 for ( const competencyCode of competenceFramework.instance.getAllowedCompetencyCodes( employee.career.careerPath, newEvaluation.cycleID ) ) {
@@ -897,6 +907,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                         competencyCount: competencyCount,
                         categoryCount: competencyCategories.size
                     },
+                    minTeamMembers: configurationLoader.getSetting( "performanceAppraisals.minTeamEvaluationMembers", 1 ),
+                    maxTeamMembers: configurationLoader.getSetting( "performanceAppraisals.maxTeamEvaluationMembers", null ),
                     availableTeamMembers: availableTeamMembers
                 } );
             } ).catch( ( error ) => {
