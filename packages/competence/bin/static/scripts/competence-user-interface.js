@@ -355,7 +355,10 @@ const configureCompetenceEvaluation = () => {
         getStickyProgressText() {
             const of = tiApplication.getLabel( "interface.evaluation.sticky.of", "of" );
             const total = this.getTotalCount();
-            const graded = tiApplication.getLabel( "interface.evaluation.sticky.graded", "competencies graded" );
+            const isCollectiveTeam = this.userRole === 4 && this.isTeamEvaluationCollective;
+            const graded = isCollectiveTeam
+                ? tiApplication.getLabel( "interface.evaluation.sticky.subcategories-graded", "subcategories graded" )
+                : tiApplication.getLabel( "interface.evaluation.sticky.graded", "competencies graded" );
             return `${ of } ${ total } ${ graded }`;
         },
 
@@ -384,14 +387,28 @@ const configureCompetenceEvaluation = () => {
         },
 
         getTotalCount() {
+            if ( this.userRole === 4 && this.isTeamEvaluationCollective ) {
+                if ( !Array.isArray( this.competencies ) ) return 0;
+                return this.competencies.reduce( ( sum, cat ) => sum + ( Array.isArray( cat.subcategories ) ? cat.subcategories.length : 0 ), 0 );
+            }
             if ( !this.evaluation?.grades ) return 0;
             return Object.keys( this.evaluation.grades ).length;
         },
 
         getGradedCount() {
-            if ( !this.evaluation?.grades ) return 0;
             const role = this.getUserRoleAsText();
             if ( !role ) return 0;
+            if ( this.userRole === 4 && this.isTeamEvaluationCollective ) {
+                if ( !Array.isArray( this.competencies ) ) return 0;
+                return this.competencies.reduce( ( sum, cat ) => {
+                    if ( !Array.isArray( cat.subcategories ) ) return sum;
+                    return sum + cat.subcategories.filter( ( sub ) => {
+                        const g = this.evaluation.grades && this.evaluation.grades[ sub.id ];
+                        return g && g.team;
+                    } ).length;
+                }, 0 );
+            }
+            if ( !this.evaluation?.grades ) return 0;
             return Object.values( this.evaluation.grades ).filter( ( g ) => g && g[ role ] ).length;
         },
 

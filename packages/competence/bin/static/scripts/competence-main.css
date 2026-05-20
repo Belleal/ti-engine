@@ -2361,7 +2361,6 @@
 
 .competence-eval-grade-guide .ti-panel-head {
     border-bottom: 1px solid var(--border-soft);
-    margin-bottom: 0;
 }
 
 .competence-eval-grade-scale-tag {
@@ -2376,7 +2375,7 @@
 .competence-eval-grade-guide-intro {
     font-size: var(--fs-sm);
     color: var(--fg-secondary);
-    padding: var(--s-3) var(--s-5);
+    padding: 0 var(--s-3) var(--s-5);
     line-height: 1.5;
 }
 

@@ -2693,6 +2693,10 @@
         "graded": {
           "en": "competencies graded",
           "bg": "компетенции оценени"
+        },
+        "subcategories-graded": {
+          "en": "subcategories graded",
+          "bg": "подкатегории оценени"
         }
       },
       "instructions": {
