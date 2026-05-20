@@ -346,8 +346,19 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                     const rawEmployees = Array.isArray( unitNode.employees ) ? unitNode.employees : [];
                     const employees = rawEmployees.map( ( e ) => toEmployeeEntry( e, unitNode.managerID ) );
-                    const inCycle = employees.filter( ( e ) => e && e.evaluation ).length;
-                    const ready = employees.filter( ( e ) => e && e.evaluation && e.evaluation.status === configurationLoader.evaluationStatus.READY ).length;
+                    const activeEvalStatuses = [
+                        configurationLoader.evaluationStatus.OPEN,
+                        configurationLoader.evaluationStatus.IN_REVIEW,
+                        configurationLoader.evaluationStatus.READY
+                    ];
+                    const inCycle = rawEmployees.filter( ( e ) => {
+                        const latestEval = latestEvaluationByEmployeeID.get( e.employeeID );
+                        return latestEval && activeEvalStatuses.includes( latestEval.status );
+                    } ).length;
+                    const ready = rawEmployees.filter( ( e ) => {
+                        const latestEval = latestEvaluationByEmployeeID.get( e.employeeID );
+                        return latestEval && latestEval.status === configurationLoader.evaluationStatus.READY;
+                    } ).length;
 
                     const managerRawEmployee = rawEmployees.find( ( e ) => e.employeeID === unitNode.managerID );
                     const managerWorkLocation = managerRawEmployee ? ( managerRawEmployee.workLocation || null ) : null;
@@ -1236,17 +1247,21 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 // Self-grades progress from the user's own latest evaluation
                 let selfGrades = { completed: 0, total: 0 };
-                if ( myLatestEvaluation && myLatestEvaluation.grades ) {
-                    const gradeEntries = Object.values( myLatestEvaluation.grades );
-                    selfGrades.total = gradeEntries.length;
-                    selfGrades.completed = gradeEntries.filter( ( g ) => configurationLoader.evaluationGrade.contains( g.employee ) ).length;
+                if ( myLatestEvaluation ) {
+                    const gradeEntries = myLatestEvaluation.grades ? Object.values( myLatestEvaluation.grades ) : [];
+                    selfGrades.total = competenceFramework.instance.getAllowedCompetencyCodes( myLatestEvaluation.careerPath, myLatestEvaluation.cycleID ).length;
+                    if ( gradeEntries.length > 0 ) {
+                        selfGrades.completed = gradeEntries.filter( ( grade ) => configurationLoader.evaluationGrade.contains( grade.employee ) ).length;
+                    } else if ( myLatestEvaluation.careerPath && myLatestEvaluation.cycleID ) {
+                        selfGrades.completed = 0;
+                    }
                 }
 
                 // Peer feedback: evaluations still waiting for the current user's team review
-                const pendingTeamEvals = allEvaluations.filter( ( e ) =>
-                    e.status === configurationLoader.evaluationStatus.OPEN &&
-                    Array.isArray( e.workflow?.team ) &&
-                    e.workflow.team.includes( userID )
+                const pendingTeamEvals = allEvaluations.filter( ( evaluation ) =>
+                    evaluation.status === configurationLoader.evaluationStatus.OPEN &&
+                    Array.isArray( evaluation.workflow?.team ) &&
+                    evaluation.workflow.team.includes( userID )
                 );
                 const peerFeedback = { submitted: 0, requested: pendingTeamEvals.length };
 

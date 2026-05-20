@@ -3028,8 +3028,8 @@
         "bg": "ОРГАНИЗАЦИЯ"
       },
       "header-title": {
-        "en": "Employees",
-        "bg": "Служители"
+        "en": "Organizational Structure",
+        "bg": "Организационна Структура"
       },
       "header-desc": {
         "en": "Your department and the teams beneath it.",
@@ -3523,9 +3523,17 @@
         "en": "complete",
         "bg": "завършени"
       },
-      "self-grades-desc": {
-        "en": "Competencies submitted — awaiting manager review",
-        "bg": "Изпратени компетенции — очакват преглед от мениджър"
+      "self-grades-in-review": {
+        "en": "Competencies submitted, now awaiting manager review",
+        "bg": "Компетенции са изпратени и очакват преглед от мениджър"
+      },
+      "self-grades-awaiting": {
+        "en": "Competencies awaiting your self-evaluation",
+        "bg": "Компетенциите очакват Вашата самооценка"
+      },
+      "self-grades-completed": {
+        "en": "Competencies reviewed and finalized",
+        "bg": "Компетенциите са прегледани и финализирани"
       },
       "next-deadline": {
         "en": "Next Deadline",

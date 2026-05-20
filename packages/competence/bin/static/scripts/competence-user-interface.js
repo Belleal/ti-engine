@@ -373,11 +373,10 @@ const configureCompetenceEvaluation = () => {
         },
 
         getCategoryTotalCount( categoryId ) {
-            if ( !this.evaluation?.grades ) return 0;
-            const prefix = categoryId ? categoryId.charAt( 0 ) : "";
-            return Object.keys( this.evaluation.grades )
-                .filter( ( code ) => code.startsWith( prefix ) )
-                .length;
+            if ( !Array.isArray( this.competencies ) ) return 0;
+            const category = this.competencies.find( ( cat ) => cat.id === categoryId );
+            if ( !category || !Array.isArray( category.subcategories ) ) return 0;
+            return category.subcategories.reduce( ( sum, sub ) => sum + ( Array.isArray( sub.items ) ? sub.items.length : 0 ), 0 );
         },
 
         getCategoryGradedPct( categoryId ) {
@@ -387,12 +386,13 @@ const configureCompetenceEvaluation = () => {
         },
 
         getTotalCount() {
+            if ( !Array.isArray( this.competencies ) ) return 0;
             if ( this.userRole === 4 && this.isTeamEvaluationCollective ) {
-                if ( !Array.isArray( this.competencies ) ) return 0;
                 return this.competencies.reduce( ( sum, cat ) => sum + ( Array.isArray( cat.subcategories ) ? cat.subcategories.length : 0 ), 0 );
             }
-            if ( !this.evaluation?.grades ) return 0;
-            return Object.keys( this.evaluation.grades ).length;
+            return this.competencies.reduce( ( sum, cat ) =>
+                sum + ( Array.isArray( cat.subcategories ) ? cat.subcategories.reduce( ( s, sub ) =>
+                    s + ( Array.isArray( sub.items ) ? sub.items.length : 0 ), 0 ) : 0 ), 0 );
         },
 
         getGradedCount() {
