@@ -900,6 +900,7 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 resolve( {
                     personal: {
+                        id: employeeID,
                         ...employee.personal,
                         name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
                         organizationUnitName: organizationContext.organizationUnitName,

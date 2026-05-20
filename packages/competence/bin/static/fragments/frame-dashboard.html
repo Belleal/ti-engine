@@ -49,7 +49,7 @@
                             <circle cx="60" cy="60" r="30" stroke="currentColor" stroke-width="2" fill="none"/>
                         </svg>
                         <div class="ti-avatar xl"
-                             x-bind:class="$store.tiToolbox.generateAvatarClass( $store.tiApplication.user && $store.tiApplication.user.employeeID )"
+                             x-bind:style="$store.tiToolbox.generateAvatarStyle( $store.tiApplication.user && $store.tiApplication.user.employeeID, $store.tiApplication.user && $store.tiApplication.user.name )"
                              x-bind:aria-label="getUserName()">
                             <span x-text="( ( $store.tiApplication.user && $store.tiApplication.user.name ) || '?' ).charAt( 0 ).toUpperCase()"></span>
                         </div>
@@ -334,7 +334,7 @@
                             <template x-for="item in activity" x-bind:key="item.id">
                                 <div class="competence-activity-item">
                                     <div class="ti-avatar xs"
-                                         x-bind:class="$store.tiToolbox.generateAvatarClass(item.actorID || item.id)"
+                                         x-bind:style="$store.tiToolbox.generateAvatarStyle(item.actorID || item.id, item.actorName)"
                                          x-bind:aria-label="item.actorName">
                                         <span x-text="(item.actorName || '?').charAt(0).toUpperCase()"></span>
                                     </div>

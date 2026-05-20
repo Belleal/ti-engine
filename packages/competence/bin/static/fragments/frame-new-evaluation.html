@@ -16,7 +16,7 @@
                 </div>
                 <div class="competence-new-eval-employee-body">
                     <div class="competence-eval-emp-avatar-block">
-                        <div class="ti-avatar xl" x-bind:class="$store.tiToolbox.generateAvatarClass(personal.name)"
+                        <div class="ti-avatar xl" x-bind:style="$store.tiToolbox.generateAvatarStyle(personal.id, personal.name)"
                              x-bind:aria-label="personal.name">
                             <span x-text="(personal.name || '?').charAt(0).toUpperCase()"></span>
                         </div>
@@ -95,7 +95,7 @@
                     <div class="competence-team-chip-list">
                         <template x-for="member in team" x-bind:key="member.employeeID">
                             <div class="competence-team-chip">
-                                <div class="ti-avatar xs" x-bind:class="$store.tiToolbox.generateAvatarClass(member.employeeID || member.name)"
+                                <div class="ti-avatar xs" x-bind:style="$store.tiToolbox.generateAvatarStyle(member.employeeID, member.name)"
                                      x-bind:aria-label="member.name">
                                     <span x-text="(member.name || '?').charAt(0).toUpperCase()"></span>
                                 </div>

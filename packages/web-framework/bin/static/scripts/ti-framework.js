@@ -291,27 +291,26 @@ const configureToolbox = () => {
          * The result is stable across sessions and consistent for the same seed.
          *
          * @method
-         * @param {string|number} seed
-         * @returns {string} HSL color string
+         * @param {string|number} id
+         * @param {string} name
+         * @returns {Object} HSL color string
          * @public
          */
-        generateAvatarColor( seed ) {
-            const str = String( seed ?? "" );
-            let hash = 0;
-            for ( let i = 0; i < str.length; i++ ) {
-                hash = ( ( hash << 5 ) - hash + str.charCodeAt( i ) ) | 0;
-            }
-            const hue = Math.abs( hash ) % 360;
-            return `hsl(${ hue }, 60%, 48%)`;
-        },
-
-        generateAvatarClass( seed ) {
-            const str = String( seed ?? "" );
-            let hash = 0;
-            for ( let i = 0; i < str.length; i++ ) {
-                hash = ( ( hash << 5 ) - hash + str.charCodeAt( i ) ) | 0;
-            }
-            return `competence-ac-${ Math.abs( hash ) % 12 }`;
+        generateAvatarStyle( id, name ) {
+            const seed = String( id ?? "" ) + "\x00" + String( name ?? "" );
+            const djb2 = ( s ) => {
+                let h = 5381;
+                for ( let i = 0; i < s.length; i++ ) {
+                    h = ( ( h << 5 ) + h + s.charCodeAt( i ) ) | 0;
+                }
+                return Math.abs( h );
+            };
+            const h0 = djb2( seed + "A" ) % 360;
+            const h1 = djb2( seed + "B" ) % 360;
+            const h2 = djb2( seed + "C" ) % 360;
+            return {
+                "--avatar-bg": `linear-gradient( 135deg, hsl( ${ h0 }, 70%, 48% ) 0%, hsl( ${ h1 }, 62%, 54% ) 50%, hsl( ${ h2 }, 65%, 44% ) 100% )`
+            };
         }
 
     };

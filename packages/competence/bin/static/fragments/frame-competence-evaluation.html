@@ -25,8 +25,8 @@
 
             <!-- Role info panel -->
             <div class="competence-eval-role-info" x-bind:class="getUserRoleAsText()">
-                <div class="competence-eval-role-info-title" x-text="getLabel(getRolePanelTitle())"></div>
-                <div class="competence-eval-role-info-desc" x-text="getLabel(getRolePanelDesc())"></div>
+                <div class="competence-eval-role-info-title" x-text="getLabel( getRolePanelTitle() )"></div>
+                <div class="competence-eval-role-info-desc" x-text="getLabel( getRolePanelDesc() )"></div>
             </div>
 
             <!-- Top grid: employee card (left) · right column (deadline + team reviewers stacked) -->
@@ -37,9 +37,9 @@
                     <!-- Top row: avatar+info (left) + status pill (right) -->
                     <div class="competence-eval-emp-top-row">
                         <div class="competence-eval-emp-avatar-block">
-                            <div class="ti-avatar xl" x-bind:class="$store.tiToolbox.generateAvatarClass(personal.id || personal.name)"
+                            <div class="ti-avatar xl" x-bind:style="$store.tiToolbox.generateAvatarStyle( personal.id, personal.name )"
                                  x-bind:aria-label="personal.name">
-                                <span x-text="(personal.name || '?').charAt(0).toUpperCase()"></span>
+                                <span x-text="( personal.name || '?' ).charAt( 0 ).toUpperCase()"></span>
                             </div>
                             <div class="competence-eval-emp-info">
                                 <div class="competence-eval-emp-name" x-text="personal.name"></div>
@@ -47,13 +47,13 @@
                                     <span x-text="evaluation.careerPathName"></span>
                                     <span class="competence-level-pip"
                                           x-show="personal.stageLevel"
-                                          x-bind:class="personal.stageLevel ? personal.stageLevel.charAt(0) : ''"
+                                          x-bind:class="personal.stageLevel ? personal.stageLevel.charAt( 0 ) : ''"
                                           x-text="personal.stageLevel"></span>
                                     <span class="competence-eval-sub-sep">·</span>
                                     <span x-text="personal.organizationUnitName"></span>
                                     <span class="competence-eval-sub-sep" x-show="personal.startingDate">·</span>
                                     <span x-show="personal.startingDate"
-                                          x-text="getLabel('interface.evaluation.personal.joined') + ' ' + formatDate(personal.startingDate, '')"></span>
+                                          x-text="getLabel( 'interface.evaluation.personal.joined' ) + ' ' + formatDate( personal.startingDate, '' )"></span>
                                 </div>
                                 <div class="competence-eval-emp-meta">
                                     <span x-text-label="interface.evaluation.personal.manager"></span>

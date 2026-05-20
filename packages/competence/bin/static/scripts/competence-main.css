@@ -1779,57 +1779,6 @@
     }
 }
 
-/* ============================================================
-   Avatar color classes — 12 evenly distributed hues
-   ============================================================ */
-
-.competence-ac-0 {
-    --avatar-bg: hsl(0, 60%, 48%);
-}
-
-.competence-ac-1 {
-    --avatar-bg: hsl(30, 60%, 48%);
-}
-
-.competence-ac-2 {
-    --avatar-bg: hsl(60, 55%, 40%);
-}
-
-.competence-ac-3 {
-    --avatar-bg: hsl(90, 55%, 40%);
-}
-
-.competence-ac-4 {
-    --avatar-bg: hsl(120, 50%, 40%);
-}
-
-.competence-ac-5 {
-    --avatar-bg: hsl(150, 55%, 40%);
-}
-
-.competence-ac-6 {
-    --avatar-bg: hsl(180, 55%, 42%);
-}
-
-.competence-ac-7 {
-    --avatar-bg: hsl(210, 60%, 48%);
-}
-
-.competence-ac-8 {
-    --avatar-bg: hsl(240, 55%, 50%);
-}
-
-.competence-ac-9 {
-    --avatar-bg: hsl(270, 55%, 48%);
-}
-
-.competence-ac-10 {
-    --avatar-bg: hsl(300, 50%, 46%);
-}
-
-.competence-ac-11 {
-    --avatar-bg: hsl(330, 55%, 48%);
-}
 
 /* ============================================================
    Fragment layout utilities (no inline styles in fragments)

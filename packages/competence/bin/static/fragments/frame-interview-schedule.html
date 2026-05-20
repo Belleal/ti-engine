@@ -37,7 +37,7 @@
             <div class="competence-interview-list">
                 <template x-for="evaluation in evaluations" x-bind:key="evaluation.evaluationID">
                     <div class="competence-interview-row" x-bind:class="{ selected: selectedEvaluationID === evaluation.evaluationID }">
-                        <div class="ti-avatar sm" x-bind:class="$store.tiToolbox.generateAvatarClass(evaluation.employeeID || evaluation.evaluationID)"
+                        <div class="ti-avatar sm" x-bind:style="$store.tiToolbox.generateAvatarStyle( evaluation.employeeID, evaluation.employeeName )"
                              x-bind:aria-label="evaluation.employeeName">
                             <span x-text="(evaluation.employeeName || '?').charAt(0).toUpperCase()"></span>
                         </div>
@@ -61,7 +61,8 @@
                                     class="ti-btn sm primary"
                                     @click="selectEvaluation( evaluation.evaluationID )">
                                 <span x-show="selectedEvaluationID !== evaluation.evaluationID" x-text-label="interface.schedule.actions.schedule"></span>
-                                <span x-show="selectedEvaluationID === evaluation.evaluationID" x-text-label="interface.schedule.actions.cancel-selection"></span>
+                                <span x-show="selectedEvaluationID === evaluation.evaluationID"
+                                      x-text-label="interface.schedule.actions.cancel-selection"></span>
                             </button>
                             <button type="button" class="ti-btn sm ghost" x-show="!!evaluation.interviewDate && !!evaluation.bookedSlotID"
                                     @click="cancelBooking(evaluation.bookedSlotID)">

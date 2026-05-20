@@ -141,7 +141,7 @@
                                 <template x-for="employee in unit.employees" x-bind:key="employee.id">
                                     <div class="competence-org-tree-row" x-bind:class="{ 'competence-current': employee.isCurrentUser }">
                                         <div class="competence-org-tree-connector"></div>
-                                        <div class="ti-avatar sm" x-bind:class="$store.tiToolbox.generateAvatarClass(employee.id)"
+                                        <div class="ti-avatar sm" x-bind:style="$store.tiToolbox.generateAvatarStyle( employee.id, employee.name )"
                                              x-bind:aria-label="employee.name">
                                             <span x-text="(employee.name || '?').charAt(0).toUpperCase()"></span>
                                         </div>
