@@ -1,0 +1,401 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/evaluation.json",
+  "title": "Competency Evaluation",
+  "description": "A single employee competency evaluation record. Each evaluation carries a snapshot of the competency set resolved at creation time so subsequent configuration drift does not affect in-flight evaluations.",
+  "type": "object",
+  "required": [
+    "evaluationID",
+    "employeeID",
+    "cycleID",
+    "cycleDate",
+    "status",
+    "roleFamily",
+    "stageLevel",
+    "snapshot",
+    "grades"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "evaluationID": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for the evaluation"
+    },
+    "shortID": {
+      "type": "string",
+      "description": "Short human-readable display ID derived from the UUID, unique within the cycle (e.g., A3K9X2). Displayed as cycleID-shortID."
+    },
+    "employeeID": {
+      "type": "string",
+      "description": "ID of the employee being evaluated"
+    },
+    "managerID": {
+      "type": "string",
+      "description": "ID of the manager who reviews the evaluation"
+    },
+    "cycleID": {
+      "type": "string",
+      "description": "Identifier of the evaluation cycle (e.g., 2026-H2)"
+    },
+    "cycleDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Manager review deadline date of the cycle the evaluation belongs to"
+    },
+    "interviewDate": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date",
+      "description": "Date when the evaluation interview took place"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Open",
+        "In Review",
+        "Ready",
+        "Closed",
+        "Deleted"
+      ],
+      "description": "Current status of the evaluation"
+    },
+    "roleFamily": {
+      "type": "string",
+      "enum": [
+        "SE",
+        "QE",
+        "BA",
+        "PM",
+        "XD",
+        "DA",
+        "IO",
+        "MC",
+        "PD"
+      ],
+      "description": "Role family of the employee at evaluation creation time"
+    },
+    "specialization": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Specialization of the employee at evaluation creation time, or null for a generalist within the family"
+    },
+    "stageLevel": {
+      "type": "string",
+      "pattern": "^(N1|J[1-3]|R[1-3]|S[1-3]|X1|T1)$",
+      "description": "Stage-level of the employee at evaluation creation time (e.g., S2, J1, X1)"
+    },
+    "snapshot": {
+      "type": "array",
+      "description": "Frozen list of competencies resolved at evaluation creation time. The evaluation form reads exclusively from this snapshot; live dictionary changes do not affect rendered content.",
+      "items": {
+        "$ref": "#/$defs/snapshotEntry"
+      }
+    },
+    "grades": {
+      "type": "object",
+      "description": "Collection of grades keyed by competency code",
+      "patternProperties": {
+        "^[EIC][1-3]-\\d+$": {
+          "$ref": "#/$defs/gradeEntry"
+        }
+      },
+      "additionalProperties": false
+    },
+    "scores": {
+      "type": "object",
+      "description": "Calculated category scores after manager submission",
+      "additionalProperties": {
+        "$ref": "#/$defs/evaluationScore"
+      }
+    },
+    "finalScore": {
+      "$ref": "#/$defs/evaluationScore"
+    },
+    "comment": {
+      "type": "string",
+      "description": "Comment submitted by the employee"
+    },
+    "feedback": {
+      "type": "object",
+      "description": "Feedback attached to the evaluation",
+      "additionalProperties": false,
+      "properties": {
+        "employeeComment": {
+          "type": "string",
+          "description": "Comment submitted by the employee"
+        },
+        "managerComment": {
+          "type": "string",
+          "description": "Comment submitted by the manager"
+        },
+        "teamComments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Comments submitted by the team members"
+        }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "description": "System workflow state for the evaluation",
+      "required": [
+        "currentStep",
+        "selfEvaluationCompleted",
+        "teamEvaluationCompleted",
+        "managerEvaluationCompleted",
+        "teamEvaluationsSubmitted",
+        "team"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "currentStep": {
+          "type": "string",
+          "enum": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8"
+          ],
+          "description": "Current step in the workflow"
+        },
+        "selfEvaluationCompleted": {
+          "type": "boolean",
+          "description": "Indicates if self-evaluation has been completed"
+        },
+        "selfEvaluationDeadline": {
+          "type": "string",
+          "format": "date",
+          "description": "Deadline for self-evaluation submission"
+        },
+        "teamEvaluationCompleted": {
+          "type": "boolean",
+          "description": "Indicates if team-evaluation has been completed"
+        },
+        "teamEvaluationDeadline": {
+          "type": "string",
+          "format": "date",
+          "description": "Deadline for team-evaluation submission"
+        },
+        "managerEvaluationCompleted": {
+          "type": "boolean",
+          "description": "Indicates if manager-evaluation has been completed"
+        },
+        "managerEvaluationDeadline": {
+          "type": "string",
+          "format": "date",
+          "description": "Deadline for manager-evaluation submission"
+        },
+        "teamEvaluationsSubmitted": {
+          "type": "integer",
+          "description": "Number of team evaluations submitted"
+        },
+        "team": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of employee IDs of the team members to provide team-evaluation"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "snapshotEntry": {
+      "type": "object",
+      "description": "One competency frozen onto an evaluation. Includes the metadata the form needs to render and the origin marker.",
+      "required": [
+        "code",
+        "name",
+        "description",
+        "category",
+        "subcategory",
+        "scope",
+        "relevancy",
+        "origin"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[EIC][1-3]-\\d+$",
+          "description": "Competency code"
+        },
+        "name": {
+          "type": "string",
+          "description": "Localization key for the competency name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Localization key for the competency description"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "E",
+            "I",
+            "C"
+          ],
+          "description": "Category code"
+        },
+        "subcategory": {
+          "type": "string",
+          "pattern": "^[EIC][1-3]$",
+          "description": "Subcategory code"
+        },
+        "scope": {
+          "type": "object",
+          "description": "Localization keys for scope text at each stage-level (full set, all six levels)",
+          "required": [
+            "N",
+            "J",
+            "R",
+            "S",
+            "X",
+            "T"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "N": { "type": "string" },
+            "J": { "type": "string" },
+            "R": { "type": "string" },
+            "S": { "type": "string" },
+            "X": { "type": "string" },
+            "T": { "type": "string" }
+          }
+        },
+        "relevancy": {
+          "type": "object",
+          "description": "Per stage-level relevancy weights (full map). Score calculation reads this rather than the live dictionary.",
+          "required": [
+            "N1",
+            "J1",
+            "J2",
+            "J3",
+            "R1",
+            "R2",
+            "R3",
+            "S1",
+            "S2",
+            "S3",
+            "X1",
+            "T1"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^(N1|J[1-3]|R[1-3]|S[1-3]|X1|T1)$": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            }
+          }
+        },
+        "eCFMapping": {
+          "type": "array",
+          "description": "Optional e-Competence Framework cross-walk. Empty when no mapping exists.",
+          "items": {
+            "type": "object",
+            "required": [
+              "competence",
+              "level"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "competence": {
+                "type": "string",
+                "description": "e-CF competence reference (e.g., B.6)"
+              },
+              "level": {
+                "type": "string",
+                "pattern": "^e-[1-5]$",
+                "description": "e-CF level (e-1 through e-5)"
+              }
+            }
+          }
+        },
+        "origin": {
+          "type": "string",
+          "description": "Literal \"baseline\" or the specialization code (e.g., BACKEND) that contributed this competency to the resolved set"
+        }
+      }
+    },
+    "gradeEntry": {
+      "type": "object",
+      "description": "Grades assigned by different roles",
+      "additionalProperties": false,
+      "properties": {
+        "employee": {
+          "$ref": "#/$defs/gradeValue"
+        },
+        "manager": {
+          "$ref": "#/$defs/gradeValue"
+        },
+        "team": {
+          "type": "object",
+          "description": "Team evaluation grades",
+          "additionalProperties": false,
+          "properties": {
+            "cumulative": {
+              "$ref": "#/$defs/gradeValue"
+            },
+            "individual": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/gradeValue"
+              }
+            }
+          }
+        }
+      }
+    },
+    "gradeValue": {
+      "type": "string",
+      "enum": [
+        "S",
+        "R",
+        "U",
+        "N",
+        ""
+      ],
+      "description": "Grade value: S (Superior), R (Regular), U (Unsatisfactory), N (Not Utilized), or empty string for ungraded"
+    },
+    "evaluationScore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "score"
+      ],
+      "properties": {
+        "score": {
+          "type": "number",
+          "description": "Numeric score calculated by the framework"
+        },
+        "interpretation": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "T1",
+            "T2",
+            "T3",
+            "T4",
+            "T5",
+            null
+          ],
+          "description": "Threshold interpretation of the score"
+        }
+      }
+    }
+  }
+}

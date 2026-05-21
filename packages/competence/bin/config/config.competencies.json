@@ -82,7 +82,8 @@
         "S3": 9,
         "X1": 10,
         "T1": 7
-      }
+      },
+      "eCFMapping": []
     },
     "E1-2": {
       "name": "competency.name.E1-2",
@@ -110,7 +111,8 @@
         "S3": 9,
         "X1": 10,
         "T1": 7
-      }
+      },
+      "eCFMapping": []
     },
     "E1-3": {
       "name": "competency.name.E1-3",
@@ -138,7 +140,8 @@
         "S3": 9,
         "X1": 8,
         "T1": 7
-      }
+      },
+      "eCFMapping": []
     },
     "E1-4": {
       "name": "competency.name.E1-4",
@@ -166,7 +169,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 8
-      }
+      },
+      "eCFMapping": []
     },
     "E1-5": {
       "name": "competency.name.E1-5",
@@ -194,7 +198,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 7
-      }
+      },
+      "eCFMapping": []
     },
     "E1-6": {
       "name": "competency.name.E1-6",
@@ -222,7 +227,8 @@
         "S3": 9,
         "X1": 8,
         "T1": 7
-      }
+      },
+      "eCFMapping": []
     },
     "E1-7": {
       "name": "competency.name.E1-7",
@@ -250,7 +256,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 8
-      }
+      },
+      "eCFMapping": []
     },
     "E1-8": {
       "name": "competency.name.E1-8",
@@ -278,7 +285,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "E1-9": {
       "name": "competency.name.E1-9",
@@ -306,7 +314,8 @@
         "S3": 9,
         "X1": 10,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "E2-1": {
       "name": "competency.name.E2-1",
@@ -334,7 +343,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 8
-      }
+      },
+      "eCFMapping": []
     },
     "E2-2": {
       "name": "competency.name.E2-2",
@@ -362,7 +372,8 @@
         "S3": 9,
         "X1": 8,
         "T1": 7
-      }
+      },
+      "eCFMapping": []
     },
     "E2-3": {
       "name": "competency.name.E2-3",
@@ -390,7 +401,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 8
-      }
+      },
+      "eCFMapping": []
     },
     "E2-4": {
       "name": "competency.name.E2-4",
@@ -418,7 +430,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 7
-      }
+      },
+      "eCFMapping": []
     },
     "E2-5": {
       "name": "competency.name.E2-5",
@@ -446,7 +459,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 8
-      }
+      },
+      "eCFMapping": []
     },
     "E2-6": {
       "name": "competency.name.E2-6",
@@ -474,7 +488,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 8
-      }
+      },
+      "eCFMapping": []
     },
     "E2-7": {
       "name": "competency.name.E2-7",
@@ -502,7 +517,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "E2-8": {
       "name": "competency.name.E2-8",
@@ -530,7 +546,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "E2-9": {
       "name": "competency.name.E2-9",
@@ -558,7 +575,8 @@
         "S3": 9,
         "X1": 10,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "E2-10": {
       "name": "competency.name.E2-10",
@@ -586,7 +604,8 @@
         "S3": 9,
         "X1": 10,
         "T1": 8
-      }
+      },
+      "eCFMapping": []
     },
     "E2-11": {
       "name": "competency.name.E2-11",
@@ -614,7 +633,8 @@
         "S3": 9,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "E2-12": {
       "name": "competency.name.E2-12",
@@ -642,7 +662,8 @@
         "S3": 9,
         "X1": 8,
         "T1": 8
-      }
+      },
+      "eCFMapping": []
     },
     "E2-13": {
       "name": "competency.name.E2-13",
@@ -670,7 +691,8 @@
         "S3": 9,
         "X1": 10,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "E2-14": {
       "name": "competency.name.E2-14",
@@ -698,7 +720,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "E2-15": {
       "name": "competency.name.E2-15",
@@ -726,7 +749,8 @@
         "S3": 9,
         "X1": 10,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "E2-16": {
       "name": "competency.name.E2-16",
@@ -754,7 +778,8 @@
         "S3": 9,
         "X1": 10,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "E3-1": {
       "name": "competency.name.E3-1",
@@ -782,7 +807,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "E3-2": {
       "name": "competency.name.E3-2",
@@ -810,7 +836,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 8
-      }
+      },
+      "eCFMapping": []
     },
     "E3-3": {
       "name": "competency.name.E3-3",
@@ -838,7 +865,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 8
-      }
+      },
+      "eCFMapping": []
     },
     "E3-4": {
       "name": "competency.name.E3-4",
@@ -866,7 +894,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "E3-5": {
       "name": "competency.name.E3-5",
@@ -894,7 +923,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "E3-6": {
       "name": "competency.name.E3-6",
@@ -922,7 +952,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 8
-      }
+      },
+      "eCFMapping": []
     },
     "E3-7": {
       "name": "competency.name.E3-7",
@@ -950,7 +981,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "I1-1": {
       "name": "competency.name.I1-1",
@@ -978,7 +1010,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "I1-2": {
       "name": "competency.name.I1-2",
@@ -1006,7 +1039,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "I1-3": {
       "name": "competency.name.I1-3",
@@ -1034,7 +1068,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 8
-      }
+      },
+      "eCFMapping": []
     },
     "I1-4": {
       "name": "competency.name.I1-4",
@@ -1062,7 +1097,8 @@
         "S3": 9,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "I1-5": {
       "name": "competency.name.I1-5",
@@ -1090,7 +1126,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "I1-6": {
       "name": "competency.name.I1-6",
@@ -1118,7 +1155,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 8
-      }
+      },
+      "eCFMapping": []
     },
     "I1-7": {
       "name": "competency.name.I1-7",
@@ -1146,7 +1184,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "I2-1": {
       "name": "competency.name.I2-1",
@@ -1174,7 +1213,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "I2-2": {
       "name": "competency.name.I2-2",
@@ -1202,7 +1242,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "I2-3": {
       "name": "competency.name.I2-3",
@@ -1230,7 +1271,8 @@
         "S3": 9,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "I2-4": {
       "name": "competency.name.I2-4",
@@ -1258,7 +1300,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "I2-5": {
       "name": "competency.name.I2-5",
@@ -1286,7 +1329,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "I3-1": {
       "name": "competency.name.I3-1",
@@ -1314,7 +1358,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "I3-2": {
       "name": "competency.name.I3-2",
@@ -1342,7 +1387,8 @@
         "S3": 10,
         "X1": 9,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "I3-3": {
       "name": "competency.name.I3-3",
@@ -1370,7 +1416,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "C1-1": {
       "name": "competency.name.C1-1",
@@ -1398,7 +1445,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "C1-2": {
       "name": "competency.name.C1-2",
@@ -1426,7 +1474,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "C1-3": {
       "name": "competency.name.C1-3",
@@ -1454,7 +1503,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "C1-4": {
       "name": "competency.name.C1-4",
@@ -1482,7 +1532,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "C1-5": {
       "name": "competency.name.C1-5",
@@ -1510,7 +1561,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "C1-6": {
       "name": "competency.name.C1-6",
@@ -1538,7 +1590,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "C1-7": {
       "name": "competency.name.C1-7",
@@ -1566,7 +1619,8 @@
         "S3": 9,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "C2-1": {
       "name": "competency.name.C2-1",
@@ -1594,7 +1648,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "C2-2": {
       "name": "competency.name.C2-2",
@@ -1622,7 +1677,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "C2-3": {
       "name": "competency.name.C2-3",
@@ -1650,7 +1706,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "C2-4": {
       "name": "competency.name.C2-4",
@@ -1678,7 +1735,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "C2-5": {
       "name": "competency.name.C2-5",
@@ -1706,7 +1764,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "C3-1": {
       "name": "competency.name.C3-1",
@@ -1734,7 +1793,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 9
-      }
+      },
+      "eCFMapping": []
     },
     "C3-2": {
       "name": "competency.name.C3-2",
@@ -1762,7 +1822,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "C3-3": {
       "name": "competency.name.C3-3",
@@ -1790,7 +1851,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "C3-4": {
       "name": "competency.name.C3-4",
@@ -1818,7 +1880,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     },
     "C3-5": {
       "name": "competency.name.C3-5",
@@ -1846,7 +1909,8 @@
         "S3": 10,
         "X1": 10,
         "T1": 10
-      }
+      },
+      "eCFMapping": []
     }
   }
 }

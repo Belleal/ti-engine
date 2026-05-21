@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/cycle.json",
+  "title": "Appraisal Cycle",
+  "description": "An appraisal cycle record with lifecycle status (PLANNING → ACTIVE → CLOSED) and the dates needed by the dashboard, evaluation form, calendar, and scoring.",
+  "type": "object",
+  "required": [
+    "cycleID",
+    "name",
+    "status",
+    "cycleStart",
+    "cycleDate",
+    "cycleEnd",
+    "createdAt"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "cycleID": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-H[12]$",
+      "description": "Cycle identifier (e.g., 2026-H2). Auto-suggested YYYY-Hx, editable in the create form, uniqueness validated."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Free-text display name (e.g., \"Autumn '26 cycle\")"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PLANNING",
+        "ACTIVE",
+        "CLOSED"
+      ],
+      "description": "Lifecycle status. PLANNING → ACTIVE → CLOSED, one-way."
+    },
+    "cycleStart": {
+      "type": "string",
+      "format": "date",
+      "description": "Cycle start date (YYYY-MM-DD)"
+    },
+    "cycleDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Manager review deadline date — primary deadline used by the dashboard cycle card and evaluation form"
+    },
+    "cycleEnd": {
+      "type": "string",
+      "format": "date",
+      "description": "Planned close date — when the cycle is scheduled to close"
+    },
+    "actualCloseDate": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date",
+      "description": "Set on the ACTIVE → CLOSED transition. Null before close."
+    },
+    "lockedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "Set on the PLANNING → ACTIVE transition. Null before lock."
+    },
+    "lockedBy": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Employee ID of the actor that locked the cycle. Null before lock."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Creation timestamp"
+    },
+    "createdBy": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Employee ID of the creator (Supervisor)"
+    }
+  }
+}

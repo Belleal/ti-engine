@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/audit-entry.json",
+  "title": "Audit Log Entry",
+  "description": "An append-only audit record describing one change to an employee, cycle, or active competency set. Required for the cross-cutting audit trail rule.",
+  "type": "object",
+  "required": [
+    "entryID",
+    "subjectType",
+    "subjectID",
+    "changedBy",
+    "timestamp",
+    "field",
+    "oldValue",
+    "newValue"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "entryID": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for the audit entry"
+    },
+    "subjectType": {
+      "type": "string",
+      "enum": [
+        "employee",
+        "cycle",
+        "activeCompetencySet"
+      ],
+      "description": "Kind of entity the change applies to"
+    },
+    "subjectID": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifier of the subject entity (employeeID, cycleID, etc.)"
+    },
+    "changedBy": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Employee ID of the actor that made the change"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the change was applied (ISO 8601)"
+    },
+    "field": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Dot-path of the field that changed (e.g., career.roleFamily, status)"
+    },
+    "oldValue": {
+      "description": "Previous value (any JSON type, including null)"
+    },
+    "newValue": {
+      "description": "New value (any JSON type, including null)"
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Optional human-readable reason for the change"
+    }
+  }
+}

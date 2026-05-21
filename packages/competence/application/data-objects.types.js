@@ -25,7 +25,114 @@
 /**
  * @typedef {Object} ConfigCompetencies
  * @property {Object.<CompetencyCategory, Object>} categories
- * @property {Object.<string, Object>} competencies
+ * @property {Object.<string, Competency>} competencies
+ */
+
+/**
+ * @typedef {Object} ConfigRoleFamilies
+ * @property {RoleFamily} SE
+ * @property {RoleFamily} QE
+ * @property {RoleFamily} BA
+ * @property {RoleFamily} PM
+ * @property {RoleFamily} XD
+ * @property {RoleFamily} DA
+ * @property {RoleFamily} IO
+ * @property {RoleFamily} MC
+ * @property {RoleFamily} PD
+ */
+
+/**
+ * @typedef {Object} RoleFamily
+ * @property {string} name - Localization key for the family name.
+ * @property {string} description - Localization key for the family description.
+ * @property {Object.<string, Specialization>} specializations - Permitted specializations, keyed by specialization code.
+ */
+
+/**
+ * @typedef {Object} Specialization
+ * @property {string} name - Localization key for the specialization name.
+ * @property {string} description - Localization key for the specialization description.
+ * @property {ECFMapping[]} eCFMapping - e-CF cross-walk entries; empty array when none.
+ */
+
+/**
+ * @typedef {Object} ECFMapping
+ * @property {string} competence - e-CF competence reference (e.g., B.6).
+ * @property {string} level - e-CF level (e-1 through e-5).
+ */
+
+/**
+ * @typedef {Object.<RoleFamilyCodeValue, FamilyCompetencyAssignments>} ConfigActiveCompetencySets
+ */
+
+/**
+ * @typedef {Object} FamilyCompetencyAssignments
+ * @description Keys are either the literal "baseline" or a specialization code. Each value maps cycleID → competency-code array.
+ */
+
+/**
+ * @typedef {Object} ConfigStageLevels
+ * @property {StageLevel} N
+ * @property {StageLevel} J
+ * @property {StageLevel} R
+ * @property {StageLevel} S
+ * @property {StageLevel} X
+ * @property {StageLevel} T
+ */
+
+/**
+ * @typedef {Object} StageLevel
+ * @property {string} name
+ * @property {string} description
+ * @property {number} grade
+ * @property {number} stages
+ * @property {CareerLevelCodeValue[]} previous
+ * @property {CareerLevelCodeValue[]} next
+ */
+
+/**
+ * @typedef {Object} Cycle
+ * @property {string} cycleID - e.g., "2026-H2".
+ * @property {string} name - Display name (e.g., "Autumn '26 cycle").
+ * @property {CycleStatusValue} status - Lifecycle status.
+ * @property {string} cycleStart - Cycle start date (YYYY-MM-DD).
+ * @property {string} cycleDate - Manager review deadline (YYYY-MM-DD).
+ * @property {string} cycleEnd - Planned close date (YYYY-MM-DD).
+ * @property {string|null} [actualCloseDate] - Set on CLOSE transition.
+ * @property {string|null} [lockedAt] - ISO-8601 timestamp set on LOCK transition.
+ * @property {string|null} [lockedBy] - Actor that locked the cycle.
+ * @property {string} createdAt - Creation timestamp.
+ * @property {string|null} [createdBy] - Actor that created the cycle.
+ */
+
+/**
+ * @typedef {"PLANNING"|"ACTIVE"|"CLOSED"} CycleStatusValue
+ */
+
+/**
+ * @typedef {Object} AuditEntry
+ * @property {string} entryID - UUID.
+ * @property {"employee"|"cycle"|"activeCompetencySet"} subjectType
+ * @property {string} subjectID - Identifier of the subject entity.
+ * @property {string} changedBy - Employee ID of the actor.
+ * @property {string} timestamp - ISO-8601 timestamp.
+ * @property {string} field - Dot-path of the field that changed.
+ * @property {*} oldValue
+ * @property {*} newValue
+ * @property {string|null} [reason]
+ */
+
+/**
+ * @typedef {Object} SnapshotEntry
+ * @property {string} code - Competency code (e.g., E1-1).
+ * @property {string} name - Localization key for the competency name.
+ * @property {string} description - Localization key for the competency description.
+ * @property {CompetencyCategory} category
+ * @property {string} subcategory
+ * @property {CompetencyScope} scope - Full scope map.
+ * @property {CompetencyRelevancy} relevancy - Full per-stage-level relevancy.
+ * @property {ECFMapping[]} [eCFMapping] - e-CF cross-walk if any.
+ * @property {string} origin - Literal "baseline" or the specialization code that contributed this competency.
  */
 
 /**
@@ -84,13 +191,15 @@
  * @property {string} shortID - Short human-readable identifier for the evaluation.
  * @property {string} employeeID - ID of the employee being evaluated.
  * @property {string} [managerID] - ID of the manager who reviews the evaluation.
- * @property {string} cycleID - Identifier of the evaluation cycle (e.g., 2025.H1).
- * @property {string} cycleDate - Official date of the evaluation cycle starting (YYYY-MM-DD).
+ * @property {string} cycleID - Identifier of the evaluation cycle (e.g., 2026-H2).
+ * @property {string} cycleDate - Manager review deadline date of the cycle (YYYY-MM-DD).
  * @property {string|null} [interviewDate] - Date when the evaluation interview took place (YYYY-MM-DD).
  * @property {EvaluationStatusValue} status - Current status of the evaluation.
+ * @property {RoleFamilyCodeValue} roleFamily - Role family at evaluation creation time.
+ * @property {SpecializationCodeValue|null} [specialization] - Specialization at evaluation creation time, or null for a generalist within the family.
+ * @property {string} stageLevel - Stage-level at evaluation creation time (e.g., S2).
+ * @property {SnapshotEntry[]} snapshot - Frozen competency list resolved at creation time. The form reads exclusively from this snapshot.
  * @property {Object.<string, EvaluationGradeEntry>} [grades] - Collection of grades keyed by competency ID.
- * @property {CareerPathCodeValue} careerPath - The career path of the employee at the time of this evaluation.
- * @property {string} stageLevel - The level and sage of the employee at the time of this evaluation.
  * @property {Object.<CompetencyCategory, EvaluationScore>} [scores] - The evaluation scores per category based on the given grades.
  * @property {EvaluationScore} [finalScore] - The final score of the evaluation itself.
  * @property {string} [comment] - Comment submitted by the employee.
@@ -111,8 +220,9 @@
 /**
  * @typedef {Object} EmployeeCareerInformation
  * @property {string} organizationUnitID - Organization unit ID.
- * @property {CareerPathCodeValue} careerPath - Career path.
- * @property {CareerLevelCodeValue} level - Career path level.
+ * @property {RoleFamilyCodeValue} roleFamily - Role family code.
+ * @property {SpecializationCodeValue|null} [specialization] - Specialization code, or null/absent for a generalist within the family.
+ * @property {CareerLevelCodeValue} level - Stage-level code.
  * @property {CareerLevelStageCodeValue} stage - Progression stage within the level.
  * @property {string} [startingDate] - Date of joining the company (YYYY-MM-DD).
  */
@@ -122,6 +232,7 @@
  * @property {string} employeeID - Unique identifier for the employee.
  * @property {string} [email] - Corporate email address.
  * @property {string} managerID - Employee ID of the direct administrative manager.
+ * @property {"active"|"on-leave"|"terminated"} [employmentStatus] - Employment status.
  * @property {EmployeePersonalInformation} personal - Personal information about the employee.
  * @property {EmployeeCareerInformation} career - Career information about the employee.
  */
@@ -162,8 +273,9 @@
  * @property {string} description - Localization key for competency description.
  * @property {CompetencyCategory} category - Category code: E (Expertise), I (Insight), or C (Commitment).
  * @property {string} subcategory - Subcategory code matching the parent category.
- * @property {CompetencyScope} scope - Scope descriptions per career path level.
- * @property {CompetencyRelevancy} relevancy - Relevancy scores per career path level tier/stage.
+ * @property {CompetencyScope} scope - Scope descriptions per stage-level.
+ * @property {CompetencyRelevancy} relevancy - Relevancy scores per stage-level.
+ * @property {ECFMapping[]} [eCFMapping] - Optional e-CF cross-walk.
  */
 
 /**
@@ -171,7 +283,12 @@
  */
 
 /**
- * @typedef {"SE01"|"PM01"|"BA01"} CareerPathCodeValue
+ * @typedef {"SE"|"QE"|"BA"|"PM"|"XD"|"DA"|"IO"|"MC"|"PD"} RoleFamilyCodeValue
+ */
+
+/**
+ * @typedef {string} SpecializationCodeValue
+ * @description An uppercase, alphanumeric (with underscores) specialization code. Valid values are family-dependent; validate at runtime against `configuration-loader.getSpecializationCodes(roleFamily)`.
  */
 
 /**

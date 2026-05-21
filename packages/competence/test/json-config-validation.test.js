@@ -1,0 +1,188 @@
+/*
+ * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
+
+const { describe, it, before } = require( "node:test" );
+const assert = require( "node:assert/strict" );
+const fs = require( "node:fs" );
+const path = require( "node:path" );
+const Ajv = require( "ajv" );
+
+const PACKAGE_ROOT = path.resolve( __dirname, ".." );
+const CONFIG_DIR = path.join( PACKAGE_ROOT, "bin", "config" );
+const SEEDERS_DIR = path.join( PACKAGE_ROOT, "bin", "data", "seeders" );
+const SCHEMAS_DIR = path.join( PACKAGE_ROOT, "bin", "data", "schemas" );
+
+/**
+ * Reads and parses a JSON file. Throws a descriptive error if the file is missing or malformed.
+ */
+function readJSON( filePath ) {
+    return JSON.parse( fs.readFileSync( filePath, "utf8" ) );
+}
+
+/**
+ * Builds an Ajv instance preloaded with every schema in `bin/data/schemas/` so cross-schema `$ref`s resolve.
+ * The package-local `config.application.schema.json` is added too, keyed by its filename so the relative
+ * `$schema` reference inside `config.application.json` resolves.
+ */
+function buildAjv() {
+    // ajv 6 (shipped via the workspace) supports JSON Schema Draft-07 as a strict superset of what we use. Our
+    // schema files declare Draft 2020-12 in `$schema` for editor support, but ajv 6 doesn't know that meta-schema
+    // URL — strip the annotation and tell ajv to skip schema-against-meta validation so it just uses Draft-07.
+    const ajv = new Ajv( {
+        allErrors: true,
+        schemaId: "$id",
+        meta: true,
+        validateSchema: false
+    } );
+
+    function loadSchema( filePath ) {
+        const schema = readJSON( filePath );
+        // Strip declarations the ajv-6 meta-schema cannot resolve; the structural validation is Draft-07 compatible.
+        if ( schema.$schema && schema.$schema.includes( "draft/2020-12" ) ) {
+            delete schema.$schema;
+        }
+        return schema;
+    }
+
+    // Pre-load every schema in the schemas folder so $ref by $id resolves correctly.
+    for ( const entry of fs.readdirSync( SCHEMAS_DIR ) ) {
+        if ( !entry.endsWith( ".schema.json" ) ) continue;
+        ajv.addSchema( loadSchema( path.join( SCHEMAS_DIR, entry ) ) );
+    }
+
+    // The application config validates against its sibling schema; mount under a stable key.
+    const applicationSchemaPath = path.join( CONFIG_DIR, "config.application.schema.json" );
+    if ( fs.existsSync( applicationSchemaPath ) ) {
+        ajv.addSchema( loadSchema( applicationSchemaPath ), "config.application.schema.json" );
+    }
+
+    return ajv;
+}
+
+let ajv;
+
+before( () => {
+    ajv = buildAjv();
+} );
+
+/**
+ * Helper to assert a config file validates against the given schema $id (or local key).
+ */
+function expectValid( schemaKey, dataPath ) {
+    const validate = ajv.getSchema( schemaKey );
+    assert.ok( validate, `Schema '${ schemaKey }' must be loaded.` );
+    const data = readJSON( dataPath );
+    const ok = validate( data );
+    if ( !ok ) {
+        const details = ( validate.errors || [] ).map( ( e ) => `${ e.dataPath || e.instancePath || "<root>" } ${ e.message } (params: ${ JSON.stringify( e.params ) })` ).join( "\n  " );
+        assert.fail( `${ path.basename( dataPath ) } failed validation against '${ schemaKey }':\n  ${ details }` );
+    }
+}
+
+describe( "Configuration files validate against their schemas", () => {
+
+    it( "config.application.json validates against config.application.schema.json", () => {
+        expectValid( "config.application.schema.json", path.join( CONFIG_DIR, "config.application.json" ) );
+    } );
+
+    it( "config.competencies.json validates against competencies.schema.json", () => {
+        expectValid( "https://ti-engine.dev/schemas/competence/competencies.json", path.join( CONFIG_DIR, "config.competencies.json" ) );
+    } );
+
+    it( "config.role-families.json validates against role-families.schema.json", () => {
+        expectValid( "https://ti-engine.dev/schemas/competence/role-families.json", path.join( CONFIG_DIR, "config.role-families.json" ) );
+    } );
+
+    it( "config.active-competency-sets.json validates against active-competency-sets.schema.json", () => {
+        expectValid( "https://ti-engine.dev/schemas/competence/active-competency-sets.json", path.join( CONFIG_DIR, "config.active-competency-sets.json" ) );
+    } );
+
+    it( "config.stage-levels.json validates against stage-levels.schema.json", () => {
+        expectValid( "https://ti-engine.dev/schemas/competence/stage-levels.json", path.join( CONFIG_DIR, "config.stage-levels.json" ) );
+    } );
+
+} );
+
+describe( "Seed data files validate against their schemas", () => {
+
+    it( "seeders/employees.json validates against employees.schema.json", () => {
+        expectValid( "https://ti-engine.dev/schemas/competence/employees.json", path.join( SEEDERS_DIR, "employees.json" ) );
+    } );
+
+    it( "seeders/evaluations.json validates against evaluations.schema.json", () => {
+        expectValid( "https://ti-engine.dev/schemas/competence/evaluations.json", path.join( SEEDERS_DIR, "evaluations.json" ) );
+    } );
+
+} );
+
+describe( "Active competency sets satisfy floor coverage for the seeded cycle", () => {
+
+    const SUBCATEGORIES = [ "E1", "E2", "E3", "I1", "I2", "I3", "C1", "C2", "C3" ];
+
+    it( "every configured baseline covers all nine subcategories", () => {
+        const competencies = readJSON( path.join( CONFIG_DIR, "config.competencies.json" ) ).competencies;
+        const sets = readJSON( path.join( CONFIG_DIR, "config.active-competency-sets.json" ) );
+
+        const failures = [];
+        for ( const [ family, familyEntry ] of Object.entries( sets ) ) {
+            if ( !familyEntry || !familyEntry.baseline ) continue;
+            for ( const [ cycleID, codes ] of Object.entries( familyEntry.baseline ) ) {
+                const covered = new Set();
+                for ( const code of codes ) {
+                    const comp = competencies[ code ];
+                    if ( !comp ) {
+                        failures.push( `${ family } baseline ${ cycleID }: unknown competency code '${ code }'` );
+                        continue;
+                    }
+                    covered.add( comp.subcategory );
+                }
+                for ( const sub of SUBCATEGORIES ) {
+                    if ( !covered.has( sub ) ) {
+                        failures.push( `${ family } baseline ${ cycleID }: subcategory '${ sub }' is missing` );
+                    }
+                }
+            }
+        }
+        assert.deepEqual( failures, [], `Floor-coverage failures:\n  ${ failures.join( "\n  " ) }` );
+    } );
+
+    it( "every specialization references existing competency codes only", () => {
+        const competencies = readJSON( path.join( CONFIG_DIR, "config.competencies.json" ) ).competencies;
+        const sets = readJSON( path.join( CONFIG_DIR, "config.active-competency-sets.json" ) );
+        const failures = [];
+        for ( const [ family, familyEntry ] of Object.entries( sets ) ) {
+            for ( const [ key, cycleMap ] of Object.entries( familyEntry ) ) {
+                for ( const [ cycleID, codes ] of Object.entries( cycleMap ) ) {
+                    for ( const code of codes ) {
+                        if ( !competencies[ code ] ) {
+                            failures.push( `${ family }.${ key }.${ cycleID }: unknown competency code '${ code }'` );
+                        }
+                    }
+                }
+            }
+        }
+        assert.deepEqual( failures, [], `Unknown-code failures:\n  ${ failures.join( "\n  " ) }` );
+    } );
+
+    it( "every specialization key referenced under a family is a valid specialization of that family", () => {
+        const roleFamilies = readJSON( path.join( CONFIG_DIR, "config.role-families.json" ) );
+        const sets = readJSON( path.join( CONFIG_DIR, "config.active-competency-sets.json" ) );
+        const failures = [];
+        for ( const [ family, familyEntry ] of Object.entries( sets ) ) {
+            const validSpecs = new Set( Object.keys( roleFamilies[ family ]?.specializations || {} ) );
+            for ( const key of Object.keys( familyEntry ) ) {
+                if ( key === "baseline" ) continue;
+                if ( !validSpecs.has( key ) ) {
+                    failures.push( `${ family }.${ key }: not a valid specialization of '${ family }'` );
+                }
+            }
+        }
+        assert.deepEqual( failures, [], `Invalid specialization key failures:\n  ${ failures.join( "\n  " ) }` );
+    } );
+
+} );

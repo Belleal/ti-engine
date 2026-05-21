@@ -4,6 +4,7 @@
       "employeeID": "1",
       "email": "geatrks.frkats@example.com",
       "managerID": "8",
+      "employmentStatus": "active",
       "personal": {
         "firstName": "Geatrks",
         "lastName": "Frkats",
@@ -12,7 +13,8 @@
       },
       "career": {
         "organizationUnitID": "1-1-1",
-        "careerPath": "SE01",
+        "roleFamily": "SE",
+        "specialization": "BACKEND",
         "level": "R",
         "stage": 2,
         "startingDate": "2022-03-14"
@@ -22,6 +24,7 @@
       "employeeID": "2",
       "email": "mrkius.brhajas@example.com",
       "managerID": "11",
+      "employmentStatus": "active",
       "personal": {
         "firstName": "Mrkius",
         "lastName": "Brhajas",
@@ -30,7 +33,8 @@
       },
       "career": {
         "organizationUnitID": "1-1-2",
-        "careerPath": "PM01",
+        "roleFamily": "PM",
+        "specialization": "AGILE",
         "level": "J",
         "stage": 3,
         "startingDate": "2020-11-02"
@@ -40,6 +44,7 @@
       "employeeID": "3",
       "email": "trguf.gjkurans@example.com",
       "managerID": "8",
+      "employmentStatus": "active",
       "personal": {
         "firstName": "Trguf",
         "lastName": "Gjkurans",
@@ -48,7 +53,8 @@
       },
       "career": {
         "organizationUnitID": "1-1-1",
-        "careerPath": "SE01",
+        "roleFamily": "SE",
+        "specialization": "FRONTEND",
         "level": "S",
         "stage": 1,
         "startingDate": "2021-02-21"
@@ -58,6 +64,7 @@
       "employeeID": "4",
       "email": "kjurtha.lmhjafs@example.com",
       "managerID": "8",
+      "employmentStatus": "active",
       "personal": {
         "firstName": "Kjurtha",
         "lastName": "Lmhjafs",
@@ -66,16 +73,58 @@
       },
       "career": {
         "organizationUnitID": "1-1-1",
-        "careerPath": "SE01",
+        "roleFamily": "SE",
+        "specialization": "FULLSTACK",
         "level": "J",
         "stage": 3,
         "startingDate": "2025-07-22"
       }
     },
     {
+      "employeeID": "5",
+      "email": "varndr.qrshafe@example.com",
+      "managerID": "11",
+      "employmentStatus": "active",
+      "personal": {
+        "firstName": "Varndr",
+        "lastName": "Qrshafe",
+        "workMode": "Full-time",
+        "workLocation": "Hybrid"
+      },
+      "career": {
+        "organizationUnitID": "1-1-2",
+        "roleFamily": "BA",
+        "specialization": "REQUIREMENTS",
+        "level": "R",
+        "stage": 2,
+        "startingDate": "2023-04-10"
+      }
+    },
+    {
+      "employeeID": "7",
+      "email": "perafth.zoufalqs@example.com",
+      "managerID": "11",
+      "employmentStatus": "active",
+      "personal": {
+        "firstName": "Perafth",
+        "lastName": "Zoufalqs",
+        "workMode": "Full-time",
+        "workLocation": "Remote"
+      },
+      "career": {
+        "organizationUnitID": "1-1-2",
+        "roleFamily": "BA",
+        "specialization": null,
+        "level": "J",
+        "stage": 3,
+        "startingDate": "2024-08-19"
+      }
+    },
+    {
       "employeeID": "8",
       "email": "sdfaer.ltruajs@example.com",
       "managerID": "20",
+      "employmentStatus": "active",
       "personal": {
         "firstName": "Sdfaer",
         "lastName": "Ltruajs",
@@ -84,16 +133,38 @@
       },
       "career": {
         "organizationUnitID": "1-1-1",
-        "careerPath": "SE01",
+        "roleFamily": "SE",
+        "specialization": null,
         "level": "T",
         "stage": 1,
         "startingDate": "2018-09-03"
       }
     },
     {
+      "employeeID": "9",
+      "email": "kthbra.iuhasnv@example.com",
+      "managerID": "8",
+      "employmentStatus": "active",
+      "personal": {
+        "firstName": "Kthbra",
+        "lastName": "Iuhasnv",
+        "workMode": "Full-time",
+        "workLocation": "On-site"
+      },
+      "career": {
+        "organizationUnitID": "1-1-1",
+        "roleFamily": "SE",
+        "specialization": "MOBILE",
+        "level": "N",
+        "stage": 1,
+        "startingDate": "2026-02-17"
+      }
+    },
+    {
       "employeeID": "11",
       "email": "hjrtva.klprtah@example.com",
       "managerID": "20",
+      "employmentStatus": "active",
       "personal": {
         "firstName": "Hjrtva",
         "lastName": "Klprtah",
@@ -102,7 +173,8 @@
       },
       "career": {
         "organizationUnitID": "1-1-2",
-        "careerPath": "PM01",
+        "roleFamily": "PM",
+        "specialization": null,
         "level": "T",
         "stage": 1,
         "startingDate": "2019-01-22"
@@ -112,6 +184,7 @@
       "employeeID": "20",
       "email": "ghrtyf.frtadsr@example.com",
       "managerID": "22",
+      "employmentStatus": "active",
       "personal": {
         "firstName": "Ghrtyf",
         "lastName": "Frtadsr",
@@ -120,7 +193,8 @@
       },
       "career": {
         "organizationUnitID": "1-1",
-        "careerPath": "PM01",
+        "roleFamily": "PM",
+        "specialization": null,
         "level": "T",
         "stage": 1,
         "startingDate": "2015-02-27"
@@ -130,6 +204,7 @@
       "employeeID": "22",
       "email": "mrfgutr.asrtguvs@example.com",
       "managerID": "",
+      "employmentStatus": "active",
       "personal": {
         "firstName": "Mrfgutr",
         "lastName": "Asrtguvs",
@@ -138,7 +213,8 @@
       },
       "career": {
         "organizationUnitID": "1",
-        "careerPath": "PM01",
+        "roleFamily": "PM",
+        "specialization": null,
         "level": "T",
         "stage": 1,
         "startingDate": "2022-05-13"

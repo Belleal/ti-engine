@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/stage-levels.json",
+  "title": "Stage-Levels Configuration",
+  "description": "The seniority ladder. Levels N (Intern), J (Junior Specialist), R (Specialist), S (Senior Specialist), X (Expert), T (Manager). Dual track at the senior tier: S3 promotes to either X1 or T1.",
+  "type": "object",
+  "required": [
+    "N",
+    "J",
+    "R",
+    "S",
+    "X",
+    "T"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "N": { "$ref": "#/$defs/level" },
+    "J": { "$ref": "#/$defs/level" },
+    "R": { "$ref": "#/$defs/level" },
+    "S": { "$ref": "#/$defs/level" },
+    "X": { "$ref": "#/$defs/level" },
+    "T": { "$ref": "#/$defs/level" }
+  },
+  "$defs": {
+    "level": {
+      "type": "object",
+      "required": [
+        "name",
+        "description",
+        "grade",
+        "stages",
+        "previous",
+        "next"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Display name of the level"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Description of the level"
+        },
+        "grade": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Seniority grade of the level (1-5)"
+        },
+        "stages": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3,
+          "description": "Number of progression stages within the level (1-3)"
+        },
+        "previous": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "N",
+              "J",
+              "R",
+              "S",
+              "X",
+              "T"
+            ]
+          },
+          "description": "Levels that can promote into this level"
+        },
+        "next": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "N",
+              "J",
+              "R",
+              "S",
+              "X",
+              "T"
+            ]
+          },
+          "description": "Levels this level can promote into"
+        }
+      }
+    }
+  }
+}

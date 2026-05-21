@@ -9,11 +9,15 @@
 const _ = require( "lodash" );
 const tools = require( "@ti-engine/core/tools" );
 
-module.exports.configCareerPathCompetencies = tools.deepFreeze( require( "#config-career-path-competencies" ) );
-module.exports.configCareerPathLevels = tools.deepFreeze( require( "#config-career-path-levels" ) );
+/** @type {ConfigActiveCompetencySets} */
+module.exports.configActiveCompetencySets = tools.deepFreeze( require( "#config-active-competency-sets" ) );
 /** @type {ConfigCompetencies} */
 module.exports.configCompetencies = tools.deepFreeze( require( "#config-competencies" ) );
 module.exports.configOrganizationStructure = tools.deepFreeze( require( "#config-organization-structure" ) );
+/** @type {ConfigRoleFamilies} */
+module.exports.configRoleFamilies = tools.deepFreeze( require( "#config-role-families" ) );
+/** @type {ConfigStageLevels} */
+module.exports.configStageLevels = tools.deepFreeze( require( "#config-stage-levels" ) );
 
 /**
  * Enum for the organization role values.
@@ -31,18 +35,37 @@ const roleCodeEnum = tools.enum( {
 module.exports.roleCode = roleCodeEnum;
 
 /**
- * Enum for the organization career path values.
+ * Enum for the role family codes (top-level discipline). Replaces the legacy `CareerPathCode`.
  *
  * @readonly
- * @enum {CareerPathCode}
- * @typedef {CareerPathCodeValue} CareerPathCode
+ * @enum {RoleFamilyCode}
+ * @typedef {RoleFamilyCodeValue} RoleFamilyCode
  */
-const careerPathCodeEnum = tools.enum( {
-    SE01: [ "SE01", "Software Engineer", "A career path suitable for a general software engineer position without a focus on specific technology stack." ],
-    PM01: [ "PM01", "Project Manager", "A career path suitable for a standard project manager position that is responsible for managing a portfolio of projects." ],
-    BA01: [ "BA01", "Business Analyst", "A career path suitable for a standard business analyst position that is responsible for analyzing business requirements and providing solutions." ]
+const roleFamilyCodeEnum = tools.enum( {
+    SE: [ "SE", "Software Engineering", "Disciplines focused on building software systems." ],
+    QE: [ "QE", "Quality Engineering", "Disciplines focused on validating product quality." ],
+    BA: [ "BA", "Business Analysis", "Disciplines focused on translating business needs into solutions." ],
+    PM: [ "PM", "Project & Delivery Management", "Disciplines focused on planning and delivering projects." ],
+    XD: [ "XD", "Experience Design", "Disciplines focused on user research and interaction design." ],
+    DA: [ "DA", "Data & Analytics", "Disciplines focused on data engineering, analytics, and ML." ],
+    IO: [ "IO", "Infrastructure & Ops", "Disciplines focused on infrastructure, platforms, and operations." ],
+    MC: [ "MC", "Marketing & Communications", "Disciplines focused on marketing, brand, content, and PR." ],
+    PD: [ "PD", "Product Management", "Disciplines focused on product strategy and ownership." ]
 } );
-module.exports.careerPathCode = careerPathCodeEnum;
+module.exports.roleFamilyCode = roleFamilyCodeEnum;
+
+/**
+ * Returns the valid specialization codes for a given role family, as defined in `config.role-families.json`.
+ *
+ * @method
+ * @param {RoleFamilyCodeValue|string} roleFamilyCode
+ * @returns {Array<string>} Specialization codes for the family, or empty array if the family is unknown.
+ * @public
+ */
+module.exports.getSpecializationCodes = ( roleFamilyCode ) => {
+    const family = module.exports.configRoleFamilies?.[ roleFamilyCode ];
+    return family && family.specializations ? Object.keys( family.specializations ) : [];
+};
 
 /**
  * Enum for the calendar slot status values.
@@ -58,6 +81,20 @@ const slotStatusEnum = tools.enum( {
     DELETED: [ "deleted", "framework.slot.status.name.deleted", "framework.slot.status.description.deleted" ]
 } );
 module.exports.slotStatus = slotStatusEnum;
+
+/**
+ * Enum for the appraisal cycle lifecycle status. One-way transitions: PLANNING → ACTIVE → CLOSED.
+ *
+ * @readonly
+ * @enum {CycleStatus}
+ * @typedef {CycleStatusValue} CycleStatus
+ */
+const cycleStatusEnum = tools.enum( {
+    PLANNING: [ "PLANNING", "framework.cycle.status.name.planning", "framework.cycle.status.description.planning" ],
+    ACTIVE: [ "ACTIVE", "framework.cycle.status.name.active", "framework.cycle.status.description.active" ],
+    CLOSED: [ "CLOSED", "framework.cycle.status.name.closed", "framework.cycle.status.description.closed" ]
+} );
+module.exports.cycleStatus = cycleStatusEnum;
 
 /**
  * Enum for the evaluation status values.

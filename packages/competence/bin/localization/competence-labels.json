@@ -2551,6 +2551,492 @@
           "bg": "Изтрита"
         }
       }
+    },
+    "cycle": {
+      "status": {
+        "name": {
+          "planning": {
+            "en": "Planning",
+            "bg": "В подготовка"
+          },
+          "active": {
+            "en": "Active",
+            "bg": "Активен"
+          },
+          "closed": {
+            "en": "Closed",
+            "bg": "Затворен"
+          }
+        },
+        "description": {
+          "planning": {
+            "en": "The cycle is being configured. Active competency sets can still be edited; no evaluations can be started yet.",
+            "bg": "Цикълът се конфигурира. Активните набори от компетенции все още могат да бъдат редактирани; все още не могат да се стартират оценки."
+          },
+          "active": {
+            "en": "The cycle is locked and active. Evaluations can be started; the configuration is frozen.",
+            "bg": "Цикълът е заключен и активен. Могат да се стартират оценки; конфигурацията е замразена."
+          },
+          "closed": {
+            "en": "The cycle is closed. No new evaluations can be started; in-flight evaluations can still be completed.",
+            "bg": "Цикълът е затворен. Не могат да се стартират нови оценки; започнатите оценки могат да бъдат завършени."
+          }
+        }
+      }
+    }
+  },
+  "role-family": {
+    "name": {
+      "SE": {
+        "en": "Software Engineering",
+        "bg": "Софтуерно инженерство"
+      },
+      "QE": {
+        "en": "Quality Engineering",
+        "bg": "Качествен контрол"
+      },
+      "BA": {
+        "en": "Business Analysis",
+        "bg": "Бизнес анализ"
+      },
+      "PM": {
+        "en": "Project & Delivery Management",
+        "bg": "Управление на проекти и доставки"
+      },
+      "XD": {
+        "en": "Experience Design",
+        "bg": "Дизайн на потребителското изживяване"
+      },
+      "DA": {
+        "en": "Data & Analytics",
+        "bg": "Данни и анализ"
+      },
+      "IO": {
+        "en": "Infrastructure & Ops",
+        "bg": "Инфраструктура и операции"
+      },
+      "MC": {
+        "en": "Marketing & Communications",
+        "bg": "Маркетинг и комуникации"
+      },
+      "PD": {
+        "en": "Product Management",
+        "bg": "Продуктово управление"
+      }
+    },
+    "description": {
+      "SE": {
+        "en": "Disciplines focused on building software systems — backend services, frontend interfaces, mobile and embedded software.",
+        "bg": "Дисциплини, фокусирани върху изграждане на софтуерни системи — back-end услуги, front-end интерфейси, мобилен и вграден софтуер."
+      },
+      "QE": {
+        "en": "Disciplines focused on validating product quality through testing and verification.",
+        "bg": "Дисциплини, фокусирани върху валидиране на качеството чрез тестване и верификация."
+      },
+      "BA": {
+        "en": "Disciplines focused on translating business needs into solutions.",
+        "bg": "Дисциплини, фокусирани върху превръщане на бизнес нужди в решения."
+      },
+      "PM": {
+        "en": "Disciplines focused on planning and delivering projects.",
+        "bg": "Дисциплини, фокусирани върху планиране и доставка на проекти."
+      },
+      "XD": {
+        "en": "Disciplines focused on user research and interaction design.",
+        "bg": "Дисциплини, фокусирани върху потребителско проучване и дизайн на взаимодействие."
+      },
+      "DA": {
+        "en": "Disciplines focused on data engineering, analytics, and ML.",
+        "bg": "Дисциплини, фокусирани върху data инженерство, анализ и ML."
+      },
+      "IO": {
+        "en": "Disciplines focused on infrastructure, platforms, and operations.",
+        "bg": "Дисциплини, фокусирани върху инфраструктура, платформи и операции."
+      },
+      "MC": {
+        "en": "Disciplines focused on marketing, brand, content, and PR.",
+        "bg": "Дисциплини, фокусирани върху маркетинг, бранд, съдържание и PR."
+      },
+      "PD": {
+        "en": "Disciplines focused on product strategy and ownership.",
+        "bg": "Дисциплини, фокусирани върху продуктова стратегия и собственост."
+      }
+    },
+    "SE": {
+      "specialization": {
+        "name": {
+          "BACKEND": {
+            "en": "Backend",
+            "bg": "Back-end"
+          },
+          "FRONTEND": {
+            "en": "Frontend",
+            "bg": "Front-end"
+          },
+          "MOBILE": {
+            "en": "Mobile",
+            "bg": "Мобилни"
+          },
+          "FULLSTACK": {
+            "en": "Full-stack",
+            "bg": "Full-stack"
+          },
+          "EMBEDDED": {
+            "en": "Embedded",
+            "bg": "Вградени"
+          }
+        },
+        "description": {
+          "BACKEND": {
+            "en": "Server-side application and services development.",
+            "bg": "Разработка на сървърни приложения и услуги."
+          },
+          "FRONTEND": {
+            "en": "Web client-side interface development.",
+            "bg": "Разработка на уеб клиентски интерфейси."
+          },
+          "MOBILE": {
+            "en": "Native and cross-platform mobile application development.",
+            "bg": "Разработка на нативни и крос-платформени мобилни приложения."
+          },
+          "FULLSTACK": {
+            "en": "End-to-end web application development across client and server.",
+            "bg": "Разработка на уеб приложения от край до край — клиентска и сървърна част."
+          },
+          "EMBEDDED": {
+            "en": "Firmware and constrained-device software development.",
+            "bg": "Разработка на firmware и софтуер за устройства с ограничени ресурси."
+          }
+        }
+      }
+    },
+    "QE": {
+      "specialization": {
+        "name": {
+          "MANUAL": {
+            "en": "Manual Testing",
+            "bg": "Ръчно тестване"
+          },
+          "AUTOMATION": {
+            "en": "Test Automation",
+            "bg": "Тестова автоматизация"
+          },
+          "PERFORMANCE": {
+            "en": "Performance",
+            "bg": "Производителност"
+          },
+          "SECURITY": {
+            "en": "Security Testing",
+            "bg": "Сигурност"
+          }
+        },
+        "description": {
+          "MANUAL": {
+            "en": "Exploratory and scripted manual test execution.",
+            "bg": "Изследователско и скриптирано ръчно тестване."
+          },
+          "AUTOMATION": {
+            "en": "Automated test framework and suite development.",
+            "bg": "Разработка на автоматизирани тестови рамки и комплекти."
+          },
+          "PERFORMANCE": {
+            "en": "Load, stress, and performance benchmarking.",
+            "bg": "Тестване на натоварване, стрес и производителност."
+          },
+          "SECURITY": {
+            "en": "Security testing, vulnerability assessment, and pen-testing.",
+            "bg": "Тестване на сигурността, оценка на уязвимости и pen-тестване."
+          }
+        }
+      }
+    },
+    "BA": {
+      "specialization": {
+        "name": {
+          "REQUIREMENTS": {
+            "en": "Requirements",
+            "bg": "Изисквания"
+          },
+          "PROCESS": {
+            "en": "Process Analysis",
+            "bg": "Процесен анализ"
+          },
+          "PRODUCT_OWNERSHIP": {
+            "en": "Product Ownership",
+            "bg": "Продуктова собственост"
+          },
+          "DATA_BA": {
+            "en": "Data Analysis",
+            "bg": "Анализ на данни"
+          },
+          "DOC_PROC": {
+            "en": "Documentation & Procedures",
+            "bg": "Документация и процедури"
+          }
+        },
+        "description": {
+          "REQUIREMENTS": {
+            "en": "Requirements elicitation, analysis, and specification.",
+            "bg": "Изясняване, анализ и спецификация на изисквания."
+          },
+          "PROCESS": {
+            "en": "Process modelling, analysis, and improvement.",
+            "bg": "Моделиране, анализ и подобрение на процеси."
+          },
+          "PRODUCT_OWNERSHIP": {
+            "en": "Backlog management and product-oriented analysis.",
+            "bg": "Управление на backlog и продуктово ориентиран анализ."
+          },
+          "DATA_BA": {
+            "en": "Business-oriented data analysis and reporting.",
+            "bg": "Бизнес-ориентиран анализ на данни и отчетност."
+          },
+          "DOC_PROC": {
+            "en": "Documentation, procedures, and knowledge-base authoring.",
+            "bg": "Документация, процедури и създаване на бази знания."
+          }
+        }
+      }
+    },
+    "PM": {
+      "specialization": {
+        "name": {
+          "AGILE": {
+            "en": "Agile Delivery",
+            "bg": "Agile доставка"
+          },
+          "TRADITIONAL": {
+            "en": "Traditional / Waterfall",
+            "bg": "Традиционен / Waterfall"
+          },
+          "PROGRAM": {
+            "en": "Program Management",
+            "bg": "Програмно управление"
+          }
+        },
+        "description": {
+          "AGILE": {
+            "en": "Scrum, Kanban, and other agile delivery methods.",
+            "bg": "Scrum, Kanban и други agile методи на доставка."
+          },
+          "TRADITIONAL": {
+            "en": "Waterfall and plan-driven delivery.",
+            "bg": "Waterfall и plan-driven доставка."
+          },
+          "PROGRAM": {
+            "en": "Multi-project program coordination and portfolio delivery.",
+            "bg": "Координация на много-проектни програми и доставка на портфолио."
+          }
+        }
+      }
+    },
+    "XD": {
+      "specialization": {
+        "name": {
+          "RESEARCH": {
+            "en": "User Research",
+            "bg": "Потребителско проучване"
+          },
+          "INTERACTION": {
+            "en": "Interaction Design",
+            "bg": "Дизайн на взаимодействие"
+          },
+          "VISUAL": {
+            "en": "Visual Design",
+            "bg": "Визуален дизайн"
+          },
+          "SERVICE": {
+            "en": "Service Design",
+            "bg": "Дизайн на услуги"
+          }
+        },
+        "description": {
+          "RESEARCH": {
+            "en": "User research and usability studies.",
+            "bg": "Потребителски проучвания и оценка на usability."
+          },
+          "INTERACTION": {
+            "en": "Interaction and information-architecture design.",
+            "bg": "Дизайн на взаимодействие и информационна архитектура."
+          },
+          "VISUAL": {
+            "en": "Visual design, typography, and design systems.",
+            "bg": "Визуален дизайн, типография и дизайн системи."
+          },
+          "SERVICE": {
+            "en": "End-to-end service design across touchpoints.",
+            "bg": "Дизайн на услуги от край до край през всички точки на контакт."
+          }
+        }
+      }
+    },
+    "DA": {
+      "specialization": {
+        "name": {
+          "ENGINEERING": {
+            "en": "Data Engineering",
+            "bg": "Data инженерство"
+          },
+          "ANALYTICS": {
+            "en": "Analytics",
+            "bg": "Анализ"
+          },
+          "ML": {
+            "en": "Machine Learning",
+            "bg": "Машинно обучение"
+          },
+          "RESEARCH": {
+            "en": "Data Research",
+            "bg": "Data изследване"
+          }
+        },
+        "description": {
+          "ENGINEERING": {
+            "en": "Data pipelines, warehousing, and data platforms.",
+            "bg": "Data pipeline-и, складиране на данни и data платформи."
+          },
+          "ANALYTICS": {
+            "en": "Business analytics, dashboards, and reporting.",
+            "bg": "Бизнес анализ, табла и отчетност."
+          },
+          "ML": {
+            "en": "Machine learning model development and operationalization.",
+            "bg": "Разработка и опериране на модели за машинно обучение."
+          },
+          "RESEARCH": {
+            "en": "Applied research with data, including statistical modelling.",
+            "bg": "Приложни изследвания с данни, включително статистическо моделиране."
+          }
+        }
+      }
+    },
+    "IO": {
+      "specialization": {
+        "name": {
+          "DEVOPS": {
+            "en": "DevOps",
+            "bg": "DevOps"
+          },
+          "SRE": {
+            "en": "Site Reliability",
+            "bg": "Site Reliability"
+          },
+          "CLOUD": {
+            "en": "Cloud Engineering",
+            "bg": "Облачно инженерство"
+          },
+          "SYSADMIN": {
+            "en": "Systems Administration",
+            "bg": "Системна администрация"
+          },
+          "SECOPS": {
+            "en": "Security Operations",
+            "bg": "Сигурностни операции"
+          }
+        },
+        "description": {
+          "DEVOPS": {
+            "en": "CI/CD, deployment automation, and developer tooling.",
+            "bg": "CI/CD, автоматизация на разгръщане и инструменти за разработчици."
+          },
+          "SRE": {
+            "en": "Site reliability engineering and operational excellence.",
+            "bg": "Site reliability инженерство и оперативна ексцелентност."
+          },
+          "CLOUD": {
+            "en": "Cloud architecture and platform engineering.",
+            "bg": "Облачна архитектура и платформено инженерство."
+          },
+          "SYSADMIN": {
+            "en": "Systems administration and on-prem operations.",
+            "bg": "Системна администрация и on-premise операции."
+          },
+          "SECOPS": {
+            "en": "Security operations and incident response.",
+            "bg": "Сигурностни операции и реакция при инциденти."
+          }
+        }
+      }
+    },
+    "MC": {
+      "specialization": {
+        "name": {
+          "DIGITAL": {
+            "en": "Digital Marketing",
+            "bg": "Дигитален маркетинг"
+          },
+          "BRAND_PR": {
+            "en": "Brand & PR",
+            "bg": "Бранд и PR"
+          },
+          "CONTENT": {
+            "en": "Content",
+            "bg": "Съдържание"
+          },
+          "INTERNAL_COMMS": {
+            "en": "Internal Communications",
+            "bg": "Вътрешни комуникации"
+          }
+        },
+        "description": {
+          "DIGITAL": {
+            "en": "Digital marketing channels, campaigns, and performance.",
+            "bg": "Дигитални маркетинг канали, кампании и performance."
+          },
+          "BRAND_PR": {
+            "en": "Brand strategy and public relations.",
+            "bg": "Бранд стратегия и обществени отношения."
+          },
+          "CONTENT": {
+            "en": "Content strategy and production.",
+            "bg": "Стратегия и продукция на съдържание."
+          },
+          "INTERNAL_COMMS": {
+            "en": "Internal communications and employee engagement.",
+            "bg": "Вътрешни комуникации и ангажиране на служители."
+          }
+        }
+      }
+    },
+    "PD": {
+      "specialization": {
+        "name": {
+          "STRATEGY": {
+            "en": "Product Strategy",
+            "bg": "Продуктова стратегия"
+          },
+          "OWNERSHIP": {
+            "en": "Product Ownership",
+            "bg": "Продуктова собственост"
+          },
+          "ACCOUNT": {
+            "en": "Account Management",
+            "bg": "Управление на акаунти"
+          },
+          "GROWTH": {
+            "en": "Growth",
+            "bg": "Растеж"
+          }
+        },
+        "description": {
+          "STRATEGY": {
+            "en": "Product strategy, vision, and roadmap.",
+            "bg": "Продуктова стратегия, визия и roadmap."
+          },
+          "OWNERSHIP": {
+            "en": "Product ownership and execution.",
+            "bg": "Продуктова собственост и изпълнение."
+          },
+          "ACCOUNT": {
+            "en": "Customer/account-side product management.",
+            "bg": "Управление на продукта от страна на клиента/акаунта."
+          },
+          "GROWTH": {
+            "en": "Growth-focused product work and experimentation.",
+            "bg": "Продуктова работа, фокусирана върху растеж и експерименти."
+          }
+        }
+      }
     }
   },
   "interface": {

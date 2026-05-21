@@ -111,6 +111,29 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "eCFMapping": {
+          "type": "array",
+          "description": "Optional e-Competence Framework (e-CF) cross-walk. Each entry references an e-CF competence and the e-CF level (e-1..e-5). Empty array is the default.",
+          "items": {
+            "type": "object",
+            "required": [
+              "competence",
+              "level"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "competence": {
+                "type": "string",
+                "description": "e-CF competence reference (e.g., B.6 for Systems Engineering)"
+              },
+              "level": {
+                "type": "string",
+                "pattern": "^e-[1-5]$",
+                "description": "e-CF level (e-1 through e-5)"
+              }
+            }
+          }
+        },
         "name": {
           "type": "string",
           "pattern": "^competency\\.name\\.[EIC][1-3]-\\d+$",

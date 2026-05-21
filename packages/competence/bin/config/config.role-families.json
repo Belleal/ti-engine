@@ -1,0 +1,246 @@
+{
+  "SE": {
+    "name": "role-family.name.SE",
+    "description": "role-family.description.SE",
+    "specializations": {
+      "BACKEND": {
+        "name": "role-family.SE.specialization.name.BACKEND",
+        "description": "role-family.SE.specialization.description.BACKEND",
+        "eCFMapping": []
+      },
+      "FRONTEND": {
+        "name": "role-family.SE.specialization.name.FRONTEND",
+        "description": "role-family.SE.specialization.description.FRONTEND",
+        "eCFMapping": []
+      },
+      "MOBILE": {
+        "name": "role-family.SE.specialization.name.MOBILE",
+        "description": "role-family.SE.specialization.description.MOBILE",
+        "eCFMapping": []
+      },
+      "FULLSTACK": {
+        "name": "role-family.SE.specialization.name.FULLSTACK",
+        "description": "role-family.SE.specialization.description.FULLSTACK",
+        "eCFMapping": []
+      },
+      "EMBEDDED": {
+        "name": "role-family.SE.specialization.name.EMBEDDED",
+        "description": "role-family.SE.specialization.description.EMBEDDED",
+        "eCFMapping": []
+      }
+    }
+  },
+  "QE": {
+    "name": "role-family.name.QE",
+    "description": "role-family.description.QE",
+    "specializations": {
+      "MANUAL": {
+        "name": "role-family.QE.specialization.name.MANUAL",
+        "description": "role-family.QE.specialization.description.MANUAL",
+        "eCFMapping": []
+      },
+      "AUTOMATION": {
+        "name": "role-family.QE.specialization.name.AUTOMATION",
+        "description": "role-family.QE.specialization.description.AUTOMATION",
+        "eCFMapping": []
+      },
+      "PERFORMANCE": {
+        "name": "role-family.QE.specialization.name.PERFORMANCE",
+        "description": "role-family.QE.specialization.description.PERFORMANCE",
+        "eCFMapping": []
+      },
+      "SECURITY": {
+        "name": "role-family.QE.specialization.name.SECURITY",
+        "description": "role-family.QE.specialization.description.SECURITY",
+        "eCFMapping": []
+      }
+    }
+  },
+  "BA": {
+    "name": "role-family.name.BA",
+    "description": "role-family.description.BA",
+    "specializations": {
+      "REQUIREMENTS": {
+        "name": "role-family.BA.specialization.name.REQUIREMENTS",
+        "description": "role-family.BA.specialization.description.REQUIREMENTS",
+        "eCFMapping": []
+      },
+      "PROCESS": {
+        "name": "role-family.BA.specialization.name.PROCESS",
+        "description": "role-family.BA.specialization.description.PROCESS",
+        "eCFMapping": []
+      },
+      "PRODUCT_OWNERSHIP": {
+        "name": "role-family.BA.specialization.name.PRODUCT_OWNERSHIP",
+        "description": "role-family.BA.specialization.description.PRODUCT_OWNERSHIP",
+        "eCFMapping": []
+      },
+      "DATA_BA": {
+        "name": "role-family.BA.specialization.name.DATA_BA",
+        "description": "role-family.BA.specialization.description.DATA_BA",
+        "eCFMapping": []
+      },
+      "DOC_PROC": {
+        "name": "role-family.BA.specialization.name.DOC_PROC",
+        "description": "role-family.BA.specialization.description.DOC_PROC",
+        "eCFMapping": []
+      }
+    }
+  },
+  "PM": {
+    "name": "role-family.name.PM",
+    "description": "role-family.description.PM",
+    "specializations": {
+      "AGILE": {
+        "name": "role-family.PM.specialization.name.AGILE",
+        "description": "role-family.PM.specialization.description.AGILE",
+        "eCFMapping": []
+      },
+      "TRADITIONAL": {
+        "name": "role-family.PM.specialization.name.TRADITIONAL",
+        "description": "role-family.PM.specialization.description.TRADITIONAL",
+        "eCFMapping": []
+      },
+      "PROGRAM": {
+        "name": "role-family.PM.specialization.name.PROGRAM",
+        "description": "role-family.PM.specialization.description.PROGRAM",
+        "eCFMapping": []
+      }
+    }
+  },
+  "XD": {
+    "name": "role-family.name.XD",
+    "description": "role-family.description.XD",
+    "specializations": {
+      "RESEARCH": {
+        "name": "role-family.XD.specialization.name.RESEARCH",
+        "description": "role-family.XD.specialization.description.RESEARCH",
+        "eCFMapping": []
+      },
+      "INTERACTION": {
+        "name": "role-family.XD.specialization.name.INTERACTION",
+        "description": "role-family.XD.specialization.description.INTERACTION",
+        "eCFMapping": []
+      },
+      "VISUAL": {
+        "name": "role-family.XD.specialization.name.VISUAL",
+        "description": "role-family.XD.specialization.description.VISUAL",
+        "eCFMapping": []
+      },
+      "SERVICE": {
+        "name": "role-family.XD.specialization.name.SERVICE",
+        "description": "role-family.XD.specialization.description.SERVICE",
+        "eCFMapping": []
+      }
+    }
+  },
+  "DA": {
+    "name": "role-family.name.DA",
+    "description": "role-family.description.DA",
+    "specializations": {
+      "ENGINEERING": {
+        "name": "role-family.DA.specialization.name.ENGINEERING",
+        "description": "role-family.DA.specialization.description.ENGINEERING",
+        "eCFMapping": []
+      },
+      "ANALYTICS": {
+        "name": "role-family.DA.specialization.name.ANALYTICS",
+        "description": "role-family.DA.specialization.description.ANALYTICS",
+        "eCFMapping": []
+      },
+      "ML": {
+        "name": "role-family.DA.specialization.name.ML",
+        "description": "role-family.DA.specialization.description.ML",
+        "eCFMapping": []
+      },
+      "RESEARCH": {
+        "name": "role-family.DA.specialization.name.RESEARCH",
+        "description": "role-family.DA.specialization.description.RESEARCH",
+        "eCFMapping": []
+      }
+    }
+  },
+  "IO": {
+    "name": "role-family.name.IO",
+    "description": "role-family.description.IO",
+    "specializations": {
+      "DEVOPS": {
+        "name": "role-family.IO.specialization.name.DEVOPS",
+        "description": "role-family.IO.specialization.description.DEVOPS",
+        "eCFMapping": []
+      },
+      "SRE": {
+        "name": "role-family.IO.specialization.name.SRE",
+        "description": "role-family.IO.specialization.description.SRE",
+        "eCFMapping": []
+      },
+      "CLOUD": {
+        "name": "role-family.IO.specialization.name.CLOUD",
+        "description": "role-family.IO.specialization.description.CLOUD",
+        "eCFMapping": []
+      },
+      "SYSADMIN": {
+        "name": "role-family.IO.specialization.name.SYSADMIN",
+        "description": "role-family.IO.specialization.description.SYSADMIN",
+        "eCFMapping": []
+      },
+      "SECOPS": {
+        "name": "role-family.IO.specialization.name.SECOPS",
+        "description": "role-family.IO.specialization.description.SECOPS",
+        "eCFMapping": []
+      }
+    }
+  },
+  "MC": {
+    "name": "role-family.name.MC",
+    "description": "role-family.description.MC",
+    "specializations": {
+      "DIGITAL": {
+        "name": "role-family.MC.specialization.name.DIGITAL",
+        "description": "role-family.MC.specialization.description.DIGITAL",
+        "eCFMapping": []
+      },
+      "BRAND_PR": {
+        "name": "role-family.MC.specialization.name.BRAND_PR",
+        "description": "role-family.MC.specialization.description.BRAND_PR",
+        "eCFMapping": []
+      },
+      "CONTENT": {
+        "name": "role-family.MC.specialization.name.CONTENT",
+        "description": "role-family.MC.specialization.description.CONTENT",
+        "eCFMapping": []
+      },
+      "INTERNAL_COMMS": {
+        "name": "role-family.MC.specialization.name.INTERNAL_COMMS",
+        "description": "role-family.MC.specialization.description.INTERNAL_COMMS",
+        "eCFMapping": []
+      }
+    }
+  },
+  "PD": {
+    "name": "role-family.name.PD",
+    "description": "role-family.description.PD",
+    "specializations": {
+      "STRATEGY": {
+        "name": "role-family.PD.specialization.name.STRATEGY",
+        "description": "role-family.PD.specialization.description.STRATEGY",
+        "eCFMapping": []
+      },
+      "OWNERSHIP": {
+        "name": "role-family.PD.specialization.name.OWNERSHIP",
+        "description": "role-family.PD.specialization.description.OWNERSHIP",
+        "eCFMapping": []
+      },
+      "ACCOUNT": {
+        "name": "role-family.PD.specialization.name.ACCOUNT",
+        "description": "role-family.PD.specialization.description.ACCOUNT",
+        "eCFMapping": []
+      },
+      "GROWTH": {
+        "name": "role-family.PD.specialization.name.GROWTH",
+        "description": "role-family.PD.specialization.description.GROWTH",
+        "eCFMapping": []
+      }
+    }
+  }
+}

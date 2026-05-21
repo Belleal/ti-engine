@@ -604,27 +604,11 @@ class CompetenceFramework {
      * @private
      */
     #calculateEvaluationScoreMatrices() {
-        const competencies = configurationLoader.configCompetencies?.competencies || {};
-        Object.keys( configurationLoader.configCareerPathCompetencies ).forEach( ( careerPathID ) => {
-            const evaluationCycleCompetencies = this.getAllowedCompetencyCodes( careerPathID, this.#evaluationCycleID );
-            if ( evaluationCycleCompetencies && Array.isArray( evaluationCycleCompetencies ) ) {
-                this.#evaluationScoreMatrices[ careerPathID ] = {};
-                evaluationCycleCompetencies.forEach( ( competencyCode ) => {
-                    const competency = competencies[ competencyCode ];
-                    if ( competency ) {
-                        this.#evaluationScoreMatrices[ careerPathID ][ competency.category ] = this.#evaluationScoreMatrices[ careerPathID ][ competency.category ] || {};
-                        Object.keys( configurationLoader.configCareerPathLevels ).forEach( ( careerPathLevelID ) => {
-                            const careerPathLevel = configurationLoader.configCareerPathLevels[ careerPathLevelID ];
-                            for ( let stage = 1; stage <= careerPathLevel.stages; stage++ ) {
-                                const stageLevel = `${ careerPathLevelID }${ stage }`;
-                                this.#evaluationScoreMatrices[ careerPathID ][ competency.category ][ stageLevel ] = this.#evaluationScoreMatrices[ careerPathID ][ competency.category ][ stageLevel ] || 0;
-                                this.#evaluationScoreMatrices[ careerPathID ][ competency.category ][ stageLevel ] += competency.relevancy[ stageLevel ];
-                            }
-                        } );
-                    }
-                } );
-            }
-        } );
+        // Phase 1 scaffolding: the legacy careerPath-keyed score matrix is no longer populated. The pre-computed
+        // matrix becomes irrelevant once Phase 2 lands — score calculation reads the per-stage-level relevancy
+        // weights from each evaluation's snapshot rather than from a pre-computed `careerPath → category → stageLevel`
+        // table. Until Phase 2 wires that in, this method is a no-op and `#evaluationScoreMatrices` stays empty.
+        this.#evaluationScoreMatrices = {};
     }
 
 }

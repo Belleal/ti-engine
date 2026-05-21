@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/role-families.json",
+  "title": "Role Families Configuration",
+  "description": "Top-level disciplines (Role Families) and the permitted Specializations within each. Replaces the old CareerPath concept.",
+  "type": "object",
+  "required": [
+    "SE",
+    "QE",
+    "BA",
+    "PM",
+    "XD",
+    "DA",
+    "IO",
+    "MC",
+    "PD"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "SE": { "$ref": "#/$defs/roleFamily" },
+    "QE": { "$ref": "#/$defs/roleFamily" },
+    "BA": { "$ref": "#/$defs/roleFamily" },
+    "PM": { "$ref": "#/$defs/roleFamily" },
+    "XD": { "$ref": "#/$defs/roleFamily" },
+    "DA": { "$ref": "#/$defs/roleFamily" },
+    "IO": { "$ref": "#/$defs/roleFamily" },
+    "MC": { "$ref": "#/$defs/roleFamily" },
+    "PD": { "$ref": "#/$defs/roleFamily" }
+  },
+  "$defs": {
+    "roleFamily": {
+      "type": "object",
+      "required": [
+        "name",
+        "description",
+        "specializations"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^role-family\\.name\\.[A-Z]{2}$",
+          "description": "Localization key for the family name"
+        },
+        "description": {
+          "type": "string",
+          "pattern": "^role-family\\.description\\.[A-Z]{2}$",
+          "description": "Localization key for the family description"
+        },
+        "specializations": {
+          "type": "object",
+          "description": "Permitted specialization codes under this family",
+          "patternProperties": {
+            "^[A-Z][A-Z0-9_]*$": {
+              "$ref": "#/$defs/specialization"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "specialization": {
+      "type": "object",
+      "required": [
+        "name",
+        "description",
+        "eCFMapping"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^role-family\\.[A-Z]{2}\\.specialization\\.name\\.[A-Z][A-Z0-9_]*$",
+          "description": "Localization key for the specialization name"
+        },
+        "description": {
+          "type": "string",
+          "pattern": "^role-family\\.[A-Z]{2}\\.specialization\\.description\\.[A-Z][A-Z0-9_]*$",
+          "description": "Localization key for the specialization description"
+        },
+        "eCFMapping": {
+          "type": "array",
+          "description": "Optional e-CF cross-walk at the specialization level. Empty array is the default.",
+          "items": {
+            "type": "object",
+            "required": [
+              "competence",
+              "level"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "competence": {
+                "type": "string",
+                "description": "e-CF competence reference"
+              },
+              "level": {
+                "type": "string",
+                "pattern": "^e-[1-5]$",
+                "description": "e-CF level (e-1 through e-5)"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
