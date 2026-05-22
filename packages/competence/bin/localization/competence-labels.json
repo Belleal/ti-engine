@@ -3348,10 +3348,6 @@
           "en": "Not Set",
           "bg": "Няма зададена"
         },
-        "career-path": {
-          "en": "Position & Level:",
-          "bg": "Позиция & Ниво:"
-        },
         "feedback-title": {
           "en": "Written Feedback",
           "bg": "Обратна Връзка в Писмена Форма"
@@ -3470,10 +3466,6 @@
           "en": "Name",
           "bg": "Имe"
         },
-        "kv-career-path": {
-          "en": "Career path",
-          "bg": "Кариерен път"
-        },
         "kv-level": {
           "en": "Level",
           "bg": "Ниво"
@@ -3495,8 +3487,8 @@
           "bg": "Цикъл & рамка"
         },
         "cycle-desc": {
-          "en": "Competencies are determined by career path and level",
-          "bg": "Компетенциите се определят от кариерния път и нивото"
+          "en": "Competencies are determined by role family, specialization, and stage-level",
+          "bg": "Компетенциите се определят от семейството роли, специализацията и нивото"
         },
         "cycle-id": {
           "en": "Cycle ID",
@@ -3662,9 +3654,9 @@
           "en": "PERSON",
           "bg": "СЛУЖИТЕЛ"
         },
-        "career-path": {
-          "en": "CAREER PATH",
-          "bg": "КАРИЕРЕН ПЪТ"
+        "role": {
+          "en": "ROLE",
+          "bg": "РОЛЯ"
         },
         "level": {
           "en": "LEVEL",
@@ -3737,10 +3729,6 @@
         "name": {
           "en": "Name",
           "bg": "Име"
-        },
-        "career-path": {
-          "en": "Position",
-          "bg": "Позиция"
         },
         "level": {
           "en": "Level",

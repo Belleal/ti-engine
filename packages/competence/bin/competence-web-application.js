@@ -278,9 +278,8 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
-     * Builds a display label combining a role family name and (optionally) a specialization name. Used by handlers
-     * that need a single string suitable for the existing UI "career path" column until the dedicated
-     * `<roleFamily> · <specialization>` rendering lands in later phases.
+     * Builds a display label combining a role family name and (optionally) a specialization name as
+     * `<roleFamily> · <specialization>`. Used by handlers that need a single string for read-only displays.
      *
      * @method
      * @private
@@ -972,10 +971,12 @@ class CompetenceWebApplication extends TiWebAppManager {
                 employee = employeeData;
                 return Promise.all( [
                     dataManager.instance.fetchEmployees(),
-                    this.#resolveCurrentCycle()
+                    // Mirrors #startEvaluation: the new-evaluation preview only makes sense against a strictly ACTIVE
+                    // cycle so the user does not populate a form they cannot actually submit.
+                    dataManager.instance.getActiveCycle()
                 ] );
             } ).then( ( [ allEmployees, resolvedCycle ] ) => {
-                if ( !resolvedCycle ) {
+                if ( !resolvedCycle || resolvedCycle.status !== configurationLoader.cycleStatus.ACTIVE ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.no-active-cycle" }, exceptions.httpCode.C_422 );
                 }
                 cycle = resolvedCycle;
