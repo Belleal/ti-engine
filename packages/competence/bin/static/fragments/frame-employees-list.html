@@ -71,7 +71,7 @@
 
             <!-- Team blocks -->
             <template x-for="unit in units" x-bind:key="unit.id">
-                <div class="competence-team-block">
+                <div class="ti-panel competence-team-block">
 
                     <!-- Team block header -->
                     <div class="ti-panel-head bar">
@@ -115,20 +115,20 @@
                     </div>
 
                     <template x-if="unit.employees.length > 0">
-                        <div>
+                        <div class="ti-data-grid competence-org-grid">
                             <!-- Column headers -->
-                            <div class="competence-org-tree-head">
+                            <div class="ti-data-grid-head">
                                 <span></span>
                                 <span></span>
                                 <span x-text-label="interface.employees.col.person">PERSON</span>
                                 <span x-text-label="interface.employees.col.role">ROLE</span>
-                                <span class="competence-col-center" x-text-label="interface.employees.col.level">LEVEL</span>
+                                <span class="ti-cell-center" x-text-label="interface.employees.col.level">LEVEL</span>
                                 <span x-text-label="interface.employees.col.evaluation">EVALUATION</span>
-                                <span class="competence-col-right" x-text-label="interface.employees.col.actions">ACTIONS</span>
+                                <span class="ti-cell-right" x-text-label="interface.employees.col.actions">ACTIONS</span>
                             </div>
-                            <div class="competence-org-tree-rows">
+                            <div class="ti-data-grid-rows">
                                 <template x-for="employee in unit.employees" x-bind:key="employee.id">
-                                    <div class="competence-org-tree-row" x-bind:class="{ 'competence-current': employee.isCurrentUser }">
+                                    <div class="ti-data-grid-row" x-bind:class="{ 'is-current': employee.isCurrentUser }">
                                         <div class="competence-org-tree-connector"></div>
                                         <div class="ti-avatar sm" x-bind:style="$store.tiToolbox.generateAvatarStyle( employee.id, employee.name )"
                                              x-bind:aria-label="employee.name">
@@ -156,7 +156,7 @@
                                         <div class="competence-org-career-cell">
                                             <span x-text="employee.career.specialization ? (employee.career.roleFamilyName + ' · ' + employee.career.specializationName) : employee.career.roleFamilyName"></span>
                                         </div>
-                                        <div class="competence-col-center">
+                                        <div class="ti-cell-center">
                                             <span class="competence-level-pip" x-bind:class="employee.career.level"
                                                   x-text="employee.career.level + ( employee.career.stage || '' )"></span>
                                         </div>

@@ -22,8 +22,11 @@
 
     <!-- Cycle table -->
     <template x-if="loaded && cycles.length > 0">
-        <div class="ti-panel competence-cycle-panel">
+        <div class="ti-panel">
             <div class="ti-panel-head bar">
+                <div class="ti-panel-head-icon">
+                    <span class="ti-icon cycles-loop md" aria-hidden="true"></span>
+                </div>
                 <div class="ti-panel-title" x-text-label="interface.cycles.page-title"></div>
                 <div class="ti-panel-head-actions">
                     <button type="button" class="ti-btn sm primary" @click="openCreateModal()">
@@ -32,29 +35,24 @@
                     </button>
                 </div>
             </div>
-            <div class="competence-cycle-table-wrap">
-                <table class="competence-cycle-table">
-                    <thead>
-                    <tr>
-                        <th x-text-label="interface.cycles.columns.cycle-id"></th>
-                        <th x-text-label="interface.cycles.columns.name"></th>
-                        <th x-text-label="interface.cycles.columns.dates"></th>
-                        <th x-text-label="interface.cycles.columns.status"></th>
-                        <th x-text-label="interface.cycles.columns.evaluations"></th>
-                        <th x-text-label="interface.cycles.columns.created"></th>
-                        <th class="competence-cycle-actions-col" x-text-label="interface.cycles.columns.actions"></th>
-                    </tr>
-                    </thead>
-                    <tbody>
+            <div class="ti-data-grid bordered competence-cycle-grid">
+                <div class="ti-data-grid-head">
+                    <span x-text-label="interface.cycles.columns.cycle-id"></span>
+                    <span x-text-label="interface.cycles.columns.name"></span>
+                    <span x-text-label="interface.cycles.columns.dates"></span>
+                    <span x-text-label="interface.cycles.columns.status"></span>
+                    <span x-text-label="interface.cycles.columns.evaluations"></span>
+                    <span x-text-label="interface.cycles.columns.created"></span>
+                    <span class="ti-cell-right" x-text-label="interface.cycles.columns.actions"></span>
+                </div>
+                <div class="ti-data-grid-rows">
                     <template x-for="cycle in cycles" x-bind:key="cycle.cycleID">
-                        <tr>
-                            <td>
+                        <div class="ti-data-grid-row">
+                            <span>
                                 <span class="ti-tag mono" x-text="cycle.cycleID"></span>
-                            </td>
-                            <td>
-                                <div class="competence-cycle-row-name" x-text="cycle.name"></div>
-                            </td>
-                            <td>
+                            </span>
+                            <div class="competence-cycle-row-name" x-text="cycle.name"></div>
+                            <div>
                                 <div class="competence-cycle-row-dates">
                                     <span x-text="formatDate(cycle.cycleStart)"></span>
                                     <span class="competence-cycle-row-dates-sep">→</span>
@@ -64,13 +62,11 @@
                                     <span x-text-label="interface.evaluation.status.name.closed"></span>:
                                     <span x-text="formatDate(cycle.actualCloseDate)"></span>
                                 </div>
-                            </td>
-                            <td>
-                                <span class="ti-status-pill"
-                                      x-bind:class="cycle.statusTone"
-                                      x-text="cycle.statusName"></span>
-                            </td>
-                            <td>
+                            </div>
+                            <span class="ti-status-pill"
+                                  x-bind:class="cycle.statusTone"
+                                  x-text="cycle.statusName"></span>
+                            <div>
                                 <div class="competence-cycle-row-counts" x-show="cycle.counts.inProgress > 0 || cycle.counts.completed > 0">
                                     <span x-show="cycle.counts.inProgress > 0">
                                         <strong x-text="cycle.counts.inProgress"></strong>
@@ -86,14 +82,14 @@
                                 <div class="competence-cycle-row-no-counts"
                                      x-show="cycle.counts.inProgress === 0 && cycle.counts.completed === 0"
                                      x-text-label="interface.cycles.no-evaluations"></div>
-                            </td>
-                            <td>
+                            </div>
+                            <div>
                                 <div class="competence-cycle-row-created">
                                     <span x-text="formatDate(cycle.createdAt)"></span>
                                 </div>
                                 <div class="competence-cycle-row-created-by" x-show="cycle.createdByName" x-text="cycle.createdByName"></div>
-                            </td>
-                            <td class="competence-cycle-actions-col">
+                            </div>
+                            <div class="ti-cell-right">
                                 <div class="competence-cycle-actions">
                                     <button type="button" class="ti-btn sm" @click="openCycleSetup(cycle.cycleID)"
                                             x-text-label="interface.cycles.actions.open"></button>
@@ -106,11 +102,10 @@
                                             @click="openCloseModal(cycle)"
                                             x-text-label="interface.cycles.actions.close"></button>
                                 </div>
-                            </td>
-                        </tr>
+                            </div>
+                        </div>
                     </template>
-                    </tbody>
-                </table>
+                </div>
             </div>
         </div>
     </template>

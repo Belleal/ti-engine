@@ -531,9 +531,6 @@
 }
 
 .competence-team-block {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--r-lg);
     overflow: hidden;
 }
 
@@ -550,47 +547,17 @@
     gap: var(--s-4);
 }
 
-.competence-org-tree-head {
-    display: grid;
-    grid-template-columns: 22px 40px 2.2fr 1.2fr 80px 1.2fr 200px;
-    gap: var(--s-3);
-    padding: 8px var(--s-5);
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--fg-tertiary);
-    font-weight: 600;
-    background: var(--bg-surface);
-    border-bottom: 1px solid var(--border-soft);
-    white-space: nowrap;
+/* Org-chart grid columns: connector + avatar + person + role + level (centered) + evaluation +
+   actions (right-aligned). Head and row inherit the template via .ti-data-grid. */
+.competence-org-grid {
+    --ti-grid-cols: 22px 40px 2.2fr 1.2fr 80px 1.2fr 200px;
 }
 
-.competence-org-tree-rows {
+.competence-org-grid .ti-data-grid-rows {
     padding: var(--s-3) 0;
 }
 
-.competence-org-tree-row {
-    position: relative;
-    padding: var(--s-2) var(--s-5);
-    display: grid;
-    grid-template-columns: 22px 40px 2.2fr 1.2fr 80px 1.2fr 200px;
-    gap: var(--s-3);
-    align-items: center;
-    transition: background var(--dur-fast);
-}
-
-.competence-org-tree-row:hover {
-    background: var(--bg-tint);
-}
-
-.competence-org-tree-row.competence-current {
-    background: var(--accent-soft);
-}
-
-.competence-org-tree-row.competence-current:hover {
-    background: color-mix(in oklab, var(--accent-soft) 80%, var(--accent) 6%);
-}
-
+/* The org tree uses subtle vertical connector lines between rows instead of horizontal borders. */
 .competence-org-tree-connector {
     position: relative;
     height: 22px;
@@ -609,7 +576,7 @@
     background: var(--border-strong);
 }
 
-.competence-org-tree-row:last-child .competence-org-tree-connector::before {
+.competence-org-grid .ti-data-grid-row:last-child .competence-org-tree-connector::before {
     bottom: 50%;
 }
 
@@ -702,17 +669,6 @@
 .competence-manager-name {
     font-weight: 600;
     color: var(--fg-primary);
-}
-
-.competence-col-center {
-    text-align: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.competence-col-right {
-    text-align: right;
 }
 
 .competence-team-incycle {
@@ -2432,46 +2388,11 @@
     margin-top: var(--s-4);
 }
 
-.competence-cycle-panel {
-    overflow: hidden;
-}
-
-.competence-cycle-table-wrap {
-    overflow-x: auto;
-}
-
-.competence-cycle-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: var(--fs-sm);
-}
-
-.competence-cycle-table thead th {
-    text-align: left;
-    padding: var(--s-3) var(--s-4);
-    font-size: var(--fs-xs);
-    font-weight: 600;
-    color: var(--fg-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    background: var(--bg-sunken);
-    border-bottom: 1px solid var(--border-soft);
-    white-space: nowrap;
-}
-
-.competence-cycle-table tbody td {
-    padding: var(--s-3) var(--s-4);
-    border-bottom: 1px solid var(--border-soft);
-    color: var(--fg-primary);
-    vertical-align: top;
-}
-
-.competence-cycle-table tbody tr:last-child td {
-    border-bottom: 0;
-}
-
-.competence-cycle-table tbody tr:hover {
-    background: var(--bg-tint);
+/* Cycle list grid columns: ID tag (mono) + name + period (dates) + status pill + evaluation
+   counts + created date + actions (right-aligned). Inherited by .ti-data-grid-head and
+   .ti-data-grid-row via the .ti-data-grid wrapper. */
+.competence-cycle-grid {
+    --ti-grid-cols: 100px minmax(180px, 1.5fr) minmax(200px, 1.5fr) 110px minmax(140px, 1fr) minmax(120px, 1fr) 230px;
 }
 
 .competence-cycle-row-name {
@@ -2541,11 +2462,6 @@
     gap: var(--s-2);
     flex-wrap: nowrap;
     justify-content: flex-end;
-}
-
-.competence-cycle-actions-col {
-    text-align: right;
-    white-space: nowrap;
 }
 
 /* Create / lock / close modals */

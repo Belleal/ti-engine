@@ -1073,10 +1073,7 @@ body {
     border: 1px solid var(--border);
     border-radius: var(--r-lg);
     box-shadow: var(--shadow-xs);
-}
-
-.ti-panel {
-    padding: var(--s-5);
+    overflow: hidden;
 }
 
 .ti-panel-head {
@@ -2065,6 +2062,99 @@ body {
     .ti-form-grid.cols-3 {
         grid-template-columns: 1fr;
     }
+}
+
+/* ============================================================
+   Data grid — CSS-grid replacement for <table>. Pass column
+   widths via --ti-grid-cols (set on the wrapper or on a parent
+   class). Head + rows share the same template so cells align.
+   Use .ti-cell-center / .ti-cell-right on any direct grid child
+   to override alignment.
+   ============================================================ */
+.ti-data-grid {
+    width: 100%;
+    /* Sensible single-column fallback. Override on a screen-specific class. */
+    --ti-grid-cols: 1fr;
+}
+
+.ti-data-grid-head {
+    display: grid;
+    grid-template-columns: var(--ti-grid-cols);
+    gap: var(--s-3);
+    padding: var(--s-2) var(--s-5);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-tertiary);
+    background: var(--bg-sunken);
+    border-bottom: 1px solid var(--border-soft);
+    white-space: nowrap;
+    align-items: center;
+}
+
+.ti-data-grid-rows {
+    display: flex;
+    flex-direction: column;
+}
+
+.ti-data-grid-row {
+    display: grid;
+    grid-template-columns: var(--ti-grid-cols);
+    gap: var(--s-3);
+    align-items: center;
+    padding: var(--s-3) var(--s-5);
+    transition: background var(--dur-fast);
+    color: var(--fg-primary);
+    font-size: var(--fs-sm);
+}
+
+.ti-data-grid-row:hover {
+    background: var(--bg-tint);
+}
+
+/* Highlight the row representing the current user / actor. Used by the org tree to mark
+   "this is you". */
+.ti-data-grid-row.is-current {
+    background: var(--accent-soft);
+}
+
+.ti-data-grid-row.is-current:hover {
+    background: color-mix(in oklab, var(--accent-soft) 80%, var(--accent) 6%);
+}
+
+/* Highlight a user-picked row (e.g., selected cycle, selected employee). */
+.ti-data-grid-row.is-selected {
+    background: var(--accent-soft);
+    border-left: 2px solid var(--accent);
+    padding-left: calc(var(--s-5) - 2px);
+}
+
+/* Bordered variant — visible horizontal divider between rows. Use on tabular displays. */
+.ti-data-grid.bordered .ti-data-grid-row {
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.ti-data-grid.bordered .ti-data-grid-row:last-child {
+    border-bottom: 0;
+}
+
+/* Compact variant — tighter row padding for dense data. */
+.ti-data-grid.compact .ti-data-grid-row,
+.ti-data-grid.compact .ti-data-grid-head {
+    padding: var(--s-2) var(--s-4);
+}
+
+/* Per-cell alignment utilities. Apply directly to any grid-child element
+   (span / div / button) to override the default left alignment. */
+.ti-cell-center {
+    justify-self: center;
+    text-align: center;
+}
+
+.ti-cell-right {
+    justify-self: end;
+    text-align: right;
 }
 
 /* ============================================================
