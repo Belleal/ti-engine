@@ -1813,7 +1813,10 @@ const configureCycleSetup = () => {
 
         capBarStyle() {
             const pct = Math.min( 100, Math.round( ( this.getResolvedSize() / Math.max( 1, this.cap ) ) * 100 ) );
-            return `width: ${ pct }%`;
+            // Return an object (CSS custom property) rather than a string. Alpine's CSP build writes object-style
+            // bindings via element.style.setProperty(), which the CSP style-src directive allows; string bindings
+            // would call setAttribute("style", ...) and trip the policy.
+            return { "--pct": pct + "%" };
         },
 
         getCapText() {

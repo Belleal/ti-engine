@@ -2986,6 +2986,7 @@
 
 .competence-cap-bar-fill {
     height: 100%;
+    width: var(--pct, 0%);
     background: linear-gradient(90deg, var(--accent), color-mix(in oklab, var(--accent) 70%, var(--success)));
     border-radius: var(--r-pill);
     transition: width var(--dur-base) var(--ease-out);
