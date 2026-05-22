@@ -887,12 +887,15 @@ class CompetenceWebApplication extends TiWebAppManager {
                     throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
                 }
 
-                return this.#resolveCurrentCycle();
-            } ).then( ( resolvedCycle ) => {
-                if ( !resolvedCycle ) {
+                // Phase 5: starting an evaluation requires a strictly ACTIVE cycle. PLANNING / CLOSED / no cycle at all
+                // are all surfaced to the UI as the same "no active appraisal cycle" error so the action remains
+                // disabled in the operator-friendly sense rather than silently snapshotting against a fallback cycle.
+                return dataManager.instance.getActiveCycle();
+            } ).then( ( activeCycle ) => {
+                if ( !activeCycle || activeCycle.status !== configurationLoader.cycleStatus.ACTIVE ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.no-active-cycle" }, exceptions.httpCode.C_422 );
                 }
-                cycle = resolvedCycle;
+                cycle = activeCycle;
                 return dataManager.instance.fetchEvaluations( employee.employeeID );
             } ).then( ( evaluations ) => {
                 const activeStatuses = [

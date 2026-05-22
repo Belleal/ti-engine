@@ -27,7 +27,7 @@ before( async () => {
 
 describe( "CompetenceFramework.buildEvaluationSnapshot — completeness and immutability", () => {
 
-    it( "every snapshot entry contains code/name/description/category/subcategory/scope/relevancy/origin", async () => {
+    it( "every snapshot entry contains code/name/description/category/subcategory/scope/relevancy/origin/originLabel", async () => {
         const snapshot = await competenceFramework.instance.buildEvaluationSnapshot( "SE", "BACKEND", "2026-H2" );
         assert.ok( snapshot.length > 0, "snapshot must contain at least one entry" );
 
@@ -47,6 +47,7 @@ describe( "CompetenceFramework.buildEvaluationSnapshot — completeness and immu
             }
             assert.ok( Array.isArray( entry.eCFMapping ), "eCFMapping must be an array (possibly empty)" );
             assert.ok( typeof entry.origin === "string" && entry.origin.length > 0, "origin must be a non-empty string" );
+            assert.ok( typeof entry.originLabel === "string" && entry.originLabel.length > 0, "originLabel (localization key) must be a non-empty string" );
         }
     } );
 
@@ -66,6 +67,35 @@ describe( "CompetenceFramework.buildEvaluationSnapshot — completeness and immu
         // Codes tagged with the specialization code must NOT be in baseline.
         for ( const entry of specializationOriginEntries ) {
             assert.ok( !baselineCodes.has( entry.code ), `entry '${ entry.code }' has origin=BACKEND but is also in the baseline set (overlap should be tagged 'baseline')` );
+        }
+    } );
+
+    it( "originLabel resolves to the baseline localization key for baseline-origin codes and the spec's name key for spec-origin codes", async () => {
+        const snapshot = await competenceFramework.instance.buildEvaluationSnapshot( "SE", "BACKEND", "2026-H2" );
+        const baselineEntries = snapshot.filter( ( e ) => e.origin === "baseline" );
+        const specEntries = snapshot.filter( ( e ) => e.origin === "BACKEND" );
+
+        assert.ok( baselineEntries.length > 0, "at least one baseline entry expected" );
+        for ( const entry of baselineEntries ) {
+            assert.equal( entry.originLabel, "interface.evaluation.context.origin.baseline" );
+        }
+
+        // The configured spec name key for SE.BACKEND should land on every spec-origin entry. We dereference it from
+        // configuration rather than hard-coding so this test follows config renames automatically.
+        const configurationLoader = require( "#configuration-loader" );
+        const expectedSpecKey = configurationLoader.configRoleFamilies.SE.specializations.BACKEND.name;
+        assert.ok( specEntries.length > 0, "at least one specialization entry expected" );
+        for ( const entry of specEntries ) {
+            assert.equal( entry.originLabel, expectedSpecKey );
+        }
+    } );
+
+    it( "snapshot for a generalist (no specialization) tags every entry as baseline with the baseline label", async () => {
+        const snapshot = await competenceFramework.instance.buildEvaluationSnapshot( "SE", null, "2026-H2" );
+        assert.ok( snapshot.length > 0 );
+        for ( const entry of snapshot ) {
+            assert.equal( entry.origin, "baseline" );
+            assert.equal( entry.originLabel, "interface.evaluation.context.origin.baseline" );
         }
     } );
 

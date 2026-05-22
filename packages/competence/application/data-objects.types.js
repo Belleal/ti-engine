@@ -133,6 +133,7 @@
  * @property {CompetencyRelevancy} relevancy - Full per-stage-level relevancy.
  * @property {ECFMapping[]} [eCFMapping] - e-CF cross-walk if any.
  * @property {string} origin - Literal "baseline" or the specialization code that contributed this competency.
+ * @property {string} [originLabel] - Localization key resolving to the user-facing origin label ("Baseline" or the specialization's localized name).
  */
 
 /**

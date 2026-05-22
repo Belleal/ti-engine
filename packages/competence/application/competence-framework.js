@@ -141,11 +141,17 @@ class CompetenceFramework {
         ] ).then( ( [ resolvedCodes, baselineCodes ] ) => {
             const dictionary = ( configurationLoader.configCompetencies && configurationLoader.configCompetencies.competencies ) || {};
             const baselineSet = new Set( baselineCodes );
+            const roleFamilies = configurationLoader.configRoleFamilies || {};
+            const baselineOriginLabel = "interface.evaluation.context.origin.baseline";
+            const specializationOriginLabel = ( specialization && roleFamilies[ roleFamily ]?.specializations?.[ specialization ]?.name )
+                || specialization
+                || baselineOriginLabel;
             return resolvedCodes.map( ( code ) => {
                 const competency = dictionary[ code ];
                 if ( !competency ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: `Competency '${ code }' referenced by the Active Competency Set is missing from the dictionary.` }, exceptions.httpCode.C_422 );
                 }
+                const isBaseline = baselineSet.has( code );
                 return {
                     code,
                     name: competency.name,
@@ -155,7 +161,8 @@ class CompetenceFramework {
                     scope: { ...competency.scope },
                     relevancy: { ...competency.relevancy },
                     eCFMapping: Array.isArray( competency.eCFMapping ) ? _.cloneDeep( competency.eCFMapping ) : [],
-                    origin: baselineSet.has( code ) ? BASELINE_KEY : specialization
+                    origin: isBaseline ? BASELINE_KEY : specialization,
+                    originLabel: isBaseline ? baselineOriginLabel : specializationOriginLabel
                 };
             } );
         } );
@@ -613,15 +620,28 @@ class CompetenceFramework {
         const categories = config.categories || {};
         const itemsByCategory = {};
 
+        const baselineOriginLabel = "interface.evaluation.context.origin.baseline";
         ( Array.isArray( snapshot ) ? snapshot : [] ).forEach( ( entry ) => {
             if ( !entry || !entry.category || !entry.subcategory ) return;
             itemsByCategory[ entry.category ] = itemsByCategory[ entry.category ] || {};
             itemsByCategory[ entry.category ][ entry.subcategory ] = itemsByCategory[ entry.category ][ entry.subcategory ] || [];
+            // Resolve the origin badge text: prefer the snapshot's stored originLabel (set at creation time by
+            // buildEvaluationSnapshot); fall back to "Baseline" for baseline-origin entries when the field is absent
+            // (older snapshots), or to the raw spec code as a last resort.
+            let originName;
+            if ( entry.originLabel ) {
+                originName = localization.getLabel( entry.originLabel, language );
+            } else if ( entry.origin === BASELINE_KEY ) {
+                originName = localization.getLabel( baselineOriginLabel, language );
+            } else {
+                originName = entry.origin || "";
+            }
             itemsByCategory[ entry.category ][ entry.subcategory ].push( {
                 id: entry.code,
                 name: localization.getLabel( entry.name, language ),
                 description: localization.getLabel( entry.description, language ),
                 origin: entry.origin,
+                originName,
                 eCFMapping: Array.isArray( entry.eCFMapping ) ? entry.eCFMapping : []
             } );
         } );

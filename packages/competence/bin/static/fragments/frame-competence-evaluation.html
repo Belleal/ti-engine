@@ -43,13 +43,29 @@
                             </div>
                             <div class="competence-eval-emp-info">
                                 <div class="competence-eval-emp-name" x-text="personal.name"></div>
+                                <div class="competence-eval-context">
+                                    <div class="competence-eval-context-item">
+                                        <div class="competence-eval-context-label" x-text-label="interface.evaluation.context.role-family"></div>
+                                        <div class="competence-eval-context-value" x-text="personal.roleFamilyName || '—'"></div>
+                                    </div>
+                                    <div class="competence-eval-context-item">
+                                        <div class="competence-eval-context-label" x-text-label="interface.evaluation.context.specialization"></div>
+                                        <div class="competence-eval-context-value"
+                                             x-bind:class="personal.specializationName ? '' : 'is-generalist'"
+                                             x-text="personal.specializationName || getLabel( 'interface.evaluation.context.generalist' )"></div>
+                                    </div>
+                                    <div class="competence-eval-context-item">
+                                        <div class="competence-eval-context-label" x-text-label="interface.evaluation.context.stage-level"></div>
+                                        <div class="competence-eval-context-value">
+                                            <span class="competence-level-pip"
+                                                  x-show="personal.stageLevel"
+                                                  x-bind:class="personal.stageLevel ? personal.stageLevel.charAt( 0 ) : ''"
+                                                  x-text="personal.stageLevel"></span>
+                                            <span x-show="!personal.stageLevel">—</span>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="competence-eval-emp-career">
-                                    <span x-text="evaluation.roleFamilyName"></span>
-                                    <span class="competence-level-pip"
-                                          x-show="personal.stageLevel"
-                                          x-bind:class="personal.stageLevel ? personal.stageLevel.charAt( 0 ) : ''"
-                                          x-text="personal.stageLevel"></span>
-                                    <span class="competence-eval-sub-sep">·</span>
                                     <span x-text="personal.organizationUnitName"></span>
                                     <span class="competence-eval-sub-sep" x-show="personal.startingDate">·</span>
                                     <span x-show="personal.startingDate"
@@ -265,6 +281,15 @@
                                         <div class="competence-comp-id-name">
                                             <span class="competence-comp-id" x-text="item.id"></span>
                                             <span class="competence-comp-name" x-text="item.name"></span>
+                                            <span class="competence-comp-origin"
+                                                  x-show="item.originName"
+                                                  x-text="item.originName"></span>
+                                            <template x-for="( mapping, mIdx ) in (item.eCFMapping || [])" x-bind:key="mIdx">
+                                                <span class="competence-comp-ecf">
+                                                    <span x-text-label="interface.evaluation.context.ecf-prefix"></span>:
+                                                    <span x-text="mapping.competence + ' (' + mapping.level + ')'"></span>
+                                                </span>
+                                            </template>
                                         </div>
                                         <div class="competence-comp-desc" x-text="item.description"></div>
                                     </div>

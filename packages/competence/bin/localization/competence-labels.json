@@ -2359,6 +2359,14 @@
         "en": "Not possible to save a draft for team evaluation. Please submit all grades to proceed.",
         "bg": "Не е възможно запазване на чернова за екипна оценка. Моля, изпратете всички оценки, за да продължите."
       },
+      "no-active-cycle": {
+        "en": "There is no active appraisal cycle. Contact HR.",
+        "bg": "Няма активен оценителен цикъл. Свържете се с HR."
+      },
+      "empty-competency-set": {
+        "en": "The resolved competency set for this employee is empty. Configure the Active Competency Sets for the cycle before starting evaluations.",
+        "bg": "Резултатният набор от компетенции за този служител е празен. Конфигурирайте Активните набори от компетенции за цикъла преди стартиране на оценки."
+      },
       "no-employee-found": {
         "en": "No Employee found for the provided criteria.",
         "bg": "Не е намерен Служител спрямо посочените критерии."
@@ -3111,6 +3119,34 @@
       }
     },
     "evaluation": {
+      "context": {
+        "role-family": {
+          "en": "Role family",
+          "bg": "Семейство роли"
+        },
+        "specialization": {
+          "en": "Specialization",
+          "bg": "Специализация"
+        },
+        "stage-level": {
+          "en": "Stage-level",
+          "bg": "Ниво"
+        },
+        "generalist": {
+          "en": "Generalist",
+          "bg": "Общ профил"
+        },
+        "origin": {
+          "baseline": {
+            "en": "Baseline",
+            "bg": "Базов набор"
+          }
+        },
+        "ecf-prefix": {
+          "en": "e-CF",
+          "bg": "e-CF"
+        }
+      },
       "default": {
         "not-provided": {
           "en": "Not Provided",

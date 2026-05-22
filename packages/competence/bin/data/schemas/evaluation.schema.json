@@ -326,6 +326,10 @@
         "origin": {
           "type": "string",
           "description": "Literal \"baseline\" or the specialization code (e.g., BACKEND) that contributed this competency to the resolved set"
+        },
+        "originLabel": {
+          "type": "string",
+          "description": "Localization key resolving to the user-facing origin label (\"Baseline\" or the specialization's localized name). Resolved per-request at render time so the snapshot remains language-independent."
         }
       }
     },

@@ -1107,6 +1107,7 @@
     display: flex;
     gap: var(--s-2);
     align-items: baseline;
+    flex-wrap: wrap;
 }
 
 .competence-comp-name {
@@ -1118,6 +1119,39 @@
     font-size: 11.5px;
     color: var(--fg-tertiary);
     line-height: 1.4;
+}
+
+/* Per-competency origin badge — labels each row as "Baseline" or with the localized specialization name. Light
+   styling so it informs without competing with the competency name. */
+.competence-comp-origin {
+    display: inline-flex;
+    align-items: center;
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    color: var(--fg-tertiary);
+    background: var(--bg-tint);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-sm);
+    padding: 1px 6px;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+/* e-CF cross-walk tag — rendered only when the snapshot entry's eCFMapping is non-empty. */
+.competence-comp-ecf {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    color: var(--info);
+    background: var(--info-soft);
+    border: 1px solid color-mix(in oklab, var(--info) 30%, transparent);
+    border-radius: var(--r-sm);
+    padding: 1px 6px;
+    line-height: 1.4;
+    white-space: nowrap;
 }
 
 .competence-comp-cell {
@@ -2166,6 +2200,45 @@
     color: var(--fg-tertiary);
     display: flex;
     gap: 4px;
+}
+
+/* Context strip — three labelled values rendered below the employee name. Mirrors the brief's "role family /
+   specialization / stage-level" trio so the evaluator always sees the cycle-time identity of the employee. */
+.competence-eval-context {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-4);
+    margin-top: var(--s-2);
+    padding: var(--s-2) 0;
+    border-top: 1px solid var(--border-soft);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.competence-eval-context-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 120px;
+}
+
+.competence-eval-context-label {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--fg-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.competence-eval-context-value {
+    font-size: var(--fs-sm);
+    color: var(--fg-primary);
+    font-weight: 500;
+}
+
+.competence-eval-context-value.is-generalist {
+    color: var(--fg-tertiary);
+    font-style: italic;
+    font-weight: 400;
 }
 
 /* Evaluation status milestone track — ported from design system */
