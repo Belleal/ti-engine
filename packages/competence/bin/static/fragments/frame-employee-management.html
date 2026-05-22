@@ -1,0 +1,508 @@
+<div class="ti-page" x-data="competenceEmployeeManagement">
+    <!-- Page header -->
+    <div class="ti-page-head">
+        <div class="ti-page-eyebrow" x-text-label="interface.employee-management.page-eyebrow"></div>
+        <h1 class="ti-page-title"
+            x-text="scope === 'supervisor' ? getLabel('interface.employee-management.page-title-supervisor') : getLabel('interface.employee-management.page-title-manager')"></h1>
+        <p class="ti-page-subtitle"
+           x-text="scope === 'supervisor' ? getLabel('interface.employee-management.page-desc-supervisor') : getLabel('interface.employee-management.page-desc-manager')"></p>
+    </div>
+
+    <!-- Master / Detail shell -->
+    <template x-if="loaded">
+        <div class="competence-empmgmt-shell">
+
+            <!-- Master pane -->
+            <div class="ti-content pane competence-empmgmt-master">
+                <div class="competence-empmgmt-filters">
+                    <input type="text" class="ti-input competence-empmgmt-search" x-model="filters.search"
+                           x-bind:placeholder="getLabel('interface.employee-management.search-placeholder')"/>
+                    <select class="ti-select" x-model="filters.roleFamily">
+                        <option value="" x-text-label="interface.employee-management.filters.role-family-all"></option>
+                        <template x-for="family in options.roleFamilies" x-bind:key="family.code">
+                            <option x-bind:value="family.code" x-text="family.code + ' · ' + family.name"></option>
+                        </template>
+                    </select>
+                    <select class="ti-select" x-model="filters.specialization">
+                        <option value="" x-text-label="interface.employee-management.filters.specialization-all"></option>
+                        <template x-for="spec in availableSpecializationsForFilter()" x-bind:key="spec.code">
+                            <option x-bind:value="spec.code" x-text="spec.name"></option>
+                        </template>
+                    </select>
+                    <select class="ti-select" x-model="filters.stageLevel">
+                        <option value="" x-text-label="interface.employee-management.filters.stage-level-all"></option>
+                        <template x-for="code in allStageLevelCodes()" x-bind:key="code">
+                            <option x-bind:value="code" x-text="code"></option>
+                        </template>
+                    </select>
+                    <select class="ti-select" x-model="filters.employmentStatus">
+                        <option value="" x-text-label="interface.employee-management.filters.employment-status-all"></option>
+                        <template x-for="status in options.employmentStatuses" x-bind:key="status">
+                            <option x-bind:value="status" x-text="getLabel('interface.employee-management.employment-status.' + status)"></option>
+                        </template>
+                    </select>
+                    <button type="button" class="ti-btn sm primary competence-empmgmt-new-btn"
+                            x-show="scope === 'supervisor'"
+                            @click="openCreateModal()">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                        <span x-text-label="interface.employee-management.new-btn"></span>
+                    </button>
+                </div>
+                <div class="competence-empmgmt-list">
+                    <template x-if="filteredEmployees().length === 0">
+                        <div class="competence-empmgmt-empty">
+                            <div class="competence-empmgmt-empty-title" x-text-label="interface.employee-management.empty-list-title"></div>
+                            <div class="competence-empmgmt-empty-desc" x-text-label="interface.employee-management.empty-list-desc"></div>
+                        </div>
+                    </template>
+                    <template x-for="row in filteredEmployees()" x-bind:key="row.employeeID">
+                        <button type="button" class="competence-empmgmt-row"
+                                x-bind:class="(selectedEmployeeID === row.employeeID) ? 'is-selected' : ''"
+                                @click="selectEmployee(row.employeeID)">
+                            <div class="ti-avatar sm" x-bind:style="$store.tiToolbox.generateAvatarStyle(row.employeeID, row.name)"
+                                 aria-hidden="true">
+                                <span x-text="(row.name || '?').charAt(0).toUpperCase()"></span>
+                            </div>
+                            <div class="competence-empmgmt-row-meta">
+                                <div class="competence-empmgmt-row-name">
+                                    <span x-text="row.name"></span>
+                                    <span class="competence-empmgmt-row-stagelevel" x-show="row.stageLevel" x-text="row.stageLevel"></span>
+                                </div>
+                                <div class="competence-empmgmt-row-sub">
+                                    <span x-text="row.roleFamilyName"></span>
+                                    <span x-show="row.specializationName" class="competence-empmgmt-row-sub-sep">·</span>
+                                    <span x-show="row.specializationName" x-text="row.specializationName"></span>
+                                    <span class="competence-empmgmt-row-sub-sep">·</span>
+                                    <span x-text="row.organizationUnitName"></span>
+                                </div>
+                            </div>
+                            <span class="ti-status-pill"
+                                  x-bind:class="employmentStatusTone(row.employmentStatus)"
+                                  x-text="getLabel('interface.employee-management.employment-status.' + row.employmentStatus)"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Detail pane -->
+            <div class="ti-content pane competence-empmgmt-detail">
+                <template x-if="!selectedEmployeeID">
+                    <div class="ti-empty-state">
+                        <div class="ti-empty-state-icon" aria-hidden="true">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                            </svg>
+                        </div>
+                        <div class="ti-empty-state-title" x-text-label="interface.employee-management.no-selection-title"></div>
+                        <div class="ti-empty-state-desc" x-text-label="interface.employee-management.no-selection-desc"></div>
+                    </div>
+                </template>
+
+                <template x-if="selectedEmployeeID && detail.employee">
+                    <div class="competence-empmgmt-detail-body">
+
+                        <!-- Detail header -->
+                        <div class="competence-empmgmt-detail-head">
+                            <div class="ti-avatar lg"
+                                 x-bind:style="$store.tiToolbox.generateAvatarStyle(detail.employee.employeeID, detail.employee.name)">
+                                <span x-text="(detail.employee.name || '?').charAt(0).toUpperCase()"></span>
+                            </div>
+                            <div class="competence-empmgmt-detail-head-meta">
+                                <div class="competence-empmgmt-detail-name" x-text="detail.employee.name"></div>
+                                <div class="competence-empmgmt-detail-sub">
+                                    <span x-text="detail.employee.roleFamilyName"></span>
+                                    <span x-show="detail.employee.specializationName" class="competence-empmgmt-detail-sub-sep">·</span>
+                                    <span x-show="detail.employee.specializationName" x-text="detail.employee.specializationName"></span>
+                                    <span class="competence-empmgmt-detail-sub-sep">·</span>
+                                    <span x-text="detail.employee.stageLevel"></span>
+                                    <span class="competence-empmgmt-detail-sub-sep">·</span>
+                                    <span x-text="detail.employee.organizationUnitName"></span>
+                                </div>
+                            </div>
+                            <span class="ti-status-pill"
+                                  x-bind:class="employmentStatusTone(detail.employee.employmentStatus)"
+                                  x-text="getLabel('interface.employee-management.employment-status.' + detail.employee.employmentStatus)"></span>
+                        </div>
+
+                        <!-- Tabs -->
+                        <div class="competence-empmgmt-tabs">
+                            <button type="button" class="competence-empmgmt-tab"
+                                    x-bind:class="activeTab === 'details' ? 'is-active' : ''"
+                                    @click="activeTab = 'details'"
+                                    x-text-label="interface.employee-management.tabs.details"></button>
+                            <button type="button" class="competence-empmgmt-tab"
+                                    x-bind:class="activeTab === 'evaluations' ? 'is-active' : ''"
+                                    @click="activeTab = 'evaluations'">
+                                <span x-text-label="interface.employee-management.tabs.evaluations"></span>
+                                <span class="competence-empmgmt-tab-count" x-show="detail.inFlightEvaluations.count > 0"
+                                      x-text="detail.inFlightEvaluations.count"></span>
+                            </button>
+                            <button type="button" class="competence-empmgmt-tab"
+                                    x-show="detail.permissions.canViewAudit"
+                                    x-bind:class="activeTab === 'audit' ? 'is-active' : ''"
+                                    @click="activeTab = 'audit'"
+                                    x-text-label="interface.employee-management.tabs.audit"></button>
+                        </div>
+
+                        <!-- Tab content: Details -->
+                        <template x-if="activeTab === 'details'">
+                            <div class="competence-empmgmt-form">
+                                <!-- Personal section -->
+                                <div class="competence-empmgmt-form-section">
+                                    <div class="competence-empmgmt-form-section-title" x-text-label="interface.employee-management.form.section-personal"></div>
+                                    <div class="competence-empmgmt-form-grid">
+                                        <div class="competence-empmgmt-form-row">
+                                            <label class="ti-field-label" x-text-label="interface.employee-management.form.first-name"></label>
+                                            <input type="text" class="ti-input" x-model="draft.personal.firstName"
+                                                   x-bind:disabled="!isFieldEditable('personal.firstName')"/>
+                                        </div>
+                                        <div class="competence-empmgmt-form-row">
+                                            <label class="ti-field-label" x-text-label="interface.employee-management.form.last-name"></label>
+                                            <input type="text" class="ti-input" x-model="draft.personal.lastName"
+                                                   x-bind:disabled="!isFieldEditable('personal.lastName')"/>
+                                        </div>
+                                        <div class="competence-empmgmt-form-row competence-empmgmt-form-row-wide">
+                                            <label class="ti-field-label" x-text-label="interface.employee-management.form.email"></label>
+                                            <input type="email" class="ti-input" x-model="draft.email"
+                                                   x-bind:disabled="!isFieldEditable('email')"/>
+                                        </div>
+                                        <div class="competence-empmgmt-form-row">
+                                            <label class="ti-field-label" x-text-label="interface.employee-management.form.work-mode"></label>
+                                            <select class="ti-select" x-model="draft.personal.workMode"
+                                                    x-bind:disabled="!isFieldEditable('personal.workMode')">
+                                                <template x-for="mode in options.workModes" x-bind:key="mode">
+                                                    <option x-bind:value="mode" x-text="getLabel('interface.employee-management.work-mode.' + mode)"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <div class="competence-empmgmt-form-row">
+                                            <label class="ti-field-label" x-text-label="interface.employee-management.form.work-location"></label>
+                                            <select class="ti-select" x-model="draft.personal.workLocation"
+                                                    x-bind:disabled="!isFieldEditable('personal.workLocation')">
+                                                <template x-for="location in options.workLocations" x-bind:key="location">
+                                                    <option x-bind:value="location" x-text="getLabel('interface.employee-management.work-location.' + location)"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Career section -->
+                                <div class="competence-empmgmt-form-section">
+                                    <div class="competence-empmgmt-form-section-title" x-text-label="interface.employee-management.form.section-career"></div>
+                                    <div class="competence-empmgmt-form-grid">
+                                        <div class="competence-empmgmt-form-row">
+                                            <label class="ti-field-label" x-text-label="interface.employee-management.form.role-family"></label>
+                                            <select class="ti-select"
+                                                    x-bind:value="draft.career.roleFamily"
+                                                    x-bind:disabled="!isFieldEditable('career.roleFamily')"
+                                                    @change="onRoleFamilyChange($event.target.value)">
+                                                <template x-for="family in options.roleFamilies" x-bind:key="family.code">
+                                                    <option x-bind:value="family.code" x-text="family.code + ' · ' + family.name"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <div class="competence-empmgmt-form-row">
+                                            <label class="ti-field-label" x-text-label="interface.employee-management.form.specialization"></label>
+                                            <select class="ti-select"
+                                                    x-bind:value="draft.career.specialization || ''"
+                                                    x-bind:disabled="!isFieldEditable('career.specialization')"
+                                                    @change="onSpecializationChange($event.target.value)">
+                                                <option value="" x-text-label="interface.employee-management.form.specialization-none"></option>
+                                                <template x-for="spec in availableSpecializationsForDraft()" x-bind:key="spec.code">
+                                                    <option x-bind:value="spec.code" x-text="spec.name"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <div class="competence-empmgmt-form-row">
+                                            <label class="ti-field-label" x-text-label="interface.employee-management.form.level"></label>
+                                            <select class="ti-select"
+                                                    x-bind:value="stageLevelOf(draft)"
+                                                    x-bind:disabled="!isFieldEditable('career.level')"
+                                                    @change="onStageLevelChange($event.target.value)">
+                                                <template x-for="code in allStageLevelCodes()" x-bind:key="code">
+                                                    <option x-bind:value="code" x-text="code"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <div class="competence-empmgmt-form-row">
+                                            <label class="ti-field-label" x-text-label="interface.employee-management.form.starting-date"></label>
+                                            <input type="date" class="ti-input" x-model="draft.career.startingDate"
+                                                   x-bind:disabled="!isFieldEditable('career.startingDate')"/>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Organization section -->
+                                <div class="competence-empmgmt-form-section">
+                                    <div class="competence-empmgmt-form-section-title" x-text-label="interface.employee-management.form.section-organization"></div>
+                                    <div class="competence-empmgmt-form-grid">
+                                        <div class="competence-empmgmt-form-row competence-empmgmt-form-row-wide">
+                                            <label class="ti-field-label" x-text-label="interface.employee-management.form.organization-unit"></label>
+                                            <select class="ti-select" x-model="draft.career.organizationUnitID"
+                                                    x-bind:disabled="!isFieldEditable('career.organizationUnitID')">
+                                                <template x-for="unit in options.organizationUnits" x-bind:key="unit.id">
+                                                    <option x-bind:value="unit.id" x-text="unit.id + ' · ' + unit.name"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <div class="competence-empmgmt-form-row competence-empmgmt-form-row-wide">
+                                            <label class="ti-field-label" x-text-label="interface.employee-management.form.manager-display"></label>
+                                            <div class="competence-empmgmt-form-readonly">
+                                                <span x-text="detail.manager.managerName || '—'"></span>
+                                                <span class="competence-empmgmt-form-hint" x-text-label="interface.employee-management.form.manager-from-unit"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Employment section -->
+                                <div class="competence-empmgmt-form-section">
+                                    <div class="competence-empmgmt-form-section-title" x-text-label="interface.employee-management.form.section-employment"></div>
+                                    <div class="competence-empmgmt-form-grid">
+                                        <div class="competence-empmgmt-form-row">
+                                            <label class="ti-field-label" x-text-label="interface.employee-management.form.employment-status"></label>
+                                            <select class="ti-select" x-model="draft.employmentStatus"
+                                                    x-bind:disabled="!isFieldEditable('employmentStatus')">
+                                                <template x-for="status in options.employmentStatuses" x-bind:key="status">
+                                                    <option x-bind:value="status" x-text="getLabel('interface.employee-management.employment-status.' + status)"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Action bar -->
+                                <div class="competence-empmgmt-form-actions" x-show="canEditAnything()">
+                                    <div class="competence-empmgmt-form-state"
+                                         x-bind:class="isDirty() ? 'unsaved' : 'saved'"
+                                         x-text="isDirty() ? getLabel('interface.employee-management.form.unsaved-state') : getLabel('interface.employee-management.form.saved-state')"></div>
+                                    <button type="button" class="ti-btn ghost"
+                                            x-bind:disabled="!isDirty() || saving"
+                                            @click="resetDraft()"
+                                            x-text-label="interface.employee-management.form.cancel-btn"></button>
+                                    <button type="button" class="ti-btn primary"
+                                            x-bind:disabled="!isDirty() || saving"
+                                            @click="onSaveClick()"
+                                            x-text-label="interface.employee-management.form.save-btn"></button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Tab content: Evaluations -->
+                        <template x-if="activeTab === 'evaluations'">
+                            <div class="competence-empmgmt-evaluations">
+                                <template x-if="detail.inFlightEvaluations.entries.length === 0">
+                                    <div class="ti-empty-state">
+                                        <div class="ti-empty-state-title" x-text-label="interface.employee-management.evaluations.empty-title"></div>
+                                        <div class="ti-empty-state-desc" x-text-label="interface.employee-management.evaluations.empty-desc"></div>
+                                    </div>
+                                </template>
+                                <template x-for="evaluation in detail.inFlightEvaluations.entries" x-bind:key="evaluation.evaluationID">
+                                    <div class="competence-empmgmt-eval-row">
+                                        <span class="ti-tag mono" x-text="evaluation.shortID || evaluation.evaluationID"></span>
+                                        <span x-text="evaluation.cycleID"></span>
+                                        <span class="ti-status-pill info" x-text="evaluation.statusName"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <!-- Tab content: Audit (Supervisor only) -->
+                        <template x-if="activeTab === 'audit' && detail.permissions.canViewAudit">
+                            <div class="competence-empmgmt-audit">
+                                <template x-if="detail.audit.length === 0">
+                                    <div class="ti-empty-state">
+                                        <div class="ti-empty-state-title" x-text-label="interface.employee-management.audit.empty-title"></div>
+                                        <div class="ti-empty-state-desc" x-text-label="interface.employee-management.audit.empty-desc"></div>
+                                    </div>
+                                </template>
+                                <template x-for="entry in detail.audit" x-bind:key="entry.entryID">
+                                    <div class="competence-empmgmt-audit-row">
+                                        <div class="competence-empmgmt-audit-when">
+                                            <span x-text="formatDateTime(entry.timestamp)"></span>
+                                            <span class="competence-empmgmt-audit-by">
+                                                <span x-text-label="interface.employee-management.audit.by"></span>
+                                                <span x-text="entry.changedByName || entry.changedBy || '—'"></span>
+                                            </span>
+                                        </div>
+                                        <div class="competence-empmgmt-audit-what">
+                                            <template x-if="entry.field === '__created__'">
+                                                <span class="competence-empmgmt-audit-created" x-text-label="interface.employee-management.audit.created"></span>
+                                            </template>
+                                            <template x-if="entry.field !== '__created__'">
+                                                <div>
+                                                    <span class="competence-empmgmt-audit-field" x-text="getAuditFieldLabel(entry.field)"></span>
+                                                    <span class="competence-empmgmt-audit-arrow">→</span>
+                                                </div>
+                                            </template>
+                                            <div class="competence-empmgmt-audit-diff" x-show="entry.field !== '__created__'">
+                                                <span class="competence-empmgmt-audit-old" x-text="formatAuditValue(entry.oldValue)"></span>
+                                                <span class="competence-empmgmt-audit-arrow">→</span>
+                                                <span class="competence-empmgmt-audit-new" x-text="formatAuditValue(entry.newValue)"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </template>
+
+    <!-- =============================================================
+         Role-family change confirmation modal
+         ============================================================= -->
+    <template x-if="modal.kind === 'role-family-change'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal warn" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.employee-management.role-family-change.title"></div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <p x-text-label="interface.employee-management.role-family-change.desc"></p>
+                    <p class="competence-empmgmt-modal-stat" x-show="detail.inFlightEvaluations.count > 0"
+                       x-text="formatInFlightCount(detail.inFlightEvaluations.count)"></p>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.employee-management.role-family-change.cancel-btn"></button>
+                    <button type="button" class="ti-btn primary" @click="confirmRoleFamilyChange()" x-text-label="interface.employee-management.role-family-change.confirm-btn"></button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- =============================================================
+         Specialization change confirmation modal
+         ============================================================= -->
+    <template x-if="modal.kind === 'specialization-change'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.employee-management.specialization-change.title"></div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <p x-text-label="interface.employee-management.specialization-change.desc"></p>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.employee-management.specialization-change.cancel-btn"></button>
+                    <button type="button" class="ti-btn primary" @click="confirmSpecializationChange()" x-text-label="interface.employee-management.specialization-change.confirm-btn"></button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- =============================================================
+         Create employee modal
+         ============================================================= -->
+    <template x-if="modal.kind === 'create'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal large" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.employee-management.create-modal.title"></div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <div class="competence-empmgmt-form-grid">
+                        <div class="competence-empmgmt-form-row">
+                            <label class="ti-field-label" x-text-label="interface.employee-management.form.first-name"></label>
+                            <input type="text" class="ti-input" x-model="modal.payload.personal.firstName"/>
+                        </div>
+                        <div class="competence-empmgmt-form-row">
+                            <label class="ti-field-label" x-text-label="interface.employee-management.form.last-name"></label>
+                            <input type="text" class="ti-input" x-model="modal.payload.personal.lastName"/>
+                        </div>
+                        <div class="competence-empmgmt-form-row competence-empmgmt-form-row-wide">
+                            <label class="ti-field-label" x-text-label="interface.employee-management.form.email"></label>
+                            <input type="email" class="ti-input" x-model="modal.payload.email"/>
+                        </div>
+                        <div class="competence-empmgmt-form-row">
+                            <label class="ti-field-label" x-text-label="interface.employee-management.form.work-mode"></label>
+                            <select class="ti-select" x-model="modal.payload.personal.workMode">
+                                <template x-for="mode in options.workModes" x-bind:key="mode">
+                                    <option x-bind:value="mode" x-text="getLabel('interface.employee-management.work-mode.' + mode)"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="competence-empmgmt-form-row">
+                            <label class="ti-field-label" x-text-label="interface.employee-management.form.work-location"></label>
+                            <select class="ti-select" x-model="modal.payload.personal.workLocation">
+                                <template x-for="location in options.workLocations" x-bind:key="location">
+                                    <option x-bind:value="location" x-text="getLabel('interface.employee-management.work-location.' + location)"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="competence-empmgmt-form-row">
+                            <label class="ti-field-label" x-text-label="interface.employee-management.form.role-family"></label>
+                            <select class="ti-select" x-model="modal.payload.career.roleFamily" @change="modal.payload.career.specialization = ''">
+                                <option value=""></option>
+                                <template x-for="family in options.roleFamilies" x-bind:key="family.code">
+                                    <option x-bind:value="family.code" x-text="family.code + ' · ' + family.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="competence-empmgmt-form-row">
+                            <label class="ti-field-label" x-text-label="interface.employee-management.form.specialization"></label>
+                            <select class="ti-select" x-model="modal.payload.career.specialization">
+                                <option value="" x-text-label="interface.employee-management.form.specialization-none"></option>
+                                <template x-for="spec in createModalSpecializations()" x-bind:key="spec.code">
+                                    <option x-bind:value="spec.code" x-text="spec.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="competence-empmgmt-form-row">
+                            <label class="ti-field-label" x-text-label="interface.employee-management.form.level"></label>
+                            <select class="ti-select" x-model="modal.payload.career.stageLevel">
+                                <option value=""></option>
+                                <template x-for="code in allStageLevelCodes()" x-bind:key="code">
+                                    <option x-bind:value="code" x-text="code"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="competence-empmgmt-form-row competence-empmgmt-form-row-wide">
+                            <label class="ti-field-label" x-text-label="interface.employee-management.form.organization-unit"></label>
+                            <select class="ti-select" x-model="modal.payload.career.organizationUnitID">
+                                <option value=""></option>
+                                <template x-for="unit in options.organizationUnits" x-bind:key="unit.id">
+                                    <option x-bind:value="unit.id" x-text="unit.id + ' · ' + unit.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="competence-empmgmt-form-row">
+                            <label class="ti-field-label" x-text-label="interface.employee-management.form.starting-date"></label>
+                            <input type="date" class="ti-input" x-model="modal.payload.career.startingDate"/>
+                        </div>
+                    </div>
+                    <div class="competence-empmgmt-modal-error" x-show="modal.errorMessage" x-text="modal.errorMessage"></div>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.employee-management.create-modal.cancel-btn"></button>
+                    <button type="button" class="ti-btn primary" @click="submitCreate()"
+                            x-bind:disabled="modal.busy"
+                            x-text-label="interface.employee-management.create-modal.create-btn"></button>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>

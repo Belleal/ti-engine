@@ -2388,6 +2388,52 @@
         "bg": "Екипните оценители не могат да надвишават {max} члена."
       }
     },
+    "employee": {
+      "missing-name": {
+        "en": "First and last name are required.",
+        "bg": "Името и фамилията са задължителни."
+      },
+      "invalid-work-mode": {
+        "en": "Work mode is not valid.",
+        "bg": "Невалиден режим на работа."
+      },
+      "invalid-work-location": {
+        "en": "Work location is not valid.",
+        "bg": "Невалидно място на работа."
+      },
+      "invalid-employment-status": {
+        "en": "Employment status is not valid.",
+        "bg": "Невалиден статус на заетост."
+      },
+      "invalid-role-family": {
+        "en": "Role family is not valid.",
+        "bg": "Невалидно семейство роли."
+      },
+      "invalid-specialization": {
+        "en": "Specialization is not valid for the selected role family.",
+        "bg": "Специализацията не е валидна за избраното семейство роли."
+      },
+      "invalid-level": {
+        "en": "Stage-level is not valid.",
+        "bg": "Невалидно ниво."
+      },
+      "invalid-stage": {
+        "en": "Stage must be between 1 and 3.",
+        "bg": "Степента трябва да е между 1 и 3."
+      },
+      "invalid-stage-for-level": {
+        "en": "Levels N, X and T only support stage 1.",
+        "bg": "Нива N, X и T поддържат само степен 1."
+      },
+      "invalid-organization-unit": {
+        "en": "Selected organization unit does not exist.",
+        "bg": "Избраната организационна единица не съществува."
+      },
+      "invalid-email": {
+        "en": "Email address is not valid.",
+        "bg": "Невалиден имейл адрес."
+      }
+    },
     "calendar": {
       "slot-not-found": {
         "en": "The selected slot was not found.",
@@ -3609,6 +3655,10 @@
         "locked": {
           "en": "Locked",
           "bg": "Заключено"
+        },
+        "manage": {
+          "en": "Manage",
+          "bg": "Управление"
         }
       },
       "eval-date": {
@@ -4124,6 +4174,10 @@
       "cycles": {
         "en": "Cycles",
         "bg": "Цикли"
+      },
+      "employee-management": {
+        "en": "People",
+        "bg": "Хора"
       },
       "search": {
         "en": "Search",
@@ -4717,6 +4771,404 @@
         "cloned": {
           "en": "Competencies cloned.",
           "bg": "Компетенциите са клонирани."
+        }
+      }
+    },
+    "employee-management": {
+      "page-eyebrow": {
+        "en": "PEOPLE",
+        "bg": "ХОРА"
+      },
+      "page-title-supervisor": {
+        "en": "Employee Management",
+        "bg": "Управление на служителите"
+      },
+      "page-title-manager": {
+        "en": "My Team",
+        "bg": "Моят екип"
+      },
+      "page-desc-supervisor": {
+        "en": "Maintain the employee roster. Changes are audited and affect future evaluations only.",
+        "bg": "Поддържайте регистъра на служителите. Промените се записват в одита и влияят само върху бъдещи оценки."
+      },
+      "page-desc-manager": {
+        "en": "View your direct reports and update their specializations.",
+        "bg": "Прегледайте Вашите подчинени и актуализирайте техните специализации."
+      },
+      "empty-list-title": {
+        "en": "No employees match the current filters",
+        "bg": "Няма служители, отговарящи на текущите филтри"
+      },
+      "empty-list-desc": {
+        "en": "Adjust the filters or search to narrow or widen the result set.",
+        "bg": "Коригирайте филтрите или търсенето, за да стесните или разширите резултата."
+      },
+      "no-selection-title": {
+        "en": "Select an employee",
+        "bg": "Изберете служител"
+      },
+      "no-selection-desc": {
+        "en": "Pick someone from the list on the left to view or edit their record.",
+        "bg": "Изберете служител от списъка отляво, за да прегледате или редактирате записа."
+      },
+      "new-btn": {
+        "en": "New Employee",
+        "bg": "Нов служител"
+      },
+      "search-placeholder": {
+        "en": "Search by name or email…",
+        "bg": "Търсене по име или имейл…"
+      },
+      "filters": {
+        "role-family-all": {
+          "en": "All role families",
+          "bg": "Всички семейства роли"
+        },
+        "specialization-all": {
+          "en": "All specializations",
+          "bg": "Всички специализации"
+        },
+        "stage-level-all": {
+          "en": "All stage-levels",
+          "bg": "Всички нива"
+        },
+        "manager-all": {
+          "en": "All managers",
+          "bg": "Всички мениджъри"
+        },
+        "employment-status-all": {
+          "en": "All statuses",
+          "bg": "Всички статуси"
+        }
+      },
+      "columns": {
+        "employee": {
+          "en": "Employee",
+          "bg": "Служител"
+        },
+        "role": {
+          "en": "Role",
+          "bg": "Роля"
+        },
+        "stage-level": {
+          "en": "Stage-Level",
+          "bg": "Ниво"
+        },
+        "manager": {
+          "en": "Manager",
+          "bg": "Мениджър"
+        },
+        "status": {
+          "en": "Status",
+          "bg": "Статус"
+        }
+      },
+      "tabs": {
+        "details": {
+          "en": "Details",
+          "bg": "Детайли"
+        },
+        "evaluations": {
+          "en": "Evaluations",
+          "bg": "Оценки"
+        },
+        "audit": {
+          "en": "Audit",
+          "bg": "Одит"
+        }
+      },
+      "form": {
+        "section-personal": {
+          "en": "Personal",
+          "bg": "Лични данни"
+        },
+        "section-career": {
+          "en": "Career",
+          "bg": "Кариера"
+        },
+        "section-organization": {
+          "en": "Organization",
+          "bg": "Организация"
+        },
+        "section-employment": {
+          "en": "Employment",
+          "bg": "Трудов договор"
+        },
+        "first-name": {
+          "en": "First name",
+          "bg": "Име"
+        },
+        "last-name": {
+          "en": "Last name",
+          "bg": "Фамилия"
+        },
+        "email": {
+          "en": "Corporate email",
+          "bg": "Служебен имейл"
+        },
+        "work-mode": {
+          "en": "Work mode",
+          "bg": "Режим на работа"
+        },
+        "work-location": {
+          "en": "Work location",
+          "bg": "Място на работа"
+        },
+        "birth-date": {
+          "en": "Birth date",
+          "bg": "Дата на раждане"
+        },
+        "gender": {
+          "en": "Gender",
+          "bg": "Пол"
+        },
+        "role-family": {
+          "en": "Role family",
+          "bg": "Семейство роли"
+        },
+        "specialization": {
+          "en": "Specialization",
+          "bg": "Специализация"
+        },
+        "specialization-none": {
+          "en": "Generalist (no specialization)",
+          "bg": "Без специализация (общ профил)"
+        },
+        "level": {
+          "en": "Level",
+          "bg": "Ниво"
+        },
+        "stage": {
+          "en": "Stage",
+          "bg": "Степен"
+        },
+        "starting-date": {
+          "en": "Hire date",
+          "bg": "Дата на започване"
+        },
+        "organization-unit": {
+          "en": "Organization unit",
+          "bg": "Организационна единица"
+        },
+        "manager-display": {
+          "en": "Reports to",
+          "bg": "Подчинен на"
+        },
+        "manager-from-unit": {
+          "en": "Inferred from the organization unit.",
+          "bg": "Изведено от организационната единица."
+        },
+        "employment-status": {
+          "en": "Employment status",
+          "bg": "Статус на заетост"
+        },
+        "save-btn": {
+          "en": "Save",
+          "bg": "Запази"
+        },
+        "cancel-btn": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        },
+        "saved-state": {
+          "en": "All changes saved.",
+          "bg": "Всички промени са запазени."
+        },
+        "unsaved-state": {
+          "en": "Unsaved changes.",
+          "bg": "Незапазени промени."
+        }
+      },
+      "employment-status": {
+        "active": {
+          "en": "Active",
+          "bg": "Активен"
+        },
+        "on-leave": {
+          "en": "On leave",
+          "bg": "В отпуск"
+        },
+        "terminated": {
+          "en": "Terminated",
+          "bg": "Напуснал"
+        }
+      },
+      "work-mode": {
+        "Full-time": {
+          "en": "Full-time",
+          "bg": "На пълен работен ден"
+        },
+        "Part-time": {
+          "en": "Part-time",
+          "bg": "На непълен работен ден"
+        },
+        "Contract": {
+          "en": "Contract",
+          "bg": "По договор"
+        }
+      },
+      "work-location": {
+        "On-site": {
+          "en": "On-site",
+          "bg": "В офис"
+        },
+        "Hybrid": {
+          "en": "Hybrid",
+          "bg": "Хибриден"
+        },
+        "Remote": {
+          "en": "Remote",
+          "bg": "Дистанционно"
+        }
+      },
+      "role-family-change": {
+        "title": {
+          "en": "Confirm role family change",
+          "bg": "Потвърдете промяната на семейството роли"
+        },
+        "desc": {
+          "en": "Changing role family affects all future evaluations. In-flight evaluations are unaffected — they keep their snapshotted competency sets.",
+          "bg": "Промяната на семейството роли се отразява на всички бъдещи оценки. Текущите оценки не се променят — те запазват замразените си набори от компетенции."
+        },
+        "in-flight-count": {
+          "en": "{n} in-flight evaluation(s) will continue with the original set.",
+          "bg": "{n} текуща(и) оценка(и) ще продължат със същия набор."
+        },
+        "confirm-btn": {
+          "en": "Change role family",
+          "bg": "Промени семейството"
+        },
+        "cancel-btn": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        }
+      },
+      "specialization-change": {
+        "title": {
+          "en": "Confirm specialization change",
+          "bg": "Потвърдете промяната на специализацията"
+        },
+        "desc": {
+          "en": "Changing specialization affects future evaluations. In-flight evaluations are unaffected.",
+          "bg": "Промяната на специализацията се отразява на бъдещите оценки. Текущите оценки не се променят."
+        },
+        "confirm-btn": {
+          "en": "Change specialization",
+          "bg": "Промени специализацията"
+        },
+        "cancel-btn": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        }
+      },
+      "create-modal": {
+        "title": {
+          "en": "New Employee",
+          "bg": "Нов служител"
+        },
+        "create-btn": {
+          "en": "Create",
+          "bg": "Създай"
+        },
+        "cancel-btn": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        }
+      },
+      "evaluations": {
+        "empty-title": {
+          "en": "No evaluations yet",
+          "bg": "Все още няма оценки"
+        },
+        "empty-desc": {
+          "en": "This employee has no evaluations on record.",
+          "bg": "За този служител няма регистрирани оценки."
+        }
+      },
+      "audit": {
+        "empty-title": {
+          "en": "No audit entries",
+          "bg": "Няма одит записи"
+        },
+        "empty-desc": {
+          "en": "Changes to this employee's record will appear here.",
+          "bg": "Промените по този служител ще се появят тук."
+        },
+        "created": {
+          "en": "Record created",
+          "bg": "Записът е създаден"
+        },
+        "by": {
+          "en": "by",
+          "bg": "от"
+        },
+        "field": {
+          "personal.firstName": {
+            "en": "First name",
+            "bg": "Име"
+          },
+          "personal.lastName": {
+            "en": "Last name",
+            "bg": "Фамилия"
+          },
+          "personal.workMode": {
+            "en": "Work mode",
+            "bg": "Режим на работа"
+          },
+          "personal.workLocation": {
+            "en": "Work location",
+            "bg": "Място на работа"
+          },
+          "personal.birthDate": {
+            "en": "Birth date",
+            "bg": "Дата на раждане"
+          },
+          "personal.gender": {
+            "en": "Gender",
+            "bg": "Пол"
+          },
+          "email": {
+            "en": "Email",
+            "bg": "Имейл"
+          },
+          "employmentStatus": {
+            "en": "Employment status",
+            "bg": "Статус на заетост"
+          },
+          "career.roleFamily": {
+            "en": "Role family",
+            "bg": "Семейство роли"
+          },
+          "career.specialization": {
+            "en": "Specialization",
+            "bg": "Специализация"
+          },
+          "career.level": {
+            "en": "Level",
+            "bg": "Ниво"
+          },
+          "career.stage": {
+            "en": "Stage",
+            "bg": "Степен"
+          },
+          "career.startingDate": {
+            "en": "Hire date",
+            "bg": "Дата на започване"
+          },
+          "career.organizationUnitID": {
+            "en": "Organization unit",
+            "bg": "Организационна единица"
+          }
+        }
+      },
+      "toast": {
+        "created": {
+          "en": "Employee created.",
+          "bg": "Служителят е създаден."
+        },
+        "updated": {
+          "en": "Employee record updated.",
+          "bg": "Записът на служителя е обновен."
         }
       }
     }

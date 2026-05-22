@@ -60,6 +60,10 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "Cycle Setup",
             path: "fragments/frame-cycle-setup.html"
         } );
+        this.addFragment( "employee-management", {
+            title: "Employee Management",
+            path: "fragments/frame-employee-management.html"
+        } );
     }
 
     /* Public interface */
@@ -130,7 +134,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "manager-calendar": "calendar",
                     "interview-schedule": "interviews",
                     "cycles": "cycles",
-                    "cycle-setup": "cycles"
+                    "cycle-setup": "cycles",
+                    "employee-management": "employee-management"
                 },
                 componentsConfig: {
                     userProfileMenu: {
@@ -186,6 +191,11 @@ class CompetenceWebApplication extends TiWebAppManager {
         } else if ( view === "load-cycle-setup" ) {
             const cycleID = String( options?.query?.cycleID || "" ).trim();
             return this.#loadCycleSetup( session, cycleID );
+        } else if ( view === "load-employee-management-list" ) {
+            return this.#loadEmployeeManagementList( session );
+        } else if ( view === "load-employee-detail" ) {
+            const employeeID = String( options?.query?.employeeID || "" ).trim();
+            return this.#loadEmployeeDetail( session, employeeID );
         } else {
             return super.processDataRequest( session, view, options );
         }
@@ -225,6 +235,10 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#setActiveCompetencySet( session, params );
         } else if ( service === "mark-active-set-empty" ) {
             return this.#markActiveSetEmpty( session, params );
+        } else if ( service === "create-employee" ) {
+            return this.#createEmployee( session, params );
+        } else if ( service === "update-employee" ) {
+            return this.#updateEmployee( session, params );
         } else {
             return super.processServiceRequest( session, service, params );
         }
@@ -2004,6 +2018,588 @@ class CompetenceWebApplication extends TiWebAppManager {
             }
         }
         return `${ year }-H${ half }`;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*                      Employee management screen                     */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Loads the employee list for the management screen. Scope-aware: a Supervisor sees every employee; a Manager
+     * sees only their direct or indirect reports (via `isSuperiorManagerOfEmployee`). Also returns the dropdown
+     * options the detail form needs.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadEmployeeManagementList( session ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR, configurationLoader.roleCode.MANAGER );
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+
+            dataManager.instance.fetchEmployees().then( ( employees ) => {
+                const filtered = isSupervisor
+                    ? employees
+                    : employees.filter( ( employee ) => employee.employeeID !== userID && organizationManager.instance.isSuperiorManagerOfEmployee( userID, employee.employeeID ) );
+
+                const rows = filtered.map( ( employee ) => this.#projectEmployeeRow( employee, session ) );
+                rows.sort( ( a, b ) => ( a.name || "" ).localeCompare( b.name || "" ) );
+
+                resolve( {
+                    scope: isSupervisor ? "supervisor" : "manager",
+                    employees: rows,
+                    options: this.#buildEmployeeFormOptions( session )
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Loads the full detail for a single employee, including manager context, in-flight evaluation count, and the
+     * audit log (Supervisor only). Manager scope is enforced — a Manager cannot read the detail of an employee not
+     * under their reporting chain.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {string} employeeID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadEmployeeDetail( session, employeeID ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR, configurationLoader.roleCode.MANAGER );
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+
+            if ( !employeeID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID } ) );
+            }
+
+            dataManager.instance.fetchEmployee( employeeID ).then( ( employee ) => {
+                if ( !isSupervisor && !organizationManager.instance.isSuperiorManagerOfEmployee( userID, employeeID ) ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+                }
+
+                const activeStatuses = [
+                    configurationLoader.evaluationStatus.OPEN,
+                    configurationLoader.evaluationStatus.IN_REVIEW,
+                    configurationLoader.evaluationStatus.READY
+                ];
+
+                return Promise.all( [
+                    dataManager.instance.fetchEvaluations( employeeID, false ),
+                    isSupervisor ? dataManager.instance.getAuditEntriesForEmployee( employeeID ) : Promise.resolve( [] )
+                ] ).then( ( [ evaluations, auditEntries ] ) => {
+                    const inFlightList = ( evaluations || [] ).filter( ( evaluation ) => activeStatuses.includes( evaluation.status ) );
+                    const auditProjected = ( auditEntries || [] ).map( ( entry ) => ( {
+                        entryID: entry.entryID,
+                        timestamp: entry.timestamp,
+                        changedBy: entry.changedBy,
+                        changedByName: entry.changedBy ? ( organizationManager.instance.resolveEmployeeName( entry.changedBy ) || entry.changedBy ) : null,
+                        field: entry.field,
+                        oldValue: entry.oldValue,
+                        newValue: entry.newValue,
+                        reason: entry.reason || null
+                    } ) );
+
+                    const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee );
+                    const isSelf = employeeID === userID;
+                    const isDirectManager = !isSupervisor && organizationManager.instance.isSuperiorManagerOfEmployee( userID, employeeID );
+
+                    resolve( {
+                        employee: this.#projectEmployeeDetail( employee, session ),
+                        manager: organizationContext,
+                        inFlightEvaluations: {
+                            count: inFlightList.length,
+                            entries: inFlightList.map( ( evaluation ) => ( {
+                                evaluationID: evaluation.evaluationID,
+                                shortID: evaluation.shortID,
+                                cycleID: evaluation.cycleID,
+                                status: evaluation.status,
+                                statusName: configurationLoader.evaluationStatus.name( evaluation.status )
+                            } ) )
+                        },
+                        audit: auditProjected,
+                        permissions: {
+                            isSupervisor,
+                            isDirectManager,
+                            isSelf,
+                            canEditAllFields: isSupervisor,
+                            canEditSpecialization: isSupervisor || isDirectManager,
+                            canViewAudit: isSupervisor
+                        }
+                    } );
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Creates a new employee record. Supervisor-only. Auto-assigns the next available employeeID. Validates the
+     * record against the schema rules and writes a single "created" audit entry.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {Object} params.employee
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #createEmployee( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const input = params?.employee;
+            if ( !input || typeof input !== "object" ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employee: !!input } ) );
+            }
+
+            dataManager.instance.fetchEmployees().then( ( employees ) => {
+                const nextID = this.#deriveNextEmployeeID( employees );
+                const newEmployee = {
+                    employeeID: nextID,
+                    email: String( input.email || "" ).trim() || undefined,
+                    employmentStatus: input.employmentStatus || "active",
+                    personal: {
+                        firstName: String( input.personal?.firstName || "" ).trim(),
+                        lastName: String( input.personal?.lastName || "" ).trim(),
+                        workMode: input.personal?.workMode || "Full-time",
+                        workLocation: input.personal?.workLocation || "On-site",
+                        ...( input.personal?.birthDate ? { birthDate: input.personal.birthDate } : {} ),
+                        ...( input.personal?.gender ? { gender: input.personal.gender } : {} )
+                    },
+                    career: {
+                        organizationUnitID: String( input.career?.organizationUnitID || "" ).trim(),
+                        roleFamily: String( input.career?.roleFamily || "" ).trim(),
+                        specialization: input.career?.specialization || null,
+                        level: String( input.career?.level || "" ).trim(),
+                        stage: Number( input.career?.stage ),
+                        ...( input.career?.startingDate ? { startingDate: input.career.startingDate } : {} )
+                    }
+                };
+                // Strip undefined fields so the persisted record is clean.
+                if ( !newEmployee.email ) delete newEmployee.email;
+
+                const validationError = this.#validateEmployeeFields( newEmployee );
+                if ( validationError ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: validationError }, exceptions.httpCode.C_422 );
+                }
+
+                return dataManager.instance.saveEmployee( newEmployee ).then( ( saved ) => {
+                    return dataManager.instance.appendAuditEntry( {
+                        subjectType: "employee",
+                        subjectID: saved.employeeID,
+                        changedBy: userID,
+                        field: "__created__",
+                        oldValue: null,
+                        newValue: saved
+                    } ).then( () => organizationManager.instance.buildOrganizationChart().then( () => saved ) );
+                } );
+            } ).then( ( saved ) => {
+                resolve( this.#projectEmployeeDetail( saved, session ) );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Updates an employee record with the supplied field diff. Field-level permission gating per §4: a Supervisor can
+     * edit every field; a Manager (only on direct reports) can edit `career.specialization` only; all other edits are
+     * rejected with 403. Each changed field writes one audit entry through DataManager.appendAuditEntry.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.employeeID
+     * @param {Object.<string, *>} params.fields - Dotted-path field paths mapped to new values.
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #updateEmployee( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR, configurationLoader.roleCode.MANAGER );
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+
+            const employeeID = String( params?.employeeID || "" ).trim();
+            const fields = params?.fields;
+            if ( !employeeID || !fields || typeof fields !== "object" ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID, hasFields: !!fields } ) );
+            }
+
+            dataManager.instance.fetchEmployee( employeeID ).then( ( employee ) => {
+                const isDirectManager = !isSupervisor && organizationManager.instance.isSuperiorManagerOfEmployee( userID, employeeID );
+                if ( !isSupervisor && !isDirectManager ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+                }
+
+                const updated = _.cloneDeep( employee );
+                const changes = [];
+
+                for ( const [ path, rawValue ] of Object.entries( fields ) ) {
+                    this.#assertEditableField( path, { isSupervisor, isDirectManager } );
+                    const oldValue = this.#getFieldByPath( updated, path );
+                    const newValue = this.#normalizeFieldValue( path, rawValue );
+                    if ( this.#fieldsEqual( oldValue, newValue ) ) {
+                        continue;
+                    }
+                    this.#setFieldByPath( updated, path, newValue );
+                    changes.push( { path, oldValue, newValue } );
+                }
+
+                if ( changes.length === 0 ) {
+                    resolve( this.#projectEmployeeDetail( employee, session ) );
+                    return;
+                }
+
+                const validationError = this.#validateEmployeeFields( updated );
+                if ( validationError ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: validationError }, exceptions.httpCode.C_422 );
+                }
+
+                return dataManager.instance.saveEmployee( updated ).then( ( saved ) => {
+                    return Promise.all( changes.map( ( change ) => dataManager.instance.appendAuditEntry( {
+                        subjectType: "employee",
+                        subjectID: saved.employeeID,
+                        changedBy: userID,
+                        field: change.path,
+                        oldValue: change.oldValue,
+                        newValue: change.newValue
+                    } ) ) ).then( () => organizationManager.instance.buildOrganizationChart().then( () => saved ) );
+                } ).then( ( saved ) => {
+                    resolve( this.#projectEmployeeDetail( saved, session ) );
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Projects an employee record for the master list. Strips internal-only data, resolves localized labels, and
+     * surfaces the resolved manager (via the org chart).
+     *
+     * @method
+     * @private
+     * @param {Employee} employee
+     * @param {TiSession} session
+     * @returns {Object}
+     */
+    #projectEmployeeRow( employee, session ) {
+        const firstName = employee?.personal?.firstName || "";
+        const lastName = employee?.personal?.lastName || "";
+        const roleFamily = employee?.career?.roleFamily || "";
+        const specialization = employee?.career?.specialization || null;
+        const level = employee?.career?.level || "";
+        const stage = employee?.career?.stage || null;
+        const stageLevel = ( level && stage ) ? `${ level }${ stage }` : ( level ? `${ level }1` : "" );
+        const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee ) || {};
+
+        return {
+            employeeID: employee.employeeID,
+            name: `${ firstName } ${ lastName }`.trim(),
+            email: employee.email || "",
+            employmentStatus: employee.employmentStatus || "active",
+            roleFamily,
+            roleFamilyName: roleFamily ? localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ roleFamily ]?.name || roleFamily, session?.language ) : "",
+            specialization,
+            specializationName: ( roleFamily && specialization )
+                ? localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ roleFamily ]?.specializations?.[ specialization ]?.name || specialization, session?.language )
+                : null,
+            level,
+            stage,
+            stageLevel,
+            organizationUnitID: employee?.career?.organizationUnitID || "",
+            organizationUnitName: organizationContext.organizationUnitName || "",
+            managerID: organizationContext.managerID || null,
+            managerName: organizationContext.managerName || null
+        };
+    }
+
+    /**
+     * Projects a full employee record for the detail panel. Returns the persisted shape augmented with localized
+     * labels for the form.
+     *
+     * @method
+     * @private
+     * @param {Employee} employee
+     * @param {TiSession} session
+     * @returns {Object}
+     */
+    #projectEmployeeDetail( employee, session ) {
+        const projection = this.#projectEmployeeRow( employee, session );
+        return {
+            ...projection,
+            personal: {
+                firstName: employee?.personal?.firstName || "",
+                lastName: employee?.personal?.lastName || "",
+                birthDate: employee?.personal?.birthDate || null,
+                gender: employee?.personal?.gender || null,
+                workMode: employee?.personal?.workMode || "",
+                workLocation: employee?.personal?.workLocation || ""
+            },
+            career: {
+                organizationUnitID: employee?.career?.organizationUnitID || "",
+                roleFamily: employee?.career?.roleFamily || "",
+                specialization: employee?.career?.specialization || null,
+                level: employee?.career?.level || "",
+                stage: employee?.career?.stage || null,
+                startingDate: employee?.career?.startingDate || null
+            }
+        };
+    }
+
+    /**
+     * Builds the dropdown options used by the detail form (role families with their specializations, stage levels,
+     * organization units, employment statuses, work modes / locations). All localized via session language.
+     *
+     * @method
+     * @private
+     * @param {TiSession} session
+     * @returns {Object}
+     */
+    #buildEmployeeFormOptions( session ) {
+        const language = session?.language;
+        const families = configurationLoader.configRoleFamilies || {};
+        const roleFamilies = Object.entries( families ).map( ( [ code, family ] ) => ( {
+            code,
+            name: localization.getLabel( family.name || code, language ),
+            specializations: Object.entries( family.specializations || {} ).map( ( [ specCode, spec ] ) => ( {
+                code: specCode,
+                name: localization.getLabel( spec.name || specCode, language )
+            } ) )
+        } ) );
+
+        // Stage-level dual-track shape: N has only stage 1, J/R/S have 1-3, X has only stage 1, T has only stage 1.
+        const stageLevels = [
+            { code: "N", stages: [ 1 ] },
+            { code: "J", stages: [ 1, 2, 3 ] },
+            { code: "R", stages: [ 1, 2, 3 ] },
+            { code: "S", stages: [ 1, 2, 3 ] },
+            { code: "X", stages: [ 1 ] },
+            { code: "T", stages: [ 1 ] }
+        ];
+
+        const orgStructure = configurationLoader.configOrganizationStructure || {};
+        const organizationUnits = Object.entries( orgStructure ).map( ( [ id, unit ] ) => ( {
+            id: unit.id || id,
+            name: unit.displayName || unit.name || id,
+            parent: unit.parent || null,
+            managerID: unit.managerID || null,
+            managerName: unit.managerID ? ( organizationManager.instance.resolveEmployeeName( unit.managerID ) || unit.managerID ) : null
+        } ) ).sort( ( a, b ) => ( a.name || "" ).localeCompare( b.name || "" ) );
+
+        return {
+            roleFamilies,
+            stageLevels,
+            organizationUnits,
+            employmentStatuses: [ "active", "on-leave", "terminated" ],
+            workModes: [ "Full-time", "Part-time", "Contract" ],
+            workLocations: [ "On-site", "Hybrid", "Remote" ]
+        };
+    }
+
+    /**
+     * Returns the set of field paths a non-Supervisor manager is allowed to edit on a direct report.
+     *
+     * @method
+     * @private
+     * @returns {Set<string>}
+     */
+    #managerEditableFields() {
+        return new Set( [ "career.specialization" ] );
+    }
+
+    /**
+     * Throws E_SEC_UNAUTHORIZED_ACCESS when the supplied field is outside the caller's edit scope.
+     *
+     * @method
+     * @private
+     * @param {string} fieldPath
+     * @param {{isSupervisor: boolean, isDirectManager: boolean}} actorScope
+     */
+    #assertEditableField( fieldPath, actorScope ) {
+        if ( actorScope.isSupervisor ) return;
+        if ( actorScope.isDirectManager && this.#managerEditableFields().has( fieldPath ) ) return;
+        throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: `Field '${ fieldPath }' is not editable by the current role.` }, exceptions.httpCode.C_401 );
+    }
+
+    /**
+     * Reads a value out of an object by dotted path (e.g., "career.roleFamily").
+     *
+     * @method
+     * @private
+     * @param {Object} obj
+     * @param {string} path
+     * @returns {*}
+     */
+    #getFieldByPath( obj, path ) {
+        const parts = path.split( "." );
+        let current = obj;
+        for ( const part of parts ) {
+            if ( current === null || current === undefined ) return undefined;
+            current = current[ part ];
+        }
+        return ( current === undefined ) ? null : current;
+    }
+
+    /**
+     * Sets a value into an object by dotted path, creating any intermediate objects as needed.
+     *
+     * @method
+     * @private
+     * @param {Object} obj
+     * @param {string} path
+     * @param {*} value
+     */
+    #setFieldByPath( obj, path, value ) {
+        const parts = path.split( "." );
+        let current = obj;
+        for ( let i = 0; i < parts.length - 1; i++ ) {
+            if ( current[ parts[ i ] ] === undefined || current[ parts[ i ] ] === null ) {
+                current[ parts[ i ] ] = {};
+            }
+            current = current[ parts[ i ] ];
+        }
+        const lastPart = parts[ parts.length - 1 ];
+        if ( value === null || value === undefined || value === "" ) {
+            // For specialization specifically, store null. For optional scalars (email, birthDate), delete the key.
+            if ( path === "career.specialization" ) {
+                current[ lastPart ] = null;
+            } else if ( path === "email" || path === "personal.birthDate" || path === "personal.gender" || path === "career.startingDate" ) {
+                delete current[ lastPart ];
+            } else {
+                current[ lastPart ] = value;
+            }
+        } else {
+            current[ lastPart ] = value;
+        }
+    }
+
+    /**
+     * Normalizes a raw submitted value for the given field path — coerces stage to integer, trims strings, leaves
+     * null / empty as-is.
+     *
+     * @method
+     * @private
+     * @param {string} path
+     * @param {*} rawValue
+     * @returns {*}
+     */
+    #normalizeFieldValue( path, rawValue ) {
+        if ( rawValue === null || rawValue === undefined ) {
+            return null;
+        }
+        if ( path === "career.stage" ) {
+            const n = Number( rawValue );
+            return Number.isFinite( n ) ? n : null;
+        }
+        if ( typeof rawValue === "string" ) {
+            return rawValue.trim();
+        }
+        return rawValue;
+    }
+
+    /**
+     * Loose equality used to detect a no-op field change (audit log entries are only written for real changes).
+     *
+     * @method
+     * @private
+     * @param {*} a
+     * @param {*} b
+     * @returns {boolean}
+     */
+    #fieldsEqual( a, b ) {
+        const norm = ( v ) => ( v === undefined || v === "" ) ? null : v;
+        return norm( a ) === norm( b );
+    }
+
+    /**
+     * Runs the cross-field validation rules on a candidate employee record (used by both create and update before
+     * persisting). Returns an i18n key when invalid, null when valid.
+     *
+     * @method
+     * @private
+     * @param {Employee} employee
+     * @returns {string|null}
+     */
+    #validateEmployeeFields( employee ) {
+        const firstName = employee?.personal?.firstName;
+        const lastName = employee?.personal?.lastName;
+        if ( !firstName || !lastName ) {
+            return "error.employee.missing-name";
+        }
+
+        const workMode = employee?.personal?.workMode;
+        if ( ![ "Full-time", "Part-time", "Contract" ].includes( workMode ) ) {
+            return "error.employee.invalid-work-mode";
+        }
+        const workLocation = employee?.personal?.workLocation;
+        if ( ![ "On-site", "Hybrid", "Remote" ].includes( workLocation ) ) {
+            return "error.employee.invalid-work-location";
+        }
+
+        const employmentStatus = employee?.employmentStatus || "active";
+        if ( ![ "active", "on-leave", "terminated" ].includes( employmentStatus ) ) {
+            return "error.employee.invalid-employment-status";
+        }
+
+        const roleFamily = employee?.career?.roleFamily;
+        const families = configurationLoader.configRoleFamilies || {};
+        if ( !roleFamily || !families[ roleFamily ] ) {
+            return "error.employee.invalid-role-family";
+        }
+        const specialization = employee?.career?.specialization || null;
+        if ( specialization && !( families[ roleFamily ].specializations || {} )[ specialization ] ) {
+            return "error.employee.invalid-specialization";
+        }
+
+        const level = employee?.career?.level;
+        const stage = employee?.career?.stage;
+        if ( ![ "N", "J", "R", "S", "X", "T" ].includes( level ) ) {
+            return "error.employee.invalid-level";
+        }
+        if ( !Number.isInteger( stage ) || stage < 1 || stage > 3 ) {
+            return "error.employee.invalid-stage";
+        }
+        // Dual-track rule: N, X, T have only stage 1.
+        if ( ( level === "N" || level === "X" || level === "T" ) && stage !== 1 ) {
+            return "error.employee.invalid-stage-for-level";
+        }
+
+        const organizationUnitID = employee?.career?.organizationUnitID;
+        const orgStructure = configurationLoader.configOrganizationStructure || {};
+        if ( !organizationUnitID || !orgStructure[ organizationUnitID ] ) {
+            return "error.employee.invalid-organization-unit";
+        }
+
+        if ( employee.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test( employee.email ) ) {
+            return "error.employee.invalid-email";
+        }
+
+        return null;
+    }
+
+    /**
+     * Picks the next available employeeID by incrementing the highest numeric ID already in the registry. Falls back
+     * to `1` when the registry is empty.
+     *
+     * @method
+     * @private
+     * @param {Array<Employee>} employees
+     * @returns {string}
+     */
+    #deriveNextEmployeeID( employees ) {
+        const maxID = ( employees || [] ).reduce( ( accumulator, employee ) => {
+            const n = Number( employee?.employeeID );
+            return Number.isFinite( n ) && n > accumulator ? n : accumulator;
+        }, 0 );
+        return String( maxID + 1 );
     }
 
     /**

@@ -231,7 +231,6 @@
  * @typedef {Object} Employee
  * @property {string} employeeID - Unique identifier for the employee.
  * @property {string} [email] - Corporate email address.
- * @property {string} managerID - Employee ID of the direct administrative manager.
  * @property {"active"|"on-leave"|"terminated"} [employmentStatus] - Employment status.
  * @property {EmployeePersonalInformation} personal - Personal information about the employee.
  * @property {EmployeeCareerInformation} career - Career information about the employee.

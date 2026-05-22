@@ -510,6 +510,10 @@ const configureEmployeesList = () => {
             tiApplication.openScreen( screen );
         },
 
+        openEmployeeManagement( employeeID ) {
+            tiApplication.openScreen( "employee-management?employeeID=" + encodeURIComponent( employeeID ) );
+        },
+
         totalEmployees() {
             let total = 0;
             for ( let i = 0; i < this.units.length; i++ ) {
@@ -2106,6 +2110,392 @@ const configureCycleSetup = () => {
     };
 };
 
+/**
+ * Returns a configuration object for the employee management screen (Supervisor + Manager).
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureEmployeeManagement = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    const emptyModal = () => ( { kind: null, payload: {}, errorMessage: "", busy: false } );
+    const emptyDetail = () => ( {
+        employee: null,
+        manager: { managerID: null, managerName: null, organizationUnitName: "" },
+        inFlightEvaluations: { count: 0, entries: [] },
+        audit: [],
+        permissions: { isSupervisor: false, isDirectManager: false, isSelf: false, canEditAllFields: false, canEditSpecialization: false, canViewAudit: false }
+    } );
+
+    return {
+        loaded: false,
+        scope: "",
+        employees: [],
+        options: { roleFamilies: [], stageLevels: [], organizationUnits: [], employmentStatuses: [], workModes: [], workLocations: [] },
+        filters: { search: "", roleFamily: "", specialization: "", stageLevel: "", employmentStatus: "" },
+        selectedEmployeeID: null,
+        detail: emptyDetail(),
+        draft: null,
+        activeTab: "details",
+        modal: emptyModal(),
+        saving: false,
+        pendingRoleFamilyChange: null,
+        pendingSpecializationChange: null,
+
+        init() {
+            const onInitialized = () => {
+                this.loadList( () => {
+                    const initialID = tiToolbox.getUrlParam( "employeeID" );
+                    if ( initialID ) {
+                        this.selectEmployee( initialID );
+                    }
+                } );
+            };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        loadList( afterFn ) {
+            tiApplication.sendRequest( "/app/load-employee-management-list" ).then( ( result ) => {
+                const data = result?.data || {};
+                this.scope = data.scope || "manager";
+                this.employees = Array.isArray( data.employees ) ? tiToolbox.structuredClone( data.employees ) : [];
+                this.options = data.options ? tiToolbox.structuredClone( data.options ) : this.options;
+                this.loaded = true;
+                if ( typeof afterFn === "function" ) afterFn();
+            } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) return;
+                this.loaded = true;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                if ( error.exception?.httpCode === 401 ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
+        },
+
+        selectEmployee( employeeID ) {
+            this.selectedEmployeeID = employeeID;
+            this.activeTab = "details";
+            this.loadDetail( employeeID );
+        },
+
+        loadDetail( employeeID ) {
+            tiApplication.sendRequest( "/app/load-employee-detail?employeeID=" + encodeURIComponent( employeeID ) ).then( ( result ) => {
+                this.detail = result?.data ? tiToolbox.structuredClone( result.data ) : emptyDetail();
+                this.resetDraft();
+            } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) return;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                if ( error.exception?.httpCode === 401 ) {
+                    this.selectedEmployeeID = null;
+                    this.detail = emptyDetail();
+                }
+            } );
+        },
+
+        resetDraft() {
+            if ( !this.detail.employee ) {
+                this.draft = null;
+                return;
+            }
+            this.draft = tiToolbox.structuredClone( this.detail.employee );
+            this.draft.email = this.draft.email || "";
+            if ( !this.draft.career.startingDate ) this.draft.career.startingDate = "";
+        },
+
+        /* ------------------------- Master list helpers --------------------- */
+
+        filteredEmployees() {
+            const q = ( this.filters.search || "" ).trim().toLowerCase();
+            return this.employees.filter( ( employee ) => {
+                if ( q ) {
+                    const haystack = `${ employee.name || "" } ${ employee.email || "" }`.toLowerCase();
+                    if ( haystack.indexOf( q ) < 0 ) return false;
+                }
+                if ( this.filters.roleFamily && employee.roleFamily !== this.filters.roleFamily ) return false;
+                if ( this.filters.specialization && employee.specialization !== this.filters.specialization ) return false;
+                if ( this.filters.stageLevel && employee.stageLevel !== this.filters.stageLevel ) return false;
+                if ( this.filters.employmentStatus && employee.employmentStatus !== this.filters.employmentStatus ) return false;
+                return true;
+            } );
+        },
+
+        availableSpecializationsForFilter() {
+            if ( !this.filters.roleFamily ) return [];
+            const family = this.options.roleFamilies.find( ( f ) => f.code === this.filters.roleFamily );
+            return family ? family.specializations : [];
+        },
+
+        availableSpecializationsForDraft() {
+            if ( !this.draft || !this.draft.career.roleFamily ) return [];
+            const family = this.options.roleFamilies.find( ( f ) => f.code === this.draft.career.roleFamily );
+            return family ? family.specializations : [];
+        },
+
+        createModalSpecializations() {
+            const family = this.modal.payload && this.modal.payload.career && this.modal.payload.career.roleFamily
+                ? this.options.roleFamilies.find( ( f ) => f.code === this.modal.payload.career.roleFamily )
+                : null;
+            return family ? family.specializations : [];
+        },
+
+        allStageLevelCodes() {
+            const codes = [];
+            ( this.options.stageLevels || [] ).forEach( ( sl ) => {
+                ( sl.stages || [] ).forEach( ( stage ) => codes.push( `${ sl.code }${ stage }` ) );
+            } );
+            return codes;
+        },
+
+        stageLevelOf( record ) {
+            if ( !record || !record.career || !record.career.level ) return "";
+            return `${ record.career.level }${ record.career.stage || 1 }`;
+        },
+
+        employmentStatusTone( status ) {
+            if ( status === "active" ) return "success";
+            if ( status === "on-leave" ) return "warn";
+            if ( status === "terminated" ) return "muted";
+            return "";
+        },
+
+        /* ------------------------- Permissions ---------------------------- */
+
+        isFieldEditable( path ) {
+            if ( !this.detail.permissions ) return false;
+            if ( this.detail.permissions.isSupervisor ) return true;
+            if ( this.detail.permissions.isDirectManager && path === "career.specialization" ) return true;
+            return false;
+        },
+
+        canEditAnything() {
+            if ( !this.detail.permissions ) return false;
+            return this.detail.permissions.isSupervisor || this.detail.permissions.isDirectManager;
+        },
+
+        /* ------------------------- Edit handlers --------------------------- */
+
+        onRoleFamilyChange( event ) {
+            const newValue = event.target.value;
+            if ( !this.draft || this.draft.career.roleFamily === newValue ) return;
+            this.pendingRoleFamilyChange = newValue;
+            this.modal = { kind: "role-family-change", payload: {}, errorMessage: "", busy: false };
+            // Revert the select visually until the user confirms.
+            event.target.value = this.draft.career.roleFamily || "";
+        },
+
+        confirmRoleFamilyChange() {
+            if ( this.draft && this.pendingRoleFamilyChange ) {
+                this.draft.career.roleFamily = this.pendingRoleFamilyChange;
+                this.draft.career.specialization = null;
+            }
+            this.pendingRoleFamilyChange = null;
+            this.modal = emptyModal();
+        },
+
+        onSpecializationChange( event ) {
+            const newValueRaw = event.target.value;
+            const newValue = newValueRaw || null;
+            if ( !this.draft ) return;
+            const oldValue = this.draft.career.specialization || null;
+            if ( oldValue === newValue ) return;
+
+            // No-confirmation path: previously generalist (null) becoming specialized — purely additive.
+            if ( oldValue === null ) {
+                this.draft.career.specialization = newValue;
+                return;
+            }
+
+            // Confirmation path: changing or clearing an existing specialization.
+            this.pendingSpecializationChange = newValue;
+            this.modal = { kind: "specialization-change", payload: {}, errorMessage: "", busy: false };
+            event.target.value = this.draft.career.specialization || "";
+        },
+
+        confirmSpecializationChange() {
+            if ( this.draft ) {
+                this.draft.career.specialization = this.pendingSpecializationChange;
+            }
+            this.pendingSpecializationChange = null;
+            this.modal = emptyModal();
+        },
+
+        onStageLevelChange( stageLevel ) {
+            if ( !this.draft || !stageLevel ) return;
+            this.draft.career.level = stageLevel.charAt( 0 );
+            this.draft.career.stage = Number( stageLevel.slice( 1 ) ) || 1;
+        },
+
+        closeModal() {
+            this.pendingRoleFamilyChange = null;
+            this.pendingSpecializationChange = null;
+            this.modal = emptyModal();
+        },
+
+        /* ------------------------- Dirty / Save --------------------------- */
+
+        computeDiff() {
+            const employee = this.detail.employee;
+            const draft = this.draft;
+            if ( !employee || !draft ) return [];
+            const eq = ( a, b ) => {
+                const norm = ( v ) => ( v === undefined || v === null || v === "" ) ? null : v;
+                return norm( a ) === norm( b );
+            };
+            const fields = [
+                [ "personal.firstName", employee.personal.firstName, draft.personal.firstName ],
+                [ "personal.lastName", employee.personal.lastName, draft.personal.lastName ],
+                [ "personal.workMode", employee.personal.workMode, draft.personal.workMode ],
+                [ "personal.workLocation", employee.personal.workLocation, draft.personal.workLocation ],
+                [ "email", employee.email, draft.email ],
+                [ "employmentStatus", employee.employmentStatus, draft.employmentStatus ],
+                [ "career.roleFamily", employee.career.roleFamily, draft.career.roleFamily ],
+                [ "career.specialization", employee.career.specialization, draft.career.specialization ],
+                [ "career.level", employee.career.level, draft.career.level ],
+                [ "career.stage", employee.career.stage, draft.career.stage ],
+                [ "career.startingDate", employee.career.startingDate, draft.career.startingDate ],
+                [ "career.organizationUnitID", employee.career.organizationUnitID, draft.career.organizationUnitID ]
+            ];
+            const diff = [];
+            for ( const [ path, oldVal, newVal ] of fields ) {
+                if ( !eq( oldVal, newVal ) ) diff.push( [ path, newVal ] );
+            }
+            return diff;
+        },
+
+        isDirty() {
+            return this.computeDiff().length > 0;
+        },
+
+        onSaveClick() {
+            if ( !this.isDirty() || this.saving ) return;
+            const diff = this.computeDiff();
+            const fields = {};
+            for ( const [ path, value ] of diff ) {
+                fields[ path ] = value;
+            }
+            this.saving = true;
+            tiApplication.sendRequest( "/app/update-employee", "POST", {
+                employeeID: this.selectedEmployeeID,
+                fields
+            } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.employee-management.toast.updated" ) );
+                this.saving = false;
+                const id = this.selectedEmployeeID;
+                this.loadList();
+                this.loadDetail( id );
+            } ).catch( ( error ) => {
+                this.saving = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        /* ------------------------- Create modal --------------------------- */
+
+        openCreateModal() {
+            this.modal = {
+                kind: "create",
+                payload: {
+                    email: "",
+                    employmentStatus: "active",
+                    personal: { firstName: "", lastName: "", workMode: "Full-time", workLocation: "On-site" },
+                    career: { roleFamily: "", specialization: "", stageLevel: "", organizationUnitID: "", startingDate: "" }
+                },
+                errorMessage: "",
+                busy: false
+            };
+        },
+
+        submitCreate() {
+            const payload = this.modal.payload;
+            if ( !payload.personal.firstName || !payload.personal.lastName ) {
+                this.modal.errorMessage = tiApplication.getLabel( "error.employee.missing-name" );
+                return;
+            }
+            if ( !payload.career.roleFamily ) {
+                this.modal.errorMessage = tiApplication.getLabel( "error.employee.invalid-role-family" );
+                return;
+            }
+            if ( !payload.career.stageLevel ) {
+                this.modal.errorMessage = tiApplication.getLabel( "error.employee.invalid-level" );
+                return;
+            }
+            if ( !payload.career.organizationUnitID ) {
+                this.modal.errorMessage = tiApplication.getLabel( "error.employee.invalid-organization-unit" );
+                return;
+            }
+            const level = payload.career.stageLevel.charAt( 0 );
+            const stage = Number( payload.career.stageLevel.slice( 1 ) );
+
+            const newEmployee = {
+                email: payload.email || undefined,
+                employmentStatus: payload.employmentStatus || "active",
+                personal: { ...payload.personal },
+                career: {
+                    organizationUnitID: payload.career.organizationUnitID,
+                    roleFamily: payload.career.roleFamily,
+                    specialization: payload.career.specialization || null,
+                    level,
+                    stage,
+                    startingDate: payload.career.startingDate || undefined
+                }
+            };
+
+            this.modal.busy = true;
+            this.modal.errorMessage = "";
+            tiApplication.sendRequest( "/app/create-employee", "POST", { employee: newEmployee } ).then( ( result ) => {
+                tiApplication.notify( tiApplication.getLabel( "interface.employee-management.toast.created" ) );
+                const newID = result?.data?.employeeID;
+                this.modal = emptyModal();
+                this.loadList( () => {
+                    if ( newID ) this.selectEmployee( newID );
+                } );
+            } ).catch( ( error ) => {
+                this.modal.busy = false;
+                this.modal.errorMessage = tiApplication.formatException( error );
+            } );
+        },
+
+        /* ------------------------- Audit / display ------------------------- */
+
+        getAuditFieldLabel( field ) {
+            return tiApplication.getLabel( "interface.employee-management.audit.field." + field, field );
+        },
+
+        formatAuditValue( value ) {
+            if ( value === null || value === undefined || value === "" ) return "—";
+            if ( typeof value === "object" ) return JSON.stringify( value );
+            return String( value );
+        },
+
+        formatDateTime( value ) {
+            if ( !value ) return "—";
+            const date = new Date( value );
+            if ( !Number.isFinite( date.getTime() ) ) return value;
+            return date.toLocaleString();
+        },
+
+        formatInFlightCount( n ) {
+            const tmpl = tiApplication.getLabel( "interface.employee-management.role-family-change.in-flight-count", "{n} in-flight evaluation(s) will continue with the original set." );
+            return tmpl.replace( "{n}", String( n ) );
+        },
+
+        getLabel( key, fallback = "" ) {
+            return tiApplication.getLabel( key, fallback );
+        }
+    };
+};
+
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceEvaluation", configureCompetenceEvaluation );
     Alpine.data( "competenceEmployeesList", configureEmployeesList );
@@ -2115,4 +2505,5 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceDashboard", configureDashboard );
     Alpine.data( "competenceCycleManagement", configureCycleManagement );
     Alpine.data( "competenceCycleSetup", configureCycleSetup );
+    Alpine.data( "competenceEmployeeManagement", configureEmployeeManagement );
 } );

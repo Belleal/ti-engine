@@ -6,7 +6,6 @@
   "type": "object",
   "required": [
     "employeeID",
-    "managerID",
     "personal",
     "career"
   ],
@@ -21,10 +20,6 @@
       "type": "string",
       "format": "email",
       "description": "Corporate email address"
-    },
-    "managerID": {
-      "type": "string",
-      "description": "Employee ID of the direct administrative manager"
     },
     "employmentStatus": {
       "type": "string",

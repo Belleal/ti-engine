@@ -226,6 +226,11 @@
                                                     @click="startNewEvaluation(employee.id)">
                                                 <span x-text-label="interface.employees.action.start">Start Evaluation</span>
                                             </button>
+                                            <button type="button" class="ti-btn sm"
+                                                    x-show="$store.tiApplication.user && Array.isArray($store.tiApplication.user.roles) && ($store.tiApplication.user.roles.indexOf(2) >= 0 || $store.tiApplication.user.roles.indexOf(3) >= 0)"
+                                                    @click="openEmployeeManagement(employee.id)">
+                                                <span x-text-label="interface.employees.action.manage">Manage</span>
+                                            </button>
                                             <span class="competence-org-locked"
                                                   x-show="(!isManagerView && !employee.isCurrentUser) || (employee.isCurrentUser && !employee.evaluation)">
                                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
