@@ -4121,6 +4121,10 @@
         "en": "Interviews",
         "bg": "Интервюта"
       },
+      "cycles": {
+        "en": "Cycles",
+        "bg": "Цикли"
+      },
       "search": {
         "en": "Search",
         "bg": "Търси"
@@ -4249,6 +4253,470 @@
         "actions": {
           "en": "Actions",
           "bg": "Действия"
+        }
+      }
+    },
+    "cycles": {
+      "page-eyebrow": {
+        "en": "APPRAISAL CYCLES",
+        "bg": "ОЦЕНИТЕЛНИ ЦИКЛИ"
+      },
+      "page-title": {
+        "en": "Cycle Management",
+        "bg": "Управление на циклите"
+      },
+      "page-desc": {
+        "en": "Plan, lock, and close appraisal cycles. Each cycle owns its active competency sets, frozen at lock time so running evaluations are unaffected by later configuration changes.",
+        "bg": "Планирайте, заключвайте и затваряйте оценителни цикли. Всеки цикъл притежава свой набор от активни компетенции, замразен при заключването, така че текущите оценки да не се влияят от последващи промени."
+      },
+      "empty-title": {
+        "en": "No cycles yet",
+        "bg": "Все още няма цикли"
+      },
+      "empty-desc": {
+        "en": "Create the first appraisal cycle to begin configuring competencies and starting evaluations.",
+        "bg": "Създайте първия оценителен цикъл, за да започнете да конфигурирате компетенции и да стартирате оценки."
+      },
+      "new-btn": {
+        "en": "New Cycle",
+        "bg": "Нов Цикъл"
+      },
+      "columns": {
+        "cycle-id": {
+          "en": "Cycle ID",
+          "bg": "ID на Цикъл"
+        },
+        "name": {
+          "en": "Name",
+          "bg": "Име"
+        },
+        "dates": {
+          "en": "Period",
+          "bg": "Период"
+        },
+        "created": {
+          "en": "Created",
+          "bg": "Създаден"
+        },
+        "status": {
+          "en": "Status",
+          "bg": "Статус"
+        },
+        "evaluations": {
+          "en": "Evaluations",
+          "bg": "Оценки"
+        },
+        "actions": {
+          "en": "Actions",
+          "bg": "Действия"
+        }
+      },
+      "in-progress-suffix": {
+        "en": "in progress",
+        "bg": "в ход"
+      },
+      "completed-suffix": {
+        "en": "completed",
+        "bg": "завършени"
+      },
+      "no-evaluations": {
+        "en": "No evaluations",
+        "bg": "Без оценки"
+      },
+      "actions": {
+        "open": {
+          "en": "Open",
+          "bg": "Отвори"
+        },
+        "lock": {
+          "en": "Lock",
+          "bg": "Заключи"
+        },
+        "close": {
+          "en": "Close",
+          "bg": "Затвори"
+        }
+      },
+      "create-modal": {
+        "title": {
+          "en": "Create New Cycle",
+          "bg": "Създаване на нов цикъл"
+        },
+        "eyebrow": {
+          "en": "PLANNING",
+          "bg": "ПЛАНИРАНЕ"
+        },
+        "cycle-id-label": {
+          "en": "Cycle ID",
+          "bg": "ID на Цикъл"
+        },
+        "cycle-id-hint": {
+          "en": "Format: YYYY-Hx (e.g. 2027-H1). Must be unique.",
+          "bg": "Формат: YYYY-Hx (напр. 2027-H1). Трябва да бъде уникален."
+        },
+        "name-label": {
+          "en": "Name",
+          "bg": "Име"
+        },
+        "name-placeholder": {
+          "en": "e.g. Autumn '26 cycle",
+          "bg": "напр. Цикъл есен '26"
+        },
+        "start-date-label": {
+          "en": "Start Date",
+          "bg": "Начална дата"
+        },
+        "review-date-label": {
+          "en": "Manager Review Deadline",
+          "bg": "Краен срок за преглед от мениджър"
+        },
+        "end-date-label": {
+          "en": "Planned Close Date",
+          "bg": "Планирана дата на затваряне"
+        },
+        "create-btn": {
+          "en": "Create Cycle",
+          "bg": "Създай цикъл"
+        },
+        "cancel-btn": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        },
+        "validation-required": {
+          "en": "All required fields must be filled in.",
+          "bg": "Всички задължителни полета трябва да бъдат попълнени."
+        },
+        "validation-format": {
+          "en": "Cycle ID must match the pattern YYYY-H1 or YYYY-H2.",
+          "bg": "ID на цикъла трябва да съответства на шаблона YYYY-H1 или YYYY-H2."
+        },
+        "validation-uniqueness": {
+          "en": "This Cycle ID already exists. Pick a different one.",
+          "bg": "Този ID на цикъл вече съществува. Изберете друг."
+        },
+        "validation-date-range": {
+          "en": "The start date must be earlier than the planned close date.",
+          "bg": "Началната дата трябва да бъде по-ранна от планираната дата на затваряне."
+        }
+      },
+      "lock-modal": {
+        "title": {
+          "en": "Lock Cycle",
+          "bg": "Заключване на цикъл"
+        },
+        "desc": {
+          "en": "Locking freezes all active competency sets and permits evaluations to start. This cannot be undone.",
+          "bg": "Заключването замразява всички набори от активни компетенции и позволява стартирането на оценки. Това действие не може да бъде отменено."
+        },
+        "active-conflict": {
+          "en": "Another cycle is currently ACTIVE. Close it before locking a new one.",
+          "bg": "В момента има активен цикъл. Затворете го преди да заключите нов."
+        },
+        "confirm-btn": {
+          "en": "Lock cycle",
+          "bg": "Заключи цикъла"
+        },
+        "cancel-btn": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        }
+      },
+      "lock-errors": {
+        "title": {
+          "en": "Cannot Lock — Validation Failed",
+          "bg": "Неуспешно заключване — невалидна конфигурация"
+        },
+        "desc": {
+          "en": "Resolve the following issues in the cycle setup before locking:",
+          "bg": "Преди заключване отстранете следните проблеми в настройката на цикъла:"
+        },
+        "dismiss-btn": {
+          "en": "Got it",
+          "bg": "Разбрах"
+        },
+        "go-to-setup-btn": {
+          "en": "Open Cycle Setup",
+          "bg": "Отвори настройката"
+        }
+      },
+      "close-modal": {
+        "title": {
+          "en": "Close Cycle",
+          "bg": "Затваряне на цикъл"
+        },
+        "desc": {
+          "en": "Closing prevents new evaluations from being started. In-flight evaluations can still be completed.",
+          "bg": "Затварянето спира започването на нови оценки. Текущите оценки могат да бъдат завършени."
+        },
+        "confirm-btn": {
+          "en": "Close cycle",
+          "bg": "Затвори цикъла"
+        },
+        "cancel-btn": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        }
+      },
+      "rule": {
+        "baseline-floor-coverage": {
+          "en": "Baseline floor coverage",
+          "bg": "Покритие на базовия минимум"
+        },
+        "cap": {
+          "en": "Resolved set cap",
+          "bg": "Лимит на разрешения набор"
+        },
+        "reference-integrity": {
+          "en": "Reference integrity",
+          "bg": "Целостност на референциите"
+        },
+        "no-empty-baseline": {
+          "en": "Non-empty baseline required",
+          "bg": "Необходим е непразен базов набор"
+        }
+      },
+      "toast": {
+        "created": {
+          "en": "Cycle created.",
+          "bg": "Цикълът е създаден."
+        },
+        "locked": {
+          "en": "Cycle locked. Evaluations can now be started.",
+          "bg": "Цикълът е заключен. Вече могат да се стартират оценки."
+        },
+        "closed": {
+          "en": "Cycle closed.",
+          "bg": "Цикълът е затворен."
+        }
+      }
+    },
+    "cycle-setup": {
+      "page-eyebrow": {
+        "en": "CYCLE SETUP",
+        "bg": "НАСТРОЙКА НА ЦИКЪЛ"
+      },
+      "page-title-suffix": {
+        "en": "Active Competency Sets",
+        "bg": "Активни набори от компетенции"
+      },
+      "back-to-cycles": {
+        "en": "Back to cycles",
+        "bg": "Към циклите"
+      },
+      "read-only-banner": {
+        "en": "This cycle is no longer in PLANNING. The configuration is read-only.",
+        "bg": "Този цикъл вече не е в статус ПЛАНИРАНЕ. Конфигурацията е само за четене."
+      },
+      "tree-title": {
+        "en": "Role Families",
+        "bg": "Семейства роли"
+      },
+      "tree-baseline": {
+        "en": "Baseline",
+        "bg": "Базов набор"
+      },
+      "tree-status": {
+        "clean-aria": {
+          "en": "Configured and valid",
+          "bg": "Конфигурирано и валидно"
+        },
+        "warn-aria": {
+          "en": "Configured with validation issues",
+          "bg": "Конфигурирано с проблеми във валидацията"
+        },
+        "empty-aria": {
+          "en": "Intentionally empty for this cycle",
+          "bg": "Преднамерено празно за този цикъл"
+        },
+        "unconfigured-aria": {
+          "en": "Not yet configured",
+          "bg": "Все още не е конфигурирано"
+        }
+      },
+      "header-baseline-suffix": {
+        "en": "— Baseline",
+        "bg": "— Базов набор"
+      },
+      "header-description-baseline": {
+        "en": "The baseline applies to every employee in this family, regardless of specialization.",
+        "bg": "Базовият набор се отнася за всеки служител от това семейство, независимо от специализацията му."
+      },
+      "header-description-spec": {
+        "en": "Specialization adds competencies on top of the family's baseline.",
+        "bg": "Специализацията добавя компетенции към базовия набор на семейството."
+      },
+      "no-family-selected-title": {
+        "en": "Select a Role Family",
+        "bg": "Изберете семейство роли"
+      },
+      "no-family-selected-desc": {
+        "en": "Pick a node from the tree on the left to configure its competencies for this cycle.",
+        "bg": "Изберете елемент от дървото отляво, за да конфигурирате компетенциите за този цикъл."
+      },
+      "cap-label": {
+        "en": "Cap usage",
+        "bg": "Заетост на лимита"
+      },
+      "cap-usage": {
+        "en": "{n} of {cap} competencies selected.",
+        "bg": "Избрани са {n} от {cap} компетенции."
+      },
+      "cap-usage-spec": {
+        "en": "Baseline ({b}) + Specialization ({s}) = {t} of {cap}.",
+        "bg": "Базов набор ({b}) + специализация ({s}) = {t} от {cap}."
+      },
+      "cap-over": {
+        "en": "Cap exceeded by {n}.",
+        "bg": "Лимитът е надвишен с {n}."
+      },
+      "floor-coverage-label": {
+        "en": "Subcategory coverage",
+        "bg": "Покритие по подкатегории"
+      },
+      "floor-coverage-aria-satisfied": {
+        "en": "Subcategory {sub} is covered",
+        "bg": "Подкатегория {sub} е покрита"
+      },
+      "floor-coverage-aria-missing": {
+        "en": "Subcategory {sub} is missing",
+        "bg": "Подкатегория {sub} липсва"
+      },
+      "no-extras-label": {
+        "en": "No extra competencies for this specialization in this cycle",
+        "bg": "Без допълнителни компетенции за тази специализация в този цикъл"
+      },
+      "no-extras-desc": {
+        "en": "Persists as an explicit \"intentionally empty\" marker. Employees in this specialization get only the family baseline.",
+        "bg": "Запазва се като изричен маркер „преднамерено празно“. Служителите в тази специализация получават само базовия набор на семейството."
+      },
+      "competencies-empty-spec": {
+        "en": "No specialization competencies added yet. Use \"Add competency\" to start, or mark the set as intentionally empty.",
+        "bg": "Все още не са добавени компетенции за специализация. Натиснете „Добави компетенция“ или маркирайте набора като преднамерено празен."
+      },
+      "competencies-empty-baseline": {
+        "en": "No baseline competencies yet. Add at least one competency in each of the nine subcategories.",
+        "bg": "Все още няма базови компетенции. Добавете поне по една компетенция във всяка от деветте подкатегории."
+      },
+      "add-btn": {
+        "en": "Add Competency",
+        "bg": "Добави компетенция"
+      },
+      "clone-btn": {
+        "en": "Clone from…",
+        "bg": "Клонирай от…"
+      },
+      "save-btn": {
+        "en": "Save",
+        "bg": "Запази"
+      },
+      "saved-state": {
+        "en": "All changes saved.",
+        "bg": "Всички промени са запазени."
+      },
+      "unsaved-state": {
+        "en": "Unsaved changes.",
+        "bg": "Незапазени промени."
+      },
+      "remove-aria": {
+        "en": "Remove {code}",
+        "bg": "Премахни {code}"
+      },
+      "origin-baseline": {
+        "en": "Baseline",
+        "bg": "Базов набор"
+      },
+      "ecf-prefix": {
+        "en": "e-CF",
+        "bg": "e-CF"
+      },
+      "picker": {
+        "title": {
+          "en": "Add Competencies",
+          "bg": "Добавяне на компетенции"
+        },
+        "search-placeholder": {
+          "en": "Search by code or name…",
+          "bg": "Търсене по код или име…"
+        },
+        "category-all": {
+          "en": "All categories",
+          "bg": "Всички категории"
+        },
+        "subcategory-all": {
+          "en": "All subcategories",
+          "bg": "Всички подкатегории"
+        },
+        "confirm-btn": {
+          "en": "Add {n}",
+          "bg": "Добави {n}"
+        },
+        "cancel-btn": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        },
+        "no-results": {
+          "en": "No competencies match the current filters.",
+          "bg": "Няма компетенции, които да съответстват на филтрите."
+        },
+        "already-added": {
+          "en": "Already added",
+          "bg": "Вече е добавена"
+        }
+      },
+      "clone-modal": {
+        "title": {
+          "en": "Clone Competencies",
+          "bg": "Клониране на компетенции"
+        },
+        "source-label": {
+          "en": "Source",
+          "bg": "Източник"
+        },
+        "source-prev-cycle": {
+          "en": "Same node, previous cycle",
+          "bg": "Същият елемент, предишен цикъл"
+        },
+        "source-other": {
+          "en": "Different family / specialization",
+          "bg": "Различно семейство / специализация"
+        },
+        "source-family-label": {
+          "en": "Source family",
+          "bg": "Семейство източник"
+        },
+        "source-key-label": {
+          "en": "Source node",
+          "bg": "Елемент източник"
+        },
+        "prev-empty": {
+          "en": "No prior cycle has data for this node.",
+          "bg": "Няма предходен цикъл с данни за този елемент."
+        },
+        "confirm-btn": {
+          "en": "Clone",
+          "bg": "Клонирай"
+        },
+        "cancel-btn": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        },
+        "replace-warning": {
+          "en": "Cloning will replace the current contents of this node.",
+          "bg": "Клонирането ще замени текущото съдържание на елемента."
+        }
+      },
+      "toast": {
+        "saved": {
+          "en": "Changes saved.",
+          "bg": "Промените са запазени."
+        },
+        "marked-empty": {
+          "en": "Marked as intentionally empty.",
+          "bg": "Маркирано като преднамерено празно."
+        },
+        "cloned": {
+          "en": "Competencies cloned.",
+          "bg": "Компетенциите са клонирани."
         }
       }
     }

@@ -1,0 +1,291 @@
+<div class="ti-page" x-data="competenceCycleManagement">
+    <!-- Page header -->
+    <div class="ti-page-head">
+        <div class="ti-page-eyebrow" x-text-label="interface.cycles.page-eyebrow"></div>
+        <h1 class="ti-page-title" x-text-label="interface.cycles.page-title"></h1>
+        <p class="ti-page-subtitle" x-text-label="interface.cycles.page-desc"></p>
+    </div>
+
+    <!-- Empty state when there are no cycles at all -->
+    <template x-if="loaded && cycles.length === 0">
+        <div class="ti-empty-state">
+            <div class="ti-empty-state-icon" aria-hidden="true">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9"/>
+                    <path d="M12 7v5l3 2"/>
+                </svg>
+            </div>
+            <div class="ti-empty-state-title" x-text-label="interface.cycles.empty-title"></div>
+            <div class="ti-empty-state-desc" x-text-label="interface.cycles.empty-desc"></div>
+            <div class="competence-cycle-empty-action">
+                <button type="button" class="ti-btn primary" @click="openCreateModal()" x-text-label="interface.cycles.new-btn"></button>
+            </div>
+        </div>
+    </template>
+
+    <!-- Cycle table -->
+    <template x-if="loaded && cycles.length > 0">
+        <div class="ti-panel competence-cycle-panel">
+            <div class="ti-panel-head">
+                <div class="ti-panel-title" x-text-label="interface.cycles.page-title"></div>
+                <div class="ti-panel-head-actions">
+                    <button type="button" class="ti-btn sm primary" @click="openCreateModal()">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                        <span x-text-label="interface.cycles.new-btn"></span>
+                    </button>
+                </div>
+            </div>
+            <div class="competence-cycle-table-wrap">
+                <table class="competence-cycle-table">
+                    <thead>
+                    <tr>
+                        <th x-text-label="interface.cycles.columns.cycle-id"></th>
+                        <th x-text-label="interface.cycles.columns.name"></th>
+                        <th x-text-label="interface.cycles.columns.dates"></th>
+                        <th x-text-label="interface.cycles.columns.status"></th>
+                        <th x-text-label="interface.cycles.columns.evaluations"></th>
+                        <th x-text-label="interface.cycles.columns.created"></th>
+                        <th class="competence-cycle-actions-col" x-text-label="interface.cycles.columns.actions"></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <template x-for="cycle in cycles" x-bind:key="cycle.cycleID">
+                        <tr>
+                            <td>
+                                <span class="ti-tag mono" x-text="cycle.cycleID"></span>
+                            </td>
+                            <td>
+                                <div class="competence-cycle-row-name" x-text="cycle.name"></div>
+                            </td>
+                            <td>
+                                <div class="competence-cycle-row-dates">
+                                    <span x-text="formatDate(cycle.cycleStart)"></span>
+                                    <span class="competence-cycle-row-dates-sep">→</span>
+                                    <span x-text="formatDate(cycle.cycleEnd)"></span>
+                                </div>
+                                <div class="competence-cycle-row-actual" x-show="cycle.actualCloseDate">
+                                    <span x-text-label="interface.evaluation.status.name.closed"></span>:
+                                    <span x-text="formatDate(cycle.actualCloseDate)"></span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="ti-status-pill"
+                                      x-bind:class="cycle.statusTone"
+                                      x-text="cycle.statusName"></span>
+                            </td>
+                            <td>
+                                <div class="competence-cycle-row-counts" x-show="cycle.counts.inProgress > 0 || cycle.counts.completed > 0">
+                                    <span x-show="cycle.counts.inProgress > 0">
+                                        <strong x-text="cycle.counts.inProgress"></strong>
+                                        <span class="competence-cycle-count-suffix" x-text-label="interface.cycles.in-progress-suffix"></span>
+                                    </span>
+                                    <span x-show="cycle.counts.inProgress > 0 && cycle.counts.completed > 0"
+                                          class="competence-cycle-count-sep">·</span>
+                                    <span x-show="cycle.counts.completed > 0">
+                                        <strong x-text="cycle.counts.completed"></strong>
+                                        <span class="competence-cycle-count-suffix" x-text-label="interface.cycles.completed-suffix"></span>
+                                    </span>
+                                </div>
+                                <div class="competence-cycle-row-no-counts"
+                                     x-show="cycle.counts.inProgress === 0 && cycle.counts.completed === 0"
+                                     x-text-label="interface.cycles.no-evaluations"></div>
+                            </td>
+                            <td>
+                                <div class="competence-cycle-row-created">
+                                    <span x-text="formatDate(cycle.createdAt)"></span>
+                                </div>
+                                <div class="competence-cycle-row-created-by" x-show="cycle.createdByName" x-text="cycle.createdByName"></div>
+                            </td>
+                            <td class="competence-cycle-actions-col">
+                                <div class="competence-cycle-actions">
+                                    <button type="button" class="ti-btn sm" @click="openCycleSetup(cycle.cycleID)"
+                                            x-text-label="interface.cycles.actions.open"></button>
+                                    <button type="button" class="ti-btn sm primary"
+                                            x-show="cycle.status === 'PLANNING'"
+                                            @click="onLockClick(cycle)"
+                                            x-text-label="interface.cycles.actions.lock"></button>
+                                    <button type="button" class="ti-btn sm danger"
+                                            x-show="cycle.status === 'ACTIVE'"
+                                            @click="openCloseModal(cycle)"
+                                            x-text-label="interface.cycles.actions.close"></button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <!-- =============================================================
+         Create Cycle modal
+         ============================================================= -->
+    <template x-if="modal.kind === 'create'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal medium" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div>
+                        <span class="ti-modal-eyebrow" x-text-label="interface.cycles.create-modal.eyebrow"></span>
+                        <div class="ti-modal-title" x-text-label="interface.cycles.create-modal.title"></div>
+                    </div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <div class="competence-cycle-form">
+                        <div class="competence-cycle-form-row">
+                            <label class="ti-field-label" x-text-label="interface.cycles.create-modal.cycle-id-label"></label>
+                            <input type="text" class="ti-input" x-model="modal.payload.cycleID"
+                                   x-bind:class="modal.errorField === 'cycleID' ? 'has-error' : ''"
+                                   maxlength="7" autocomplete="off"/>
+                            <div class="competence-cycle-form-hint" x-text-label="interface.cycles.create-modal.cycle-id-hint"></div>
+                        </div>
+                        <div class="competence-cycle-form-row">
+                            <label class="ti-field-label" x-text-label="interface.cycles.create-modal.name-label"></label>
+                            <input type="text" class="ti-input" x-model="modal.payload.name"
+                                   x-bind:class="modal.errorField === 'name' ? 'has-error' : ''"
+                                   x-bind:placeholder="getLabel('interface.cycles.create-modal.name-placeholder')"
+                                   maxlength="80" autocomplete="off"/>
+                        </div>
+                        <div class="competence-cycle-form-grid">
+                            <div class="competence-cycle-form-row">
+                                <label class="ti-field-label" x-text-label="interface.cycles.create-modal.start-date-label"></label>
+                                <input type="date" class="ti-input" x-model="modal.payload.cycleStart"/>
+                            </div>
+                            <div class="competence-cycle-form-row">
+                                <label class="ti-field-label" x-text-label="interface.cycles.create-modal.review-date-label"></label>
+                                <input type="date" class="ti-input" x-model="modal.payload.cycleDate"/>
+                            </div>
+                            <div class="competence-cycle-form-row">
+                                <label class="ti-field-label" x-text-label="interface.cycles.create-modal.end-date-label"></label>
+                                <input type="date" class="ti-input" x-model="modal.payload.cycleEnd"
+                                       x-bind:class="modal.errorField === 'cycleEnd' ? 'has-error' : ''"/>
+                            </div>
+                        </div>
+                        <div class="competence-cycle-form-error" x-show="modal.errorMessage" x-text="modal.errorMessage"></div>
+                    </div>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.cycles.create-modal.cancel-btn"></button>
+                    <button type="button" class="ti-btn primary" @click="submitCreate()"
+                            x-bind:disabled="modal.busy"
+                            x-text-label="interface.cycles.create-modal.create-btn"></button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- =============================================================
+         Lock confirmation modal
+         ============================================================= -->
+    <template x-if="modal.kind === 'lock-confirm'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.cycles.lock-modal.title"></div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <p>
+                        <span x-text-label="interface.cycles.lock-modal.desc"></span>
+                    </p>
+                    <p class="competence-cycle-lock-target">
+                        <span class="ti-tag mono" x-text="modal.payload.cycleID"></span>
+                        <span x-text="modal.payload.name"></span>
+                    </p>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.cycles.lock-modal.cancel-btn"></button>
+                    <button type="button" class="ti-btn primary" @click="submitLock()"
+                            x-bind:disabled="modal.busy"
+                            x-text-label="interface.cycles.lock-modal.confirm-btn"></button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- =============================================================
+         Lock validation errors modal
+         ============================================================= -->
+    <template x-if="modal.kind === 'lock-errors'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal medium warn" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.cycles.lock-errors.title"></div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <p x-text-label="interface.cycles.lock-errors.desc"></p>
+                    <ul class="competence-cycle-lock-errors">
+                        <template x-for="(group, idx) in modal.payload.groups" x-bind:key="idx">
+                            <li class="competence-cycle-lock-error-group">
+                                <div class="competence-cycle-lock-error-head">
+                                    <span class="ti-tag mono" x-text="group.label"></span>
+                                </div>
+                                <ul class="competence-cycle-lock-error-list">
+                                    <template x-for="(error, eIdx) in group.errors" x-bind:key="eIdx">
+                                        <li>
+                                            <span class="competence-cycle-lock-error-rule" x-text="getRuleLabel(error.rule)"></span>
+                                            <span class="competence-cycle-lock-error-detail" x-text="error.detail"></span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+                <div class="ti-modal-foot between">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.cycles.lock-errors.dismiss-btn"></button>
+                    <button type="button" class="ti-btn primary" @click="openCycleSetup(modal.payload.cycleID)" x-text-label="interface.cycles.lock-errors.go-to-setup-btn"></button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- =============================================================
+         Close cycle confirmation modal
+         ============================================================= -->
+    <template x-if="modal.kind === 'close-confirm'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal danger" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.cycles.close-modal.title"></div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <p x-text-label="interface.cycles.close-modal.desc"></p>
+                    <p class="competence-cycle-lock-target">
+                        <span class="ti-tag mono" x-text="modal.payload.cycleID"></span>
+                        <span x-text="modal.payload.name"></span>
+                    </p>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.cycles.close-modal.cancel-btn"></button>
+                    <button type="button" class="ti-btn danger" @click="submitClose()"
+                            x-bind:disabled="modal.busy"
+                            x-text-label="interface.cycles.close-modal.confirm-btn"></button>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>

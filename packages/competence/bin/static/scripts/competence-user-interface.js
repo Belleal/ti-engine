@@ -1405,6 +1405,707 @@ const configureDashboard = () => {
     };
 };
 
+/**
+ * Returns a configuration object for the cycle management screen (Supervisor-only).
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureCycleManagement = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    const emptyModal = () => ( { kind: null, payload: {}, errorMessage: "", errorField: "", busy: false } );
+
+    return {
+        loaded: false,
+        cycles: [],
+        activeCycleID: null,
+        suggestedCycleID: "",
+        modal: emptyModal(),
+
+        init() {
+            const onInitialized = () => {
+                this.loadCycles();
+            };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        loadCycles() {
+            tiApplication.sendRequest( "/app/load-cycle-list" ).then( ( result ) => {
+                const data = result?.data || {};
+                this.cycles = Array.isArray( data.cycles ) ? tiToolbox.structuredClone( data.cycles ) : [];
+                this.activeCycleID = data.activeCycleID || null;
+                this.suggestedCycleID = data.suggestedCycleID || "";
+                this.loaded = true;
+            } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) {
+                    return;
+                }
+                this.loaded = true;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                if ( error.exception?.httpCode === 401 ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
+        },
+
+        openCycleSetup( cycleID ) {
+            tiApplication.openScreen( "cycle-setup?cycleID=" + encodeURIComponent( cycleID ) );
+        },
+
+        openCreateModal() {
+            this.modal = {
+                kind: "create",
+                payload: {
+                    cycleID: this.suggestedCycleID || "",
+                    name: "",
+                    cycleStart: "",
+                    cycleDate: "",
+                    cycleEnd: ""
+                },
+                errorMessage: "",
+                errorField: "",
+                busy: false
+            };
+        },
+
+        onLockClick( cycle ) {
+            if ( this.activeCycleID && this.activeCycleID !== cycle.cycleID ) {
+                tiApplication.notify( tiApplication.getLabel( "interface.cycles.lock-modal.active-conflict" ) );
+                return;
+            }
+            this.modal = {
+                kind: "lock-confirm",
+                payload: { cycleID: cycle.cycleID, name: cycle.name },
+                errorMessage: "",
+                errorField: "",
+                busy: false
+            };
+        },
+
+        openCloseModal( cycle ) {
+            this.modal = {
+                kind: "close-confirm",
+                payload: { cycleID: cycle.cycleID, name: cycle.name },
+                errorMessage: "",
+                errorField: "",
+                busy: false
+            };
+        },
+
+        closeModal() {
+            this.modal = emptyModal();
+        },
+
+        submitCreate() {
+            const payload = this.modal.payload;
+            const id = String( payload.cycleID || "" ).trim();
+            const name = String( payload.name || "" ).trim();
+            const cycleStart = String( payload.cycleStart || "" ).trim();
+            const cycleDate = String( payload.cycleDate || "" ).trim();
+            const cycleEnd = String( payload.cycleEnd || "" ).trim();
+
+            if ( !id || !name || !cycleEnd ) {
+                this.modal.errorField = !id ? "cycleID" : ( !name ? "name" : "cycleEnd" );
+                this.modal.errorMessage = tiApplication.getLabel( "interface.cycles.create-modal.validation-required" );
+                return;
+            }
+            if ( !/^\d{4}-H[12]$/.test( id ) ) {
+                this.modal.errorField = "cycleID";
+                this.modal.errorMessage = tiApplication.getLabel( "interface.cycles.create-modal.validation-format" );
+                return;
+            }
+            if ( this.cycles.some( ( cycle ) => cycle.cycleID === id ) ) {
+                this.modal.errorField = "cycleID";
+                this.modal.errorMessage = tiApplication.getLabel( "interface.cycles.create-modal.validation-uniqueness" );
+                return;
+            }
+            if ( cycleStart && cycleEnd && cycleStart > cycleEnd ) {
+                this.modal.errorField = "cycleEnd";
+                this.modal.errorMessage = tiApplication.getLabel( "interface.cycles.create-modal.validation-date-range" );
+                return;
+            }
+
+            this.modal.busy = true;
+            this.modal.errorMessage = "";
+            this.modal.errorField = "";
+
+            tiApplication.sendRequest( "/app/create-cycle", "POST", {
+                cycleID: id,
+                name,
+                cycleStart: cycleStart || null,
+                cycleDate: cycleDate || cycleEnd,
+                cycleEnd
+            } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.cycles.toast.created" ) );
+                this.closeModal();
+                this.loadCycles();
+            } ).catch( ( error ) => {
+                this.modal.busy = false;
+                this.modal.errorMessage = tiApplication.formatException( error );
+            } );
+        },
+
+        submitLock() {
+            const cycleID = this.modal.payload.cycleID;
+            this.modal.busy = true;
+            tiApplication.sendRequest( "/app/lock-cycle", "POST", { cycleID } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.cycles.toast.locked" ) );
+                this.closeModal();
+                this.loadCycles();
+            } ).catch( ( error ) => {
+                const errors = error?.exception?.data?.errors;
+                if ( Array.isArray( errors ) && errors.length > 0 ) {
+                    this.modal = {
+                        kind: "lock-errors",
+                        payload: {
+                            cycleID,
+                            groups: this.groupLockErrors( errors )
+                        },
+                        errorMessage: "",
+                        errorField: "",
+                        busy: false
+                    };
+                    return;
+                }
+                this.modal.busy = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        submitClose() {
+            const cycleID = this.modal.payload.cycleID;
+            this.modal.busy = true;
+            tiApplication.sendRequest( "/app/close-cycle", "POST", { cycleID } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.cycles.toast.closed" ) );
+                this.closeModal();
+                this.loadCycles();
+            } ).catch( ( error ) => {
+                this.modal.busy = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        groupLockErrors( errors ) {
+            const map = new Map();
+            errors.forEach( ( error ) => {
+                const label = error.specialization ? `${ error.family } / ${ error.specialization }` : error.family;
+                if ( !map.has( label ) ) {
+                    map.set( label, { label, errors: [] } );
+                }
+                map.get( label ).errors.push( { rule: error.rule, detail: error.detail || "" } );
+            } );
+            return Array.from( map.values() );
+        },
+
+        getRuleLabel( rule ) {
+            return tiApplication.getLabel( `interface.cycles.rule.${ rule }`, rule );
+        },
+
+        getLabel( key, fallback = "" ) {
+            return tiApplication.getLabel( key, fallback );
+        },
+
+        formatDate( value, placeholder = "—" ) {
+            return tiToolbox.formatDate( value, placeholder );
+        }
+    };
+};
+
+/**
+ * Returns a configuration object for the cycle setup screen (Supervisor-only).
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureCycleSetup = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    const emptyModal = () => ( { kind: null, payload: {} } );
+
+    const draftKey = ( family, key ) => `${ family }|${ key }`;
+
+    return {
+        loaded: false,
+        cycleID: null,
+        cycle: {},
+        isReadOnly: false,
+        cap: 30,
+        families: [],
+        sets: {},
+        competenciesByCode: {},
+        subcategories: [],
+        validation: { valid: true, errorsByFamily: {} },
+        allCycles: [],
+        drafts: {},
+        selectedFamily: null,
+        selectedKey: null,
+        draft: { codes: [], markedEmpty: false },
+        modal: emptyModal(),
+        saving: false,
+
+        init() {
+            const onInitialized = () => {
+                this.cycleID = tiToolbox.getUrlParam( "cycleID" );
+                this.loadData();
+            };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        loadData() {
+            if ( !this.cycleID ) {
+                tiApplication.notify( "Missing cycleID." );
+                tiApplication.openScreen( "cycles" );
+                return;
+            }
+            const setupPromise = tiApplication.sendRequest( "/app/load-cycle-setup?cycleID=" + encodeURIComponent( this.cycleID ) );
+            const listPromise = tiApplication.sendRequest( "/app/load-cycle-list" );
+            Promise.all( [ setupPromise, listPromise ] ).then( ( [ setupResult, listResult ] ) => {
+                this.applyData( setupResult?.data || {} );
+                this.allCycles = Array.isArray( listResult?.data?.cycles ) ? tiToolbox.structuredClone( listResult.data.cycles ) : [];
+                this.loaded = true;
+            } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) {
+                    return;
+                }
+                this.loaded = true;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                if ( error.exception?.httpCode === 401 ) {
+                    tiApplication.openScreen( "dashboard" );
+                } else if ( error.exception?.httpCode === 404 ) {
+                    tiApplication.openScreen( "cycles" );
+                }
+            } );
+        },
+
+        applyData( data ) {
+            this.cycle = data.cycle ? tiToolbox.structuredClone( data.cycle ) : {};
+            this.isReadOnly = data.isReadOnly === true;
+            this.cap = typeof data.cap === "number" ? data.cap : 30;
+            this.families = Array.isArray( data.families ) ? tiToolbox.structuredClone( data.families ) : [];
+            this.sets = data.sets ? tiToolbox.structuredClone( data.sets ) : {};
+            this.competenciesByCode = data.competenciesByCode ? tiToolbox.structuredClone( data.competenciesByCode ) : {};
+            this.subcategories = Array.isArray( data.subcategories ) ? tiToolbox.structuredClone( data.subcategories ) : [];
+            this.validation = data.validation ? tiToolbox.structuredClone( data.validation ) : { valid: true, errorsByFamily: {} };
+
+            // Preserve currently-selected node across reloads when possible; otherwise clear.
+            if ( !this.selectedFamily || !this.families.find( ( family ) => family.code === this.selectedFamily ) ) {
+                this.selectedFamily = null;
+                this.selectedKey = null;
+                this.draft = { codes: [], markedEmpty: false };
+            } else {
+                this.drafts = {};
+                this.selectNode( this.selectedFamily, this.selectedKey );
+            }
+        },
+
+        backToCycles() {
+            tiApplication.openScreen( "cycles" );
+        },
+
+        selectNode( familyCode, key ) {
+            this.selectedFamily = familyCode;
+            this.selectedKey = key;
+            const draftID = draftKey( familyCode, key );
+            if ( !this.drafts[ draftID ] ) {
+                const persisted = this.sets[ familyCode ] && this.sets[ familyCode ][ key ];
+                this.drafts[ draftID ] = {
+                    codes: persisted && Array.isArray( persisted.codes ) ? persisted.codes.slice() : [],
+                    markedEmpty: persisted ? persisted.markedEmpty === true : false
+                };
+            }
+            this.draft = this.drafts[ draftID ];
+        },
+
+        /* -------------------------- Tree helpers --------------------------- */
+
+        getNodeStatus( familyCode, key ) {
+            const persisted = this.sets[ familyCode ] && this.sets[ familyCode ][ key ];
+            const groupKey = key === "baseline" ? familyCode : `${ familyCode }.${ key }`;
+            const hasErrors = ( this.validation.errorsByFamily && Array.isArray( this.validation.errorsByFamily[ groupKey ] ) && this.validation.errorsByFamily[ groupKey ].length > 0 );
+            // Family-level errors also bubble into baseline nodes (no-empty-baseline, baseline-floor-coverage).
+            const familyErrors = ( key === "baseline" && this.validation.errorsByFamily && Array.isArray( this.validation.errorsByFamily[ familyCode ] ) && this.validation.errorsByFamily[ familyCode ].length > 0 );
+
+            if ( !persisted ) {
+                return "unconfigured";
+            }
+            if ( hasErrors || familyErrors ) {
+                return "warn";
+            }
+            if ( persisted.codes && persisted.codes.length === 0 ) {
+                return key === "baseline" ? "warn" : "empty";
+            }
+            return "clean";
+        },
+
+        getNodeStatusGlyph( familyCode, key ) {
+            const status = this.getNodeStatus( familyCode, key );
+            if ( status === "clean" ) return "✓";   // ✓
+            if ( status === "warn" ) return "⚠";    // ⚠
+            if ( status === "empty" ) return "—";   // —
+            return "";
+        },
+
+        getNodeStatusAria( familyCode, key ) {
+            const status = this.getNodeStatus( familyCode, key );
+            return tiApplication.getLabel( `interface.cycle-setup.tree-status.${ status }-aria`, "" );
+        },
+
+        getNodeCount( familyCode, key ) {
+            const persisted = this.sets[ familyCode ] && this.sets[ familyCode ][ key ];
+            return ( persisted && Array.isArray( persisted.codes ) ) ? persisted.codes.length : 0;
+        },
+
+        /* -------------------------- Editor helpers ------------------------- */
+
+        getSelectedFamily() {
+            return this.families.find( ( family ) => family.code === this.selectedFamily ) || { code: "", name: "", description: "", specializations: [] };
+        },
+
+        getSelectedSpec() {
+            const family = this.getSelectedFamily();
+            const spec = family.specializations.find( ( s ) => s.code === this.selectedKey );
+            return spec || { code: "", name: "", description: "" };
+        },
+
+        getBaselineCodes() {
+            const persisted = this.sets[ this.selectedFamily ] && this.sets[ this.selectedFamily ][ "baseline" ];
+            return persisted && Array.isArray( persisted.codes ) ? persisted.codes : [];
+        },
+
+        getResolvedSize() {
+            if ( this.selectedKey === "baseline" ) {
+                return this.draft.codes.length;
+            }
+            // For a specialization node, resolved = baseline (persisted) + draft (specialization).
+            const baseline = this.getBaselineCodes();
+            const merged = new Set( [ ...baseline, ...this.draft.codes ] );
+            return merged.size;
+        },
+
+        isOverCap() {
+            return this.getResolvedSize() > this.cap;
+        },
+
+        capBarStyle() {
+            const pct = Math.min( 100, Math.round( ( this.getResolvedSize() / Math.max( 1, this.cap ) ) * 100 ) );
+            return `width: ${ pct }%`;
+        },
+
+        getCapText() {
+            if ( this.selectedKey === "baseline" ) {
+                const tmpl = tiApplication.getLabel( "interface.cycle-setup.cap-usage", "{n} of {cap} competencies selected." );
+                return tmpl.replace( "{n}", String( this.draft.codes.length ) ).replace( "{cap}", String( this.cap ) );
+            }
+            const baseline = this.getBaselineCodes();
+            const baselineSize = baseline.length;
+            const specSize = this.draft.codes.length;
+            const merged = new Set( [ ...baseline, ...this.draft.codes ] );
+            const total = merged.size;
+            const tmpl = tiApplication.getLabel( "interface.cycle-setup.cap-usage-spec", "Baseline ({b}) + Specialization ({s}) = {t} of {cap}." );
+            return tmpl.replace( "{b}", String( baselineSize ) ).replace( "{s}", String( specSize ) ).replace( "{t}", String( total ) ).replace( "{cap}", String( this.cap ) );
+        },
+
+        isSubcategoryCovered( subcategoryCode ) {
+            return this.draft.codes.some( ( code ) => {
+                const comp = this.competenciesByCode[ code ];
+                return comp && comp.subcategory === subcategoryCode;
+            } );
+        },
+
+        getFloorPillAria( subcategoryCode ) {
+            const key = this.isSubcategoryCovered( subcategoryCode ) ? "interface.cycle-setup.floor-coverage-aria-satisfied" : "interface.cycle-setup.floor-coverage-aria-missing";
+            return tiApplication.getLabel( key, subcategoryCode ).replace( "{sub}", subcategoryCode );
+        },
+
+        onMarkedEmptyChange() {
+            // If marked empty was just set to true, the codes list is empty by construction (the checkbox is disabled
+            // when there are codes). If toggled off, no automatic change to codes is needed.
+        },
+
+        getCompetencyName( code ) {
+            return ( this.competenciesByCode[ code ] && this.competenciesByCode[ code ].name ) || code;
+        },
+
+        getCompetencySubcategory( code ) {
+            const comp = this.competenciesByCode[ code ];
+            return ( comp && comp.subcategoryName ) ? `${ comp.subcategory } · ${ comp.subcategoryName }` : ( comp ? comp.subcategory : "" );
+        },
+
+        getCompetencyECF( code ) {
+            const comp = this.competenciesByCode[ code ];
+            return ( comp && Array.isArray( comp.eCFMapping ) ) ? comp.eCFMapping : [];
+        },
+
+        getRemoveAria( code ) {
+            const tmpl = tiApplication.getLabel( "interface.cycle-setup.remove-aria", "Remove {code}" );
+            return tmpl.replace( "{code}", code );
+        },
+
+        removeCode( code ) {
+            if ( this.isReadOnly ) return;
+            this.draft.codes = this.draft.codes.filter( ( c ) => c !== code );
+            if ( this.draft.codes.length === 0 && this.selectedKey !== "baseline" ) {
+                // Allow user to re-mark empty after removing last code.
+                this.draft.markedEmpty = false;
+            }
+        },
+
+        /* -------------------------- Picker --------------------------------- */
+
+        openPicker() {
+            if ( this.isReadOnly ) return;
+            this.modal = {
+                kind: "picker",
+                payload: {
+                    query: "",
+                    category: "",
+                    subcategory: "",
+                    selected: {}
+                }
+            };
+        },
+
+        closeModal() {
+            this.modal = emptyModal();
+        },
+
+        categoryOptions() {
+            const seen = new Set();
+            const out = [];
+            this.subcategories.forEach( ( sub ) => {
+                if ( !seen.has( sub.categoryCode ) ) {
+                    seen.add( sub.categoryCode );
+                    out.push( { code: sub.categoryCode, name: sub.categoryName } );
+                }
+            } );
+            return out;
+        },
+
+        subcategoryOptionsForCategory( catCode ) {
+            if ( !catCode ) {
+                return this.subcategories;
+            }
+            return this.subcategories.filter( ( sub ) => sub.categoryCode === catCode );
+        },
+
+        pickerFilteredCompetencies() {
+            const payload = this.modal.payload || {};
+            const q = ( payload.query || "" ).trim().toLowerCase();
+            const cat = payload.category || "";
+            const sub = payload.subcategory || "";
+            const competencies = Object.values( this.competenciesByCode );
+            return competencies.filter( ( competency ) => {
+                if ( cat && competency.category !== cat ) return false;
+                if ( sub && competency.subcategory !== sub ) return false;
+                if ( q ) {
+                    const text = ( competency.code + " " + competency.name ).toLowerCase();
+                    if ( text.indexOf( q ) < 0 ) return false;
+                }
+                return true;
+            } ).sort( ( a, b ) => a.code.localeCompare( b.code, undefined, { numeric: true } ) );
+        },
+
+        togglePickerSelection( code ) {
+            if ( this.isCodeInDraft( code ) ) return;
+            const selected = this.modal.payload.selected || {};
+            if ( selected[ code ] ) {
+                delete selected[ code ];
+            } else {
+                selected[ code ] = true;
+            }
+            this.modal.payload.selected = { ...selected };
+        },
+
+        pickerSelectedCount() {
+            return Object.keys( this.modal.payload?.selected || {} ).length;
+        },
+
+        getPickerConfirmLabel() {
+            const tmpl = tiApplication.getLabel( "interface.cycle-setup.picker.confirm-btn", "Add {n}" );
+            return tmpl.replace( "{n}", String( this.pickerSelectedCount() ) );
+        },
+
+        isCodeInDraft( code ) {
+            return this.draft.codes.indexOf( code ) >= 0;
+        },
+
+        confirmPicker() {
+            const selected = Object.keys( this.modal.payload?.selected || {} );
+            const merged = new Set( [ ...this.draft.codes, ...selected ] );
+            this.draft.codes = Array.from( merged ).sort( ( a, b ) => a.localeCompare( b, undefined, { numeric: true } ) );
+            if ( this.draft.codes.length > 0 ) {
+                this.draft.markedEmpty = false;
+            }
+            this.closeModal();
+        },
+
+        /* -------------------------- Clone ---------------------------------- */
+
+        openCloneModal() {
+            if ( this.isReadOnly ) return;
+            const prevCycleID = this.findPreviousCycleID();
+            this.modal = {
+                kind: "clone",
+                payload: {
+                    source: prevCycleID ? "prev-cycle" : "other",
+                    prevCycleID,
+                    prevCodes: [],
+                    otherFamily: "",
+                    otherKey: ""
+                }
+            };
+            if ( prevCycleID ) {
+                this.loadPrevCycleCodes( prevCycleID );
+            }
+        },
+
+        findPreviousCycleID() {
+            // First entry in allCycles that isn't this cycle. allCycles is sorted by createdAt desc by the server.
+            const candidate = this.allCycles.find( ( cycle ) => cycle.cycleID !== this.cycleID );
+            return candidate ? candidate.cycleID : null;
+        },
+
+        loadPrevCycleCodes( prevCycleID ) {
+            tiApplication.sendRequest( "/app/load-cycle-setup?cycleID=" + encodeURIComponent( prevCycleID ) ).then( ( result ) => {
+                const data = result?.data || {};
+                const family = data.sets && data.sets[ this.selectedFamily ];
+                const entry = family && family[ this.selectedKey ];
+                if ( this.modal.kind === "clone" ) {
+                    this.modal.payload.prevCodes = ( entry && Array.isArray( entry.codes ) ) ? entry.codes.slice() : [];
+                }
+            } ).catch( () => {
+                if ( this.modal.kind === "clone" ) {
+                    this.modal.payload.prevCodes = [];
+                }
+            } );
+        },
+
+        onCloneFamilyChange() {
+            this.modal.payload.otherKey = "";
+        },
+
+        otherFamilySpecs() {
+            const family = this.families.find( ( f ) => f.code === this.modal.payload.otherFamily );
+            return family ? family.specializations : [];
+        },
+
+        otherSourceCodes() {
+            const family = this.sets[ this.modal.payload.otherFamily ];
+            const entry = family && family[ this.modal.payload.otherKey ];
+            return ( entry && Array.isArray( entry.codes ) ) ? entry.codes : [];
+        },
+
+        canCloneConfirm() {
+            if ( this.modal.payload.source === "prev-cycle" ) {
+                return !!this.modal.payload.prevCycleID && this.modal.payload.prevCodes.length > 0;
+            }
+            if ( this.modal.payload.source === "other" ) {
+                return !!this.modal.payload.otherFamily && !!this.modal.payload.otherKey && this.otherSourceCodes().length > 0;
+            }
+            return false;
+        },
+
+        confirmClone() {
+            let sourceCodes = [];
+            if ( this.modal.payload.source === "prev-cycle" ) {
+                sourceCodes = this.modal.payload.prevCodes.slice();
+            } else if ( this.modal.payload.source === "other" ) {
+                sourceCodes = this.otherSourceCodes().slice();
+            }
+            this.draft.codes = sourceCodes.slice().sort( ( a, b ) => a.localeCompare( b, undefined, { numeric: true } ) );
+            this.draft.markedEmpty = sourceCodes.length === 0 && this.selectedKey !== "baseline";
+            tiApplication.notify( tiApplication.getLabel( "interface.cycle-setup.toast.cloned" ) );
+            this.closeModal();
+        },
+
+        formatCount( n ) {
+            const num = Number( n ) || 0;
+            return num === 1 ? "1 competency" : `${ num } competencies`;
+        },
+
+        /* -------------------------- Save / dirty --------------------------- */
+
+        isDirty() {
+            if ( !this.selectedFamily ) return false;
+            const persisted = this.sets[ this.selectedFamily ] && this.sets[ this.selectedFamily ][ this.selectedKey ];
+            const persistedCodes = persisted && Array.isArray( persisted.codes ) ? persisted.codes : null;
+            const draftCodes = this.draft.codes;
+
+            // Track "marked empty" specifically — when there are no codes either side, an explicit checkbox flip should
+            // count as dirty so the user can persist the "intentionally empty" marker.
+            if ( !persisted && draftCodes.length === 0 ) {
+                return this.draft.markedEmpty === true;
+            }
+            if ( !persisted && draftCodes.length > 0 ) {
+                return true;
+            }
+            if ( persistedCodes.length !== draftCodes.length ) return true;
+            for ( let i = 0; i < persistedCodes.length; i++ ) {
+                if ( persistedCodes[ i ] !== draftCodes[ i ] ) return true;
+            }
+            return false;
+        },
+
+        saveDraft() {
+            if ( this.isReadOnly || this.saving || !this.isDirty() ) return;
+            const family = this.selectedFamily;
+            const key = this.selectedKey;
+            const draftCodes = this.draft.codes.slice();
+            const markedEmpty = this.draft.markedEmpty === true;
+
+            this.saving = true;
+            const endpoint = ( draftCodes.length === 0 && markedEmpty && key !== "baseline" ) ? "/app/mark-active-set-empty" : "/app/set-active-competency-set";
+            const params = ( endpoint === "/app/mark-active-set-empty" ) ? { cycleID: this.cycleID, roleFamily: family, key } : { cycleID: this.cycleID, roleFamily: family, key, codes: draftCodes };
+
+            tiApplication.sendRequest( endpoint, "POST", params ).then( () => {
+                const toastLabel = ( endpoint === "/app/mark-active-set-empty" ) ? "interface.cycle-setup.toast.marked-empty" : "interface.cycle-setup.toast.saved";
+                tiApplication.notify( tiApplication.getLabel( toastLabel ) );
+                this.saving = false;
+                this.reloadAfterSave();
+            } ).catch( ( error ) => {
+                this.saving = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        reloadAfterSave() {
+            // Re-fetch the full screen data to refresh validation and persisted sets; preserve the selected node so the
+            // user stays on the same screen.
+            tiApplication.sendRequest( "/app/load-cycle-setup?cycleID=" + encodeURIComponent( this.cycleID ) ).then( ( result ) => {
+                this.applyData( result?.data || {} );
+            } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) return;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        getLabel( key, fallback = "" ) {
+            return tiApplication.getLabel( key, fallback );
+        }
+    };
+};
+
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceEvaluation", configureCompetenceEvaluation );
     Alpine.data( "competenceEmployeesList", configureEmployeesList );
@@ -1412,4 +2113,6 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceManagerCalendar", configureManagerCalendar );
     Alpine.data( "competenceInterviewSchedule", configureInterviewSchedule );
     Alpine.data( "competenceDashboard", configureDashboard );
+    Alpine.data( "competenceCycleManagement", configureCycleManagement );
+    Alpine.data( "competenceCycleSetup", configureCycleSetup );
 } );

@@ -2464,3 +2464,786 @@
     align-items: center;
     flex-shrink: 0;
 }
+
+/* ============================================================
+   Cycle Management screen
+   ============================================================ */
+.competence-cycle-empty-action {
+    margin-top: var(--s-4);
+}
+
+.competence-cycle-panel {
+    overflow: hidden;
+}
+
+.competence-cycle-table-wrap {
+    overflow-x: auto;
+}
+
+.competence-cycle-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-sm);
+}
+
+.competence-cycle-table thead th {
+    text-align: left;
+    padding: var(--s-3) var(--s-4);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--fg-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--bg-sunken);
+    border-bottom: 1px solid var(--border-soft);
+    white-space: nowrap;
+}
+
+.competence-cycle-table tbody td {
+    padding: var(--s-3) var(--s-4);
+    border-bottom: 1px solid var(--border-soft);
+    color: var(--fg-primary);
+    vertical-align: top;
+}
+
+.competence-cycle-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.competence-cycle-table tbody tr:hover {
+    background: var(--bg-tint);
+}
+
+.competence-cycle-row-name {
+    font-weight: 500;
+    color: var(--fg-primary);
+}
+
+.competence-cycle-row-dates {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    color: var(--fg-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.competence-cycle-row-dates-sep {
+    color: var(--fg-tertiary);
+}
+
+.competence-cycle-row-actual {
+    margin-top: 2px;
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+}
+
+.competence-cycle-row-counts {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    color: var(--fg-primary);
+}
+
+.competence-cycle-row-counts strong {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+
+.competence-cycle-count-suffix {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+    margin-left: 2px;
+}
+
+.competence-cycle-count-sep {
+    color: var(--fg-tertiary);
+}
+
+.competence-cycle-row-no-counts {
+    color: var(--fg-tertiary);
+    font-size: var(--fs-xs);
+    font-style: italic;
+}
+
+.competence-cycle-row-created {
+    color: var(--fg-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.competence-cycle-row-created-by {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+    margin-top: 2px;
+}
+
+.competence-cycle-actions {
+    display: inline-flex;
+    gap: var(--s-2);
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+}
+
+.competence-cycle-actions-col {
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* Create / lock / close modals */
+.competence-cycle-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+}
+
+.competence-cycle-form-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.competence-cycle-form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--s-3);
+}
+
+.competence-cycle-form-hint {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+}
+
+.competence-cycle-form-error {
+    color: var(--danger);
+    font-size: var(--fs-sm);
+    background: var(--danger-soft);
+    border: 1px solid var(--danger);
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-sm);
+}
+
+.competence-cycle-lock-target {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+}
+
+.competence-cycle-lock-errors {
+    list-style: none;
+    padding: 0;
+    margin: var(--s-3) 0 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+}
+
+.competence-cycle-lock-error-group {
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-sm);
+    overflow: hidden;
+}
+
+.competence-cycle-lock-error-head {
+    background: var(--bg-sunken);
+    padding: var(--s-2) var(--s-3);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.competence-cycle-lock-error-list {
+    list-style: none;
+    padding: var(--s-2) var(--s-3);
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.competence-cycle-lock-error-rule {
+    font-weight: 600;
+    color: var(--warn);
+    margin-right: var(--s-2);
+}
+
+.competence-cycle-lock-error-detail {
+    color: var(--fg-secondary);
+    font-size: var(--fs-sm);
+}
+
+/* ============================================================
+   Cycle Setup screen
+   ============================================================ */
+.competence-cycle-setup-title-sep {
+    color: var(--fg-tertiary);
+    margin: 0 var(--s-2);
+}
+
+.competence-cycle-setup-subhead {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin-top: var(--s-2);
+}
+
+.competence-cycle-setup-readonly {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin-top: var(--s-4);
+    padding: var(--s-3) var(--s-4);
+    border-radius: var(--r-sm);
+    background: var(--warn-soft);
+    border: 1px solid var(--warn);
+    color: var(--warn);
+    font-size: var(--fs-sm);
+}
+
+.competence-cycle-setup-readonly svg {
+    flex-shrink: 0;
+}
+
+.competence-cycle-setup-shell {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: var(--s-4);
+    margin-top: var(--s-4);
+    min-height: 600px;
+}
+
+.competence-cycle-tree-pane {
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.competence-cycle-tree-head {
+    padding: var(--s-3) var(--s-4);
+    border-bottom: 1px solid var(--border-soft);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--fg-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--bg-sunken);
+}
+
+.competence-cycle-tree {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: var(--s-2) 0;
+}
+
+.competence-cycle-tree-family {
+    margin-bottom: var(--s-2);
+}
+
+.competence-cycle-tree-family-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: var(--s-2) var(--s-4);
+    color: var(--fg-secondary);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: default;
+    user-select: none;
+}
+
+.competence-cycle-tree-family-code {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.competence-cycle-tree-family-name {
+    flex: 1;
+    color: var(--fg-secondary);
+}
+
+.competence-cycle-tree-spec-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.competence-cycle-tree-node {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: var(--s-2) var(--s-4) var(--s-2) calc(var(--s-4) + var(--s-3));
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    color: var(--fg-primary);
+    font-size: var(--fs-sm);
+    border-left: 2px solid transparent;
+    transition: background var(--dur-fast), border-left-color var(--dur-fast);
+    font-family: inherit;
+}
+
+.competence-cycle-tree-node:hover {
+    background: var(--bg-tint);
+}
+
+.competence-cycle-tree-node.is-selected {
+    background: var(--accent-soft);
+    border-left-color: var(--accent);
+    color: var(--accent);
+    font-weight: 500;
+}
+
+.competence-cycle-tree-node-label {
+    flex: 1;
+}
+
+.competence-cycle-tree-node-count {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+    font-variant-numeric: tabular-nums;
+    background: var(--bg-tint);
+    padding: 1px 6px;
+    border-radius: var(--r-pill);
+}
+
+.competence-cycle-tree-node.is-selected .competence-cycle-tree-node-count {
+    color: var(--accent);
+    background: var(--bg-surface);
+}
+
+.competence-cycle-tree-status {
+    width: 18px;
+    height: 18px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 50%;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.competence-cycle-tree-status.clean {
+    color: var(--success);
+    background: var(--success-soft);
+}
+
+.competence-cycle-tree-status.warn {
+    color: var(--warn);
+    background: var(--warn-soft);
+}
+
+.competence-cycle-tree-status.empty {
+    color: var(--fg-tertiary);
+    background: var(--bg-tint);
+}
+
+.competence-cycle-tree-status.unconfigured {
+    background: transparent;
+    border: 1px dashed var(--border);
+}
+
+/* Right pane editor */
+.competence-cycle-editor-pane {
+    padding: var(--s-5);
+}
+
+.competence-cycle-editor {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+}
+
+.competence-cycle-editor-head {
+    padding-bottom: var(--s-3);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.competence-cycle-editor-title {
+    font-size: var(--fs-xl);
+    font-weight: 600;
+    color: var(--fg-primary);
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    flex-wrap: wrap;
+}
+
+.competence-cycle-editor-title-sep {
+    color: var(--fg-tertiary);
+}
+
+.competence-cycle-editor-desc {
+    color: var(--fg-tertiary);
+    font-size: var(--fs-sm);
+    margin-top: 4px;
+}
+
+.competence-cycle-indicator-row {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: var(--s-3);
+    align-items: center;
+    padding: var(--s-2) 0;
+}
+
+.competence-cycle-indicator-label {
+    font-size: var(--fs-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fg-tertiary);
+    font-weight: 600;
+}
+
+.competence-cap-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+}
+
+.competence-cap-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--bg-tint);
+    border-radius: var(--r-pill);
+    overflow: hidden;
+    max-width: 280px;
+}
+
+.competence-cap-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), color-mix(in oklab, var(--accent) 70%, var(--success)));
+    border-radius: var(--r-pill);
+    transition: width var(--dur-base) var(--ease-out);
+}
+
+.competence-cap-indicator.over .competence-cap-bar-fill {
+    background: var(--danger);
+}
+
+.competence-cap-text {
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.competence-cap-indicator.over .competence-cap-text {
+    color: var(--danger);
+    font-weight: 600;
+}
+
+.competence-floor-pills {
+    display: flex;
+    gap: var(--s-2);
+    flex-wrap: wrap;
+}
+
+.competence-floor-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 24px;
+    padding: 0 var(--s-2);
+    border-radius: var(--r-sm);
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    border: 1px solid transparent;
+}
+
+.competence-floor-pill.satisfied {
+    background: var(--success-soft);
+    color: var(--success);
+    border-color: color-mix(in oklab, var(--success) 30%, transparent);
+}
+
+.competence-floor-pill.missing {
+    background: transparent;
+    color: var(--danger);
+    border-color: var(--danger);
+    border-style: dashed;
+}
+
+.competence-cycle-no-extras {
+    background: var(--bg-tint);
+    border: 1px dashed var(--border);
+    border-radius: var(--r-sm);
+    padding: var(--s-3);
+}
+
+.competence-cycle-no-extras-label {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-weight: 500;
+    color: var(--fg-primary);
+    cursor: pointer;
+}
+
+.competence-cycle-no-extras-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+}
+
+.competence-cycle-no-extras-desc {
+    margin-top: var(--s-2);
+    margin-left: 24px;
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+}
+
+.competence-cycle-codes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin-top: var(--s-2);
+}
+
+.competence-cycle-codes-empty {
+    padding: var(--s-5) var(--s-4);
+    text-align: center;
+    color: var(--fg-tertiary);
+    font-size: var(--fs-sm);
+    background: var(--bg-tint);
+    border-radius: var(--r-sm);
+    border: 1px dashed var(--border);
+}
+
+.competence-cycle-code-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: var(--s-3);
+    align-items: center;
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-sm);
+    background: var(--bg-surface);
+}
+
+.competence-cycle-code-meta {
+    min-width: 0;
+}
+
+.competence-cycle-code-name {
+    color: var(--fg-primary);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.competence-cycle-code-sub {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    margin-top: 2px;
+}
+
+.competence-cycle-code-ecf {
+    color: var(--info);
+    background: var(--info-soft);
+    border-color: color-mix(in oklab, var(--info) 30%, transparent);
+}
+
+.competence-cycle-code-remove {
+    flex-shrink: 0;
+}
+
+.competence-cycle-editor-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--border-soft);
+}
+
+.competence-cycle-editor-actions-spacer {
+    flex: 1;
+}
+
+.competence-cycle-editor-state {
+    font-size: var(--fs-sm);
+}
+
+.competence-cycle-editor-state.saved {
+    color: var(--success);
+}
+
+.competence-cycle-editor-state.unsaved {
+    color: var(--warn);
+    font-weight: 500;
+}
+
+/* Picker modal */
+.competence-cycle-picker-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 180px 220px;
+    gap: var(--s-3);
+    margin-bottom: var(--s-3);
+}
+
+.competence-cycle-picker-search {
+    width: 100%;
+}
+
+.competence-cycle-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.competence-cycle-picker-empty {
+    padding: var(--s-5);
+    text-align: center;
+    color: var(--fg-tertiary);
+    font-size: var(--fs-sm);
+}
+
+.competence-cycle-picker-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--s-3);
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    transition: background var(--dur-fast), border-color var(--dur-fast);
+    align-items: center;
+}
+
+.competence-cycle-picker-row:hover {
+    background: var(--bg-tint);
+}
+
+.competence-cycle-picker-row.is-selected {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+}
+
+.competence-cycle-picker-row.is-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.competence-cycle-picker-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+}
+
+.competence-cycle-picker-row-meta {
+    min-width: 0;
+}
+
+.competence-cycle-picker-row-top {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    align-items: center;
+}
+
+.competence-cycle-picker-row-name {
+    color: var(--fg-primary);
+    font-size: var(--fs-sm);
+    margin-top: 2px;
+}
+
+.competence-cycle-picker-added {
+    color: var(--fg-tertiary);
+}
+
+/* Clone modal */
+.competence-cycle-clone-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin-bottom: var(--s-3);
+}
+
+.competence-cycle-clone-radio {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    cursor: pointer;
+    padding: var(--s-2);
+    border-radius: var(--r-sm);
+    transition: background var(--dur-fast);
+}
+
+.competence-cycle-clone-radio:hover {
+    background: var(--bg-tint);
+}
+
+.competence-cycle-clone-radio input[type="radio"] {
+    accent-color: var(--accent);
+}
+
+.competence-cycle-clone-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-3);
+}
+
+.competence-cycle-clone-empty {
+    padding: var(--s-3);
+    color: var(--fg-tertiary);
+    font-size: var(--fs-sm);
+    background: var(--bg-tint);
+    border-radius: var(--r-sm);
+}
+
+.competence-cycle-clone-preview {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-sm);
+    background: var(--bg-tint);
+}
+
+.competence-cycle-clone-count {
+    color: var(--fg-secondary);
+    font-size: var(--fs-sm);
+}
+
+.competence-cycle-clone-warning {
+    margin-top: var(--s-3);
+    padding: var(--s-2) var(--s-3);
+    background: var(--warn-soft);
+    border: 1px solid color-mix(in oklab, var(--warn) 40%, transparent);
+    color: var(--warn);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-sm);
+}
+
+/* Responsive collapse for two-pane on narrow viewports */
+@media (max-width: 960px) {
+    .competence-cycle-setup-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .competence-cycle-tree {
+        max-height: 320px;
+    }
+
+    .competence-cycle-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .competence-cycle-indicator-row {
+        grid-template-columns: 1fr;
+    }
+
+    .competence-cycle-picker-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .competence-cycle-clone-grid {
+        grid-template-columns: 1fr;
+    }
+}

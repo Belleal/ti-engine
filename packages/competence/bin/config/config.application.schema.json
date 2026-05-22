@@ -77,6 +77,12 @@
           "maximum": 10,
           "description": "Maximum number of team members allowed for team evaluations"
         },
+        "activeCompetencySetCap": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "description": "Maximum number of competencies allowed in a single (baseline ∪ specialization) resolved active competency set. Enforced when locking a cycle from PLANNING to ACTIVE."
+        },
         "numberOfNextPeriodGoals": {
           "type": "integer",
           "minimum": 1,

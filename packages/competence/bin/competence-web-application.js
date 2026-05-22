@@ -52,6 +52,14 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "Interview Schedule",
             path: "fragments/frame-interview-schedule.html"
         } );
+        this.addFragment( "cycles", {
+            title: "Appraisal Cycles",
+            path: "fragments/frame-cycles.html"
+        } );
+        this.addFragment( "cycle-setup", {
+            title: "Cycle Setup",
+            path: "fragments/frame-cycle-setup.html"
+        } );
     }
 
     /* Public interface */
@@ -120,7 +128,9 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "competence-evaluation": "evaluation",
                     "new-evaluation": "evaluation",
                     "manager-calendar": "calendar",
-                    "interview-schedule": "interviews"
+                    "interview-schedule": "interviews",
+                    "cycles": "cycles",
+                    "cycle-setup": "cycles"
                 },
                 componentsConfig: {
                     userProfileMenu: {
@@ -171,6 +181,11 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#loadManagerCalendar( session );
         } else if ( view === "load-interview-schedule" ) {
             return this.#loadInterviewSchedule( session );
+        } else if ( view === "load-cycle-list" ) {
+            return this.#loadCycleList( session );
+        } else if ( view === "load-cycle-setup" ) {
+            const cycleID = String( options?.query?.cycleID || "" ).trim();
+            return this.#loadCycleSetup( session, cycleID );
         } else {
             return super.processDataRequest( session, view, options );
         }
@@ -200,6 +215,16 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#bookInterviewSlot( session, params );
         } else if ( service === "cancel-interview-booking" ) {
             return this.#cancelInterviewBooking( session, params );
+        } else if ( service === "create-cycle" ) {
+            return this.#createCycle( session, params );
+        } else if ( service === "lock-cycle" ) {
+            return this.#lockCycle( session, params );
+        } else if ( service === "close-cycle" ) {
+            return this.#closeCycle( session, params );
+        } else if ( service === "set-active-competency-set" ) {
+            return this.#setActiveCompetencySet( session, params );
+        } else if ( service === "mark-active-set-empty" ) {
+            return this.#markActiveSetEmpty( session, params );
         } else {
             return super.processServiceRequest( session, service, params );
         }
@@ -1464,6 +1489,521 @@ class CompetenceWebApplication extends TiWebAppManager {
                 reject( exceptions.raise( error ) );
             } );
         } );
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*                       Cycle management screens                       */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Used to load the cycle list for the Cycle Management screen. Supervisor-only. Returns every cycle ordered by
+     * createdAt descending, each enriched with localized status, planned dates, lock metadata, and per-cycle evaluation
+     * counts (in-progress vs completed).
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadCycleList( session ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const activeStatuses = [
+                configurationLoader.evaluationStatus.OPEN,
+                configurationLoader.evaluationStatus.IN_REVIEW,
+                configurationLoader.evaluationStatus.READY
+            ];
+
+            Promise.all( [
+                dataManager.instance.getAllCycles(),
+                dataManager.instance.fetchEvaluations( null, false )
+            ] ).then( ( [ cycles, evaluations ] ) => {
+                const countsByCycle = new Map();
+                evaluations.forEach( ( evaluation ) => {
+                    const cycleID = evaluation?.cycleID;
+                    if ( !cycleID ) return;
+                    const bucket = countsByCycle.get( cycleID ) || { inProgress: 0, completed: 0 };
+                    if ( activeStatuses.includes( evaluation.status ) ) {
+                        bucket.inProgress++;
+                    } else if ( evaluation.status === configurationLoader.evaluationStatus.CLOSED ) {
+                        bucket.completed++;
+                    }
+                    countsByCycle.set( cycleID, bucket );
+                } );
+
+                const projected = cycles.map( ( cycle ) => {
+                    const counts = countsByCycle.get( cycle.cycleID ) || { inProgress: 0, completed: 0 };
+                    return {
+                        cycleID: cycle.cycleID,
+                        name: cycle.name,
+                        status: cycle.status,
+                        statusName: localization.getLabel( configurationLoader.cycleStatus.name( cycle.status ) || cycle.status, session?.language ),
+                        statusTone: this.#cycleStatusTone( cycle.status ),
+                        createdAt: cycle.createdAt || null,
+                        createdBy: cycle.createdBy || null,
+                        createdByName: cycle.createdBy ? ( organizationManager.instance.resolveEmployeeName( cycle.createdBy ) || cycle.createdBy ) : null,
+                        cycleStart: cycle.cycleStart || null,
+                        cycleDate: cycle.cycleDate || null,
+                        cycleEnd: cycle.cycleEnd || null,
+                        actualCloseDate: cycle.actualCloseDate || null,
+                        lockedAt: cycle.lockedAt || null,
+                        lockedBy: cycle.lockedBy || null,
+                        lockedByName: cycle.lockedBy ? ( organizationManager.instance.resolveEmployeeName( cycle.lockedBy ) || cycle.lockedBy ) : null,
+                        counts: counts
+                    };
+                } );
+
+                const activeCycle = projected.find( ( cycle ) => cycle.status === configurationLoader.cycleStatus.ACTIVE ) || null;
+                resolve( {
+                    cycles: projected,
+                    activeCycleID: activeCycle ? activeCycle.cycleID : null,
+                    suggestedCycleID: this.#suggestNextCycleID( projected )
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to load the data backing the Cycle Setup screen for a specific cycle. Supervisor-only. Returns the cycle,
+     * the full role-families catalogue with localized names, the persisted active competency sets for the cycle, the
+     * full competencies dictionary (localized) the picker filters over, the canonical subcategory list, the
+     * validation result, the cap, and a readOnly flag.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {string} cycleID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadCycleSetup( session, cycleID ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            if ( !cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID } ) );
+            }
+
+            const language = session?.language;
+
+            Promise.all( [
+                dataManager.instance.getCycle( cycleID ),
+                dataManager.instance.getRoleFamilies(),
+                competenceFramework.instance.validateCycleForLock( cycleID )
+            ] ).then( ( [ cycle, roleFamilies, validation ] ) => {
+                return Promise.all( Object.keys( roleFamilies ).map( ( familyCode ) =>
+                    dataManager.instance.getActiveCompetencySetsForFamily( familyCode, cycleID )
+                        .then( ( familySets ) => [ familyCode, familySets ] )
+                ) ).then( ( familySetPairs ) => {
+                    const families = Object.entries( roleFamilies ).map( ( [ code, family ] ) => ( {
+                        code,
+                        name: localization.getLabel( family.name || configurationLoader.roleFamilyCode.name( code ) || code, language ),
+                        description: localization.getLabel( family.description || "", language ),
+                        specializations: Object.entries( family.specializations || {} ).map( ( [ specCode, spec ] ) => ( {
+                            code: specCode,
+                            name: localization.getLabel( spec.name || specCode, language ),
+                            description: localization.getLabel( spec.description || "", language ),
+                            eCFMapping: Array.isArray( spec.eCFMapping ) ? spec.eCFMapping : []
+                        } ) )
+                    } ) );
+
+                    const sets = {};
+                    familySetPairs.forEach( ( [ familyCode, familySets ] ) => {
+                        sets[ familyCode ] = {};
+                        Object.entries( familySets ).forEach( ( [ key, codes ] ) => {
+                            sets[ familyCode ][ key ] = {
+                                codes: Array.isArray( codes ) ? codes.slice() : [],
+                                markedEmpty: Array.isArray( codes ) && codes.length === 0 && key !== "baseline"
+                            };
+                        } );
+                    } );
+
+                    const errorsByFamily = {};
+                    if ( validation && Array.isArray( validation.errors ) ) {
+                        validation.errors.forEach( ( error ) => {
+                            const groupKey = error.specialization ? `${ error.family }.${ error.specialization }` : error.family;
+                            errorsByFamily[ groupKey ] = errorsByFamily[ groupKey ] || [];
+                            errorsByFamily[ groupKey ].push( {
+                                rule: error.rule,
+                                detail: error.detail || ""
+                            } );
+                        } );
+                    }
+
+                    const dictionary = ( configurationLoader.configCompetencies && configurationLoader.configCompetencies.competencies ) || {};
+                    const categories = ( configurationLoader.configCompetencies && configurationLoader.configCompetencies.categories ) || {};
+
+                    const competenciesByCode = {};
+                    Object.entries( dictionary ).forEach( ( [ code, competency ] ) => {
+                        const subcategoryConfig = categories[ competency.category ]?.subcategories?.[ competency.subcategory ];
+                        competenciesByCode[ code ] = {
+                            code,
+                            name: localization.getLabel( competency.name, language ),
+                            description: localization.getLabel( competency.description, language ),
+                            category: competency.category,
+                            categoryName: localization.getLabel( categories[ competency.category ]?.name || competency.category, language ),
+                            subcategory: competency.subcategory,
+                            subcategoryName: localization.getLabel( subcategoryConfig?.name || competency.subcategory, language ),
+                            subcategoryDescription: localization.getLabel( subcategoryConfig?.description || "", language ),
+                            relevancy: _.cloneDeep( competency.relevancy || {} ),
+                            eCFMapping: Array.isArray( competency.eCFMapping ) ? _.cloneDeep( competency.eCFMapping ) : []
+                        };
+                    } );
+
+                    const subcategories = [];
+                    Object.entries( categories ).forEach( ( [ catCode, category ] ) => {
+                        Object.entries( category.subcategories || {} ).forEach( ( [ subCode, sub ] ) => {
+                            subcategories.push( {
+                                code: subCode,
+                                name: localization.getLabel( sub.name || subCode, language ),
+                                description: localization.getLabel( sub.description || "", language ),
+                                categoryCode: catCode,
+                                categoryName: localization.getLabel( category.name || catCode, language )
+                            } );
+                        } );
+                    } );
+
+                    resolve( {
+                        cycle: {
+                            cycleID: cycle.cycleID,
+                            name: cycle.name,
+                            status: cycle.status,
+                            statusName: localization.getLabel( configurationLoader.cycleStatus.name( cycle.status ) || cycle.status, language ),
+                            statusTone: this.#cycleStatusTone( cycle.status ),
+                            cycleStart: cycle.cycleStart || null,
+                            cycleDate: cycle.cycleDate || null,
+                            cycleEnd: cycle.cycleEnd || null,
+                            actualCloseDate: cycle.actualCloseDate || null,
+                            lockedAt: cycle.lockedAt || null,
+                            lockedBy: cycle.lockedBy || null,
+                            lockedByName: cycle.lockedBy ? ( organizationManager.instance.resolveEmployeeName( cycle.lockedBy ) || cycle.lockedBy ) : null,
+                            createdAt: cycle.createdAt || null,
+                            createdBy: cycle.createdBy || null,
+                            createdByName: cycle.createdBy ? ( organizationManager.instance.resolveEmployeeName( cycle.createdBy ) || cycle.createdBy ) : null
+                        },
+                        isReadOnly: cycle.status !== configurationLoader.cycleStatus.PLANNING,
+                        cap: configurationLoader.getSetting( "performanceAppraisals.activeCompetencySetCap", 30 ),
+                        families,
+                        sets,
+                        competenciesByCode,
+                        subcategories,
+                        validation: {
+                            valid: validation ? validation.valid : true,
+                            errorsByFamily
+                        }
+                    } );
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to create a new cycle in PLANNING state. Supervisor-only.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.cycleID
+     * @param {string} params.name
+     * @param {string} params.cycleStart
+     * @param {string} params.cycleDate
+     * @param {string} params.cycleEnd
+     * @returns {Promise<Cycle>}
+     * @private
+     */
+    #createCycle( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = String( params?.cycleID || "" ).trim();
+            const name = String( params?.name || "" ).trim();
+            const cycleStart = String( params?.cycleStart || "" ).trim();
+            const cycleDate = String( params?.cycleDate || "" ).trim();
+            const cycleEnd = String( params?.cycleEnd || "" ).trim();
+
+            if ( !cycleID || !name || !cycleEnd ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID, name, cycleEnd } ) );
+            }
+            if ( !/^\d{4}-H[12]$/.test( cycleID ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.cycle.invalid-id-format", cycleID } ) );
+            }
+            if ( cycleStart && cycleEnd && cycleStart > cycleEnd ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.cycle.invalid-date-range" } ) );
+            }
+
+            dataManager.instance.createCycle( {
+                cycleID,
+                name,
+                cycleStart: cycleStart || null,
+                cycleDate: cycleDate || cycleEnd,
+                cycleEnd,
+                createdBy: userID
+            } ).then( ( cycle ) => {
+                resolve( cycle );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to lock a cycle: validates and transitions PLANNING → ACTIVE. Supervisor-only. On validation failure the
+     * structured errors propagate to the caller so the UI can render them grouped by family.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.cycleID
+     * @returns {Promise<Cycle>}
+     * @private
+     */
+    #lockCycle( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = String( params?.cycleID || "" ).trim();
+            if ( !cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID } ) );
+            }
+
+            competenceFramework.instance.lockCycle( cycleID, userID ).then( ( cycle ) => {
+                resolve( cycle );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to close a cycle: transitions ACTIVE → CLOSED. Supervisor-only.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.cycleID
+     * @returns {Promise<Cycle>}
+     * @private
+     */
+    #closeCycle( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = String( params?.cycleID || "" ).trim();
+            if ( !cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID } ) );
+            }
+
+            competenceFramework.instance.closeCycle( cycleID ).then( ( cycle ) => {
+                resolve( cycle );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to persist the competency codes for a (roleFamily, key, cycleID) tuple. Supervisor-only. Refuses writes
+     * when the cycle is not in PLANNING. Validates that every code exists in the dictionary and that the key is a
+     * valid `baseline` or specialization code under the parent family.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.cycleID
+     * @param {string} params.roleFamily
+     * @param {string} params.key - Literal "baseline" or a specialization code under the parent family.
+     * @param {string[]} params.codes
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #setActiveCompetencySet( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = String( params?.cycleID || "" ).trim();
+            const roleFamily = String( params?.roleFamily || "" ).trim();
+            const key = String( params?.key || "" ).trim();
+            const codes = Array.isArray( params?.codes ) ? params.codes.map( String ) : null;
+
+            if ( !cycleID || !roleFamily || !key || !codes ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID, roleFamily, key, codes: !!codes } ) );
+            }
+
+            this.#assertCyclePlanning( cycleID )
+                .then( () => this.#assertValidFamilyAndKey( roleFamily, key ) )
+                .then( () => this.#assertCodesKnown( codes ) )
+                .then( () => dataManager.instance.setActiveCompetencySet( roleFamily, key, cycleID, codes ) )
+                .then( ( storedCodes ) => {
+                    return dataManager.instance.appendAuditEntry( {
+                        subjectType: "activeCompetencySet",
+                        subjectID: `${ cycleID }|${ roleFamily }|${ key }`,
+                        changedBy: userID,
+                        field: "codes",
+                        oldValue: null,
+                        newValue: storedCodes
+                    } ).then( () => ( { cycleID, roleFamily, key, codes: storedCodes } ) );
+                } )
+                .then( resolve )
+                .catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Used to mark a specialization's active set as intentionally empty for the cycle. Supervisor-only. Persists an
+     * explicit empty array, so the UI can distinguish "intentionally empty" (entry present, codes.length === 0) from
+     * "not configured" (entry absent).
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.cycleID
+     * @param {string} params.roleFamily
+     * @param {string} params.key - Must be a specialization code (cannot be "baseline").
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #markActiveSetEmpty( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = String( params?.cycleID || "" ).trim();
+            const roleFamily = String( params?.roleFamily || "" ).trim();
+            const key = String( params?.key || "" ).trim();
+
+            if ( !cycleID || !roleFamily || !key ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID, roleFamily, key } ) );
+            }
+            if ( key === "baseline" ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.cycle.cannot-mark-baseline-empty" } ) );
+            }
+
+            this.#assertCyclePlanning( cycleID )
+                .then( () => this.#assertValidFamilyAndKey( roleFamily, key ) )
+                .then( () => dataManager.instance.setActiveCompetencySet( roleFamily, key, cycleID, [] ) )
+                .then( () => {
+                    return dataManager.instance.appendAuditEntry( {
+                        subjectType: "activeCompetencySet",
+                        subjectID: `${ cycleID }|${ roleFamily }|${ key }`,
+                        changedBy: userID,
+                        field: "markedEmpty",
+                        oldValue: null,
+                        newValue: true
+                    } ).then( () => ( { cycleID, roleFamily, key, codes: [], markedEmpty: true } ) );
+                } )
+                .then( resolve )
+                .catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Asserts that the cycle is in PLANNING state. Used as a precondition by every active-set mutation.
+     *
+     * @method
+     * @private
+     * @param {string} cycleID
+     * @returns {Promise<Cycle>}
+     */
+    #assertCyclePlanning( cycleID ) {
+        return dataManager.instance.getCycle( cycleID ).then( ( cycle ) => {
+            if ( cycle.status !== configurationLoader.cycleStatus.PLANNING ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.cycle.not-in-planning", cycleID, status: cycle.status }, exceptions.httpCode.C_422 );
+            }
+            return cycle;
+        } );
+    }
+
+    /**
+     * Asserts that the role family exists and the key is `baseline` or one of the family's specialization codes.
+     *
+     * @method
+     * @private
+     * @param {string} roleFamily
+     * @param {string} key
+     * @returns {Promise<void>}
+     */
+    #assertValidFamilyAndKey( roleFamily, key ) {
+        const families = configurationLoader.configRoleFamilies || {};
+        const family = families[ roleFamily ];
+        if ( !family ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: `Role family '${ roleFamily }' is not defined.` }, exceptions.httpCode.C_404 ) );
+        }
+        if ( key === "baseline" ) {
+            return Promise.resolve();
+        }
+        const validSpecs = family.specializations || {};
+        if ( !validSpecs[ key ] ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: `Specialization '${ key }' is not valid for family '${ roleFamily }'.` } ) );
+        }
+        return Promise.resolve();
+    }
+
+    /**
+     * Asserts every code is present in the competencies dictionary.
+     *
+     * @method
+     * @private
+     * @param {string[]} codes
+     * @returns {Promise<void>}
+     */
+    #assertCodesKnown( codes ) {
+        const dictionary = ( configurationLoader.configCompetencies && configurationLoader.configCompetencies.competencies ) || {};
+        const unknown = codes.filter( ( code ) => !dictionary[ code ] );
+        if ( unknown.length > 0 ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: `Unknown competency codes: ${ unknown.join( ", " ) }` } ) );
+        }
+        return Promise.resolve();
+    }
+
+    /**
+     * Maps a cycle status to a status-pill tone variant. PLANNING → info, ACTIVE → success, CLOSED → muted.
+     *
+     * @method
+     * @private
+     * @param {CycleStatusValue|string} status
+     * @returns {"info"|"success"|"muted"|""}
+     */
+    #cycleStatusTone( status ) {
+        if ( status === configurationLoader.cycleStatus.PLANNING ) return "info";
+        if ( status === configurationLoader.cycleStatus.ACTIVE ) return "success";
+        if ( status === configurationLoader.cycleStatus.CLOSED ) return "muted";
+        return "";
+    }
+
+    /**
+     * Suggests the next free cycle ID based on today's half-year. Iterates YYYY-Hx forward until an unused ID is
+     * found. Used as the default value in the Create Cycle modal.
+     *
+     * @method
+     * @private
+     * @param {Array<{cycleID: string}>} existingCycles
+     * @returns {string}
+     */
+    #suggestNextCycleID( existingCycles ) {
+        const used = new Set( ( existingCycles || [] ).map( ( cycle ) => cycle.cycleID ) );
+        const today = new Date();
+        let year = today.getUTCFullYear();
+        let half = ( today.getUTCMonth() < 6 ) ? 2 : 1;
+        if ( half === 1 ) {
+            year++;
+        }
+        // Iterate forward until we land on an unused slot.
+        for ( let i = 0; i < 20; i++ ) {
+            const candidate = `${ year }-H${ half }`;
+            if ( !used.has( candidate ) ) {
+                return candidate;
+            }
+            if ( half === 1 ) {
+                half = 2;
+            } else {
+                half = 1;
+                year++;
+            }
+        }
+        return `${ year }-H${ half }`;
     }
 
     /**

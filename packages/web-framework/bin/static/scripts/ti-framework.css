@@ -1065,6 +1065,11 @@ body {
     box-shadow: var(--shadow-focus);
 }
 
+.ti-input.has-error, .ti-select.has-error, .ti-textarea.has-error {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
 .ti-textarea {
     height: auto;
     padding: 10px 12px;
@@ -1429,6 +1434,175 @@ body {
     to {
         opacity: 0;
         transform: translateY(6px) scale(0.97);
+    }
+}
+
+/* ============================================================
+   Modal / dialog overlay
+   ============================================================ */
+.ti-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--s-5);
+    animation: modalBackdropIn var(--dur-base) var(--ease-out);
+}
+
+[data-theme="glass"] .ti-modal-backdrop {
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.ti-modal {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-lg);
+    width: 100%;
+    max-width: 480px;
+    max-height: calc(100vh - var(--s-7));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: modalIn var(--dur-base) var(--ease-out);
+}
+
+.ti-modal.medium {
+    max-width: 640px;
+}
+
+.ti-modal.large {
+    max-width: 880px;
+}
+
+.ti-modal.full {
+    max-width: min(1100px, 100% - var(--s-7));
+}
+
+.ti-modal-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-4) var(--s-5);
+    border-bottom: 1px solid var(--border-soft);
+    background: var(--bg-surface);
+}
+
+.ti-modal-title {
+    flex: 1;
+    font-size: var(--fs-md);
+    font-weight: 600;
+    color: var(--fg-primary);
+    line-height: 1.3;
+}
+
+.ti-modal-eyebrow {
+    display: block;
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fg-tertiary);
+    margin-bottom: 2px;
+}
+
+.ti-modal-close {
+    flex: 0 0 auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--fg-tertiary);
+    border-radius: var(--r-xs);
+    line-height: 1;
+    display: grid;
+    place-items: center;
+    transition: color var(--dur-fast), background var(--dur-fast);
+}
+
+.ti-modal-close:hover {
+    color: var(--fg-primary);
+    background: var(--bg-tint);
+}
+
+.ti-modal-close svg {
+    width: 16px;
+    height: 16px;
+}
+
+.ti-modal-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: var(--s-5);
+    color: var(--fg-primary);
+    font-size: var(--fs-base);
+    line-height: 1.5;
+}
+
+.ti-modal-body p {
+    margin: 0 0 var(--s-3) 0;
+}
+
+.ti-modal-body p:last-child {
+    margin-bottom: 0;
+}
+
+.ti-modal-foot {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-5);
+    border-top: 1px solid var(--border-soft);
+    background: var(--bg-sunken);
+}
+
+.ti-modal-foot.between {
+    justify-content: space-between;
+}
+
+.ti-modal-foot.start {
+    justify-content: flex-start;
+}
+
+.ti-modal.danger .ti-modal-head {
+    background: var(--danger-soft);
+}
+
+.ti-modal.danger .ti-modal-title {
+    color: var(--danger);
+}
+
+.ti-modal.warn .ti-modal-head {
+    background: var(--warn-soft);
+}
+
+.ti-modal.warn .ti-modal-title {
+    color: var(--warn);
+}
+
+@keyframes modalBackdropIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modalIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
     }
 }
 
