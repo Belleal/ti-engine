@@ -102,9 +102,7 @@
                                 <span x-text="member.name"></span>
                                 <button type="button" class="competence-team-chip-x" @click="removeTeamMember(member.employeeID)"
                                         x-bind:aria-label="'Remove ' + member.name">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-                                        <path d="M18 6L6 18M6 6l12 12"/>
-                                    </svg>
+                                    <span class="ti-icon close xs" aria-hidden="true"></span>
                                 </button>
                             </div>
                         </template>
@@ -120,9 +118,7 @@
     <div class="competence-eval-sticky-bar competence-new-eval-sticky">
         <button type="button" class="ti-btn ghost sm" @click="cancel()" x-text-label="interface.evaluation.actions.cancel"></button>
         <button type="button" class="ti-btn primary sm" @click="submitNewEvaluation()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <polygon points="5 3 19 12 5 21 5 3"/>
-            </svg>
+            <span class="ti-icon send sm" aria-hidden="true"></span>
             <span x-text-label="interface.evaluation.new-eval.open-evaluation"></span>
         </button>
     </div>

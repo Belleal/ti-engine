@@ -19,11 +19,7 @@
     <!-- Read-only banner -->
     <template x-if="loaded && isReadOnly">
         <div class="competence-cycle-setup-readonly">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
+            <span class="ti-icon lock md" aria-hidden="true"></span>
             <span x-text-label="interface.cycle-setup.read-only-banner"></span>
         </div>
     </template>
@@ -76,10 +72,7 @@
                 <template x-if="!selectedFamily">
                     <div class="ti-empty-state">
                         <div class="ti-empty-state-icon" aria-hidden="true">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                            </svg>
+                            <span class="ti-icon folder xl"></span>
                         </div>
                         <div class="ti-empty-state-title" x-text-label="interface.cycle-setup.no-family-selected-title"></div>
                         <div class="ti-empty-state-desc" x-text-label="interface.cycle-setup.no-family-selected-desc"></div>
@@ -177,10 +170,7 @@
                                             x-show="!isReadOnly"
                                             @click="removeCode(code)"
                                             x-bind:aria-label="getRemoveAria(code)">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                             stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                            <path d="M18 6L6 18M6 6l12 12"/>
-                                        </svg>
+                                        <span class="ti-icon close sm" aria-hidden="true"></span>
                                     </button>
                                 </div>
                             </template>
@@ -189,10 +179,7 @@
                         <!-- Action bar -->
                         <div class="competence-cycle-editor-actions" x-show="!isReadOnly">
                             <button type="button" class="ti-btn primary" @click="openPicker()">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                     stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <path d="M12 5v14M5 12h14"/>
-                                </svg>
+                                <span class="ti-icon plus sm" aria-hidden="true"></span>
                                 <span x-text-label="interface.cycle-setup.add-btn"></span>
                             </button>
                             <button type="button" class="ti-btn" @click="openCloneModal()" x-text-label="interface.cycle-setup.clone-btn"></button>
@@ -219,9 +206,7 @@
                 <div class="ti-modal-head">
                     <div class="ti-modal-title" x-text-label="interface.cycle-setup.picker.title"></div>
                     <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M18 6L6 18M6 6l12 12"/>
-                        </svg>
+                        <span class="ti-icon close md" aria-hidden="true"></span>
                     </button>
                 </div>
                 <div class="ti-modal-body">
@@ -286,9 +271,7 @@
                 <div class="ti-modal-head">
                     <div class="ti-modal-title" x-text-label="interface.cycle-setup.clone-modal.title"></div>
                     <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M18 6L6 18M6 6l12 12"/>
-                        </svg>
+                        <span class="ti-icon close md" aria-hidden="true"></span>
                     </button>
                 </div>
                 <div class="ti-modal-body">

@@ -18,9 +18,7 @@
         <div class="competence-cal-nav-group">
             <button type="button" class="ti-btn sm ghost icon" @click="prevWeek()" x-bind:disabled="!canGoPrev()"
                     x-bind:aria-label="getLabel('interface.calendar.week-nav-prev')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <polyline points="15 18 9 12 15 6"/>
-                </svg>
+                <span class="ti-icon chevron-left md" aria-hidden="true"></span>
             </button>
             <div class="competence-cal-nav-center">
                 <div class="competence-calendar-week-label" x-text="getWeekLabel()"></div>
@@ -28,9 +26,7 @@
             </div>
             <button type="button" class="ti-btn sm ghost icon" @click="nextWeek()" x-bind:disabled="!canGoNext()"
                     x-bind:aria-label="getLabel('interface.calendar.week-nav-next')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <polyline points="9 18 15 12 9 6"/>
-                </svg>
+                <span class="ti-icon chevron-right md" aria-hidden="true"></span>
             </button>
         </div>
         <div class="competence-cal-slot-counts">

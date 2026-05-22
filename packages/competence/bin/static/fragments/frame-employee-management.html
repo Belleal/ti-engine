@@ -44,10 +44,7 @@
                     <button type="button" class="ti-btn sm primary competence-empmgmt-new-btn"
                             x-show="scope === 'supervisor'"
                             @click="openCreateModal()">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25"
-                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 5v14M5 12h14"/>
-                        </svg>
+                        <span class="ti-icon plus sm" aria-hidden="true"></span>
                         <span x-text-label="interface.employee-management.new-btn"></span>
                     </button>
                 </div>
@@ -92,11 +89,7 @@
                 <template x-if="!selectedEmployeeID">
                     <div class="ti-empty-state">
                         <div class="ti-empty-state-icon" aria-hidden="true">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                                 stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                                <circle cx="9" cy="7" r="4"/>
-                            </svg>
+                            <span class="ti-icon user xl"></span>
                         </div>
                         <div class="ti-empty-state-title" x-text-label="interface.employee-management.no-selection-title"></div>
                         <div class="ti-empty-state-desc" x-text-label="interface.employee-management.no-selection-desc"></div>
@@ -366,9 +359,7 @@
                 <div class="ti-modal-head">
                     <div class="ti-modal-title" x-text-label="interface.employee-management.role-family-change.title"></div>
                     <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M18 6L6 18M6 6l12 12"/>
-                        </svg>
+                        <span class="ti-icon close md" aria-hidden="true"></span>
                     </button>
                 </div>
                 <div class="ti-modal-body">
@@ -393,9 +384,7 @@
                 <div class="ti-modal-head">
                     <div class="ti-modal-title" x-text-label="interface.employee-management.specialization-change.title"></div>
                     <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M18 6L6 18M6 6l12 12"/>
-                        </svg>
+                        <span class="ti-icon close md" aria-hidden="true"></span>
                     </button>
                 </div>
                 <div class="ti-modal-body">
@@ -418,9 +407,7 @@
                 <div class="ti-modal-head">
                     <div class="ti-modal-title" x-text-label="interface.employee-management.create-modal.title"></div>
                     <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M18 6L6 18M6 6l12 12"/>
-                        </svg>
+                        <span class="ti-icon close md" aria-hidden="true"></span>
                     </button>
                 </div>
                 <div class="ti-modal-body">
