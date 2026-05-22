@@ -7,6 +7,7 @@
 */
 
 const exceptions = require( "@ti-engine/core/exceptions" );
+const localization = require( "@ti-engine/core/localization" );
 const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
 const { DirectedGraph } = require( "graphology" );
@@ -129,14 +130,16 @@ class OrganizationManager {
                         nodeType: "employee",
                         id: employeeID,
                         name: `${ firstName } ${ lastName }`.trim(),
-                        careerPath: employee.career?.careerPath,
+                        roleFamily: employee.career?.roleFamily,
+                        specialization: employee.career?.specialization ?? null,
                         level: employee.career?.level,
                         stage: employee.career?.stage,
                         startingDate: employee.career?.startingDate,
                         organizationUnitID: organizationUnitID,
                         workMode: employee.personal?.workMode,
                         workLocation: employee.personal?.workLocation,
-                        email: employee.email
+                        email: employee.email,
+                        employmentStatus: employee.employmentStatus || "active"
                     } );
 
                     const unitNodeID = this.toUnitNodeID( organizationUnitID );
@@ -310,24 +313,33 @@ class OrganizationManager {
     }
 
     /**
-     * Resolves the career attributes (level, careerPath, careerPathName) for the specified employee ID.
+     * Resolves the career attributes for the specified employee ID. Returns the resolved level/stage codes plus the
+     * role family / specialization codes and their localized display names.
      *
      * @method
      * @param {string} employeeID
-     * @returns {{level: string, careerPath: string, careerPathName: string}|null}
+     * @param {TiLocalizationLanguage} [language]
+     * @returns {{level: string, stage: number, roleFamily: string, specialization: string|null, roleFamilyName: string, specializationName: string|null}|null}
      * @public
      */
-    resolveEmployeeAttributes( employeeID ) {
+    resolveEmployeeAttributes( employeeID, language ) {
         const nodeID = this.toEmployeeNodeID( employeeID );
         if ( !this.#organizationChart || !this.#organizationChart.hasNode( nodeID ) ) {
             return null;
         }
 
         const level = this.#organizationChart.getNodeAttribute( nodeID, "level" );
-        const careerPath = this.#organizationChart.getNodeAttribute( nodeID, "careerPath" );
-        const careerPathName = configurationLoader.careerPathCode.name( careerPath ) || careerPath;
+        const stage = this.#organizationChart.getNodeAttribute( nodeID, "stage" );
+        const roleFamily = this.#organizationChart.getNodeAttribute( nodeID, "roleFamily" );
+        const specialization = this.#organizationChart.getNodeAttribute( nodeID, "specialization" ) ?? null;
+        const roleFamilyName = roleFamily
+            ? ( localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ roleFamily ]?.name || configurationLoader.roleFamilyCode.name( roleFamily ) || roleFamily, language ) )
+            : "";
+        const specializationName = ( roleFamily && specialization )
+            ? localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ roleFamily ]?.specializations?.[ specialization ]?.name || specialization, language )
+            : null;
 
-        return { level, careerPath, careerPathName };
+        return { level, stage, roleFamily, specialization, roleFamilyName, specializationName };
     }
 
     /**
@@ -425,14 +437,16 @@ class OrganizationManager {
             return employeeAttributes ? {
                 employeeID: employeeAttributes.id,
                 name: employeeAttributes.name,
-                careerPath: employeeAttributes.careerPath,
+                roleFamily: employeeAttributes.roleFamily,
+                specialization: employeeAttributes.specialization ?? null,
                 level: employeeAttributes.level,
                 stage: employeeAttributes.stage,
                 startingDate: employeeAttributes.startingDate,
                 organizationUnitID: employeeAttributes.organizationUnitID,
                 workMode: employeeAttributes.workMode,
                 workLocation: employeeAttributes.workLocation,
-                email: employeeAttributes.email
+                email: employeeAttributes.email,
+                employmentStatus: employeeAttributes.employmentStatus || "active"
             } : null;
         } );
         employees.sort( ( firstEmployee, secondEmployee ) => firstEmployee.name.localeCompare( secondEmployee.name ) );

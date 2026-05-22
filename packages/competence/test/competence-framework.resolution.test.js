@@ -1,0 +1,88 @@
+/*
+ * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
+
+const { describe, it, before } = require( "node:test" );
+const assert = require( "node:assert/strict" );
+
+const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
+
+let competenceFramework;
+let dataManager;
+let configurationLoader;
+
+before( async () => {
+    installInMemoryCache();
+    configurationLoader = require( "#configuration-loader" );
+    dataManager = require( "#data-manager" );
+    competenceFramework = require( "#competence-framework" );
+
+    process.env.COMPETENCE_PRELOAD_DATA = "true";
+    await dataManager.instance.initialize();
+} );
+
+describe( "CompetenceFramework.getActiveCompetencySet — resolution semantics", () => {
+
+    it( "returns baseline only when specialization is null", async () => {
+        const codes = await competenceFramework.instance.getActiveCompetencySet( "SE", null, "2026-H2" );
+        const baseline = await dataManager.instance.getBaselineSet( "SE", "2026-H2" );
+        assert.ok( Array.isArray( codes ) );
+        assert.deepEqual( new Set( codes ), new Set( baseline ) );
+    } );
+
+    it( "returns baseline ∪ specialization when specialization is provided", async () => {
+        const merged = await competenceFramework.instance.getActiveCompetencySet( "SE", "BACKEND", "2026-H2" );
+        const baseline = await dataManager.instance.getBaselineSet( "SE", "2026-H2" );
+        const spec = await dataManager.instance.getSpecializationSet( "SE", "BACKEND", "2026-H2" );
+        const expected = new Set( [ ...baseline, ...spec ] );
+        assert.equal( merged.length, expected.size, "merged size must equal the size of the deduplicated union" );
+        assert.deepEqual( new Set( merged ), expected );
+    } );
+
+    it( "treats a missing specialization set as an empty add (baseline only, no error)", async () => {
+        // Family SE does not have an EMBEDDED specialization assigned for 2026-H2 in the seed.
+        const codes = await competenceFramework.instance.getActiveCompetencySet( "SE", "EMBEDDED", "2026-H2" );
+        const baseline = await dataManager.instance.getBaselineSet( "SE", "2026-H2" );
+        assert.deepEqual( new Set( codes ), new Set( baseline ) );
+    } );
+
+    it( "deduplicates codes that appear in both baseline and specialization", async () => {
+        // Seed a fictitious specialization (SE/_OVERLAP_TEST_) overlapping baseline by one code, then resolve.
+        const baseline = await dataManager.instance.getBaselineSet( "SE", "2026-H2" );
+        assert.ok( baseline.length > 0, "precondition: baseline must be populated" );
+        await dataManager.instance.setActiveCompetencySet( "SE", "OVERLAP_TEST", "2026-H2", [ baseline[ 0 ], "E2-9" ] );
+        const codes = await competenceFramework.instance.getActiveCompetencySet( "SE", "OVERLAP_TEST", "2026-H2" );
+        // `E2-9` must appear once; the shared `baseline[0]` must appear once. Length = baseline.length + 1.
+        assert.equal( codes.length, baseline.length + 1 );
+        assert.equal( codes.filter( ( c ) => c === baseline[ 0 ] ).length, 1 );
+        assert.equal( codes.filter( ( c ) => c === "E2-9" ).length, 1 );
+    } );
+
+    it( "returns codes sorted ascending by code (natural numeric within category)", async () => {
+        const codes = await competenceFramework.instance.getActiveCompetencySet( "SE", "BACKEND", "2026-H2" );
+        const sorted = [ ...codes ].sort( ( a, b ) => a.localeCompare( b, undefined, { numeric: true } ) );
+        assert.deepEqual( codes, sorted );
+    } );
+
+    it( "throws when the baseline for the family + cycle is missing or empty", async () => {
+        await assert.rejects(
+            async () => competenceFramework.instance.getActiveCompetencySet( "QE", null, "2026-H2" ),
+            ( err ) => /baseline/i.test( err?.data?.details || err?.message || "" ),
+            "Expected a missing-baseline error for family QE in cycle 2026-H2"
+        );
+    } );
+
+    it( "throws when called with missing arguments", async () => {
+        await assert.rejects(
+            async () => competenceFramework.instance.getActiveCompetencySet( "", null, "2026-H2" )
+        );
+        await assert.rejects(
+            async () => competenceFramework.instance.getActiveCompetencySet( "SE", null, "" )
+        );
+    } );
+
+} );

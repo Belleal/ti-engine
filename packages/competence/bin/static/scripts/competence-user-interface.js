@@ -1171,7 +1171,7 @@ const configureInterviewSchedule = () => {
 
         getEvalMeta( evaluation ) {
             const displayID = evaluation.shortID || evaluation.evaluationID;
-            return [ displayID, evaluation.careerPathName, evaluation.stageLevel ]
+            return [ displayID, evaluation.roleFamilyName, evaluation.stageLevel ]
                 .filter( ( v ) => !!v )
                 .join( " · " );
         },

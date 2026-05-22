@@ -153,7 +153,7 @@
                 <span class="ti-sidebar-user-text">
                     <span class="ti-sidebar-user-name" x-text="( $store.tiApplication.user && $store.tiApplication.user.name ) || ''"></span>
                     <span class="ti-sidebar-user-sub"
-                          x-text="( $store.tiApplication.configuration && $store.tiApplication.configuration.employeeLevel && $store.tiApplication.configuration.employeeLevel.careerPathName && $store.tiApplication.configuration.employeeLevel.level ) ? ($store.tiApplication.configuration.employeeLevel.careerPathName + ' · ' + $store.tiApplication.configuration.employeeLevel.level ) : ( ( $store.tiApplication.user && $store.tiApplication.user.roles ) || [] ).join( ' · ' )"></span>
+                          x-text="( $store.tiApplication.configuration && $store.tiApplication.configuration.employeeLevel && $store.tiApplication.configuration.employeeLevel.roleFamilyName && $store.tiApplication.configuration.employeeLevel.level ) ? ($store.tiApplication.configuration.employeeLevel.roleFamilyName + ( $store.tiApplication.configuration.employeeLevel.specializationName ? ( ' · ' + $store.tiApplication.configuration.employeeLevel.specializationName ) : '' ) + ' · ' + $store.tiApplication.configuration.employeeLevel.level + ( $store.tiApplication.configuration.employeeLevel.stage || '' ) ) : ( ( $store.tiApplication.user && $store.tiApplication.user.roles ) || [] ).join( ' · ' )"></span>
                 </span>
             </button>
         </ti-component-sidebar-flyout-placeholder>

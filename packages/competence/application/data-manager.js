@@ -665,6 +665,43 @@ class DataManager {
     }
 
     /**
+     * Returns every persisted set (baseline + every specialization) for a family within the given cycle, keyed by
+     * `"baseline"` or specialization code. Useful for validation flows that need all of the family's data at once.
+     *
+     * @method
+     * @param {RoleFamilyCodeValue|string} roleFamily
+     * @param {string} cycleID
+     * @returns {Promise<Object.<string, Array<string>>>}
+     * @public
+     */
+    getActiveCompetencySetsForFamily( roleFamily, cycleID ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( !roleFamily || !cycleID ) {
+                return resolve( {} );
+            }
+            const projectFamilyEntry = ( familyEntry ) => {
+                if ( !familyEntry || typeof familyEntry !== "object" ) {
+                    return {};
+                }
+                const out = {};
+                for ( const [ key, cycleMap ] of Object.entries( familyEntry ) ) {
+                    if ( cycleMap && Array.isArray( cycleMap[ cycleID ] ) ) {
+                        out[ key ] = cycleMap[ cycleID ].slice();
+                    }
+                }
+                return out;
+            };
+            if ( cache.instance.isOperational ) {
+                cache.instance.getJSON( cacheEntryKeyActiveCompetencySets, `${ roleFamily }` ).then( ( result ) => {
+                    resolve( projectFamilyEntry( ( result instanceof Array ) ? result[ 0 ] : result ) );
+                } ).catch( reject );
+            } else {
+                resolve( projectFamilyEntry( ( configurationLoader.configActiveCompetencySets || {} )[ roleFamily ] ) );
+            }
+        } );
+    }
+
+    /**
      * Persists the competency codes for a (roleFamily, baseline-or-specialization, cycleID) tuple. The `key` argument
      * is the literal `"baseline"` or a valid specialization code under the parent family.
      *

@@ -23,7 +23,7 @@
                         <div class="competence-eval-emp-info">
                             <div class="competence-eval-emp-name" x-text="personal.name"></div>
                             <div class="competence-eval-emp-career">
-                                <span x-text="evaluation.careerPathName"></span>
+                                <span x-text="evaluation.roleFamilyName"></span>
                                 <span class="competence-level-pip"
                                       x-show="evaluation.stageLevel"
                                       x-bind:class="evaluation.stageLevel ? evaluation.stageLevel.charAt(0) : ''"
@@ -58,7 +58,7 @@
                     <span class="ti-kv-value" x-text="formatDate(evaluation.cycleEndDate)"></span>
                     <span class="ti-kv-label" x-text-label="interface.evaluation.new-eval.career-framework"></span>
                     <span class="ti-kv-value">
-                        <span x-text="evaluation.careerPathName"></span>
+                        <span x-text="evaluation.roleFamilyName"></span>
                         <span class="competence-eval-sub-sep"> — </span>
                         <span class="competence-level-pip" x-bind:class="evaluation.stageLevel ? evaluation.stageLevel.charAt(0) : ''"
                               x-text="evaluation.stageLevel"></span>
@@ -83,7 +83,7 @@
                         <select class="ti-select" x-bind:value="selectedTeamMemberID" @change="selectedTeamMemberID = $event.target.value">
                             <option value="" x-text-label="interface.evaluation.new-eval.choose-colleague"></option>
                             <template x-for="member in availableTeamMembers" x-bind:key="member.employeeID">
-                                <option x-bind:value="member.employeeID" x-text="member.name + ' — ' + member.careerPathName"></option>
+                                <option x-bind:value="member.employeeID" x-text="member.name + ' — ' + member.roleFamilyName"></option>
                             </template>
                         </select>
                         <button type="button" class="ti-btn primary" @click="addTeamMember()"
