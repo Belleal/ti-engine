@@ -1020,6 +1020,24 @@ const configureApplication = () => {
         },
 
         /**
+         * Returns true when the current session user holds the given role code. Safe to call before the session has
+         * loaded (returns false). Provided as a helper because the Alpine CSP evaluator does not expose `Array`, so
+         * `Array.isArray( ... )` cannot be written inline in templates.
+         *
+         * @method
+         * @param {number|string} roleCode
+         * @returns {boolean}
+         * @public
+         */
+        hasRole( roleCode ) {
+            const roles = this.user && this.user.roles;
+            if ( !roles || typeof roles.indexOf !== "function" ) {
+                return false;
+            }
+            return roles.indexOf( roleCode ) >= 0;
+        },
+
+        /**
          * Toggle the sidebar between expanded and collapsed states.
          *
          * @method

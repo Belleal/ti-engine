@@ -47,7 +47,7 @@
         </button>
 
         <button hx-get="/app/cycles" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'cycles'"
-                x-show="$store.tiApplication.user && Array.isArray($store.tiApplication.user.roles) && $store.tiApplication.user.roles.indexOf(3) >= 0"
+                x-show="$store.tiApplication.hasRole(3)"
                 x-bind:class="{ active: active === 'cycles' }" class="ti-sidebar-item" data-tip="Cycles" aria-label="Cycles" type="button">
                 <span class="ti-sidebar-item-icon">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
@@ -60,7 +60,7 @@
         </button>
 
         <button hx-get="/app/employee-management" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'employee-management'"
-                x-show="$store.tiApplication.user && Array.isArray($store.tiApplication.user.roles) && ($store.tiApplication.user.roles.indexOf(2) >= 0 || $store.tiApplication.user.roles.indexOf(3) >= 0)"
+                x-show="$store.tiApplication.hasRole(2) || $store.tiApplication.hasRole(3)"
                 x-bind:class="{ active: active === 'employee-management' }" class="ti-sidebar-item" data-tip="People" aria-label="People" type="button">
                 <span class="ti-sidebar-item-icon">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"

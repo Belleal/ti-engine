@@ -227,7 +227,7 @@
                                                 <span x-text-label="interface.employees.action.start">Start Evaluation</span>
                                             </button>
                                             <button type="button" class="ti-btn sm"
-                                                    x-show="$store.tiApplication.user && Array.isArray($store.tiApplication.user.roles) && ($store.tiApplication.user.roles.indexOf(2) >= 0 || $store.tiApplication.user.roles.indexOf(3) >= 0)"
+                                                    x-show="$store.tiApplication.hasRole(2) || $store.tiApplication.hasRole(3)"
                                                     @click="openEmployeeManagement(employee.id)">
                                                 <span x-text-label="interface.employees.action.manage">Manage</span>
                                             </button>
