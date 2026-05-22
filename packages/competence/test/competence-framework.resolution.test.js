@@ -13,11 +13,9 @@ const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
 
 let competenceFramework;
 let dataManager;
-let configurationLoader;
 
 before( async () => {
     installInMemoryCache();
-    configurationLoader = require( "#configuration-loader" );
     dataManager = require( "#data-manager" );
     competenceFramework = require( "#competence-framework" );
 

@@ -4,13 +4,14 @@ Specialized software for managing and monitoring a **Competence-based Performanc
 
 ## Overview
 
-The application supports a structured annual or semi-annual performance appraisal cycle where each employee is evaluated across a set of competencies relevant to their career path and level. Evaluations are conducted collaboratively: the employee completes a self-assessment, selected team members provide peer feedback, and the direct manager reviews all input and adds their own assessment. The result is a weighted performance score across multiple competency categories, interpreted against defined performance thresholds.
+The application supports a structured annual or semi-annual performance appraisal cycle where each employee is evaluated across a set of competencies relevant to their **role family**, **specialization**, and **stage-level**. Evaluations are conducted collaboratively: the employee completes a self-assessment, selected team members provide peer feedback, and the direct manager reviews all input and adds their own assessment. The result is a weighted performance score across multiple competency categories, interpreted against defined performance thresholds.
 
 ## Current Status
 
 The following features are currently implemented:
 
-- **[Process]** Starting evaluations by an authorized Manager or Supervisor, with the competency set determined by the employee's career path and appraisal cycle
+- **[Process]** Starting evaluations by an authorized Manager or Supervisor, with the competency set resolved from the employee's role family + specialization for the currently `ACTIVE` cycle and frozen as a snapshot onto the evaluation record
+- **[Process]** Cycle lifecycle — Supervisors create cycles in `PLANNING`, configure per-family Active Competency Sets, validate and lock to `ACTIVE`, and later close to `CLOSED`. One-way transitions; only one `ACTIVE` cycle at a time
 - **[Process]** Loading evaluations by Employee, Team Member, or Manager — with role-based data visibility and edit authorization
 - **[Process]** Saving evaluation drafts (Employee for self-grades; Manager for manager-grades and comment)
 - **[Process]** Submitting evaluations with role-based validation, deadline enforcement, and automatic status transitions
@@ -27,8 +28,11 @@ The following features are currently implemented:
 - **[UI]** New Evaluation screen — form for starting a new evaluation with optional team member selection
 - **[UI]** Manager Availability Calendar screen — weekly grid for toggling availability slots, cycle-bounded navigation
 - **[UI]** Interview Schedule screen — evaluation list with schedule/cancel actions and a 4-column weekly slot picker
+- **[UI]** Cycle Management screen — Supervisor-only table of cycles with create, lock (with validation-errors modal), and close actions
+- **[UI]** Cycle Setup screen — Supervisor-only two-pane editor for the Active Competency Sets of a cycle; tree of families and specializations, cap and floor-coverage indicators, competency picker, clone-from-another-node flow
+- **[UI]** Employee Management screen — Supervisor + Manager master/detail editor with field-level permission gating, audit log, in-flight evaluation count surfaced on role-family changes
 
-> **Note on planned features:** Step 8 of the process (goal-setting and formal closure) is part of the full intended workflow and is described below, but is not yet implemented. The appraisal cycle ID and date will be configurable by Supervisors in a planned future release; they are currently hardcoded in the application.
+> **Note on planned features:** Step 8 of the process (goal-setting and formal closure) is part of the full intended workflow and is described below, but is not yet implemented.
 
 ---
 
@@ -47,19 +51,31 @@ The system defines four roles that govern what actions a user can take and what 
 
 A user can hold multiple roles. The active role for a given operation is resolved from context: being the employee of record, appearing in the `workflow.team` list, or being the resolved manager in the organization hierarchy.
 
-### Career Paths
+### Role Families and Specializations
 
-Each employee is assigned a **career path** that determines which competencies appear in their evaluation:
+Each employee is identified by three orthogonal dimensions that together determine which competencies appear in their evaluation:
 
-| Code   | Name              |
-|--------|-------------------|
-| `SE01` | Software Engineer |
-| `PM01` | Project Manager   |
-| `BA01` | Business Analyst  |
+1. **Role Family** — the broad discipline (one of nine codes below). Mandatory.
+2. **Specialization** — a narrower focus within the family (e.g., `BACKEND` under `SE`). Optional — when unset, the employee is treated as a *generalist* within the family.
+3. **Stage-Level** — the seniority code (`N1`, `J1`–`J3`, `R1`–`R3`, `S1`–`S3`, `X1`, `T1`) that maps to per-competency relevancy weights.
 
-Additional career paths and their competency mappings are configurable in `bin/config/config.career-path-competencies.json`.
+The nine role families and their permitted specializations are configured in `bin/config/config.role-families.json`:
 
-### Career Path Levels
+| Code | Role Family                  | Specializations                                                    |
+|------|------------------------------|--------------------------------------------------------------------|
+| `SE` | Software Engineering         | `BACKEND`, `FRONTEND`, `MOBILE`, `FULLSTACK`, `EMBEDDED`           |
+| `QE` | Quality Engineering          | `MANUAL`, `AUTOMATION`, `PERFORMANCE`, `SECURITY`                  |
+| `BA` | Business Analysis            | `REQUIREMENTS`, `PROCESS`, `PRODUCT_OWNERSHIP`, `DATA_BA`, `DOC_PROC` |
+| `PM` | Project & Delivery Management| `AGILE`, `TRADITIONAL`, `PROGRAM`                                  |
+| `XD` | Experience Design            | `RESEARCH`, `INTERACTION`, `VISUAL`, `SERVICE`                     |
+| `DA` | Data & Analytics             | `ENGINEERING`, `ANALYTICS`, `ML`, `RESEARCH`                       |
+| `IO` | Infrastructure & Ops         | `DEVOPS`, `SRE`, `CLOUD`, `SYSADMIN`, `SECOPS`                     |
+| `MC` | Marketing & Communications   | `DIGITAL`, `BRAND_PR`, `CONTENT`, `INTERNAL_COMMS`                 |
+| `PD` | Product Management           | `STRATEGY`, `OWNERSHIP`, `ACCOUNT`, `GROWTH`                       |
+
+The competency selection for any `(roleFamily, specialization?, cycleID)` tuple is called the **Active Competency Set** and is configured per cycle in `bin/config/config.active-competency-sets.json`. The resolved set is `baseline ∪ specialization`, deduplicated. The baseline applies to every employee in the family regardless of specialization; the specialization additions only apply to employees with that specialization set.
+
+### Stage-Levels
 
 Employees progress through a sequence of **levels**, each with one or more **stages**. The combination of level and stage (e.g., `J2`, `S3`) is called the **stage-level** and determines the relevancy weight applied to each competency in score calculations.
 
@@ -141,9 +157,9 @@ Status transitions are triggered by specific actions (submissions), not by deadl
 
 ### Detailed Process Steps
 
-#### Step 1 — Appraisal Cycle Start *(planned)*
+#### Step 1 — Appraisal Cycle Start
 
-A new **Performance Appraisal Cycle** is started by the `Supervisor`. The cycle receives a unique ID (e.g., `2026-H1`) and an official closing date. All evaluations opened within this cycle reference both values. A configuration UI for Supervisors to initiate cycles is planned; the cycle ID and date are currently hardcoded.
+A new **Performance Appraisal Cycle** is started by the `Supervisor` through the **Cycle Management** screen. The cycle receives a unique ID (e.g., `2026-H2`), a name, a planned close date, and starts in `PLANNING` status. The Supervisor then configures the **Active Competency Sets** for each role family + specialization on the **Cycle Setup** screen and, once validation passes (baseline floor coverage across all nine subcategories, cap not exceeded, reference integrity, non-empty baselines when specializations exist), locks the cycle to `ACTIVE`. Only one cycle can be `ACTIVE` at a time. Evaluations can only be started while the cycle is `ACTIVE`; closing it transitions the status to `CLOSED` and prevents new evaluations from being started (in-flight evaluations can still be completed).
 
 #### Step 2 — Evaluation Start
 
@@ -152,7 +168,7 @@ An authorized `Manager` (or `Supervisor`) starts a new `Evaluation` for an `Empl
 The new evaluation is created with:
 
 - Status: `Open`
-- A set of competencies determined by the employee's career path and the current cycle ID
+- A frozen snapshot of the competency set resolved from the employee's role family + specialization for the currently `ACTIVE` cycle. The snapshot includes per-competency localization keys, full scope/relevancy maps, e-CF mappings, and an origin marker so the evaluation form is self-contained and immune to later configuration drift
 - The employee's resolved manager ID, derived from the organization chart
 - An optional list of team member IDs to provide peer feedback
 
@@ -236,7 +252,7 @@ sequenceDiagram
     Mgr ->> Sys: Start Evaluation for Employee
     Sys -->> Sys: Verify no active evaluation exists
     Sys -->> Sys: Create Evaluation (status: Open)
-    Sys -->> Sys: Populate competencies by career path + cycle
+    Sys -->> Sys: Resolve and snapshot competencies by role family + specialization + cycle
     Sys -->> Sys: Resolve and record manager from org chart
     opt Team feedback requested
         Mgr ->> Sys: Provide team member list
@@ -400,14 +416,14 @@ The default landing screen after login. Presents a personalized summary of the c
 
 ### Employees List
 
-Shows the organization chart rooted at the current user's unit. Each employee entry displays their career path, level, manager, and the status and next relevant date of their most recent evaluation (self-evaluation deadline when `Open`; manager deadline when `In Review`; interview date when `Ready`).
+Shows the organization chart rooted at the current user's unit. Each employee entry displays their role family + specialization, stage-level, manager, and the status and next relevant date of their most recent evaluation (self-evaluation deadline when `Open`; manager deadline when `In Review`; interview date when `Ready`).
 
 - **Manager view** (`isManagerView: true`): Shown when the current user is the manager of the root unit. Displays full personal data (stage, starting date) for all employees. A "Start Evaluation" action is available for employees without an active evaluation; the current user cannot start their own evaluation.
 - **Employee view**: Personal data (stage, starting date) is only visible for the current user's own entry. Other employees' evaluation details are accessible if the user is a team member.
 
 ### Evaluation Form
 
-The primary grading interface. Displays the employee's personal and career information, evaluation metadata, the current deadline, and the full competency tree for their career path and level. Each competency shows its scope description and a grade selector.
+The primary grading interface. Displays the employee's personal and career information (role family, specialization with a "Generalist" fallback when unset, stage-level), evaluation metadata, the current deadline, and the full competency tree built from the evaluation's snapshot. Each competency shows its scope description, a grade selector, an origin badge ("Baseline" or the specialization name), and any e-CF mappings.
 
 - A **role banner** at the top indicates the active role (Employee / Manager / Team)
 - Grade inputs are disabled once the role has already submitted or if the deadline has passed
@@ -531,8 +547,8 @@ sequenceDiagram
         Server ->> CF: anonymizeEvaluationScores(evaluation, userRole)
         Server ->> OrgMgr: resolveEmployeeOrganizationContext(employee)
         OrgMgr -->> Server: Organization unit name + manager info
-        Server ->> CF: buildCompetenciesTree(config, language, allowedCodes)
-        CF -->> Server: Competency tree for career path
+        Server ->> CF: buildCompetenciesTreeFromSnapshot(snapshot, language)
+        CF -->> Server: Competency tree rendered from the snapshot (no live dictionary lookup)
         Server -->> Client: Evaluation + personal info + competencies (role-filtered, workflow stripped)
         Client -->> User: Display evaluation form with canEdit and deadlineDate
     end
@@ -843,8 +859,8 @@ CF -->> Server: New evaluation object (status: Open)
 Server ->> OrgMgr: resolveManagerIDForEmployee(employeeID, unitID)
 OrgMgr -->> Server: Resolved manager ID
 Server -->> Server: Set managerID, set workflow.team from provided list
-        Server ->> CF: getAllowedCompetencyCodes(careerPath, cycleID)
-CF -->> Server: Competency codes for career path and cycle
+        Server ->> CF: buildEvaluationSnapshot(roleFamily, specialization, cycleID)
+CF -->> Server: Snapshot entries (code, name, description, scope, relevancy, eCFMapping, origin)
 Server -->> Server: Populate grades map with empty grade entries per competency
 Server ->> DataMgr: saveEvaluation(newEvaluation)
 DataMgr ->> DB: SET new evaluation record

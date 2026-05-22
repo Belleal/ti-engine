@@ -116,7 +116,7 @@ describe( "CompetenceFramework.buildEvaluationSnapshot — completeness and immu
         try {
             live.name = "tampered.key";
             live.relevancy.J1 = 999;
-        } catch ( ignored ) { /* deep-frozen — expected in production */ }
+        } catch { /* deep-frozen — expected in production */ }
 
         // The previously-captured snapshot entry must remain unchanged.
         assert.equal( sampleEntry.name, originalName );

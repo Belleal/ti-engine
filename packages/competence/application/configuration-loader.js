@@ -35,7 +35,7 @@ const roleCodeEnum = tools.enum( {
 module.exports.roleCode = roleCodeEnum;
 
 /**
- * Enum for the role family codes (top-level discipline). Replaces the legacy `CareerPathCode`.
+ * Enum for the role family codes (top-level discipline).
  *
  * @readonly
  * @enum {RoleFamilyCode}

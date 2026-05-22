@@ -2,6 +2,88 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 2.0.0
+
+* feat(competence)!: introduce a three-dimensional competency model — Role Family × Specialization × Stage-Level — replacing the two-dimensional Career Path model. Cycles become first-class entities with a `PLANNING → ACTIVE → CLOSED` lifecycle, evaluations carry a frozen Active Competency Set snapshot at creation time, and supervisors gain dedicated UI for managing the cycle configuration and employee roster end-to-end. Breaking: existing pilot data is discarded (destructive reseed); no backward-compatibility shims for the old `CareerPathCode` enum, `careerPath` field, or `getAllowedCompetencyCodes(...)` API.
+
+### Phase 1 — Data model and configuration
+
+* feat(config): add `config.role-families.json` — 9 families (`SE`, `QE`, `BA`, `PM`, `XD`, `DA`, `IO`, `MC`, `PD`), 38 specializations, with localization keys and per-specialization e-CF placeholder arrays
+* feat(config): add `config.active-competency-sets.json` (nested `{family: {baseline | <SPEC>: {<cycleID>: [codes…]}}}`); seeded baselines for `SE`/`BA`/`PM` cover all nine subcategories for cycle `2026-H2`; seeded specializations include `SE/BACKEND`, `SE/FRONTEND`, `BA/REQUIREMENTS`, `PM/AGILE`
+* feat(config): rename `config.career-path-levels.json` → `config.stage-levels.json` (content unchanged)
+* feat(config): extend every competency in `config.competencies.json` with an optional `eCFMapping` array (defaults to empty)
+* refactor(config): remove `config.career-path-competencies.json`
+* feat(schemas): migrate every schema under `bin/data/schemas/`; add `role-families`, `active-competency-sets`, `stage-levels`, `cycle`, `audit-entry`; rewrite `employee.schema.json` and `evaluation.schema.json` for the new shape (gradeValue enum now includes `N`)
+* feat(config-loader): introduce `roleFamilyCode` (9 codes) and `cycleStatus` (`PLANNING/ACTIVE/CLOSED`) enums + `getSpecializationCodes(familyCode)` helper; drop `CareerPathCode`
+* feat(types): replace `CareerPathCodeValue` with `RoleFamilyCodeValue`; add `SpecializationCodeValue`, `Cycle`, `CycleStatusValue`, `AuditEntry`, `SnapshotEntry`, `RoleFamily`, `Specialization`, `ECFMapping`
+* feat(data-manager): role families CRUD (`getRoleFamilies`, `getRoleFamily`, `getSpecializationsForFamily`)
+* feat(data-manager): cycles CRUD (`createCycle`, `getCycle`, `getAllCycles`, `updateCycleStatus`, `getActiveCycle`)
+* feat(data-manager): active competency sets CRUD (`getActiveCompetencySet`, `getBaselineSet`, `getSpecializationSet`, `getActiveCompetencySetsForFamily`, `setActiveCompetencySet`)
+* feat(data-manager): audit log (`appendAuditEntry`, `getAuditEntriesForEmployee`); employee `saveEmployee` helper
+* feat(data-manager): destructive reseed under `COMPETENCE_PRELOAD_DATA=true` for all new collections; cycle metadata derived from cycle IDs found in the active-competency-sets config
+* feat(seed): rewrite `seeders/employees.json` — 11 employees with `roleFamily` + optional `specialization` + `employmentStatus`; stage-levels span N1/J3/R2/S1/T1; mixed specializations and generalists
+* feat(seed): empty `seeders/evaluations.json` (the seeded `2026-H2` cycle is in PLANNING)
+* feat(localization): full `role-family.{name,description}.<CODE>` and `role-family.<CODE>.specialization.{name,description}.<SPEC>` trees in `en` + `bg`; `framework.cycle.status.*` keys
+* test(json): introduce `test/json-config-validation.test.js` covering schema validity for all five configs and both seed files, plus integrity checks (baseline floor coverage, referenced competency codes exist, specialization keys valid)
+
+### Phase 2 — Application logic
+
+* feat(framework)!: `getActiveCompetencySet(roleFamily, specialization, cycleID)` — async; baseline ∪ specialization, deduplicated, sorted; throws when baseline is missing or empty
+* feat(framework): `buildEvaluationSnapshot(roleFamily, specialization, cycleID)` — freezes the resolved set into self-contained entries (code, localization keys, scope, relevancy, eCFMapping, origin marker)
+* feat(framework): `validateCycleForLock(cycleID)` — pure structured validator with four rules: baseline floor coverage, cap, reference integrity, no-empty-baseline-when-specialization-data-exists; returns `{ valid, errors:[{family, specialization?, rule, detail}] }`
+* feat(framework): `lockCycle(cycleID, actorID)` and `closeCycle(cycleID)` enforcing the one-way `PLANNING → ACTIVE → CLOSED` state machine and the single-active-cycle invariant
+* feat(framework): `createNewEvaluation(employee, cycle, snapshot)` deep-clones the snapshot; grades pre-populated keyed off the snapshot
+* feat(framework): `calculateFinalEvaluationScores` rewritten to read per-stage-level relevancy from the snapshot; `updateSelfEvaluationGrades` / `updateTeamEvaluationGrades` / `updateManagerEvaluationGrades` filter to snapshot codes
+* feat(framework): `buildCompetenciesTreeFromSnapshot(snapshot, language)` — renders the evaluation form's competency tree exclusively from the snapshot
+* refactor(framework): removed `getAllowedCompetencyCodes`, `#calculateEvaluationScoreMatrices`, and all hardcoded `evaluationCycle*` fields
+* feat(org): graph employee nodes now carry `roleFamily` + `specialization` + `employmentStatus`; `resolveEmployeeAttributes` returns localized `roleFamilyName` / `specializationName`
+* refactor(web-app): every `careerPath` / `careerPathName` / `careerPathCode` / `evaluationCycleID` call site migrated; helpers `#resolveCurrentCycle` and `#formatRoleFamilyLabel` introduced
+* feat(web-app): `/app/config` exposes the resolved current cycle; `#startEvaluation` resolves the active cycle and builds the snapshot; `start-evaluation` errors clearly when there is no active cycle
+* test(framework): four new node-test suites (resolution, validation, lifecycle, snapshot) under `packages/competence/test/`; in-memory cache helper for isolated runs
+
+### Phase 3 — Cycle Management and Cycle Setup screens
+
+* feat(web-app): register `cycles` and `cycle-setup` fragments; add `load-cycle-list` + `load-cycle-setup?cycleID=X` data views (Supervisor-only)
+* feat(web-app): add `create-cycle`, `lock-cycle`, `close-cycle`, `set-active-competency-set`, `mark-active-set-empty` service handlers; active-set mutations write append-only audit entries
+* feat(framework): introduce `.ti-modal*` primitive (backdrop, sizes, danger/warn tones, both themes) and `.ti-input.has-error` error state
+* feat(config): add `performanceAppraisals.activeCompetencySetCap` (default 30) to `config.application.json` and its schema
+* feat(html): add `frame-cycles.html` — cycle list with status pills, evaluation counts, and create / lock / close / validation-errors / close modals
+* feat(html): add `frame-cycle-setup.html` — two-pane editor with tree (families → baseline + specializations) status indicators, cap usage, floor-coverage pills, "no extras" checkbox, picker modal, clone modal
+* feat(ui): add `competenceCycleManagement` and `competenceCycleSetup` Alpine factories
+* feat(css): `competence-cycle-*` namespace covering tree, floor pills, cap indicator, picker, clone modal
+* feat(sidebar): add `Cycles` nav entry, gated client-side by Supervisor role
+* feat(localization): full `interface.cycles.*` and `interface.cycle-setup.*` trees in `en` + `bg`
+
+### Phase 4 — Employee Management screen
+
+* refactor(schema): drop `employee.managerID` — the org chart is the single source of truth for manager assignment via the unit-walk in `OrganizationManager`
+* feat(web-app): register `employee-management` fragment; add `load-employee-management-list` (scope-aware) and `load-employee-detail` data views
+* feat(web-app): add `create-employee` (Supervisor) and `update-employee` (field-level gating) service handlers; one audit entry per changed field
+* feat(web-app): validation rules — name required, work-mode / work-location / employment-status enum-constrained, role-family + specialization-for-family valid, stage-level dual-track (N/X/T only stage 1), organization unit exists, email format
+* feat(html): add `frame-employee-management.html` — master/detail layout with filters, search, tabbed editor (Details/Evaluations/Audit), role-family-change confirmation with in-flight count, specialization-change confirmation, Create Employee modal
+* feat(ui): add `competenceEmployeeManagement` Alpine factory with in-memory drafts, per-field diff Save, and scope-aware list filtering
+* feat(css): `competence-empmgmt-*` master/detail shell, tabs, audit list
+* feat(sidebar): add `People` nav entry (Supervisor + Manager); add per-row `Manage` action on `frame-employees-list.html` cross-linking to the management screen
+* feat(localization): full `interface.employee-management.*` and `error.employee.*` trees in `en` + `bg`
+
+### Phase 5 — Evaluation form and start-evaluation tightening
+
+* feat(framework): snapshot entries gain `originLabel` (localization key) — `"interface.evaluation.context.origin.baseline"` for baseline-origin codes, or the spec's `name` key for spec-origin codes; snapshots remain language-independent
+* feat(framework): `buildCompetenciesTreeFromSnapshot` resolves `originLabel` to `originName` per item; older snapshots fall back to "Baseline" or the raw spec code
+* refactor(web-app): `#startEvaluation` now requires a strictly `ACTIVE` cycle via `dataManager.instance.getActiveCycle()`; PLANNING / CLOSED / missing cycles all surface `error.evaluation.no-active-cycle`
+* feat(schema): optional `originLabel` field added to evaluation `snapshotEntry`
+* feat(html): `frame-competence-evaluation.html` — new three-item context strip (Role family / Specialization-with-Generalist-fallback / Stage-level) below the employee name; per-competency origin badge and e-CF tags (only when present)
+* feat(css): `competence-eval-context*`, `competence-comp-origin`, `competence-comp-ecf` styles; both themes
+* feat(localization): `interface.evaluation.context.*` tree (role-family, specialization, stage-level, generalist, origin.baseline, ecf-prefix); `error.evaluation.no-active-cycle` and `error.evaluation.empty-competency-set` labels
+* test(framework): snapshot suite extended with two new cases — `originLabel` correctness (baseline vs spec), and generalist (specialization === null) snapshot
+
+### Phase 6 — Cleanup and documentation
+
+* chore: strip residual `CareerPathCode` references from production code (`configuration-loader.js` JSDoc, `role-families.schema.json` description). Historical CHANGELOG entries and the Phase 0 inventory deliberately retain the old terminology as a record of the pre-refactor state.
+* docs: rewrite `packages/competence/README.md` — Career Paths section becomes Role Families + Specializations, Mermaid `Start Evaluation` sequence step updated, hardcoded-cycle commentary removed
+* docs: refresh `.claude/commands/ti-engine.md` orientation doc — `CareerPathCode` replaced with `RoleFamilyCode` + `CycleStatus`; competence file list updated to reflect renamed configs; package version bumped to `2.0.0`; specialization mentioned in the package role
+* build(release): bump package version to `2.0.0`
+
 ## Version 1.5.0
 
 * feat(config): add `interviewCalendar` configuration block to `config.application.json` with `slotDurationMinutes`, `workingHoursStart`, `workingHoursEnd`, and `workingDays` settings

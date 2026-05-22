@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ti-engine.dev/schemas/competence/role-families.json",
   "title": "Role Families Configuration",
-  "description": "Top-level disciplines (Role Families) and the permitted Specializations within each. Replaces the old CareerPath concept.",
+  "description": "Top-level disciplines (Role Families) and the permitted Specializations within each.",
   "type": "object",
   "required": [
     "SE",

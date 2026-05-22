@@ -11,7 +11,7 @@ ti-engine/                         npm workspace root (v1.2.4)
 ├── packages/
 │   ├── core/          v1.4.3      Framework foundation (messaging, lifecycle, utils)
 │   ├── web-framework/ v1.6.3      Express-based HTTP server + auth layer
-│   ├── competence/    v1.5.0      HR competency appraisal application
+│   ├── competence/    v2.0.0      HR competency appraisal application
 │   └── tester/        v1.3.3      Reference/example service implementation
 ├── package.json                   Workspace root; devDeps: ESLint 10, Prettier 3
 └── eslint.config.mjs              Flat ESLint config (commonjs, browser+node globals)
@@ -102,24 +102,32 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 ## Package: competence
 
-**Role**: Complete HR application for competency-based performance appraisals. Depends on `core` + `web-framework`.
+**Role**: Complete HR application for competency-based performance appraisals. v2 introduces a three-dimensional competency model — **Role Family × Specialization × Stage-Level** — and a first-class appraisal **Cycle** entity with a `PLANNING → ACTIVE → CLOSED` lifecycle. Evaluations snapshot their resolved competency set at creation time so configuration drift never affects in-flight evaluations. Depends on `core` + `web-framework`.
 
 **Key files**:
 | File | Purpose |
 |------|---------|
-| `application/competence-framework.js` | Singleton; evaluation cycle, grade weights, score matrix |
-| `application/configuration-loader.js` | Loads config JSONs; exports frozen enums |
-| `application/data-manager.js` | Singleton; CRUD for employees/evaluations in Redis JSON |
-| `application/organization-manager.js` | Singleton; directed graph (graphology) for org chart |
+| `application/competence-framework.js` | Singleton; `getActiveCompetencySet`, `buildEvaluationSnapshot`, `validateCycleForLock`, `lockCycle`, `closeCycle`, snapshot-driven scoring |
+| `application/configuration-loader.js` | Loads config JSONs; exports frozen enums and `getSpecializationCodes(familyCode)` |
+| `application/data-manager.js` | Singleton; CRUD for role families, cycles, active competency sets, employees, evaluations, audit log (Redis JSON) |
+| `application/organization-manager.js` | Singleton; directed graph (graphology) for org chart; resolves manager + role-family attributes |
 | `bin/competence-web-server.js` | Main entry point (extends ServiceConsumer) |
-| `bin/competence-web-application.js` | UI renderer (extends TiWebAppManager) |
-| `bin/config/` | JSON config: application, competencies, career-path-competencies, career-path-levels, organization-structure |
-| `bin/data/schemas/` | JSON schemas for config validation |
-| `test/` | Node built-in test runner (`node --test`) |
+| `bin/competence-web-application.js` | UI renderer (extends TiWebAppManager); fragments for dashboard, employees-list, employee-management, cycles, cycle-setup, competence-evaluation, new-evaluation, manager-calendar, interview-schedule |
+| `bin/config/config.application.json` | App settings (grade/evaluation weights, performance thresholds, `activeCompetencySetCap`, interview-calendar) |
+| `bin/config/config.competencies.json` | Competency dictionary — categories E/I/C × subcategories 1–3, scope/relevancy per stage-level, optional `eCFMapping` |
+| `bin/config/config.role-families.json` | Nine families (`SE`, `QE`, `BA`, `PM`, `XD`, `DA`, `IO`, `MC`, `PD`) with their permitted specializations |
+| `bin/config/config.active-competency-sets.json` | Seeded baselines and specialization extensions, keyed by `family → "baseline"|<SPEC> → cycleID → [codes]` |
+| `bin/config/config.stage-levels.json` | N/J/R/S/X/T ladder with dual-track senior tier |
+| `bin/config/config.organization-structure.json` | Org-chart hierarchy; managers inferred via unit-walk |
+| `bin/data/schemas/` | JSON schemas for config + seed validation (role-families, active-competency-sets, stage-levels, cycle, audit-entry, competencies, employee(s), evaluation(s)) |
+| `bin/data/seeders/` | Destructive seed data behind `COMPETENCE_PRELOAD_DATA=true` |
+| `bin/localization/competence-labels.json` | en/bg labels for every user-visible string |
+| `test/` | Node built-in test runner (`node --test`): JSON validation + framework resolution / validation / lifecycle / snapshot suites |
 
 **Enums**:
 - `RoleCode`: EMPLOYEE(1), MANAGER(2), SUPERVISOR(3), TEAM_MEMBER(4)
-- `CareerPathCode`: SE01, PM01, BA01
+- `RoleFamilyCode`: SE, QE, BA, PM, XD, DA, IO, MC, PD — specialization codes are nested per family in `config.role-families.json`, accessed via `getSpecializationCodes(familyCode)`
+- `CycleStatus`: PLANNING → ACTIVE → CLOSED — one-way transitions; single-active-cycle invariant
 - `EvaluationStatus`: NOT_STARTED → OPEN → IN_REVIEW → READY → CLOSED / DELETED
 - `EvaluationGrade`: S(1.3), R(1.0), U(0.6), N(0.0) — weights used in score calculation
 
