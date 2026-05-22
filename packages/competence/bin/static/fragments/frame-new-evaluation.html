@@ -47,7 +47,7 @@
             <div class="ti-panel competence-panel-mb">
                 <div class="ti-panel-head">
                     <div class="ti-panel-title" x-text-label="interface.evaluation.new-eval.cycle-title"></div>
-                    <span class="competence-eval-feedback-intro" x-text-label="interface.evaluation.new-eval.cycle-desc"></span>
+                    <span class="ti-panel-head-aside" x-text-label="interface.evaluation.new-eval.cycle-desc"></span>
                 </div>
                 <div class="ti-kv-grid competence-new-eval-kv-ext">
                     <span class="ti-kv-label" x-text-label="interface.evaluation.new-eval.cycle-id"></span>
@@ -73,9 +73,9 @@
                 <div class="ti-panel-head">
                     <div class="ti-panel-title">
                         <span x-text-label="interface.evaluation.new-eval.team-title"></span>
-                        <span class="competence-new-eval-optional-tag" x-show="minTeamMembers === 0" x-text-label="interface.evaluation.new-eval.team-optional"></span>
+                        <span class="ti-panel-title-aside" x-show="minTeamMembers === 0" x-text-label="interface.evaluation.new-eval.team-optional"></span>
                     </div>
-                    <span class="competence-eval-feedback-intro" x-show="getTeamHintText()" x-text="getTeamHintText()"></span>
+                    <span class="ti-panel-head-aside" x-show="getTeamHintText()" x-text="getTeamHintText()"></span>
                 </div>
                 <div class="competence-new-eval-team-desc" x-text="getTeamPanelDesc()"></div>
                 <div class="competence-new-eval-team-body">

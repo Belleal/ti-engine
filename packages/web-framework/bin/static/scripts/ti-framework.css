@@ -925,17 +925,93 @@ body {
     border-bottom: 1px solid var(--border-soft);
 }
 
+/* Banner variant — the head reads as a full-width strip on a panel that does not use the default
+   .ti-panel padding (e.g. sectioned cards with internal sub-content beneath the head). */
+.ti-panel-head.bar {
+    padding: var(--s-4) var(--s-5);
+    margin: 0;
+    background: var(--bg-sunken);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+/* Square icon on the left of the head. Sized for a 16-18px stroked SVG. */
+.ti-panel-head-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--r-sm);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-secondary);
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+}
+
+/* Wraps the title + subtitle so they stack while the head itself stays a single flex row. */
+.ti-panel-head-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
 .ti-panel-title {
     font-size: var(--fs-md);
     font-weight: 600;
     letter-spacing: -0.01em;
+    color: var(--fg-primary);
 }
 
+/* Small qualifier inline with the title (e.g. "(optional)"). */
+.ti-panel-title-aside {
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    color: var(--fg-tertiary);
+    margin-left: var(--s-2);
+}
 
+/* Smaller dimmed subtitle line under the title, optionally with an inline icon + meta string. */
+.ti-panel-subtitle {
+    font-size: var(--fs-sm);
+    color: var(--fg-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+}
+
+/* Right-aligned secondary info with a thin separator border on the left. Use for read-only
+   informative content (counts, hints, recommended thresholds, etc.). */
+.ti-panel-head-aside {
+    margin-left: auto;
+    padding-left: var(--s-3);
+    border-left: 1px solid var(--border);
+    color: var(--fg-tertiary);
+    font-size: var(--fs-sm);
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+.ti-panel-head-aside strong {
+    color: var(--fg-primary);
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-weight: 500;
+}
+
+/* Right-aligned action buttons (Cancel / Save / + New …). Sits to the right alongside or in place
+   of .ti-panel-head-aside. */
 .ti-panel-head-actions {
     margin-left: auto;
     display: flex;
     gap: var(--s-2);
+    flex: 0 0 auto;
+}
+
+/* When both .ti-panel-head-aside and .ti-panel-head-actions appear, only the aside gets the
+   auto-margin — the actions sit immediately next to it. */
+.ti-panel-head-aside + .ti-panel-head-actions {
+    margin-left: 0;
 }
 
 /* ============================================================
@@ -1691,7 +1767,10 @@ body {
    across every screen.
    ============================================================ */
 .ti-page-head {
+    display: flex;
+    flex-direction: column;
     margin-bottom: var(--s-5);
+    gap: var(--s-1);
 }
 
 .ti-page-eyebrow {
@@ -1700,7 +1779,7 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--fg-tertiary);
-    margin-bottom: var(--s-1);
+    padding: 0 var(--s-1)
 }
 
 .ti-page-title {
@@ -1709,15 +1788,15 @@ body {
     letter-spacing: -0.025em;
     line-height: 1.15;
     color: var(--fg-primary);
-    margin: 0 0 var(--s-1);
+    margin: 0;
 }
 
 .ti-page-subtitle {
     color: var(--fg-tertiary);
     margin: 0;
-    max-width: 60ch;
     font-size: var(--fs-sm);
     line-height: 1.55;
+    padding: var(--s-1);
 }
 
 /* ============================================================
@@ -1755,8 +1834,13 @@ body {
     gap: var(--s-3);
 }
 
-.ti-form-grid.cols-1 { grid-template-columns: 1fr; }
-.ti-form-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ti-form-grid.cols-1 {
+    grid-template-columns: 1fr;
+}
+
+.ti-form-grid.cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 
 .ti-form-row {
     display: flex;

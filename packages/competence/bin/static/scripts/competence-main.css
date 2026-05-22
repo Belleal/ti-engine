@@ -541,54 +541,13 @@
     margin-top: var(--s-4);
 }
 
-.competence-team-block-head {
-    display: grid;
-    grid-template-columns: 40px 1fr auto;
-    align-items: center;
-    gap: var(--s-4);
-    padding: var(--s-4) var(--s-5);
-    background: var(--bg-sunken);
-    border-bottom: 1px solid var(--border-soft);
-}
-
-.competence-team-block-head .competence-team-mark {
-    width: 32px;
-    height: 32px;
-    border-radius: 9px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    display: grid;
-    place-items: center;
-    color: var(--fg-secondary);
-}
-
-.competence-team-block-title {
-    font-size: var(--fs-md);
-    font-weight: 600;
-    letter-spacing: -0.01em;
-}
-
-.competence-team-block-sub {
-    font-size: var(--fs-sm);
-    color: var(--fg-tertiary);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 2px;
-}
-
-.competence-team-block-meta {
+/* The team-block header sits flush with the panel edges, so we also need to layer a
+   .ti-panel-head-aside override that re-introduces a small inner gap between the people count
+   and the optional in-cycle pill. */
+.competence-team-block .ti-panel-head-aside {
     display: flex;
     align-items: center;
     gap: var(--s-4);
-    font-size: var(--fs-sm);
-    color: var(--fg-tertiary);
-}
-
-.competence-team-block-meta strong {
-    color: var(--fg-primary);
-    font-family: "JetBrains Mono", monospace;
-    font-weight: 500;
 }
 
 .competence-org-tree-head {
@@ -1869,15 +1828,6 @@
     gap: var(--s-4);
 }
 
-.competence-eval-feedback-intro {
-    color: var(--fg-tertiary);
-    font-size: var(--fs-sm);
-    margin-left: var(--s-3);
-    padding-left: var(--s-3);
-    border-left: 1px solid var(--border);
-    white-space: nowrap;
-}
-
 .competence-eval-feedback-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1984,13 +1934,6 @@
     color: var(--fg-secondary);
     padding: 0 var(--s-5) var(--s-4);
     line-height: 1.5;
-}
-
-.competence-new-eval-optional-tag {
-    font-size: var(--fs-xs);
-    font-weight: 500;
-    color: var(--fg-tertiary);
-    margin-left: var(--s-2);
 }
 
 .competence-new-eval-team-body {
