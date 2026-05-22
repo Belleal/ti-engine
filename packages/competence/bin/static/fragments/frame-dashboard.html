@@ -56,9 +56,9 @@
                 <div class="competence-dash-cycle-card">
                     <div class="competence-cycle-meta">
                         <span x-text-label="interface.dashboard.cycle-active">Active Cycle</span>
-                        <span class="ti-status-pill success">
+                        <span class="ti-status-pill" x-show="cycle.statusName" x-bind:class="cycle.statusTone || ''">
                             <span class="dot"></span>
-                            <span x-text-label="interface.dashboard.cycle-running">Running</span>
+                            <span x-text="cycle.statusName"></span>
                         </span>
                     </div>
                     <div class="competence-cycle-id" x-text="cycle.id || '—'"></div>

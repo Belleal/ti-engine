@@ -259,7 +259,10 @@ const configureToolbox = () => {
         /**
          * Used to perform a structured clone operation.
          * <br/>
-         * NOTE: If 'structuredClone' is not available, fall back to JSON.parse/JSON.stringify. The later will not preserve non-JSON-serializable.
+         * NOTE: If 'structuredClone' is not available — or throws DataCloneError on a reactive Proxy
+         * (Alpine/Vue reactivity wraps assigned objects in Proxies that the browser's structured-clone
+         * algorithm can refuse) — fall back to JSON.parse/JSON.stringify. The fallback will not preserve
+         * non-JSON-serializable values (functions, undefined, symbols, Dates, RegExp).
          *
          * @method
          * @param {Object} value
@@ -268,7 +271,14 @@ const configureToolbox = () => {
          * @public
          */
         structuredClone( value, options ) {
-            return ( typeof structuredClone === "function" ) ? structuredClone( value, options ) : JSON.parse( JSON.stringify( value ) );
+            if ( typeof structuredClone === "function" ) {
+                try {
+                    return structuredClone( value, options );
+                } catch {
+                    return JSON.parse( JSON.stringify( value ) );
+                }
+            }
+            return JSON.parse( JSON.stringify( value ) );
         },
 
         /**

@@ -1448,6 +1448,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                         id: currentCycle.cycleID,
                         name: currentCycle.name,
                         status: currentCycle.status,
+                        statusName: localization.getLabel( configurationLoader.cycleStatus.name( currentCycle.status ) || currentCycle.status, session?.language ),
+                        statusTone: this.#cycleStatusTone( currentCycle.status ),
                         startDate: currentCycle.cycleStart,
                         date: currentCycle.cycleDate,
                         endDate: currentCycle.cycleEnd
@@ -1573,9 +1575,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                 } );
 
                 const activeCycle = projected.find( ( cycle ) => cycle.status === configurationLoader.cycleStatus.ACTIVE ) || null;
+                const hasOpenCycle = projected.some( ( cycle ) => cycle.status !== configurationLoader.cycleStatus.CLOSED );
                 resolve( {
                     cycles: projected,
                     activeCycleID: activeCycle ? activeCycle.cycleID : null,
+                    hasOpenCycle: hasOpenCycle,
                     suggestedCycleID: this.#suggestNextCycleID( projected )
                 } );
             } ).catch( ( error ) => {
@@ -1753,15 +1757,23 @@ class CompetenceWebApplication extends TiWebAppManager {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.cycle.invalid-date-range" } ) );
             }
 
-            dataManager.instance.createCycle( {
-                cycleID,
-                name,
-                cycleStart: cycleStart || null,
-                cycleDate: cycleDate || cycleEnd,
-                cycleEnd,
-                createdBy: userID
-            } ).then( ( cycle ) => {
-                resolve( cycle );
+            dataManager.instance.getAllCycles().then( ( cycles ) => {
+                const openCycle = cycles.find( ( cycle ) => cycle.status !== configurationLoader.cycleStatus.CLOSED );
+                if ( openCycle ) {
+                    return reject( exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: `Cannot create a new cycle while cycle '${ openCycle.cycleID }' is still '${ openCycle.status }'. Close it first.` }, exceptions.httpCode.C_409 ) );
+                }
+                dataManager.instance.createCycle( {
+                    cycleID,
+                    name,
+                    cycleStart: cycleStart || null,
+                    cycleDate: cycleDate || cycleEnd,
+                    cycleEnd,
+                    createdBy: userID
+                } ).then( ( cycle ) => {
+                    resolve( cycle );
+                } ).catch( ( error ) => {
+                    reject( exceptions.raise( error ) );
+                } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );

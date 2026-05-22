@@ -1350,6 +1350,16 @@ body {
     position: relative;
 }
 
+.ti-status-pill .dot::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 2px solid var(--fg-secondary);
+    opacity: 0;
+    animation: statusPulse 1.6s var(--ease-out) infinite;
+}
+
 .ti-status-pill.success {
     background: var(--success-soft);
     color: var(--success);
@@ -1360,13 +1370,8 @@ body {
 }
 
 .ti-status-pill.success .dot::after {
-    content: "";
-    position: absolute;
-    inset: -3px;
-    border-radius: 50%;
+    color: var(--success);
     border: 2px solid var(--success);
-    opacity: 0;
-    animation: statusPulse 1.6s var(--ease-out) infinite;
 }
 
 .ti-status-pill.info {
@@ -1378,6 +1383,11 @@ body {
     background: var(--info);
 }
 
+.ti-status-pill.info .dot::after {
+    color: var(--info);
+    border: 2px solid var(--info);
+}
+
 .ti-status-pill.warn {
     background: var(--warn-soft);
     color: var(--warn);
@@ -1385,6 +1395,11 @@ body {
 
 .ti-status-pill.warn .dot {
     background: var(--warn);
+}
+
+.ti-status-pill.warn .dot::after {
+    color: var(--warn);
+    border: 2px solid var(--warn);
 }
 
 .ti-status-pill.danger {
@@ -1396,9 +1411,24 @@ body {
     background: var(--danger);
 }
 
+.ti-status-pill.danger .dot::after {
+    color: var(--danger);
+    border: 2px solid var(--danger);
+}
+
 .ti-status-pill.muted {
     background: var(--muted-soft);
     color: var(--fg-tertiary);
+}
+
+.ti-status-pill.muted .dot {
+    background: var(--fg-tertiary);
+}
+
+.ti-status-pill.muted .dot::after {
+    color: var(--fg-tertiary);
+    border: 2px solid var(--fg-tertiary);
+    animation: none;
 }
 
 @keyframes statusPulse {
@@ -1721,13 +1751,20 @@ body {
     max-width: min(1100px, 100% - var(--s-7));
 }
 
+.ti-modal-head-content {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    gap: var(--s-1);
+}
+
 .ti-modal-head {
     display: flex;
     align-items: center;
     gap: var(--s-3);
     padding: var(--s-4) var(--s-5);
     border-bottom: 1px solid var(--border-soft);
-    background: var(--bg-surface);
+    background: var(--bg-sunken);
 }
 
 .ti-modal-title {
@@ -1745,7 +1782,6 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--fg-tertiary);
-    margin-bottom: 2px;
 }
 
 .ti-modal-close {

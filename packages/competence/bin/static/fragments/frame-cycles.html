@@ -14,7 +14,7 @@
             </div>
             <div class="ti-empty-state-title" x-text-label="interface.cycles.empty-title"></div>
             <div class="ti-empty-state-desc" x-text-label="interface.cycles.empty-desc"></div>
-            <div class="competence-cycle-empty-action">
+            <div class="competence-cycle-empty-action" x-show="!hasOpenCycle">
                 <button type="button" class="ti-btn primary" @click="openCreateModal()" x-text-label="interface.cycles.new-btn"></button>
             </div>
         </div>
@@ -28,7 +28,7 @@
                     <span class="ti-icon cycles-loop md" aria-hidden="true"></span>
                 </div>
                 <div class="ti-panel-title" x-text-label="interface.cycles.page-title"></div>
-                <div class="ti-panel-head-actions">
+                <div class="ti-panel-head-actions" x-show="!hasOpenCycle">
                     <button type="button" class="ti-btn sm primary" @click="openCreateModal()">
                         <span class="ti-icon plus sm" aria-hidden="true"></span>
                         <span x-text-label="interface.cycles.new-btn"></span>
@@ -63,9 +63,10 @@
                                     <span x-text="formatDate(cycle.actualCloseDate)"></span>
                                 </div>
                             </div>
-                            <span class="ti-status-pill"
-                                  x-bind:class="cycle.statusTone"
-                                  x-text="cycle.statusName"></span>
+                            <span class="ti-status-pill" x-bind:class="cycle.statusTone">
+                                <span class="dot"></span>
+                                <span x-text="cycle.statusName"></span>
+                            </span>
                             <div>
                                 <div class="competence-cycle-row-counts" x-show="cycle.counts.inProgress > 0 || cycle.counts.completed > 0">
                                     <span x-show="cycle.counts.inProgress > 0">
@@ -93,10 +94,10 @@
                                 <div class="competence-cycle-actions">
                                     <button type="button" class="ti-btn sm" @click="openCycleSetup(cycle.cycleID)"
                                             x-text-label="interface.cycles.actions.open"></button>
-                                    <button type="button" class="ti-btn sm primary"
-                                            x-show="cycle.status === 'PLANNING'"
-                                            @click="onLockClick(cycle)"
-                                            x-text-label="interface.cycles.actions.lock"></button>
+                                    <button type="button" class="ti-btn sm primary" x-show="cycle.status === 'PLANNING'" @click="onLockClick(cycle)">
+                                        <span class="ti-icon send sm" aria-hidden="true"></span>
+                                        <span x-text-label="interface.cycles.actions.lock"></span>
+                                    </button>
                                     <button type="button" class="ti-btn sm danger"
                                             x-show="cycle.status === 'ACTIVE'"
                                             @click="openCloseModal(cycle)"
@@ -117,7 +118,7 @@
         <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
             <div class="ti-modal medium" role="dialog" aria-modal="true">
                 <div class="ti-modal-head">
-                    <div>
+                    <div class="ti-modal-head-content">
                         <span class="ti-modal-eyebrow" x-text-label="interface.cycles.create-modal.eyebrow"></span>
                         <div class="ti-modal-title" x-text-label="interface.cycles.create-modal.title"></div>
                     </div>

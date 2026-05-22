@@ -1426,6 +1426,7 @@ const configureCycleManagement = () => {
         loaded: false,
         cycles: [],
         activeCycleID: null,
+        hasOpenCycle: false,
         suggestedCycleID: "",
         modal: emptyModal(),
 
@@ -1449,6 +1450,7 @@ const configureCycleManagement = () => {
                 const data = result?.data || {};
                 this.cycles = Array.isArray( data.cycles ) ? tiToolbox.structuredClone( data.cycles ) : [];
                 this.activeCycleID = data.activeCycleID || null;
+                this.hasOpenCycle = data.hasOpenCycle === true;
                 this.suggestedCycleID = data.suggestedCycleID || "";
                 this.loaded = true;
             } ).catch( ( error ) => {
@@ -1712,7 +1714,7 @@ const configureCycleSetup = () => {
             this.subcategories = Array.isArray( data.subcategories ) ? tiToolbox.structuredClone( data.subcategories ) : [];
             this.validation = data.validation ? tiToolbox.structuredClone( data.validation ) : { valid: true, errorsByFamily: {} };
 
-            // Preserve currently-selected node across reloads when possible; otherwise clear.
+            // Preserve currently selected node across reloads when possible; otherwise clear.
             if ( !this.selectedFamily || !this.families.find( ( family ) => family.code === this.selectedFamily ) ) {
                 this.selectedFamily = null;
                 this.selectedKey = null;
@@ -1846,7 +1848,7 @@ const configureCycleSetup = () => {
         },
 
         onMarkedEmptyChange() {
-            // If marked empty was just set to true, the codes list is empty by construction (the checkbox is disabled
+            // If marked empty was just set to true, the code list is empty by construction (the checkbox is disabled
             // when there are codes). If toggled off, no automatic change to codes is needed.
         },
 
@@ -1988,7 +1990,7 @@ const configureCycleSetup = () => {
         },
 
         findPreviousCycleID() {
-            // First entry in allCycles that isn't this cycle. allCycles is sorted by createdAt desc by the server.
+            // First entry in allCycles that isn't this cycle. allCycles are sorted by createdAt desc by the server.
             const candidate = this.allCycles.find( ( cycle ) => cycle.cycleID !== this.cycleID );
             return candidate ? candidate.cycleID : null;
         },
@@ -2097,7 +2099,7 @@ const configureCycleSetup = () => {
         },
 
         reloadAfterSave() {
-            // Re-fetch the full screen data to refresh validation and persisted sets; preserve the selected node so the
+            // Re-fetch the full-screen data to refresh validation and persisted sets; preserve the selected node so the
             // user stays on the same screen.
             tiApplication.sendRequest( "/app/load-cycle-setup?cycleID=" + encodeURIComponent( this.cycleID ) ).then( ( result ) => {
                 this.applyData( result?.data || {} );
@@ -2114,7 +2116,7 @@ const configureCycleSetup = () => {
 };
 
 /**
- * Returns a configuration object for the employee management screen (Supervisor + Manager).
+ * Returns a configuration object for the employee management screen (Supervisor and Manager).
  *
  * @method
  * @returns {Object}
@@ -2288,13 +2290,12 @@ const configureEmployeeManagement = () => {
 
         /* ------------------------- Edit handlers --------------------------- */
 
-        onRoleFamilyChange( event ) {
-            const newValue = event.target.value;
+        onRoleFamilyChange( newValue ) {
             if ( !this.draft || this.draft.career.roleFamily === newValue ) return;
             this.pendingRoleFamilyChange = newValue;
             this.modal = { kind: "role-family-change", payload: {}, errorMessage: "", busy: false };
-            // Revert the select visually until the user confirms.
-            event.target.value = this.draft.career.roleFamily || "";
+            // The select uses x-bind:value, so Alpine re-renders and snaps it back to the persisted
+            // roleFamily on the next tick. No manual DOM revert needed.
         },
 
         confirmRoleFamilyChange() {
@@ -2306,8 +2307,7 @@ const configureEmployeeManagement = () => {
             this.modal = emptyModal();
         },
 
-        onSpecializationChange( event ) {
-            const newValueRaw = event.target.value;
+        onSpecializationChange( newValueRaw ) {
             const newValue = newValueRaw || null;
             if ( !this.draft ) return;
             const oldValue = this.draft.career.specialization || null;
@@ -2322,7 +2322,7 @@ const configureEmployeeManagement = () => {
             // Confirmation path: changing or clearing an existing specialization.
             this.pendingSpecializationChange = newValue;
             this.modal = { kind: "specialization-change", payload: {}, errorMessage: "", busy: false };
-            event.target.value = this.draft.career.specialization || "";
+            // x-bind:value will snap the select back to the persisted specialization on the next tick.
         },
 
         confirmSpecializationChange() {
