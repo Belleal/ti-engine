@@ -592,6 +592,7 @@ body {
 
 :root {
     /* Type scale */
+    --fs-xxs: 10px;
     --fs-xs: 11px;
     --fs-sm: 12px;
     --fs-base: 13.5px;
@@ -2082,12 +2083,11 @@ body {
     grid-template-columns: var(--ti-grid-cols);
     gap: var(--s-3);
     padding: var(--s-2) var(--s-5);
-    font-size: var(--fs-xs);
+    font-size: var(--fs-xxs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--fg-tertiary);
-    background: var(--bg-sunken);
     border-bottom: 1px solid var(--border-soft);
     white-space: nowrap;
     align-items: center;

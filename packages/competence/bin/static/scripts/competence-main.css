@@ -2392,7 +2392,7 @@
    counts + created date + actions (right-aligned). Inherited by .ti-data-grid-head and
    .ti-data-grid-row via the .ti-data-grid wrapper. */
 .competence-cycle-grid {
-    --ti-grid-cols: 100px minmax(180px, 1.5fr) minmax(200px, 1.5fr) 110px minmax(140px, 1fr) minmax(120px, 1fr) 230px;
+    --ti-grid-cols: 100px minmax(120px, 1.5fr) minmax(160px, 1.5fr) 80px 1fr minmax(60px, 1fr) 230px;
 }
 
 .competence-cycle-row-name {
