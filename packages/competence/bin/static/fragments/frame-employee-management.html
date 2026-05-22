@@ -153,25 +153,25 @@
                         <template x-if="activeTab === 'details'">
                             <div class="competence-empmgmt-form">
                                 <!-- Personal section -->
-                                <div class="competence-empmgmt-form-section">
-                                    <div class="competence-empmgmt-form-section-title" x-text-label="interface.employee-management.form.section-personal"></div>
-                                    <div class="competence-empmgmt-form-grid">
-                                        <div class="competence-empmgmt-form-row">
+                                <div class="ti-form-section">
+                                    <div class="ti-form-section-title" x-text-label="interface.employee-management.form.section-personal"></div>
+                                    <div class="ti-form-grid">
+                                        <div class="ti-form-row">
                                             <label class="ti-field-label" x-text-label="interface.employee-management.form.first-name"></label>
                                             <input type="text" class="ti-input" x-model="draft.personal.firstName"
                                                    x-bind:disabled="!isFieldEditable('personal.firstName')"/>
                                         </div>
-                                        <div class="competence-empmgmt-form-row">
+                                        <div class="ti-form-row">
                                             <label class="ti-field-label" x-text-label="interface.employee-management.form.last-name"></label>
                                             <input type="text" class="ti-input" x-model="draft.personal.lastName"
                                                    x-bind:disabled="!isFieldEditable('personal.lastName')"/>
                                         </div>
-                                        <div class="competence-empmgmt-form-row competence-empmgmt-form-row-wide">
+                                        <div class="ti-form-row wide">
                                             <label class="ti-field-label" x-text-label="interface.employee-management.form.email"></label>
                                             <input type="email" class="ti-input" x-model="draft.email"
                                                    x-bind:disabled="!isFieldEditable('email')"/>
                                         </div>
-                                        <div class="competence-empmgmt-form-row">
+                                        <div class="ti-form-row">
                                             <label class="ti-field-label" x-text-label="interface.employee-management.form.work-mode"></label>
                                             <select class="ti-select" x-model="draft.personal.workMode"
                                                     x-bind:disabled="!isFieldEditable('personal.workMode')">
@@ -180,7 +180,7 @@
                                                 </template>
                                             </select>
                                         </div>
-                                        <div class="competence-empmgmt-form-row">
+                                        <div class="ti-form-row">
                                             <label class="ti-field-label" x-text-label="interface.employee-management.form.work-location"></label>
                                             <select class="ti-select" x-model="draft.personal.workLocation"
                                                     x-bind:disabled="!isFieldEditable('personal.workLocation')">
@@ -193,10 +193,10 @@
                                 </div>
 
                                 <!-- Career section -->
-                                <div class="competence-empmgmt-form-section">
-                                    <div class="competence-empmgmt-form-section-title" x-text-label="interface.employee-management.form.section-career"></div>
-                                    <div class="competence-empmgmt-form-grid">
-                                        <div class="competence-empmgmt-form-row">
+                                <div class="ti-form-section">
+                                    <div class="ti-form-section-title" x-text-label="interface.employee-management.form.section-career"></div>
+                                    <div class="ti-form-grid">
+                                        <div class="ti-form-row">
                                             <label class="ti-field-label" x-text-label="interface.employee-management.form.role-family"></label>
                                             <select class="ti-select"
                                                     x-bind:value="draft.career.roleFamily"
@@ -207,7 +207,7 @@
                                                 </template>
                                             </select>
                                         </div>
-                                        <div class="competence-empmgmt-form-row">
+                                        <div class="ti-form-row">
                                             <label class="ti-field-label" x-text-label="interface.employee-management.form.specialization"></label>
                                             <select class="ti-select"
                                                     x-bind:value="draft.career.specialization || ''"
@@ -219,7 +219,7 @@
                                                 </template>
                                             </select>
                                         </div>
-                                        <div class="competence-empmgmt-form-row">
+                                        <div class="ti-form-row">
                                             <label class="ti-field-label" x-text-label="interface.employee-management.form.level"></label>
                                             <select class="ti-select"
                                                     x-bind:value="stageLevelOf(draft)"
@@ -230,7 +230,7 @@
                                                 </template>
                                             </select>
                                         </div>
-                                        <div class="competence-empmgmt-form-row">
+                                        <div class="ti-form-row">
                                             <label class="ti-field-label" x-text-label="interface.employee-management.form.starting-date"></label>
                                             <input type="date" class="ti-input" x-model="draft.career.startingDate"
                                                    x-bind:disabled="!isFieldEditable('career.startingDate')"/>
@@ -239,10 +239,10 @@
                                 </div>
 
                                 <!-- Organization section -->
-                                <div class="competence-empmgmt-form-section">
-                                    <div class="competence-empmgmt-form-section-title" x-text-label="interface.employee-management.form.section-organization"></div>
-                                    <div class="competence-empmgmt-form-grid">
-                                        <div class="competence-empmgmt-form-row competence-empmgmt-form-row-wide">
+                                <div class="ti-form-section">
+                                    <div class="ti-form-section-title" x-text-label="interface.employee-management.form.section-organization"></div>
+                                    <div class="ti-form-grid">
+                                        <div class="ti-form-row wide">
                                             <label class="ti-field-label" x-text-label="interface.employee-management.form.organization-unit"></label>
                                             <select class="ti-select" x-model="draft.career.organizationUnitID"
                                                     x-bind:disabled="!isFieldEditable('career.organizationUnitID')">
@@ -251,21 +251,21 @@
                                                 </template>
                                             </select>
                                         </div>
-                                        <div class="competence-empmgmt-form-row competence-empmgmt-form-row-wide">
+                                        <div class="ti-form-row wide">
                                             <label class="ti-field-label" x-text-label="interface.employee-management.form.manager-display"></label>
-                                            <div class="competence-empmgmt-form-readonly">
+                                            <div class="ti-form-readonly">
                                                 <span x-text="detail.manager.managerName || '—'"></span>
-                                                <span class="competence-empmgmt-form-hint" x-text-label="interface.employee-management.form.manager-from-unit"></span>
+                                                <span class="ti-form-hint" x-text-label="interface.employee-management.form.manager-from-unit"></span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <!-- Employment section -->
-                                <div class="competence-empmgmt-form-section">
-                                    <div class="competence-empmgmt-form-section-title" x-text-label="interface.employee-management.form.section-employment"></div>
-                                    <div class="competence-empmgmt-form-grid">
-                                        <div class="competence-empmgmt-form-row">
+                                <div class="ti-form-section">
+                                    <div class="ti-form-section-title" x-text-label="interface.employee-management.form.section-employment"></div>
+                                    <div class="ti-form-grid">
+                                        <div class="ti-form-row">
                                             <label class="ti-field-label" x-text-label="interface.employee-management.form.employment-status"></label>
                                             <select class="ti-select" x-model="draft.employmentStatus"
                                                     x-bind:disabled="!isFieldEditable('employmentStatus')">
@@ -278,8 +278,8 @@
                                 </div>
 
                                 <!-- Action bar -->
-                                <div class="competence-empmgmt-form-actions" x-show="canEditAnything()">
-                                    <div class="competence-empmgmt-form-state"
+                                <div class="ti-form-actions competence-empmgmt-form-actions-sticky" x-show="canEditAnything()">
+                                    <div class="ti-form-state"
                                          x-bind:class="isDirty() ? 'unsaved' : 'saved'"
                                          x-text="isDirty() ? getLabel('interface.employee-management.form.unsaved-state') : getLabel('interface.employee-management.form.saved-state')"></div>
                                     <button type="button" class="ti-btn ghost"
@@ -424,20 +424,20 @@
                     </button>
                 </div>
                 <div class="ti-modal-body">
-                    <div class="competence-empmgmt-form-grid">
-                        <div class="competence-empmgmt-form-row">
+                    <div class="ti-form-grid">
+                        <div class="ti-form-row">
                             <label class="ti-field-label" x-text-label="interface.employee-management.form.first-name"></label>
                             <input type="text" class="ti-input" x-model="modal.payload.personal.firstName"/>
                         </div>
-                        <div class="competence-empmgmt-form-row">
+                        <div class="ti-form-row">
                             <label class="ti-field-label" x-text-label="interface.employee-management.form.last-name"></label>
                             <input type="text" class="ti-input" x-model="modal.payload.personal.lastName"/>
                         </div>
-                        <div class="competence-empmgmt-form-row competence-empmgmt-form-row-wide">
+                        <div class="ti-form-row wide">
                             <label class="ti-field-label" x-text-label="interface.employee-management.form.email"></label>
                             <input type="email" class="ti-input" x-model="modal.payload.email"/>
                         </div>
-                        <div class="competence-empmgmt-form-row">
+                        <div class="ti-form-row">
                             <label class="ti-field-label" x-text-label="interface.employee-management.form.work-mode"></label>
                             <select class="ti-select" x-model="modal.payload.personal.workMode">
                                 <template x-for="mode in options.workModes" x-bind:key="mode">
@@ -445,7 +445,7 @@
                                 </template>
                             </select>
                         </div>
-                        <div class="competence-empmgmt-form-row">
+                        <div class="ti-form-row">
                             <label class="ti-field-label" x-text-label="interface.employee-management.form.work-location"></label>
                             <select class="ti-select" x-model="modal.payload.personal.workLocation">
                                 <template x-for="location in options.workLocations" x-bind:key="location">
@@ -453,7 +453,7 @@
                                 </template>
                             </select>
                         </div>
-                        <div class="competence-empmgmt-form-row">
+                        <div class="ti-form-row">
                             <label class="ti-field-label" x-text-label="interface.employee-management.form.role-family"></label>
                             <select class="ti-select" x-model="modal.payload.career.roleFamily" @change="modal.payload.career.specialization = ''">
                                 <option value=""></option>
@@ -462,7 +462,7 @@
                                 </template>
                             </select>
                         </div>
-                        <div class="competence-empmgmt-form-row">
+                        <div class="ti-form-row">
                             <label class="ti-field-label" x-text-label="interface.employee-management.form.specialization"></label>
                             <select class="ti-select" x-model="modal.payload.career.specialization">
                                 <option value="" x-text-label="interface.employee-management.form.specialization-none"></option>
@@ -471,7 +471,7 @@
                                 </template>
                             </select>
                         </div>
-                        <div class="competence-empmgmt-form-row">
+                        <div class="ti-form-row">
                             <label class="ti-field-label" x-text-label="interface.employee-management.form.level"></label>
                             <select class="ti-select" x-model="modal.payload.career.stageLevel">
                                 <option value=""></option>
@@ -480,7 +480,7 @@
                                 </template>
                             </select>
                         </div>
-                        <div class="competence-empmgmt-form-row competence-empmgmt-form-row-wide">
+                        <div class="ti-form-row wide">
                             <label class="ti-field-label" x-text-label="interface.employee-management.form.organization-unit"></label>
                             <select class="ti-select" x-model="modal.payload.career.organizationUnitID">
                                 <option value=""></option>
@@ -489,7 +489,7 @@
                                 </template>
                             </select>
                         </div>
-                        <div class="competence-empmgmt-form-row">
+                        <div class="ti-form-row">
                             <label class="ti-field-label" x-text-label="interface.employee-management.form.starting-date"></label>
                             <input type="date" class="ti-input" x-model="modal.payload.career.startingDate"/>
                         </div>

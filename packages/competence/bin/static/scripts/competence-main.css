@@ -458,33 +458,6 @@
    Employees list / org tree
    ============================================================ */
 
-.competence-page-info {
-    margin-bottom: var(--s-5);
-}
-
-.competence-page-info-eyebrow {
-    font-size: var(--fs-xs);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--fg-tertiary);
-    margin-bottom: var(--s-1);
-}
-
-.competence-page-info-title {
-    font-size: var(--fs-2xl);
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    color: var(--fg-primary);
-    margin-bottom: var(--s-1);
-}
-
-.competence-page-info-desc {
-    font-size: var(--fs-sm);
-    color: var(--fg-tertiary);
-    max-width: 520px;
-}
-
 .competence-org-summary {
     display: flex;
     gap: var(--s-5);
@@ -2053,35 +2026,6 @@
    Evaluation form — redesigned components
    ============================================================ */
 
-/* Page header */
-.competence-eval-page-header {
-    margin-bottom: var(--s-5);
-}
-
-.competence-eval-page-eyebrow {
-    font-size: var(--fs-xs);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--fg-tertiary);
-    margin-bottom: var(--s-1);
-}
-
-.competence-eval-page-title {
-    font-size: var(--fs-2xl);
-    font-weight: 600;
-    letter-spacing: -0.025em;
-    color: var(--fg-primary);
-    margin: 0 0 var(--s-1);
-    line-height: 1.2;
-}
-
-.competence-eval-page-desc {
-    font-size: var(--fs-sm);
-    color: var(--fg-tertiary);
-    margin: 0;
-}
-
 /* Role info panel */
 .competence-eval-role-info {
     display: flex;
@@ -2662,38 +2606,6 @@
 }
 
 /* Create / lock / close modals */
-.competence-cycle-form {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-4);
-}
-
-.competence-cycle-form-row {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-2);
-}
-
-.competence-cycle-form-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--s-3);
-}
-
-.competence-cycle-form-hint {
-    font-size: var(--fs-xs);
-    color: var(--fg-tertiary);
-}
-
-.competence-cycle-form-error {
-    color: var(--danger);
-    font-size: var(--fs-sm);
-    background: var(--danger-soft);
-    border: 1px solid var(--danger);
-    padding: var(--s-2) var(--s-3);
-    border-radius: var(--r-sm);
-}
-
 .competence-cycle-lock-target {
     display: flex;
     align-items: center;
@@ -3256,12 +3168,6 @@
     accent-color: var(--accent);
 }
 
-.competence-cycle-clone-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--s-3);
-}
-
 .competence-cycle-clone-empty {
     padding: var(--s-3);
     color: var(--fg-tertiary);
@@ -3305,19 +3211,11 @@
         max-height: 320px;
     }
 
-    .competence-cycle-form-grid {
-        grid-template-columns: 1fr;
-    }
-
     .competence-cycle-indicator-row {
         grid-template-columns: 1fr;
     }
 
     .competence-cycle-picker-filters {
-        grid-template-columns: 1fr;
-    }
-
-    .competence-cycle-clone-grid {
         grid-template-columns: 1fr;
     }
 }
@@ -3539,75 +3437,15 @@
     min-height: 0;
 }
 
-.competence-empmgmt-form-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-3);
-}
-
-.competence-empmgmt-form-section-title {
-    font-size: var(--fs-xs);
-    font-weight: 600;
-    color: var(--fg-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.competence-empmgmt-form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--s-3);
-}
-
-.competence-empmgmt-form-row {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-2);
-}
-
-.competence-empmgmt-form-row-wide {
-    grid-column: 1 / -1;
-}
-
-.competence-empmgmt-form-readonly {
-    padding: 6px 0;
-    color: var(--fg-primary);
-    font-size: var(--fs-base);
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.competence-empmgmt-form-hint {
-    font-size: var(--fs-xs);
-    color: var(--fg-tertiary);
-}
-
-.competence-empmgmt-form-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--s-3);
-    padding-top: var(--s-3);
-    border-top: 1px solid var(--border-soft);
+/* The employee-management editor's action bar pins to the bottom of its scroll pane (the master-detail right pane).
+   Keep the layout primitives from .ti-form-actions and only add the sticky positioning + negative margin trick to
+   reach the pane edges. */
+.competence-empmgmt-form-actions-sticky {
     position: sticky;
     bottom: calc(-1 * var(--s-5));
     background: var(--bg-surface);
     margin: 0 calc(-1 * var(--s-5)) calc(-1 * var(--s-5));
     padding: var(--s-3) var(--s-5);
-}
-
-.competence-empmgmt-form-state {
-    flex: 1;
-    font-size: var(--fs-sm);
-}
-
-.competence-empmgmt-form-state.saved {
-    color: var(--success);
-}
-
-.competence-empmgmt-form-state.unsaved {
-    color: var(--warn);
-    font-weight: 500;
 }
 
 .competence-empmgmt-evaluations {
@@ -3711,10 +3549,6 @@
 
     .competence-empmgmt-master {
         max-height: 480px;
-    }
-
-    .competence-empmgmt-form-grid {
-        grid-template-columns: 1fr;
     }
 
     .competence-empmgmt-audit-row {

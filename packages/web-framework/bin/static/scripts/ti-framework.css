@@ -1686,38 +1686,138 @@ body {
 }
 
 /* ============================================================
-   Page layout helpers
+   Page layout helpers — eyebrow / title / subtitle stacked
+   vertically. Used as the single canonical page header pattern
+   across every screen.
    ============================================================ */
 .ti-page-head {
-    display: flex;
-    align-items: flex-end;
-    gap: var(--s-5);
     margin-bottom: var(--s-5);
 }
 
 .ti-page-eyebrow {
-    font-size: 11.5px;
+    font-size: var(--fs-xs);
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.12em;
     color: var(--fg-tertiary);
-    margin-bottom: 6px;
+    margin-bottom: var(--s-1);
 }
 
 .ti-page-title {
     font-size: var(--fs-2xl);
     font-weight: 600;
     letter-spacing: -0.025em;
-    line-height: 1.1;
+    line-height: 1.15;
     color: var(--fg-primary);
-    margin: 0;
+    margin: 0 0 var(--s-1);
 }
 
 .ti-page-subtitle {
-    color: var(--fg-secondary);
-    margin-top: 6px;
+    color: var(--fg-tertiary);
+    margin: 0;
     max-width: 60ch;
-    font-size: var(--fs-md);
+    font-size: var(--fs-sm);
     line-height: 1.55;
+}
+
+/* ============================================================
+   Form layout helpers — single canonical pattern for modal /
+   master-detail / panel forms. Compose grid + row + section
+   instead of cloning per-screen CSS.
+   ============================================================ */
+.ti-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-5);
+}
+
+.ti-form.compact {
+    gap: var(--s-4);
+}
+
+.ti-form-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+}
+
+.ti-form-section-title {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--fg-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.ti-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-3);
+}
+
+.ti-form-grid.cols-1 { grid-template-columns: 1fr; }
+.ti-form-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.ti-form-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.ti-form-row.wide {
+    grid-column: 1 / -1;
+}
+
+.ti-form-readonly {
+    padding: 6px 0;
+    color: var(--fg-primary);
+    font-size: var(--fs-base);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ti-form-hint {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+}
+
+.ti-form-error {
+    color: var(--danger);
+    font-size: var(--fs-sm);
+    background: var(--danger-soft);
+    border: 1px solid var(--danger);
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-sm);
+}
+
+.ti-form-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--border-soft);
+}
+
+.ti-form-state {
+    flex: 1;
+    font-size: var(--fs-sm);
+}
+
+.ti-form-state.saved {
+    color: var(--success);
+}
+
+.ti-form-state.unsaved {
+    color: var(--warn);
+    font-weight: 500;
+}
+
+@media (max-width: 720px) {
+    .ti-form-grid,
+    .ti-form-grid.cols-3 {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* ============================================================
