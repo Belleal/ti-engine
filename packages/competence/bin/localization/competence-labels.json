@@ -3458,6 +3458,14 @@
           "en": "You're starting a new performance evaluation. The employee will be notified to begin their self-assessment.",
           "bg": "Стартирате нова оценка на представянето. Служителят ще бъде уведомен да започне самооценката си."
         },
+        "no-cycle-title": {
+          "en": "No active appraisal cycle",
+          "bg": "Няма активен оценителен цикъл"
+        },
+        "no-cycle-desc": {
+          "en": "New evaluations can only be opened while a cycle is active. Ask HR or your supervisor to lock a planning cycle, then try again.",
+          "bg": "Нови оценки могат да се откриват само докато даден цикъл е активен. Помолете HR или вашия супервайзър да заключи планиращ цикъл и опитайте отново."
+        },
         "employee-title": {
           "en": "Employee",
           "bg": "Служител"
@@ -3588,8 +3596,8 @@
         "bg": "ОРГАНИЗАЦИЯ"
       },
       "header-title": {
-        "en": "Organizational Structure",
-        "bg": "Организационна Структура"
+        "en": "Organizational Chart",
+        "bg": "Организационна схема"
       },
       "header-desc": {
         "en": "Your department and the teams beneath it.",
@@ -4137,6 +4145,10 @@
         "en": "Workspace",
         "bg": "Работно пространство"
       },
+      "manage": {
+        "en": "Manage",
+        "bg": "Управление"
+      },
       "quick-links": {
         "en": "Quick Links",
         "bg": "Бързи връзки"
@@ -4156,12 +4168,12 @@
         "bg": "Табло"
       },
       "employees": {
-        "en": "Employees",
-        "bg": "Служители"
+        "en": "Org Chart",
+        "bg": "Орг. схема"
       },
       "employees-list": {
-        "en": "Employees",
-        "bg": "Служители"
+        "en": "Org Chart",
+        "bg": "Орг. схема"
       },
       "evaluation": {
         "en": "My Evaluation",
@@ -4406,7 +4418,59 @@
           "en": "Lock",
           "bg": "Заключи"
         },
+        "lock-cycle": {
+          "en": "Lock cycle",
+          "bg": "Заключи цикъла"
+        },
         "close": {
+          "en": "Close",
+          "bg": "Затвори"
+        },
+        "history": {
+          "en": "History",
+          "bg": "История"
+        },
+        "history-aria": {
+          "en": "Show audit history for {cycle}",
+          "bg": "Покажи историята на цикъл {cycle}"
+        }
+      },
+      "audit": {
+        "title": {
+          "en": "Cycle audit history",
+          "bg": "История на цикъл"
+        },
+        "empty-title": {
+          "en": "No history yet",
+          "bg": "Все още няма история"
+        },
+        "empty-desc": {
+          "en": "Events will appear here as the cycle is created, locked, and closed.",
+          "bg": "Събитията ще се появят тук, когато цикълът бъде създаден, заключен и затворен."
+        },
+        "by": {
+          "en": "by",
+          "bg": "от"
+        },
+        "unknown-actor": {
+          "en": "system",
+          "bg": "системата"
+        },
+        "event": {
+          "created": {
+            "en": "Cycle created",
+            "bg": "Цикълът е създаден"
+          },
+          "locked": {
+            "en": "Cycle locked — moved to Active",
+            "bg": "Цикълът е заключен — премина в Активен"
+          },
+          "closed": {
+            "en": "Cycle closed",
+            "bg": "Цикълът е затворен"
+          }
+        },
+        "close-btn": {
           "en": "Close",
           "bg": "Затвори"
         }

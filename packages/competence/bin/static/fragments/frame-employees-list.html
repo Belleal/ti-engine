@@ -11,7 +11,7 @@
             <!-- [1] Page info header -->
             <div class="ti-page-head">
                 <div class="ti-page-eyebrow" x-text-label="interface.employees.header-eyebrow">ORGANIZATION</div>
-                <h1 class="ti-page-title" x-text-label="interface.employees.header-title">Employees</h1>
+                <h1 class="ti-page-title" x-text-label="interface.employees.header-title">Org chart</h1>
                 <p class="ti-page-subtitle" x-text-label="interface.employees.header-desc">Your department and the teams beneath it.</p>
             </div>
 
@@ -196,8 +196,11 @@
                                                 <span class="ti-icon check-clipboard sm" aria-hidden="true"></span>
                                                 <span x-text-label="interface.employees.action.open">Open</span>
                                             </button>
+                                            <!-- Start Evaluation is only meaningful while a cycle is ACTIVE.
+                                                 The backend's #startEvaluation independently enforces this; the
+                                                 gate here just hides the button so the user isn't tempted. -->
                                             <button type="button" class="ti-btn sm primary"
-                                                    x-show="!employee.evaluation && isManagerView && !employee.isCurrentUser"
+                                                    x-show="!employee.evaluation && isManagerView && !employee.isCurrentUser && hasActiveCycle"
                                                     @click="startNewEvaluation(employee.id)">
                                                 <span x-text-label="interface.employees.action.start">Start Evaluation</span>
                                             </button>

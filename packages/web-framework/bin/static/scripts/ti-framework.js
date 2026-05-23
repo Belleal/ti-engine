@@ -815,6 +815,7 @@ const configureApplication = () => {
         configuration: {},
         currentScreen: "",
         topbarSubtitle: "",
+        topbarPrimaryCta: null,
         notificationIDCounter: 1,
         requestControllers: new Map(),
         collapsed: false,
@@ -966,6 +967,7 @@ const configureApplication = () => {
             if ( screen ) {
                 this.currentScreen = screen;
                 this.topbarSubtitle = "";
+                this.topbarPrimaryCta = null;
             }
         },
 
@@ -979,6 +981,40 @@ const configureApplication = () => {
          */
         setTopbarSubtitle( subtitle ) {
             this.topbarSubtitle = String( subtitle || "" ).trim();
+        },
+
+        /**
+         * Used to register a primary call-to-action button in the topbar for the current screen. The CTA is
+         * automatically cleared on screen navigation so each screen owns its own slot. Pass {@link null} to remove
+         * the CTA without leaving the screen.
+         *
+         * @typedef {Object} TiTopbarPrimaryCta
+         * @property {string} labelKey Localization key for the button text.
+         * @property {string} [icon] Optional icon class name (e.g. "plus", "send"); rendered as a leading glyph.
+         * @property {string} [tone] Button tone class — "primary" (default), "danger", "ghost".
+         * @property {Function} handler Click handler invoked when the button is activated.
+         * @property {boolean} [disabled] Optional disabled flag.
+         *
+         * @method
+         * @param {TiTopbarPrimaryCta|null} cta
+         * @public
+         */
+        setTopbarPrimaryCta( cta ) {
+            this.topbarPrimaryCta = ( cta && typeof cta === "object" ) ? cta : null;
+        },
+
+        /**
+         * Used to mutate just the disabled flag of the active topbar CTA without re-registering the full object.
+         * Useful when validation state changes while the screen is open (e.g. cycle setup becoming lockable).
+         *
+         * @method
+         * @param {boolean} disabled
+         * @public
+         */
+        setTopbarPrimaryCtaDisabled( disabled ) {
+            if ( this.topbarPrimaryCta ) {
+                this.topbarPrimaryCta = { ...this.topbarPrimaryCta, disabled: disabled === true };
+            }
         },
 
         /**

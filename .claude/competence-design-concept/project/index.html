@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Competence — UI/UX Redesign</title>
+
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    html, body { margin: 0; height: 100%; font-family: 'General Sans', system-ui, sans-serif; }
+    body { background: #f0eee9; color: #2A241C; }
+    .artboard-iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+    .post-it-h2 { font-weight: 600; font-size: 13px; margin-bottom: 4px; letter-spacing: -0.01em; }
+    .post-it-p  { font-size: 11.5px; line-height: 1.45; }
+    .post-it-tag {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      padding: 1px 6px;
+      background: rgba(0,0,0,0.08);
+      border-radius: 999px;
+      margin-bottom: 6px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .doc-h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 8px; }
+    .doc-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #8B8478; margin-bottom: 8px; }
+    .doc-p { color: #5C564D; }
+    .doc code { background: #F2EEE5; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+  </style>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react" src="design-canvas.jsx"></script>
+
+  <script type="text/babel" data-presets="react">
+    (() => {
+    const { DesignCanvas, DCSection, DCArtboard, DCPostIt } = window;
+    const W = 1380, H = 880;
+
+    const Frame = ({ theme }) => (
+      <iframe className="artboard-iframe"
+              src={`prototype.html?theme=${theme}`}
+              title={`Competence — ${theme}`}/>
+    );
+
+    // Frame that navigates to a specific screen after load
+    const FrameNav = ({ theme, screen }) => {
+      const ref = React.useRef(null);
+      const onLoad = () => {
+        if (!screen) return;
+        try {
+          const win = ref.current.contentWindow;
+          setTimeout(() => {
+            const idx = { dashboard: 0, employees: 1, cycles: 2, people: 3, evaluation: 4, calendar: 5, schedule: 6 }[screen];
+            if (idx != null) {
+              const items = win.document.querySelectorAll('.sidebar-item');
+              if (items[idx]) items[idx].click();
+            }
+          }, 700);
+        } catch (e) {}
+      };
+      return (
+        <iframe ref={ref} className="artboard-iframe" onLoad={onLoad}
+                src={`prototype.html?theme=${theme}`} title={`Competence — ${theme} · ${screen}`}/>
+      );
+    };
+
+    const NumTag = ({ children }) => (
+      <div style={{ background: '#E5523C', color: '#FFF', width: 30, height: 30, borderRadius: 6, display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13, fontFamily: 'JetBrains Mono' }}>{children}</div>
+    );
+
+    function App() {
+      return (
+        <DesignCanvas>
+
+          <DCSection id="intro" title="Competence — UI/UX redesign" subtitle="Two themeable directions · same component system">
+            <DCArtboard id="rationale" label="Design rationale" width={520} height={H}>
+              <div style={{ padding: 36, height: '100%', boxSizing: 'border-box', fontSize: 14, lineHeight: 1.6, color: '#2A241C', background: '#FFFEFB', overflow: 'auto' }}>
+                <div className="doc-eyebrow">The brief</div>
+                <h1 style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-0.025em', lineHeight: 1.05, margin: '0 0 12px' }}>A calm, competent home for performance reviews.</h1>
+                <p className="doc-p" style={{ marginBottom: 24 }}>
+                  Competence handles emotionally sensitive work — appraisals shape careers. The redesign aims to <strong style={{ color: '#1A1714' }}>radiate competence and inspire confidence</strong>: clear hierarchy, kind copy, transparent state at every step, no aesthetic noise.
+                </p>
+
+                <div className="doc-eyebrow">Design system</div>
+                <p className="doc-p" style={{ marginBottom: 18 }}>
+                  One component library, two themes. <strong style={{ color: '#1A1714' }}>Daylight</strong> is the recommended default for HR-class software — warm, transparent, calm. <strong style={{ color: '#1A1714' }}>Black Glass v2</strong> refines the existing dark direction. Theme swap is a single <code>data-theme</code> attribute on <code>{`<html>`}</code>.
+                </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
+                  <div style={{ padding: 12, background: '#FFF', border: '1px solid #E5DFD3', borderRadius: 10 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg, #E5523C, #B83A28)', marginBottom: 8 }}/>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>Daylight</div>
+                    <div style={{ fontSize: 11, color: '#8B8478' }}>Warm putty + coral · light</div>
+                  </div>
+                  <div style={{ padding: 12, background: '#0B0D12', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg, #FF8A6E, #E5523C)', marginBottom: 8, boxShadow: '0 0 24px rgba(255,138,110,0.4)' }}/>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: 'rgba(245,246,250,0.96)' }}>Black Glass v2</div>
+                    <div style={{ fontSize: 11, color: 'rgba(225,228,236,0.5)' }}>Deep neutrals · refined dark</div>
+                  </div>
+                </div>
+
+                <div className="doc-eyebrow">Screens</div>
+                <ul style={{ paddingLeft: 18, color: '#5C564D', margin: 0, lineHeight: 1.7 }}>
+                  <li><strong style={{ color: '#1A1714' }}>Already implemented</strong> — Dashboard · Employees · Evaluation Form · New Evaluation · Manager Calendar · Interview Schedule</li>
+                  <li><strong style={{ color: '#1A1714' }}>New in this round</strong> — Cycles · Cycle Setup · People (employee management)</li>
+                </ul>
+
+                <div style={{ marginTop: 24, padding: 14, background: '#FCEAE4', border: '1px dashed #E5523C', borderRadius: 10 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: '#B5392E', marginBottom: 4 }}>All prototypes are clickable.</div>
+                  <div style={{ fontSize: 12, color: '#5C564D' }}>Open any artboard fullscreen and use the sidebar to navigate between all nine screens. The button at the sidebar's bottom swaps Daylight ↔ Black Glass v2 live.</div>
+                </div>
+              </div>
+            </DCArtboard>
+
+            <DCArtboard id="daylight" label="A · Daylight (recommended)" width={W} height={H}>
+              <Frame theme="daylight"/>
+            </DCArtboard>
+
+            <DCPostIt top={140} left={-220} width={200} rotate={-3}>
+              <div className="post-it-tag">Direction A</div>
+              <div className="post-it-h2">Daylight — calm, transparent, archival.</div>
+              <div className="post-it-p">Off-white surfaces signal honesty. One coral accent for primary action. JetBrains Mono on every number to evoke precision.</div>
+            </DCPostIt>
+
+            <DCArtboard id="glass" label="B · Black Glass v2 (refined)" width={W} height={H}>
+              <Frame theme="glass"/>
+            </DCArtboard>
+
+            <DCPostIt top={140} left={-220} width={200} rotate={2}>
+              <div className="post-it-tag">Direction B</div>
+              <div className="post-it-h2">Black Glass v2 — your existing DNA, pixel-perfect.</div>
+              <div className="post-it-p">Refined glass surfaces, real contrast, warmer coral that reads on dark. Same components, theme-swapped via CSS variables only.</div>
+            </DCPostIt>
+          </DCSection>
+
+          <DCSection id="new-screens" title="New screens" subtitle="Cycles, Cycle Setup, and People — designed for the current branch">
+            <DCArtboard id="cycles-daylight" label="Cycles · Daylight" width={W} height={H}>
+              <FrameNav theme="daylight" screen="cycles"/>
+            </DCArtboard>
+
+            <DCPostIt top={140} left={-220} width={210} rotate={-2}>
+              <div className="post-it-tag">Cycles</div>
+              <div className="post-it-h2">Supervisor's cycle list.</div>
+              <div className="post-it-p">Status lifecycle Planning → Active → Closed. Only one active cycle at a time. Inline actions: Open · Lock · Close. New-cycle modal validates ID, name, and three dates. Past closed cycles show their actual close date underneath the scheduled range.</div>
+            </DCPostIt>
+
+            <DCArtboard id="cycle-setup-daylight" label="Cycle Setup · Daylight" width={W} height={H}>
+              <FrameNav theme="daylight" screen="cycles"/>
+            </DCArtboard>
+
+            <DCPostIt top={140} left={-240} width={230} rotate={2}>
+              <div className="post-it-tag">Cycle Setup</div>
+              <div className="post-it-h2">Two-pane competency editor.</div>
+              <div className="post-it-p">Left: role families with baseline + specs and status dots (complete · incomplete · empty). Right: cap meter (turns red when over), floor-coverage pills (✓ green / ✗ dashed red per subcategory), explicit "mark empty" for specializations, and a clone-from-source modal. From the Cycles list, click "Open" on the planning cycle.</div>
+            </DCPostIt>
+
+            <DCArtboard id="people-daylight" label="People · Daylight" width={W} height={H}>
+              <FrameNav theme="daylight" screen="people"/>
+            </DCArtboard>
+
+            <DCPostIt top={140} left={-220} width={220} rotate={-1}>
+              <div className="post-it-tag">People</div>
+              <div className="post-it-h2">Master / Detail employee management.</div>
+              <div className="post-it-p">Left: filterable list (search + role family + spec + level + employment). Right: tabs — Details (sectioned form with sticky save bar + role-family-change confirmation), Evaluations (in-flight only), Audit (timeline with old → new diff).</div>
+            </DCPostIt>
+
+            <DCArtboard id="cycles-glass" label="Cycles · Black Glass" width={W} height={H}>
+              <FrameNav theme="glass" screen="cycles"/>
+            </DCArtboard>
+
+            <DCArtboard id="people-glass" label="People · Black Glass" width={W} height={H}>
+              <FrameNav theme="glass" screen="people"/>
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection id="tweaks" title="Notes on the already-implemented screens" subtitle="Spots in the live current-branch code worth a polish pass">
+            <DCArtboard id="tweak-notes" label="Tweak notes" width={920} height={700}>
+              <div className="doc" style={{ padding: 36, height: '100%', boxSizing: 'border-box', fontSize: 13.5, lineHeight: 1.6, color: '#2A241C', background: '#FFFEFB', overflow: 'auto' }}>
+                <h2 className="doc-h2">What's already great</h2>
+                <p className="doc-p" style={{ marginTop: 0, marginBottom: 22 }}>
+                  Faithful port of the design tokens, components, and layout — sidebar + topbar extracted as proper web-framework components, level-pip families color-coded distinctly, "You" / "Manager" tags handled cleanly, and the new <code>panel-head bar</code> variant + <code>ti-data-grid</code> primitive are both nice extensions.
+                </p>
+
+                <h2 className="doc-h2" style={{ fontSize: 16, marginTop: 18 }}>Things worth tweaking</h2>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '36px 1fr', gap: '12px 14px', alignItems: 'baseline' }}>
+
+                  <NumTag>1</NumTag>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Dashboard — restore the page-head pattern.</div>
+                    <div className="doc-p">The dashboard currently dives straight into the hero card. Every other screen uses <code>ti-page-head</code> (eyebrow + title + subtitle). Add one above the hero — eyebrow "Spring '26 cycle" + title "Welcome back" — so the visual rhythm matches Employees, Cycles, People, Cycle Setup.</div>
+                  </div>
+
+                  <NumTag>2</NumTag>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Employees list — Actions column needs more room.</div>
+                    <div className="doc-p">You added a "Manage" button alongside Open / Start / Locked, so three potential buttons can appear together. Bump the actions column from 200 → 240px, or compress to icon-only on hover/focus so they don't wrap on narrow viewports.</div>
+                  </div>
+
+                  <NumTag>3</NumTag>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Manager Calendar — "how it works" card looks orphaned.</div>
+                    <div className="doc-p">The <code>competence-eval-role-info</code> hint floats between page-head and toolbar with no chrome. Either move it inside the calendar panel (small info row above the grid) or make it dismissible with an ✕ — currently it reads like a permanent header.</div>
+                  </div>
+
+                  <NumTag>4</NumTag>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Sidebar — too many top-level items now.</div>
+                    <div className="doc-p">Dashboard · Employees · Cycles · People · My Evaluation · Availability · Interviews = 7. Group under sections: <strong>Workspace</strong> (Dashboard, My Evaluation, Availability, Interviews) and <strong>Manage</strong> (Employees, People, Cycles — supervisor/manager-only). The section-label primitive already exists in the markup; just add a second one before "Manage".</div>
+                  </div>
+
+                  <NumTag>5</NumTag>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Employees vs People — disambiguate.</div>
+                    <div className="doc-p">Two screens named "Employees" and "People" both list people. Rename "Employees" → "Org chart" (its real purpose — hierarchical view with evaluation status), leave "People" for management. Update sidebar label, topbar title, and page title together.</div>
+                  </div>
+
+                  <NumTag>6</NumTag>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Topbar — empty when no actions.</div>
+                    <div className="doc-p">On Cycles, Cycle Setup, and People the topbar only carries title + sub + search + bell. Use the right slot for the primary CTA: Cycles → "+ New cycle", People → "+ Add employee", Cycle Setup → "Lock cycle" once valid. The current in-panel buttons can stay too, but the topbar slot gives one consistent primary-action location across screens.</div>
+                  </div>
+
+                  <NumTag>7</NumTag>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Status pill — keep evaluation and cycle scales separate.</div>
+                    <div className="doc-p">Backend already sends <code>statusName</code> + <code>statusTone</code> per row — good. Just make sure the cycle <code>PLANNING</code> doesn't reuse the evaluation <code>OPEN</code> tone literally. They share "info" today which is fine semantically, but if you ever want to differentiate them visually, the door is open.</div>
+                  </div>
+
+                  <NumTag>8</NumTag>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Theme switch — use distinct sun / moon glyphs.</div>
+                    <div className="doc-p">Currently shows a sun for both modes. Use sun for Daylight (current state, switches to Glass on click) and moon for Glass (switches to Daylight). Tooltip text already changes — the icon should mirror it.</div>
+                  </div>
+
+                  <NumTag>9</NumTag>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Promote <code>ti-modal</code> to web-framework.</div>
+                    <div className="doc-p">Cycles, Cycle Setup, and People all use the same modal pattern (head + body + foot + size variants medium/large + tone variants warn/danger). Pull a <code>ti-modal</code> primitive into <code>web-framework</code> so other ti-engine apps get it too. Covers: create-cycle, lock-confirm, lock-errors, close-confirm, picker, clone, role-family-change, specialization-change, create-employee.</div>
+                  </div>
+
+                  <NumTag>10</NumTag>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Audit timeline — add it to Cycles too.</div>
+                    <div className="doc-p">People has a great audit tab. Cycles deserve the same — who created, who locked, who closed, when. Same timeline primitive can be reused. Not blocking; consider for the next iteration.</div>
+                  </div>
+
+                </div>
+              </div>
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection id="framework-notes" title="What changes in web-framework" subtitle="From the previous round — restating here for completeness">
+            <DCArtboard id="notes" label="Framework change notes" width={920} height={620}>
+              <div className="doc" style={{ padding: 36, height: '100%', boxSizing: 'border-box', fontSize: 13.5, lineHeight: 1.6, color: '#2A241C', background: '#FFFEFB', overflow: 'auto' }}>
+                <h2 className="doc-h2">Changes in <code style={{ fontSize: 18, padding: '2px 8px' }}>packages/web-framework</code></h2>
+                <p className="doc-p" style={{ marginTop: 0, marginBottom: 22 }}>To recap, with the structural separations already underway on <code>current</code>:</p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '36px 1fr', gap: '8px 14px', alignItems: 'baseline' }}>
+                  <NumTag>1</NumTag><div><div style={{ fontWeight: 600 }}>Token contract in <code>ti-tokens.css</code>.</div><div className="doc-p">All themes import tokens first, then override the same variable names. Already adopted by Daylight + Black Glass v2.</div></div>
+                  <NumTag>2</NumTag><div><div style={{ fontWeight: 600 }}><code>data-theme</code> on <code>&lt;html&gt;</code>, not parallel stylesheets.</div><div className="doc-p">Single source of truth: <code>document.documentElement.setAttribute('data-theme', 'daylight'|'glass')</code>.</div></div>
+                  <NumTag>3</NumTag><div><div style={{ fontWeight: 600 }}>Sidebar: labeled items + collapse + sections.</div><div className="doc-p">Already in place on current — keep extending sections as nav grows.</div></div>
+                  <NumTag>4</NumTag><div><div style={{ fontWeight: 600 }}>Top-bar component.</div><div className="doc-p">Live — extend with the primary-action slot (see tweak #6 above).</div></div>
+                  <NumTag>5</NumTag><div><div style={{ fontWeight: 600 }}>Toast stack.</div><div className="doc-p">Promote the typed toast (info/success/warn/danger) with title + message + left accent bar.</div></div>
+                  <NumTag>6</NumTag><div><div style={{ fontWeight: 600 }}>Modal primitive.</div><div className="doc-p">Promote <code>ti-modal</code> to web-framework — see tweak #9.</div></div>
+                  <NumTag>7</NumTag><div><div style={{ fontWeight: 600 }}>Type system.</div><div className="doc-p">General Sans + JetBrains Mono adopted. Keep a <code>.mono</code> utility class for numeric values.</div></div>
+                  <NumTag>8</NumTag><div><div style={{ fontWeight: 600 }}>Data-grid primitive.</div><div className="doc-p">Your new <code>ti-data-grid</code> is good — extend with sticky-header support and a "compact" density variant for People and Cycles.</div></div>
+                </div>
+              </div>
+            </DCArtboard>
+          </DCSection>
+
+        </DesignCanvas>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+    })();
+  </script>
+</body>
+</html>

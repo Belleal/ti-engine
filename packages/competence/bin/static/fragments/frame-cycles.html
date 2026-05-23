@@ -102,6 +102,11 @@
                                             x-show="cycle.status === 'ACTIVE'"
                                             @click="openCloseModal(cycle)"
                                             x-text-label="interface.cycles.actions.close"></button>
+                                    <button type="button" class="ti-btn sm icon ghost" @click="openAuditModal(cycle)"
+                                            x-bind:aria-label="getHistoryAria(cycle)"
+                                            x-bind:data-ti-tooltip="getLabel('interface.cycles.actions.history')">
+                                        <span class="ti-icon clock sm" aria-hidden="true"></span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -266,6 +271,57 @@
                     <button type="button" class="ti-btn danger" @click="submitClose()"
                             x-bind:disabled="modal.busy"
                             x-text-label="interface.cycles.close-modal.confirm-btn"></button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- =============================================================
+         Cycle audit history modal — same row primitive as the People
+         audit tab, scoped to a single cycle. Entries are derived from
+         createdAt/createdByName, lockedAt/lockedByName, and
+         actualCloseDate (the schema doesn't track closedBy yet).
+         ============================================================= -->
+    <template x-if="modal.kind === 'audit'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal medium" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-head-content">
+                        <span class="ti-modal-eyebrow" x-text="modal.payload.cycleID"></span>
+                        <div class="ti-modal-title" x-text-label="interface.cycles.audit.title"></div>
+                    </div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <span class="ti-icon close md" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <template x-if="modal.payload.entries.length === 0">
+                        <div class="ti-empty-state">
+                            <div class="ti-empty-state-title" x-text-label="interface.cycles.audit.empty-title"></div>
+                            <div class="ti-empty-state-desc" x-text-label="interface.cycles.audit.empty-desc"></div>
+                        </div>
+                    </template>
+                    <div class="competence-audit-list" x-show="modal.payload.entries.length > 0">
+                        <template x-for="(entry, idx) in modal.payload.entries" x-bind:key="idx">
+                            <div class="competence-audit-row">
+                                <div class="competence-audit-when">
+                                    <span x-text="formatAuditTime(entry.timestamp)"></span>
+                                    <span class="competence-audit-by">
+                                        <span x-text-label="interface.cycles.audit.by"></span>
+                                        <span x-text="entry.actorName || getLabel('interface.cycles.audit.unknown-actor')"></span>
+                                    </span>
+                                </div>
+                                <div class="competence-audit-what">
+                                    <span class="competence-audit-event"
+                                          x-bind:class="'tone-' + entry.tone"
+                                          x-text="getLabel('interface.cycles.audit.event.' + entry.kind)"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.cycles.audit.close-btn"></button>
                 </div>
             </div>
         </div>

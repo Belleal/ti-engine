@@ -336,7 +336,13 @@ class CompetenceWebApplication extends TiWebAppManager {
                 return [ managerName || managerID ];
             };
 
-            dataManager.instance.fetchEvaluations( null, false ).then( ( evaluations ) => {
+            Promise.all( [
+                dataManager.instance.fetchEvaluations( null, false ),
+                // Used purely to gate UI affordances (e.g. the "Start evaluation" button) — the backend's
+                // #startEvaluation still independently enforces that creation requires an ACTIVE cycle.
+                dataManager.instance.getActiveCycle()
+            ] ).then( ( [ evaluations, activeCycle ] ) => {
+                const hasActiveCycle = !!( activeCycle && activeCycle.status === configurationLoader.cycleStatus.ACTIVE );
                 const latestEvaluationByEmployeeID = new Map();
 
                 evaluations.forEach( ( evaluation ) => {
@@ -465,7 +471,8 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 resolve( {
                     organizationUnits: [ toUnitEntry( unitSubtree ) ],
-                    isManagerView: isManagerOfCurrentUnit
+                    isManagerView: isManagerOfCurrentUnit,
+                    hasActiveCycle: hasActiveCycle
                 } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -1990,6 +1997,10 @@ class CompetenceWebApplication extends TiWebAppManager {
 
     /**
      * Maps a cycle status to a status-pill tone variant. PLANNING → info, ACTIVE → success, CLOSED → muted.
+     * <br/>
+     * NOTE: This is intentionally a separate scale from the evaluation status tones (see {@link evalStatusTone}
+     * inside {@link #loadEmployeeList}). The two lifecycles only overlap on "info" today (PLANNING and OPEN), which
+     * is fine semantically — but if visual differentiation is ever needed, the door is open here.
      *
      * @method
      * @private

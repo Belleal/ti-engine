@@ -340,6 +340,11 @@ body {
     mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='5'/%3E%3Cline x1='12' y1='1' x2='12' y2='3'/%3E%3Cline x1='12' y1='21' x2='12' y2='23'/%3E%3Cline x1='4.22' y1='4.22' x2='5.64' y2='5.64'/%3E%3Cline x1='18.36' y1='18.36' x2='19.78' y2='19.78'/%3E%3Cline x1='1' y1='12' x2='3' y2='12'/%3E%3Cline x1='21' y1='12' x2='23' y2='12'/%3E%3Cline x1='4.22' y1='19.78' x2='5.64' y2='18.36'/%3E%3Cline x1='18.36' y1='5.64' x2='19.78' y2='4.22'/%3E%3C/svg%3E");
 }
 
+.ti-icon.moon {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z'/%3E%3C/svg%3E");
+}
+
 .ti-icon.eye {
     -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E");
     mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E");
@@ -1705,7 +1710,36 @@ body {
 }
 
 /* ============================================================
-   Modal / dialog overlay
+   Modal / dialog overlay — shared web-framework primitive.
+
+   This is the canonical modal chrome for every ti-engine app. Use
+   the following structure in any HTML fragment:
+
+     <template x-if="modal.kind === 'foo'">
+       <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+         <div class="ti-modal medium" role="dialog" aria-modal="true">
+           <div class="ti-modal-head">
+             <div class="ti-modal-head-content">
+               <span class="ti-modal-eyebrow">…</span>
+               <div class="ti-modal-title">…</div>
+             </div>
+             <button class="ti-modal-close" @click="closeModal()" aria-label="Close">
+               <span class="ti-icon close md" aria-hidden="true"></span>
+             </button>
+           </div>
+           <div class="ti-modal-body">…</div>
+           <div class="ti-modal-foot">…</div>
+         </div>
+       </div>
+     </template>
+
+   Size variants: medium (640), large (880), full (~1100). Tone
+   variants: danger (red head), warn (amber head). Footer alignment
+   variants: between (space-between), start (flex-start).
+
+   App-specific styles (e.g. .competence-cycle-lock-target) live in
+   the app's CSS and target content inside .ti-modal-body. Don't
+   override .ti-modal-* in app CSS — extend with a new wrapper class.
    ============================================================ */
 .ti-modal-backdrop {
     position: fixed;
@@ -1782,6 +1816,7 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--fg-tertiary);
+    padding: 0 var(--s-1);
 }
 
 .ti-modal-close {

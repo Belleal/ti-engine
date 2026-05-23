@@ -445,6 +445,9 @@ const configureEmployeesList = () => {
         unitManagers: "",
         units: [],
         isManagerView: false,
+        // Gates the inline "Start evaluation" affordances. Mirrors the backend's #startEvaluation guard so the
+        // user only sees the button when clicking it would actually succeed. Backend remains the source of truth.
+        hasActiveCycle: false,
 
         init() {
             const onInitialized = () => {
@@ -478,6 +481,7 @@ const configureEmployeesList = () => {
                 const organizationUnits = Array.isArray( data.organizationUnits ) ? data.organizationUnits : [];
                 const rootUnit = organizationUnits[ 0 ] || {};
                 this.isManagerView = !!data.isManagerView;
+                this.hasActiveCycle = data.hasActiveCycle === true;
                 this.unitType = String( rootUnit.type || "" ).trim();
                 this.unitName = String( rootUnit.name || "" ).trim();
                 this.unitBranch = String( rootUnit.branch || "" ).trim();
@@ -585,6 +589,9 @@ const configureNewEvaluation = () => {
         categoryCount: 0,
         minTeamMembers: 1,
         maxTeamMembers: null,
+        // Surfaced inline (as an empty state) instead of via toast when the backend reports no active cycle —
+        // the user can't start an evaluation, so showing the action bar would be misleading.
+        noActiveCycle: false,
 
         init() {
             const onInitialized = () => {
@@ -617,6 +624,12 @@ const configureNewEvaluation = () => {
                         return;
                     }
                     this.applyData( {} );
+                    // 5005 + "error.evaluation.no-active-cycle" → render an inline empty state and suppress the
+                    // toast. Any other error keeps the existing toast behavior so the user still sees what went wrong.
+                    if ( error?.exception?.code === 5005 && error?.exception?.data?.details === "error.evaluation.no-active-cycle" ) {
+                        this.noActiveCycle = true;
+                        return;
+                    }
                     tiApplication.notify( tiApplication.formatException( error ) );
                     if ( error.exception?.httpCode === 401 ) {
                         tiApplication.openScreen( "dashboard" );
@@ -637,6 +650,7 @@ const configureNewEvaluation = () => {
             this.maxTeamMembers = typeof fresh.maxTeamMembers === "number" ? fresh.maxTeamMembers : null;
             this.team = [];
             this.selectedTeamMemberID = "";
+            this.noActiveCycle = false;
         },
 
         getPageTitle() {
@@ -1432,6 +1446,15 @@ const configureCycleManagement = () => {
 
         init() {
             const onInitialized = () => {
+                // Register the CTA up front but disabled, then enable/disable in loadCycles based on actual state.
+                // This avoids a flash where the button looks clickable before we know if a cycle is already open.
+                tiApplication.setTopbarPrimaryCta( {
+                    labelKey: "interface.cycles.new-btn",
+                    icon: "plus",
+                    tone: "primary",
+                    disabled: true,
+                    handler: () => this.openCreateModal()
+                } );
                 this.loadCycles();
             };
             if ( tiApplication.isInitialized ) {
@@ -1453,6 +1476,8 @@ const configureCycleManagement = () => {
                 this.hasOpenCycle = data.hasOpenCycle === true;
                 this.suggestedCycleID = data.suggestedCycleID || "";
                 this.loaded = true;
+                // Sync the CTA's disabled state with the freshly loaded "hasOpenCycle" flag.
+                tiApplication.setTopbarPrimaryCtaDisabled( this.hasOpenCycle );
             } ).catch( ( error ) => {
                 if ( error?.name === "AbortError" || error?.isAborted ) {
                     return;
@@ -1507,6 +1532,63 @@ const configureCycleManagement = () => {
                 errorField: "",
                 busy: false
             };
+        },
+
+        openAuditModal( cycle ) {
+            this.modal = {
+                kind: "audit",
+                payload: {
+                    cycleID: cycle.cycleID,
+                    name: cycle.name,
+                    entries: this.buildCycleAuditEntries( cycle )
+                },
+                errorMessage: "",
+                errorField: "",
+                busy: false
+            };
+        },
+
+        getHistoryAria( cycle ) {
+            const tmpl = tiApplication.getLabel( "interface.cycles.actions.history-aria", "Show audit history for {cycle}" );
+            return tmpl.replace( "{cycle}", cycle.cycleID );
+        },
+
+        // Newest first, so the most recent transition is the first thing the user sees.
+        buildCycleAuditEntries( cycle ) {
+            const entries = [];
+            if ( cycle.createdAt ) {
+                entries.push( {
+                    kind: "created",
+                    tone: "info",
+                    timestamp: cycle.createdAt,
+                    actorName: cycle.createdByName || null
+                } );
+            }
+            if ( cycle.lockedAt ) {
+                entries.push( {
+                    kind: "locked",
+                    tone: "success",
+                    timestamp: cycle.lockedAt,
+                    actorName: cycle.lockedByName || null
+                } );
+            }
+            if ( cycle.actualCloseDate ) {
+                entries.push( {
+                    kind: "closed",
+                    tone: "muted",
+                    timestamp: cycle.actualCloseDate,
+                    // No closedBy field in the cycle schema (yet) — fall back to "system" in the UI.
+                    actorName: null
+                } );
+            }
+            return entries.sort( ( a, b ) => ( a.timestamp > b.timestamp ? -1 : ( a.timestamp < b.timestamp ? 1 : 0 ) ) );
+        },
+
+        formatAuditTime( value ) {
+            if ( !value ) return "—";
+            const date = new Date( /^\d{4}-\d{2}-\d{2}$/.test( value ) ? `${ value }T00:00:00` : value );
+            if ( !Number.isFinite( date.getTime() ) ) return value;
+            return date.toLocaleString();
         },
 
         closeModal() {
@@ -1723,10 +1805,46 @@ const configureCycleSetup = () => {
                 this.drafts = {};
                 this.selectNode( this.selectedFamily, this.selectedKey );
             }
+
+            // Register/refresh the topbar CTA. Lock-cycle is only meaningful while the cycle is still in PLANNING;
+            // the button is disabled until validation passes so the user gets a visual hint that something is wrong.
+            if ( !this.isReadOnly ) {
+                tiApplication.setTopbarPrimaryCta( {
+                    labelKey: "interface.cycles.actions.lock-cycle",
+                    icon: "send",
+                    tone: "primary",
+                    disabled: !( this.validation && this.validation.valid ),
+                    handler: () => this.openLockModal()
+                } );
+            } else {
+                tiApplication.setTopbarPrimaryCta( null );
+            }
         },
 
         backToCycles() {
             tiApplication.openScreen( "cycles" );
+        },
+
+        /* -------------------------- Lock ----------------------------------- */
+
+        openLockModal() {
+            if ( this.isReadOnly || !this.validation || !this.validation.valid ) return;
+            this.modal = {
+                kind: "lock-confirm",
+                payload: { cycleID: this.cycleID, name: this.cycle.name || "" }
+            };
+        },
+
+        submitLock() {
+            const cycleID = this.cycleID;
+            tiApplication.sendRequest( "/app/lock-cycle", "POST", { cycleID } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.cycles.toast.locked" ) );
+                this.closeModal();
+                // Re-load so isReadOnly flips and the CTA goes away.
+                this.loadData();
+            } ).catch( ( error ) => {
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
         },
 
         selectNode( familyCode, key ) {
@@ -2177,6 +2295,15 @@ const configureEmployeeManagement = () => {
                 this.employees = Array.isArray( data.employees ) ? tiToolbox.structuredClone( data.employees ) : [];
                 this.options = data.options ? tiToolbox.structuredClone( data.options ) : this.options;
                 this.loaded = true;
+                // Supervisor-only CTA — register once the scope is known so the button only shows for supervisors.
+                if ( this.scope === "supervisor" ) {
+                    tiApplication.setTopbarPrimaryCta( {
+                        labelKey: "interface.employee-management.new-btn",
+                        icon: "plus",
+                        tone: "primary",
+                        handler: () => this.openCreateModal()
+                    } );
+                }
                 if ( typeof afterFn === "function" ) afterFn();
             } ).catch( ( error ) => {
                 if ( error?.name === "AbortError" || error?.isAborted ) return;

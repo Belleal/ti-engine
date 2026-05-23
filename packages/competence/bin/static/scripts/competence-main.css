@@ -548,9 +548,10 @@
 }
 
 /* Org-chart grid columns: connector + avatar + person + role + level (centered) + evaluation +
-   actions (right-aligned). Head and row inherit the template via .ti-data-grid. */
+   actions (right-aligned). Head and row inherit the template via .ti-data-grid.
+   Actions column is sized for up to three buttons (Open / Start / Manage) without wrapping. */
 .competence-org-grid {
-    --ti-grid-cols: 22px 40px 2.2fr 1.2fr 80px 1.2fr 200px;
+    --ti-grid-cols: 22px 40px 2.2fr 1.2fr 80px 1.2fr 240px;
 }
 
 .competence-org-grid .ti-data-grid-rows {
@@ -2469,6 +2470,76 @@
     display: flex;
     align-items: center;
     gap: var(--s-3);
+}
+
+/* ============================================================
+   Audit timeline — shared between People (employee audit) and
+   Cycles (cycle audit). Used inside a .ti-modal-body or as a
+   standalone panel section. Rows are simple grids that read
+   well at any width and don't depend on a vertical track.
+   ============================================================ */
+.competence-audit-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.competence-audit-row {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: var(--s-3);
+    padding: var(--s-3);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-sm);
+    background: var(--bg-surface);
+}
+
+.competence-audit-when {
+    color: var(--fg-tertiary);
+    font-size: var(--fs-xs);
+}
+
+.competence-audit-by {
+    display: block;
+    margin-top: 2px;
+    font-style: italic;
+}
+
+.competence-audit-what {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+}
+
+.competence-audit-event {
+    font-weight: 600;
+    color: var(--fg-primary);
+    padding: 2px 8px;
+    border-radius: var(--r-pill);
+    background: var(--bg-sunken);
+    font-size: var(--fs-xs);
+}
+
+.competence-audit-event.tone-info {
+    background: var(--info-soft);
+    color: var(--info);
+}
+
+.competence-audit-event.tone-success {
+    background: var(--success-soft);
+    color: var(--success);
+}
+
+.competence-audit-event.tone-muted {
+    background: var(--muted-soft);
+    color: var(--fg-secondary);
+}
+
+@media (max-width: 720px) {
+    .competence-audit-row {
+        grid-template-columns: 1fr;
+    }
 }
 
 .competence-cycle-lock-errors {

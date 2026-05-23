@@ -18,6 +18,8 @@ const Icon = ({ name, size = 18, className = '', strokeWidth = 1.7, style }) => 
   switch (name) {
     case 'dashboard':
       return <svg {...props}><path d="M3 12 12 4l9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>;
+    case 'cycles':
+      return <svg {...props}><path d="M21 12a9 9 0 0 1-15.5 6.3"/><path d="M3 12a9 9 0 0 1 15.5-6.3"/><path d="M21 4v5h-5"/><path d="M3 20v-5h5"/></svg>;
     case 'evaluation':
       return <svg {...props}><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>;
     case 'employees':

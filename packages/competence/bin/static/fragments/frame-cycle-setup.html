@@ -342,4 +342,31 @@
             </div>
         </div>
     </template>
+
+    <!-- =============================================================
+         Lock confirmation modal (triggered from the topbar "Lock cycle" CTA)
+         ============================================================= -->
+    <template x-if="modal.kind === 'lock-confirm'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.cycles.lock-modal.title"></div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <span class="ti-icon close md" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <p x-text-label="interface.cycles.lock-modal.desc"></p>
+                    <p class="competence-cycle-lock-target">
+                        <span class="ti-tag mono" x-text="modal.payload.cycleID"></span>
+                        <span x-text="modal.payload.name"></span>
+                    </p>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.cycles.lock-modal.cancel-btn"></button>
+                    <button type="button" class="ti-btn primary" @click="submitLock()" x-text-label="interface.cycles.lock-modal.confirm-btn"></button>
+                </div>
+            </div>
+        </div>
+    </template>
 </div>

@@ -1,5 +1,19 @@
 <div class="ti-page" x-data="competenceNewEvaluation">
 
+    <!-- Empty state: no active cycle. The backend refused the load with code 5005 +
+         "error.evaluation.no-active-cycle"; render an inline panel instead of a toast and hide the action bar. -->
+    <template x-if="noActiveCycle">
+        <div class="ti-panel competence-panel-mb">
+            <div class="ti-empty-state">
+                <div class="ti-empty-state-icon" aria-hidden="true">
+                    <span class="ti-icon cycles-loop xl"></span>
+                </div>
+                <div class="ti-empty-state-title" x-text-label="interface.evaluation.new-eval.no-cycle-title"></div>
+                <div class="ti-empty-state-desc" x-text-label="interface.evaluation.new-eval.no-cycle-desc"></div>
+            </div>
+        </div>
+    </template>
+
     <template x-if="personal.name">
         <div>
             <!-- #1 Page header -->
@@ -114,8 +128,9 @@
         </div>
     </template>
 
-    <!-- #8 Sticky action bar -->
-    <div class="competence-eval-sticky-bar competence-new-eval-sticky">
+    <!-- #8 Sticky action bar — only meaningful when there's an evaluation to open. Hide it in the empty state
+         (no active cycle, or employee data not loaded) so the user isn't tempted to click an inert "Open evaluation". -->
+    <div class="competence-eval-sticky-bar competence-new-eval-sticky" x-show="personal.name && !noActiveCycle">
         <button type="button" class="ti-btn ghost sm" @click="cancel()" x-text-label="interface.evaluation.actions.cancel"></button>
         <button type="button" class="ti-btn primary sm" @click="submitNewEvaluation()">
             <span class="ti-icon send sm" aria-hidden="true"></span>

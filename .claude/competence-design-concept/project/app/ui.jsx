@@ -42,12 +42,14 @@ const Avatar = ({ employee, size = 'md' }) => {
 /* ============================================================
    Status pill — uses STATUSES table for tone
    ============================================================ */
-const StatusPill = ({ status, animate = true }) => {
-  const s = STATUSES[status] || STATUSES.NOT_STARTED;
+const StatusPill = ({ status, label, tone, animate = true }) => {
+  // Support cycle statuses too
+  const CYCLE_STATUSES = COMPETENCE_DATA.CYCLE_STATUSES || {};
+  const s = STATUSES[status] || CYCLE_STATUSES[status] || { name: label || status, tone: tone || 'muted' };
   return (
-    <span className={`status-pill ${s.tone}`} role="status">
+    <span className={`status-pill ${tone || s.tone}`} role="status">
       <span className="dot" aria-hidden="true"/>
-      {s.name}
+      {label || s.name}
     </span>
   );
 };
@@ -231,6 +233,8 @@ const LevelPip = ({ level, stage }) => (
 const SIDEBAR_ITEMS = [
   { id: 'dashboard',  label: 'Dashboard',          icon: 'dashboard' },
   { id: 'employees',  label: 'Employees',          icon: 'employees' },
+  { id: 'cycles',     label: 'Cycles',             icon: 'cycles' },
+  { id: 'people',     label: 'People',             icon: 'user' },
   { id: 'evaluation', label: 'My Evaluation',      icon: 'evaluation', badge: 'IN_REVIEW' },
   { id: 'calendar',   label: 'Availability',       icon: 'calendar' },
   { id: 'schedule',   label: 'Interviews',         icon: 'schedule' },

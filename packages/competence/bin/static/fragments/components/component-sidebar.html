@@ -13,7 +13,7 @@
         </div>
     </div>
 
-    <!-- Workspace navigation -->
+    <!-- Workspace: items every user works inside (their own evaluation, their own team's org chart, their slots). -->
     <div class="ti-sidebar-section-label" x-text-label="interface.navigation.workspace">Workspace</div>
     <div class="ti-sidebar-nav">
         <button hx-get="/app/dashboard" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'dashboard'"
@@ -25,29 +25,11 @@
         </button>
 
         <button hx-get="/app/employees-list" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'employees'"
-                x-bind:class="{ active: active === 'employees' }" class="ti-sidebar-item" data-tip="Employees" aria-label="Employees" type="button">
+                x-bind:class="{ active: active === 'employees' }" class="ti-sidebar-item" data-tip="Org chart" aria-label="Org chart" type="button">
             <span class="ti-sidebar-item-icon">
                 <span class="ti-icon users md" aria-hidden="true"></span>
             </span>
-            <span class="ti-sidebar-item-label" x-text-label="interface.topbar.employees">Employees</span>
-        </button>
-
-        <button hx-get="/app/cycles" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'cycles'"
-                x-show="$store.tiApplication.hasRole(3)"
-                x-bind:class="{ active: active === 'cycles' }" class="ti-sidebar-item" data-tip="Cycles" aria-label="Cycles" type="button">
-            <span class="ti-sidebar-item-icon">
-                <span class="ti-icon cycles-loop md" aria-hidden="true"></span>
-            </span>
-            <span class="ti-sidebar-item-label" x-text-label="interface.topbar.cycles">Cycles</span>
-        </button>
-
-        <button hx-get="/app/employee-management" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'employee-management'"
-                x-show="$store.tiApplication.hasRole(2) || $store.tiApplication.hasRole(3)"
-                x-bind:class="{ active: active === 'employee-management' }" class="ti-sidebar-item" data-tip="People" aria-label="People" type="button">
-            <span class="ti-sidebar-item-icon">
-                <span class="ti-icon user md" aria-hidden="true"></span>
-            </span>
-            <span class="ti-sidebar-item-label" x-text-label="interface.topbar.employee-management">People</span>
+            <span class="ti-sidebar-item-label" x-text-label="interface.topbar.employees">Org chart</span>
         </button>
 
         <button @click="navigate('evaluation', 'competence-evaluation')"
@@ -78,6 +60,32 @@
         </button>
     </div>
 
+    <!-- Manage: cross-team / cross-cycle administration. Visible only to managers and supervisors.
+         (Org chart stays in Workspace because regular employees use it to browse their team — backend allows it.)
+         x-show (not x-if) so htmx — which scans hx-* attributes once at page load — can wire these buttons up
+         even when the current user can't see the section yet. -->
+    <div x-show="$store.tiApplication.hasRole(2) || $store.tiApplication.hasRole(3)">
+        <div class="ti-sidebar-section-label" x-text-label="interface.navigation.manage">Manage</div>
+        <div class="ti-sidebar-nav">
+            <button hx-get="/app/employee-management" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'employee-management'"
+                    x-bind:class="{ active: active === 'employee-management' }" class="ti-sidebar-item" data-tip="People" aria-label="People" type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon user md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.topbar.employee-management">People</span>
+            </button>
+
+            <button hx-get="/app/cycles" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'cycles'"
+                    x-show="$store.tiApplication.hasRole(3)"
+                    x-bind:class="{ active: active === 'cycles' }" class="ti-sidebar-item" data-tip="Cycles" aria-label="Cycles" type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon cycles-loop md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.topbar.cycles">Cycles</span>
+            </button>
+        </div>
+    </div>
+
     <!-- Quick links section -->
     <div class="ti-sidebar-section-label" x-text-label="interface.navigation.quick-links">Quick links</div>
     <div class="ti-sidebar-nav">
@@ -99,9 +107,14 @@
 
     <!-- Footer -->
     <div class="ti-sidebar-foot">
-        <button class="ti-sidebar-item" @click="toggleTheme()" data-tip="Toggle theme" aria-label="Toggle theme" type="button">
+        <!-- Theme toggle: glyph mirrors tooltip — sun = "switch to dark", moon = "switch to light". -->
+        <button class="ti-sidebar-item" @click="toggleTheme()"
+                x-bind:data-tip="theme === 'daylight' ? $store.tiApplication.getLabel('interface.sidebar.theme-glass') : $store.tiApplication.getLabel('interface.sidebar.theme-daylight')"
+                x-bind:aria-label="theme === 'daylight' ? $store.tiApplication.getLabel('interface.sidebar.theme-glass') : $store.tiApplication.getLabel('interface.sidebar.theme-daylight')"
+                type="button">
             <span class="ti-sidebar-item-icon">
-                <span class="ti-icon sun md" aria-hidden="true"></span>
+                <span class="ti-icon md" aria-hidden="true"
+                      x-bind:class="theme === 'daylight' ? 'sun' : 'moon'"></span>
             </span>
             <span class="ti-sidebar-item-label"
                   x-text="theme === 'daylight' ? $store.tiApplication.getLabel('interface.sidebar.theme-glass') : $store.tiApplication.getLabel('interface.sidebar.theme-daylight')">Toggle Theme</span>
