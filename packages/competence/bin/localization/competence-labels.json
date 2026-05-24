@@ -4865,19 +4865,19 @@
       },
       "page-title-supervisor": {
         "en": "Employee Management",
-        "bg": "Управление на служителите"
+        "bg": "Управление на служители"
       },
       "page-title-manager": {
-        "en": "My Team",
-        "bg": "Моят екип"
+        "en": "Manage your team",
+        "bg": "Управление на Вашия екип"
       },
       "page-desc-supervisor": {
-        "en": "Maintain the employee roster. Changes are audited and affect future evaluations only.",
-        "bg": "Поддържайте регистъра на служителите. Промените се записват в одита и влияят само върху бъдещи оценки."
+        "en": "Edit any employee's personal data, career, organization, and employment status. All changes are audited and affect future evaluations only.",
+        "bg": "Редактирайте личните данни, кариерата, организацията и статуса на заетост на всеки служител. Всички промени се записват в одита и влияят само върху бъдещи оценки."
       },
       "page-desc-manager": {
-        "en": "View your direct reports and update their specializations.",
-        "bg": "Прегледайте Вашите подчинени и актуализирайте техните специализации."
+        "en": "View your direct reports and update their specializations. In-flight evaluations are unaffected by changes.",
+        "bg": "Прегледайте Вашите подчинени и актуализирайте техните специализации. Текущите оценки не се влияят от промените."
       },
       "empty-list-title": {
         "en": "No employees match the current filters",
@@ -4886,6 +4886,18 @@
       "empty-list-desc": {
         "en": "Adjust the filters or search to narrow or widen the result set.",
         "bg": "Коригирайте филтрите или търсенето, за да стесните или разширите резултата."
+      },
+      "list-count": {
+        "en": "{n} employees",
+        "bg": "{n} служители"
+      },
+      "list-count-one": {
+        "en": "1 employee",
+        "bg": "1 служител"
+      },
+      "clear-filters": {
+        "en": "Clear filters",
+        "bg": "Изчисти филтрите"
       },
       "no-selection-title": {
         "en": "Select an employee",
@@ -5161,12 +5173,46 @@
       },
       "evaluations": {
         "empty-title": {
-          "en": "No evaluations yet",
-          "bg": "Все още няма оценки"
+          "en": "No active evaluations",
+          "bg": "Без активни оценки"
         },
         "empty-desc": {
-          "en": "This employee has no evaluations on record.",
-          "bg": "За този служител няма регистрирани оценки."
+          "en": "This employee has no evaluations in flight for the current cycle. Closed evaluations live in the archive.",
+          "bg": "Този служител няма текущи оценки в настоящия цикъл. Затворените оценки са в архива."
+        },
+        "col": {
+          "evaluation": {
+            "en": "EVALUATION",
+            "bg": "ОЦЕНКА"
+          },
+          "cycle": {
+            "en": "CYCLE",
+            "bg": "ЦИКЪЛ"
+          },
+          "level": {
+            "en": "LEVEL",
+            "bg": "НИВО"
+          },
+          "status": {
+            "en": "STATUS",
+            "bg": "СТАТУС"
+          },
+          "interview": {
+            "en": "INTERVIEW",
+            "bg": "ИНТЕРВЮ"
+          },
+          "actions": {
+            "en": "ACTIONS",
+            "bg": "ДЕЙСТВИЯ"
+          }
+        },
+        "not-scheduled": {
+          "en": "Not scheduled",
+          "bg": "Без насрочено"
+        },
+        "open-btn": {
+          "en": "Open",
+          "bg": "Отвори"
         }
       },
       "audit": {

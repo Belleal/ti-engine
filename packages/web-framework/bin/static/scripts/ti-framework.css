@@ -1320,6 +1320,43 @@ body {
     line-height: 1.5;
 }
 
+/* Custom chevron for selects.
+   The native <select> chevron position is browser-controlled and ends up visually offset from the calendar
+   icon that <input type="date"> renders. Disable the native chevron with appearance:none and draw our own
+   so both glyphs sit at the same right offset. Padding-right reserves the glyph slot; padding-right on
+   the date input matches so the calendar icon's natural right margin lines up with the chevron.
+   Theme-specific stroke colour because SVG inside background-image can't pick up currentColor. */
+.ti-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 32px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238B8478' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 14px 14px;
+}
+
+[data-theme="glass"] .ti-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A6ACB8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+}
+
+/* Hide the legacy IE/Edge native arrow if the engine still renders it. */
+.ti-select::-ms-expand {
+    display: none;
+}
+
+/* Date input — leave the base padding alone (extra padding-right would shrink the content box and
+   drag the calendar icon left of where it naturally sits, which is what we're trying to match). */
+.ti-input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+.ti-input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
 .ti-field-label {
     display: block;
     font-size: var(--fs-sm);
@@ -1355,16 +1392,6 @@ body {
     position: relative;
 }
 
-.ti-status-pill .dot::after {
-    content: "";
-    position: absolute;
-    inset: -3px;
-    border-radius: 50%;
-    border: 2px solid var(--fg-secondary);
-    opacity: 0;
-    animation: statusPulse 1.6s var(--ease-out) infinite;
-}
-
 .ti-status-pill.success {
     background: var(--success-soft);
     color: var(--success);
@@ -1374,9 +1401,16 @@ body {
     background: var(--success);
 }
 
+.ti-status-pill.danger .dot::after,
 .ti-status-pill.success .dot::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
     color: var(--success);
     border: 2px solid var(--success);
+    opacity: 0;
+    animation: statusPulse 1.6s var(--ease-out) infinite;
 }
 
 .ti-status-pill.info {
@@ -1388,11 +1422,6 @@ body {
     background: var(--info);
 }
 
-.ti-status-pill.info .dot::after {
-    color: var(--info);
-    border: 2px solid var(--info);
-}
-
 .ti-status-pill.warn {
     background: var(--warn-soft);
     color: var(--warn);
@@ -1400,11 +1429,6 @@ body {
 
 .ti-status-pill.warn .dot {
     background: var(--warn);
-}
-
-.ti-status-pill.warn .dot::after {
-    color: var(--warn);
-    border: 2px solid var(--warn);
 }
 
 .ti-status-pill.danger {
@@ -1428,12 +1452,6 @@ body {
 
 .ti-status-pill.muted .dot {
     background: var(--fg-tertiary);
-}
-
-.ti-status-pill.muted .dot::after {
-    color: var(--fg-tertiary);
-    border: 2px solid var(--fg-tertiary);
-    animation: none;
 }
 
 @keyframes statusPulse {

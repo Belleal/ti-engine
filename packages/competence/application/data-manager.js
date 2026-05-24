@@ -875,6 +875,12 @@ class DataManager {
             }
         }
         const createdAt = new Date().toISOString();
+        // Pick the first seeded employee as the default creator so the "created by" column on the Cycles
+        // screen has a real name to display. The seeder runs without a session (no logged-in user), so
+        // there's no real actor — using the first registry entry keeps the name resolvable through
+        // organizationManager.resolveEmployeeName without coupling to a magic test-user ID.
+        const seedEmployees = require( "#data-employees" ).employees;
+        const seedCreator = ( Array.isArray( seedEmployees ) && seedEmployees.length > 0 ) ? seedEmployees[ 0 ].employeeID : null;
         return Array.from( cycleIDs ).map( ( cycleID ) => {
             const [ yearStr, half ] = cycleID.split( "-" );
             const year = Number( yearStr );
@@ -892,7 +898,7 @@ class DataManager {
                 lockedAt: null,
                 lockedBy: null,
                 createdAt,
-                createdBy: null
+                createdBy: seedCreator
             };
         } );
     }

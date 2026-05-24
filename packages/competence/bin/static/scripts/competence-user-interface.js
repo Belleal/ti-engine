@@ -2321,6 +2321,14 @@ const configureEmployeeManagement = () => {
             this.loadDetail( employeeID );
         },
 
+        openEvaluation( employeeID, evaluationID ) {
+            let screen = "competence-evaluation?employeeID=" + encodeURIComponent( employeeID );
+            if ( evaluationID ) {
+                screen += "&evaluationID=" + encodeURIComponent( evaluationID );
+            }
+            tiApplication.openScreen( screen );
+        },
+
         loadDetail( employeeID ) {
             tiApplication.sendRequest( "/app/load-employee-detail?employeeID=" + encodeURIComponent( employeeID ) ).then( ( result ) => {
                 this.detail = result?.data ? tiToolbox.structuredClone( result.data ) : emptyDetail();
@@ -2362,6 +2370,21 @@ const configureEmployeeManagement = () => {
             } );
         },
 
+        hasActiveFilters() {
+            const f = this.filters || {};
+            return !!( f.search || f.roleFamily || f.specialization || f.stageLevel || f.employmentStatus );
+        },
+
+        clearAllFilters() {
+            this.filters = { search: "", roleFamily: "", specialization: "", stageLevel: "", employmentStatus: "" };
+        },
+
+        filteredCountLabel() {
+            const n = this.filteredEmployees().length;
+            const key = n === 1 ? "interface.employee-management.list-count-one" : "interface.employee-management.list-count";
+            return tiApplication.getLabel( key ).replace( "{n}", String( n ) );
+        },
+
         availableSpecializationsForFilter() {
             if ( !this.filters.roleFamily ) return [];
             const family = this.options.roleFamilies.find( ( f ) => f.code === this.filters.roleFamily );
@@ -2387,6 +2410,61 @@ const configureEmployeeManagement = () => {
                 ( sl.stages || [] ).forEach( ( stage ) => codes.push( `${ sl.code }${ stage }` ) );
             } );
             return codes;
+        },
+
+        // Per-level helpers used by the split Level + Stage selects in the Details form.
+        availableStagesForLevel( levelCode ) {
+            const entry = ( this.options.stageLevels || [] ).find( ( sl ) => sl.code === levelCode );
+            return entry ? ( entry.stages || [] ) : [];
+        },
+
+        availableStagesForDraft() {
+            if ( !this.draft || !this.draft.career ) return [];
+            return this.availableStagesForLevel( this.draft.career.level );
+        },
+
+        // Imperatively sync the select's DOM value with the underlying draft after the option <template>
+        // has rendered its children. Alpine's x-model / x-bind:value can race the x-for and end up
+        // setting element.value before any option exists, leaving the select on its first option.
+        // Calling these from x-effect re-runs whenever draft.career changes.
+        syncLevelSelect( el ) {
+            const draft = this.draft;
+            const value = ( draft && draft.career && draft.career.level ) ? draft.career.level : "";
+            this.$nextTick( () => {
+                if ( el && el.value !== value ) {
+                    el.value = value;
+                }
+            } );
+        },
+
+        syncStageSelect( el ) {
+            const career = this.draft && this.draft.career;
+            if ( !career ) return;
+            // Read level too so x-effect re-runs when level changes — Stage's <template x-for>
+            // rebuilds its options at that point and the selection would otherwise be lost.
+            void career.level;
+            const value = career.stage != null ? String( career.stage ) : "";
+            this.$nextTick( () => {
+                if ( el && el.value !== value ) {
+                    el.value = value;
+                }
+            } );
+        },
+
+        // Same race fix for Specialization. Its hardcoded "Generalist" option absorbs the failed
+        // match (the select displays the empty-value option when nothing else matches), so the
+        // employee's real specialization never shows without this nudge. Reads roleFamily too so
+        // it re-fires when family changes and the spec options are rebuilt.
+        syncSpecializationSelect( el ) {
+            const career = this.draft && this.draft.career;
+            if ( !career ) return;
+            void career.roleFamily;
+            const value = career.specialization || "";
+            this.$nextTick( () => {
+                if ( el && el.value !== value ) {
+                    el.value = value;
+                }
+            } );
         },
 
         stageLevelOf( record ) {
@@ -2464,6 +2542,24 @@ const configureEmployeeManagement = () => {
             if ( !this.draft || !stageLevel ) return;
             this.draft.career.level = stageLevel.charAt( 0 );
             this.draft.career.stage = Number( stageLevel.slice( 1 ) ) || 1;
+        },
+
+        // Split Level + Stage controls. When Level changes, re-snap Stage to the first valid value for the
+        // new level if the current stage isn't offered (e.g. R3 → T leaves only stage 1).
+        onLevelChange( newLevel ) {
+            if ( !this.draft ) return;
+            this.draft.career.level = newLevel || "";
+            const stages = this.availableStagesForLevel( newLevel );
+            if ( stages.length === 0 ) {
+                this.draft.career.stage = null;
+            } else if ( !stages.includes( Number( this.draft.career.stage ) ) ) {
+                this.draft.career.stage = stages[ 0 ];
+            }
+        },
+
+        onStageChange( newStage ) {
+            if ( !this.draft ) return;
+            this.draft.career.stage = Number( newStage ) || null;
         },
 
         closeModal() {
@@ -2613,6 +2709,10 @@ const configureEmployeeManagement = () => {
             const date = new Date( value );
             if ( !Number.isFinite( date.getTime() ) ) return value;
             return date.toLocaleString();
+        },
+
+        formatDate( value, placeholder = "—" ) {
+            return tiToolbox.formatDate( value, placeholder );
         },
 
         formatInFlightCount( n ) {

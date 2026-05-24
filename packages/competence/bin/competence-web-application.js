@@ -2015,6 +2015,26 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
+     * Maps an evaluation status to a status-pill tone variant. OPEN → info, IN_REVIEW → warn, READY → success.
+     * Returns "" for any other status (e.g. CLOSED, NOT_STARTED) so the consumer can fall back to the default pill.
+     * <br/>
+     * NOTE: Two inline copies of this helper still live in {@link #loadEmployeeList} and the dashboard projection.
+     * Future cleanup can route them through here; this method exists now because the People > Evaluations data-grid
+     * needs the tone to render the StatusPill consistently with the org chart.
+     *
+     * @method
+     * @private
+     * @param {string} status
+     * @returns {"info"|"warn"|"success"|""}
+     */
+    #evaluationStatusTone( status ) {
+        if ( status === configurationLoader.evaluationStatus.OPEN ) return "info";
+        if ( status === configurationLoader.evaluationStatus.IN_REVIEW ) return "warn";
+        if ( status === configurationLoader.evaluationStatus.READY ) return "success";
+        return "";
+    }
+
+    /**
      * Suggests the next free cycle ID based on today's half-year. Iterates YYYY-Hx forward until an unused ID is
      * found. Used as the default value in the Create Cycle modal.
      *
@@ -2146,7 +2166,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                                 shortID: evaluation.shortID,
                                 cycleID: evaluation.cycleID,
                                 status: evaluation.status,
-                                statusName: configurationLoader.evaluationStatus.name( evaluation.status )
+                                statusName: configurationLoader.evaluationStatus.name( evaluation.status ),
+                                statusTone: this.#evaluationStatusTone( evaluation.status ),
+                                // Used by the People > Evaluations tab to render a level pip and an interview-date column.
+                                stageLevel: ( evaluation.stageLevel || ( employee?.career?.level && employee?.career?.stage ? `${ employee.career.level }${ employee.career.stage }` : "" ) ) || "",
+                                interviewDate: evaluation.interviewDate || null
                             } ) )
                         },
                         audit: auditProjected,

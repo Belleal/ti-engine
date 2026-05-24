@@ -432,6 +432,7 @@
 .competence-dash-cols .ti-panel {
     display: flex;
     flex-direction: column;
+    padding: var(--s-4) var(--s-5);
 }
 
 .competence-dash-cols .ti-panel .ti-panel-head {
@@ -2473,73 +2474,169 @@
 }
 
 /* ============================================================
-   Audit timeline — shared between People (employee audit) and
-   Cycles (cycle audit). Used inside a .ti-modal-body or as a
-   standalone panel section. Rows are simple grids that read
-   well at any width and don't depend on a vertical track.
+   Audit timeline — shared between People (employee audit tab)
+   and Cycles (per-cycle audit modal). Renders chronological
+   entries as dots on a vertical track. Each entry has a
+   timestamp + actor on top and an action chip below.
+
+   Markup:
+     <div class="competence-audit-timeline">
+       <div class="competence-audit-entry">
+         <span class="competence-audit-dot" [data-created="true"]></span>
+         <span class="competence-audit-line"></span>  <!-- omit on last entry -->
+         <div class="competence-audit-content">
+           <div class="competence-audit-when">…</div>
+           <div class="competence-audit-action [tone-*]">…</div>
+         </div>
+       </div>
+       …
+     </div>
+
+   For "value changed" rows the action block carries .competence-audit-field
+   + .competence-audit-old + .competence-audit-new inline.
    ============================================================ */
-.competence-audit-list {
+.competence-audit-timeline {
+    position: relative;
     display: flex;
     flex-direction: column;
-    gap: var(--s-2);
+    padding: var(--s-2) 0;
 }
 
-.competence-audit-row {
-    display: grid;
-    grid-template-columns: 220px 1fr;
-    gap: var(--s-3);
-    padding: var(--s-3);
-    border: 1px solid var(--border-soft);
-    border-radius: var(--r-sm);
-    font-size: var(--fs-sm);
+.competence-audit-entry {
+    position: relative;
+    padding-left: 28px;
+    padding-bottom: var(--s-4);
+}
+
+.competence-audit-entry:last-child {
+    padding-bottom: 0;
+}
+
+.competence-audit-dot {
+    position: absolute;
+    left: 0;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
     background: var(--bg-surface);
+    border: 2px solid var(--accent);
+    z-index: 1;
+}
+
+.competence-audit-dot[data-created="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.competence-audit-dot.tone-success {
+    border-color: var(--success);
+}
+
+.competence-audit-dot.tone-success[data-created="true"],
+.competence-audit-dot[data-created="true"].tone-success {
+    background: var(--success);
+}
+
+.competence-audit-dot.tone-muted {
+    border-color: var(--fg-tertiary);
+}
+
+.competence-audit-dot.tone-muted[data-created="true"],
+.competence-audit-dot[data-created="true"].tone-muted {
+    background: var(--fg-tertiary);
+}
+
+.competence-audit-line {
+    position: absolute;
+    left: 5px;
+    top: 20px;
+    bottom: -2px;
+    width: 2px;
+    background: var(--border);
+}
+
+.competence-audit-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
 }
 
 .competence-audit-when {
-    color: var(--fg-tertiary);
-    font-size: var(--fs-xs);
-}
-
-.competence-audit-by {
-    display: block;
-    margin-top: 2px;
-    font-style: italic;
-}
-
-.competence-audit-what {
-    min-width: 0;
     display: flex;
     align-items: center;
-}
-
-.competence-audit-event {
-    font-weight: 600;
-    color: var(--fg-primary);
-    padding: 2px 8px;
-    border-radius: var(--r-pill);
-    background: var(--bg-sunken);
+    gap: 6px;
     font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
 }
 
-.competence-audit-event.tone-info {
-    background: var(--info-soft);
-    color: var(--info);
+.competence-audit-when strong {
+    color: var(--fg-secondary);
+    font-weight: 600;
 }
 
-.competence-audit-event.tone-success {
+.competence-audit-action {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: var(--fs-sm);
+    padding: var(--s-2) var(--s-3);
+    background: var(--bg-sunken);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-sm);
+}
+
+.competence-audit-action.created {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: transparent;
+    font-weight: 500;
+}
+
+.competence-audit-action.tone-success {
     background: var(--success-soft);
     color: var(--success);
+    border-color: transparent;
+    font-weight: 500;
 }
 
-.competence-audit-event.tone-muted {
+.competence-audit-action.tone-muted {
     background: var(--muted-soft);
     color: var(--fg-secondary);
+    border-color: transparent;
+    font-weight: 500;
 }
 
-@media (max-width: 720px) {
-    .competence-audit-row {
-        grid-template-columns: 1fr;
-    }
+.competence-audit-field {
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.competence-audit-arrow {
+    color: var(--fg-tertiary);
+}
+
+.competence-audit-old {
+    padding: 1px 7px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-xs);
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+    text-decoration: line-through;
+    text-decoration-color: var(--fg-tertiary);
+}
+
+.competence-audit-new {
+    padding: 1px 7px;
+    background: var(--success-soft);
+    color: var(--success);
+    border-radius: var(--r-xs);
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: var(--fs-xs);
+    font-weight: 600;
 }
 
 .competence-cycle-lock-errors {
@@ -3158,14 +3255,22 @@
     grid-template-columns: 380px 1fr;
     gap: var(--s-4);
     margin-top: var(--s-4);
-    min-height: 700px;
+    align-items: start;
 }
 
+/* Master pane sticks beneath the app topbar while the detail scrolls with the document. Filters + meta bar
+   remain pinned at the top of the pane; only the .competence-empmgmt-list inside scrolls. */
 .competence-empmgmt-master {
-    padding: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    position: sticky;
+    top: calc(var(--header-h, 64px) + var(--s-4));
+    max-height: calc(100vh - var(--header-h, 64px) - var(--s-7));
+    align-self: start;
 }
 
 .competence-empmgmt-filters {
@@ -3181,8 +3286,31 @@
     width: 100%;
 }
 
-.competence-empmgmt-new-btn {
-    align-self: stretch;
+/* 2x2 grid for the four select filters. Compact and matches the design's filter-grid pattern. */
+.competence-empmgmt-filter-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-2);
+}
+
+.competence-empmgmt-filter-grid .ti-select {
+    min-width: 0;
+}
+
+/* Result counter + Clear filters affordance sitting between filters and list. */
+.competence-empmgmt-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+    padding: var(--s-2) var(--s-3);
+    border-bottom: 1px solid var(--border-soft);
+    background: var(--bg-surface);
+    color: var(--fg-tertiary);
+    font-size: var(--fs-xxs);
+    letter-spacing: 0.08em;
+    font-weight: 500;
+    text-transform: uppercase;
 }
 
 .competence-empmgmt-list {
@@ -3253,42 +3381,29 @@
     color: var(--fg-tertiary);
 }
 
-.competence-empmgmt-empty {
-    padding: var(--s-5);
-    text-align: center;
-    color: var(--fg-tertiary);
-}
-
-.competence-empmgmt-empty-title {
-    font-weight: 500;
-    color: var(--fg-secondary);
-    margin-bottom: var(--s-2);
-}
-
-.competence-empmgmt-empty-desc {
-    font-size: var(--fs-sm);
-}
-
 .competence-empmgmt-detail {
-    padding: 0;
     display: flex;
     flex-direction: column;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
     overflow: hidden;
+    min-width: 0;
 }
 
+/* Detail body is content-sized — the page (not the pane) handles scrolling so the sticky master can pin
+   against the viewport. The sticky save bar inside .competence-empmgmt-form-actions-sticky still pins
+   against the viewport as the user scrolls. */
 .competence-empmgmt-detail-body {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-    min-height: 0;
 }
 
 .competence-empmgmt-detail-head {
     display: flex;
-    gap: var(--s-3);
+    gap: var(--s-4);
     align-items: center;
-    padding: var(--s-4) var(--s-5);
+    padding: var(--s-5);
     border-bottom: 1px solid var(--border-soft);
     background: var(--bg-surface);
 }
@@ -3300,19 +3415,63 @@
 
 .competence-empmgmt-detail-name {
     font-weight: 600;
-    font-size: var(--fs-md);
+    font-size: var(--fs-2xl);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
     color: var(--fg-primary);
 }
 
 .competence-empmgmt-detail-sub {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
     font-size: var(--fs-sm);
     color: var(--fg-secondary);
-    margin-top: 2px;
+    margin-top: var(--s-1);
 }
 
 .competence-empmgmt-detail-sub-sep {
     color: var(--fg-tertiary);
-    margin: 0 var(--s-2);
+}
+
+/* Aside stacks the employment status pill on top of the employee-ID tag. */
+.competence-empmgmt-detail-head-aside {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--s-1);
+}
+
+/* Manager readonly: single row with avatar + name and the inferred-from hint pushed to the right.
+   The framework's .ti-form-readonly defaults to column direction; we override it to row here so the
+   layout matches the design's .form-readonly token bag (sunken pill with everything inline). */
+.competence-empmgmt-manager-readonly {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--s-2);
+    padding: 8px 12px;
+    background: var(--bg-sunken);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    min-height: 38px;
+}
+
+.competence-empmgmt-manager-readonly .ti-form-hint {
+    margin-left: auto;
+}
+
+/* Level + Stage live inside a single form-row cell as a two-column sub-grid. Level gets the wider
+   share since its options are letters; Stage is just 1-3 digits. */
+.competence-empmgmt-level-stage {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-2);
+}
+
+.competence-empmgmt-sublabel-sep {
+    color: var(--fg-tertiary);
+    margin: 0 6px;
 }
 
 .competence-empmgmt-tabs {
@@ -3358,101 +3517,54 @@
 }
 
 .competence-empmgmt-form {
-    flex: 1 1 auto;
-    overflow-y: auto;
     padding: var(--s-5);
     display: flex;
     flex-direction: column;
     gap: var(--s-5);
-    min-height: 0;
 }
 
-/* The employee-management editor's action bar pins to the bottom of its scroll pane (the master-detail right pane).
-   Keep the layout primitives from .ti-form-actions and only add the sticky positioning + negative margin trick to
-   reach the pane edges. */
-.competence-empmgmt-form-actions-sticky {
+/* Right column wrapper. Holds the detail card and the sticky actions panel so they stack vertically
+   inside the second grid column of .competence-empmgmt-shell. min-width: 0 prevents the grid cell
+   from blowing out when wide content (like long org-unit names) lands inside the detail. */
+.competence-empmgmt-detail-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    min-width: 0;
+}
+
+/* Sticky actions panel — separate card beneath the main detail card. Mirrors .competence-eval-sticky-bar
+   visual treatment so the editor's "save / cancel" affordance reads the same way across screens. */
+.competence-empmgmt-actions-panel {
     position: sticky;
-    bottom: calc(-1 * var(--s-5));
-    background: var(--bg-surface);
-    margin: 0 calc(-1 * var(--s-5)) calc(-1 * var(--s-5));
+    bottom: var(--s-4);
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
     padding: var(--s-3) var(--s-5);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: 0 -4px 24px color-mix(in oklab, var(--fg-primary) 6%, transparent);
+}
+
+.competence-empmgmt-actions-spacer {
+    flex: 1 1 auto;
 }
 
 .competence-empmgmt-evaluations {
     padding: var(--s-5);
-    overflow-y: auto;
 }
 
-.competence-empmgmt-eval-row {
-    display: flex;
-    align-items: center;
-    gap: var(--s-3);
-    padding: var(--s-2) var(--s-3);
-    border-bottom: 1px solid var(--border-soft);
-    color: var(--fg-secondary);
+/* Column template for the Evaluations data grid: ID / Cycle / Level / Status / Interview / Open */
+.competence-empmgmt-eval-grid {
+    --ti-grid-cols: 110px 100px 80px 130px 1fr 100px;
 }
 
+/* Padding mirrors .competence-empmgmt-form so the audit tab content aligns with Details / Evaluations. */
 .competence-empmgmt-audit {
     padding: var(--s-5);
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-2);
-    overflow-y: auto;
-}
-
-.competence-empmgmt-audit-row {
-    display: grid;
-    grid-template-columns: 220px 1fr;
-    gap: var(--s-3);
-    padding: var(--s-3);
-    border: 1px solid var(--border-soft);
-    border-radius: var(--r-sm);
-    font-size: var(--fs-sm);
-}
-
-.competence-empmgmt-audit-when {
-    color: var(--fg-tertiary);
-    font-size: var(--fs-xs);
-}
-
-.competence-empmgmt-audit-by {
-    display: block;
-    margin-top: 2px;
-    font-style: italic;
-}
-
-.competence-empmgmt-audit-what {
-    min-width: 0;
-}
-
-.competence-empmgmt-audit-field {
-    font-weight: 600;
-    color: var(--fg-primary);
-    margin-right: var(--s-2);
-}
-
-.competence-empmgmt-audit-arrow {
-    color: var(--fg-tertiary);
-    margin: 0 var(--s-2);
-}
-
-.competence-empmgmt-audit-diff {
-    margin-top: var(--s-1);
-}
-
-.competence-empmgmt-audit-old {
-    color: var(--fg-tertiary);
-    text-decoration: line-through;
-}
-
-.competence-empmgmt-audit-new {
-    color: var(--fg-primary);
-    font-weight: 500;
-}
-
-.competence-empmgmt-audit-created {
-    color: var(--success);
-    font-weight: 500;
 }
 
 .competence-empmgmt-modal-stat {
@@ -3477,11 +3589,10 @@
         grid-template-columns: 1fr;
     }
 
+    /* On narrow screens, drop sticky and cap the master at a reasonable height to avoid pushing the
+       detail pane far below the fold. */
     .competence-empmgmt-master {
+        position: static;
         max-height: 480px;
-    }
-
-    .competence-empmgmt-audit-row {
-        grid-template-columns: 1fr;
     }
 }
