@@ -274,8 +274,14 @@
  * @property {CompetencyCategory} category - Category code: E (Expertise), I (Insight), or C (Commitment).
  * @property {string} subcategory - Subcategory code matching the parent category.
  * @property {CompetencyScope} scope - Scope descriptions per stage-level.
- * @property {CompetencyRelevancy} relevancy - Relevancy scores per stage-level.
  * @property {ECFMapping[]} [eCFMapping] - Optional e-CF cross-walk.
+ */
+
+/**
+ * @typedef {Object.<RoleFamilyCodeValue, Object.<string, CompetencyRelevancy>>} ConfigCompetencyRelevancy
+ * @description Maps role family code → competency code → per-stage-level relevancy scores. Relevancy is role-family-specific
+ * because the same competency can carry different importance across disciplines (e.g., shared transversal
+ * competencies have different N1/X1 expectations between Software Engineering and Business Analysis).
  */
 
 /**

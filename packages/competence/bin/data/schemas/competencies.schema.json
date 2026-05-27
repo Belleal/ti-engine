@@ -100,14 +100,13 @@
     },
     "competency": {
       "type": "object",
-      "description": "A single competency definition",
+      "description": "A single competency definition. Relevancy scores are intentionally not embedded here; they vary per role family and live in config.competency-relevancy.json.",
       "required": [
         "name",
         "description",
         "category",
         "subcategory",
-        "scope",
-        "relevancy"
+        "scope"
       ],
       "additionalProperties": false,
       "properties": {
@@ -202,71 +201,8 @@
               "description": "Localization key for T-level scope"
             }
           }
-        },
-        "relevancy": {
-          "type": "object",
-          "description": "Relevancy scores per stage-level",
-          "required": [
-            "N1",
-            "J1",
-            "J2",
-            "J3",
-            "R1",
-            "R2",
-            "R3",
-            "S1",
-            "S2",
-            "S3",
-            "X1",
-            "T1"
-          ],
-          "additionalProperties": false,
-          "properties": {
-            "N1": {
-              "$ref": "#/$defs/relevancyScore"
-            },
-            "J1": {
-              "$ref": "#/$defs/relevancyScore"
-            },
-            "J2": {
-              "$ref": "#/$defs/relevancyScore"
-            },
-            "J3": {
-              "$ref": "#/$defs/relevancyScore"
-            },
-            "R1": {
-              "$ref": "#/$defs/relevancyScore"
-            },
-            "R2": {
-              "$ref": "#/$defs/relevancyScore"
-            },
-            "R3": {
-              "$ref": "#/$defs/relevancyScore"
-            },
-            "S1": {
-              "$ref": "#/$defs/relevancyScore"
-            },
-            "S2": {
-              "$ref": "#/$defs/relevancyScore"
-            },
-            "S3": {
-              "$ref": "#/$defs/relevancyScore"
-            },
-            "X1": {
-              "$ref": "#/$defs/relevancyScore"
-            },
-            "T1": {
-              "$ref": "#/$defs/relevancyScore"
-            }
-          }
         }
       }
-    },
-    "relevancyScore": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 10,
-      "description": "Relevancy score indicating importance (1-10 scale)"
     }
   }
 }

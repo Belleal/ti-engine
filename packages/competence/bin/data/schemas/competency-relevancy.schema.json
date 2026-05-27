@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/competency-relevancy.json",
+  "title": "Competency Relevancy Configuration",
+  "description": "Per role family per stage-level relevancy weights for competencies. Top-level keys are Role Family codes; under each family, competency codes map to a full per-stage-level relevancy score map. Relevancy is role-family specific because the same competency can carry different importance across disciplines (e.g., shared transversal competencies have different N1/X1 expectations between Software Engineering and Business Analysis).",
+  "type": "object",
+  "patternProperties": {
+    "^(SE|QE|BA|PM|XD|DA|IO|MC|PD)$": {
+      "$ref": "#/$defs/familyRelevancy"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "familyRelevancy": {
+      "type": "object",
+      "description": "Competency relevancy entries for a single role family. Keys are competency codes.",
+      "patternProperties": {
+        "^[EIC][1-3]-\\d+$": {
+          "$ref": "#/$defs/relevancy"
+        }
+      },
+      "additionalProperties": false
+    },
+    "relevancy": {
+      "type": "object",
+      "description": "Full per-stage-level relevancy score map",
+      "required": [
+        "N1",
+        "J1",
+        "J2",
+        "J3",
+        "R1",
+        "R2",
+        "R3",
+        "S1",
+        "S2",
+        "S3",
+        "X1",
+        "T1"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "N1": { "$ref": "#/$defs/score" },
+        "J1": { "$ref": "#/$defs/score" },
+        "J2": { "$ref": "#/$defs/score" },
+        "J3": { "$ref": "#/$defs/score" },
+        "R1": { "$ref": "#/$defs/score" },
+        "R2": { "$ref": "#/$defs/score" },
+        "R3": { "$ref": "#/$defs/score" },
+        "S1": { "$ref": "#/$defs/score" },
+        "S2": { "$ref": "#/$defs/score" },
+        "S3": { "$ref": "#/$defs/score" },
+        "X1": { "$ref": "#/$defs/score" },
+        "T1": { "$ref": "#/$defs/score" }
+      }
+    },
+    "score": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10,
+      "description": "Relevancy score indicating importance (1-10 scale)"
+    }
+  }
+}

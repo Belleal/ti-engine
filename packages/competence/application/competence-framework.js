@@ -140,6 +140,7 @@ class CompetenceFramework {
             dataManager.instance.getBaselineSet( roleFamily, cycleID )
         ] ).then( ( [ resolvedCodes, baselineCodes ] ) => {
             const dictionary = ( configurationLoader.configCompetencies && configurationLoader.configCompetencies.competencies ) || {};
+            const familyRelevancy = ( configurationLoader.configCompetencyRelevancy || {} )[ roleFamily ] || {};
             const baselineSet = new Set( baselineCodes );
             const roleFamilies = configurationLoader.configRoleFamilies || {};
             const baselineOriginLabel = "interface.evaluation.context.origin.baseline";
@@ -151,6 +152,10 @@ class CompetenceFramework {
                 if ( !competency ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: `Competency '${ code }' referenced by the Active Competency Set is missing from the dictionary.` }, exceptions.httpCode.C_422 );
                 }
+                const relevancy = familyRelevancy[ code ];
+                if ( !relevancy ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: `Relevancy for competency '${ code }' is missing for role family '${ roleFamily }'.` }, exceptions.httpCode.C_422 );
+                }
                 const isBaseline = baselineSet.has( code );
                 return {
                     code,
@@ -159,7 +164,7 @@ class CompetenceFramework {
                     category: competency.category,
                     subcategory: competency.subcategory,
                     scope: { ...competency.scope },
-                    relevancy: { ...competency.relevancy },
+                    relevancy: { ...relevancy },
                     eCFMapping: Array.isArray( competency.eCFMapping ) ? _.cloneDeep( competency.eCFMapping ) : [],
                     origin: isBaseline ? BASELINE_KEY : specialization,
                     originLabel: isBaseline ? baselineOriginLabel : specializationOriginLabel

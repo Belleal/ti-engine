@@ -94,6 +94,10 @@ describe( "Configuration files validate against their schemas", () => {
         expectValid( "https://ti-engine.dev/schemas/competence/competencies.json", path.join( CONFIG_DIR, "config.competencies.json" ) );
     } );
 
+    it( "config.competency-relevancy.json validates against competency-relevancy.schema.json", () => {
+        expectValid( "https://ti-engine.dev/schemas/competence/competency-relevancy.json", path.join( CONFIG_DIR, "config.competency-relevancy.json" ) );
+    } );
+
     it( "config.role-families.json validates against role-families.schema.json", () => {
         expectValid( "https://ti-engine.dev/schemas/competence/role-families.json", path.join( CONFIG_DIR, "config.role-families.json" ) );
     } );
@@ -183,6 +187,43 @@ describe( "Active competency sets satisfy floor coverage for the seeded cycle", 
             }
         }
         assert.deepEqual( failures, [], `Invalid specialization key failures:\n  ${ failures.join( "\n  " ) }` );
+    } );
+
+} );
+
+describe( "Competency relevancy covers every active-set reference", () => {
+
+    it( "every code referenced by an active-set has relevancy for that role family", () => {
+        const sets = readJSON( path.join( CONFIG_DIR, "config.active-competency-sets.json" ) );
+        const relevancy = readJSON( path.join( CONFIG_DIR, "config.competency-relevancy.json" ) );
+        const failures = [];
+        for ( const [ family, familyEntry ] of Object.entries( sets ) ) {
+            const familyRelevancy = relevancy[ family ] || {};
+            for ( const [ key, cycleMap ] of Object.entries( familyEntry ) ) {
+                for ( const [ cycleID, codes ] of Object.entries( cycleMap ) ) {
+                    for ( const code of codes ) {
+                        if ( !familyRelevancy[ code ] ) {
+                            failures.push( `${ family }.${ key }.${ cycleID }: missing relevancy for '${ code }' under '${ family }'` );
+                        }
+                    }
+                }
+            }
+        }
+        assert.deepEqual( failures, [], `Missing relevancy failures:\n  ${ failures.join( "\n  " ) }` );
+    } );
+
+    it( "every code in the relevancy config exists in the competency catalog", () => {
+        const competencies = readJSON( path.join( CONFIG_DIR, "config.competencies.json" ) ).competencies;
+        const relevancy = readJSON( path.join( CONFIG_DIR, "config.competency-relevancy.json" ) );
+        const failures = [];
+        for ( const [ family, familyRelevancy ] of Object.entries( relevancy ) ) {
+            for ( const code of Object.keys( familyRelevancy ) ) {
+                if ( !competencies[ code ] ) {
+                    failures.push( `${ family }: relevancy references unknown catalog code '${ code }'` );
+                }
+            }
+        }
+        assert.deepEqual( failures, [], `Unknown catalog code failures:\n  ${ failures.join( "\n  " ) }` );
     } );
 
 } );
