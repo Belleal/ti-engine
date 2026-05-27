@@ -2683,94 +2683,129 @@
 /* ============================================================
    Cycle Setup screen
    ============================================================ */
-.competence-cycle-setup-title-sep {
-    color: var(--fg-tertiary);
-    margin: 0 var(--s-2);
+
+/* Page head: turn the default vertical .ti-page-head stack into a two-column grid so the title block sits on the
+   left and the status pill + back-button aside hangs on the right (matches the cycle-setup design concept). */
+.competence-cycle-setup-pagehead {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: var(--s-4);
 }
 
-.competence-cycle-setup-subhead {
+.competence-cycle-setup-pagehead-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    min-width: 0;
+}
+
+.competence-cycle-setup-pagehead-aside {
     display: flex;
     align-items: center;
     gap: var(--s-3);
-    margin-top: var(--s-2);
+    flex-shrink: 0;
 }
 
+/* Title rendered as two inline pieces — mono cycleID + plain name. The mono variant is slightly smaller than the
+   surrounding 2xl title so the cycleID reads as a stable identifier next to the human-readable name. */
+.competence-cycle-setup-id-mono {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-weight: 500;
+    font-size: var(--fs-xl);
+    color: var(--fg-primary);
+    margin-right: var(--s-2);
+}
+
+.competence-cycle-setup-name {
+    font-weight: 500;
+    color: var(--fg-primary);
+}
+
+/* Read-only banner. Quieter "informational" treatment — sunken background with a muted left border accent.
+   The previous warn-styled banner read as an error, but read-only is just a state, not a problem. */
 .competence-cycle-setup-readonly {
     display: flex;
     align-items: center;
     gap: var(--s-3);
-    margin-top: var(--s-4);
+    margin-bottom: var(--s-4);
     padding: var(--s-3) var(--s-4);
-    border-radius: var(--r-sm);
-    background: var(--warn-soft);
-    border: 1px solid var(--warn);
-    color: var(--warn);
+    background: var(--bg-sunken);
+    color: var(--fg-secondary);
+    border: 1px solid var(--border-soft);
+    border-left: 3px solid var(--muted, var(--fg-tertiary));
+    border-radius: var(--r-md);
     font-size: var(--fs-sm);
 }
 
-.competence-cycle-setup-readonly svg {
+.competence-cycle-setup-readonly .ti-icon {
     flex-shrink: 0;
+    color: var(--fg-tertiary);
 }
 
+/* Two-pane shell. align-items: start so the sticky tree stays at the top while the editor grows naturally. */
 .competence-cycle-setup-shell {
     display: grid;
-    grid-template-columns: 320px 1fr;
+    grid-template-columns: 300px 1fr;
     gap: var(--s-4);
-    margin-top: var(--s-4);
-    min-height: 600px;
+    align-items: start;
 }
 
+/* ---------- Left pane: tree ---------- */
+
+/* Sticky tree pane card. No .ti-content.pane wrapper — empmgmt master pattern: own card chrome so the document
+   scroll moves the editor while the tree stays pinned beneath the topbar. */
 .competence-cycle-tree-pane {
-    padding: 0;
-    overflow: hidden;
     display: flex;
     flex-direction: column;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    position: sticky;
+    top: calc(var(--header-h, 64px) + var(--s-4));
+    max-height: calc(100vh - var(--header-h, 64px) - var(--s-7));
+    align-self: start;
 }
 
-.competence-cycle-tree-head {
+.competence-cycle-tree-pane-head {
     padding: var(--s-3) var(--s-4);
     border-bottom: 1px solid var(--border-soft);
-    font-size: var(--fs-xs);
+    background: var(--bg-sunken);
+    font-size: var(--fs-xxs);
     font-weight: 600;
     color: var(--fg-tertiary);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    background: var(--bg-sunken);
+    letter-spacing: 0.08em;
 }
 
 .competence-cycle-tree {
     flex: 1 1 auto;
     overflow-y: auto;
-    padding: var(--s-2) 0;
+    padding: var(--s-2);
 }
 
-.competence-cycle-tree-family {
-    margin-bottom: var(--s-2);
+.competence-cycle-tree-family + .competence-cycle-tree-family {
+    margin-top: var(--s-3);
 }
 
 .competence-cycle-tree-family-head {
     display: flex;
     align-items: center;
     gap: var(--s-2);
-    padding: var(--s-2) var(--s-4);
-    color: var(--fg-secondary);
-    font-size: var(--fs-xs);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    cursor: default;
+    padding: var(--s-1) var(--s-2);
     user-select: none;
-}
-
-.competence-cycle-tree-family-code {
-    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
-    color: var(--accent);
-    font-weight: 700;
 }
 
 .competence-cycle-tree-family-name {
     flex: 1;
-    color: var(--fg-secondary);
+    color: var(--fg-primary);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .competence-cycle-tree-spec-list {
@@ -2779,133 +2814,202 @@
     gap: 1px;
 }
 
+/* Tree node: full-width clickable row with a colored status dot on the left and an optional count chip on the
+   right. The spec variant adds a subtle connector line so the visual hierarchy shows specs hanging off the
+   family baseline. */
 .competence-cycle-tree-node {
     display: flex;
     align-items: center;
     gap: var(--s-2);
-    padding: var(--s-2) var(--s-4) var(--s-2) calc(var(--s-4) + var(--s-3));
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    text-align: left;
     width: 100%;
-    color: var(--fg-primary);
+    padding: 6px 10px 6px 18px;
+    background: transparent;
+    border: 0;
+    border-radius: var(--r-sm);
+    text-align: left;
+    cursor: pointer;
+    color: var(--fg-secondary);
     font-size: var(--fs-sm);
-    border-left: 2px solid transparent;
-    transition: background var(--dur-fast), border-left-color var(--dur-fast);
     font-family: inherit;
+    transition: background var(--dur-fast), color var(--dur-fast);
+    position: relative;
 }
 
 .competence-cycle-tree-node:hover {
     background: var(--bg-tint);
+    color: var(--fg-primary);
 }
 
 .competence-cycle-tree-node.is-selected {
     background: var(--accent-soft);
-    border-left-color: var(--accent);
     color: var(--accent);
-    font-weight: 500;
+    font-weight: 600;
+}
+
+/* Specialization nodes are visually indented and get a small tree-line connector (vertical line + horizontal
+   tick). The connector roots at the parent baseline node and reads like a sub-list rail. */
+.competence-cycle-tree-node.spec {
+    padding-left: 26px;
+}
+
+.competence-cycle-tree-node.spec::before {
+    content: '';
+    position: absolute;
+    left: 14px;
+    top: 0;
+    bottom: 50%;
+    width: 1.5px;
+    background: var(--border-strong, var(--border));
+}
+
+.competence-cycle-tree-node.spec::after {
+    content: '';
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    width: 7px;
+    height: 1.5px;
+    background: var(--border-strong, var(--border));
+}
+
+/* Cap the tree-line at the last spec node so it doesn't extend below the row. */
+.competence-cycle-tree-node:last-child.spec::before {
+    bottom: 50%;
+    height: calc(50% + 1px);
+}
+
+.competence-cycle-tree-node-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    background: var(--border-strong, var(--border));
+}
+
+.competence-cycle-tree-node-dot.is-clean {
+    background: var(--success);
+}
+
+.competence-cycle-tree-node-dot.is-warn {
+    background: var(--warn);
+}
+
+.competence-cycle-tree-node-dot.is-empty {
+    background: var(--border-strong, var(--border));
+    border: 2px solid var(--muted, var(--fg-tertiary));
+}
+
+.competence-cycle-tree-node-dot.is-unconfigured {
+    background: transparent;
+    border: 1.5px dashed var(--border-strong, var(--border));
 }
 
 .competence-cycle-tree-node-label {
     flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .competence-cycle-tree-node-count {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
     font-size: var(--fs-xs);
+    font-weight: 500;
     color: var(--fg-tertiary);
-    font-variant-numeric: tabular-nums;
-    background: var(--bg-tint);
     padding: 1px 6px;
+    background: var(--bg-sunken);
     border-radius: var(--r-pill);
 }
 
 .competence-cycle-tree-node.is-selected .competence-cycle-tree-node-count {
-    color: var(--accent);
-    background: var(--bg-surface);
+    background: var(--accent);
+    color: var(--fg-on-accent, var(--bg-surface));
 }
 
-.competence-cycle-tree-status {
-    width: 18px;
-    height: 18px;
-    display: inline-grid;
-    place-items: center;
-    border-radius: 50%;
-    font-size: var(--fs-xs);
-    font-weight: 700;
-    flex-shrink: 0;
+/* ---------- Right pane: editor stack (editor card + sticky actions panel) ---------- */
+
+/* Flex column wrapper so the editor pane and the sticky actions panel stack with consistent spacing. min-width: 0
+   prevents the grid cell from blowing out when wide content lands inside the editor (long competency names etc). */
+.competence-cycle-editor-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    min-width: 0;
 }
 
-.competence-cycle-tree-status.clean {
-    color: var(--success);
-    background: var(--success-soft);
-}
-
-.competence-cycle-tree-status.warn {
-    color: var(--warn);
-    background: var(--warn-soft);
-}
-
-.competence-cycle-tree-status.empty {
-    color: var(--fg-tertiary);
-    background: var(--bg-tint);
-}
-
-.competence-cycle-tree-status.unconfigured {
-    background: transparent;
-    border: 1px dashed var(--border);
-}
-
-/* Right pane editor */
+/* Editor card — own chrome (no .ti-content.pane). */
 .competence-cycle-editor-pane {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
     padding: var(--s-5);
 }
 
 .competence-cycle-editor {
     display: flex;
     flex-direction: column;
-    gap: var(--s-4);
+    gap: var(--s-3);
 }
 
 .competence-cycle-editor-head {
+    margin-bottom: var(--s-2);
     padding-bottom: var(--s-3);
     border-bottom: 1px solid var(--border-soft);
 }
 
 .competence-cycle-editor-title {
-    font-size: var(--fs-xl);
-    font-weight: 600;
-    color: var(--fg-primary);
     display: flex;
-    align-items: baseline;
-    gap: var(--s-2);
+    align-items: center;
     flex-wrap: wrap;
+    gap: var(--s-2);
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--fg-primary);
+    margin-bottom: 4px;
 }
 
-.competence-cycle-editor-title-sep {
+.competence-cycle-editor-title-sep,
+.competence-cycle-editor-title-suffix {
     color: var(--fg-tertiary);
+    font-weight: 500;
 }
 
 .competence-cycle-editor-desc {
-    color: var(--fg-tertiary);
+    color: var(--fg-secondary);
     font-size: var(--fs-sm);
-    margin-top: 4px;
+    line-height: 1.5;
+    max-width: 70ch;
 }
 
+/* Indicator rows (cap usage + floor coverage). 140px label column with top-aligned content so multi-line content
+   (pills + hint) lines up neatly against the label. */
 .competence-cycle-indicator-row {
     display: grid;
-    grid-template-columns: 160px 1fr;
-    gap: var(--s-3);
-    align-items: center;
-    padding: var(--s-2) 0;
+    grid-template-columns: 140px 1fr;
+    gap: var(--s-4);
+    align-items: flex-start;
+    padding: var(--s-3) 0;
+}
+
+.competence-cycle-indicator-row + .competence-cycle-indicator-row {
+    border-top: 1px dashed var(--border-soft);
 }
 
 .competence-cycle-indicator-label {
-    font-size: var(--fs-xs);
+    font-size: var(--fs-xxs);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
     color: var(--fg-tertiary);
     font-weight: 600;
+    padding-top: 6px;
+}
+
+.competence-cycle-indicator-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    min-width: 0;
 }
 
 .competence-cap-indicator {
@@ -2917,7 +3021,7 @@
 .competence-cap-bar {
     flex: 1;
     height: 8px;
-    background: var(--bg-tint);
+    background: var(--bg-sunken);
     border-radius: var(--r-pill);
     overflow: hidden;
     max-width: 280px;
@@ -2937,39 +3041,53 @@
 
 .competence-cap-text {
     font-size: var(--fs-sm);
-    color: var(--fg-secondary);
+    color: var(--fg-primary);
     font-variant-numeric: tabular-nums;
 }
 
-.competence-cap-indicator.over .competence-cap-text {
-    color: var(--danger);
+.competence-cap-text strong {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
     font-weight: 600;
+    margin-right: 6px;
+}
+
+.competence-cap-text-suffix {
+    color: var(--fg-tertiary);
+    font-weight: 400;
+}
+
+.competence-cap-indicator.over .competence-cap-text strong {
+    color: var(--danger);
 }
 
 .competence-floor-pills {
     display: flex;
-    gap: var(--s-2);
+    gap: 6px;
     flex-wrap: wrap;
 }
 
+/* Floor pill: small status chip with check/x icon + subcategory code. The icon makes the state identifiable
+   without relying on color alone. */
 .competence-floor-pill {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    min-width: 36px;
-    height: 24px;
-    padding: 0 var(--s-2);
-    border-radius: var(--r-sm);
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: var(--r-pill);
     font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
     font-size: var(--fs-xs);
     font-weight: 600;
-    border: 1px solid transparent;
+    border: 1.5px solid transparent;
+}
+
+.competence-floor-pill .ti-icon {
+    width: 10px;
+    height: 10px;
 }
 
 .competence-floor-pill.satisfied {
     background: var(--success-soft);
     color: var(--success);
-    border-color: color-mix(in oklab, var(--success) 30%, transparent);
 }
 
 .competence-floor-pill.missing {
@@ -2979,11 +3097,17 @@
     border-style: dashed;
 }
 
+.competence-cycle-floor-hint {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+    line-height: 1.5;
+}
+
+/* "Mark explicitly empty" toggle for specialization nodes. Dashed top divider separates it from the cap/floor
+   indicators above so it reads as a distinct affordance. */
 .competence-cycle-no-extras {
-    background: var(--bg-tint);
-    border: 1px dashed var(--border);
-    border-radius: var(--r-sm);
-    padding: var(--s-3);
+    padding: var(--s-3) 0;
+    border-top: 1px dashed var(--border-soft);
 }
 
 .competence-cycle-no-extras-label {
@@ -3008,21 +3132,24 @@
     color: var(--fg-tertiary);
 }
 
+/* Competency list. Single bordered container with internal dividers between rows when populated. The .is-empty
+   modifier removes the chrome so the embedded .ti-empty-state primitive can stand on its own. */
 .competence-cycle-codes {
     display: flex;
     flex-direction: column;
-    gap: var(--s-2);
-    margin-top: var(--s-2);
+    margin-top: var(--s-3);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-md);
+    overflow: hidden;
+}
+
+.competence-cycle-codes.is-empty {
+    border: 0;
+    overflow: visible;
 }
 
 .competence-cycle-codes-empty {
-    padding: var(--s-5) var(--s-4);
-    text-align: center;
-    color: var(--fg-tertiary);
-    font-size: var(--fs-sm);
-    background: var(--bg-tint);
-    border-radius: var(--r-sm);
-    border: 1px dashed var(--border);
+    padding: var(--s-7) var(--s-5);
 }
 
 .competence-cycle-code-row {
@@ -3030,19 +3157,31 @@
     grid-template-columns: auto 1fr auto;
     gap: var(--s-3);
     align-items: center;
-    padding: var(--s-2) var(--s-3);
-    border: 1px solid var(--border-soft);
-    border-radius: var(--r-sm);
+    padding: var(--s-3) var(--s-4);
     background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-soft);
+    transition: background var(--dur-fast);
+}
+
+.competence-cycle-code-row:last-child {
+    border-bottom: 0;
+}
+
+.competence-cycle-code-row:hover {
+    background: var(--bg-tint);
 }
 
 .competence-cycle-code-meta {
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .competence-cycle-code-name {
     color: var(--fg-primary);
     font-weight: 500;
+    letter-spacing: -0.005em;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -3051,7 +3190,8 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--s-2);
-    margin-top: 2px;
+    align-items: center;
+    font-size: var(--fs-xs);
 }
 
 .competence-cycle-code-ecf {
@@ -3064,20 +3204,29 @@
     flex-shrink: 0;
 }
 
-.competence-cycle-editor-actions {
+/* Sticky actions panel — sibling card beneath the editor. Mirrors .competence-empmgmt-actions-panel so the
+   save/cancel affordance reads identically across editor screens. */
+.competence-cycle-setup-actions-panel {
+    position: sticky;
+    bottom: var(--s-4);
+    z-index: 40;
     display: flex;
     align-items: center;
     gap: var(--s-3);
-    padding-top: var(--s-3);
-    border-top: 1px solid var(--border-soft);
+    padding: var(--s-3) var(--s-5);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: 0 -4px 24px color-mix(in oklab, var(--fg-primary) 6%, transparent);
 }
 
-.competence-cycle-editor-actions-spacer {
-    flex: 1;
+.competence-cycle-setup-actions-spacer {
+    flex: 1 1 auto;
 }
 
 .competence-cycle-editor-state {
     font-size: var(--fs-sm);
+    color: var(--fg-tertiary);
 }
 
 .competence-cycle-editor-state.saved {
@@ -3228,10 +3377,22 @@
     font-size: var(--fs-sm);
 }
 
-/* Responsive collapse for two-pane on narrow viewports */
+/* Responsive collapse for two-pane on narrow viewports. The sticky tree releases its sticky positioning since
+   on a single column the tree+editor would scroll together and the sticky behavior would just pin the tree at
+   the top of the document. */
 @media (max-width: 960px) {
+    .competence-cycle-setup-pagehead {
+        grid-template-columns: 1fr;
+        align-items: start;
+    }
+
     .competence-cycle-setup-shell {
         grid-template-columns: 1fr;
+    }
+
+    .competence-cycle-tree-pane {
+        position: static;
+        max-height: none;
     }
 
     .competence-cycle-tree {

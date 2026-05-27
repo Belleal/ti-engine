@@ -8045,6 +8045,14 @@
         "en": "This cycle is no longer in PLANNING. The configuration is read-only.",
         "bg": "Този цикъл вече не е в статус ПЛАНИРАНЕ. Конфигурацията е само за четене."
       },
+      "read-only-banner-active": {
+        "en": "This cycle is active — competency sets are locked. To make changes, create a new cycle.",
+        "bg": "Този цикъл е активен — наборите от компетенции са заключени. За промени създайте нов цикъл."
+      },
+      "read-only-banner-closed": {
+        "en": "This cycle is closed — competency sets are read-only. To make changes, create a new cycle.",
+        "bg": "Този цикъл е затворен — наборите от компетенции са само за четене. За промени създайте нов цикъл."
+      },
       "tree-title": {
         "en": "Role Families",
         "bg": "Семейства роли"
@@ -8095,17 +8103,17 @@
         "en": "Cap usage",
         "bg": "Заетост на лимита"
       },
-      "cap-usage": {
-        "en": "{n} of {cap} competencies selected.",
-        "bg": "Избрани са {n} от {cap} компетенции."
+      "cap-suffix": {
+        "en": "of {cap} competencies for {family}",
+        "bg": "от {cap} компетенции за {family}"
       },
-      "cap-usage-spec": {
-        "en": "Baseline ({b}) + Specialization ({s}) = {t} of {cap}.",
-        "bg": "Базов набор ({b}) + специализация ({s}) = {t} от {cap}."
+      "cap-suffix-spec": {
+        "en": "of {cap} competencies (baseline {b} + specialization {s}) for {family} · {spec}",
+        "bg": "от {cap} компетенции (базов набор {b} + специализация {s}) за {family} · {spec}"
       },
-      "cap-over": {
-        "en": "Cap exceeded by {n}.",
-        "bg": "Лимитът е надвишен с {n}."
+      "floor-coverage-hint": {
+        "en": "Every subcategory must have at least one baseline competency for this role family to be lockable.",
+        "bg": "Всяка подкатегория трябва да има поне една базова компетенция, за да може това семейство роли да бъде заключено."
       },
       "floor-coverage-label": {
         "en": "Subcategory coverage",
@@ -8127,13 +8135,21 @@
         "en": "Persists as an explicit \"intentionally empty\" marker. Employees in this specialization get only the family baseline.",
         "bg": "Запазва се като изричен маркер „преднамерено празно“. Служителите в тази специализация получават само базовия набор на семейството."
       },
-      "competencies-empty-spec": {
-        "en": "No specialization competencies added yet. Use \"Add competency\" to start, or mark the set as intentionally empty.",
-        "bg": "Все още не са добавени компетенции за специализация. Натиснете „Добави компетенция“ или маркирайте набора като преднамерено празен."
+      "competencies-empty-title-baseline": {
+        "en": "No baseline competencies yet",
+        "bg": "Все още няма базови компетенции"
       },
-      "competencies-empty-baseline": {
-        "en": "No baseline competencies yet. Add at least one competency in each of the nine subcategories.",
-        "bg": "Все още няма базови компетенции. Добавете поне по една компетенция във всяка от деветте подкатегории."
+      "competencies-empty-title-spec": {
+        "en": "No specialization competencies yet",
+        "bg": "Все още няма компетенции за специализация"
+      },
+      "competencies-empty-desc-baseline": {
+        "en": "Add at least one competency per subcategory to satisfy the floor coverage.",
+        "bg": "Добавете поне по една компетенция за всяка подкатегория, за да покриете изискването."
+      },
+      "competencies-empty-desc-spec": {
+        "en": "Add specialization-specific competencies, or mark the set as intentionally empty.",
+        "bg": "Добавете компетенции за специализацията или маркирайте набора като преднамерено празен."
       },
       "add-btn": {
         "en": "Add Competency",

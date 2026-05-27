@@ -1882,14 +1882,6 @@ const configureCycleSetup = () => {
             return "clean";
         },
 
-        getNodeStatusGlyph( familyCode, key ) {
-            const status = this.getNodeStatus( familyCode, key );
-            if ( status === "clean" ) return "✓";   // ✓
-            if ( status === "warn" ) return "⚠";    // ⚠
-            if ( status === "empty" ) return "—";   // —
-            return "";
-        },
-
         getNodeStatusAria( familyCode, key ) {
             const status = this.getNodeStatus( familyCode, key );
             return tiApplication.getLabel( `interface.cycle-setup.tree-status.${ status }-aria`, "" );
@@ -1939,18 +1931,41 @@ const configureCycleSetup = () => {
             return { "--pct": pct + "%" };
         },
 
-        getCapText() {
+        // Cap text split into a count + suffix so the markup can render <strong>{count}</strong> followed by a muted
+        // qualifier. Mirrors the design concept's `<strong>N</strong> of CAP competencies for Family · Spec`.
+        getCapCount() {
+            return this.getResolvedSize();
+        },
+
+        getCapSuffix() {
+            const family = this.getSelectedFamily();
             if ( this.selectedKey === "baseline" ) {
-                const tmpl = tiApplication.getLabel( "interface.cycle-setup.cap-usage", "{n} of {cap} competencies selected." );
-                return tmpl.replace( "{n}", String( this.draft.codes.length ) ).replace( "{cap}", String( this.cap ) );
+                const tmpl = tiApplication.getLabel( "interface.cycle-setup.cap-suffix", "of {cap} competencies for {family}" );
+                return tmpl.replace( "{cap}", String( this.cap ) ).replace( "{family}", family.name || "" );
             }
-            const baseline = this.getBaselineCodes();
-            const baselineSize = baseline.length;
+            const spec = this.getSelectedSpec();
+            const baselineSize = this.getBaselineCodes().length;
             const specSize = this.draft.codes.length;
-            const merged = new Set( [ ...baseline, ...this.draft.codes ] );
-            const total = merged.size;
-            const tmpl = tiApplication.getLabel( "interface.cycle-setup.cap-usage-spec", "Baseline ({b}) + Specialization ({s}) = {t} of {cap}." );
-            return tmpl.replace( "{b}", String( baselineSize ) ).replace( "{s}", String( specSize ) ).replace( "{t}", String( total ) ).replace( "{cap}", String( this.cap ) );
+            const tmpl = tiApplication.getLabel( "interface.cycle-setup.cap-suffix-spec", "of {cap} competencies (baseline {b} + specialization {s}) for {family} · {spec}" );
+            return tmpl
+                .replace( "{cap}", String( this.cap ) )
+                .replace( "{b}", String( baselineSize ) )
+                .replace( "{s}", String( specSize ) )
+                .replace( "{family}", family.name || "" )
+                .replace( "{spec}", spec.name || "" );
+        },
+
+        // Read-only banner copy varies by cycle status (ACTIVE vs CLOSED) so users see a status-aware reason for why
+        // the editor is read-only. Falls back to the generic banner when status doesn't match either case.
+        getReadOnlyBannerText() {
+            const status = ( this.cycle && this.cycle.status ) ? String( this.cycle.status ).toUpperCase() : "";
+            if ( status === "ACTIVE" ) {
+                return tiApplication.getLabel( "interface.cycle-setup.read-only-banner-active" );
+            }
+            if ( status === "CLOSED" ) {
+                return tiApplication.getLabel( "interface.cycle-setup.read-only-banner-closed" );
+            }
+            return tiApplication.getLabel( "interface.cycle-setup.read-only-banner" );
         },
 
         isSubcategoryCovered( subcategoryCode ) {
@@ -2062,6 +2077,20 @@ const configureCycleSetup = () => {
                 selected[ code ] = true;
             }
             this.modal.payload.selected = { ...selected };
+        },
+
+        // Null-safe lookup used by the picker row bindings. closeModal() resets modal.payload to {} (no `selected`
+        // key), and Alpine can re-evaluate the inner x-bind one last time before the parent x-if unmounts the
+        // picker — without this guard the subscript throws "Cannot read property of null or undefined".
+        isPickerCodeSelected( code ) {
+            const selected = this.modal && this.modal.payload && this.modal.payload.selected;
+            return !!( selected && selected[ code ] );
+        },
+
+        pickerRowClass( code ) {
+            const selectedClass = this.isPickerCodeSelected( code ) ? "is-selected" : "";
+            const disabledClass = this.isCodeInDraft( code ) ? " is-disabled" : "";
+            return selectedClass + disabledClass;
         },
 
         pickerSelectedCount() {
