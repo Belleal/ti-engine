@@ -2,6 +2,25 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.7.0
+
+* feat(css): introduce `.ti-data-grid` family — `.ti-data-grid`, `.ti-data-grid-head`, `.ti-data-grid-rows`, `.ti-data-grid-row` with shared `--ti-grid-cols` template; row state modifiers `.is-current` (accent-soft, "current user") and `.is-selected` (accent-soft + left accent bar); wrapper variants `.bordered` (horizontal dividers for tabular displays) and `.compact` (denser padding); cell utilities `.ti-cell-center` / `.ti-cell-right` for per-cell alignment
+* feat(css): introduce `.ti-page-head` as a vertical block stack (eyebrow above title, subtitle below) using `--fs-xs` for the eyebrow and clamping subtitle width at 60ch
+* feat(css): introduce a reusable `.ti-form*` family — `.ti-form`, `.ti-form-section`, `.ti-form-section-title`, `.ti-form-grid` (with `.cols-1` / `.cols-3` modifiers), `.ti-form-row` (with `.wide` for grid-spanning), `.ti-form-readonly`, `.ti-form-hint`, `.ti-form-error`, `.ti-form-actions`, `.ti-form-state` (with `.saved` / `.unsaved`); single responsive collapse to one column under 720px
+* feat(css): extend `.ti-panel-head` with sub-elements — `.ti-panel-head-icon` (32x32 framed icon slot), `.ti-panel-head-text` (title + subtitle stack inside a flex row), `.ti-panel-title-aside` (inline qualifier next to the title), `.ti-panel-subtitle` (dimmed sub line), `.ti-panel-head-aside` (right-aligned read-only info with left-border separator), and the `.bar` modifier (sunken full-width banner)
+* feat(icons)!: rebase `.ti-icon` on `background-color: currentColor` so icons inherit the surrounding text colour; add size modifiers `.xs` (12px), `.sm` (14px), `.md` (16px), `.lg` (24px), `.xl` (32px); add `.legacy-gray` modifier to preserve the previous gray/hover behaviour for consumers that rely on the fixed colour scheme
+* feat(icons): add 21 new `.ti-icon` variants (lucide / feather style, 24x24 viewBox) — `plus`, `close`, `check`, `check-clipboard`, `send`, `search`, `clock`, `warning-triangle`, `info-circle`, `bell`, `check-circle`, `eye`, `calendar-blank`, `user`, `users`, `briefcase`, `folder`, `book`, `help-circle`, `bar-chart`, `chevron-left`, `chevron-right`, `dashboard-grid`, `cycles-loop`, `sun`
+* feat(icons): add `.ti-icon.moon` mask variant so theme toggles can mirror the target mode
+* feat(framework): add `tiApplication.hasRole(roleCode)` helper that does the array-shape check in plain JS (the Alpine CSP build does not expose `Array` to its expression evaluator, so `Array.isArray(...)` written inline in a template raises `Undefined variable: Array`)
+* feat(framework): add `tiApplication.topbarPrimaryCta` store slot plus `setTopbarPrimaryCta` / `setTopbarPrimaryCtaDisabled` API for per-screen CTA buttons in the topbar; auto-cleared on screen navigation so each screen owns its slot
+* feat(css): native select chevron replaced by a custom down-chevron SVG positioned at right: 10px / 14x14; padding-right reserves the slot; glass theme overrides the SVG stroke colour because `background-image` can't pick up `currentColor`
+* feat(css): subdue `::-webkit-calendar-picker-indicator` to opacity 0.7 (1 on hover) so date-input visual weight matches the chevron
+* feat(notification bar): replace inline toast SVGs with `.ti-icon` mask classes (success check, danger close, warn triangle, info circle, close button)
+* feat(sidebar): replace inline navigation SVGs with `.ti-icon` mask classes (collapse chevron, dashboard home, sun theme toggle)
+* refactor(css): drop the screen-specific page-header, form, and tabular-layout CSS that duplicated framework primitives; all in-tree screens (`frame-employees-list`, `frame-cycles`, `frame-cycle-setup`, `frame-competence-evaluation`, `frame-new-evaluation`, `frame-manager-calendar`, `frame-interview-schedule`, `frame-employee-management`) now consume `.ti-page-head`, `.ti-data-grid`, `.ti-form*`, and `.ti-panel-head*` instead
+* docs(modal): doc-block on `.ti-modal-*` confirming it as the canonical shared primitive (introduced in 1.6.3 via the competence cycle-setup work)
+* build(release): bump package version from `1.6.3` to `1.7.0`
+
 ## Version 1.6.3
 
 * feat(css): add `--ti-internal-padding` CSS variable to the design token system

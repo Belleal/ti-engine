@@ -2,6 +2,64 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 2.1.0
+
+### Catalog and relevancy
+
+* feat(config)!: split per-role relevancy out of `config.competencies.json` into a new role-family-keyed `config.competency-relevancy.json` (with matching `competency-relevancy.schema.json`). The same competency carries different importance across disciplines (e.g., transversal `I2`/`I3` score differently for SE vs BA vs PM), and the new file expresses that directly
+* feat(config): grow the catalog from 64 to 164 entries — 45 BA-specific (`E1-10`..`E1-25`, `E2-17`..`E2-28`, `E3-8`..`E3-17`, `I1-8`..`I1-14`), 55 PM-specific (`E1-26`..`E1-41`, `E2-29`..`E2-40`, `E3-18`..`E3-27`, `I1-15`..`I1-18`, `I2-6`..`I2-11`, `I3-4`..`I3-7`, `C2-6`, `C3-6`..`C3-7`); transversal entries (most `C1`/`C2`/`C3`, `I2-1`..`I2-5`, `I3-1`..`I3-3`) are reused across families
+* feat(config): seed curated BA + PM baselines and specializations in `config.active-competency-sets.json`; clear the stale PM placeholder set that had been a copy of SE
+* feat(framework): `buildEvaluationSnapshot` now reads relevancy from `configCompetencyRelevancy[roleFamily][code]`; snapshots remain frozen at evaluation creation so existing evaluations are unaffected
+* feat(web-app): the cycle-planning endpoint exposes `relevancyByFamily` instead of a single ambiguous `relevancy` field
+* test(json): add the relevancy schema check and two coverage tests — every active-set code has relevancy for its family, and every relevancy code exists in the catalog
+
+### Cycle Setup screen reshape
+
+* feat(html): redesign the Cycle Setup page chrome to match the refreshed handoff bundle — title block (mono `cycleID` + name) on the left, status pill + back button on the right; read-only banner uses a muted/sunken treatment with left-border accent and copy that adapts to ACTIVE vs CLOSED cycle status
+* feat(html): drop `.ti-content.pane` wrappers — the tree pane is a sticky card on the left and the editor is its own card on the right; an action bar is extracted into a separate sticky sibling card mirroring `.competence-empmgmt-actions-panel`
+* feat(html): family head uses `.ti-tag` mono with an 8x8 status dot indicator replacing the circular badge; specialization rows get a tree-line connector
+* feat(html): editor title uses `.ti-tag` mono for the family code; cap text shows `N` followed by a muted "of CAP competencies for ..." qualifier; floor pills include check/x icons + a hint; competencies render as a single bordered list with internal dividers; empty state uses the shared `.ti-empty-state` primitive
+* fix(ui): null-safe `isPickerCodeSelected` and `pickerRowClass` helpers — fixes "Cannot read property of null or undefined" errors that fired during the modal teardown re-evaluation race
+* refactor(ui): drop the obsolete `getCapText` / `getNodeStatusGlyph` helpers and the `cap-usage` / `competencies-empty-*` localization keys they fed
+* fix(ui): CSP-safe `capBarStyle()` — return an object (`{ "--pct": pct + "%" }`) instead of a string so Alpine's CSP build dispatches the binding through `element.style.setProperty(...)` rather than the inline-style attribute write that tripped the strict CSP `style-src` policy on every editor re-render
+
+### People screen reshape and audit timeline
+
+* feat(html): action-oriented page head ("Manage all employees" / "Manage your team") with an audit-aware subtitle; filters compacted to a 2x2 grid; meta bar (count + Clear filters) between filters and list; empty list uses `.ti-empty-state`
+* feat(html): sticky master pane (filters always visible) and scrolling detail pane; both panes carry explicit card chrome since `.ti-content.pane` was dropped
+* feat(html): xl avatar, `fs-2xl` name, level pip inline in the sub line, employee-ID tag stacked under the employment-status pill in the detail head
+* feat(html): manager readonly is now a single-row sunken pill (avatar + name + hint pushed to the right)
+* feat(ui): split Level into two selects (letter + stage number) inside one form-row cell with `availableStagesForLevel` / `availableStagesForDraft` filtering Stage to the valid options per Level (N/X/T → [1]; J/R/S → [1..3]); `onLevelChange` re-snaps Stage when the current value is invalid for the new level (e.g., R3 → T becomes T1)
+* fix(ui): Level / Stage / Specialization selects now use `x-effect="syncXSelect($el)"` + a `$nextTick` value assignment, avoiding the Alpine race where `element.value` is set before the inner `x-for` renders the option children (which otherwise left selects stuck on their first option, or Specialization stuck on the hardcoded Generalist fallback)
+* feat(html): lift the action bar out of the form into its own `.competence-empmgmt-actions-panel` sibling card with sticky positioning; detail and actions wrap inside a `.competence-empmgmt-detail-stack` column
+* feat(html): rebuild the Evaluations tab as a `.ti-data-grid bordered` with columns Eval / Cycle / Level / Status / Interview / Open; new `openEvaluation` method navigates to `/competence-evaluation`
+* feat(web-app): enrich `#loadEmployeeDetail` with `statusTone`, `stageLevel`, and `interviewDate` per in-flight evaluation, plus a private `#evaluationStatusTone` helper
+* feat(css): replace flat `.competence-empmgmt-audit-*` / `.competence-audit-row` styles with a single shared `.competence-audit-timeline` primitive (dot + connecting line per entry, `.created` and `tone-*` variants on the action chip); both the People audit tab and the Cycles audit modal render through it
+
+### Design tweaks across screens
+
+* feat(html): split the sidebar into Workspace and Manage sections; Manage is role-gated (Manager / Supervisor) and uses `x-show` (not `x-if`) so htmx wires its `hx-*` handlers at load; org chart stays in Workspace because regular employees use it to browse their team
+* feat(localization): rename "Employees" → "Org chart" across sidebar, topbar, and page-header labels
+* feat(html): theme glyph mirrors the action — sun in daylight, moon in glass
+* feat(html): wire the new web-framework `topbarPrimaryCta` slot on Cycles (New cycle), People (Add employee, supervisor-only), and Cycle Setup (Lock cycle, disabled until validation passes); inline lock-confirm modal added to Cycle Setup
+* feat(html): per-row "History" icon button on Cycles opens an audit modal built from the existing `createdAt`/`lockedAt`/`actualCloseDate` fields; closed entries fall back to "system" until `closedBy` lands in the schema
+* feat(html): org-chart actions column 200 → 240px so Open / Start / Manage don't wrap
+* feat(html): inline empty state on New Evaluation (cycles-loop icon + copy) when the backend reports `no-active-cycle`, replacing the toast + inert action bar
+* feat(web-app): org-chart payload now returns `hasActiveCycle` alongside the org tree; "Start Evaluation" button is gated on it client-side (server-side enforcement remains the real guard)
+
+### CSP and role-check hardening
+
+* fix(ui): replace inline `Array.isArray($store.tiApplication.user.roles)` template expressions with calls to `tiApplication.hasRole(roleCode)` — the Alpine CSP build does not expose `Array` as a global to its expression evaluator, which blew up on the dashboard with `Undefined variable: Array`. Call sites updated: `component-sidebar.html` (Cycles, People entries), `frame-employees-list.html` (per-row Manage action)
+
+### Post-refactor cleanup
+
+* refactor(web-app): tighten `#loadNewEvaluationData` to require a strictly ACTIVE cycle via `dataManager.instance.getActiveCycle()`, mirroring `#startEvaluation` — the preview screen used to load against a PLANNING cycle and the user only saw "no active cycle" after clicking Open Evaluation; the error now surfaces on navigation
+* refactor(localization): rename `interface.employees.col.career-path` ("CAREER PATH" / "КАРИЕРЕН ПЪТ") → `interface.employees.col.role` ("ROLE" / "РОЛЯ") to match the column data (role family + specialization); drop three orphan keys — `interface.evaluation.appraisal.career-path`, `interface.evaluation.new-eval.kv-career-path`, `interface.evaluation.columns.career-path`
+* refactor(localization): update the New-Evaluation `cycle-desc` copy from "Competencies are determined by career path and level" to "...by role family, specialization, and stage-level" in both en and bg
+* refactor(schema): update `competencies.schema.json` description strings to refer to "stage-level" instead of the residual "career path level" / "career path tier"
+* docs(framework): clean stale "until the dedicated rendering lands in later phases" comment from `#formatRoleFamilyLabel` JSDoc — that rendering landed
+* build(release): bump package version from `2.0.0` to `2.1.0`
+
 ## Version 2.0.0
 
 * feat(competence)!: introduce a three-dimensional competency model — Role Family × Specialization × Stage-Level — replacing the two-dimensional Career Path model. Cycles become first-class entities with a `PLANNING → ACTIVE → CLOSED` lifecycle, evaluations carry a frozen Active Competency Set snapshot at creation time, and supervisors gain dedicated UI for managing the cycle configuration and employee roster end-to-end. Breaking: existing pilot data is discarded (destructive reseed); no backward-compatibility shims for the old `CareerPathCode` enum, `careerPath` field, or `getAllowedCompetencyCodes(...)` API.
