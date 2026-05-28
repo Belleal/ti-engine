@@ -2232,7 +2232,12 @@ const configureCycleSetup = () => {
 
             this.saving = true;
             const endpoint = ( draftCodes.length === 0 && markedEmpty && key !== "baseline" ) ? "/app/mark-active-set-empty" : "/app/set-active-competency-set";
-            const params = ( endpoint === "/app/mark-active-set-empty" ) ? { cycleID: this.cycleID, roleFamily: family, key } : { cycleID: this.cycleID, roleFamily: family, key, codes: draftCodes };
+            const params = ( endpoint === "/app/mark-active-set-empty" ) ? { cycleID: this.cycleID, roleFamily: family, key } : {
+                cycleID: this.cycleID,
+                roleFamily: family,
+                key,
+                codes: draftCodes
+            };
 
             tiApplication.sendRequest( endpoint, "POST", params ).then( () => {
                 const toastLabel = ( endpoint === "/app/mark-active-set-empty" ) ? "interface.cycle-setup.toast.marked-empty" : "interface.cycle-setup.toast.saved";

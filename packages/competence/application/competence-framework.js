@@ -238,7 +238,10 @@ class CompetenceFramework {
             }
             return this.validateCycleForLock( cycleID ).then( ( validation ) => {
                 if ( !validation.valid ) {
-                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Cycle validation failed.", errors: validation.errors }, exceptions.httpCode.C_422 );
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, {
+                        details: "Cycle validation failed.",
+                        errors: validation.errors
+                    }, exceptions.httpCode.C_422 );
                 }
                 return dataManager.instance.updateCycleStatus( cycleID, configurationLoader.cycleStatus.ACTIVE, actorID );
             } );
@@ -275,7 +278,11 @@ class CompetenceFramework {
      */
     createNewEvaluation( employee, cycle, snapshot ) {
         if ( !employee || !cycle || !Array.isArray( snapshot ) ) {
-            throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employee: !!employee, cycle: !!cycle, snapshot: Array.isArray( snapshot ) } );
+            throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, {
+                employee: !!employee,
+                cycle: !!cycle,
+                snapshot: Array.isArray( snapshot )
+            } );
         }
         const evaluationID = tools.getUUID();
         const grades = {};
@@ -684,9 +691,9 @@ class CompetenceFramework {
      * Returns the set of competency codes baked into the evaluation snapshot, for fast membership checks.
      *
      * @method
-     * @private
      * @param {Evaluation} evaluation
      * @returns {Set<string>}
+     * @private
      */
     #snapshotCodes( evaluation ) {
         const codes = new Set();
@@ -701,13 +708,13 @@ class CompetenceFramework {
      * descriptors (empty when the family is well-formed).
      *
      * @method
-     * @private
      * @param {string} family
      * @param {string} cycleID
      * @param {Object.<string, Competency>} dictionary
      * @param {RoleFamily} familyConfig
      * @param {number} cap
      * @returns {Promise<Array<Object>>}
+     * @private
      */
     #validateFamilyForLock( family, cycleID, dictionary, familyConfig, cap ) {
         return dataManager.instance.getActiveCompetencySetsForFamily( family, cycleID ).then( ( allSets ) => {
@@ -741,7 +748,11 @@ class CompetenceFramework {
                 } );
                 for ( const subcategory of SUBCATEGORIES ) {
                     if ( !baselineSubcategories.has( subcategory ) ) {
-                        errors.push( { family, rule: "baseline-floor-coverage", detail: `Baseline for '${ family }' is missing a competency in subcategory '${ subcategory }'.` } );
+                        errors.push( {
+                            family,
+                            rule: "baseline-floor-coverage",
+                            detail: `Baseline for '${ family }' is missing a competency in subcategory '${ subcategory }'.`
+                        } );
                     }
                 }
             }
@@ -752,7 +763,12 @@ class CompetenceFramework {
                 codes.forEach( ( c ) => allCodes.add( c ) );
                 for ( const code of codes ) {
                     if ( !dictionary[ code ] ) {
-                        errors.push( { family, specialization: specCode, rule: "reference-integrity", detail: `Specialization '${ specCode }' references unknown competency '${ code }'.` } );
+                        errors.push( {
+                            family,
+                            specialization: specCode,
+                            rule: "reference-integrity",
+                            detail: `Specialization '${ specCode }' references unknown competency '${ code }'.`
+                        } );
                     }
                 }
             }
@@ -766,7 +782,12 @@ class CompetenceFramework {
             const validSpecCodes = new Set( Object.keys( familyConfig?.specializations || {} ) );
             for ( const specCode of Object.keys( specializationSets ) ) {
                 if ( !validSpecCodes.has( specCode ) ) {
-                    errors.push( { family, specialization: specCode, rule: "reference-integrity", detail: `Specialization code '${ specCode }' is not a valid specialization of family '${ family }'.` } );
+                    errors.push( {
+                        family,
+                        specialization: specCode,
+                        rule: "reference-integrity",
+                        detail: `Specialization code '${ specCode }' is not a valid specialization of family '${ family }'.`
+                    } );
                 }
             }
 
@@ -777,7 +798,12 @@ class CompetenceFramework {
             for ( const [ specCode, codes ] of Object.entries( specializationSets ) ) {
                 const resolved = new Set( [ ...baselineArr, ...codes ] );
                 if ( resolved.size > cap ) {
-                    errors.push( { family, specialization: specCode, rule: "cap", detail: `Resolved set (baseline ∪ '${ specCode }') has size ${ resolved.size } and exceeds the configured cap of ${ cap }.` } );
+                    errors.push( {
+                        family,
+                        specialization: specCode,
+                        rule: "cap",
+                        detail: `Resolved set (baseline ∪ '${ specCode }') has size ${ resolved.size } and exceeds the configured cap of ${ cap }.`
+                    } );
                 }
             }
 

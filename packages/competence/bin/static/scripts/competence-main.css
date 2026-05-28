@@ -2853,7 +2853,7 @@
 }
 
 .competence-cycle-tree-node.spec::before {
-    content: '';
+    content: "";
     position: absolute;
     left: 14px;
     top: 0;
@@ -2863,7 +2863,7 @@
 }
 
 .competence-cycle-tree-node.spec::after {
-    content: '';
+    content: "";
     position: absolute;
     left: 14px;
     top: 50%;

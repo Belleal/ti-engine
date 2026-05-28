@@ -338,7 +338,7 @@ class CompetenceWebApplication extends TiWebAppManager {
 
             Promise.all( [
                 dataManager.instance.fetchEvaluations( null, false ),
-                // Used purely to gate UI affordances (e.g. the "Start evaluation" button) — the backend's
+                // Used purely to gate UI affordances (e.g., the "Start evaluation" button) — the backend's
                 // #startEvaluation still independently enforces that creation requires an ACTIVE cycle.
                 dataManager.instance.getActiveCycle()
             ] ).then( ( [ evaluations, activeCycle ] ) => {
@@ -894,7 +894,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 }
 
                 // Phase 5: starting an evaluation requires a strictly ACTIVE cycle. PLANNING / CLOSED / no cycle at all
-                // are all surfaced to the UI as the same "no active appraisal cycle" error so the action remains
+                // are all surfaced to the UI as the same "no active appraisal cycle" error, so the action remains
                 // disabled in the operator-friendly sense rather than silently snapshotting against a fallback cycle.
                 return dataManager.instance.getActiveCycle();
             } ).then( ( activeCycle ) => {
@@ -1519,13 +1519,14 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /* ------------------------------------------------------------------ */
-    /*                       Cycle management screens                       */
+    /*                       Cycle management screens                     */
+
     /* ------------------------------------------------------------------ */
 
     /**
      * Used to load the cycle list for the Cycle Management screen. Supervisor-only. Returns every cycle ordered by
      * createdAt descending, each enriched with localized status, planned dates, lock metadata, and per-cycle evaluation
-     * counts (in-progress vs completed).
+     * counts (in-progress vs. completed).
      *
      * @method
      * @param {TiSession} session
@@ -1738,7 +1739,7 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
-     * Used to create a new cycle in PLANNING state. Supervisor-only.
+     * Used to create a new cycle in a PLANNING state. Supervisor-only.
      *
      * @method
      * @param {TiSession} session
@@ -1765,7 +1766,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID, name, cycleEnd } ) );
             }
             if ( !/^\d{4}-H[12]$/.test( cycleID ) ) {
-                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.cycle.invalid-id-format", cycleID } ) );
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, {
+                    details: "error.cycle.invalid-id-format",
+                    cycleID
+                } ) );
             }
             if ( cycleStart && cycleEnd && cycleStart > cycleEnd ) {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.cycle.invalid-date-range" } ) );
@@ -1898,7 +1902,7 @@ class CompetenceWebApplication extends TiWebAppManager {
 
     /**
      * Used to mark a specialization's active set as intentionally empty for the cycle. Supervisor-only. Persists an
-     * explicit empty array, so the UI can distinguish "intentionally empty" (entry present, codes.length === 0) from
+     * explicit empty array, so the UI can distinguish "intentionally empty" (entry presents, codes.length === 0) from
      * "not configured" (entry absent).
      *
      * @method
@@ -1944,17 +1948,21 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
-     * Asserts that the cycle is in PLANNING state. Used as a precondition by every active-set mutation.
+     * Asserts that the cycle is in a PLANNING state. Used as a precondition by every active-set mutation.
      *
      * @method
-     * @private
      * @param {string} cycleID
      * @returns {Promise<Cycle>}
+     * @private
      */
     #assertCyclePlanning( cycleID ) {
         return dataManager.instance.getCycle( cycleID ).then( ( cycle ) => {
             if ( cycle.status !== configurationLoader.cycleStatus.PLANNING ) {
-                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.cycle.not-in-planning", cycleID, status: cycle.status }, exceptions.httpCode.C_422 );
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, {
+                    details: "error.cycle.not-in-planning",
+                    cycleID,
+                    status: cycle.status
+                }, exceptions.httpCode.C_422 );
             }
             return cycle;
         } );
@@ -1964,10 +1972,10 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Asserts that the role family exists and the key is `baseline` or one of the family's specialization codes.
      *
      * @method
-     * @private
      * @param {string} roleFamily
      * @param {string} key
      * @returns {Promise<void>}
+     * @private
      */
     #assertValidFamilyAndKey( roleFamily, key ) {
         const families = configurationLoader.configRoleFamilies || {};
@@ -1986,12 +1994,12 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
-     * Asserts every code is present in the competencies dictionary.
+     * Asserts every code is present in the competencies' dictionary.
      *
      * @method
-     * @private
      * @param {string[]} codes
      * @returns {Promise<void>}
+     * @private
      */
     #assertCodesKnown( codes ) {
         const dictionary = ( configurationLoader.configCompetencies && configurationLoader.configCompetencies.competencies ) || {};
@@ -2005,14 +2013,14 @@ class CompetenceWebApplication extends TiWebAppManager {
     /**
      * Maps a cycle status to a status-pill tone variant. PLANNING → info, ACTIVE → success, CLOSED → muted.
      * <br/>
-     * NOTE: This is intentionally a separate scale from the evaluation status tones (see {@link evalStatusTone}
+     * NOTE: This is intentionally a separate scale from the evaluation status tones (see {@link getEvalTone}
      * inside {@link #loadEmployeeList}). The two lifecycles only overlap on "info" today (PLANNING and OPEN), which
      * is fine semantically — but if visual differentiation is ever needed, the door is open here.
      *
      * @method
-     * @private
      * @param {CycleStatusValue|string} status
      * @returns {"info"|"success"|"muted"|""}
+     * @private
      */
     #cycleStatusTone( status ) {
         if ( status === configurationLoader.cycleStatus.PLANNING ) return "info";
@@ -2023,16 +2031,16 @@ class CompetenceWebApplication extends TiWebAppManager {
 
     /**
      * Maps an evaluation status to a status-pill tone variant. OPEN → info, IN_REVIEW → warn, READY → success.
-     * Returns "" for any other status (e.g. CLOSED, NOT_STARTED) so the consumer can fall back to the default pill.
+     * Returns "" for any other status (e.g., CLOSED, NOT_STARTED) so the consumer can fall back to the default pill.
      * <br/>
      * NOTE: Two inline copies of this helper still live in {@link #loadEmployeeList} and the dashboard projection.
      * Future cleanup can route them through here; this method exists now because the People > Evaluations data-grid
      * needs the tone to render the StatusPill consistently with the org chart.
      *
      * @method
-     * @private
      * @param {string} status
      * @returns {"info"|"warn"|"success"|""}
+     * @private
      */
     #evaluationStatusTone( status ) {
         if ( status === configurationLoader.evaluationStatus.OPEN ) return "info";
@@ -2046,9 +2054,9 @@ class CompetenceWebApplication extends TiWebAppManager {
      * found. Used as the default value in the Create Cycle modal.
      *
      * @method
-     * @private
      * @param {Array<{cycleID: string}>} existingCycles
      * @returns {string}
+     * @private
      */
     #suggestNextCycleID( existingCycles ) {
         const used = new Set( ( existingCycles || [] ).map( ( cycle ) => cycle.cycleID ) );
@@ -2075,7 +2083,8 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /* ------------------------------------------------------------------ */
-    /*                      Employee management screen                     */
+    /*                      Employee management screen                    */
+
     /* ------------------------------------------------------------------ */
 
     /**
@@ -2343,10 +2352,10 @@ class CompetenceWebApplication extends TiWebAppManager {
      * surfaces the resolved manager (via the org chart).
      *
      * @method
-     * @private
      * @param {Employee} employee
      * @param {TiSession} session
      * @returns {Object}
+     * @private
      */
     #projectEmployeeRow( employee, session ) {
         const firstName = employee?.personal?.firstName || "";
@@ -2384,10 +2393,10 @@ class CompetenceWebApplication extends TiWebAppManager {
      * labels for the form.
      *
      * @method
-     * @private
      * @param {Employee} employee
      * @param {TiSession} session
      * @returns {Object}
+     * @private
      */
     #projectEmployeeDetail( employee, session ) {
         const projection = this.#projectEmployeeRow( employee, session );
@@ -2417,9 +2426,9 @@ class CompetenceWebApplication extends TiWebAppManager {
      * organization units, employment statuses, work modes / locations). All localized via session language.
      *
      * @method
-     * @private
      * @param {TiSession} session
      * @returns {Object}
+     * @private
      */
     #buildEmployeeFormOptions( session ) {
         const language = session?.language;
@@ -2466,8 +2475,8 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Returns the set of field paths a non-Supervisor manager is allowed to edit on a direct report.
      *
      * @method
-     * @private
      * @returns {Set<string>}
+     * @private
      */
     #managerEditableFields() {
         return new Set( [ "career.specialization" ] );
@@ -2477,9 +2486,9 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Throws E_SEC_UNAUTHORIZED_ACCESS when the supplied field is outside the caller's edit scope.
      *
      * @method
-     * @private
      * @param {string} fieldPath
      * @param {{isSupervisor: boolean, isDirectManager: boolean}} actorScope
+     * @private
      */
     #assertEditableField( fieldPath, actorScope ) {
         if ( actorScope.isSupervisor ) return;
@@ -2491,10 +2500,10 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Reads a value out of an object by dotted path (e.g., "career.roleFamily").
      *
      * @method
-     * @private
      * @param {Object} obj
      * @param {string} path
      * @returns {*}
+     * @private
      */
     #getFieldByPath( obj, path ) {
         const parts = path.split( "." );
@@ -2510,10 +2519,10 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Sets a value into an object by dotted path, creating any intermediate objects as needed.
      *
      * @method
-     * @private
      * @param {Object} obj
      * @param {string} path
      * @param {*} value
+     * @private
      */
     #setFieldByPath( obj, path, value ) {
         const parts = path.split( "." );
@@ -2544,10 +2553,10 @@ class CompetenceWebApplication extends TiWebAppManager {
      * null / empty as-is.
      *
      * @method
-     * @private
      * @param {string} path
      * @param {*} rawValue
      * @returns {*}
+     * @private
      */
     #normalizeFieldValue( path, rawValue ) {
         if ( rawValue === null || rawValue === undefined ) {
@@ -2567,10 +2576,10 @@ class CompetenceWebApplication extends TiWebAppManager {
      * Loose equality used to detect a no-op field change (audit log entries are only written for real changes).
      *
      * @method
-     * @private
      * @param {*} a
      * @param {*} b
      * @returns {boolean}
+     * @private
      */
     #fieldsEqual( a, b ) {
         const norm = ( v ) => ( v === undefined || v === "" ) ? null : v;
@@ -2582,9 +2591,9 @@ class CompetenceWebApplication extends TiWebAppManager {
      * persisting). Returns an i18n key when invalid, null when valid.
      *
      * @method
-     * @private
      * @param {Employee} employee
      * @returns {string|null}
+     * @private
      */
     #validateEmployeeFields( employee ) {
         const firstName = employee?.personal?.firstName;
@@ -2648,9 +2657,9 @@ class CompetenceWebApplication extends TiWebAppManager {
      * to `1` when the registry is empty.
      *
      * @method
-     * @private
      * @param {Array<Employee>} employees
      * @returns {string}
+     * @private
      */
     #deriveNextEmployeeID( employees ) {
         const maxID = ( employees || [] ).reduce( ( accumulator, employee ) => {
