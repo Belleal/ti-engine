@@ -6814,5 +6814,67 @@
         }
       }
     }
+  },
+  "relevancy-archetype": {
+    "name": {
+      "A": {
+        "en": "Foundational-plateau",
+        "bg": "Фундаментално плато"
+      },
+      "B": {
+        "en": "Rising-with-seniority",
+        "bg": "Нарастващо със стажа"
+      },
+      "C": {
+        "en": "Steady-high",
+        "bg": "Постоянно високо"
+      },
+      "D": {
+        "en": "Early-emphasis-then-assumed",
+        "bg": "Ранен акцент, после подразбиращо се"
+      },
+      "E": {
+        "en": "Mid-weighted",
+        "bg": "Със среден акцент"
+      },
+      "F": {
+        "en": "Rising, expert-leaning",
+        "bg": "Нарастващо, с насоченост към експерта"
+      },
+      "G": {
+        "en": "Rising, manager-leaning",
+        "bg": "Нарастващо, с насоченост към мениджъра"
+      }
+    },
+    "description": {
+      "A": {
+        "en": "Fundamentals important from day one that stay important (core knowledge, everyday tools)",
+        "bg": "Основи, важни от първия ден, които остават важни (основни знания, всекидневни инструменти)."
+      },
+      "B": {
+        "en": "Capabilities expected to grow markedly with level (advanced knowledge, strategy, experience, most interpersonal growth)",
+        "bg": "Способности, които се очаква да нарастват значително с нивото (задълбочени знания, стратегия, опит, по-голямата част от междуличностното развитие)."
+      },
+      "C": {
+        "en": "Consistently important at all levels (ethics, deadlines, core communication, process adherence)",
+        "bg": "Последователно важни на всички нива (етика, срокове, основна комуникация, спазване на процеси)."
+      },
+      "D": {
+        "en": "Hands-on mechanics evaluated heavily early, mastered/assumed later (basic coding mechanics, conventions)",
+        "bg": "Практически механики, оценявани силно в началото, усвоени/подразбиращи се по-късно (базови умения за писане на код, конвенции)."
+      },
+      "E": {
+        "en": "Applied skills peaking at regular/senior (core \"doing\" competencies of each discipline)",
+        "bg": "Приложни умения, достигащи пик при стандартно/старши ниво (основните „изпълнителски“ компетентности на всяка дисциплина)."
+      },
+      "F": {
+        "en": "Deep technical capabilities where the IC expert is the authority (architecture, R&D, technical debt)",
+        "bg": "Дълбоки технически способности, при които експертът (IC) е авторитетът (архитектура, R&D, технически дълг)."
+      },
+      "G": {
+        "en": "People/team capabilities where the manager track is the peak (delegation, leadership, developing & motivating others)",
+        "bg": "Способности за работа с хора и екипи, при които мениджърският път е пикът (делегиране, лидерство, развиване и мотивиране на други)."
+      }
+    }
   }
 }
