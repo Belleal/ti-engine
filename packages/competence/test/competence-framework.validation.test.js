@@ -56,13 +56,12 @@ describe( "CompetenceFramework.validateCycleForLock — four rules in pass and f
     it( "rule 2 (cap): rejects a resolved set exceeding the configured cap", async () => {
         // Lower the cap by injecting a setting at runtime. The simplest way is to push a giant specialization
         // that pushes baseline ∪ specialization over the default cap of 30.
-        const bigSet = [];
-        for ( let i = 1; i <= 20; i++ ) bigSet.push( `E2-${ i }` );
-        // Note: codes E2-1..E2-16 exist in the dictionary; E2-17..E2-20 don't and would trip reference-integrity
-        // instead. Use only the valid range so this test isolates the cap rule.
-        await dataManager.instance.setActiveCompetencySet( "SE", "BACKEND", "2026-H2", bigSet.slice( 0, 16 ) );
-        // Baseline is 11 codes, BACKEND now contributes 16 (some overlap), so resolved is in the 16-27 range —
-        // still under the default cap of 30. So lower the cap via the application config.
+        // A large specialization set of valid SE-pool codes, all outside the SE baseline, so the resolved set is
+        // pushed past a lowered cap without tripping reference-integrity. (The baseline alone is already 22, so the
+        // cap rule fires regardless; these keep the test focused on the cap rule with no retired/unknown codes.)
+        const bigSet = [ "E2-4", "E2-7", "E2-9", "E2-10", "E2-11", "E2-12", "E2-13", "E2-14", "E2-15", "E2-16" ];
+        await dataManager.instance.setActiveCompetencySet( "SE", "BACKEND", "2026-H2", bigSet );
+        // Lower the cap via the application config so the baseline and resolved sets exceed it.
         const configurationLoader = require( "#configuration-loader" );
         const originalGetSetting = configurationLoader.getSetting;
         configurationLoader.getSetting = ( setting, defaultValue ) => {

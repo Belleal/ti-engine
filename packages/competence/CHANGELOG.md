@@ -2,6 +2,21 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.0.0
+
+### Competency content rebuild
+
+* feat(config)!: rebuild the competency dictionary from 164 to **108** finalized competencies — SE 31, BA 22, PM 25, plus 30 shared canonical — regenerated from the source-of-truth documents now in `design/`. Drop 64 retired codes and add 8 (`C1-8`, `E1-42`..`E1-47`, `E2-41`); retired numbers are left intentionally vacant, and the `I1` range is renumbered clean (`I1-1`..`I1-7` — e.g. `I1-7` is reassigned to PM "Change management within projects")
+* feat(localization): rebuild EN + BG localization for all 108 competencies with complete, non-empty name, description, and six scope anchors in both languages; the unchanged SE entries are preserved verbatim and the `PostgresSQL` → `PostgreSQL` typo is fixed. Add a `relevancy-archetype` name/description label section (BG pending native-speaker review) for the UI
+* feat(config): materialize `config.competency-relevancy.json` (168 rows — SE 61 / BA 52 / PM 55) by expanding the seven archetype curves defined in `design/competency-relevancy-model.md`; shared competencies carry the same curve in every family
+* feat(config): reseed `config.active-competency-sets.json` with sensible default baselines per family for cycle `2026-H2` (SE 22 / BA 21 / PM 21), each covering all nine subcategories within the cap; specializations are left for HR to select per cycle
+* test(json): add a content-integrity guard that fails if any competency referenced by an active set — or any catalog competency — has an empty `en`/`bg` name, description, or scope level
+* chore(build): replace the obsolete CSV-based compile scripts with `bin/build/build-competency-relevancy.js`, the re-runnable generator for the relevancy config and the archetype labels
+
+### BREAKING CHANGES
+
+* 64 competency codes were removed and the `I1` subcategory renumbered. Stored evaluation data keyed by the old codes (e.g. the separate pilot/analysis dataset) must be migrated. The config file shapes, JSON schemas, and framework logic are unchanged — this is a content replacement, not an API change
+
 ## Version 2.1.0
 
 ### Catalog and relevancy
