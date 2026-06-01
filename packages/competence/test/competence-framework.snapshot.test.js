@@ -23,6 +23,10 @@ before( async () => {
     competenceFramework = require( "#competence-framework" );
     process.env.COMPETENCE_PRELOAD_DATA = "true";
     await dataManager.instance.initialize();
+    // The seeded config intentionally leaves specializations empty (HR selects them per cycle via the UI).
+    // Populate SE.BACKEND here so this suite can exercise the specialization-origin path without coupling to
+    // seed contents. Codes are SE-pool competencies that are deliberately NOT in the SE baseline.
+    await dataManager.instance.setActiveCompetencySet( "SE", "BACKEND", "2026-H2", [ "E1-1", "E1-2", "E2-14" ] );
 } );
 
 describe( "CompetenceFramework.buildEvaluationSnapshot — completeness and immutability", () => {
