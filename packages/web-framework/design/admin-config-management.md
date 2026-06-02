@@ -24,11 +24,15 @@ How this design landed in code — update as each step is committed (branch `cur
 | A6 — Audit + snapshot integration (validated restore + audit/history queries) | ✅ committed | `939f308` | 2026-06-02 |
 | A7 — Export-to-git (download bundle) | ✅ committed | `8a5e8be` | 2026-06-02 |
 | A8a — Admin config HTTP API (admin-gated `/admin/config/*` routes) | ✅ committed | `7e2af9c` | 2026-06-02 |
-| A8b — Admin UI shell + shared components | ⏳ in progress | — | — |
-| B — Competence integration + relevancy restructure | ☐ planned | — | — |
-| C — Competency text editor (BG review) | ☐ planned | — | — |
+| A8b — Admin UI shell + shared components | ⏸ deferred — built with the UI effort (Phase C) | — | — |
+| B1 — Relevancy restructure (archetypes config + per-competency assignment; retire materialized relevancy) | ⏳ in progress | — | — |
+| B2 — Register competence config docs + validators + composite editors with the framework | ☐ planned | — | — |
+| B3 — Store-backed configuration-loader (seed-empty bootstrap + refresh on `config:changed`) | ☐ planned | — | — |
+| C — Admin UI shell + competency text editor (BG review) | ☐ planned | — | — |
 | D — Archetype editor + assignment editor | ☐ planned | — | — |
 | E — Later editors (dictionary structure, role-families, …) | ☐ planned | — | — |
+
+> **Reorder note (2026-06-02):** the UI (former A8b) is deferred and built *with* the first concrete editor in Phase C, after Phase B registers competence's configs (so screens have real data). **UI implementation guidance:** the design concept in `.claude/competence-design-concept` is a portable React/CSS rendering of the *visual language only*; the implementation must follow the framework's real stack (HTMX + Alpine CSP + server-rendered fragments) and **use the existing competence screens/components as the reference**, reusing the established `.ti-*` primitives.
 
 Enables `Admin`-role users to edit application configuration through the UI, with every write validated and persisted server-side, full version history with restore, and an explicit export-to-git for durable/reviewable versioning.
 
