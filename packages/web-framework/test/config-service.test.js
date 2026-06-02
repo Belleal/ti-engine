@@ -143,6 +143,17 @@ describe( "ConfigService — change notification", () => {
         assert.equal( events.length, 0 );
     } );
 
+    it( "seedDefault is idempotent and onConfigChanged delivers commit events", async () => {
+        const seeded = await service.seedDefault( "alpha", { n: 999 } );
+        assert.equal( seeded.version, 1, "seedDefault must not overwrite an existing document" );
+
+        const events = [];
+        service.onConfigChanged( ( event ) => events.push( event ) );
+        await service.applyEdits( [ { configKey: "alpha", value: { n: 7 }, expectedVersion: 1 } ], { adminID: "admin:1" } );
+        await tick();
+        assert.equal( events.length, 1 );
+    } );
+
 } );
 
 describe( "ConfigService — restore + audit", () => {

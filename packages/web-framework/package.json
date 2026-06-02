@@ -5,6 +5,7 @@
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "exports": {
+    "./config-management": "./components/config-service.js",
     "./web-application": "./bin/web-app-manager.js",
     "./web-server": "./bin/web-server.js"
   },

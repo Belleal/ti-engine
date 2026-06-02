@@ -292,6 +292,32 @@ class ConfigService {
         } ) );
     }
 
+    /**
+     * Seeds a document's default value into the store only if it has never been written (idempotent bootstrap).
+     * Used by an application to bring its file defaults into the store at startup before serving live config.
+     *
+     * @method
+     * @param {string} configKey
+     * @param {Object} defaultValue
+     * @returns {Promise<Object>} The current envelope.
+     * @public
+     */
+    seedDefault( configKey, defaultValue ) {
+        return this.#store.seedIfEmpty( configKey, defaultValue );
+    }
+
+    /**
+     * Subscribes a listener to `config:changed` events (delegates to the change notifier). Returns an unsubscribe fn.
+     *
+     * @method
+     * @param {function(Object): void} listener
+     * @returns {function(): void}
+     * @public
+     */
+    onConfigChanged( listener ) {
+        return this.#notifier.subscribe( listener );
+    }
+
     /* Private interface */
 
     /**
