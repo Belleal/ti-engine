@@ -100,13 +100,14 @@
     },
     "competency": {
       "type": "object",
-      "description": "A single competency definition. Relevancy scores are intentionally not embedded here; they vary per role family and live in config.competency-relevancy.json.",
+      "description": "A single competency definition. Per-stage-level relevancy is not embedded here; the competency references a relevancy archetype (see config.relevancy-archetypes.json) whose curve defines it.",
       "required": [
         "name",
         "description",
         "category",
         "subcategory",
-        "scope"
+        "scope",
+        "relevancyArchetype"
       ],
       "additionalProperties": false,
       "properties": {
@@ -156,6 +157,11 @@
           "type": "string",
           "pattern": "^[EIC][1-3]$",
           "description": "Subcategory code matching the parent category"
+        },
+        "relevancyArchetype": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "description": "Relevancy archetype id (see config.relevancy-archetypes.json); its 12-stage-level curve defines this competency's per-stage-level relevancy."
         },
         "scope": {
           "type": "object",

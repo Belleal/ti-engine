@@ -1665,16 +1665,9 @@ class CompetenceWebApplication extends TiWebAppManager {
                     const dictionary = ( configurationLoader.configCompetencies && configurationLoader.configCompetencies.competencies ) || {};
                     const categories = ( configurationLoader.configCompetencies && configurationLoader.configCompetencies.categories ) || {};
 
-                    const relevancyByFamily = configurationLoader.configCompetencyRelevancy || {};
                     const competenciesByCode = {};
                     Object.entries( dictionary ).forEach( ( [ code, competency ] ) => {
                         const subcategoryConfig = categories[ competency.category ]?.subcategories?.[ competency.subcategory ];
-                        const relevancy = {};
-                        Object.keys( relevancyByFamily ).forEach( ( family ) => {
-                            if ( relevancyByFamily[ family ]?.[ code ] ) {
-                                relevancy[ family ] = _.cloneDeep( relevancyByFamily[ family ][ code ] );
-                            }
-                        } );
                         competenciesByCode[ code ] = {
                             code,
                             name: localization.getLabel( competency.name, language ),
@@ -1684,7 +1677,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                             subcategory: competency.subcategory,
                             subcategoryName: localization.getLabel( subcategoryConfig?.name || competency.subcategory, language ),
                             subcategoryDescription: localization.getLabel( subcategoryConfig?.description || "", language ),
-                            relevancyByFamily: relevancy,
+                            relevancyArchetype: competency.relevancyArchetype,
                             eCFMapping: Array.isArray( competency.eCFMapping ) ? _.cloneDeep( competency.eCFMapping ) : []
                         };
                     } );

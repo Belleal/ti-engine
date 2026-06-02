@@ -94,8 +94,8 @@ describe( "Configuration files validate against their schemas", () => {
         expectValid( "https://ti-engine.dev/schemas/competence/competencies.json", path.join( CONFIG_DIR, "config.competencies.json" ) );
     } );
 
-    it( "config.competency-relevancy.json validates against competency-relevancy.schema.json", () => {
-        expectValid( "https://ti-engine.dev/schemas/competence/competency-relevancy.json", path.join( CONFIG_DIR, "config.competency-relevancy.json" ) );
+    it( "config.relevancy-archetypes.json validates against relevancy-archetypes.schema.json", () => {
+        expectValid( "https://ti-engine.dev/schemas/competence/relevancy-archetypes.json", path.join( CONFIG_DIR, "config.relevancy-archetypes.json" ) );
     } );
 
     it( "config.role-families.json validates against role-families.schema.json", () => {
@@ -191,39 +191,36 @@ describe( "Active competency sets satisfy floor coverage for the seeded cycle", 
 
 } );
 
-describe( "Competency relevancy covers every active-set reference", () => {
+describe( "Relevancy archetypes resolve for every competency", () => {
 
-    it( "every code referenced by an active-set has relevancy for that role family", () => {
-        const sets = readJSON( path.join( CONFIG_DIR, "config.active-competency-sets.json" ) );
-        const relevancy = readJSON( path.join( CONFIG_DIR, "config.competency-relevancy.json" ) );
+    const LEVELS = [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1" ];
+
+    it( "every competency references an archetype defined in config.relevancy-archetypes.json", () => {
+        const competencies = readJSON( path.join( CONFIG_DIR, "config.competencies.json" ) ).competencies;
+        const archetypes = readJSON( path.join( CONFIG_DIR, "config.relevancy-archetypes.json" ) );
         const failures = [];
-        for ( const [ family, familyEntry ] of Object.entries( sets ) ) {
-            const familyRelevancy = relevancy[ family ] || {};
-            for ( const [ key, cycleMap ] of Object.entries( familyEntry ) ) {
-                for ( const [ cycleID, codes ] of Object.entries( cycleMap ) ) {
-                    for ( const code of codes ) {
-                        if ( !familyRelevancy[ code ] ) {
-                            failures.push( `${ family }.${ key }.${ cycleID }: missing relevancy for '${ code }' under '${ family }'` );
-                        }
-                    }
-                }
+        for ( const [ code, competency ] of Object.entries( competencies ) ) {
+            if ( !competency.relevancyArchetype ) {
+                failures.push( `${ code }: missing relevancyArchetype` );
+            } else if ( !archetypes[ competency.relevancyArchetype ] ) {
+                failures.push( `${ code }: relevancyArchetype '${ competency.relevancyArchetype }' is not defined` );
             }
         }
-        assert.deepEqual( failures, [], `Missing relevancy failures:\n  ${ failures.join( "\n  " ) }` );
+        assert.deepEqual( failures, [], `Archetype-resolution failures:\n  ${ failures.join( "\n  " ) }` );
     } );
 
-    it( "every code in the relevancy config exists in the competency catalog", () => {
-        const competencies = readJSON( path.join( CONFIG_DIR, "config.competencies.json" ) ).competencies;
-        const relevancy = readJSON( path.join( CONFIG_DIR, "config.competency-relevancy.json" ) );
+    it( "every archetype curve has all twelve stage-level weights in range 1-10", () => {
+        const archetypes = readJSON( path.join( CONFIG_DIR, "config.relevancy-archetypes.json" ) );
         const failures = [];
-        for ( const [ family, familyRelevancy ] of Object.entries( relevancy ) ) {
-            for ( const code of Object.keys( familyRelevancy ) ) {
-                if ( !competencies[ code ] ) {
-                    failures.push( `${ family }: relevancy references unknown catalog code '${ code }'` );
+        for ( const [ id, archetype ] of Object.entries( archetypes ) ) {
+            for ( const level of LEVELS ) {
+                const value = archetype.weights ? archetype.weights[ level ] : undefined;
+                if ( !Number.isInteger( value ) || value < 1 || value > 10 ) {
+                    failures.push( `${ id }.${ level } = ${ value }` );
                 }
             }
         }
-        assert.deepEqual( failures, [], `Unknown catalog code failures:\n  ${ failures.join( "\n  " ) }` );
+        assert.deepEqual( failures, [], `Archetype weight failures:\n  ${ failures.join( "\n  " ) }` );
     } );
 
 } );

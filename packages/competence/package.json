@@ -9,7 +9,7 @@
     "#config-active-competency-sets": "./bin/config/config.active-competency-sets.json",
     "#config-application": "./bin/config/config.application.json",
     "#config-competencies": "./bin/config/config.competencies.json",
-    "#config-competency-relevancy": "./bin/config/config.competency-relevancy.json",
+    "#config-relevancy-archetypes": "./bin/config/config.relevancy-archetypes.json",
     "#config-organization-structure": "./bin/config/config.organization-structure.json",
     "#config-role-families": "./bin/config/config.role-families.json",
     "#config-stage-levels": "./bin/config/config.stage-levels.json",

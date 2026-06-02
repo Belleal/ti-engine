@@ -13,8 +13,8 @@ const tools = require( "@ti-engine/core/tools" );
 module.exports.configActiveCompetencySets = tools.deepFreeze( require( "#config-active-competency-sets" ) );
 /** @type {ConfigCompetencies} */
 module.exports.configCompetencies = tools.deepFreeze( require( "#config-competencies" ) );
-/** @type {ConfigCompetencyRelevancy} */
-module.exports.configCompetencyRelevancy = tools.deepFreeze( require( "#config-competency-relevancy" ) );
+/** @type {ConfigRelevancyArchetypes} */
+module.exports.configRelevancyArchetypes = tools.deepFreeze( require( "#config-relevancy-archetypes" ) );
 module.exports.configOrganizationStructure = tools.deepFreeze( require( "#config-organization-structure" ) );
 /** @type {ConfigRoleFamilies} */
 module.exports.configRoleFamilies = tools.deepFreeze( require( "#config-role-families" ) );

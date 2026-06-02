@@ -275,13 +275,19 @@
  * @property {string} subcategory - Subcategory code matching the parent category.
  * @property {CompetencyScope} scope - Scope descriptions per stage-level.
  * @property {ECFMapping[]} [eCFMapping] - Optional e-CF cross-walk.
+ * @property {string} relevancyArchetype - Relevancy archetype id (see config.relevancy-archetypes.json) whose curve defines this competency's per-stage-level relevancy.
  */
 
 /**
- * @typedef {Object.<RoleFamilyCodeValue, Object.<string, CompetencyRelevancy>>} ConfigCompetencyRelevancy
- * @description Maps role family code → competency code → per-stage-level relevancy scores. Relevancy is role-family-specific
- * because the same competency can carry different importance across disciplines (e.g., shared transversal
- * competencies have different N1/X1 expectations between Software Engineering and Business Analysis).
+ * @typedef {Object.<string, RelevancyArchetype>} ConfigRelevancyArchetypes
+ * @description Maps archetype id → its relevancy curve. A competency references an archetype by id (its
+ * `relevancyArchetype`); the effective per-stage-level relevancy is resolved from the archetype. Assignment is global
+ * (the same curve wherever a competency is used); per-family divergence would be an optional override layer (deferred).
+ */
+
+/**
+ * @typedef {Object} RelevancyArchetype
+ * @property {CompetencyRelevancy} weights - The twelve stage-level weights (N1..T1) for this archetype.
  */
 
 /**

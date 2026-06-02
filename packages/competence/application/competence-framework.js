@@ -140,7 +140,7 @@ class CompetenceFramework {
             dataManager.instance.getBaselineSet( roleFamily, cycleID )
         ] ).then( ( [ resolvedCodes, baselineCodes ] ) => {
             const dictionary = ( configurationLoader.configCompetencies && configurationLoader.configCompetencies.competencies ) || {};
-            const familyRelevancy = ( configurationLoader.configCompetencyRelevancy || {} )[ roleFamily ] || {};
+            const archetypes = configurationLoader.configRelevancyArchetypes || {};
             const baselineSet = new Set( baselineCodes );
             const roleFamilies = configurationLoader.configRoleFamilies || {};
             const baselineOriginLabel = "interface.evaluation.context.origin.baseline";
@@ -152,9 +152,10 @@ class CompetenceFramework {
                 if ( !competency ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: `Competency '${ code }' referenced by the Active Competency Set is missing from the dictionary.` }, exceptions.httpCode.C_422 );
                 }
-                const relevancy = familyRelevancy[ code ];
+                const archetype = archetypes[ competency.relevancyArchetype ];
+                const relevancy = archetype && archetype.weights;
                 if ( !relevancy ) {
-                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: `Relevancy for competency '${ code }' is missing for role family '${ roleFamily }'.` }, exceptions.httpCode.C_422 );
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: `Relevancy archetype '${ competency.relevancyArchetype }' for competency '${ code }' is missing from config.relevancy-archetypes.json.` }, exceptions.httpCode.C_422 );
                 }
                 const isBaseline = baselineSet.has( code );
                 return {

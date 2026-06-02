@@ -69,7 +69,8 @@
         "X": "competency.scope.C1-1.X",
         "T": "competency.scope.C1-1.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "A"
     },
     "C1-2": {
       "name": "competency.name.C1-2",
@@ -84,7 +85,8 @@
         "X": "competency.scope.C1-2.X",
         "T": "competency.scope.C1-2.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "A"
     },
     "C1-3": {
       "name": "competency.name.C1-3",
@@ -99,7 +101,8 @@
         "X": "competency.scope.C1-3.X",
         "T": "competency.scope.C1-3.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "C1-4": {
       "name": "competency.name.C1-4",
@@ -114,7 +117,8 @@
         "X": "competency.scope.C1-4.X",
         "T": "competency.scope.C1-4.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "C1-5": {
       "name": "competency.name.C1-5",
@@ -129,7 +133,8 @@
         "X": "competency.scope.C1-5.X",
         "T": "competency.scope.C1-5.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "C1-6": {
       "name": "competency.name.C1-6",
@@ -144,7 +149,8 @@
         "X": "competency.scope.C1-6.X",
         "T": "competency.scope.C1-6.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "C1-7": {
       "name": "competency.name.C1-7",
@@ -159,7 +165,8 @@
         "X": "competency.scope.C1-7.X",
         "T": "competency.scope.C1-7.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "C1-8": {
       "name": "competency.name.C1-8",
@@ -174,7 +181,8 @@
         "X": "competency.scope.C1-8.X",
         "T": "competency.scope.C1-8.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "C2-1": {
       "name": "competency.name.C2-1",
@@ -189,7 +197,8 @@
         "X": "competency.scope.C2-1.X",
         "T": "competency.scope.C2-1.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "C2-2": {
       "name": "competency.name.C2-2",
@@ -204,7 +213,8 @@
         "X": "competency.scope.C2-2.X",
         "T": "competency.scope.C2-2.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "C2-3": {
       "name": "competency.name.C2-3",
@@ -219,7 +229,8 @@
         "X": "competency.scope.C2-3.X",
         "T": "competency.scope.C2-3.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "C2-4": {
       "name": "competency.name.C2-4",
@@ -234,7 +245,8 @@
         "X": "competency.scope.C2-4.X",
         "T": "competency.scope.C2-4.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "C2-5": {
       "name": "competency.name.C2-5",
@@ -249,7 +261,8 @@
         "X": "competency.scope.C2-5.X",
         "T": "competency.scope.C2-5.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "C3-1": {
       "name": "competency.name.C3-1",
@@ -264,7 +277,8 @@
         "X": "competency.scope.C3-1.X",
         "T": "competency.scope.C3-1.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "C3-2": {
       "name": "competency.name.C3-2",
@@ -279,7 +293,8 @@
         "X": "competency.scope.C3-2.X",
         "T": "competency.scope.C3-2.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "C3-3": {
       "name": "competency.name.C3-3",
@@ -294,7 +309,8 @@
         "X": "competency.scope.C3-3.X",
         "T": "competency.scope.C3-3.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "G"
     },
     "C3-4": {
       "name": "competency.name.C3-4",
@@ -309,7 +325,8 @@
         "X": "competency.scope.C3-4.X",
         "T": "competency.scope.C3-4.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "C3-5": {
       "name": "competency.name.C3-5",
@@ -324,7 +341,8 @@
         "X": "competency.scope.C3-5.X",
         "T": "competency.scope.C3-5.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "G"
     },
     "E1-1": {
       "name": "competency.name.E1-1",
@@ -339,7 +357,8 @@
         "X": "competency.scope.E1-1.X",
         "T": "competency.scope.E1-1.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "A"
     },
     "E1-2": {
       "name": "competency.name.E1-2",
@@ -354,7 +373,8 @@
         "X": "competency.scope.E1-2.X",
         "T": "competency.scope.E1-2.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "A"
     },
     "E1-3": {
       "name": "competency.name.E1-3",
@@ -369,7 +389,8 @@
         "X": "competency.scope.E1-3.X",
         "T": "competency.scope.E1-3.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "A"
     },
     "E1-4": {
       "name": "competency.name.E1-4",
@@ -384,7 +405,8 @@
         "X": "competency.scope.E1-4.X",
         "T": "competency.scope.E1-4.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "A"
     },
     "E1-5": {
       "name": "competency.name.E1-5",
@@ -399,7 +421,8 @@
         "X": "competency.scope.E1-5.X",
         "T": "competency.scope.E1-5.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "A"
     },
     "E1-6": {
       "name": "competency.name.E1-6",
@@ -414,7 +437,8 @@
         "X": "competency.scope.E1-6.X",
         "T": "competency.scope.E1-6.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "A"
     },
     "E1-7": {
       "name": "competency.name.E1-7",
@@ -429,7 +453,8 @@
         "X": "competency.scope.E1-7.X",
         "T": "competency.scope.E1-7.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "A"
     },
     "E1-8": {
       "name": "competency.name.E1-8",
@@ -444,7 +469,8 @@
         "X": "competency.scope.E1-8.X",
         "T": "competency.scope.E1-8.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "F"
     },
     "E1-9": {
       "name": "competency.name.E1-9",
@@ -459,7 +485,8 @@
         "X": "competency.scope.E1-9.X",
         "T": "competency.scope.E1-9.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E1-10": {
       "name": "competency.name.E1-10",
@@ -474,7 +501,8 @@
         "X": "competency.scope.E1-10.X",
         "T": "competency.scope.E1-10.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E1-11": {
       "name": "competency.name.E1-11",
@@ -489,7 +517,8 @@
         "X": "competency.scope.E1-11.X",
         "T": "competency.scope.E1-11.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E1-13": {
       "name": "competency.name.E1-13",
@@ -504,7 +533,8 @@
         "X": "competency.scope.E1-13.X",
         "T": "competency.scope.E1-13.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E1-15": {
       "name": "competency.name.E1-15",
@@ -519,7 +549,8 @@
         "X": "competency.scope.E1-15.X",
         "T": "competency.scope.E1-15.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E1-21": {
       "name": "competency.name.E1-21",
@@ -534,7 +565,8 @@
         "X": "competency.scope.E1-21.X",
         "T": "competency.scope.E1-21.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E1-22": {
       "name": "competency.name.E1-22",
@@ -549,7 +581,8 @@
         "X": "competency.scope.E1-22.X",
         "T": "competency.scope.E1-22.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E1-26": {
       "name": "competency.name.E1-26",
@@ -564,7 +597,8 @@
         "X": "competency.scope.E1-26.X",
         "T": "competency.scope.E1-26.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E1-28": {
       "name": "competency.name.E1-28",
@@ -579,7 +613,8 @@
         "X": "competency.scope.E1-28.X",
         "T": "competency.scope.E1-28.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E1-30": {
       "name": "competency.name.E1-30",
@@ -594,7 +629,8 @@
         "X": "competency.scope.E1-30.X",
         "T": "competency.scope.E1-30.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E1-32": {
       "name": "competency.name.E1-32",
@@ -609,7 +645,8 @@
         "X": "competency.scope.E1-32.X",
         "T": "competency.scope.E1-32.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "E1-34": {
       "name": "competency.name.E1-34",
@@ -624,7 +661,8 @@
         "X": "competency.scope.E1-34.X",
         "T": "competency.scope.E1-34.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E1-35": {
       "name": "competency.name.E1-35",
@@ -639,7 +677,8 @@
         "X": "competency.scope.E1-35.X",
         "T": "competency.scope.E1-35.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E1-36": {
       "name": "competency.name.E1-36",
@@ -654,7 +693,8 @@
         "X": "competency.scope.E1-36.X",
         "T": "competency.scope.E1-36.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E1-37": {
       "name": "competency.name.E1-37",
@@ -669,7 +709,8 @@
         "X": "competency.scope.E1-37.X",
         "T": "competency.scope.E1-37.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E1-42": {
       "name": "competency.name.E1-42",
@@ -684,7 +725,8 @@
         "X": "competency.scope.E1-42.X",
         "T": "competency.scope.E1-42.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E1-43": {
       "name": "competency.name.E1-43",
@@ -699,7 +741,8 @@
         "X": "competency.scope.E1-43.X",
         "T": "competency.scope.E1-43.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E1-44": {
       "name": "competency.name.E1-44",
@@ -714,7 +757,8 @@
         "X": "competency.scope.E1-44.X",
         "T": "competency.scope.E1-44.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E1-45": {
       "name": "competency.name.E1-45",
@@ -729,7 +773,8 @@
         "X": "competency.scope.E1-45.X",
         "T": "competency.scope.E1-45.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E1-46": {
       "name": "competency.name.E1-46",
@@ -744,7 +789,8 @@
         "X": "competency.scope.E1-46.X",
         "T": "competency.scope.E1-46.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E1-47": {
       "name": "competency.name.E1-47",
@@ -759,7 +805,8 @@
         "X": "competency.scope.E1-47.X",
         "T": "competency.scope.E1-47.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E2-1": {
       "name": "competency.name.E2-1",
@@ -774,7 +821,8 @@
         "X": "competency.scope.E2-1.X",
         "T": "competency.scope.E2-1.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "D"
     },
     "E2-3": {
       "name": "competency.name.E2-3",
@@ -789,7 +837,8 @@
         "X": "competency.scope.E2-3.X",
         "T": "competency.scope.E2-3.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E2-4": {
       "name": "competency.name.E2-4",
@@ -804,7 +853,8 @@
         "X": "competency.scope.E2-4.X",
         "T": "competency.scope.E2-4.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "D"
     },
     "E2-5": {
       "name": "competency.name.E2-5",
@@ -819,7 +869,8 @@
         "X": "competency.scope.E2-5.X",
         "T": "competency.scope.E2-5.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "D"
     },
     "E2-7": {
       "name": "competency.name.E2-7",
@@ -834,7 +885,8 @@
         "X": "competency.scope.E2-7.X",
         "T": "competency.scope.E2-7.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E2-8": {
       "name": "competency.name.E2-8",
@@ -849,7 +901,8 @@
         "X": "competency.scope.E2-8.X",
         "T": "competency.scope.E2-8.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E2-9": {
       "name": "competency.name.E2-9",
@@ -864,7 +917,8 @@
         "X": "competency.scope.E2-9.X",
         "T": "competency.scope.E2-9.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "F"
     },
     "E2-10": {
       "name": "competency.name.E2-10",
@@ -879,7 +933,8 @@
         "X": "competency.scope.E2-10.X",
         "T": "competency.scope.E2-10.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "F"
     },
     "E2-11": {
       "name": "competency.name.E2-11",
@@ -894,7 +949,8 @@
         "X": "competency.scope.E2-11.X",
         "T": "competency.scope.E2-11.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E2-12": {
       "name": "competency.name.E2-12",
@@ -909,7 +965,8 @@
         "X": "competency.scope.E2-12.X",
         "T": "competency.scope.E2-12.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "E2-13": {
       "name": "competency.name.E2-13",
@@ -924,7 +981,8 @@
         "X": "competency.scope.E2-13.X",
         "T": "competency.scope.E2-13.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E2-14": {
       "name": "competency.name.E2-14",
@@ -939,7 +997,8 @@
         "X": "competency.scope.E2-14.X",
         "T": "competency.scope.E2-14.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E2-15": {
       "name": "competency.name.E2-15",
@@ -954,7 +1013,8 @@
         "X": "competency.scope.E2-15.X",
         "T": "competency.scope.E2-15.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E2-16": {
       "name": "competency.name.E2-16",
@@ -969,7 +1029,8 @@
         "X": "competency.scope.E2-16.X",
         "T": "competency.scope.E2-16.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "F"
     },
     "E2-17": {
       "name": "competency.name.E2-17",
@@ -984,7 +1045,8 @@
         "X": "competency.scope.E2-17.X",
         "T": "competency.scope.E2-17.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E2-21": {
       "name": "competency.name.E2-21",
@@ -999,7 +1061,8 @@
         "X": "competency.scope.E2-21.X",
         "T": "competency.scope.E2-21.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "E2-22": {
       "name": "competency.name.E2-22",
@@ -1014,7 +1077,8 @@
         "X": "competency.scope.E2-22.X",
         "T": "competency.scope.E2-22.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E2-23": {
       "name": "competency.name.E2-23",
@@ -1029,7 +1093,8 @@
         "X": "competency.scope.E2-23.X",
         "T": "competency.scope.E2-23.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E2-24": {
       "name": "competency.name.E2-24",
@@ -1044,7 +1109,8 @@
         "X": "competency.scope.E2-24.X",
         "T": "competency.scope.E2-24.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E2-25": {
       "name": "competency.name.E2-25",
@@ -1059,7 +1125,8 @@
         "X": "competency.scope.E2-25.X",
         "T": "competency.scope.E2-25.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E2-26": {
       "name": "competency.name.E2-26",
@@ -1074,7 +1141,8 @@
         "X": "competency.scope.E2-26.X",
         "T": "competency.scope.E2-26.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E2-27": {
       "name": "competency.name.E2-27",
@@ -1089,7 +1157,8 @@
         "X": "competency.scope.E2-27.X",
         "T": "competency.scope.E2-27.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E2-28": {
       "name": "competency.name.E2-28",
@@ -1104,7 +1173,8 @@
         "X": "competency.scope.E2-28.X",
         "T": "competency.scope.E2-28.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E2-29": {
       "name": "competency.name.E2-29",
@@ -1119,7 +1189,8 @@
         "X": "competency.scope.E2-29.X",
         "T": "competency.scope.E2-29.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E2-30": {
       "name": "competency.name.E2-30",
@@ -1134,7 +1205,8 @@
         "X": "competency.scope.E2-30.X",
         "T": "competency.scope.E2-30.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E2-31": {
       "name": "competency.name.E2-31",
@@ -1149,7 +1221,8 @@
         "X": "competency.scope.E2-31.X",
         "T": "competency.scope.E2-31.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E2-33": {
       "name": "competency.name.E2-33",
@@ -1164,7 +1237,8 @@
         "X": "competency.scope.E2-33.X",
         "T": "competency.scope.E2-33.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E2-34": {
       "name": "competency.name.E2-34",
@@ -1179,7 +1253,8 @@
         "X": "competency.scope.E2-34.X",
         "T": "competency.scope.E2-34.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E2-35": {
       "name": "competency.name.E2-35",
@@ -1194,7 +1269,8 @@
         "X": "competency.scope.E2-35.X",
         "T": "competency.scope.E2-35.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E2-40": {
       "name": "competency.name.E2-40",
@@ -1209,7 +1285,8 @@
         "X": "competency.scope.E2-40.X",
         "T": "competency.scope.E2-40.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E2-41": {
       "name": "competency.name.E2-41",
@@ -1224,7 +1301,8 @@
         "X": "competency.scope.E2-41.X",
         "T": "competency.scope.E2-41.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E3-1": {
       "name": "competency.name.E3-1",
@@ -1239,7 +1317,8 @@
         "X": "competency.scope.E3-1.X",
         "T": "competency.scope.E3-1.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E3-2": {
       "name": "competency.name.E3-2",
@@ -1254,7 +1333,8 @@
         "X": "competency.scope.E3-2.X",
         "T": "competency.scope.E3-2.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "A"
     },
     "E3-5": {
       "name": "competency.name.E3-5",
@@ -1269,7 +1349,8 @@
         "X": "competency.scope.E3-5.X",
         "T": "competency.scope.E3-5.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "E3-6": {
       "name": "competency.name.E3-6",
@@ -1284,7 +1365,8 @@
         "X": "competency.scope.E3-6.X",
         "T": "competency.scope.E3-6.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "E3-7": {
       "name": "competency.name.E3-7",
@@ -1299,7 +1381,8 @@
         "X": "competency.scope.E3-7.X",
         "T": "competency.scope.E3-7.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "F"
     },
     "E3-8": {
       "name": "competency.name.E3-8",
@@ -1314,7 +1397,8 @@
         "X": "competency.scope.E3-8.X",
         "T": "competency.scope.E3-8.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E3-9": {
       "name": "competency.name.E3-9",
@@ -1329,7 +1413,8 @@
         "X": "competency.scope.E3-9.X",
         "T": "competency.scope.E3-9.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "A"
     },
     "E3-11": {
       "name": "competency.name.E3-11",
@@ -1344,7 +1429,8 @@
         "X": "competency.scope.E3-11.X",
         "T": "competency.scope.E3-11.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "E3-18": {
       "name": "competency.name.E3-18",
@@ -1359,7 +1445,8 @@
         "X": "competency.scope.E3-18.X",
         "T": "competency.scope.E3-18.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E3-19": {
       "name": "competency.name.E3-19",
@@ -1374,7 +1461,8 @@
         "X": "competency.scope.E3-19.X",
         "T": "competency.scope.E3-19.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "A"
     },
     "E3-21": {
       "name": "competency.name.E3-21",
@@ -1389,7 +1477,8 @@
         "X": "competency.scope.E3-21.X",
         "T": "competency.scope.E3-21.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "E3-22": {
       "name": "competency.name.E3-22",
@@ -1404,7 +1493,8 @@
         "X": "competency.scope.E3-22.X",
         "T": "competency.scope.E3-22.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "E3-23": {
       "name": "competency.name.E3-23",
@@ -1419,7 +1509,8 @@
         "X": "competency.scope.E3-23.X",
         "T": "competency.scope.E3-23.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "G"
     },
     "E3-25": {
       "name": "competency.name.E3-25",
@@ -1434,7 +1525,8 @@
         "X": "competency.scope.E3-25.X",
         "T": "competency.scope.E3-25.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "I1-1": {
       "name": "competency.name.I1-1",
@@ -1449,7 +1541,8 @@
         "X": "competency.scope.I1-1.X",
         "T": "competency.scope.I1-1.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "I1-2": {
       "name": "competency.name.I1-2",
@@ -1464,7 +1557,8 @@
         "X": "competency.scope.I1-2.X",
         "T": "competency.scope.I1-2.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "I1-3": {
       "name": "competency.name.I1-3",
@@ -1479,7 +1573,8 @@
         "X": "competency.scope.I1-3.X",
         "T": "competency.scope.I1-3.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "D"
     },
     "I1-4": {
       "name": "competency.name.I1-4",
@@ -1494,7 +1589,8 @@
         "X": "competency.scope.I1-4.X",
         "T": "competency.scope.I1-4.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "I1-5": {
       "name": "competency.name.I1-5",
@@ -1509,7 +1605,8 @@
         "X": "competency.scope.I1-5.X",
         "T": "competency.scope.I1-5.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "I1-6": {
       "name": "competency.name.I1-6",
@@ -1524,7 +1621,8 @@
         "X": "competency.scope.I1-6.X",
         "T": "competency.scope.I1-6.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "I1-7": {
       "name": "competency.name.I1-7",
@@ -1539,7 +1637,8 @@
         "X": "competency.scope.I1-7.X",
         "T": "competency.scope.I1-7.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "I2-1": {
       "name": "competency.name.I2-1",
@@ -1554,7 +1653,8 @@
         "X": "competency.scope.I2-1.X",
         "T": "competency.scope.I2-1.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "I2-2": {
       "name": "competency.name.I2-2",
@@ -1569,7 +1669,8 @@
         "X": "competency.scope.I2-2.X",
         "T": "competency.scope.I2-2.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "I2-3": {
       "name": "competency.name.I2-3",
@@ -1584,7 +1685,8 @@
         "X": "competency.scope.I2-3.X",
         "T": "competency.scope.I2-3.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "G"
     },
     "I2-4": {
       "name": "competency.name.I2-4",
@@ -1599,7 +1701,8 @@
         "X": "competency.scope.I2-4.X",
         "T": "competency.scope.I2-4.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "I2-5": {
       "name": "competency.name.I2-5",
@@ -1614,7 +1717,8 @@
         "X": "competency.scope.I2-5.X",
         "T": "competency.scope.I2-5.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
     },
     "I2-6": {
       "name": "competency.name.I2-6",
@@ -1629,7 +1733,8 @@
         "X": "competency.scope.I2-6.X",
         "T": "competency.scope.I2-6.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "C"
     },
     "I3-1": {
       "name": "competency.name.I3-1",
@@ -1644,7 +1749,8 @@
         "X": "competency.scope.I3-1.X",
         "T": "competency.scope.I3-1.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "I3-2": {
       "name": "competency.name.I3-2",
@@ -1659,7 +1765,8 @@
         "X": "competency.scope.I3-2.X",
         "T": "competency.scope.I3-2.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     },
     "I3-3": {
       "name": "competency.name.I3-3",
@@ -1674,7 +1781,8 @@
         "X": "competency.scope.I3-3.X",
         "T": "competency.scope.I3-3.T"
       },
-      "eCFMapping": []
+      "eCFMapping": [],
+      "relevancyArchetype": "E"
     }
   }
 }
