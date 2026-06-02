@@ -9,6 +9,7 @@
     "./web-server": "./bin/web-server.js"
   },
   "imports": {
+    "#admin-config-handlers": "./components/admin-config-handlers.js",
     "#auth-manager": "./components/auth-manager.js",
     "#authorization": "./components/authorization.js",
     "#config-change-notifier": "./components/config-change-notifier.js",

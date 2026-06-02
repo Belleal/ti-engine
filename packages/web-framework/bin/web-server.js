@@ -21,6 +21,9 @@ const webHandlers = require( "#web-handlers" );
 const SessionStore = require( "#session-store" );
 const AuthManager = require( "#auth-manager" );
 const authMethod = require( "#auth-manager" ).authMethod;
+const authorization = require( "#authorization" );
+const adminConfigHandlers = require( "#admin-config-handlers" );
+const configService = require( "#config-service" );
 
 /** @typedef {import("node:http").Server} NodeServer */
 
@@ -501,6 +504,20 @@ class TiWebServer extends ServiceConsumer {
         if ( this.#authManager.isAuthEnabled( authMethod.OPENID_AZURE ) ) {
             this.#webServer.get( this.#authManager.getOAuth2CallbackUrl( authMethod.OPENID_AZURE ), webHandlers.authorizedOAuth2CallbackHandler( this, authMethod.OPENID_AZURE ) );
         }
+
+        // Admin configuration-management API. Gated by the admin role; these paths are not in the unprotected-routes
+        // list, so they also inherit the server's global authentication + CSRF middleware.
+        const requireAdmin = authorization.requireAdmin;
+        const service = configService.instance;
+        this.#webServer.get( "/admin/config/editors", requireAdmin, adminConfigHandlers.listEditors( service ) );
+        this.#webServer.get( "/admin/config/editors/:editorKey", requireAdmin, adminConfigHandlers.composeView( service ) );
+        this.#webServer.post( "/admin/config/editors/:editorKey", requireAdmin, adminConfigHandlers.saveEditorEdit( service ) );
+        this.#webServer.get( "/admin/config/documents/:configKey", requireAdmin, adminConfigHandlers.getCurrent( service ) );
+        this.#webServer.get( "/admin/config/documents/:configKey/history", requireAdmin, adminConfigHandlers.getHistory( service ) );
+        this.#webServer.get( "/admin/config/changes", requireAdmin, adminConfigHandlers.listChanges( service ) );
+        this.#webServer.get( "/admin/config/changes/:changeSetID", requireAdmin, adminConfigHandlers.getChange( service ) );
+        this.#webServer.post( "/admin/config/changes/:changeSetID/restore", requireAdmin, adminConfigHandlers.restoreChangeSet( service ) );
+        this.#webServer.get( "/admin/config/export", requireAdmin, adminConfigHandlers.exportBundle( service ) );
     }
 
     /**
