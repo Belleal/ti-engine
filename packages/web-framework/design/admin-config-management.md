@@ -20,8 +20,8 @@ How this design landed in code — update as each step is committed (branch `cur
 | A2 — Admin role (allowlist → session roles + framework guard) | ✅ committed | `0be8a6f` | 2026-06-02 |
 | A3 — ConfigRegistry + validation pipeline (ajv + semantic validators) | ✅ committed | `129cd7b` | 2026-06-02 |
 | A4 — Composite-editor abstraction + transactional multi-doc save | ✅ committed | `115c5a3` | 2026-06-02 |
-| A5 — Change propagation (core message-exchange) | ⏳ in progress | — | — |
-| A6 — Audit + snapshot integration | ☐ planned | — | — |
+| A5 — Change propagation (in-process notifier; cross-instance deferred) | ✅ committed | `38a8195` | 2026-06-02 |
+| A6 — Audit + snapshot integration | ⏳ in progress | — | — |
 | A7 — Export-to-git (download bundle) | ☐ planned | — | — |
 | A8 — Admin UI shell + shared components | ☐ planned | — | — |
 | B — Competence integration + relevancy restructure | ☐ planned | — | — |
@@ -76,7 +76,7 @@ The framework provides this abstraction; competence supplies each entity's `comp
 2. **ConfigRegistry** — apps register editable config *documents* (key, JSON Schema, semantic validators, default loader, metadata) and **composite editors** (the entities, with `compose`/`decompose` + spanned documents).
 3. **Versioned ConfigStore** — `getCurrent`, `saveChangeSet` (multi-document, transactional), `listHistory`, `getVersion`, `restore`. Redis-backed; per-document versioning correlated by change-set id; optimistic locking.
 4. **Validation pipeline** — ajv (schemas) + registered semantic validators; atomic reject with field-level errors.
-5. **Change propagation** — publish `config:changed` over the existing Redis messaging; every instance reloads the affected config and re-freezes its in-memory copy (idempotent, fail-safe: keep last-good on a failed reload).
+5. **Change propagation** — `ConfigService` emits `config:changed` on commit through a transport-agnostic notifier (asynchronous delivery; plain-JSON payload). v1 ships an **in-process `EventEmitter`** implementation for in-process reactions (in-memory cache invalidation, live admin UI). Core's `message-exchange` is RPC/queue (directed request-response), **not** a broadcast bus, so cross-instance fan-out is **deferred to a planned reusable Redis pub/sub in `@ti-engine/core`** — injectable behind the same `publish`/`subscribe` contract with no change to publishers/subscribers. (The shared Redis cache already makes a committed change visible to every store-backed reader; propagation matters only for invalidating optional in-memory caches.)
 6. **Audit + history** — every save/restore appends an audit entry *and* full snapshots (framework-owned, distinct from competence's domain audit log; may share storage primitives).
 7. **Export-to-git** — serialize current live config to a downloadable JSON bundle for manual commit.
 8. **Admin UI shell + shared components** — new "Admin" nav section/category; reusable list/detail editor with **language switch-with-reference**, history/restore panel, version diff, and optimistic-lock conflict handling. CSP-safe; Alpine-CSP-compliant (no inline styles; no optional chaining in Alpine expressions).
