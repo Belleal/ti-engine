@@ -22,8 +22,8 @@ How this design landed in code — update as each step is committed (branch `cur
 | A4 — Composite-editor abstraction + transactional multi-doc save | ✅ committed | `115c5a3` | 2026-06-02 |
 | A5 — Change propagation (in-process notifier; cross-instance deferred) | ✅ committed | `38a8195` | 2026-06-02 |
 | A6 — Audit + snapshot integration (validated restore + audit/history queries) | ✅ committed | `939f308` | 2026-06-02 |
-| A7 — Export-to-git (download bundle) | ⏳ in progress | — | — |
-| A8 — Admin UI shell + shared components | ☐ planned | — | — |
+| A7 — Export-to-git (download bundle) | ✅ committed | `8a5e8be` | 2026-06-02 |
+| A8 — Admin UI shell + shared components | ⏳ in progress | — | — |
 | B — Competence integration + relevancy restructure | ☐ planned | — | — |
 | C — Competency text editor (BG review) | ☐ planned | — | — |
 | D — Archetype editor + assignment editor | ☐ planned | — | — |
