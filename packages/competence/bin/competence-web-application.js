@@ -14,6 +14,7 @@ const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
 const organizationManager = require( "#organization-manager" );
 const competenceFramework = require( "#competence-framework" );
+const { registerCompetenceConfig } = require( "../application/config-registration" );
 
 /**
  * NOTE: This is still a work in progress.
@@ -30,6 +31,9 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     constructor( identifier = "competence" ) {
         super( identifier );
+
+        // Register competence's editable configuration documents with the framework admin config registry/service.
+        registerCompetenceConfig( this );
 
         this.addFragment( "competence-evaluation", {
             title: "Competence Evaluation",
