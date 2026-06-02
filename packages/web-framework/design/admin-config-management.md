@@ -28,7 +28,8 @@ How this design landed in code — update as each step is committed (branch `cur
 | B1 — Relevancy restructure (archetypes config + per-competency assignment; retire materialized relevancy) | ✅ committed | `1b38ffe` | 2026-06-02 |
 | B2a — Framework config registration API (`TiWebAppManager.registerConfig*`) | ✅ committed | `2b4ab6d` | 2026-06-02 |
 | B2b — Register competence config docs + validators (composite editors → Phase C) | ✅ committed | `7394c2d` | 2026-06-02 |
-| B3 — Store-backed configuration-loader (seed-empty bootstrap + refresh on `config:changed`) | ⏳ in progress | — | — |
+| B3a — Framework config-management facade + seedDefault/onConfigChanged | ✅ committed | `726fefc` | 2026-06-02 |
+| B3b — Store-backed configuration-loader (seed-empty + refresh on `config:changed`) | ✅ committed | `8b2cecd` | 2026-06-02 |
 | C — Admin UI shell + competency text editor (BG review) | ☐ planned | — | — |
 | D — Archetype editor + assignment editor | ☐ planned | — | — |
 | E — Later editors (dictionary structure, role-families, …) | ☐ planned | — | — |
