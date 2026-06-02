@@ -164,3 +164,58 @@ tools.deepFreeze( configApplication );
 module.exports.getSetting = ( setting, defaultValue ) => {
     return _.get( configApplication, setting, defaultValue );
 };
+
+/**
+ * Configuration documents that become store-backed (editable via the admin config API), keyed by their admin
+ * configKey → the property exported above. The file values loaded at module-load are the bootstrap defaults.
+ *
+ * @type {Object<string, string>}
+ */
+const STORE_BACKED = {
+    "competencies": "configCompetencies",
+    "relevancy-archetypes": "configRelevancyArchetypes",
+    "active-competency-sets": "configActiveCompetencySets",
+    "role-families": "configRoleFamilies",
+    "stage-levels": "configStageLevels"
+};
+const fileDefaults = {};
+Object.entries( STORE_BACKED ).forEach( ( [ configKey, property ] ) => { fileDefaults[ configKey ] = module.exports[ property ]; } );
+
+/**
+ * @method
+ * @param {string} configKey
+ * @param {Object} value
+ * @private
+ */
+function applyStoreValue( configKey, value ) {
+    if ( value !== undefined && value !== null ) {
+        module.exports[ STORE_BACKED[ configKey ] ] = tools.deepFreeze( value );
+    }
+}
+
+/**
+ * Brings configuration under store control: seeds the store from the file defaults (empty-store-only), loads the
+ * current store values into the exported config objects, and refreshes them whenever a `config:changed` event fires.
+ * Idempotent. Reads stay synchronous — the exported `configX` objects are reassigned in place — and until this runs
+ * (and without it) the exported objects are the file defaults, so the app works before/without store initialization.
+ *
+ * @method
+ * @param {Object} [service] The framework config service (defaults to the `@ti-engine/web-framework/config-management` facade).
+ * @returns {Promise}
+ * @public
+ */
+module.exports.initialize = ( service ) => {
+    const configService = service || require( "@ti-engine/web-framework/config-management" ).instance;
+    return Promise.all( Object.keys( STORE_BACKED ).map( ( configKey ) => {
+        return configService.seedDefault( configKey, fileDefaults[ configKey ] )
+            .then( () => configService.getCurrent( configKey ) )
+            .then( ( current ) => { if ( current ) applyStoreValue( configKey, current.value ); } );
+    } ) ).then( () => {
+        configService.onConfigChanged( ( event ) => {
+            const keys = ( event && event.configKeys ) || [];
+            return Promise.all( keys.filter( ( key ) => STORE_BACKED[ key ] ).map( ( key ) => {
+                return configService.getCurrent( key ).then( ( current ) => { if ( current ) applyStoreValue( key, current.value ); } );
+            } ) );
+        } );
+    } );
+};
