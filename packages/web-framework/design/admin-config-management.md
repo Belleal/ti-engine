@@ -18,8 +18,8 @@ How this design landed in code — update as each step is committed (branch `cur
 | Design ratified (storage model · editor model · relevancy restructure) | ✅ ratified | — | 2026-06-02 |
 | A1 — ConfigStore (versioned · change-sets · restore · optimistic lock) + web-framework test harness | ✅ committed | `b2fab75` | 2026-06-02 |
 | A2 — Admin role (allowlist → session roles + framework guard) | ✅ committed | `0be8a6f` | 2026-06-02 |
-| A3 — ConfigRegistry + validation pipeline (ajv + semantic validators) | ⏳ in progress | — | — |
-| A4 — Composite-editor abstraction + transactional multi-doc save | ☐ planned | — | — |
+| A3 — ConfigRegistry + validation pipeline (ajv + semantic validators) | ✅ committed | `129cd7b` | 2026-06-02 |
+| A4 — Composite-editor abstraction + transactional multi-doc save | ⏳ in progress | — | — |
 | A5 — Change propagation (core message-exchange) | ☐ planned | — | — |
 | A6 — Audit + snapshot integration | ☐ planned | — | — |
 | A7 — Export-to-git (download bundle) | ☐ planned | — | — |
