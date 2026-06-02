@@ -262,6 +262,36 @@ class ConfigService {
         return this.#store.listChangeSets();
     }
 
+    /**
+     * Builds a downloadable snapshot of the current live configuration — for every registered document, its repo file
+     * `path` (from registration metadata, if provided), current `version`, and `value`. This is the one-way export
+     * *out* of the store; an admin downloads it and commits the files to git. The store remains the live truth.
+     *
+     * @method
+     * @param {Object} [meta]
+     * @param {string} [meta.adminID]
+     * @returns {Promise<{exportedAt: string, exportedBy: (string|null), documents: Array<{configKey: string, path: (string|null), version: number, value: Object}>}>}
+     * @public
+     */
+    exportBundle( meta = {} ) {
+        const keys = this.#registry.list();
+        return Promise.all( keys.map( ( configKey ) => {
+            return this.#store.getCurrent( configKey ).then( ( current ) => {
+                const metadata = this.#registry.metadataFor( configKey ) || {};
+                return {
+                    configKey: configKey,
+                    path: metadata.path || null,
+                    version: current ? current.version : 0,
+                    value: current ? current.value : null
+                };
+            } );
+        } ) ).then( ( documents ) => ( {
+            exportedAt: new Date().toISOString(),
+            exportedBy: meta.adminID || null,
+            documents: documents
+        } ) );
+    }
+
     /* Private interface */
 
     /**

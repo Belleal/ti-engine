@@ -34,8 +34,8 @@ before( () => {
 beforeEach( async () => {
     cacheStub.storage = {};
     const registry = new ConfigRegistry();
-    registry.register( "alpha", { schema: ALPHA } );
-    registry.register( "beta", { schema: BETA, validators: [ betaMatchesAlpha ] } );
+    registry.register( "alpha", { schema: ALPHA, metadata: { path: "bin/config/alpha.json" } } );
+    registry.register( "beta", { schema: BETA, validators: [ betaMatchesAlpha ], metadata: { path: "bin/config/beta.json" } } );
     notifier = new ConfigChangeNotifier();
     service = new ConfigService( { store: store, registry: registry, notifier: notifier } );
     service.registerEditor( "combo", {
@@ -199,6 +199,22 @@ describe( "ConfigService — restore + audit", () => {
 
         const change = await service.getChange( cs.changeSetID );
         assert.equal( change.note, "tweak" );
+    } );
+
+    it( "exports a bundle of current values with repo paths and versions", async () => {
+        await service.applyEdits( [ { configKey: "alpha", value: { n: 7 }, expectedVersion: 1 } ], { adminID: "admin:1" } );
+
+        const bundle = await service.exportBundle( { adminID: "admin:9" } );
+        assert.equal( bundle.exportedBy, "admin:9" );
+        assert.ok( bundle.exportedAt );
+
+        const alpha = bundle.documents.find( ( document ) => document.configKey === "alpha" );
+        assert.equal( alpha.path, "bin/config/alpha.json" );
+        assert.equal( alpha.version, 2 );
+        assert.deepEqual( alpha.value, { n: 7 } );
+
+        const beta = bundle.documents.find( ( document ) => document.configKey === "beta" );
+        assert.deepEqual( beta.value, { aRef: 5 } );
     } );
 
 } );
