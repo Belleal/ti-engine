@@ -23,7 +23,8 @@ How this design landed in code — update as each step is committed (branch `cur
 | A5 — Change propagation (in-process notifier; cross-instance deferred) | ✅ committed | `38a8195` | 2026-06-02 |
 | A6 — Audit + snapshot integration (validated restore + audit/history queries) | ✅ committed | `939f308` | 2026-06-02 |
 | A7 — Export-to-git (download bundle) | ✅ committed | `8a5e8be` | 2026-06-02 |
-| A8 — Admin UI shell + shared components | ⏳ in progress | — | — |
+| A8a — Admin config HTTP API (admin-gated `/admin/config/*` routes) | ✅ committed | `7e2af9c` | 2026-06-02 |
+| A8b — Admin UI shell + shared components | ⏳ in progress | — | — |
 | B — Competence integration + relevancy restructure | ☐ planned | — | — |
 | C — Competency text editor (BG review) | ☐ planned | — | — |
 | D — Archetype editor + assignment editor | ☐ planned | — | — |
