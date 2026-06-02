@@ -12,6 +12,7 @@
     "#auth-manager": "./components/auth-manager.js",
     "#authorization": "./components/authorization.js",
     "#config-registry": "./components/config-registry.js",
+    "#config-service": "./components/config-service.js",
     "#config-store": "./components/config-store.js",
     "#session-store": "./components/session-store.js",
     "#user": "./components/user.js",
