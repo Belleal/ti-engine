@@ -11,6 +11,8 @@ const tools = require( "@ti-engine/core/tools" );
 const localization = require( "@ti-engine/core/localization" );
 const path = require( "node:path" );
 const fs = require( "node:fs" );
+const configRegistry = require( "#config-registry" );
+const configService = require( "#config-service" );
 
 const RE_NONCE_ATTR = /\{ti-nonce-placeholder}/g;
 const RE_CSRF_ATTR = /\{ti-csrf-placeholder}/g;
@@ -113,6 +115,49 @@ class TiWebAppManager {
         } else {
             throw exceptions.raise( exceptions.exceptionCode.E_GEN_UNALLOWED_OVERRIDE, { identifier: identifier } );
         }
+    }
+
+    /**
+     * Registers an editable configuration document with the framework config registry (JSON Schema + semantic
+     * validators + default value + editor metadata). Call during initialization. See {@link ConfigRegistry#register}.
+     *
+     * @method
+     * @param {string} configKey
+     * @param {Object} definition
+     * @returns {TiWebAppManager} this (chainable)
+     * @public
+     */
+    registerConfigDocument( configKey, definition ) {
+        configRegistry.instance.register( configKey, definition );
+        return this;
+    }
+
+    /**
+     * Registers a JSON Schema that is referenced (via `$ref`) by config-document schemas but is not itself a document.
+     *
+     * @method
+     * @param {Object} schema
+     * @returns {TiWebAppManager} this (chainable)
+     * @public
+     */
+    registerConfigSchema( schema ) {
+        configRegistry.instance.addSchema( schema );
+        return this;
+    }
+
+    /**
+     * Registers a composite (entity) editor with the framework config service — a `compose(docs)`/`decompose(edited,docs)`
+     * pair over one or more documents. Call during initialization. See {@link ConfigService#registerEditor}.
+     *
+     * @method
+     * @param {string} editorKey
+     * @param {Object} definition
+     * @returns {TiWebAppManager} this (chainable)
+     * @public
+     */
+    registerConfigEditor( editorKey, definition ) {
+        configService.instance.registerEditor( editorKey, definition );
+        return this;
     }
 
     /**
