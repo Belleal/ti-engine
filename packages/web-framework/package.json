@@ -11,6 +11,7 @@
   "imports": {
     "#auth-manager": "./components/auth-manager.js",
     "#authorization": "./components/authorization.js",
+    "#config-change-notifier": "./components/config-change-notifier.js",
     "#config-registry": "./components/config-registry.js",
     "#config-service": "./components/config-service.js",
     "#config-store": "./components/config-store.js",

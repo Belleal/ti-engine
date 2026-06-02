@@ -27,6 +27,7 @@ class ConfigService {
 
     #store;
     #registry;
+    #notifier;
     #editors = new Map();
 
     /**
@@ -34,10 +35,12 @@ class ConfigService {
      * @param {Object} [options]
      * @param {ConfigStore} [options.store] Defaults to the ConfigStore singleton.
      * @param {ConfigRegistry} [options.registry] Defaults to the ConfigRegistry singleton.
+     * @param {ConfigChangeNotifier} [options.notifier] Defaults to the ConfigChangeNotifier singleton.
      */
     constructor( options = {} ) {
         this.#store = options.store || require( "#config-store" ).instance;
         this.#registry = options.registry || require( "#config-registry" ).instance;
+        this.#notifier = options.notifier || require( "#config-change-notifier" ).instance;
     }
 
     /* Public interface — document level */
@@ -85,7 +88,10 @@ class ConfigService {
             if ( Object.keys( errorsByKey ).length > 0 ) {
                 return { ok: false, errors: errorsByKey };
             }
-            return this.#store.saveChangeSet( edits, meta ).then( ( saved ) => ( { ok: true, changeSetID: saved.changeSetID, versions: saved.versions } ) );
+            return this.#store.saveChangeSet( edits, meta ).then( ( saved ) => {
+                this.#notifier.publish( { changeSetID: saved.changeSetID, configKeys: Object.keys( saved.versions ), adminID: meta.adminID, timestamp: new Date().toISOString() } );
+                return { ok: true, changeSetID: saved.changeSetID, versions: saved.versions };
+            } );
         } );
     }
 

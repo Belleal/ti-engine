@@ -19,13 +19,16 @@ let cacheStub;
 let store;
 let ConfigRegistry;
 let ConfigService;
+let ConfigChangeNotifier;
 let service;
+let notifier;
 
 before( () => {
     cacheStub = installInMemoryCache();
     store = require( "#config-store" ).instance;
     ConfigRegistry = require( "#config-registry" );
     ConfigService = require( "#config-service" );
+    ConfigChangeNotifier = require( "#config-change-notifier" );
 } );
 
 beforeEach( async () => {
@@ -33,7 +36,8 @@ beforeEach( async () => {
     const registry = new ConfigRegistry();
     registry.register( "alpha", { schema: ALPHA } );
     registry.register( "beta", { schema: BETA, validators: [ betaMatchesAlpha ] } );
-    service = new ConfigService( { store: store, registry: registry } );
+    notifier = new ConfigChangeNotifier();
+    service = new ConfigService( { store: store, registry: registry, notifier: notifier } );
     service.registerEditor( "combo", {
         documents: [ "alpha", "beta" ],
         compose: ( docs ) => ( { n: docs.alpha ? docs.alpha.n : null, aRef: docs.beta ? docs.beta.aRef : null } ),
@@ -105,6 +109,38 @@ describe( "ConfigService — composite editor (entity level)", () => {
         assert.throws( () => service.registerEditor( "bad", { documents: [], compose: () => ( {} ), decompose: () => ( {} ) } ) );
         await assert.rejects( service.composeView( "nope" ) );
         await assert.rejects( service.saveEditorEdit( "nope", {}, { adminID: "admin:1" } ) );
+    } );
+
+} );
+
+describe( "ConfigService — change notification", () => {
+
+    const tick = () => new Promise( ( resolve ) => setImmediate( resolve ) );
+
+    it( "publishes config:changed after a successful commit", async () => {
+        const events = [];
+        notifier.subscribe( ( event ) => events.push( event ) );
+        const result = await service.applyEdits( [
+            { configKey: "alpha", value: { n: 7 }, expectedVersion: 1 },
+            { configKey: "beta", value: { aRef: 7 }, expectedVersion: 1 }
+        ], { adminID: "admin:9" } );
+        assert.equal( result.ok, true );
+
+        await tick();
+        assert.equal( events.length, 1 );
+        assert.equal( events[ 0 ].changeSetID, result.changeSetID );
+        assert.deepEqual( events[ 0 ].configKeys.slice().sort(), [ "alpha", "beta" ] );
+        assert.equal( events[ 0 ].adminID, "admin:9" );
+    } );
+
+    it( "does not publish when an edit is rejected by validation", async () => {
+        const events = [];
+        notifier.subscribe( ( event ) => events.push( event ) );
+        const result = await service.applyEdits( [ { configKey: "beta", value: { aRef: 9 }, expectedVersion: 1 } ], { adminID: "admin:9" } );
+        assert.equal( result.ok, false );
+
+        await tick();
+        assert.equal( events.length, 0 );
     } );
 
 } );
