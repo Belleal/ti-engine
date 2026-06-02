@@ -14,6 +14,7 @@ const URL = require( "node:url" ).URL;
 const _ = require( "lodash" );
 const helmet = require( "helmet" );
 const authMethod = require( "#auth-manager" ).authMethod;
+const authorization = require( "#authorization" );
 
 /** @typedef {import("express").Request} ExpressRequest */
 /** @typedef {import("express").res} ExpressResponse */
@@ -249,7 +250,7 @@ module.exports.authenticationHandler = ( instance ) => {
                     session.user = user.asJSON();
                     session.language = user.language || instance.serviceConfig.language;
 
-                    return instance.augmentSession( session, request );
+                    return authorization.applyAdminRole( instance.augmentSession( session, request ), instance.serviceConfig?.auth?.admins );
                 } );
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
@@ -299,7 +300,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
 
                     delete session.oidc;
 
-                    return instance.augmentSession( session, request );
+                    return authorization.applyAdminRole( instance.augmentSession( session, request ), instance.serviceConfig?.auth?.admins );
                 } );
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
