@@ -189,6 +189,79 @@ class ConfigService {
         } );
     }
 
+    /* Public interface — audit, history, and restore */
+
+    /**
+     * Restores a prior change-set through the validated path: rebuild edits from the change-set's historic snapshots
+     * and route them through {@link ConfigService#applyEdits} — so the restore is **re-validated against the current
+     * schemas/validators** (a snapshot valid when written may be invalid now) and emits `config:changed`. Returns the
+     * `applyEdits` result (`{ ok:false, errors }` if a snapshot no longer validates; nothing is written then).
+     *
+     * @method
+     * @param {string} changeSetID
+     * @param {Object} meta
+     * @param {string} meta.adminID
+     * @param {string} [meta.note]
+     * @returns {Promise<Object>}
+     * @public
+     */
+    restoreChangeSet( changeSetID, meta ) {
+        if ( !meta || !meta.adminID ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { reason: "invalid-restore-input" } ) );
+        }
+        return this.#store.getChangeSet( changeSetID ).then( ( record ) => {
+            if ( !record ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { reason: "unknown-changeset", changeSetID: changeSetID } );
+            }
+            return Promise.all( record.documents.map( ( doc ) => {
+                return Promise.all( [ this.#store.getVersion( doc.configKey, doc.version ), this.#store.getCurrent( doc.configKey ) ] ).then( ( [ historic, current ] ) => ( {
+                    configKey: doc.configKey,
+                    value: historic ? historic.snapshot : null,
+                    expectedVersion: current ? current.version : 0
+                } ) );
+            } ) ).then( ( edits ) => this.applyEdits( edits, { adminID: meta.adminID, note: meta.note || ( "restored from change-set " + changeSetID ) } ) );
+        } );
+    }
+
+    /**
+     * @method
+     * @param {string} configKey
+     * @returns {Promise<Object|null>} The current envelope for a configuration document.
+     * @public
+     */
+    getCurrent( configKey ) {
+        return this.#store.getCurrent( configKey );
+    }
+
+    /**
+     * @method
+     * @param {string} configKey
+     * @returns {Promise<Array<Object>>} The document's version history (ascending), each a full snapshot entry.
+     * @public
+     */
+    getHistory( configKey ) {
+        return this.#store.listHistory( configKey );
+    }
+
+    /**
+     * @method
+     * @param {string} changeSetID
+     * @returns {Promise<Object|null>} A single change-set record.
+     * @public
+     */
+    getChange( changeSetID ) {
+        return this.#store.getChangeSet( changeSetID );
+    }
+
+    /**
+     * @method
+     * @returns {Promise<Array<Object>>} The cross-document audit feed (change-sets, most-recent first).
+     * @public
+     */
+    listChanges() {
+        return this.#store.listChangeSets();
+    }
+
     /* Private interface */
 
     /**

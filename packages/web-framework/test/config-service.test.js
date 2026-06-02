@@ -144,3 +144,61 @@ describe( "ConfigService — change notification", () => {
     } );
 
 } );
+
+describe( "ConfigService — restore + audit", () => {
+
+    const tick = () => new Promise( ( resolve ) => setImmediate( resolve ) );
+
+    it( "restores a prior change-set through the validated path and emits", async () => {
+        const cs2 = await service.applyEdits( [
+            { configKey: "alpha", value: { n: 7 }, expectedVersion: 1 },
+            { configKey: "beta", value: { aRef: 7 }, expectedVersion: 1 }
+        ], { adminID: "admin:1" } );
+        await service.applyEdits( [
+            { configKey: "alpha", value: { n: 9 }, expectedVersion: 2 },
+            { configKey: "beta", value: { aRef: 9 }, expectedVersion: 2 }
+        ], { adminID: "admin:1" } );
+        await tick(); // drain the commit notifications above before subscribing
+
+        const events = [];
+        notifier.subscribe( ( event ) => events.push( event ) );
+        const result = await service.restoreChangeSet( cs2.changeSetID, { adminID: "admin:2" } );
+
+        assert.equal( result.ok, true );
+        assert.deepEqual( ( await service.composeView( "combo" ) ).rows, { n: 7, aRef: 7 } );
+        await tick();
+        assert.equal( events.length, 1 );
+        assert.equal( events[ 0 ].changeSetID, result.changeSetID );
+    } );
+
+    it( "re-validates a restored snapshot against current rules and blocks an invalid one", async () => {
+        const registry = new ConfigRegistry();
+        registry.register( "alpha", { schema: ALPHA, validators: [ ( value ) => ( value.n >= 100 ? [ { path: ".n", message: "n too large under current rules" } ] : [] ) ] } );
+        const svc = new ConfigService( { store: store, registry: registry, notifier: notifier } );
+        // Write an out-of-policy value directly via the store (bypasses validation) to mimic a snapshot that became
+        // invalid after the rules tightened, then attempt to restore it through the service.
+        const bad = await store.saveChangeSet( [ { configKey: "alpha", value: { n: 200 }, expectedVersion: 1 } ], { adminID: "admin:1" } );
+        const result = await svc.restoreChangeSet( bad.changeSetID, { adminID: "admin:2" } );
+
+        assert.equal( result.ok, false );
+        assert.ok( result.errors.alpha );
+    } );
+
+    it( "rejects restoring an unknown change-set", async () => {
+        await assert.rejects( service.restoreChangeSet( "nope", { adminID: "admin:1" } ) );
+    } );
+
+    it( "exposes the audit feed, per-document history, and change-set details", async () => {
+        const cs = await service.applyEdits( [ { configKey: "alpha", value: { n: 7 }, expectedVersion: 1 } ], { adminID: "admin:1", note: "tweak" } );
+
+        const feed = await service.listChanges();
+        assert.ok( feed.some( ( record ) => record.changeSetID === cs.changeSetID ) );
+
+        const history = await service.getHistory( "alpha" );
+        assert.deepEqual( history.map( ( entry ) => entry.version ), [ 1, 2 ] );
+
+        const change = await service.getChange( cs.changeSetID );
+        assert.equal( change.note, "tweak" );
+    } );
+
+} );

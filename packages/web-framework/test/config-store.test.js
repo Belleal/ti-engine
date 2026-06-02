@@ -125,3 +125,19 @@ describe( "ConfigStore — restore", () => {
     } );
 
 } );
+
+describe( "ConfigStore — change-set feed", () => {
+
+    it( "lists change-sets most-recent first", async () => {
+        await store.seedIfEmpty( "labels", { a: 1 } );
+        const first = await store.saveChangeSet( [ { configKey: "labels", value: { a: 2 }, expectedVersion: 1 } ], { adminID: "admin:1", note: "first" } );
+        await new Promise( ( resolve ) => setTimeout( resolve, 5 ) ); // ensure distinct ISO timestamps
+        const second = await store.saveChangeSet( [ { configKey: "labels", value: { a: 3 }, expectedVersion: 2 } ], { adminID: "admin:1", note: "second" } );
+
+        const feed = await store.listChangeSets();
+        assert.equal( feed.length, 2 );
+        assert.equal( feed[ 0 ].changeSetID, second.changeSetID );
+        assert.equal( feed[ 1 ].changeSetID, first.changeSetID );
+    } );
+
+} );

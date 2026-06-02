@@ -174,6 +174,19 @@ class ConfigStore {
     }
 
     /**
+     * Returns every change-set record, most-recent first (the cross-document audit feed).
+     *
+     * @method
+     * @returns {Promise<Array<Object>>}
+     * @public
+     */
+    listChangeSets() {
+        return cache.instance.matchKeys( KEY_CHANGESET + "*" ).then( ( keys ) => {
+            return Promise.all( ( keys || [] ).map( ( key ) => this.#readJSON( key ) ) );
+        } ).then( ( records ) => records.filter( Boolean ).sort( ( a, b ) => ( a.timestamp < b.timestamp ? 1 : ( a.timestamp > b.timestamp ? -1 : 0 ) ) ) );
+    }
+
+    /**
      * Restores every document in a prior change-set to that change-set's snapshot, committing it as a *new*
      * change-set (restore is never destructive — it moves forward to a past state).
      *
