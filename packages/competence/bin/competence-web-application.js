@@ -80,6 +80,10 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "Archetype Assignment",
             path: "fragments/frame-archetype-assignment.html"
         } );
+        this.addFragment( "archetype-editor", {
+            title: "Relevancy Archetypes",
+            path: "fragments/frame-archetype-editor.html"
+        } );
     }
 
     /* Public interface */

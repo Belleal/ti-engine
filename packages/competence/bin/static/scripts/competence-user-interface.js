@@ -3301,8 +3301,11 @@ const configureArchetypeAssignment = () => {
         loadData() {
             tiApplication.sendRequest( "/admin/config/editors/" + EDITOR_KEY ).then( ( result ) => {
                 const data = ( result && result.data ) || {};
-                this.rows = Array.isArray( data.rows ) ? tiToolbox.structuredClone( data.rows ) : [];
-                this.archetypes = Array.isArray( data.archetypes ) ? tiToolbox.structuredClone( data.archetypes ) : [];
+                // composeView wraps the editor's compose() result under `data.rows`; this editor's compose returns
+                // { rows, archetypes }, so unwrap that envelope.
+                const view = ( data.rows && typeof data.rows === "object" && !Array.isArray( data.rows ) ) ? data.rows : {};
+                this.rows = Array.isArray( view.rows ) ? tiToolbox.structuredClone( view.rows ) : [];
+                this.archetypes = Array.isArray( view.archetypes ) ? tiToolbox.structuredClone( view.archetypes ) : [];
                 this.versions = data.versions ? tiToolbox.structuredClone( data.versions ) : {};
                 this.archetypesById = {};
                 this.archetypes.forEach( ( archetype ) => { this.archetypesById[ archetype.id ] = archetype; } );
@@ -3504,6 +3507,318 @@ const configureArchetypeAssignment = () => {
     };
 };
 
+/**
+ * Alpine component for the relevancy archetype (curve) editor (frame-archetype-editor.html). Loads the
+ * `relevancy-archetype` composite editor (each curve's id, bilingual name/description, twelve stage-level weights, and
+ * assignment count), and lets an admin edit weights/names, add a new archetype, or remove one that is unassigned. The
+ * submitted set is the complete set, so the whole row list is sent on save (decompose treats omitted ids as removed,
+ * guarded server-side by archetypesReferentialIntegrity). Admin-gated.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureArchetypeEditor = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    const EDITOR_KEY = "relevancy-archetype";
+    const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+    const emptyModal = () => ( { kind: null, payload: {} } );
+
+    return {
+        loaded: false,
+        saving: false,
+        dirty: false,
+        editLang: "bg",
+        rows: [],
+        stageLevels: [],
+        versions: {},
+        selectedId: null,
+        saveErrors: [],
+        modal: emptyModal(),
+
+        init() {
+            const onInitialized = () => {
+                if ( !tiApplication.hasRole( "admin" ) ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.not-authorized", "Administrator access required." ) );
+                    tiApplication.openScreen( "dashboard" );
+                    return;
+                }
+                this.loadData();
+            };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        getLabel( key, fallback = "" ) {
+            return tiApplication.getLabel( key, fallback );
+        },
+
+        backToConfig() {
+            tiApplication.openScreen( "admin-config" );
+        },
+
+        loadData() {
+            tiApplication.sendRequest( "/admin/config/editors/" + EDITOR_KEY ).then( ( result ) => {
+                const data = ( result && result.data ) || {};
+                // composeView wraps the editor's compose() result under `data.rows`; this editor's compose returns
+                // { rows, stageLevels }, so unwrap that envelope.
+                const view = ( data.rows && typeof data.rows === "object" && !Array.isArray( data.rows ) ) ? data.rows : {};
+                this.rows = Array.isArray( view.rows ) ? tiToolbox.structuredClone( view.rows ) : [];
+                this.stageLevels = Array.isArray( view.stageLevels ) ? view.stageLevels.slice() : [];
+                this.versions = data.versions ? tiToolbox.structuredClone( data.versions ) : {};
+                this.dirty = false;
+                this.saveErrors = [];
+                if ( this.selectedId && !this.rows.find( ( row ) => row.id === this.selectedId ) ) {
+                    this.selectedId = null;
+                }
+                this.loaded = true;
+            } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
+                this.loaded = true;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                const httpCode = error && error.exception && error.exception.httpCode;
+                if ( httpCode === 401 || httpCode === 403 ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
+        },
+
+        otherLang() {
+            return this.editLang === "en" ? "bg" : "en";
+        },
+
+        langLabel( lang ) {
+            return ( lang === "en" )
+                ? tiApplication.getLabel( "interface.admin.text-editor.lang-en", "English" )
+                : tiApplication.getLabel( "interface.admin.text-editor.lang-bg", "Bulgarian" );
+        },
+
+        refLangLabel() {
+            return this.langLabel( this.otherLang() );
+        },
+
+        isEditLang( lang ) {
+            return this.editLang === lang;
+        },
+
+        setEditLang( lang ) {
+            if ( lang === "en" || lang === "bg" ) {
+                this.editLang = lang;
+            }
+        },
+
+        /* -------------------------- List ----------------------------------- */
+
+        archetypeName( row ) {
+            const pair = row && row.name;
+            return ( pair && ( pair[ this.editLang ] || pair.en || pair.bg ) ) || row.id;
+        },
+
+        isSelected( id ) {
+            return this.selectedId === id;
+        },
+
+        selectId( id ) {
+            this.selectedId = id;
+        },
+
+        /* -------------------------- Detail --------------------------------- */
+
+        hasSelection() {
+            return !!( this.selectedId && this.rows.find( ( row ) => row.id === this.selectedId ) );
+        },
+
+        getDetail() {
+            return this.selectedId ? ( this.rows.find( ( row ) => row.id === this.selectedId ) || null ) : null;
+        },
+
+        detailId() {
+            const detail = this.getDetail();
+            return detail ? detail.id : "";
+        },
+
+        fieldValue( field ) {
+            const detail = this.getDetail();
+            return ( detail && detail[ field ] ) ? ( detail[ field ][ this.editLang ] || "" ) : "";
+        },
+
+        fieldRef( field ) {
+            const detail = this.getDetail();
+            return ( detail && detail[ field ] ) ? ( detail[ field ][ this.otherLang() ] || "" ) : "";
+        },
+
+        setField( field, value ) {
+            const detail = this.getDetail();
+            if ( !detail ) {
+                return;
+            }
+            if ( !detail[ field ] ) {
+                detail[ field ] = { en: "", bg: "" };
+            }
+            detail[ field ][ this.editLang ] = value;
+            this.dirty = true;
+        },
+
+        weightValue( level ) {
+            const detail = this.getDetail();
+            const weight = detail && detail.weights ? detail.weights[ level ] : null;
+            return ( weight === null || weight === undefined ) ? "" : weight;
+        },
+
+        setWeight( level, value ) {
+            const detail = this.getDetail();
+            if ( !detail ) {
+                return;
+            }
+            if ( !detail.weights ) {
+                detail.weights = {};
+            }
+            const parsed = parseInt( value, 10 );
+            detail.weights[ level ] = Number.isFinite( parsed ) ? parsed : null;
+            this.dirty = true;
+        },
+
+        // Curve preview for the selected archetype.
+        detailCurve() {
+            const detail = this.getDetail();
+            const weights = ( detail && detail.weights ) || {};
+            return this.stageLevels.map( ( level ) => ( { level: level, weight: ( typeof weights[ level ] === "number" ) ? weights[ level ] : 0 } ) );
+        },
+
+        barStyle( weight ) {
+            const pct = Math.max( 0, Math.min( 100, weight * 10 ) );
+            return { height: pct + "%" };
+        },
+
+        assignedCount() {
+            const detail = this.getDetail();
+            return ( detail && typeof detail.assignedCount === "number" ) ? detail.assignedCount : 0;
+        },
+
+        assignedCountLabel() {
+            const count = this.assignedCount();
+            const tmpl = ( count === 1 )
+                ? tiApplication.getLabel( "interface.admin.archetype.assigned-one", "{n} competency uses this archetype" )
+                : tiApplication.getLabel( "interface.admin.archetype.assigned-many", "{n} competencies use this archetype" );
+            return tmpl.replace( "{n}", String( count ) );
+        },
+
+        canRemove() {
+            return this.hasSelection() && this.assignedCount() === 0;
+        },
+
+        removeSelected() {
+            if ( !this.canRemove() ) {
+                return;
+            }
+            const id = this.selectedId;
+            this.rows = this.rows.filter( ( row ) => row.id !== id );
+            this.selectedId = null;
+            this.dirty = true;
+        },
+
+        /* -------------------------- Add ------------------------------------ */
+
+        openAdd() {
+            this.modal = { kind: "add", payload: { id: "", error: "" } };
+        },
+
+        closeModal() {
+            this.modal = emptyModal();
+        },
+
+        confirmAdd() {
+            const id = String( ( this.modal.payload && this.modal.payload.id ) || "" ).trim();
+            if ( !ID_PATTERN.test( id ) ) {
+                this.modal.payload.error = tiApplication.getLabel( "interface.admin.archetype.add-invalid-id", "Use letters, numbers, dash or underscore only." );
+                return;
+            }
+            if ( this.rows.find( ( row ) => row.id === id ) ) {
+                this.modal.payload.error = tiApplication.getLabel( "interface.admin.archetype.add-duplicate-id", "An archetype with this id already exists." );
+                return;
+            }
+            const weights = {};
+            this.stageLevels.forEach( ( level ) => { weights[ level ] = 5; } );
+            this.rows.push( { id: id, name: { en: "", bg: "" }, description: { en: "", bg: "" }, weights: weights, assignedCount: 0 } );
+            this.selectedId = id;
+            this.dirty = true;
+            this.closeModal();
+        },
+
+        /* -------------------------- Save ----------------------------------- */
+
+        isDirty() {
+            return this.dirty === true;
+        },
+
+        save() {
+            if ( !this.isDirty() || this.saving ) {
+                return;
+            }
+            this.saving = true;
+            this.saveErrors = [];
+            // The submitted rows are the complete set (omitted ids are removed by decompose).
+            const body = {
+                edited: { rows: this.rows },
+                expectedVersions: this.versions,
+                note: tiApplication.getLabel( "interface.admin.archetype.save-note", "Relevancy archetype edit" )
+            };
+            tiApplication.sendRequest( "/admin/config/editors/" + EDITOR_KEY, "POST", body ).then( ( result ) => {
+                this.saving = false;
+                const data = ( result && result.data ) || {};
+                if ( data.ok === false ) {
+                    this.saveErrors = this.flattenErrors( data.errors );
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.archetype.save-invalid", "Some changes are invalid — see the issues listed." ) );
+                    return;
+                }
+                tiApplication.notify( tiApplication.getLabel( "interface.admin.archetype.save-success", "Relevancy archetypes saved." ) );
+                this.loadData();
+            } ).catch( ( error ) => {
+                this.saving = false;
+                const httpCode = error && error.exception && error.exception.httpCode;
+                if ( httpCode === 409 ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.archetype.save-conflict", "Configuration changed elsewhere — reloading the latest version." ) );
+                    this.loadData();
+                    return;
+                }
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        flattenErrors( errors ) {
+            const out = [];
+            const byKey = errors || {};
+            Object.keys( byKey ).forEach( ( key ) => {
+                ( byKey[ key ] || [] ).forEach( ( issue ) => {
+                    const path = ( issue && ( issue.path || issue.dataPath ) ) || "";
+                    const parts = path.split( "." ).filter( Boolean );
+                    out.push( { id: parts[ 0 ] || key, message: ( issue && issue.message ) || "" } );
+                } );
+            } );
+            return out;
+        },
+
+        discard() {
+            if ( !this.isDirty() ) {
+                return;
+            }
+            this.loadData();
+        }
+    };
+};
+
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceEvaluation", configureCompetenceEvaluation );
     Alpine.data( "competenceEmployeesList", configureEmployeesList );
@@ -3517,4 +3832,5 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceAdminConfig", configureAdminConfig );
     Alpine.data( "competenceCompetencyTextEditor", configureCompetencyTextEditor );
     Alpine.data( "competenceArchetypeAssignment", configureArchetypeAssignment );
+    Alpine.data( "competenceArchetypeEditor", configureArchetypeEditor );
 } );

@@ -46,8 +46,8 @@
                         </button>
                     </div>
 
-                    <!-- Relevancy archetype curve editor (lands in Phase D3). -->
-                    <div class="competence-admin-card is-disabled">
+                    <!-- Relevancy archetype curve editor (Phase D3). -->
+                    <div class="competence-admin-card">
                         <div class="competence-admin-card-icon" aria-hidden="true">
                             <span class="ti-icon bar-chart lg"></span>
                         </div>
@@ -55,7 +55,10 @@
                             <div class="competence-admin-card-title" x-text-label="interface.admin.editor.archetype-editor.title"></div>
                             <div class="competence-admin-card-desc" x-text-label="interface.admin.editor.archetype-editor.desc"></div>
                         </div>
-                        <span class="ti-tag muted" x-text-label="interface.admin.coming-soon"></span>
+                        <button type="button" class="ti-btn primary" @click="openEditor('archetype-editor')">
+                            <span x-text-label="interface.admin.open-editor"></span>
+                            <span class="ti-icon chevron-right sm" aria-hidden="true"></span>
+                        </button>
                     </div>
                 </div>
             </section>

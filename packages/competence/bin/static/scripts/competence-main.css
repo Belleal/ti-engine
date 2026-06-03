@@ -4389,3 +4389,128 @@
         width: 100%;
     }
 }
+
+/* =============================================================
+   Admin · Relevancy archetype (curve) editor (frame-archetype-editor.html)
+   ============================================================= */
+.competence-ae-list-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-2);
+}
+
+.competence-ae-list-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.competence-ae-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--s-2);
+    width: 100%;
+    padding: var(--s-2);
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.competence-ae-row:hover {
+    background: var(--bg-sunken);
+}
+
+.competence-ae-row.is-selected {
+    background: color-mix(in oklab, var(--accent) 14%, transparent);
+}
+
+.competence-ae-row-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.competence-ae-row-count {
+    flex: 0 0 auto;
+    min-width: 22px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--bg-sunken);
+    color: var(--fg-secondary);
+    font-size: 0.75rem;
+    text-align: center;
+}
+
+.competence-ae-weights-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+}
+
+/* Larger live preview above the weight inputs. */
+.competence-ae-preview {
+    width: 160px;
+    height: 36px;
+}
+
+.competence-ae-weights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
+    gap: var(--s-2);
+}
+
+.competence-ae-weight {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: center;
+}
+
+.competence-ae-weight-label {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.75rem;
+    color: var(--fg-secondary);
+}
+
+.competence-ae-weight-input {
+    width: 100%;
+    text-align: center;
+}
+
+.competence-ae-weights-hint {
+    color: var(--fg-secondary);
+    font-size: 0.8rem;
+}
+
+.competence-ae-danger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-4);
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--border);
+}
+
+.competence-ae-danger-title {
+    font-weight: 600;
+}
+
+.competence-ae-danger-desc {
+    margin-top: 2px;
+    color: var(--fg-secondary);
+    font-size: 0.85rem;
+}
+
+.competence-ae-add-error {
+    margin-top: var(--s-2);
+    color: var(--warn);
+    font-size: 0.85rem;
+}

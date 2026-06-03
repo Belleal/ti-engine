@@ -6096,6 +6096,140 @@
           "en": "Configuration changed elsewhere — reloading the latest version.",
           "bg": "Конфигурацията е променена другаде — презареждане на последната версия."
         }
+      },
+      "archetype": {
+        "page-eyebrow": {
+          "en": "CONFIGURATION",
+          "bg": "КОНФИГУРАЦИЯ"
+        },
+        "page-title": {
+          "en": "Relevancy Archetypes",
+          "bg": "Архетипи на релевантност"
+        },
+        "lang-switch-aria": {
+          "en": "Edit language",
+          "bg": "Език за редактиране"
+        },
+        "back": {
+          "en": "Back to configuration",
+          "bg": "Назад към конфигурацията"
+        },
+        "list-title": {
+          "en": "Archetypes",
+          "bg": "Архетипи"
+        },
+        "add-btn": {
+          "en": "Add",
+          "bg": "Добави"
+        },
+        "assigned-title": {
+          "en": "Assigned competencies",
+          "bg": "Присвоени компетенции"
+        },
+        "no-selection-title": {
+          "en": "Select an archetype",
+          "bg": "Изберете архетип"
+        },
+        "no-selection-desc": {
+          "en": "Choose an archetype to edit its curve, name, and description — or add a new one.",
+          "bg": "Изберете архетип, за да редактирате кривата, името и описанието му — или добавете нов."
+        },
+        "errors-title": {
+          "en": "These changes could not be saved",
+          "bg": "Тези промени не можаха да бъдат запазени"
+        },
+        "field-name": {
+          "en": "Name",
+          "bg": "Име"
+        },
+        "field-description": {
+          "en": "Description",
+          "bg": "Описание"
+        },
+        "field-weights": {
+          "en": "Stage-level weights",
+          "bg": "Тегла по нива"
+        },
+        "weights-hint": {
+          "en": "Each weight is 1–10 and sets the competency's importance at that stage level. Editing a curve re-weights every competency assigned to it.",
+          "bg": "Всяко тегло е 1–10 и определя важността на компетенцията на това ниво. Редактирането на крива преизчислява теглата на всички компетенции с този архетип."
+        },
+        "remove-title": {
+          "en": "Remove archetype",
+          "bg": "Премахни архетип"
+        },
+        "remove-desc": {
+          "en": "This archetype is unassigned and can be removed (applied on save).",
+          "bg": "Този архетип не е присвоен и може да бъде премахнат (прилага се при запазване)."
+        },
+        "remove-blocked": {
+          "en": "Reassign the competencies using this archetype before removing it.",
+          "bg": "Преди да премахнете архетипа, преприсвоете компетенциите, които го използват."
+        },
+        "remove-btn": {
+          "en": "Remove",
+          "bg": "Премахни"
+        },
+        "assigned-one": {
+          "en": "{n} competency uses this archetype",
+          "bg": "{n} компетенция използва този архетип"
+        },
+        "assigned-many": {
+          "en": "{n} competencies use this archetype",
+          "bg": "{n} компетенции използват този архетип"
+        },
+        "unsaved-state": {
+          "en": "Unsaved changes",
+          "bg": "Незапазени промени"
+        },
+        "discard-btn": {
+          "en": "Discard",
+          "bg": "Отхвърли"
+        },
+        "save-btn": {
+          "en": "Save changes",
+          "bg": "Запази промените"
+        },
+        "save-note": {
+          "en": "Relevancy archetype edit",
+          "bg": "Редакция на архетип на релевантност"
+        },
+        "save-success": {
+          "en": "Relevancy archetypes saved.",
+          "bg": "Архетипите на релевантност са запазени."
+        },
+        "save-invalid": {
+          "en": "Some changes are invalid — see the issues listed.",
+          "bg": "Някои промени са невалидни — вижте посочените проблеми."
+        },
+        "save-conflict": {
+          "en": "Configuration changed elsewhere — reloading the latest version.",
+          "bg": "Конфигурацията е променена другаде — презареждане на последната версия."
+        },
+        "add-modal-title": {
+          "en": "Add archetype",
+          "bg": "Добавяне на архетип"
+        },
+        "add-id-label": {
+          "en": "Archetype id",
+          "bg": "Идентификатор на архетип"
+        },
+        "add-invalid-id": {
+          "en": "Use letters, numbers, dash or underscore only.",
+          "bg": "Използвайте само букви, цифри, тире или долна черта."
+        },
+        "add-duplicate-id": {
+          "en": "An archetype with this id already exists.",
+          "bg": "Вече съществува архетип с този идентификатор."
+        },
+        "add-cancel-btn": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        },
+        "add-confirm-btn": {
+          "en": "Add",
+          "bg": "Добави"
+        }
       }
     },
     "schedule": {
