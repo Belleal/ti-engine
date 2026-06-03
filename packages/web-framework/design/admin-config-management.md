@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Phases A–D complete; Phase E (further editors) optional/as-needed |
+| **Status** | Phases A–D complete; Phase E in progress — role families (E1) done; dictionary-structure / categories editors as-needed |
 | **Created** | 2026-06-02 |
 | **Last updated** | 2026-06-03 |
 | **Owner** | Boris Kostadinov |
@@ -36,7 +36,9 @@ How this design landed in code — update as each step is committed (branch `cur
 | D1 — Relevancy composite editors (assignment + archetype) + referential-integrity validator | ✅ committed | `a756893` | 2026-06-03 |
 | D2 — Archetype assignment editor screen (dropdown + curve sparkline) | ✅ committed | `6d8f867` | 2026-06-03 |
 | D3 — Relevancy archetype (curve) editor screen (weights + name/desc; add/remove) | ✅ committed | `97906d5` | 2026-06-03 |
-| E — Later editors (dictionary structure, role-families, …) | ☐ planned | — | — |
+| E1a — Role-families composite editor + referential-integrity validator (editable: true) | ✅ committed | `a803f92` | 2026-06-03 |
+| E1b — Role families editor screen (family name/desc + specializations add/edit/remove) | ✅ committed | `73ae16a` | 2026-06-03 |
+| E (further) — dictionary structure (add/remove/recategorize competencies); categories/subcategories; stage-levels | ☐ as-needed | — | — |
 
 > **Reorder note (2026-06-02):** the UI (former A8b) is deferred and built *with* the first concrete editor in Phase C, after Phase B registers competence's configs (so screens have real data). **UI implementation guidance:** the design concept in `.claude/competence-design-concept` is a portable React/CSS rendering of the *visual language only*; the implementation must follow the framework's real stack (HTMX + Alpine CSP + server-rendered fragments) and **use the existing competence screens/components as the reference**, reusing the established `.ti-*` primitives.
 
@@ -45,6 +47,8 @@ How this design landed in code — update as each step is committed (branch `cur
 > **Labels liveness caveat (2026-06-03):** `competence-labels` is registered as an editable, versioned store document and the competency-text editor saves into it — so edits are persisted, validated, version-historied, and included in the export bundle. But unlike the five configs in `configuration-loader`'s `STORE_BACKED` map, **`competence-labels` is not store-backed at runtime**: the UI is served labels from the localization file loaded at boot, so saved edits do **not** hot-apply to the running app. The intended BG-review workflow is therefore: review/edit → save (stored + versioned) → **export bundle → commit to git → redeploy**. (In-flight evaluations are unaffected regardless, since competency texts are frozen into each evaluation snapshot.) Making label edits hot-apply — routing the served labels through the store/`config:changed` like the other configs — is a deferred follow-up (Phase E / a localization-source change).
 
 > **Relevancy editors liveness (2026-06-03):** by contrast, the Phase D **archetype assignment** (writes `competencies`) and **archetype weights** (writes `relevancy-archetypes`) *are* store-backed in `configuration-loader` — they refresh on `config:changed` and so apply to **future** evaluations immediately (existing evaluations keep their frozen snapshot). Only the archetype **name/description** (written to `competence-labels`) follow the labels-liveness caveat above. So curve calibration and re-assignment take effect live; their display names need the export→redeploy path.
+
+> **Role families editor (E1, 2026-06-03):** the nine families are **fixed by schema** (`role-families.schema.json` lists them as `required` with `additionalProperties:false`), so E1 edits a family's **text** (name/description, stored in `competence-labels`; the config holds only templated key refs) and **adds/edits/removes its specializations**. Adding/removing a family would need a schema + `roleFamilyCode` enum change (out of scope). Removal is guarded by `roleFamiliesReferentialIntegrity`: **active-set** references are checked from config (hard, and surfaced in the UI as a disabled remove via the per-spec `activeSetUse` from compose); **employee** references are checked from the data layer (hard on save, via an overridable `fetchEmployeesForValidation` seam since the data-manager singleton is frozen). **Follow-up:** the UI does not yet pre-disable remove for *employee-only* references (a spec used only by employees looks removable but the save is rejected with a clear message) — surfacing employee usage in the editor (a small data endpoint) would close that gap. Like other label edits, family/spec **text** is store-versioned + exportable but served from the boot file (export→redeploy to display); the **structure** (which specs exist) is store-backed and live for future evaluations.
 
 Enables `Admin`-role users to edit application configuration through the UI, with every write validated and persisted server-side, full version history with restore, and an explicit export-to-git for durable/reviewable versioning.
 
