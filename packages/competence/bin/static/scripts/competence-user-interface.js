@@ -3819,6 +3819,322 @@ const configureArchetypeEditor = () => {
     };
 };
 
+/**
+ * Alpine component for the role families editor (frame-role-families.html). Loads the `role-families` composite editor
+ * (the nine disciplines, each with bilingual name/description and a list of specializations + active-set usage), and
+ * lets an admin edit the family text and add/edit/remove specializations with language switch-with-reference. The nine
+ * families are fixed (schema); only their text and specializations are editable. Saves the full family set. A spec is
+ * removable in the UI when no active set uses it; employee references are caught server-side on save. Admin-gated.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureRoleFamilies = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    const EDITOR_KEY = "role-families";
+    const SPEC_PATTERN = /^[A-Z][A-Z0-9_]*$/;
+
+    const emptyModal = () => ( { kind: null, payload: {} } );
+
+    return {
+        loaded: false,
+        saving: false,
+        dirty: false,
+        editLang: "bg",
+        families: [],
+        versions: {},
+        selectedCode: null,
+        saveErrors: [],
+        modal: emptyModal(),
+
+        init() {
+            const onInitialized = () => {
+                if ( !tiApplication.hasRole( "admin" ) ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.not-authorized", "Administrator access required." ) );
+                    tiApplication.openScreen( "dashboard" );
+                    return;
+                }
+                this.loadData();
+            };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        getLabel( key, fallback = "" ) {
+            return tiApplication.getLabel( key, fallback );
+        },
+
+        backToConfig() {
+            tiApplication.openScreen( "admin-config" );
+        },
+
+        loadData() {
+            tiApplication.sendRequest( "/admin/config/editors/" + EDITOR_KEY ).then( ( result ) => {
+                const data = ( result && result.data ) || {};
+                // composeView wraps the editor's compose() result under `data.rows`; this editor returns { families }.
+                const view = ( data.rows && typeof data.rows === "object" && !Array.isArray( data.rows ) ) ? data.rows : {};
+                this.families = Array.isArray( view.families ) ? tiToolbox.structuredClone( view.families ) : [];
+                this.versions = data.versions ? tiToolbox.structuredClone( data.versions ) : {};
+                this.dirty = false;
+                this.saveErrors = [];
+                if ( this.selectedCode && !this.families.find( ( family ) => family.code === this.selectedCode ) ) {
+                    this.selectedCode = null;
+                }
+                this.loaded = true;
+            } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
+                this.loaded = true;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                const httpCode = error && error.exception && error.exception.httpCode;
+                if ( httpCode === 401 || httpCode === 403 ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
+        },
+
+        otherLang() {
+            return this.editLang === "en" ? "bg" : "en";
+        },
+
+        langLabel( lang ) {
+            return ( lang === "en" )
+                ? tiApplication.getLabel( "interface.admin.text-editor.lang-en", "English" )
+                : tiApplication.getLabel( "interface.admin.text-editor.lang-bg", "Bulgarian" );
+        },
+
+        refLangLabel() {
+            return this.langLabel( this.otherLang() );
+        },
+
+        isEditLang( lang ) {
+            return this.editLang === lang;
+        },
+
+        setEditLang( lang ) {
+            if ( lang === "en" || lang === "bg" ) {
+                this.editLang = lang;
+            }
+        },
+
+        /* -------------------------- List ----------------------------------- */
+
+        familyName( family ) {
+            const pair = family && family.name;
+            return ( pair && ( pair[ this.editLang ] || pair.en || pair.bg ) ) || family.code;
+        },
+
+        familySpecCount( family ) {
+            return ( family && Array.isArray( family.specializations ) ) ? family.specializations.length : 0;
+        },
+
+        isSelected( code ) {
+            return this.selectedCode === code;
+        },
+
+        selectFamily( code ) {
+            this.selectedCode = code;
+        },
+
+        /* -------------------------- Detail --------------------------------- */
+
+        hasSelection() {
+            return !!( this.selectedCode && this.families.find( ( family ) => family.code === this.selectedCode ) );
+        },
+
+        getDetail() {
+            return this.selectedCode ? ( this.families.find( ( family ) => family.code === this.selectedCode ) || null ) : null;
+        },
+
+        detailCode() {
+            const detail = this.getDetail();
+            return detail ? detail.code : "";
+        },
+
+        getSpecs() {
+            const detail = this.getDetail();
+            return ( detail && Array.isArray( detail.specializations ) ) ? detail.specializations : [];
+        },
+
+        familyFieldValue( field ) {
+            const detail = this.getDetail();
+            return ( detail && detail[ field ] ) ? ( detail[ field ][ this.editLang ] || "" ) : "";
+        },
+
+        familyFieldRef( field ) {
+            const detail = this.getDetail();
+            return ( detail && detail[ field ] ) ? ( detail[ field ][ this.otherLang() ] || "" ) : "";
+        },
+
+        setFamilyField( field, value ) {
+            const detail = this.getDetail();
+            if ( !detail ) {
+                return;
+            }
+            if ( !detail[ field ] ) {
+                detail[ field ] = { en: "", bg: "" };
+            }
+            detail[ field ][ this.editLang ] = value;
+            this.dirty = true;
+        },
+
+        getSpec( specCode ) {
+            return this.getSpecs().find( ( spec ) => spec.code === specCode ) || null;
+        },
+
+        specFieldValue( specCode, field ) {
+            const spec = this.getSpec( specCode );
+            return ( spec && spec[ field ] ) ? ( spec[ field ][ this.editLang ] || "" ) : "";
+        },
+
+        specFieldRef( specCode, field ) {
+            const spec = this.getSpec( specCode );
+            return ( spec && spec[ field ] ) ? ( spec[ field ][ this.otherLang() ] || "" ) : "";
+        },
+
+        setSpecField( specCode, field, value ) {
+            const spec = this.getSpec( specCode );
+            if ( !spec ) {
+                return;
+            }
+            if ( !spec[ field ] ) {
+                spec[ field ] = { en: "", bg: "" };
+            }
+            spec[ field ][ this.editLang ] = value;
+            this.dirty = true;
+        },
+
+        specActiveSetUse( spec ) {
+            return ( spec && typeof spec.activeSetUse === "number" ) ? spec.activeSetUse : 0;
+        },
+
+        canRemoveSpec( spec ) {
+            return this.specActiveSetUse( spec ) === 0;
+        },
+
+        specRemoveHint( spec ) {
+            return this.canRemoveSpec( spec )
+                ? tiApplication.getLabel( "interface.admin.families.spec-remove", "Remove specialization" )
+                : tiApplication.getLabel( "interface.admin.families.spec-remove-blocked", "In use by an active set" );
+        },
+
+        removeSpec( specCode ) {
+            const detail = this.getDetail();
+            if ( !detail ) {
+                return;
+            }
+            const spec = this.getSpec( specCode );
+            if ( !spec || !this.canRemoveSpec( spec ) ) {
+                return;
+            }
+            detail.specializations = detail.specializations.filter( ( candidate ) => candidate.code !== specCode );
+            this.dirty = true;
+        },
+
+        /* -------------------------- Add specialization --------------------- */
+
+        openAddSpec() {
+            this.modal = { kind: "add-spec", payload: { code: "", error: "" } };
+        },
+
+        closeModal() {
+            this.modal = emptyModal();
+        },
+
+        confirmAddSpec() {
+            const detail = this.getDetail();
+            if ( !detail ) {
+                return;
+            }
+            const code = String( ( this.modal.payload && this.modal.payload.code ) || "" ).trim().toUpperCase();
+            if ( !SPEC_PATTERN.test( code ) ) {
+                this.modal.payload.error = tiApplication.getLabel( "interface.admin.families.add-invalid-code", "Use uppercase letters, numbers or underscore; start with a letter." );
+                return;
+            }
+            if ( detail.specializations.find( ( spec ) => spec.code === code ) ) {
+                this.modal.payload.error = tiApplication.getLabel( "interface.admin.families.add-duplicate-code", "This family already has a specialization with that code." );
+                return;
+            }
+            detail.specializations.push( { code: code, name: { en: "", bg: "" }, description: { en: "", bg: "" }, eCFMapping: [], activeSetUse: 0 } );
+            this.dirty = true;
+            this.closeModal();
+        },
+
+        /* -------------------------- Save ----------------------------------- */
+
+        isDirty() {
+            return this.dirty === true;
+        },
+
+        save() {
+            if ( !this.isDirty() || this.saving ) {
+                return;
+            }
+            this.saving = true;
+            this.saveErrors = [];
+            const body = {
+                edited: { families: this.families },
+                expectedVersions: this.versions,
+                note: tiApplication.getLabel( "interface.admin.families.save-note", "Role families edit" )
+            };
+            tiApplication.sendRequest( "/admin/config/editors/" + EDITOR_KEY, "POST", body ).then( ( result ) => {
+                this.saving = false;
+                const data = ( result && result.data ) || {};
+                if ( data.ok === false ) {
+                    this.saveErrors = this.flattenErrors( data.errors );
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.families.save-invalid", "Some changes are invalid — see the issues listed." ) );
+                    return;
+                }
+                tiApplication.notify( tiApplication.getLabel( "interface.admin.families.save-success", "Role families saved." ) );
+                this.loadData();
+            } ).catch( ( error ) => {
+                this.saving = false;
+                const httpCode = error && error.exception && error.exception.httpCode;
+                if ( httpCode === 409 ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.families.save-conflict", "Configuration changed elsewhere — reloading the latest version." ) );
+                    this.loadData();
+                    return;
+                }
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        flattenErrors( errors ) {
+            const out = [];
+            const byKey = errors || {};
+            Object.keys( byKey ).forEach( ( key ) => {
+                ( byKey[ key ] || [] ).forEach( ( issue ) => {
+                    const parts = ( ( issue && ( issue.path || issue.dataPath ) ) || "" ).split( "." ).filter( Boolean );
+                    let label = parts[ 0 ] || "";
+                    if ( parts[ 1 ] === "specializations" && parts[ 2 ] ) {
+                        label = parts[ 0 ] + " · " + parts[ 2 ];
+                    }
+                    out.push( { label: label, message: ( issue && issue.message ) || "" } );
+                } );
+            } );
+            return out;
+        },
+
+        discard() {
+            if ( !this.isDirty() ) {
+                return;
+            }
+            this.loadData();
+        }
+    };
+};
+
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceEvaluation", configureCompetenceEvaluation );
     Alpine.data( "competenceEmployeesList", configureEmployeesList );
@@ -3833,4 +4149,5 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceCompetencyTextEditor", configureCompetencyTextEditor );
     Alpine.data( "competenceArchetypeAssignment", configureArchetypeAssignment );
     Alpine.data( "competenceArchetypeEditor", configureArchetypeEditor );
+    Alpine.data( "competenceRoleFamilies", configureRoleFamilies );
 } );

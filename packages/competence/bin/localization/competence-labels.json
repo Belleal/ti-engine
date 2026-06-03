@@ -5821,6 +5821,16 @@
             "en": "Edit the relevancy curves themselves — the twelve stage-level weights, names, and descriptions.",
             "bg": "Редактирайте самите криви на релевантност — дванадесетте тегла по нива, имена и описания."
           }
+        },
+        "role-families": {
+          "title": {
+            "en": "Role families",
+            "bg": "Семейства роли"
+          },
+          "desc": {
+            "en": "Edit discipline names and manage their specializations (add, rename, remove).",
+            "bg": "Редактирайте имената на дисциплините и управлявайте специализациите им (добавяне, преименуване, премахване)."
+          }
         }
       },
       "open-editor": {
@@ -6221,6 +6231,132 @@
         "add-duplicate-id": {
           "en": "An archetype with this id already exists.",
           "bg": "Вече съществува архетип с този идентификатор."
+        },
+        "add-cancel-btn": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        },
+        "add-confirm-btn": {
+          "en": "Add",
+          "bg": "Добави"
+        }
+      },
+      "families": {
+        "page-eyebrow": {
+          "en": "CONFIGURATION",
+          "bg": "КОНФИГУРАЦИЯ"
+        },
+        "page-title": {
+          "en": "Role Families",
+          "bg": "Семейства роли"
+        },
+        "lang-switch-aria": {
+          "en": "Edit language",
+          "bg": "Език за редактиране"
+        },
+        "back": {
+          "en": "Back to configuration",
+          "bg": "Назад към конфигурацията"
+        },
+        "list-title": {
+          "en": "Families",
+          "bg": "Семейства"
+        },
+        "spec-count-title": {
+          "en": "Specializations",
+          "bg": "Специализации"
+        },
+        "no-selection-title": {
+          "en": "Select a role family",
+          "bg": "Изберете семейство роли"
+        },
+        "no-selection-desc": {
+          "en": "Choose a discipline to edit its name, description, and specializations.",
+          "bg": "Изберете дисциплина, за да редактирате името, описанието и специализациите ѝ."
+        },
+        "errors-title": {
+          "en": "These changes could not be saved",
+          "bg": "Тези промени не можаха да бъдат запазени"
+        },
+        "field-name": {
+          "en": "Family name",
+          "bg": "Име на семейството"
+        },
+        "field-description": {
+          "en": "Family description",
+          "bg": "Описание на семейството"
+        },
+        "specs-title": {
+          "en": "Specializations",
+          "bg": "Специализации"
+        },
+        "add-spec-btn": {
+          "en": "Add specialization",
+          "bg": "Добави специализация"
+        },
+        "spec-name": {
+          "en": "Name",
+          "bg": "Име"
+        },
+        "spec-desc": {
+          "en": "Description",
+          "bg": "Описание"
+        },
+        "spec-remove": {
+          "en": "Remove specialization",
+          "bg": "Премахни специализацията"
+        },
+        "spec-remove-blocked": {
+          "en": "In use by an active set — cannot remove",
+          "bg": "Използва се от активен набор — не може да се премахне"
+        },
+        "specs-empty": {
+          "en": "No specializations yet. Add one to get started.",
+          "bg": "Все още няма специализации. Добавете една, за да започнете."
+        },
+        "unsaved-state": {
+          "en": "Unsaved changes",
+          "bg": "Незапазени промени"
+        },
+        "discard-btn": {
+          "en": "Discard",
+          "bg": "Отхвърли"
+        },
+        "save-btn": {
+          "en": "Save changes",
+          "bg": "Запази промените"
+        },
+        "save-note": {
+          "en": "Role families edit",
+          "bg": "Редакция на семейства роли"
+        },
+        "save-success": {
+          "en": "Role families saved.",
+          "bg": "Семействата роли са запазени."
+        },
+        "save-invalid": {
+          "en": "Some changes are invalid — see the issues listed.",
+          "bg": "Някои промени са невалидни — вижте посочените проблеми."
+        },
+        "save-conflict": {
+          "en": "Configuration changed elsewhere — reloading the latest version.",
+          "bg": "Конфигурацията е променена другаде — презареждане на последната версия."
+        },
+        "add-modal-title": {
+          "en": "Add specialization",
+          "bg": "Добавяне на специализация"
+        },
+        "add-code-label": {
+          "en": "Specialization code",
+          "bg": "Код на специализацията"
+        },
+        "add-invalid-code": {
+          "en": "Use uppercase letters, numbers or underscore; start with a letter.",
+          "bg": "Използвайте главни букви, цифри или долна черта; започнете с буква."
+        },
+        "add-duplicate-code": {
+          "en": "This family already has a specialization with that code.",
+          "bg": "Това семейство вече има специализация с този код."
         },
         "add-cancel-btn": {
           "en": "Cancel",

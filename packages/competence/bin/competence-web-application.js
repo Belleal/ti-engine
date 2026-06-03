@@ -84,6 +84,10 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "Relevancy Archetypes",
             path: "fragments/frame-archetype-editor.html"
         } );
+        this.addFragment( "role-families", {
+            title: "Role Families",
+            path: "fragments/frame-role-families.html"
+        } );
     }
 
     /* Public interface */
@@ -159,7 +163,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "admin-config": "administration",
                     "competency-text-editor": "administration",
                     "archetype-assignment": "administration",
-                    "archetype-editor": "administration"
+                    "archetype-editor": "administration",
+                    "role-families": "administration"
                 },
                 componentsConfig: {
                     userProfileMenu: {

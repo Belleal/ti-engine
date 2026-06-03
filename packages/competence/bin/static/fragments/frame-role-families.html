@@ -1,0 +1,202 @@
+<div class="ti-page" x-data="competenceRoleFamilies">
+    <div class="ti-page-head competence-cte-pagehead">
+        <div class="competence-cte-pagehead-main">
+            <div class="ti-page-eyebrow" x-text-label="interface.admin.families.page-eyebrow">CONFIGURATION</div>
+            <h1 class="ti-page-title" x-text-label="interface.admin.families.page-title">Role Families</h1>
+        </div>
+        <div class="competence-cte-pagehead-aside">
+            <div class="competence-cte-langswitch" role="group" x-bind:aria-label="getLabel('interface.admin.families.lang-switch-aria', 'Edit language')">
+                <button type="button" class="competence-cte-langswitch-btn"
+                        x-bind:class="isEditLang('bg') ? 'is-active' : ''" @click="setEditLang('bg')"
+                        x-text-label="interface.admin.text-editor.lang-bg-short">BG</button>
+                <button type="button" class="competence-cte-langswitch-btn"
+                        x-bind:class="isEditLang('en') ? 'is-active' : ''" @click="setEditLang('en')"
+                        x-text-label="interface.admin.text-editor.lang-en-short">EN</button>
+            </div>
+            <button type="button" class="ti-btn ghost sm" @click="backToConfig()">
+                <span class="ti-icon chevron-left sm" aria-hidden="true"></span>
+                <span x-text-label="interface.admin.families.back"></span>
+            </button>
+        </div>
+    </div>
+
+    <template x-if="loaded">
+        <div class="competence-cte-shell">
+
+            <!-- Left: family list (fixed nine). -->
+            <div class="competence-cte-list-pane">
+                <div class="competence-cte-list-head competence-ae-list-head">
+                    <span class="competence-ae-list-title" x-text-label="interface.admin.families.list-title"></span>
+                </div>
+                <div class="competence-cte-list">
+                    <template x-for="family in families" x-bind:key="family.code">
+                        <button type="button" class="competence-ae-row"
+                                x-bind:class="isSelected(family.code) ? 'is-selected' : ''" @click="selectFamily(family.code)">
+                            <span class="ti-tag mono" x-text="family.code"></span>
+                            <span class="competence-ae-row-name" x-text="familyName(family)"></span>
+                            <span class="competence-ae-row-count" x-text="familySpecCount(family)"
+                                  x-bind:title="getLabel('interface.admin.families.spec-count-title', 'Specializations')"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Right: detail. -->
+            <div class="competence-cte-editor-stack">
+
+                <template x-if="!hasSelection()">
+                    <div class="competence-cte-editor-pane">
+                        <div class="ti-empty-state">
+                            <div class="ti-empty-state-icon" aria-hidden="true">
+                                <span class="ti-icon users xl"></span>
+                            </div>
+                            <div class="ti-empty-state-title" x-text-label="interface.admin.families.no-selection-title"></div>
+                            <div class="ti-empty-state-desc" x-text-label="interface.admin.families.no-selection-desc"></div>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="hasSelection()">
+                    <div class="competence-cte-editor-pane">
+                        <div class="competence-cte-editor">
+
+                            <div class="competence-cte-editor-head">
+                                <div class="competence-cte-editor-title">
+                                    <span class="ti-tag mono" x-text="detailCode()"></span>
+                                    <span class="competence-cte-editor-ctx" x-text="familyFieldValue('name')"></span>
+                                </div>
+                                <div class="competence-cte-editor-langhint">
+                                    <span x-text-label="interface.admin.text-editor.editing-label"></span>
+                                    <strong x-text="langLabel(editLang)"></strong>
+                                </div>
+                            </div>
+
+                            <template x-if="saveErrors.length > 0">
+                                <div class="competence-cte-errors">
+                                    <div class="competence-cte-errors-head">
+                                        <span class="ti-icon warning-triangle sm" aria-hidden="true"></span>
+                                        <span x-text-label="interface.admin.families.errors-title"></span>
+                                    </div>
+                                    <template x-for="(issue, idx) in saveErrors" x-bind:key="idx">
+                                        <div class="competence-cte-error-row">
+                                            <span class="ti-tag mono" x-text="issue.label"></span>
+                                            <span class="competence-cte-error-msg" x-text="issue.message"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- Family name -->
+                            <div class="competence-cte-field">
+                                <label class="ti-field-label" x-text-label="interface.admin.families.field-name"></label>
+                                <input type="text" class="ti-input" x-bind:value="familyFieldValue('name')"
+                                       @input="setFamilyField('name', $event.target.value)"/>
+                                <div class="competence-cte-ref">
+                                    <span class="competence-cte-ref-lang" x-text="refLangLabel()"></span>
+                                    <span class="competence-cte-ref-text" x-text="familyFieldRef('name')"></span>
+                                </div>
+                            </div>
+
+                            <!-- Family description -->
+                            <div class="competence-cte-field">
+                                <label class="ti-field-label" x-text-label="interface.admin.families.field-description"></label>
+                                <textarea class="ti-input competence-cte-textarea" rows="3"
+                                          x-bind:value="familyFieldValue('description')"
+                                          @input="setFamilyField('description', $event.target.value)"></textarea>
+                                <div class="competence-cte-ref">
+                                    <span class="competence-cte-ref-lang" x-text="refLangLabel()"></span>
+                                    <span class="competence-cte-ref-text" x-text="familyFieldRef('description')"></span>
+                                </div>
+                            </div>
+
+                            <!-- Specializations -->
+                            <div class="competence-rf-specs">
+                                <div class="competence-rf-specs-head">
+                                    <label class="ti-field-label" x-text-label="interface.admin.families.specs-title"></label>
+                                    <button type="button" class="ti-btn ghost sm" @click="openAddSpec()">
+                                        <span class="ti-icon plus sm" aria-hidden="true"></span>
+                                        <span x-text-label="interface.admin.families.add-spec-btn"></span>
+                                    </button>
+                                </div>
+
+                                <template x-if="getSpecs().length === 0">
+                                    <div class="competence-rf-specs-empty" x-text-label="interface.admin.families.specs-empty"></div>
+                                </template>
+
+                                <template x-for="spec in getSpecs()" x-bind:key="spec.code">
+                                    <div class="competence-rf-spec">
+                                        <div class="competence-rf-spec-head">
+                                            <span class="ti-tag mono" x-text="spec.code"></span>
+                                            <button type="button" class="ti-btn ghost icon competence-rf-spec-remove"
+                                                    @click="removeSpec(spec.code)" x-bind:disabled="!canRemoveSpec(spec)"
+                                                    x-bind:aria-label="specRemoveHint(spec)" x-bind:title="specRemoveHint(spec)">
+                                                <span class="ti-icon close sm" aria-hidden="true"></span>
+                                            </button>
+                                        </div>
+                                        <div class="competence-rf-spec-field">
+                                            <label class="ti-field-label" x-text-label="interface.admin.families.spec-name"></label>
+                                            <input type="text" class="ti-input" x-bind:value="specFieldValue(spec.code, 'name')"
+                                                   @input="setSpecField(spec.code, 'name', $event.target.value)"/>
+                                            <div class="competence-cte-ref">
+                                                <span class="competence-cte-ref-lang" x-text="refLangLabel()"></span>
+                                                <span class="competence-cte-ref-text" x-text="specFieldRef(spec.code, 'name')"></span>
+                                            </div>
+                                        </div>
+                                        <div class="competence-rf-spec-field">
+                                            <label class="ti-field-label" x-text-label="interface.admin.families.spec-desc"></label>
+                                            <textarea class="ti-input competence-cte-textarea" rows="2"
+                                                      x-bind:value="specFieldValue(spec.code, 'description')"
+                                                      @input="setSpecField(spec.code, 'description', $event.target.value)"></textarea>
+                                            <div class="competence-cte-ref">
+                                                <span class="competence-cte-ref-lang" x-text="refLangLabel()"></span>
+                                                <span class="competence-cte-ref-text" x-text="specFieldRef(spec.code, 'description')"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="isDirty()">
+                    <div class="competence-cte-actions-panel">
+                        <div class="competence-cte-actions-state" x-text-label="interface.admin.families.unsaved-state"></div>
+                        <div class="competence-cte-actions-spacer"></div>
+                        <button type="button" class="ti-btn ghost" @click="discard()" x-bind:disabled="saving"
+                                x-text-label="interface.admin.families.discard-btn"></button>
+                        <button type="button" class="ti-btn primary" @click="save()" x-bind:disabled="saving">
+                            <span class="ti-icon send sm" aria-hidden="true"></span>
+                            <span x-text-label="interface.admin.families.save-btn"></span>
+                        </button>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </template>
+
+    <!-- =============================================================
+         Add specialization modal
+         ============================================================= -->
+    <template x-if="modal.kind === 'add-spec'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.admin.families.add-modal-title"></div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <span class="ti-icon close md" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <label class="ti-field-label" x-text-label="interface.admin.families.add-code-label"></label>
+                    <input type="text" class="ti-input" x-model="modal.payload.code" @keydown.enter="confirmAddSpec()"/>
+                    <div class="competence-ae-add-error" x-show="modal.payload.error" x-text="modal.payload.error"></div>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.admin.families.add-cancel-btn"></button>
+                    <button type="button" class="ti-btn primary" @click="confirmAddSpec()" x-text-label="interface.admin.families.add-confirm-btn"></button>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>
