@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| **Status** | In implementation — Phase A |
+| **Status** | In implementation — Phase C (UI) |
 | **Created** | 2026-06-02 |
-| **Last updated** | 2026-06-02 |
+| **Last updated** | 2026-06-03 |
 | **Owner** | Boris Kostadinov |
 | **Scope** | `@ti-engine/web-framework` (reusable machinery) + `@ti-engine/competence` (editors, validators, configs) |
 | **Relates to** | retires the content rebuild's materialized `config.competency-relevancy.json` (§5); archetype source = `packages/competence/design/competency-relevancy-model.md` |
@@ -30,11 +30,15 @@ How this design landed in code — update as each step is committed (branch `cur
 | B2b — Register competence config docs + validators (composite editors → Phase C) | ✅ committed | `7394c2d` | 2026-06-02 |
 | B3a — Framework config-management facade + seedDefault/onConfigChanged | ✅ committed | `726fefc` | 2026-06-02 |
 | B3b — Store-backed configuration-loader (seed-empty + refresh on `config:changed`) | ✅ committed | `8b2cecd` | 2026-06-02 |
-| C — Admin UI shell + competency text editor (BG review) | ☐ planned | — | — |
+| C1 — Competency-text composite editor (compose/decompose + tests) | ✅ committed | `b196a6d` | 2026-06-03 |
+| C2 — Admin sidebar section + screen shell (`hasRole("admin")` gating) | ☐ planned | — | — |
+| C3 — Competency text editor screen (BG review; switch-with-reference) | ☐ planned | — | — |
 | D — Archetype editor + assignment editor | ☐ planned | — | — |
 | E — Later editors (dictionary structure, role-families, …) | ☐ planned | — | — |
 
 > **Reorder note (2026-06-02):** the UI (former A8b) is deferred and built *with* the first concrete editor in Phase C, after Phase B registers competence's configs (so screens have real data). **UI implementation guidance:** the design concept in `.claude/competence-design-concept` is a portable React/CSS rendering of the *visual language only*; the implementation must follow the framework's real stack (HTMX + Alpine CSP + server-rendered fragments) and **use the existing competence screens/components as the reference**, reusing the established `.ti-*` primitives.
+
+> **Screen-location note (2026-06-03):** the "framework-heavy split" lands the reusable *machinery* in `@ti-engine/web-framework` — the config store, validation, composite-editor service, change notifier, and the admin-gated `/admin/config/*` JSON API, plus the front-end primitives the framework already ships (the `tiApplication.sendRequest` client, the `x-text-label` directive, and the sidebar/topbar/notification component factories). The admin **screens themselves live in `@ti-engine/competence`** as fragments + Alpine components that call that API, because that is where screens live in this codebase (even the sidebar/topbar are per-app fragment components; the framework ships component factories and the API, not whole screens). Promoting genuinely app-agnostic screen pieces (e.g. the language switch-with-reference field, history/restore, diff/conflict) up into the framework is a later refactor once a second consumer exists.
 
 Enables `Admin`-role users to edit application configuration through the UI, with every write validated and persisted server-side, full version history with restore, and an explicit export-to-git for durable/reviewable versioning.
 
