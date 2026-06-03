@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | In implementation — Phase C complete; Phase D (archetype editors) next |
+| **Status** | Phases A–D complete; Phase E (further editors) optional/as-needed |
 | **Created** | 2026-06-02 |
 | **Last updated** | 2026-06-03 |
 | **Owner** | Boris Kostadinov |
@@ -33,7 +33,9 @@ How this design landed in code — update as each step is committed (branch `cur
 | C1 — Competency-text composite editor (compose/decompose + tests) | ✅ committed | `b196a6d` | 2026-06-03 |
 | C2 — Admin Configuration landing + admin-gated nav (export + change feed/restore) | ✅ committed | `3d58f5c` | 2026-06-03 |
 | C3 — Competency text editor screen (BG review; switch-with-reference) | ✅ committed | `72f13b0` | 2026-06-03 |
-| D — Archetype editor + assignment editor | ☐ planned | — | — |
+| D1 — Relevancy composite editors (assignment + archetype) + referential-integrity validator | ✅ committed | `a756893` | 2026-06-03 |
+| D2 — Archetype assignment editor screen (dropdown + curve sparkline) | ✅ committed | `6d8f867` | 2026-06-03 |
+| D3 — Relevancy archetype (curve) editor screen (weights + name/desc; add/remove) | ✅ committed | `97906d5` | 2026-06-03 |
 | E — Later editors (dictionary structure, role-families, …) | ☐ planned | — | — |
 
 > **Reorder note (2026-06-02):** the UI (former A8b) is deferred and built *with* the first concrete editor in Phase C, after Phase B registers competence's configs (so screens have real data). **UI implementation guidance:** the design concept in `.claude/competence-design-concept` is a portable React/CSS rendering of the *visual language only*; the implementation must follow the framework's real stack (HTMX + Alpine CSP + server-rendered fragments) and **use the existing competence screens/components as the reference**, reusing the established `.ti-*` primitives.
@@ -41,6 +43,8 @@ How this design landed in code — update as each step is committed (branch `cur
 > **Screen-location note (2026-06-03):** the "framework-heavy split" lands the reusable *machinery* in `@ti-engine/web-framework` — the config store, validation, composite-editor service, change notifier, and the admin-gated `/admin/config/*` JSON API, plus the front-end primitives the framework already ships (the `tiApplication.sendRequest` client, the `x-text-label` directive, and the sidebar/topbar/notification component factories). The admin **screens themselves live in `@ti-engine/competence`** as fragments + Alpine components that call that API, because that is where screens live in this codebase (even the sidebar/topbar are per-app fragment components; the framework ships component factories and the API, not whole screens). Promoting genuinely app-agnostic screen pieces (e.g. the language switch-with-reference field, history/restore, diff/conflict) up into the framework is a later refactor once a second consumer exists.
 
 > **Labels liveness caveat (2026-06-03):** `competence-labels` is registered as an editable, versioned store document and the competency-text editor saves into it — so edits are persisted, validated, version-historied, and included in the export bundle. But unlike the five configs in `configuration-loader`'s `STORE_BACKED` map, **`competence-labels` is not store-backed at runtime**: the UI is served labels from the localization file loaded at boot, so saved edits do **not** hot-apply to the running app. The intended BG-review workflow is therefore: review/edit → save (stored + versioned) → **export bundle → commit to git → redeploy**. (In-flight evaluations are unaffected regardless, since competency texts are frozen into each evaluation snapshot.) Making label edits hot-apply — routing the served labels through the store/`config:changed` like the other configs — is a deferred follow-up (Phase E / a localization-source change).
+
+> **Relevancy editors liveness (2026-06-03):** by contrast, the Phase D **archetype assignment** (writes `competencies`) and **archetype weights** (writes `relevancy-archetypes`) *are* store-backed in `configuration-loader` — they refresh on `config:changed` and so apply to **future** evaluations immediately (existing evaluations keep their frozen snapshot). Only the archetype **name/description** (written to `competence-labels`) follow the labels-liveness caveat above. So curve calibration and re-assignment take effect live; their display names need the export→redeploy path.
 
 Enables `Admin`-role users to edit application configuration through the UI, with every write validated and persisted server-side, full version history with restore, and an explicit export-to-git for durable/reviewable versioning.
 
