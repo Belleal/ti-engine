@@ -12,9 +12,9 @@
  * integrity, baseline floor coverage, cap, content completeness, relevancy-archetype resolution).
  *
  * Each validator is `(value, context) => issue[] | Promise<issue[]>`, where `context.getConfig(key)` returns the
- * current (or pending, within the same edit) value of another **editable** document. **Read-only** siblings
- * (role families) and settings (the cap) are read from `configuration-loader` directly, since they are not editable
- * and so always reflect the live state.
+ * current (or pending, within the same edit) value of another editable document — every cross-document reference is
+ * read this way so that a single change-set sees its own pending values. The cap is a runtime setting (not a
+ * registered editable document) and is the only sibling still read from `configuration-loader` directly.
  *
  * @module config-validators
  */
@@ -48,7 +48,7 @@ async function competenciesArchetypeResolves( value, context ) {
 async function activeSetsReferenceIntegrity( value, context ) {
     const issues = [];
     const dictionary = ( ( await context.getConfig( "competencies" ) ) || {} ).competencies || {};
-    const roleFamilies = configurationLoader.configRoleFamilies || {};
+    const roleFamilies = ( await context.getConfig( "role-families" ) ) || {};
     for ( const [ family, familyEntry ] of Object.entries( value || {} ) ) {
         const validSpecs = new Set( Object.keys( roleFamilies[ family ]?.specializations || {} ) );
         for ( const [ key, cycleMap ] of Object.entries( familyEntry || {} ) ) {
@@ -140,9 +140,11 @@ async function archetypesReferentialIntegrity( value, context ) {
 /**
  * role-families: a role family or specialization may only be removed when nothing references it — neither an active
  * competency set nor an employee. Active-set references are read from config (cross-document context); employee
- * references are read from the data layer (async, defensive: if the data layer is unavailable — e.g. outside the
- * running service — the employee check is skipped so config-only validation still works). Issues are de-duplicated by
- * path so a family used by many employees is reported once.
+ * references are read from the data layer. The employee check fails closed: when the data layer is genuinely absent
+ * (e.g. outside the running service) {@link fetchEmployeesForValidation} returns [] and the check is skipped so
+ * config-only validation still works, but a genuine fetch failure (e.g. a transient cache error) is reported as a
+ * blocking issue rather than silently allowing a possibly orphaning removal. Issues are de-duplicated by path so a
+ * family used by many employees is reported once.
  */
 async function roleFamiliesReferentialIntegrity( value, context ) {
     const issues = [];
@@ -167,6 +169,10 @@ async function roleFamiliesReferentialIntegrity( value, context ) {
     try {
         employees = ( await module.exports.fetchEmployeesForValidation() ) || [];
     } catch {
+        // Fail closed: employee references could not be verified, so refuse the removal rather than risk orphaning
+        // employee records. fetchEmployeesForValidation returns [] without throwing when the data layer is simply
+        // absent, so reaching here means a genuine fetch failure against an operational data layer.
+        issues.push( { path: ".", message: "employee references could not be verified against the data layer; the change was rejected to avoid orphaning employee records — retry once the data layer is reachable", code: "reference-integrity" } );
         employees = [];
     }
     for ( const employee of employees ) {
@@ -193,37 +199,72 @@ async function roleFamiliesReferentialIntegrity( value, context ) {
 }
 
 /**
- * competence-labels: every competency in the dictionary has complete, non-empty en+bg name, description, and the six
- * scope anchors. This is the content-integrity guard that protects edits made through the translation editor.
+ * competence-labels: the content-integrity guard for every editable entity that stores its display text in the labels
+ * document. Each must carry complete, non-empty en+bg text: every competency (name, description, and the six scope
+ * anchors), every relevancy archetype (name, description), and every role family and specialization (name,
+ * description). This protects edits made through the translation editor as well as the archetype and role-families
+ * editors, both of which can add entities whose text would otherwise be left blank.
  */
 async function labelsContentComplete( value, context ) {
     const issues = [];
+    const requireBilingual = ( leaf, path, message ) => {
+        if ( !leaf || !nonEmpty( leaf.en ) || !nonEmpty( leaf.bg ) ) issues.push( { path: path, message: message, code: "content" } );
+    };
+
     const dictionary = ( ( await context.getConfig( "competencies" ) ) || {} ).competencies || {};
-    const labels = ( value && value.competency ) || {};
+    const competencyLabels = ( value && value.competency ) || {};
     for ( const code of Object.keys( dictionary ) ) {
-        const name = labels.name && labels.name[ code ];
-        if ( !name || !nonEmpty( name.en ) || !nonEmpty( name.bg ) ) issues.push( { path: `.competency.name.${ code }`, message: "empty en/bg name", code: "content" } );
-        const description = labels.description && labels.description[ code ];
-        if ( !description || !nonEmpty( description.en ) || !nonEmpty( description.bg ) ) issues.push( { path: `.competency.description.${ code }`, message: "empty en/bg description", code: "content" } );
-        const scope = ( labels.scope && labels.scope[ code ] ) || {};
+        requireBilingual( competencyLabels.name && competencyLabels.name[ code ], `.competency.name.${ code }`, "empty en/bg name" );
+        requireBilingual( competencyLabels.description && competencyLabels.description[ code ], `.competency.description.${ code }`, "empty en/bg description" );
+        const scope = ( competencyLabels.scope && competencyLabels.scope[ code ] ) || {};
         for ( const level of SCOPE_LEVELS ) {
-            const entry = scope[ level ];
-            if ( !entry || !nonEmpty( entry.en ) || !nonEmpty( entry.bg ) ) issues.push( { path: `.competency.scope.${ code }.${ level }`, message: `empty en/bg scope.${ level }`, code: "content" } );
+            requireBilingual( scope[ level ], `.competency.scope.${ code }.${ level }`, `empty en/bg scope.${ level }` );
         }
     }
+
+    const archetypes = ( await context.getConfig( "relevancy-archetypes" ) ) || {};
+    const archetypeLabels = ( value && value[ "relevancy-archetype" ] ) || {};
+    for ( const id of Object.keys( archetypes ) ) {
+        requireBilingual( archetypeLabels.name && archetypeLabels.name[ id ], `.relevancy-archetype.name.${ id }`, "empty en/bg name" );
+        requireBilingual( archetypeLabels.description && archetypeLabels.description[ id ], `.relevancy-archetype.description.${ id }`, "empty en/bg description" );
+    }
+
+    const roleFamilies = ( await context.getConfig( "role-families" ) ) || {};
+    const roleFamilyLabels = ( value && value[ "role-family" ] ) || {};
+    for ( const familyCode of Object.keys( roleFamilies ) ) {
+        requireBilingual( roleFamilyLabels.name && roleFamilyLabels.name[ familyCode ], `.role-family.name.${ familyCode }`, "empty en/bg name" );
+        requireBilingual( roleFamilyLabels.description && roleFamilyLabels.description[ familyCode ], `.role-family.description.${ familyCode }`, "empty en/bg description" );
+        const specs = ( roleFamilies[ familyCode ] && roleFamilies[ familyCode ].specializations ) || {};
+        const specLabels = ( roleFamilyLabels[ familyCode ] && roleFamilyLabels[ familyCode ].specialization ) || {};
+        for ( const specCode of Object.keys( specs ) ) {
+            requireBilingual( specLabels.name && specLabels.name[ specCode ], `.role-family.${ familyCode }.specialization.name.${ specCode }`, "empty en/bg name" );
+            requireBilingual( specLabels.description && specLabels.description[ specCode ], `.role-family.${ familyCode }.specialization.description.${ specCode }`, "empty en/bg description" );
+        }
+    }
+
     return issues;
 }
 
 /**
  * Employee source for {@link roleFamiliesReferentialIntegrity}, isolated as a seam so it can be overridden in tests
- * (the data-manager singleton is frozen and cannot be stubbed directly). Returns [] if the data layer is unavailable.
+ * (the data-manager singleton is frozen and cannot be stubbed directly). Returns [] when the data layer is absent
+ * (e.g. outside the running service); a genuine fetch failure is allowed to propagate so the caller can fail closed.
  *
  * @method
  * @returns {Promise<Array<Object>>}
  * @public
  */
 async function fetchEmployeesForValidation() {
-    return ( await require( "#data-manager" ).instance.fetchEmployees() ) || [];
+    let dataManager;
+    try {
+        dataManager = require( "#data-manager" ).instance;
+    } catch {
+        return [];
+    }
+    if ( !dataManager || typeof dataManager.fetchEmployees !== "function" ) {
+        return [];
+    }
+    return ( await dataManager.fetchEmployees() ) || [];
 }
 
 module.exports = {

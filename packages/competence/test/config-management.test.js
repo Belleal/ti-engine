@@ -56,6 +56,25 @@ describe( "config-validators (competence semantic validators)", () => {
         assert.ok( issues.some( ( i ) => i.path === ".competency.name.E1-1" ) );
     } );
 
+    it( "labelsContentComplete requires bilingual name and description for archetypes and specializations", async () => {
+        const cfgCtx = ctx( {
+            competencies: { competencies: {} },
+            "relevancy-archetypes": { A: { weights: {} } },
+            "role-families": { SE: { specializations: { BACKEND: {} } } }
+        } );
+
+        const empties = await validators.labelsContentComplete( {}, cfgCtx );
+        for ( const path of [ ".relevancy-archetype.name.A", ".relevancy-archetype.description.A", ".role-family.name.SE", ".role-family.description.SE", ".role-family.SE.specialization.name.BACKEND", ".role-family.SE.specialization.description.BACKEND" ] ) {
+            assert.ok( empties.some( ( i ) => i.path === path ), `${ path } flagged` );
+        }
+
+        const populated = {
+            "relevancy-archetype": { name: { A: t() }, description: { A: t() } },
+            "role-family": { name: { SE: t() }, description: { SE: t() }, SE: { specialization: { name: { BACKEND: t() }, description: { BACKEND: t() } } } }
+        };
+        assert.deepEqual( await validators.labelsContentComplete( populated, cfgCtx ), [] );
+    } );
+
     it( "archetypesReferentialIntegrity flags an assigned archetype removed from the curves", async () => {
         const value = { A: { weights: {} } }; // B is gone
         const issues = await validators.archetypesReferentialIntegrity( value, ctx( { competencies: { competencies: { "E1-1": { relevancyArchetype: "A" }, "E1-2": { relevancyArchetype: "B" } } } } ) );
@@ -72,6 +91,18 @@ describe( "config-validators (competence semantic validators)", () => {
             assert.ok( issues.some( ( i ) => i.path.includes( "FRONTEND" ) ), "active-set specialization reference flagged" );
             assert.ok( issues.some( ( i ) => i.path === ".QE" ), "active-set family reference flagged" );
             assert.ok( issues.some( ( i ) => i.path.includes( "EMBEDDED" ) ), "employee specialization reference flagged" );
+        } finally {
+            validators.fetchEmployeesForValidation = original;
+        }
+    } );
+
+    it( "roleFamiliesReferentialIntegrity fails closed when employees cannot be fetched", async () => {
+        const original = validators.fetchEmployeesForValidation;
+        validators.fetchEmployeesForValidation = () => Promise.reject( new Error( "data layer unavailable" ) );
+        try {
+            const value = { SE: { specializations: { BACKEND: {} } } };
+            const issues = await validators.roleFamiliesReferentialIntegrity( value, ctx( { "active-competency-sets": {} } ) );
+            assert.ok( issues.some( ( i ) => i.path === "." && i.code === "reference-integrity" ), "save is blocked when employee references cannot be verified" );
         } finally {
             validators.fetchEmployeesForValidation = original;
         }
