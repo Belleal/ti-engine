@@ -120,6 +120,24 @@ function activeSetsCap( value ) {
 }
 
 /**
+ * relevancy-archetypes: every archetype currently assigned to a competency must still exist after the edit — the
+ * mirror of competenciesArchetypeResolves, enforced from the archetypes side so removing/renaming an archetype that is
+ * still in use (in the dictionary) is rejected. This is the "remove only when unassigned" guard.
+ */
+async function archetypesReferentialIntegrity( value, context ) {
+    const issues = [];
+    const archetypes = value || {};
+    const competencies = ( ( await context.getConfig( "competencies" ) ) || {} ).competencies || {};
+    for ( const [ code, competency ] of Object.entries( competencies ) ) {
+        const id = competency && competency.relevancyArchetype;
+        if ( id && !archetypes[ id ] ) {
+            issues.push( { path: `.${ id }`, message: `archetype '${ id }' is still assigned to competency '${ code }' and cannot be removed`, code: "reference-integrity" } );
+        }
+    }
+    return issues;
+}
+
+/**
  * competence-labels: every competency in the dictionary has complete, non-empty en+bg name, description, and the six
  * scope anchors. This is the content-integrity guard that protects edits made through the translation editor.
  */
@@ -146,5 +164,6 @@ module.exports = {
     activeSetsReferenceIntegrity,
     activeSetsFloorCoverage,
     activeSetsCap,
+    archetypesReferentialIntegrity,
     labelsContentComplete
 };

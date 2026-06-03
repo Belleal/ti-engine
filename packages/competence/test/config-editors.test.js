@@ -8,7 +8,43 @@
 
 const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
-const { SCOPE_LEVELS, composeCompetencyText, decomposeCompetencyText, competencyTextEditor, registerCompetenceEditors } = require( "../application/config-editors" );
+const {
+    SCOPE_LEVELS, ARCHETYPE_STAGE_LEVELS,
+    composeCompetencyText, decomposeCompetencyText,
+    composeArchetypeAssignment, decomposeArchetypeAssignment,
+    composeRelevancyArchetype, decomposeRelevancyArchetype,
+    competencyTextEditor, registerCompetenceEditors
+} = require( "../application/config-editors" );
+
+const weights12 = ( n ) => {
+    const out = {};
+    ARCHETYPE_STAGE_LEVELS.forEach( ( level ) => { out[ level ] = n; } );
+    return out;
+};
+
+// Fixture for the relevancy editors: competencies carry archetype assignments; two archetypes with curves + labels.
+const archetypeFixture = () => ( {
+    competencies: {
+        categories: { E: { subcategories: { E1: {} } }, C: { subcategories: { C1: {} } } },
+        competencies: {
+            "E1-1": { category: "E", subcategory: "E1", relevancyArchetype: "A" },
+            "E1-2": { category: "E", subcategory: "E1", relevancyArchetype: "B" },
+            "C1-1": { category: "C", subcategory: "C1", relevancyArchetype: "A" }
+        }
+    },
+    "relevancy-archetypes": {
+        A: { weights: weights12( 6 ) },
+        B: { weights: weights12( 3 ) }
+    },
+    "competence-labels": {
+        category: { name: { E: { en: "Expertise", bg: "Е" }, C: { en: "Commitment", bg: "Ц" } }, sub: { name: { E1: { en: "Theory", bg: "Т" } } } },
+        competency: { name: { "E1-1": { en: "a", bg: "а" }, "E1-2": { en: "b", bg: "б" }, "C1-1": { en: "c", bg: "ц" } } },
+        "relevancy-archetype": {
+            name: { A: { en: "Alpha", bg: "Алфа" }, B: { en: "Beta", bg: "Бета" } },
+            description: { A: { en: "da", bg: "да" }, B: { en: "db", bg: "дб" } }
+        }
+    }
+} );
 
 // A small fixture: categories in canonical order E then C; competencies deliberately out of order; one competency
 // (E1-1) has full scope labels, the others omit scope to exercise empty-pair / preservation behaviour.
@@ -145,6 +181,84 @@ describe( "config-editors — round-trip & registration", () => {
         assert.equal( typeof registered[ "competency-text" ].compose, "function" );
         assert.equal( typeof registered[ "competency-text" ].decompose, "function" );
         assert.deepEqual( competencyTextEditor.metadata.writes, [ "competence-labels" ] );
+    } );
+
+} );
+
+describe( "config-editors — composeArchetypeAssignment / decomposeArchetypeAssignment", () => {
+
+    it( "projects each competency's archetype plus the archetype catalogue", () => {
+        const view = composeArchetypeAssignment( archetypeFixture() );
+        assert.deepEqual( view.rows.map( ( r ) => r.code ), [ "E1-1", "E1-2", "C1-1" ] );
+        const e11 = view.rows.find( ( r ) => r.code === "E1-1" );
+        assert.equal( e11.relevancyArchetype, "A" );
+        assert.deepEqual( e11.name, { en: "a", bg: "а" } );
+        assert.deepEqual( view.archetypes.map( ( a ) => a.id ), [ "A", "B" ] );
+        assert.equal( view.archetypes[ 0 ].weights.N1, 6 );
+        assert.deepEqual( view.archetypes[ 0 ].name, { en: "Alpha", bg: "Алфа" } );
+    } );
+
+    it( "writes only the dictionary, updating relevancyArchetype and preserving the rest", () => {
+        const docs = archetypeFixture();
+        const result = decomposeArchetypeAssignment( [ { code: "E1-1", relevancyArchetype: "B" } ], docs );
+        assert.deepEqual( Object.keys( result ), [ "competencies" ] );
+        assert.equal( result.competencies.competencies[ "E1-1" ].relevancyArchetype, "B" );
+        assert.equal( result.competencies.competencies[ "E1-1" ].category, "E", "other competency fields preserved" );
+        assert.equal( result.competencies.competencies[ "C1-1" ].relevancyArchetype, "A", "other competency untouched" );
+    } );
+
+    it( "ignores unknown codes and blank assignments, and does not mutate the input", () => {
+        const docs = archetypeFixture();
+        const result = decomposeArchetypeAssignment( [ { code: "NOPE", relevancyArchetype: "B" }, { code: "E1-2", relevancyArchetype: "" } ], docs );
+        assert.equal( result.competencies.competencies[ "NOPE" ], undefined );
+        assert.equal( result.competencies.competencies[ "E1-2" ].relevancyArchetype, "B", "blank assignment does not clear the existing value" );
+        assert.equal( docs.competencies.competencies[ "E1-1" ].relevancyArchetype, "A", "input not mutated" );
+    } );
+
+} );
+
+describe( "config-editors — composeRelevancyArchetype / decomposeRelevancyArchetype", () => {
+
+    it( "projects curves with bilingual name/description, twelve weights, and assignment counts", () => {
+        const view = composeRelevancyArchetype( archetypeFixture() );
+        assert.deepEqual( view.stageLevels, ARCHETYPE_STAGE_LEVELS );
+        const a = view.rows.find( ( r ) => r.id === "A" );
+        assert.deepEqual( a.name, { en: "Alpha", bg: "Алфа" } );
+        assert.equal( Object.keys( a.weights ).length, 12 );
+        assert.equal( a.weights.T1, 6 );
+        assert.equal( a.assignedCount, 2, "A is assigned to E1-1 and C1-1" );
+        assert.equal( view.rows.find( ( r ) => r.id === "B" ).assignedCount, 1 );
+    } );
+
+    it( "writes archetypes + labels; supports edit, add, remove-by-omission, and integer coercion", () => {
+        const docs = archetypeFixture();
+        const editedRows = [
+            { id: "A", name: { en: "Alpha+", bg: "Алфа+" }, description: { en: "da", bg: "да" }, weights: Object.assign( weights12( 7 ), { N1: "8" } ) },
+            { id: "Z", name: { en: "Zeta", bg: "Зета" }, description: { en: "dz", bg: "дз" }, weights: weights12( 5 ) }
+        ];
+        const result = decomposeRelevancyArchetype( { rows: editedRows }, docs );
+        assert.deepEqual( Object.keys( result ).sort(), [ "competence-labels", "relevancy-archetypes" ] );
+
+        const arch = result[ "relevancy-archetypes" ];
+        assert.deepEqual( Object.keys( arch ).sort(), [ "A", "Z" ], "B removed by omission; Z added" );
+        assert.equal( arch.A.weights.N1, 8, "string weight coerced to integer" );
+        assert.equal( arch.A.weights.J1, 7 );
+
+        const labels = result[ "competence-labels" ];
+        assert.deepEqual( labels[ "relevancy-archetype" ].name.A, { en: "Alpha+", bg: "Алфа+" } );
+        assert.ok( labels[ "relevancy-archetype" ].name.Z, "new archetype label added" );
+        assert.equal( labels[ "relevancy-archetype" ].name.B, undefined, "removed archetype label pruned" );
+        assert.equal( labels[ "relevancy-archetype" ].description.B, undefined, "removed archetype description pruned" );
+        assert.deepEqual( labels.competency.name[ "E1-1" ], { en: "a", bg: "а" }, "competency labels preserved" );
+    } );
+
+    it( "registers all three competence editors", () => {
+        const editors = {};
+        const stubApp = { registerConfigEditor( key, definition ) { editors[ key ] = definition; return this; } };
+        registerCompetenceEditors( stubApp );
+        assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "relevancy-archetype" ] );
+        assert.deepEqual( editors[ "archetype-assignment" ].metadata.writes, [ "competencies" ] );
+        assert.deepEqual( editors[ "relevancy-archetype" ].metadata.writes, [ "relevancy-archetypes", "competence-labels" ] );
     } );
 
 } );

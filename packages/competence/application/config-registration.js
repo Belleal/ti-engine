@@ -55,7 +55,7 @@ function registerCompetenceConfig( app ) {
     } );
     app.registerConfigDocument( "relevancy-archetypes", {
         schema: relevancyArchetypesSchema,
-        validators: [],
+        validators: [ validators.archetypesReferentialIntegrity ],
         defaultValue: configurationLoader.configRelevancyArchetypes,
         metadata: { path: "bin/config/config.relevancy-archetypes.json", label: "relevancy.archetypes", editable: true }
     } );

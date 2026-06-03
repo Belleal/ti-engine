@@ -56,6 +56,13 @@ describe( "config-validators (competence semantic validators)", () => {
         assert.ok( issues.some( ( i ) => i.path === ".competency.name.E1-1" ) );
     } );
 
+    it( "archetypesReferentialIntegrity flags an assigned archetype removed from the curves", async () => {
+        const value = { A: { weights: {} } }; // B is gone
+        const issues = await validators.archetypesReferentialIntegrity( value, ctx( { competencies: { competencies: { "E1-1": { relevancyArchetype: "A" }, "E1-2": { relevancyArchetype: "B" } } } } ) );
+        assert.equal( issues.length, 1 );
+        assert.ok( issues[ 0 ].message.includes( "B" ) && issues[ 0 ].message.includes( "E1-2" ) );
+    } );
+
 } );
 
 describe( "config-registration (competence)", () => {
@@ -73,8 +80,9 @@ describe( "config-registration (competence)", () => {
             Object.keys( registered ).sort(),
             [ "active-competency-sets", "competence-labels", "competencies", "relevancy-archetypes", "role-families", "stage-levels" ]
         );
-        assert.ok( editors[ "competency-text" ], "registers the competency-text composite editor" );
+        assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "relevancy-archetype" ] );
         assert.deepEqual( editors[ "competency-text" ].documents, [ "competencies", "competence-labels" ] );
+        assert.ok( registered[ "relevancy-archetypes" ].validators.length >= 1, "relevancy-archetypes carries the referential-integrity validator" );
         assert.equal( registered.competencies.metadata.editable, true );
         assert.equal( registered[ "role-families" ].metadata.editable, false );
         assert.ok( registered[ "active-competency-sets" ].validators.length >= 3 );
