@@ -13,6 +13,7 @@ const {
     composeCompetencyText, decomposeCompetencyText,
     composeArchetypeAssignment, decomposeArchetypeAssignment,
     composeRelevancyArchetype, decomposeRelevancyArchetype,
+    composeRoleFamilies, decomposeRoleFamilies,
     competencyTextEditor, registerCompetenceEditors
 } = require( "../application/config-editors" );
 
@@ -252,13 +253,95 @@ describe( "config-editors — composeRelevancyArchetype / decomposeRelevancyArch
         assert.deepEqual( labels.competency.name[ "E1-1" ], { en: "a", bg: "а" }, "competency labels preserved" );
     } );
 
-    it( "registers all three competence editors", () => {
+    it( "registers all competence editors", () => {
         const editors = {};
         const stubApp = { registerConfigEditor( key, definition ) { editors[ key ] = definition; return this; } };
         registerCompetenceEditors( stubApp );
-        assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "relevancy-archetype" ] );
+        assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "relevancy-archetype", "role-families" ] );
         assert.deepEqual( editors[ "archetype-assignment" ].metadata.writes, [ "competencies" ] );
         assert.deepEqual( editors[ "relevancy-archetype" ].metadata.writes, [ "relevancy-archetypes", "competence-labels" ] );
+        assert.deepEqual( editors[ "role-families" ].metadata.writes, [ "role-families", "competence-labels" ] );
+    } );
+
+} );
+
+// Fixture for the role-families editor: one family with two specializations; BACKEND used by two active-set cycles.
+const roleFamilyFixture = () => ( {
+    "role-families": {
+        SE: {
+            name: "role-family.name.SE",
+            description: "role-family.description.SE",
+            specializations: {
+                BACKEND: { name: "role-family.SE.specialization.name.BACKEND", description: "role-family.SE.specialization.description.BACKEND", eCFMapping: [ { competence: "A.1", level: "e-3" } ] },
+                FRONTEND: { name: "role-family.SE.specialization.name.FRONTEND", description: "role-family.SE.specialization.description.FRONTEND", eCFMapping: [] }
+            }
+        }
+    },
+    "competence-labels": {
+        "role-family": {
+            name: { SE: { en: "Software Engineering", bg: "Софтуерно инженерство" } },
+            description: { SE: { en: "Builds software", bg: "Изгражда софтуер" } },
+            SE: {
+                specialization: {
+                    name: { BACKEND: { en: "Backend", bg: "Бекенд" }, FRONTEND: { en: "Frontend", bg: "Фронтенд" } },
+                    description: { BACKEND: { en: "Server-side", bg: "Сървърна страна" }, FRONTEND: { en: "Client-side", bg: "Клиентска страна" } }
+                }
+            }
+        }
+    },
+    "active-competency-sets": {
+        SE: { baseline: { "2026-H2": [] }, BACKEND: { "2026-H2": [], "2027-H1": [] } }
+    }
+} );
+
+describe( "config-editors — composeRoleFamilies / decomposeRoleFamilies", () => {
+
+    it( "projects families with bilingual text, specializations, eCFMapping, and active-set usage", () => {
+        const view = composeRoleFamilies( roleFamilyFixture() );
+        const se = view.families.find( ( f ) => f.code === "SE" );
+        assert.deepEqual( se.name, { en: "Software Engineering", bg: "Софтуерно инженерство" } );
+        assert.deepEqual( se.specializations.map( ( s ) => s.code ), [ "BACKEND", "FRONTEND" ] );
+        const backend = se.specializations.find( ( s ) => s.code === "BACKEND" );
+        assert.deepEqual( backend.name, { en: "Backend", bg: "Бекенд" } );
+        assert.equal( backend.activeSetUse, 2, "BACKEND used by two active-set cycles" );
+        assert.deepEqual( backend.eCFMapping, [ { competence: "A.1", level: "e-3" } ] );
+        assert.equal( se.specializations.find( ( s ) => s.code === "FRONTEND" ).activeSetUse, 0 );
+    } );
+
+    it( "writes role-families + labels; adds/removes specs, preserves eCFMapping and templated key refs", () => {
+        const docs = roleFamilyFixture();
+        const edited = [ {
+            code: "SE",
+            name: { en: "Software Engineering", bg: "СИ-ново" },
+            description: { en: "Builds software", bg: "Изгражда софтуер" },
+            specializations: [
+                { code: "BACKEND", name: { en: "Backend", bg: "Бекенд" }, description: { en: "Server-side", bg: "Сървърна страна" } },
+                { code: "MOBILE", name: { en: "Mobile", bg: "Мобилни" }, description: { en: "Apps", bg: "Приложения" } }
+            ]
+        } ];
+        const result = decomposeRoleFamilies( { families: edited }, docs );
+        assert.deepEqual( Object.keys( result ).sort(), [ "competence-labels", "role-families" ] );
+
+        const se = result[ "role-families" ].SE;
+        assert.deepEqual( Object.keys( se.specializations ).sort(), [ "BACKEND", "MOBILE" ], "FRONTEND removed; MOBILE added" );
+        assert.equal( se.name, "role-family.name.SE", "family name stays a templated key ref" );
+        assert.deepEqual( se.specializations.BACKEND.eCFMapping, [ { competence: "A.1", level: "e-3" } ], "eCFMapping preserved" );
+        assert.equal( se.specializations.MOBILE.name, "role-family.SE.specialization.name.MOBILE", "new spec gets a templated key ref" );
+        assert.deepEqual( se.specializations.MOBILE.eCFMapping, [], "new spec gets empty eCFMapping" );
+
+        const labels = result[ "competence-labels" ][ "role-family" ];
+        assert.deepEqual( labels.name.SE, { en: "Software Engineering", bg: "СИ-ново" }, "family text updated in labels" );
+        assert.deepEqual( labels.SE.specialization.name.MOBILE, { en: "Mobile", bg: "Мобилни" } );
+        assert.equal( labels.SE.specialization.name.FRONTEND, undefined, "removed spec label pruned" );
+        assert.equal( labels.SE.specialization.description.FRONTEND, undefined );
+    } );
+
+    it( "ignores unknown family codes and does not mutate the input", () => {
+        const docs = roleFamilyFixture();
+        const result = decomposeRoleFamilies( [ { code: "ZZ", name: { en: "x", bg: "х" }, specializations: [] } ], docs );
+        assert.equal( result[ "role-families" ].ZZ, undefined, "unknown family ignored" );
+        assert.ok( result[ "role-families" ].SE.specializations.FRONTEND, "existing family untouched" );
+        assert.ok( docs[ "role-families" ].SE.specializations.FRONTEND, "input not mutated" );
     } );
 
 } );

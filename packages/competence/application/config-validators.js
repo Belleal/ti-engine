@@ -138,6 +138,61 @@ async function archetypesReferentialIntegrity( value, context ) {
 }
 
 /**
+ * role-families: a role family or specialization may only be removed when nothing references it — neither an active
+ * competency set nor an employee. Active-set references are read from config (cross-document context); employee
+ * references are read from the data layer (async, defensive: if the data layer is unavailable — e.g. outside the
+ * running service — the employee check is skipped so config-only validation still works). Issues are de-duplicated by
+ * path so a family used by many employees is reported once.
+ */
+async function roleFamiliesReferentialIntegrity( value, context ) {
+    const issues = [];
+    const families = value || {};
+
+    const activeSets = ( await context.getConfig( "active-competency-sets" ) ) || {};
+    for ( const [ familyCode, familyEntry ] of Object.entries( activeSets ) ) {
+        const family = families[ familyCode ];
+        if ( !family ) {
+            issues.push( { path: `.${ familyCode }`, message: `role family '${ familyCode }' is referenced by active competency sets and cannot be removed`, code: "reference-integrity" } );
+            continue;
+        }
+        const specs = family.specializations || {};
+        for ( const key of Object.keys( familyEntry || {} ) ) {
+            if ( key !== "baseline" && !specs[ key ] ) {
+                issues.push( { path: `.${ familyCode }.specializations.${ key }`, message: `specialization '${ familyCode }.${ key }' is referenced by active competency sets and cannot be removed`, code: "reference-integrity" } );
+            }
+        }
+    }
+
+    let employees = [];
+    try {
+        employees = ( await module.exports.fetchEmployeesForValidation() ) || [];
+    } catch {
+        employees = [];
+    }
+    for ( const employee of employees ) {
+        const career = employee && employee.career;
+        if ( !career || !career.roleFamily ) {
+            continue;
+        }
+        const family = families[ career.roleFamily ];
+        if ( !family ) {
+            issues.push( { path: `.${ career.roleFamily }`, message: `role family '${ career.roleFamily }' is assigned to an employee and cannot be removed`, code: "reference-integrity" } );
+        } else if ( career.specialization && !( family.specializations || {} )[ career.specialization ] ) {
+            issues.push( { path: `.${ career.roleFamily }.specializations.${ career.specialization }`, message: `specialization '${ career.roleFamily }.${ career.specialization }' is assigned to an employee and cannot be removed`, code: "reference-integrity" } );
+        }
+    }
+
+    const seen = {};
+    return issues.filter( ( issue ) => {
+        if ( seen[ issue.path ] ) {
+            return false;
+        }
+        seen[ issue.path ] = true;
+        return true;
+    } );
+}
+
+/**
  * competence-labels: every competency in the dictionary has complete, non-empty en+bg name, description, and the six
  * scope anchors. This is the content-integrity guard that protects edits made through the translation editor.
  */
@@ -159,11 +214,25 @@ async function labelsContentComplete( value, context ) {
     return issues;
 }
 
+/**
+ * Employee source for {@link roleFamiliesReferentialIntegrity}, isolated as a seam so it can be overridden in tests
+ * (the data-manager singleton is frozen and cannot be stubbed directly). Returns [] if the data layer is unavailable.
+ *
+ * @method
+ * @returns {Promise<Array<Object>>}
+ * @public
+ */
+async function fetchEmployeesForValidation() {
+    return ( await require( "#data-manager" ).instance.fetchEmployees() ) || [];
+}
+
 module.exports = {
     competenciesArchetypeResolves,
     activeSetsReferenceIntegrity,
     activeSetsFloorCoverage,
     activeSetsCap,
     archetypesReferentialIntegrity,
+    roleFamiliesReferentialIntegrity,
+    fetchEmployeesForValidation,
     labelsContentComplete
 };

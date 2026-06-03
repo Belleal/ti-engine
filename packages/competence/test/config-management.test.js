@@ -63,6 +63,20 @@ describe( "config-validators (competence semantic validators)", () => {
         assert.ok( issues[ 0 ].message.includes( "B" ) && issues[ 0 ].message.includes( "E1-2" ) );
     } );
 
+    it( "roleFamiliesReferentialIntegrity flags active-set and employee references to removed families/specs", async () => {
+        const original = validators.fetchEmployeesForValidation;
+        validators.fetchEmployeesForValidation = () => Promise.resolve( [ { career: { roleFamily: "SE", specialization: "EMBEDDED" } } ] );
+        try {
+            const value = { SE: { specializations: { BACKEND: {} } } }; // FRONTEND/EMBEDDED gone; QE gone
+            const issues = await validators.roleFamiliesReferentialIntegrity( value, ctx( { "active-competency-sets": { SE: { baseline: {}, FRONTEND: { "2026-H2": [] } }, QE: { baseline: {} } } } ) );
+            assert.ok( issues.some( ( i ) => i.path.includes( "FRONTEND" ) ), "active-set specialization reference flagged" );
+            assert.ok( issues.some( ( i ) => i.path === ".QE" ), "active-set family reference flagged" );
+            assert.ok( issues.some( ( i ) => i.path.includes( "EMBEDDED" ) ), "employee specialization reference flagged" );
+        } finally {
+            validators.fetchEmployeesForValidation = original;
+        }
+    } );
+
 } );
 
 describe( "config-registration (competence)", () => {
@@ -80,11 +94,12 @@ describe( "config-registration (competence)", () => {
             Object.keys( registered ).sort(),
             [ "active-competency-sets", "competence-labels", "competencies", "relevancy-archetypes", "role-families", "stage-levels" ]
         );
-        assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "relevancy-archetype" ] );
+        assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "relevancy-archetype", "role-families" ] );
         assert.deepEqual( editors[ "competency-text" ].documents, [ "competencies", "competence-labels" ] );
         assert.ok( registered[ "relevancy-archetypes" ].validators.length >= 1, "relevancy-archetypes carries the referential-integrity validator" );
+        assert.ok( registered[ "role-families" ].validators.length >= 1, "role-families carries the referential-integrity validator" );
         assert.equal( registered.competencies.metadata.editable, true );
-        assert.equal( registered[ "role-families" ].metadata.editable, false );
+        assert.equal( registered[ "role-families" ].metadata.editable, true );
         assert.ok( registered[ "active-competency-sets" ].validators.length >= 3 );
         assert.ok( registered.competencies.defaultValue && registered.competencies.defaultValue.competencies );
         assert.ok( registered[ "relevancy-archetypes" ].defaultValue && registered[ "relevancy-archetypes" ].defaultValue.A );

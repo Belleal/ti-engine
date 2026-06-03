@@ -12,9 +12,9 @@
  * {@link TiWebAppManager} registration API. Called during web-application initialization; the `/admin/config/*`
  * endpoints then serve these documents and editors.
  *
- * Editable in v1: the dictionary, its localization, the relevancy archetypes, and the active competency sets.
- * Structural configs (role families, stage levels) are registered read-only so semantic validators and the store can
- * resolve them, but are not exposed for editing.
+ * Editable: the dictionary, its localization, the relevancy archetypes, the active competency sets, and the role
+ * families (the nine disciplines are fixed by schema; their text and their specializations are editable). Stage levels
+ * stay read-only so semantic validators and the store can resolve them, but they are not exposed for editing.
  *
  * @module config-registration
  */
@@ -67,9 +67,9 @@ function registerCompetenceConfig( app ) {
     } );
     app.registerConfigDocument( "role-families", {
         schema: roleFamiliesSchema,
-        validators: [],
+        validators: [ validators.roleFamiliesReferentialIntegrity ],
         defaultValue: configurationLoader.configRoleFamilies,
-        metadata: { path: "bin/config/config.role-families.json", label: "role.families", editable: false }
+        metadata: { path: "bin/config/config.role-families.json", label: "role.families", editable: true }
     } );
     app.registerConfigDocument( "stage-levels", {
         schema: stageLevelsSchema,

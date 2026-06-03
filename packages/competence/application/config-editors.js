@@ -407,6 +407,136 @@ function decomposeRelevancyArchetype( editedView, docs ) {
 }
 
 /* ============================================================================
+ * role-families — disciplines (fixed) + their specializations (add/edit/remove)
+ * ========================================================================== */
+
+/**
+ * Projects the role families and their specializations: each family's bilingual name/description (text from the labels
+ * document; the config holds only templated label-key refs) and its specializations (code + bilingual name/description
+ * + eCFMapping + the number of active-competency-set cycles that reference the specialization, for the remove guard).
+ * The nine families are fixed by schema — only their text and their specializations are editable. **Writes the
+ * role-families config and the labels document.**
+ *
+ * @method
+ * @param {Object} docs `{ "role-families", "competence-labels", "active-competency-sets" }`
+ * @returns {{families: Array<Object>}}
+ * @public
+ */
+function composeRoleFamilies( docs ) {
+    const families = ( docs && docs[ "role-families" ] ) || {};
+    const labels = ( docs && docs[ "competence-labels" ] ) || {};
+    const activeSets = ( docs && docs[ "active-competency-sets" ] ) || {};
+    const rfLabels = labels[ "role-family" ] || {};
+    const familyNames = rfLabels.name || {};
+    const familyDescriptions = rfLabels.description || {};
+
+    const rows = Object.keys( families ).map( ( familyCode ) => {
+        const family = families[ familyCode ] || {};
+        const specs = family.specializations || {};
+        const specLabels = ( rfLabels[ familyCode ] && rfLabels[ familyCode ].specialization ) || {};
+        const specNames = specLabels.name || {};
+        const specDescriptions = specLabels.description || {};
+        const familyActiveSets = activeSets[ familyCode ] || {};
+
+        const specializations = Object.keys( specs ).map( ( specCode ) => {
+            const specActiveSets = familyActiveSets[ specCode ];
+            const activeSetUse = ( specActiveSets && typeof specActiveSets === "object" ) ? Object.keys( specActiveSets ).length : 0;
+            return {
+                code: specCode,
+                name: pair( specNames[ specCode ] ),
+                description: pair( specDescriptions[ specCode ] ),
+                eCFMapping: clone( ( specs[ specCode ] && specs[ specCode ].eCFMapping ) || [] ),
+                activeSetUse: activeSetUse
+            };
+        } );
+
+        return {
+            code: familyCode,
+            name: pair( familyNames[ familyCode ] ),
+            description: pair( familyDescriptions[ familyCode ] ),
+            specializations: specializations
+        };
+    } );
+
+    return { families: rows };
+}
+
+/**
+ * Rebuilds the role-families config and the role-family labels from the edited families. Family identities are fixed
+ * (unknown family codes are ignored, and a family's templated name/description key refs are preserved); per family, the
+ * submitted specializations are the **complete** set — new codes are added (with deterministic label-key refs +
+ * empty eCFMapping unless supplied), existing ones keep their eCFMapping, and omitted ones are removed (labels pruned).
+ * Removing a specialization still referenced by an active set or an employee is rejected by
+ * `roleFamiliesReferentialIntegrity`. **Writes the role-families config and the labels document.**
+ *
+ * @method
+ * @param {Array<Object>|{families: Array<Object>}} editedView families from {@link composeRoleFamilies}
+ * @param {Object} docs current `{ "role-families", "competence-labels" }`
+ * @returns {Object<string, Object>} `{ "role-families": newValue, "competence-labels": newValue }`
+ * @public
+ */
+function decomposeRoleFamilies( editedView, docs ) {
+    const rows = Array.isArray( editedView ) ? editedView : ( ( editedView && editedView.families ) || [] );
+    const families = clone( docs && docs[ "role-families" ] ) || {};
+    const labels = clone( docs && docs[ "competence-labels" ] ) || {};
+    labels[ "role-family" ] = labels[ "role-family" ] || {};
+    labels[ "role-family" ].name = labels[ "role-family" ].name || {};
+    labels[ "role-family" ].description = labels[ "role-family" ].description || {};
+
+    rows.forEach( ( row ) => {
+        if ( !row || !row.code ) {
+            return;
+        }
+        const familyCode = row.code;
+        const family = families[ familyCode ];
+        if ( !family ) {
+            return; // families are fixed by schema — ignore unknown codes.
+        }
+
+        // The family's config name/description stay as templated key refs; the editable text lives in the labels.
+        labels[ "role-family" ].name[ familyCode ] = mergeLeaf( row.name, labels[ "role-family" ].name[ familyCode ] );
+        labels[ "role-family" ].description[ familyCode ] = mergeLeaf( row.description, labels[ "role-family" ].description[ familyCode ] );
+
+        labels[ "role-family" ][ familyCode ] = labels[ "role-family" ][ familyCode ] || {};
+        labels[ "role-family" ][ familyCode ].specialization = labels[ "role-family" ][ familyCode ].specialization || {};
+        const specLabels = labels[ "role-family" ][ familyCode ].specialization;
+        specLabels.name = specLabels.name || {};
+        specLabels.description = specLabels.description || {};
+
+        const existingSpecs = family.specializations || {};
+        const newSpecs = {};
+        const keepSpecs = {};
+        ( Array.isArray( row.specializations ) ? row.specializations : [] ).forEach( ( spec ) => {
+            if ( !spec || !spec.code ) {
+                return;
+            }
+            const specCode = spec.code;
+            keepSpecs[ specCode ] = true;
+            const existing = existingSpecs[ specCode ] || {};
+            newSpecs[ specCode ] = {
+                name: "role-family." + familyCode + ".specialization.name." + specCode,
+                description: "role-family." + familyCode + ".specialization.description." + specCode,
+                eCFMapping: Array.isArray( spec.eCFMapping ) ? spec.eCFMapping : ( Array.isArray( existing.eCFMapping ) ? existing.eCFMapping : [] )
+            };
+            specLabels.name[ specCode ] = mergeLeaf( spec.name, specLabels.name[ specCode ] );
+            specLabels.description[ specCode ] = mergeLeaf( spec.description, specLabels.description[ specCode ] );
+        } );
+
+        [ "name", "description" ].forEach( ( section ) => {
+            Object.keys( specLabels[ section ] ).forEach( ( specCode ) => {
+                if ( !keepSpecs[ specCode ] ) {
+                    delete specLabels[ section ][ specCode ];
+                }
+            } );
+        } );
+
+        family.specializations = newSpecs;
+    } );
+
+    return { "role-families": families, "competence-labels": labels };
+}
+
+/* ============================================================================
  * Editor definitions + registration
  * ========================================================================== */
 
@@ -450,6 +580,19 @@ const relevancyArchetypeEditor = {
 };
 
 /**
+ * The `role-families` composite editor definition (disciplines + specializations; text in labels).
+ *
+ * @constant
+ * @type {Object}
+ */
+const roleFamiliesEditor = {
+    documents: [ "role-families", "competence-labels", "active-competency-sets" ],
+    compose: composeRoleFamilies,
+    decompose: decomposeRoleFamilies,
+    metadata: { label: "role.families", writes: [ "role-families", "competence-labels" ] }
+};
+
+/**
  * Registers competence's composite editors with the framework config service.
  *
  * @method
@@ -461,6 +604,7 @@ function registerCompetenceEditors( app ) {
     app.registerConfigEditor( "competency-text", competencyTextEditor );
     app.registerConfigEditor( "archetype-assignment", archetypeAssignmentEditor );
     app.registerConfigEditor( "relevancy-archetype", relevancyArchetypeEditor );
+    app.registerConfigEditor( "role-families", roleFamiliesEditor );
     return app;
 }
 
@@ -473,8 +617,11 @@ module.exports = {
     decomposeArchetypeAssignment,
     composeRelevancyArchetype,
     decomposeRelevancyArchetype,
+    composeRoleFamilies,
+    decomposeRoleFamilies,
     competencyTextEditor,
     archetypeAssignmentEditor,
     relevancyArchetypeEditor,
+    roleFamiliesEditor,
     registerCompetenceEditors
 };
