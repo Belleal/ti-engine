@@ -3945,3 +3945,329 @@
     gap: var(--s-2);
     margin-top: var(--s-2);
 }
+
+/* =============================================================
+   Admin · Competency text editor (frame-competency-text-editor.html)
+   ============================================================= */
+.competence-cte-pagehead {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    gap: var(--s-4);
+}
+
+.competence-cte-pagehead-aside {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+}
+
+/* Language switch — a compact segmented control (BG | EN) that sets the edit target language. */
+.competence-cte-langswitch {
+    display: inline-flex;
+    padding: 2px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--bg-sunken);
+}
+
+.competence-cte-langswitch-btn {
+    padding: var(--s-1, 4px) var(--s-3);
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--fg-secondary);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.competence-cte-langswitch-btn.is-active {
+    background: var(--accent);
+    color: #fff;
+}
+
+.competence-cte-shell {
+    display: grid;
+    grid-template-columns: minmax(280px, 360px) 1fr;
+    gap: var(--s-5);
+    align-items: start;
+}
+
+/* Left list pane — sticky beneath the topbar, scrolls independently of the editor. */
+.competence-cte-list-pane {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    position: sticky;
+    top: calc(var(--header-h, 64px) + var(--s-4));
+    max-height: calc(100vh - var(--header-h, 64px) - var(--s-7));
+}
+
+.competence-cte-list-head {
+    padding: var(--s-3);
+    border-bottom: 1px solid var(--border);
+}
+
+.competence-cte-search {
+    width: 100%;
+}
+
+.competence-cte-list {
+    overflow-y: auto;
+    padding: var(--s-2);
+}
+
+.competence-cte-list-empty {
+    padding: var(--s-4);
+    color: var(--fg-secondary);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.competence-cte-group + .competence-cte-group {
+    margin-top: var(--s-3);
+}
+
+.competence-cte-group-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: var(--s-2) var(--s-2) var(--s-1, 4px);
+}
+
+.competence-cte-group-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.competence-cte-subgroup {
+    margin: var(--s-1, 4px) 0 var(--s-2);
+}
+
+.competence-cte-subgroup-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: var(--s-1, 4px) var(--s-2);
+    color: var(--fg-secondary);
+    font-size: 0.8rem;
+}
+
+.competence-cte-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    width: 100%;
+    padding: var(--s-2);
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.competence-cte-row:hover {
+    background: var(--bg-sunken);
+}
+
+.competence-cte-row.is-selected {
+    background: color-mix(in oklab, var(--accent) 14%, transparent);
+}
+
+.competence-cte-row-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.competence-cte-row-dirty {
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--warn);
+}
+
+.competence-cte-editor-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+}
+
+.competence-cte-editor-pane {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: var(--s-5);
+}
+
+.competence-cte-editor {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+}
+
+.competence-cte-editor-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+    flex-wrap: wrap;
+    padding-bottom: var(--s-3);
+    border-bottom: 1px solid var(--border);
+}
+
+.competence-cte-editor-title {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    flex-wrap: wrap;
+}
+
+.competence-cte-editor-ctx {
+    color: var(--fg-secondary);
+    font-size: 0.9rem;
+}
+
+.competence-cte-editor-langhint {
+    color: var(--fg-secondary);
+    font-size: 0.85rem;
+}
+
+.competence-cte-editor-langhint strong {
+    color: var(--fg-primary);
+}
+
+.competence-cte-errors {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: var(--s-3) var(--s-4);
+    border: 1px solid var(--warn);
+    border-radius: var(--r-md);
+    background: color-mix(in oklab, var(--warn) 8%, transparent);
+}
+
+.competence-cte-errors-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-weight: 600;
+}
+
+.competence-cte-error-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-size: 0.85rem;
+}
+
+.competence-cte-error-msg {
+    color: var(--fg-secondary);
+}
+
+.competence-cte-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.competence-cte-textarea {
+    width: 100%;
+    min-height: 64px;
+    resize: vertical;
+    font: inherit;
+    line-height: 1.5;
+}
+
+/* Read-only reference (the other language) shown beneath each edit field. */
+.competence-cte-ref {
+    display: flex;
+    gap: var(--s-2);
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-sm);
+    background: var(--bg-sunken);
+    font-size: 0.85rem;
+}
+
+.competence-cte-ref-lang {
+    flex: 0 0 auto;
+    color: var(--fg-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    padding-top: 2px;
+}
+
+.competence-cte-ref-text {
+    color: var(--fg-secondary);
+    white-space: pre-wrap;
+}
+
+.competence-cte-scope {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+}
+
+.competence-cte-scope-row {
+    display: flex;
+    gap: var(--s-3);
+}
+
+.competence-cte-scope-tag {
+    flex: 0 0 auto;
+    margin-top: var(--s-2);
+}
+
+.competence-cte-scope-fields {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.competence-cte-actions-panel {
+    position: sticky;
+    bottom: var(--s-4);
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-5);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: 0 -4px 24px color-mix(in oklab, var(--fg-primary) 6%, transparent);
+}
+
+.competence-cte-actions-spacer {
+    flex: 1 1 auto;
+}
+
+.competence-cte-actions-state {
+    color: var(--fg-secondary);
+    font-size: 0.9rem;
+}
+
+@media (max-width: 1080px) {
+    .competence-cte-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .competence-cte-list-pane {
+        position: static;
+        max-height: 420px;
+    }
+}

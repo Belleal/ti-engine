@@ -5900,6 +5900,112 @@
       "not-authorized": {
         "en": "Administrator access required.",
         "bg": "Изисква се администраторски достъп."
+      },
+      "text-editor": {
+        "page-eyebrow": {
+          "en": "CONFIGURATION",
+          "bg": "КОНФИГУРАЦИЯ"
+        },
+        "page-title": {
+          "en": "Competency Texts",
+          "bg": "Текстове на компетенции"
+        },
+        "back": {
+          "en": "Back to configuration",
+          "bg": "Назад към конфигурацията"
+        },
+        "lang-switch-aria": {
+          "en": "Edit language",
+          "bg": "Език за редактиране"
+        },
+        "lang-bg-short": {
+          "en": "BG",
+          "bg": "BG"
+        },
+        "lang-en-short": {
+          "en": "EN",
+          "bg": "EN"
+        },
+        "lang-en": {
+          "en": "English",
+          "bg": "Английски"
+        },
+        "lang-bg": {
+          "en": "Bulgarian",
+          "bg": "Български"
+        },
+        "search-placeholder": {
+          "en": "Search competencies…",
+          "bg": "Търсене на компетенции…"
+        },
+        "no-results": {
+          "en": "No competencies match your search.",
+          "bg": "Няма компетенции, отговарящи на търсенето."
+        },
+        "no-selection-title": {
+          "en": "Select a competency",
+          "bg": "Изберете компетенция"
+        },
+        "no-selection-desc": {
+          "en": "Choose a competency from the list to review and edit its texts.",
+          "bg": "Изберете компетенция от списъка, за да прегледате и редактирате текстовете ѝ."
+        },
+        "editing-label": {
+          "en": "Editing",
+          "bg": "Редактиране на"
+        },
+        "errors-title": {
+          "en": "These changes could not be saved",
+          "bg": "Тези промени не можаха да бъдат запазени"
+        },
+        "field-name": {
+          "en": "Name",
+          "bg": "Име"
+        },
+        "field-description": {
+          "en": "Description",
+          "bg": "Описание"
+        },
+        "field-scope": {
+          "en": "Scope levels",
+          "bg": "Нива на обхват"
+        },
+        "unsaved-aria": {
+          "en": "Unsaved changes",
+          "bg": "Незапазени промени"
+        },
+        "dirty-one": {
+          "en": "{n} unsaved competency",
+          "bg": "{n} незапазена компетенция"
+        },
+        "dirty-many": {
+          "en": "{n} unsaved competencies",
+          "bg": "{n} незапазени компетенции"
+        },
+        "discard-btn": {
+          "en": "Discard",
+          "bg": "Отхвърли"
+        },
+        "save-btn": {
+          "en": "Save changes",
+          "bg": "Запази промените"
+        },
+        "save-note": {
+          "en": "Competency text edit",
+          "bg": "Редакция на текстове на компетенции"
+        },
+        "save-success": {
+          "en": "Competency texts saved.",
+          "bg": "Текстовете на компетенциите са запазени."
+        },
+        "save-invalid": {
+          "en": "Some changes are invalid — see the issues listed.",
+          "bg": "Някои промени са невалидни — вижте посочените проблеми."
+        },
+        "save-conflict": {
+          "en": "Configuration changed elsewhere — reloading the latest version.",
+          "bg": "Конфигурацията е променена другаде — презареждане на последната версия."
+        }
       }
     },
     "schedule": {

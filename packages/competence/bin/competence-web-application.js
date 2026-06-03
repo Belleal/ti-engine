@@ -72,6 +72,10 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "Configuration",
             path: "fragments/frame-admin-config.html"
         } );
+        this.addFragment( "competency-text-editor", {
+            title: "Competency Texts",
+            path: "fragments/frame-competency-text-editor.html"
+        } );
     }
 
     /* Public interface */

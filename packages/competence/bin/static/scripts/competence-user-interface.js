@@ -2876,6 +2876,368 @@ const configureAdminConfig = () => {
     };
 };
 
+/**
+ * Alpine component for the competency text editor (frame-competency-text-editor.html) — the bilingual BG-review
+ * screen. Loads the `competency-text` composite editor (rows + per-document versions) from the framework admin API,
+ * lists competencies grouped category -> subcategory, and edits each competency's name / description / six scope
+ * anchors with language switch-with-reference (edit one language while the other shows read-only). Saves only the
+ * changed rows through the composite editor (validate-all -> atomic, versioned change-set), surfacing validation
+ * issues and version conflicts. Admin-gated.
+ *
+ * Edit fields use `x-bind:value` + `@input` (not `x-model`) because the bound language is dynamic, and the Alpine CSP
+ * build does not allow computed member access in template expressions — the getter/setter methods do it in JS.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureCompetencyTextEditor = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    const EDITOR_KEY = "competency-text";
+    const SCOPE_LEVELS = [ "N", "J", "R", "S", "X", "T" ];
+
+    return {
+        loaded: false,
+        saving: false,
+        editLang: "bg",
+        rows: [],
+        versions: {},
+        groups: [],
+        rowsByCode: {},
+        selectedCode: null,
+        search: "",
+        dirtyCodes: {},
+        saveErrors: [],
+        scopeLevels: SCOPE_LEVELS,
+
+        init() {
+            const onInitialized = () => {
+                if ( !tiApplication.hasRole( "admin" ) ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.not-authorized", "Administrator access required." ) );
+                    tiApplication.openScreen( "dashboard" );
+                    return;
+                }
+                this.loadData();
+            };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        getLabel( key, fallback = "" ) {
+            return tiApplication.getLabel( key, fallback );
+        },
+
+        loadData() {
+            tiApplication.sendRequest( "/admin/config/editors/" + EDITOR_KEY ).then( ( result ) => {
+                const data = ( result && result.data ) || {};
+                this.rows = Array.isArray( data.rows ) ? tiToolbox.structuredClone( data.rows ) : [];
+                this.versions = data.versions ? tiToolbox.structuredClone( data.versions ) : {};
+                this.dirtyCodes = {};
+                this.saveErrors = [];
+                this.indexRows();
+                if ( this.selectedCode && !this.rowsByCode[ this.selectedCode ] ) {
+                    this.selectedCode = null;
+                }
+                this.loaded = true;
+            } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
+                this.loaded = true;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                const httpCode = error && error.exception && error.exception.httpCode;
+                if ( httpCode === 401 || httpCode === 403 ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
+        },
+
+        // Build the grouped list (category -> subcategory -> codes) and the code index from the flat rows. Re-run when
+        // the edit language changes so the list labels follow the active language.
+        indexRows() {
+            const byCode = {};
+            const groupMap = {};
+            const groupOrder = [];
+            this.rows.forEach( ( row ) => {
+                byCode[ row.code ] = row;
+                const category = row.category || "";
+                if ( !groupMap[ category ] ) {
+                    groupMap[ category ] = { category: category, categoryName: this.langText( row.categoryName ), subMap: {}, subOrder: [] };
+                    groupOrder.push( category );
+                }
+                const group = groupMap[ category ];
+                const subcategory = row.subcategory || "";
+                if ( !group.subMap[ subcategory ] ) {
+                    group.subMap[ subcategory ] = { subcategory: subcategory, subName: this.langText( row.subcategoryName ), codes: [] };
+                    group.subOrder.push( subcategory );
+                }
+                group.subMap[ subcategory ].codes.push( row.code );
+            } );
+            this.rowsByCode = byCode;
+            this.groups = groupOrder.map( ( category ) => {
+                const group = groupMap[ category ];
+                return { category: group.category, categoryName: group.categoryName, subs: group.subOrder.map( ( key ) => group.subMap[ key ] ) };
+            } );
+        },
+
+        langText( pair ) {
+            const value = pair || {};
+            return value[ this.editLang ] || value.en || value.bg || "";
+        },
+
+        otherLang() {
+            return this.editLang === "en" ? "bg" : "en";
+        },
+
+        langLabel( lang ) {
+            return ( lang === "en" )
+                ? tiApplication.getLabel( "interface.admin.text-editor.lang-en", "English" )
+                : tiApplication.getLabel( "interface.admin.text-editor.lang-bg", "Bulgarian" );
+        },
+
+        refLangLabel() {
+            return this.langLabel( this.otherLang() );
+        },
+
+        isEditLang( lang ) {
+            return this.editLang === lang;
+        },
+
+        setEditLang( lang ) {
+            if ( lang !== "en" && lang !== "bg" ) {
+                return;
+            }
+            this.editLang = lang;
+            this.indexRows();
+        },
+
+        /* -------------------------- List ----------------------------------- */
+
+        filteredGroups() {
+            const query = ( this.search || "" ).trim().toLowerCase();
+            if ( !query ) {
+                return this.groups;
+            }
+            const out = [];
+            this.groups.forEach( ( group ) => {
+                const subs = [];
+                group.subs.forEach( ( sub ) => {
+                    const codes = sub.codes.filter( ( code ) => {
+                        const row = this.rowsByCode[ code ];
+                        const name = row ? this.langText( row.name ) : "";
+                        return ( code + " " + name ).toLowerCase().indexOf( query ) >= 0;
+                    } );
+                    if ( codes.length > 0 ) {
+                        subs.push( { subcategory: sub.subcategory, subName: sub.subName, codes: codes } );
+                    }
+                } );
+                if ( subs.length > 0 ) {
+                    out.push( { category: group.category, categoryName: group.categoryName, subs: subs } );
+                }
+            } );
+            return out;
+        },
+
+        rowName( code ) {
+            const row = this.rowsByCode[ code ];
+            return row ? this.langText( row.name ) : code;
+        },
+
+        isSelected( code ) {
+            return this.selectedCode === code;
+        },
+
+        isRowDirty( code ) {
+            return this.dirtyCodes[ code ] === true;
+        },
+
+        selectCode( code ) {
+            this.selectedCode = code;
+        },
+
+        /* -------------------------- Detail --------------------------------- */
+
+        hasSelection() {
+            return !!( this.selectedCode && this.rowsByCode[ this.selectedCode ] );
+        },
+
+        getDetail() {
+            return this.selectedCode ? ( this.rowsByCode[ this.selectedCode ] || null ) : null;
+        },
+
+        detailCategory() {
+            const detail = this.getDetail();
+            return detail ? detail.category : "";
+        },
+
+        detailSubcategory() {
+            const detail = this.getDetail();
+            return detail ? detail.subcategory : "";
+        },
+
+        detailCategoryName() {
+            const detail = this.getDetail();
+            return detail ? this.langText( detail.categoryName ) : "";
+        },
+
+        detailSubcategoryName() {
+            const detail = this.getDetail();
+            return detail ? this.langText( detail.subcategoryName ) : "";
+        },
+
+        fieldValue( field ) {
+            const detail = this.getDetail();
+            return ( detail && detail[ field ] ) ? ( detail[ field ][ this.editLang ] || "" ) : "";
+        },
+
+        fieldRef( field ) {
+            const detail = this.getDetail();
+            return ( detail && detail[ field ] ) ? ( detail[ field ][ this.otherLang() ] || "" ) : "";
+        },
+
+        setField( field, value ) {
+            const detail = this.getDetail();
+            if ( !detail ) {
+                return;
+            }
+            if ( !detail[ field ] ) {
+                detail[ field ] = { en: "", bg: "" };
+            }
+            detail[ field ][ this.editLang ] = value;
+            this.dirtyCodes[ this.selectedCode ] = true;
+        },
+
+        scopeValue( level ) {
+            const detail = this.getDetail();
+            return ( detail && detail.scope && detail.scope[ level ] ) ? ( detail.scope[ level ][ this.editLang ] || "" ) : "";
+        },
+
+        scopeRef( level ) {
+            const detail = this.getDetail();
+            return ( detail && detail.scope && detail.scope[ level ] ) ? ( detail.scope[ level ][ this.otherLang() ] || "" ) : "";
+        },
+
+        setScope( level, value ) {
+            const detail = this.getDetail();
+            if ( !detail ) {
+                return;
+            }
+            if ( !detail.scope ) {
+                detail.scope = {};
+            }
+            if ( !detail.scope[ level ] ) {
+                detail.scope[ level ] = { en: "", bg: "" };
+            }
+            detail.scope[ level ][ this.editLang ] = value;
+            this.dirtyCodes[ this.selectedCode ] = true;
+        },
+
+        /* -------------------------- Save ----------------------------------- */
+
+        dirtyCount() {
+            return Object.keys( this.dirtyCodes ).length;
+        },
+
+        isDirty() {
+            return this.dirtyCount() > 0;
+        },
+
+        dirtyCountLabel() {
+            const count = this.dirtyCount();
+            const tmpl = ( count === 1 )
+                ? tiApplication.getLabel( "interface.admin.text-editor.dirty-one", "{n} unsaved competency" )
+                : tiApplication.getLabel( "interface.admin.text-editor.dirty-many", "{n} unsaved competencies" );
+            return tmpl.replace( "{n}", String( count ) );
+        },
+
+        save() {
+            if ( !this.isDirty() || this.saving ) {
+                return;
+            }
+            const changed = this.rows.filter( ( row ) => this.dirtyCodes[ row.code ] === true );
+            this.saving = true;
+            this.saveErrors = [];
+            const body = {
+                edited: changed,
+                expectedVersions: this.versions,
+                note: tiApplication.getLabel( "interface.admin.text-editor.save-note", "Competency text edit" )
+            };
+            tiApplication.sendRequest( "/admin/config/editors/" + EDITOR_KEY, "POST", body ).then( ( result ) => {
+                this.saving = false;
+                const data = ( result && result.data ) || {};
+                // The composite save validates the whole labels document; a content failure returns { ok:false, errors }
+                // and writes nothing — surface the per-field issues and keep the edits so they can be corrected.
+                if ( data.ok === false ) {
+                    this.saveErrors = this.flattenErrors( data.errors );
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.text-editor.save-invalid", "Some changes are invalid — see the issues listed." ) );
+                    return;
+                }
+                tiApplication.notify( tiApplication.getLabel( "interface.admin.text-editor.save-success", "Competency texts saved." ) );
+                this.loadData();
+            } ).catch( ( error ) => {
+                this.saving = false;
+                const httpCode = error && error.exception && error.exception.httpCode;
+                if ( httpCode === 409 ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.text-editor.save-conflict", "Configuration changed elsewhere — reloading the latest version." ) );
+                    this.loadData();
+                    return;
+                }
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        flattenErrors( errors ) {
+            const out = [];
+            const byKey = errors || {};
+            Object.keys( byKey ).forEach( ( key ) => {
+                ( byKey[ key ] || [] ).forEach( ( issue ) => {
+                    out.push( this.describeIssue( issue ) );
+                } );
+            } );
+            return out;
+        },
+
+        // Map a validator path (".competency.name.E1-1" / ".competency.scope.E1-1.N") to a { code, field, message }.
+        describeIssue( issue ) {
+            const parts = ( ( issue && issue.path ) || "" ).split( "." ).filter( Boolean );
+            let field = "";
+            let code = "";
+            if ( parts[ 1 ] === "scope" ) {
+                code = parts[ 2 ] || "";
+                field = "scope " + ( parts[ 3 ] || "" );
+            } else {
+                field = parts[ 1 ] || "";
+                code = parts[ 2 ] || "";
+            }
+            return { code: code, field: field, message: ( issue && issue.message ) || "" };
+        },
+
+        formatIssue( issue ) {
+            return issue.code + " · " + issue.field;
+        },
+
+        discard() {
+            if ( !this.isDirty() ) {
+                return;
+            }
+            this.loadData();
+        },
+
+        backToConfig() {
+            tiApplication.openScreen( "admin-config" );
+        }
+    };
+};
+
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceEvaluation", configureCompetenceEvaluation );
     Alpine.data( "competenceEmployeesList", configureEmployeesList );
@@ -2887,4 +3249,5 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceCycleSetup", configureCycleSetup );
     Alpine.data( "competenceEmployeeManagement", configureEmployeeManagement );
     Alpine.data( "competenceAdminConfig", configureAdminConfig );
+    Alpine.data( "competenceCompetencyTextEditor", configureCompetencyTextEditor );
 } );

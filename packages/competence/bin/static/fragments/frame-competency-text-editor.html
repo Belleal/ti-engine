@@ -1,0 +1,178 @@
+<div class="ti-page" x-data="competenceCompetencyTextEditor">
+    <!-- Page head: eyebrow + title (left); language switch + back button (right). -->
+    <div class="ti-page-head competence-cte-pagehead">
+        <div class="competence-cte-pagehead-main">
+            <div class="ti-page-eyebrow" x-text-label="interface.admin.text-editor.page-eyebrow">CONFIGURATION</div>
+            <h1 class="ti-page-title" x-text-label="interface.admin.text-editor.page-title">Competency Texts</h1>
+        </div>
+        <div class="competence-cte-pagehead-aside">
+            <!-- Language switch: sets the EDIT target; the other language is shown read-only beside each field. -->
+            <div class="competence-cte-langswitch" role="group" x-bind:aria-label="getLabel('interface.admin.text-editor.lang-switch-aria', 'Edit language')">
+                <button type="button" class="competence-cte-langswitch-btn"
+                        x-bind:class="isEditLang('bg') ? 'is-active' : ''" @click="setEditLang('bg')"
+                        x-text-label="interface.admin.text-editor.lang-bg-short">BG</button>
+                <button type="button" class="competence-cte-langswitch-btn"
+                        x-bind:class="isEditLang('en') ? 'is-active' : ''" @click="setEditLang('en')"
+                        x-text-label="interface.admin.text-editor.lang-en-short">EN</button>
+            </div>
+            <button type="button" class="ti-btn ghost sm" @click="backToConfig()">
+                <span class="ti-icon chevron-left sm" aria-hidden="true"></span>
+                <span x-text-label="interface.admin.text-editor.back"></span>
+            </button>
+        </div>
+    </div>
+
+    <template x-if="loaded">
+        <div class="competence-cte-shell">
+
+            <!-- Left pane: searchable competency list grouped category -> subcategory. -->
+            <div class="competence-cte-list-pane">
+                <div class="competence-cte-list-head">
+                    <input type="text" class="ti-input competence-cte-search" x-model="search"
+                           x-bind:placeholder="getLabel('interface.admin.text-editor.search-placeholder', 'Search competencies…')"/>
+                </div>
+                <div class="competence-cte-list">
+                    <template x-if="filteredGroups().length === 0">
+                        <div class="competence-cte-list-empty" x-text-label="interface.admin.text-editor.no-results"></div>
+                    </template>
+                    <template x-for="group in filteredGroups()" x-bind:key="group.category">
+                        <div class="competence-cte-group">
+                            <div class="competence-cte-group-head">
+                                <span class="ti-tag mono" x-text="group.category"></span>
+                                <span class="competence-cte-group-name" x-text="group.categoryName"></span>
+                            </div>
+                            <template x-for="sub in group.subs" x-bind:key="sub.subcategory">
+                                <div class="competence-cte-subgroup">
+                                    <div class="competence-cte-subgroup-head">
+                                        <span class="ti-tag" x-text="sub.subcategory"></span>
+                                        <span class="competence-cte-subgroup-name" x-text="sub.subName"></span>
+                                    </div>
+                                    <template x-for="code in sub.codes" x-bind:key="code">
+                                        <button type="button" class="competence-cte-row"
+                                                x-bind:class="isSelected(code) ? 'is-selected' : ''"
+                                                @click="selectCode(code)">
+                                            <span class="ti-tag mono" x-text="code"></span>
+                                            <span class="competence-cte-row-name" x-text="rowName(code)"></span>
+                                            <span class="competence-cte-row-dirty" x-show="isRowDirty(code)"
+                                                  x-bind:aria-label="getLabel('interface.admin.text-editor.unsaved-aria', 'Unsaved changes')"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Right pane: detail editor stack (editor card + sticky actions panel as siblings). -->
+            <div class="competence-cte-editor-stack">
+
+                <!-- No competency selected. -->
+                <template x-if="!hasSelection()">
+                    <div class="competence-cte-editor-pane">
+                        <div class="ti-empty-state">
+                            <div class="ti-empty-state-icon" aria-hidden="true">
+                                <span class="ti-icon book xl"></span>
+                            </div>
+                            <div class="ti-empty-state-title" x-text-label="interface.admin.text-editor.no-selection-title"></div>
+                            <div class="ti-empty-state-desc" x-text-label="interface.admin.text-editor.no-selection-desc"></div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Competency selected: the bilingual edit form. -->
+                <template x-if="hasSelection()">
+                    <div class="competence-cte-editor-pane">
+                        <div class="competence-cte-editor">
+
+                            <div class="competence-cte-editor-head">
+                                <div class="competence-cte-editor-title">
+                                    <span class="ti-tag mono" x-text="selectedCode"></span>
+                                    <span class="ti-tag" x-text="detailSubcategory()"></span>
+                                    <span class="competence-cte-editor-ctx" x-text="detailCategoryName() + ' · ' + detailSubcategoryName()"></span>
+                                </div>
+                                <div class="competence-cte-editor-langhint">
+                                    <span x-text-label="interface.admin.text-editor.editing-label"></span>
+                                    <strong x-text="langLabel(editLang)"></strong>
+                                </div>
+                            </div>
+
+                            <!-- Validation issues from the last save attempt. -->
+                            <template x-if="saveErrors.length > 0">
+                                <div class="competence-cte-errors">
+                                    <div class="competence-cte-errors-head">
+                                        <span class="ti-icon warning-triangle sm" aria-hidden="true"></span>
+                                        <span x-text-label="interface.admin.text-editor.errors-title"></span>
+                                    </div>
+                                    <template x-for="(issue, idx) in saveErrors" x-bind:key="idx">
+                                        <div class="competence-cte-error-row">
+                                            <span class="ti-tag mono" x-text="formatIssue(issue)"></span>
+                                            <span class="competence-cte-error-msg" x-text="issue.message"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- Name -->
+                            <div class="competence-cte-field">
+                                <label class="ti-field-label" x-text-label="interface.admin.text-editor.field-name"></label>
+                                <input type="text" class="ti-input" x-bind:value="fieldValue('name')"
+                                       @input="setField('name', $event.target.value)"/>
+                                <div class="competence-cte-ref">
+                                    <span class="competence-cte-ref-lang" x-text="refLangLabel()"></span>
+                                    <span class="competence-cte-ref-text" x-text="fieldRef('name')"></span>
+                                </div>
+                            </div>
+
+                            <!-- Description -->
+                            <div class="competence-cte-field">
+                                <label class="ti-field-label" x-text-label="interface.admin.text-editor.field-description"></label>
+                                <textarea class="ti-input competence-cte-textarea" rows="3"
+                                          x-bind:value="fieldValue('description')"
+                                          @input="setField('description', $event.target.value)"></textarea>
+                                <div class="competence-cte-ref">
+                                    <span class="competence-cte-ref-lang" x-text="refLangLabel()"></span>
+                                    <span class="competence-cte-ref-text" x-text="fieldRef('description')"></span>
+                                </div>
+                            </div>
+
+                            <!-- Scope anchors (N · J · R · S · X · T) -->
+                            <div class="competence-cte-scope">
+                                <div class="ti-field-label" x-text-label="interface.admin.text-editor.field-scope"></div>
+                                <template x-for="level in scopeLevels" x-bind:key="level">
+                                    <div class="competence-cte-scope-row">
+                                        <span class="ti-tag mono competence-cte-scope-tag" x-text="level"></span>
+                                        <div class="competence-cte-scope-fields">
+                                            <textarea class="ti-input competence-cte-textarea" rows="2"
+                                                      x-bind:value="scopeValue(level)"
+                                                      @input="setScope(level, $event.target.value)"></textarea>
+                                            <div class="competence-cte-ref">
+                                                <span class="competence-cte-ref-lang" x-text="refLangLabel()"></span>
+                                                <span class="competence-cte-ref-text" x-text="scopeRef(level)"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Sticky actions panel. Mirrors the cycle-setup actions panel so Save/Discard reads the same across
+                     editor screens. Shown whenever there are unsaved changes. -->
+                <template x-if="isDirty()">
+                    <div class="competence-cte-actions-panel">
+                        <div class="competence-cte-actions-state" x-text="dirtyCountLabel()"></div>
+                        <div class="competence-cte-actions-spacer"></div>
+                        <button type="button" class="ti-btn ghost" @click="discard()" x-bind:disabled="saving"
+                                x-text-label="interface.admin.text-editor.discard-btn"></button>
+                        <button type="button" class="ti-btn primary" @click="save()" x-bind:disabled="saving">
+                            <span class="ti-icon send sm" aria-hidden="true"></span>
+                            <span x-text-label="interface.admin.text-editor.save-btn"></span>
+                        </button>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </template>
+</div>
