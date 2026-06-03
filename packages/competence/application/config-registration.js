@@ -8,8 +8,9 @@
 
 /**
  * Registers the competence application's configuration documents (and their schemas, semantic validators, defaults,
- * and editor metadata) with the framework's config registry via the {@link TiWebAppManager} registration API. Called
- * during web-application initialization; the `/admin/config/*` endpoints then serve these documents.
+ * and editor metadata) plus its composite (entity) editors with the framework's config registry/service via the
+ * {@link TiWebAppManager} registration API. Called during web-application initialization; the `/admin/config/*`
+ * endpoints then serve these documents and editors.
  *
  * Editable in v1: the dictionary, its localization, the relevancy archetypes, and the active competency sets.
  * Structural configs (role families, stage levels) are registered read-only so semantic validators and the store can
@@ -20,6 +21,7 @@
 
 const configurationLoader = require( "#configuration-loader" );
 const validators = require( "./config-validators" );
+const { registerCompetenceEditors } = require( "./config-editors" );
 
 const competenciesSchema = require( "../bin/data/schemas/competencies.schema.json" );
 const activeCompetencySetsSchema = require( "../bin/data/schemas/active-competency-sets.schema.json" );
@@ -75,6 +77,10 @@ function registerCompetenceConfig( app ) {
         defaultValue: configurationLoader.configStageLevels,
         metadata: { path: "bin/config/config.stage-levels.json", label: "stage.levels", editable: false }
     } );
+
+    // Composite (entity) editors — e.g. the competency-text editor that the BG-review screen edits.
+    registerCompetenceEditors( app );
+
     return app;
 }
 

@@ -62,9 +62,10 @@ describe( "config-registration (competence)", () => {
 
     it( "registers the expected documents with validators, defaults, and editable flags", () => {
         const registered = {};
+        const editors = {};
         const stubApp = {
             registerConfigDocument( key, definition ) { registered[ key ] = definition; return this; },
-            registerConfigEditor() { return this; }
+            registerConfigEditor( key, definition ) { editors[ key ] = definition; return this; }
         };
         registerCompetenceConfig( stubApp );
 
@@ -72,6 +73,8 @@ describe( "config-registration (competence)", () => {
             Object.keys( registered ).sort(),
             [ "active-competency-sets", "competence-labels", "competencies", "relevancy-archetypes", "role-families", "stage-levels" ]
         );
+        assert.ok( editors[ "competency-text" ], "registers the competency-text composite editor" );
+        assert.deepEqual( editors[ "competency-text" ].documents, [ "competencies", "competence-labels" ] );
         assert.equal( registered.competencies.metadata.editable, true );
         assert.equal( registered[ "role-families" ].metadata.editable, false );
         assert.ok( registered[ "active-competency-sets" ].validators.length >= 3 );
