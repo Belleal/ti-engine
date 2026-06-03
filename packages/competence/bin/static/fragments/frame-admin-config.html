@@ -31,14 +31,29 @@
                         </button>
                     </div>
 
-                    <!-- Relevancy archetype editors land in Phase D; shown disabled as a roadmap affordance. -->
+                    <!-- Relevancy archetype assignment (Phase D2). -->
+                    <div class="competence-admin-card">
+                        <div class="competence-admin-card-icon" aria-hidden="true">
+                            <span class="ti-icon check-clipboard lg"></span>
+                        </div>
+                        <div class="competence-admin-card-body">
+                            <div class="competence-admin-card-title" x-text-label="interface.admin.editor.archetype-assignment.title"></div>
+                            <div class="competence-admin-card-desc" x-text-label="interface.admin.editor.archetype-assignment.desc"></div>
+                        </div>
+                        <button type="button" class="ti-btn primary" @click="openEditor('archetype-assignment')">
+                            <span x-text-label="interface.admin.open-editor"></span>
+                            <span class="ti-icon chevron-right sm" aria-hidden="true"></span>
+                        </button>
+                    </div>
+
+                    <!-- Relevancy archetype curve editor (lands in Phase D3). -->
                     <div class="competence-admin-card is-disabled">
                         <div class="competence-admin-card-icon" aria-hidden="true">
                             <span class="ti-icon bar-chart lg"></span>
                         </div>
                         <div class="competence-admin-card-body">
-                            <div class="competence-admin-card-title" x-text-label="interface.admin.editor.relevancy.title"></div>
-                            <div class="competence-admin-card-desc" x-text-label="interface.admin.editor.relevancy.desc"></div>
+                            <div class="competence-admin-card-title" x-text-label="interface.admin.editor.archetype-editor.title"></div>
+                            <div class="competence-admin-card-desc" x-text-label="interface.admin.editor.archetype-editor.desc"></div>
                         </div>
                         <span class="ti-tag muted" x-text-label="interface.admin.coming-soon"></span>
                     </div>

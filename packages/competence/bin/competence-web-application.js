@@ -76,6 +76,10 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "Competency Texts",
             path: "fragments/frame-competency-text-editor.html"
         } );
+        this.addFragment( "archetype-assignment", {
+            title: "Archetype Assignment",
+            path: "fragments/frame-archetype-assignment.html"
+        } );
     }
 
     /* Public interface */
@@ -149,7 +153,9 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "cycle-setup": "cycles",
                     "employee-management": "employee-management",
                     "admin-config": "administration",
-                    "competency-text-editor": "administration"
+                    "competency-text-editor": "administration",
+                    "archetype-assignment": "administration",
+                    "archetype-editor": "administration"
                 },
                 componentsConfig: {
                     userProfileMenu: {

@@ -3238,6 +3238,272 @@ const configureCompetencyTextEditor = () => {
     };
 };
 
+/**
+ * Alpine component for the archetype assignment editor (frame-archetype-assignment.html). Loads the
+ * `archetype-assignment` composite editor (each competency's global relevancy archetype + the archetype catalogue),
+ * lets an admin pick an archetype per competency from a dropdown with a small curve preview, and saves only the
+ * changed assignments back into the dictionary. Admin-gated.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureArchetypeAssignment = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    const EDITOR_KEY = "archetype-assignment";
+    const STAGE_LEVELS = [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1" ];
+
+    return {
+        loaded: false,
+        saving: false,
+        displayLang: "bg",
+        rows: [],
+        archetypes: [],
+        archetypesById: {},
+        versions: {},
+        groups: [],
+        rowsByCode: {},
+        dirtyCodes: {},
+        search: "",
+        saveErrors: [],
+        stageLevels: STAGE_LEVELS,
+
+        init() {
+            const onInitialized = () => {
+                if ( !tiApplication.hasRole( "admin" ) ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.not-authorized", "Administrator access required." ) );
+                    tiApplication.openScreen( "dashboard" );
+                    return;
+                }
+                this.loadData();
+            };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        getLabel( key, fallback = "" ) {
+            return tiApplication.getLabel( key, fallback );
+        },
+
+        backToConfig() {
+            tiApplication.openScreen( "admin-config" );
+        },
+
+        loadData() {
+            tiApplication.sendRequest( "/admin/config/editors/" + EDITOR_KEY ).then( ( result ) => {
+                const data = ( result && result.data ) || {};
+                this.rows = Array.isArray( data.rows ) ? tiToolbox.structuredClone( data.rows ) : [];
+                this.archetypes = Array.isArray( data.archetypes ) ? tiToolbox.structuredClone( data.archetypes ) : [];
+                this.versions = data.versions ? tiToolbox.structuredClone( data.versions ) : {};
+                this.archetypesById = {};
+                this.archetypes.forEach( ( archetype ) => { this.archetypesById[ archetype.id ] = archetype; } );
+                this.dirtyCodes = {};
+                this.saveErrors = [];
+                this.indexRows();
+                this.loaded = true;
+            } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
+                this.loaded = true;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                const httpCode = error && error.exception && error.exception.httpCode;
+                if ( httpCode === 401 || httpCode === 403 ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
+        },
+
+        indexRows() {
+            const byCode = {};
+            const groupMap = {};
+            const groupOrder = [];
+            this.rows.forEach( ( row ) => {
+                byCode[ row.code ] = row;
+                const category = row.category || "";
+                if ( !groupMap[ category ] ) {
+                    groupMap[ category ] = { category: category, categoryName: this.langText( row.categoryName ), subMap: {}, subOrder: [] };
+                    groupOrder.push( category );
+                }
+                const group = groupMap[ category ];
+                const subcategory = row.subcategory || "";
+                if ( !group.subMap[ subcategory ] ) {
+                    group.subMap[ subcategory ] = { subcategory: subcategory, subName: this.langText( row.subcategoryName ), codes: [] };
+                    group.subOrder.push( subcategory );
+                }
+                group.subMap[ subcategory ].codes.push( row.code );
+            } );
+            this.rowsByCode = byCode;
+            this.groups = groupOrder.map( ( category ) => {
+                const group = groupMap[ category ];
+                return { category: group.category, categoryName: group.categoryName, subs: group.subOrder.map( ( key ) => group.subMap[ key ] ) };
+            } );
+        },
+
+        langText( pair ) {
+            const value = pair || {};
+            return value[ this.displayLang ] || value.en || value.bg || "";
+        },
+
+        isDisplayLang( lang ) {
+            return this.displayLang === lang;
+        },
+
+        setDisplayLang( lang ) {
+            if ( lang !== "en" && lang !== "bg" ) {
+                return;
+            }
+            this.displayLang = lang;
+            this.indexRows();
+        },
+
+        filteredGroups() {
+            const query = ( this.search || "" ).trim().toLowerCase();
+            if ( !query ) {
+                return this.groups;
+            }
+            const out = [];
+            this.groups.forEach( ( group ) => {
+                const subs = [];
+                group.subs.forEach( ( sub ) => {
+                    const codes = sub.codes.filter( ( code ) => {
+                        const row = this.rowsByCode[ code ];
+                        const name = row ? this.langText( row.name ) : "";
+                        return ( code + " " + name ).toLowerCase().indexOf( query ) >= 0;
+                    } );
+                    if ( codes.length > 0 ) {
+                        subs.push( { subcategory: sub.subcategory, subName: sub.subName, codes: codes } );
+                    }
+                } );
+                if ( subs.length > 0 ) {
+                    out.push( { category: group.category, categoryName: group.categoryName, subs: subs } );
+                }
+            } );
+            return out;
+        },
+
+        rowName( code ) {
+            const row = this.rowsByCode[ code ];
+            return row ? this.langText( row.name ) : code;
+        },
+
+        rowArchetype( code ) {
+            const row = this.rowsByCode[ code ];
+            return row ? ( row.relevancyArchetype || "" ) : "";
+        },
+
+        setArchetype( code, id ) {
+            const row = this.rowsByCode[ code ];
+            if ( !row ) {
+                return;
+            }
+            row.relevancyArchetype = id;
+            this.dirtyCodes[ code ] = true;
+        },
+
+        isRowDirty( code ) {
+            return this.dirtyCodes[ code ] === true;
+        },
+
+        archetypeName( id ) {
+            const archetype = this.archetypesById[ id ];
+            return archetype ? this.langText( archetype.name ) : id;
+        },
+
+        // Returns the selected archetype's curve as [{ level, weight }] for the inline sparkline preview.
+        rowCurve( code ) {
+            const id = this.rowArchetype( code );
+            const archetype = this.archetypesById[ id ];
+            const weights = ( archetype && archetype.weights ) || {};
+            return this.stageLevels.map( ( level ) => ( { level: level, weight: ( typeof weights[ level ] === "number" ) ? weights[ level ] : 0 } ) );
+        },
+
+        // Object style-binding (CSP-safe: written via element.style, unlike a string `style` attribute).
+        barStyle( weight ) {
+            const pct = Math.max( 0, Math.min( 100, weight * 10 ) );
+            return { height: pct + "%" };
+        },
+
+        dirtyCount() {
+            return Object.keys( this.dirtyCodes ).length;
+        },
+
+        isDirty() {
+            return this.dirtyCount() > 0;
+        },
+
+        dirtyCountLabel() {
+            const count = this.dirtyCount();
+            const tmpl = ( count === 1 )
+                ? tiApplication.getLabel( "interface.admin.assignment.dirty-one", "{n} unsaved assignment" )
+                : tiApplication.getLabel( "interface.admin.assignment.dirty-many", "{n} unsaved assignments" );
+            return tmpl.replace( "{n}", String( count ) );
+        },
+
+        save() {
+            if ( !this.isDirty() || this.saving ) {
+                return;
+            }
+            const changed = this.rows.filter( ( row ) => this.dirtyCodes[ row.code ] === true );
+            this.saving = true;
+            this.saveErrors = [];
+            const body = {
+                edited: changed,
+                expectedVersions: this.versions,
+                note: tiApplication.getLabel( "interface.admin.assignment.save-note", "Archetype assignment edit" )
+            };
+            tiApplication.sendRequest( "/admin/config/editors/" + EDITOR_KEY, "POST", body ).then( ( result ) => {
+                this.saving = false;
+                const data = ( result && result.data ) || {};
+                if ( data.ok === false ) {
+                    this.saveErrors = this.flattenErrors( data.errors );
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.assignment.save-invalid", "Some assignments are invalid — see the issues listed." ) );
+                    return;
+                }
+                tiApplication.notify( tiApplication.getLabel( "interface.admin.assignment.save-success", "Archetype assignments saved." ) );
+                this.loadData();
+            } ).catch( ( error ) => {
+                this.saving = false;
+                const httpCode = error && error.exception && error.exception.httpCode;
+                if ( httpCode === 409 ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.assignment.save-conflict", "Configuration changed elsewhere — reloading the latest version." ) );
+                    this.loadData();
+                    return;
+                }
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        flattenErrors( errors ) {
+            const out = [];
+            const byKey = errors || {};
+            Object.keys( byKey ).forEach( ( key ) => {
+                ( byKey[ key ] || [] ).forEach( ( issue ) => {
+                    const parts = ( ( issue && issue.path ) || "" ).split( "." ).filter( Boolean );
+                    out.push( { code: parts[ 1 ] || "", message: ( issue && issue.message ) || "" } );
+                } );
+            } );
+            return out;
+        },
+
+        discard() {
+            if ( !this.isDirty() ) {
+                return;
+            }
+            this.loadData();
+        }
+    };
+};
+
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceEvaluation", configureCompetenceEvaluation );
     Alpine.data( "competenceEmployeesList", configureEmployeesList );
@@ -3250,4 +3516,5 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceEmployeeManagement", configureEmployeeManagement );
     Alpine.data( "competenceAdminConfig", configureAdminConfig );
     Alpine.data( "competenceCompetencyTextEditor", configureCompetencyTextEditor );
+    Alpine.data( "competenceArchetypeAssignment", configureArchetypeAssignment );
 } );

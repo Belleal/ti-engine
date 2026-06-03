@@ -4271,3 +4271,121 @@
         max-height: 420px;
     }
 }
+
+/* =============================================================
+   Admin · Archetype assignment editor (frame-archetype-assignment.html)
+   ============================================================= */
+.competence-aa-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+}
+
+.competence-aa-toolbar {
+    display: flex;
+    gap: var(--s-3);
+}
+
+.competence-aa-search {
+    width: 100%;
+    max-width: 420px;
+}
+
+.competence-aa-list {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: var(--s-3) var(--s-4);
+}
+
+.competence-aa-group + .competence-aa-group {
+    margin-top: var(--s-4);
+}
+
+.competence-aa-group-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: var(--s-2) 0;
+}
+
+.competence-aa-group-name {
+    font-weight: 600;
+}
+
+.competence-aa-subgroup {
+    margin: var(--s-2) 0 var(--s-3);
+}
+
+.competence-aa-subgroup-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: var(--s-1, 4px) 0;
+    color: var(--fg-secondary);
+    font-size: 0.8rem;
+}
+
+.competence-aa-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-2);
+    border-radius: var(--r-sm);
+    border-left: 2px solid transparent;
+}
+
+.competence-aa-row:hover {
+    background: var(--bg-sunken);
+}
+
+.competence-aa-row.is-dirty {
+    border-left-color: var(--warn);
+    background: color-mix(in oklab, var(--warn) 6%, transparent);
+}
+
+.competence-aa-row-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+/* Inline 12-bar sparkline of the selected archetype's curve. */
+.competence-aa-spark {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    width: 96px;
+    height: 28px;
+}
+
+.competence-aa-spark-bar {
+    flex: 1 1 0;
+    min-height: 2px;
+    border-radius: 1px;
+    background: var(--accent);
+}
+
+.competence-aa-select {
+    min-width: 220px;
+}
+
+@media (max-width: 720px) {
+    .competence-aa-row {
+        grid-template-columns: auto minmax(0, 1fr);
+        row-gap: var(--s-2);
+    }
+
+    .competence-aa-spark,
+    .competence-aa-select {
+        grid-column: 1 / -1;
+    }
+
+    .competence-aa-select {
+        min-width: 0;
+        width: 100%;
+    }
+}

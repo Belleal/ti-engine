@@ -5801,6 +5801,26 @@
             "en": "Assign and edit the relevancy curves used for scoring.",
             "bg": "Задавайте и редактирайте кривите на релевантност, използвани за оценяване."
           }
+        },
+        "archetype-assignment": {
+          "title": {
+            "en": "Archetype assignment",
+            "bg": "Присвояване на архетипи"
+          },
+          "desc": {
+            "en": "Assign a relevancy archetype to each competency — the global curve used for scoring.",
+            "bg": "Присвоете архетип на релевантност на всяка компетенция — глобалната крива, използвана за оценяване."
+          }
+        },
+        "archetype-editor": {
+          "title": {
+            "en": "Relevancy archetypes",
+            "bg": "Архетипи на релевантност"
+          },
+          "desc": {
+            "en": "Edit the relevancy curves themselves — the twelve stage-level weights, names, and descriptions.",
+            "bg": "Редактирайте самите криви на релевантност — дванадесетте тегла по нива, имена и описания."
+          }
         }
       },
       "open-editor": {
@@ -6001,6 +6021,76 @@
         "save-invalid": {
           "en": "Some changes are invalid — see the issues listed.",
           "bg": "Някои промени са невалидни — вижте посочените проблеми."
+        },
+        "save-conflict": {
+          "en": "Configuration changed elsewhere — reloading the latest version.",
+          "bg": "Конфигурацията е променена другаде — презареждане на последната версия."
+        }
+      },
+      "assignment": {
+        "page-eyebrow": {
+          "en": "CONFIGURATION",
+          "bg": "КОНФИГУРАЦИЯ"
+        },
+        "page-title": {
+          "en": "Archetype Assignment",
+          "bg": "Присвояване на архетипи"
+        },
+        "page-desc": {
+          "en": "Assign a relevancy archetype to each competency. The archetype's curve sets how the competency's importance scales across stage levels.",
+          "bg": "Присвоете архетип на релевантност на всяка компетенция. Кривата на архетипа определя как важността на компетенцията се променя по нивата."
+        },
+        "lang-switch-aria": {
+          "en": "Display language",
+          "bg": "Език на показване"
+        },
+        "select-aria": {
+          "en": "Relevancy archetype",
+          "bg": "Архетип на релевантност"
+        },
+        "back": {
+          "en": "Back to configuration",
+          "bg": "Назад към конфигурацията"
+        },
+        "search-placeholder": {
+          "en": "Search competencies…",
+          "bg": "Търсене на компетенции…"
+        },
+        "no-results": {
+          "en": "No competencies match your search.",
+          "bg": "Няма компетенции, отговарящи на търсенето."
+        },
+        "errors-title": {
+          "en": "These assignments could not be saved",
+          "bg": "Тези присвоявания не можаха да бъдат запазени"
+        },
+        "dirty-one": {
+          "en": "{n} unsaved assignment",
+          "bg": "{n} незапазено присвояване"
+        },
+        "dirty-many": {
+          "en": "{n} unsaved assignments",
+          "bg": "{n} незапазени присвоявания"
+        },
+        "discard-btn": {
+          "en": "Discard",
+          "bg": "Отхвърли"
+        },
+        "save-btn": {
+          "en": "Save changes",
+          "bg": "Запази промените"
+        },
+        "save-note": {
+          "en": "Archetype assignment edit",
+          "bg": "Редакция на присвояване на архетипи"
+        },
+        "save-success": {
+          "en": "Archetype assignments saved.",
+          "bg": "Присвояванията на архетипи са запазени."
+        },
+        "save-invalid": {
+          "en": "Some assignments are invalid — see the issues listed.",
+          "bg": "Някои присвоявания са невалидни — вижте посочените проблеми."
         },
         "save-conflict": {
           "en": "Configuration changed elsewhere — reloading the latest version.",
