@@ -68,6 +68,10 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "Employee Management",
             path: "fragments/frame-employee-management.html"
         } );
+        this.addFragment( "admin-config", {
+            title: "Configuration",
+            path: "fragments/frame-admin-config.html"
+        } );
     }
 
     /* Public interface */
@@ -139,7 +143,9 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "interview-schedule": "interviews",
                     "cycles": "cycles",
                     "cycle-setup": "cycles",
-                    "employee-management": "employee-management"
+                    "employee-management": "employee-management",
+                    "admin-config": "administration",
+                    "competency-text-editor": "administration"
                 },
                 componentsConfig: {
                     userProfileMenu: {

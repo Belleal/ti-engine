@@ -3757,3 +3757,191 @@
         max-height: 480px;
     }
 }
+
+/* =============================================================
+   Admin · Configuration landing (frame-admin-config.html)
+   ============================================================= */
+.competence-admin-page-desc {
+    margin-top: var(--s-2);
+    color: var(--fg-secondary);
+    max-width: 72ch;
+}
+
+.competence-admin-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-6, 32px);
+}
+
+.competence-admin-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+}
+
+.competence-admin-section-head {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1, 4px);
+}
+
+.competence-admin-section-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+.competence-admin-section-desc {
+    color: var(--fg-secondary);
+    font-size: 0.9rem;
+}
+
+.competence-admin-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--s-4);
+}
+
+.competence-admin-card {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    padding: var(--s-4) var(--s-5);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+}
+
+.competence-admin-card.is-disabled {
+    opacity: 0.6;
+}
+
+.competence-admin-card-icon {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--r-md);
+    background: var(--bg-sunken);
+    color: var(--accent);
+}
+
+.competence-admin-card-body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.competence-admin-card-title {
+    font-weight: 600;
+}
+
+.competence-admin-card-desc {
+    margin-top: 2px;
+    color: var(--fg-secondary);
+    font-size: 0.85rem;
+}
+
+.competence-admin-maint-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-4);
+    padding: var(--s-4) var(--s-5);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+}
+
+.competence-admin-maint-label {
+    font-weight: 600;
+}
+
+.competence-admin-maint-desc {
+    margin-top: 2px;
+    max-width: 60ch;
+    color: var(--fg-secondary);
+    font-size: 0.85rem;
+}
+
+.competence-admin-changes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    padding: var(--s-4) var(--s-5);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+}
+
+.competence-admin-changes-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+}
+
+.competence-admin-changes-title {
+    font-weight: 600;
+}
+
+.competence-admin-changes-status {
+    padding: var(--s-2) 0;
+    color: var(--fg-secondary);
+    font-size: 0.9rem;
+}
+
+.competence-admin-changes-list {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    overflow: hidden;
+}
+
+.competence-admin-change-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-4);
+    padding: var(--s-3) var(--s-4);
+}
+
+.competence-admin-change-row + .competence-admin-change-row {
+    border-top: 1px solid var(--border);
+}
+
+.competence-admin-change-meta {
+    min-width: 0;
+}
+
+.competence-admin-change-top {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.competence-admin-change-note {
+    font-weight: 500;
+}
+
+.competence-admin-change-sub {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: 2px;
+    color: var(--fg-secondary);
+    font-size: 0.8rem;
+}
+
+.competence-admin-change-dot {
+    color: var(--border);
+}
+
+.competence-admin-restore-target {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: var(--s-2);
+}

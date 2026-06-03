@@ -86,6 +86,22 @@
         </div>
     </div>
 
+    <!-- Administration: configuration management. Visible only to admin-allowlisted users (auth.admins).
+         x-show (not x-if) so htmx — which scans hx-* attributes once at page load — wires the button up
+         even when the current user can't see the section yet. -->
+    <div x-show="$store.tiApplication.hasRole('admin')">
+        <div class="ti-sidebar-section-label" x-text-label="interface.navigation.administration">Administration</div>
+        <div class="ti-sidebar-nav">
+            <button hx-get="/app/admin-config" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'administration'"
+                    x-bind:class="{ active: active === 'administration' }" class="ti-sidebar-item" data-tip="Configuration" aria-label="Configuration" type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon settings md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.topbar.admin-config">Configuration</span>
+            </button>
+        </div>
+    </div>
+
     <!-- Quick links section -->
     <div class="ti-sidebar-section-label" x-text-label="interface.navigation.quick-links">Quick links</div>
     <div class="ti-sidebar-nav">

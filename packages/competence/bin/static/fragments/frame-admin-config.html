@@ -1,0 +1,146 @@
+<div class="ti-page" x-data="competenceAdminConfig">
+    <div class="ti-page-head">
+        <div class="ti-page-eyebrow" x-text-label="interface.admin.page-eyebrow">ADMINISTRATION</div>
+        <h1 class="ti-page-title" x-text-label="interface.admin.page-title">Configuration</h1>
+        <div class="competence-admin-page-desc" x-text-label="interface.admin.page-desc"></div>
+    </div>
+
+    <template x-if="loaded">
+        <div class="competence-admin-stack">
+
+            <!-- Editors: configuration edited as domain entities (not raw files). -->
+            <section class="competence-admin-section">
+                <div class="competence-admin-section-head">
+                    <h2 class="competence-admin-section-title" x-text-label="interface.admin.editors-title"></h2>
+                    <div class="competence-admin-section-desc" x-text-label="interface.admin.editors-desc"></div>
+                </div>
+                <div class="competence-admin-cards">
+
+                    <!-- Competency text editor (the BG review). -->
+                    <div class="competence-admin-card">
+                        <div class="competence-admin-card-icon" aria-hidden="true">
+                            <span class="ti-icon book lg"></span>
+                        </div>
+                        <div class="competence-admin-card-body">
+                            <div class="competence-admin-card-title" x-text-label="interface.admin.editor.competency-text.title"></div>
+                            <div class="competence-admin-card-desc" x-text-label="interface.admin.editor.competency-text.desc"></div>
+                        </div>
+                        <button type="button" class="ti-btn primary" @click="openEditor('competency-text-editor')">
+                            <span x-text-label="interface.admin.open-editor"></span>
+                            <span class="ti-icon chevron-right sm" aria-hidden="true"></span>
+                        </button>
+                    </div>
+
+                    <!-- Relevancy archetype editors land in Phase D; shown disabled as a roadmap affordance. -->
+                    <div class="competence-admin-card is-disabled">
+                        <div class="competence-admin-card-icon" aria-hidden="true">
+                            <span class="ti-icon bar-chart lg"></span>
+                        </div>
+                        <div class="competence-admin-card-body">
+                            <div class="competence-admin-card-title" x-text-label="interface.admin.editor.relevancy.title"></div>
+                            <div class="competence-admin-card-desc" x-text-label="interface.admin.editor.relevancy.desc"></div>
+                        </div>
+                        <span class="ti-tag muted" x-text-label="interface.admin.coming-soon"></span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Maintenance: export-to-git + version history / restore (the admin safety net). -->
+            <section class="competence-admin-section">
+                <div class="competence-admin-section-head">
+                    <h2 class="competence-admin-section-title" x-text-label="interface.admin.maintenance-title"></h2>
+                    <div class="competence-admin-section-desc" x-text-label="interface.admin.maintenance-desc"></div>
+                </div>
+
+                <div class="competence-admin-maint-row">
+                    <div class="competence-admin-maint-text">
+                        <div class="competence-admin-maint-label" x-text-label="interface.admin.export-title"></div>
+                        <div class="competence-admin-maint-desc" x-text-label="interface.admin.export-desc"></div>
+                    </div>
+                    <!-- Plain anchor (no hx-* attributes) → a normal browser download. GET + cookie auth, no CSRF needed;
+                         the server replies with a Content-Disposition attachment so the page does not navigate away. -->
+                    <a class="ti-btn" href="/admin/config/export">
+                        <span class="ti-icon send sm" aria-hidden="true"></span>
+                        <span x-text-label="interface.admin.export-btn"></span>
+                    </a>
+                </div>
+
+                <div class="competence-admin-changes">
+                    <div class="competence-admin-changes-head">
+                        <span class="competence-admin-changes-title" x-text-label="interface.admin.changes-title"></span>
+                        <button type="button" class="ti-btn ghost sm" @click="loadChanges()" x-bind:disabled="loadingChanges">
+                            <span class="ti-icon cycles-loop sm" aria-hidden="true"></span>
+                            <span x-text-label="interface.admin.refresh"></span>
+                        </button>
+                    </div>
+
+                    <template x-if="loadingChanges">
+                        <div class="competence-admin-changes-status" x-text-label="interface.admin.loading"></div>
+                    </template>
+
+                    <template x-if="!loadingChanges && changes.length === 0">
+                        <div class="ti-empty-state">
+                            <div class="ti-empty-state-icon" aria-hidden="true">
+                                <span class="ti-icon clock xl"></span>
+                            </div>
+                            <div class="ti-empty-state-title" x-text-label="interface.admin.changes-empty-title"></div>
+                            <div class="ti-empty-state-desc" x-text-label="interface.admin.changes-empty-desc"></div>
+                        </div>
+                    </template>
+
+                    <template x-if="!loadingChanges && changes.length > 0">
+                        <div class="competence-admin-changes-list">
+                            <template x-for="change in changes" x-bind:key="change.changeSetID">
+                                <div class="competence-admin-change-row">
+                                    <div class="competence-admin-change-meta">
+                                        <div class="competence-admin-change-top">
+                                            <span class="competence-admin-change-note" x-text="change.note || getLabel('interface.admin.change-no-note')"></span>
+                                            <span class="ti-tag mono" x-text="formatDocCount(change)"></span>
+                                        </div>
+                                        <div class="competence-admin-change-sub">
+                                            <span x-text="formatTimestamp(change.timestamp)"></span>
+                                            <span class="competence-admin-change-dot">·</span>
+                                            <span x-text="change.adminID || getLabel('interface.admin.change-unknown-admin')"></span>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="ti-btn ghost sm" @click="openRestore(change)">
+                                        <span class="ti-icon clock sm" aria-hidden="true"></span>
+                                        <span x-text-label="interface.admin.restore-btn"></span>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </section>
+        </div>
+    </template>
+
+    <!-- =============================================================
+         Restore confirmation modal
+         ============================================================= -->
+    <template x-if="modal.kind === 'restore'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.admin.restore-modal.title"></div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <span class="ti-icon close md" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <p x-text-label="interface.admin.restore-modal.desc"></p>
+                    <p class="competence-admin-restore-target">
+                        <span class="competence-admin-change-note" x-text="modal.payload.note || getLabel('interface.admin.change-no-note')"></span>
+                        <span class="ti-tag mono" x-text="modal.payload.changeSetID"></span>
+                    </p>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.admin.restore-modal.cancel-btn"></button>
+                    <button type="button" class="ti-btn primary" @click="submitRestore()"
+                            x-bind:disabled="restoring" x-text-label="interface.admin.restore-modal.confirm-btn"></button>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>

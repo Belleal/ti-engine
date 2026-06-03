@@ -5656,6 +5656,10 @@
       "help": {
         "en": "Help",
         "bg": "Помощ"
+      },
+      "administration": {
+        "en": "Administration",
+        "bg": "Администрация"
       }
     },
     "topbar": {
@@ -5718,6 +5722,14 @@
       "user-profile": {
         "en": "Your profile",
         "bg": "Вашият профил"
+      },
+      "admin-config": {
+        "en": "Configuration",
+        "bg": "Конфигурация"
+      },
+      "competency-text-editor": {
+        "en": "Competency Texts",
+        "bg": "Текстове на компетенции"
       }
     },
     "sidebar": {
@@ -5746,6 +5758,148 @@
       "logout": {
         "en": "Logout",
         "bg": "Изход"
+      }
+    },
+    "admin": {
+      "page-eyebrow": {
+        "en": "ADMINISTRATION",
+        "bg": "АДМИНИСТРАЦИЯ"
+      },
+      "page-title": {
+        "en": "Configuration",
+        "bg": "Конфигурация"
+      },
+      "page-desc": {
+        "en": "Edit application configuration. Every change is validated and versioned — you can export the live configuration or restore a previous version.",
+        "bg": "Редактирайте конфигурацията на приложението. Всяка промяна се валидира и версионира — можете да експортирате текущата конфигурация или да възстановите предишна версия."
+      },
+      "editors-title": {
+        "en": "Editors",
+        "bg": "Редактори"
+      },
+      "editors-desc": {
+        "en": "Edit configuration as domain entities rather than raw files.",
+        "bg": "Редактирайте конфигурацията като предметни обекти, а не като сурови файлове."
+      },
+      "editor": {
+        "competency-text": {
+          "title": {
+            "en": "Competency texts",
+            "bg": "Текстове на компетенции"
+          },
+          "desc": {
+            "en": "Review and edit competency names, descriptions, and scope levels in English and Bulgarian.",
+            "bg": "Преглеждайте и редактирайте имената, описанията и нивата на компетенциите на английски и български."
+          }
+        },
+        "relevancy": {
+          "title": {
+            "en": "Relevancy archetypes",
+            "bg": "Архетипи на релевантност"
+          },
+          "desc": {
+            "en": "Assign and edit the relevancy curves used for scoring.",
+            "bg": "Задавайте и редактирайте кривите на релевантност, използвани за оценяване."
+          }
+        }
+      },
+      "open-editor": {
+        "en": "Open editor",
+        "bg": "Отвори редактора"
+      },
+      "coming-soon": {
+        "en": "Coming soon",
+        "bg": "Очаквайте скоро"
+      },
+      "maintenance-title": {
+        "en": "Maintenance",
+        "bg": "Поддръжка"
+      },
+      "maintenance-desc": {
+        "en": "Export the configuration and manage versions.",
+        "bg": "Експортирайте конфигурацията и управлявайте версиите."
+      },
+      "export-title": {
+        "en": "Export configuration",
+        "bg": "Експорт на конфигурацията"
+      },
+      "export-desc": {
+        "en": "Download the current live configuration as a bundle to commit to version control.",
+        "bg": "Изтеглете текущата конфигурация като пакет, който да запишете във версионен контрол."
+      },
+      "export-btn": {
+        "en": "Export",
+        "bg": "Експорт"
+      },
+      "changes-title": {
+        "en": "Recent changes",
+        "bg": "Скорошни промени"
+      },
+      "refresh": {
+        "en": "Refresh",
+        "bg": "Опресни"
+      },
+      "loading": {
+        "en": "Loading…",
+        "bg": "Зарежда…"
+      },
+      "changes-empty-title": {
+        "en": "No changes yet",
+        "bg": "Все още няма промени"
+      },
+      "changes-empty-desc": {
+        "en": "Configuration edits will appear here, each with an option to restore.",
+        "bg": "Промените в конфигурацията ще се появяват тук, всяка с възможност за възстановяване."
+      },
+      "change-no-note": {
+        "en": "(no note)",
+        "bg": "(без бележка)"
+      },
+      "change-unknown-admin": {
+        "en": "unknown",
+        "bg": "неизвестен"
+      },
+      "doc-count-one": {
+        "en": "{n} document",
+        "bg": "{n} документ"
+      },
+      "doc-count-many": {
+        "en": "{n} documents",
+        "bg": "{n} документа"
+      },
+      "restore-btn": {
+        "en": "Restore",
+        "bg": "Възстанови"
+      },
+      "restore-modal": {
+        "title": {
+          "en": "Restore this version?",
+          "bg": "Възстановяване на тази версия?"
+        },
+        "desc": {
+          "en": "This re-applies the configuration from this change set as a new version, after re-validating it against current rules. Nothing is deleted.",
+          "bg": "Това прилага отново конфигурацията от тази промяна като нова версия, след повторна валидация спрямо текущите правила. Нищо не се изтрива."
+        },
+        "cancel-btn": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        },
+        "confirm-btn": {
+          "en": "Restore",
+          "bg": "Възстанови"
+        }
+      },
+      "restore-success": {
+        "en": "Configuration restored.",
+        "bg": "Конфигурацията е възстановена."
+      },
+      "restore-invalid": {
+        "en": "Restore failed — the snapshot no longer passes validation.",
+        "bg": "Възстановяването е неуспешно — моментната снимка вече не преминава валидация."
+      },
+      "not-authorized": {
+        "en": "Administrator access required.",
+        "bg": "Изисква се администраторски достъп."
       }
     },
     "schedule": {

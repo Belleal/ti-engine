@@ -2760,6 +2760,122 @@ const configureEmployeeManagement = () => {
     };
 };
 
+/**
+ * Alpine component for the admin Configuration landing (frame-admin-config.html). Lists the configuration editors,
+ * exports the live config bundle (via a plain download link in the markup), and shows the cross-document change feed
+ * from the framework admin API with a re-validated restore. Admin-gated: non-admins are bounced to the dashboard.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureAdminConfig = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    const emptyModal = () => ( { kind: null, payload: {} } );
+
+    return {
+        loaded: false,
+        loadingChanges: false,
+        restoring: false,
+        changes: [],
+        modal: emptyModal(),
+
+        init() {
+            const onInitialized = () => {
+                if ( !tiApplication.hasRole( "admin" ) ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.not-authorized", "Administrator access required." ) );
+                    tiApplication.openScreen( "dashboard" );
+                    return;
+                }
+                this.loaded = true;
+                this.loadChanges();
+            };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        getLabel( key, fallback = "" ) {
+            return tiApplication.getLabel( key, fallback );
+        },
+
+        openEditor( screen ) {
+            tiApplication.openScreen( screen );
+        },
+
+        loadChanges() {
+            this.loadingChanges = true;
+            tiApplication.sendRequest( "/admin/config/changes" ).then( ( result ) => {
+                this.changes = ( result && Array.isArray( result.data ) ) ? result.data : [];
+                this.loadingChanges = false;
+            } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
+                this.loadingChanges = false;
+                this.changes = [];
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        formatTimestamp( value ) {
+            if ( !value ) {
+                return "";
+            }
+            const date = new Date( value );
+            return tiToolbox.isValidDate( date ) ? date.toLocaleString() : String( value );
+        },
+
+        formatDocCount( change ) {
+            const count = ( change && Array.isArray( change.documents ) ) ? change.documents.length : 0;
+            const tmpl = ( count === 1 )
+                ? tiApplication.getLabel( "interface.admin.doc-count-one", "{n} document" )
+                : tiApplication.getLabel( "interface.admin.doc-count-many", "{n} documents" );
+            return tmpl.replace( "{n}", String( count ) );
+        },
+
+        openRestore( change ) {
+            this.modal = { kind: "restore", payload: { changeSetID: change.changeSetID, note: change.note || "" } };
+        },
+
+        closeModal() {
+            this.modal = emptyModal();
+        },
+
+        submitRestore() {
+            const changeSetID = this.modal.payload && this.modal.payload.changeSetID;
+            if ( !changeSetID || this.restoring ) {
+                return;
+            }
+            this.restoring = true;
+            tiApplication.sendRequest( "/admin/config/changes/" + encodeURIComponent( changeSetID ) + "/restore", "POST", {} ).then( ( result ) => {
+                this.restoring = false;
+                const data = result && result.data;
+                // Restore re-validates the historic snapshot against the *current* schemas/validators; a snapshot that
+                // no longer validates comes back as { ok:false, errors } and nothing is written.
+                if ( data && data.ok === false ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.restore-invalid", "Restore failed — the snapshot no longer passes validation." ) );
+                    return;
+                }
+                tiApplication.notify( tiApplication.getLabel( "interface.admin.restore-success", "Configuration restored." ) );
+                this.closeModal();
+                this.loadChanges();
+            } ).catch( ( error ) => {
+                this.restoring = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        }
+    };
+};
+
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceEvaluation", configureCompetenceEvaluation );
     Alpine.data( "competenceEmployeesList", configureEmployeesList );
@@ -2770,4 +2886,5 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceCycleManagement", configureCycleManagement );
     Alpine.data( "competenceCycleSetup", configureCycleSetup );
     Alpine.data( "competenceEmployeeManagement", configureEmployeeManagement );
+    Alpine.data( "competenceAdminConfig", configureAdminConfig );
 } );
