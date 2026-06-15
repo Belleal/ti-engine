@@ -2,6 +2,10 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.5.0
+
+* feat(exceptions): add `E_APP_RESOURCE_ALREADY_EXISTS` (5006) for resource-creation conflicts; intended to be raised with HTTP `409`
+
 ## Version 1.4.6
 
 * build(deps): update `@dotenvx/dotenvx` from ^1.65.0 to ^1.66.0
