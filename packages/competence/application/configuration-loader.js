@@ -70,6 +70,56 @@ module.exports.getSpecializationCodes = ( roleFamilyCode ) => {
 };
 
 /**
+ * Returns the ordered stage-level codes (the discipline-agnostic ladder rungs), e.g. `[ "N", "J", "R", "S", "X", "T" ]`.
+ * These double as the six scope anchors used throughout the competency dictionary.
+ *
+ * @method
+ * @returns {Array<string>}
+ * @public
+ */
+module.exports.getStageLevelCodes = () => {
+    return Object.keys( module.exports.configStageLevels || {} );
+};
+
+/**
+ * Returns the stage-level ladder as an ordered list of `{ code, stages }`, where `stages` is the array of valid stage
+ * numbers for that level (e.g. `N → [ 1 ]`, `J → [ 1, 2, 3 ]`). Derived from `config.stage-levels.json` so the ladder
+ * has a single source of truth.
+ *
+ * @method
+ * @returns {Array<{code: string, stages: Array<number>}>}
+ * @public
+ */
+module.exports.getStageLevelLadder = () => {
+    return Object.entries( module.exports.configStageLevels || {} ).map( ( [ code, definition ] ) => {
+        const stageCount = ( definition && Number.isInteger( definition.stages ) && definition.stages > 0 ) ? definition.stages : 1;
+        const stages = [];
+        for ( let stage = 1; stage <= stageCount; stage++ ) {
+            stages.push( stage );
+        }
+        return { code: code, stages: stages };
+    } );
+};
+
+/**
+ * Returns the flattened stage-level identifiers used as relevancy-archetype curve keys — every `<level><stage>`
+ * combination in ladder order, e.g. `[ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1" ]`.
+ *
+ * @method
+ * @returns {Array<string>}
+ * @public
+ */
+module.exports.getArchetypeStageLevels = () => {
+    const levels = [];
+    module.exports.getStageLevelLadder().forEach( ( entry ) => {
+        entry.stages.forEach( ( stage ) => {
+            levels.push( `${ entry.code }${ stage }` );
+        } );
+    } );
+    return levels;
+};
+
+/**
  * Enum for the calendar slot status values.
  *
  * @readonly

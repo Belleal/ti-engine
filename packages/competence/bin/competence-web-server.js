@@ -43,20 +43,14 @@ class CompetenceWebServer extends TiWebServer {
      * @public
      */
     onStart() {
-        return new Promise( ( resolve, reject ) => {
-            super.onStart().then( () => {
-                return dataManager.instance.initialize();
-            } ).then( () => {
-                return organizationManager.instance.buildOrganizationChart();
-            } ).then( () => {
-                return configurationLoader.initialize();
-            } ).then( () => {
-                resolve();
-            } ).catch( ( error ) => {
+        return super.onStart()
+            .then( () => dataManager.instance.initialize() )
+            .then( () => organizationManager.instance.buildOrganizationChart() )
+            .then( () => configurationLoader.initialize() )
+            .catch( ( error ) => {
                 logger.log( `Error while trying to start competence web server within instance '${ ServiceConsumer.instanceID }'!`, logger.logSeverity.ERROR, error );
-                reject( exceptions.raise( error ) );
+                throw exceptions.raise( error );
             } );
-        } );
     }
 
     /**

@@ -15,8 +15,12 @@
  * @module config-editors
  */
 
-const SCOPE_LEVELS = [ "N", "J", "R", "S", "X", "T" ];
-const ARCHETYPE_STAGE_LEVELS = [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1" ];
+const configurationLoader = require( "#configuration-loader" );
+
+// The stage-level ladder is owned by config.stage-levels.json; derive both the scope anchors (level codes) and the
+// per-stage archetype-curve keys from it so there is a single source of truth.
+const SCOPE_LEVELS = configurationLoader.getStageLevelCodes();
+const ARCHETYPE_STAGE_LEVELS = configurationLoader.getArchetypeStageLevels();
 
 /**
  * @method
@@ -25,7 +29,7 @@ const ARCHETYPE_STAGE_LEVELS = [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1",
  * @private
  */
 function clone( value ) {
-    return ( value === undefined || value === null ) ? value : JSON.parse( JSON.stringify( value ) );
+    return ( value === undefined || value === null ) ? value : structuredClone( value );
 }
 
 /**

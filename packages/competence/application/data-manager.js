@@ -483,7 +483,7 @@ class DataManager {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleData } ) );
             }
             this.getCycle( cycleData.cycleID ).then( () => {
-                reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_ALREADY_EXISTS || exceptions.exceptionCode.E_GEN_GENERAL_ERROR, { details: `Cycle '${ cycleData.cycleID }' already exists.` } ) );
+                reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_ALREADY_EXISTS, { details: `Cycle '${ cycleData.cycleID }' already exists.` }, exceptions.httpCode.C_409 ) );
             } ).catch( ( error ) => {
                 // Cycle does not exist — proceed with creation.
                 if ( error && error.code !== exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND ) {

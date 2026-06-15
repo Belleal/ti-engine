@@ -50,7 +50,7 @@ async function activeSetsReferenceIntegrity( value, context ) {
     const dictionary = ( ( await context.getConfig( "competencies" ) ) || {} ).competencies || {};
     const roleFamilies = ( await context.getConfig( "role-families" ) ) || {};
     for ( const [ family, familyEntry ] of Object.entries( value || {} ) ) {
-        const validSpecs = new Set( Object.keys( roleFamilies[ family ]?.specializations || {} ) );
+        const validSpecs = new Set( Object.keys( ( roleFamilies[ family ] && roleFamilies[ family ].specializations ) || {} ) );
         for ( const [ key, cycleMap ] of Object.entries( familyEntry || {} ) ) {
             if ( key !== "baseline" && !validSpecs.has( key ) ) {
                 issues.push( { path: `.${ family }.${ key }`, message: `'${ key }' is not a valid specialization of '${ family }'`, code: "reference-integrity" } );

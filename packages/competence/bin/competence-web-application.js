@@ -146,10 +146,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     date: currentCycle.cycleDate,
                     endDate: currentCycle.cycleEnd
                 } : null,
-                employeeLevel: ( () => {
-                    const userID = session && session.user && session.user.employeeID;
-                    return userID ? organizationManager.instance.resolveEmployeeAttributes( userID, session?.language ) : null;
-                } )(),
+                employeeLevel: this.#resolveSessionEmployeeLevel( session ),
                 sidebarNavMapping: {
                     "dashboard": "dashboard",
                     "employees-list": "employees",
@@ -304,6 +301,20 @@ class CompetenceWebApplication extends TiWebAppManager {
             if ( activeCycle ) return activeCycle;
             return dataManager.instance.getAllCycles().then( ( all ) => ( all && all.length > 0 ) ? all[ 0 ] : null );
         } );
+    }
+
+    /**
+     * Resolves the career attributes (level/stage/role family) for the session user, or null when the session carries
+     * no employee identity.
+     *
+     * @method
+     * @private
+     * @param {TiSession} session
+     * @returns {Object|null}
+     */
+    #resolveSessionEmployeeLevel( session ) {
+        const userID = session && session.user && session.user.employeeID;
+        return userID ? organizationManager.instance.resolveEmployeeAttributes( userID, session?.language ) : null;
     }
 
     /**
@@ -634,7 +645,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     // At this point calculate the performance scores:
                     competenceFramework.instance.calculateFinalEvaluationScores( existingEvaluation );
                 } else {
-                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
                 }
 
                 if ( existingEvaluation.status === configurationLoader.evaluationStatus.OPEN ) {
@@ -833,7 +844,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                         && currentEvaluation.status === configurationLoader.evaluationStatus.IN_REVIEW
                         && ( !deadlineDate || today <= deadlineDate );
                 } else {
-                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
                 }
 
                 // NOTE: Remove information that should not be exposed to some roles:
@@ -919,7 +930,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 return this.#canManagerPerformEvaluation( userID, employee.employeeID );
             } ).then( ( isManager ) => {
                 if ( !isSupervisor && !isManager ) {
-                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
                 }
 
                 // Phase 5: starting an evaluation requires a strictly ACTIVE cycle. PLANNING / CLOSED / no cycle at all
@@ -2165,7 +2176,7 @@ class CompetenceWebApplication extends TiWebAppManager {
 
             dataManager.instance.fetchEmployee( employeeID ).then( ( employee ) => {
                 if ( !isSupervisor && !organizationManager.instance.isSuperiorManagerOfEmployee( userID, employeeID ) ) {
-                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
                 }
 
                 const activeStatuses = [
@@ -2324,7 +2335,7 @@ class CompetenceWebApplication extends TiWebAppManager {
             dataManager.instance.fetchEmployee( employeeID ).then( ( employee ) => {
                 const isDirectManager = !isSupervisor && organizationManager.instance.isSuperiorManagerOfEmployee( userID, employeeID );
                 if ( !isSupervisor && !isDirectManager ) {
-                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
                 }
 
                 const updated = _.cloneDeep( employee );
@@ -2464,15 +2475,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             } ) )
         } ) );
 
-        // Stage-level dual-track shape: N has only stage 1, J/R/S have 1-3, X has only stage 1, T has only stage 1.
-        const stageLevels = [
-            { code: "N", stages: [ 1 ] },
-            { code: "J", stages: [ 1, 2, 3 ] },
-            { code: "R", stages: [ 1, 2, 3 ] },
-            { code: "S", stages: [ 1, 2, 3 ] },
-            { code: "X", stages: [ 1 ] },
-            { code: "T", stages: [ 1 ] }
-        ];
+        // Stage-level dual-track ladder, derived from config.stage-levels.json (single source of truth).
+        const stageLevels = configurationLoader.getStageLevelLadder();
 
         const orgStructure = configurationLoader.configOrganizationStructure || {};
         const organizationUnits = Object.entries( orgStructure ).map( ( [ id, unit ] ) => ( {
@@ -2515,7 +2519,7 @@ class CompetenceWebApplication extends TiWebAppManager {
     #assertEditableField( fieldPath, actorScope ) {
         if ( actorScope.isSupervisor ) return;
         if ( actorScope.isDirectManager && this.#managerEditableFields().has( fieldPath ) ) return;
-        throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: `Field '${ fieldPath }' is not editable by the current role.` }, exceptions.httpCode.C_401 );
+        throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: `Field '${ fieldPath }' is not editable by the current role.` }, exceptions.httpCode.C_403 );
     }
 
     /**
@@ -2729,13 +2733,13 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @param {TiSession} session
      * @param {...string} roles One or more role codes; at least one must be present in the session.
      * @returns {{ userID: string, userRoles: string[] }}
-     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} (401) If the session is unauthenticated or no role matches.
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} (401) when unauthenticated, or (403) when authenticated but holding none of the required roles.
      * @private
      */
     #requireRole( session, ...roles ) {
         const context = this.#requireSessionUser( session );
         if ( !roles.some( ( role ) => context.userRoles.includes( role ) ) ) {
-            throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+            throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
         }
         return context;
     }

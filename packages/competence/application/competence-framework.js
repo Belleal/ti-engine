@@ -63,30 +63,25 @@ class CompetenceFramework {
     /* Public interface */
 
     /**
-     * Used to generate a short display ID from a UUID.
-     * Deterministic: the same UUID always produces the same base candidate.
-     * Collision-safe: if the candidate is already used within the cycle, increments until a free slot is found.
+     * Used to generate a short, human-readable display ID from a UUID. Deterministic: the same UUID always produces
+     * the same 6-character code, derived by folding the UUID's four 32-bit words into the 36^6 space. The short ID is
+     * a display aid only — evaluations are keyed by their UUID, never by the short ID — so the astronomically small
+     * collision probability across a cycle's evaluations is purely cosmetic.
      *
      * @method
      * @param {string} uuid
-     * @param {Set<string>} [usedShortIDs]
      * @returns {string} 6-character uppercase base-36 string
      * @public
      */
-    generateShortID( uuid, usedShortIDs = new Set() ) {
+    generateShortID( uuid ) {
         const hex = uuid.replace( /-/g, "" );
         const a = parseInt( hex.slice( 0, 8 ), 16 ) >>> 0;
         const b = parseInt( hex.slice( 8, 16 ), 16 ) >>> 0;
         const c = parseInt( hex.slice( 16, 24 ), 16 ) >>> 0;
         const d = parseInt( hex.slice( 24, 32 ), 16 ) >>> 0;
         const M = 2176782336; // 36^6 — 2.18 billion possible values
-        let seed = ( ( a ^ b ^ c ^ d ) >>> 0 ) % M;
-        let candidate = seed.toString( 36 ).toUpperCase().padStart( 6, "0" );
-        while ( usedShortIDs.has( candidate ) ) {
-            seed = ( seed + 1 ) % M;
-            candidate = seed.toString( 36 ).toUpperCase().padStart( 6, "0" );
-        }
-        return candidate;
+        const seed = ( ( a ^ b ^ c ^ d ) >>> 0 ) % M;
+        return seed.toString( 36 ).toUpperCase().padStart( 6, "0" );
     }
 
     /**
@@ -205,14 +200,11 @@ class CompetenceFramework {
             // are valid — they should be identical, but if the DB-backed copy is incomplete (e.g., never seeded),
             // fall back to the configuration source.
             const familySource = ( storedFamilies && Object.keys( storedFamilies ).length > 0 ) ? storedFamilies : roleFamilies;
-            return new Promise( ( resolve, reject ) => {
-                Promise.all( Object.keys( familySource ).map( ( family ) => this.#validateFamilyForLock( family, cycleID, dictionary, familySource[ family ], cap ) ) )
-                    .then( ( perFamilyErrors ) => {
-                        const errors = perFamilyErrors.flat();
-                        resolve( { valid: errors.length === 0, errors } );
-                    } )
-                    .catch( reject );
-            } );
+            return Promise.all( Object.keys( familySource ).map( ( family ) => this.#validateFamilyForLock( family, cycleID, dictionary, familySource[ family ], cap ) ) )
+                .then( ( perFamilyErrors ) => {
+                    const errors = perFamilyErrors.flat();
+                    return { valid: errors.length === 0, errors };
+                } );
         } );
     }
 

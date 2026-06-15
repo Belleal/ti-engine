@@ -13,6 +13,16 @@ This document contains the list of changes made to the competence package. The f
 * test(json): add a content-integrity guard that fails if any competency referenced by an active set — or any catalog competency — has an empty `en`/`bg` name, description, or scope level
 * chore(build): replace the obsolete CSV-based compile scripts with `bin/build/build-competency-relevancy.js`, the re-runnable generator for the relevancy config and the archetype labels
 
+### Correctness and code-quality fixes
+
+* fix(framework): creating a cycle whose ID already exists now raises `E_APP_RESOURCE_ALREADY_EXISTS` with HTTP `409`; it previously referenced an undefined exception code and surfaced as a generic unknown error (requires `@ti-engine/core` ≥ 1.5.0)
+* fix(web-app): authorization failures across the evaluation, employee, and cycle handlers now return HTTP `403` (Forbidden), reserving `401` for genuinely unauthenticated requests — matching the framework's own `authorization.requireRole` guard
+* refactor(config): derive the stage-level ladder from `config.stage-levels.json` in one place (new `getStageLevelCodes` / `getStageLevelLadder` / `getArchetypeStageLevels` loader helpers) instead of hardcoding it in the config editors, the employee form, and the relevancy build script
+* refactor(framework): drop the unused per-cycle collision parameter from `generateShortID` (the short ID is display-only — evaluations are keyed by UUID) and remove the redundant `Promise` wrappers around the `validateCycleForLock` and web-server `onStart` chains
+* refactor(web-app): replace an inline IIFE in the config data view with a private helper; clone via `structuredClone` in the config editors and use `&&`-chaining in the config validators
+* chore(build): rewrite `bin/build/build-competency-relevancy.js` to the project code style and source its stage levels from `config.stage-levels.json`
+* docs: relocate the phase-0 inventory notes into `design/` (kebab-case) alongside the other competence design documents
+
 ### BREAKING CHANGES
 
 * 64 competency codes were removed and the `I1` subcategory renumbered. Stored evaluation data keyed by the old codes (e.g. the separate pilot/analysis dataset) must be migrated. The config file shapes, JSON schemas, and framework logic are unchanged — this is a content replacement, not an API change
