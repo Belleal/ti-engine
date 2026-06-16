@@ -31,6 +31,8 @@ The following features are currently implemented:
 - **[UI]** Cycle Management screen — Supervisor-only table of cycles with create, lock (with validation-errors modal), and close actions
 - **[UI]** Cycle Setup screen — Supervisor-only two-pane editor for the Active Competency Sets of a cycle; tree of families and specializations, cap and floor-coverage indicators, competency picker, clone-from-another-node flow
 - **[UI]** Employee Management screen — Supervisor + Manager master/detail editor with field-level permission gating, audit log, in-flight evaluation count surfaced on role-family changes
+- **[UI]** Administration screens (admin-allowlisted users) — Configuration landing (config change feed, validated restore, export-to-git bundle), Competency Text Editor (bilingual, for BG review), Archetype Assignment, Archetype Curve Editor, and Role Families editor
+- **[Config]** Admin configuration management — versioned, validated, restorable editing of the competency dictionary, localization, relevancy archetypes, role families, and active competency sets through the UI, with export back to the source JSON files (reusable machinery lives in `@ti-engine/web-framework`)
 
 > **Note on planned features:** Step 8 of the process (goal-setting and formal closure) is part of the full intended workflow and is described below, but is not yet implemented.
 
@@ -75,6 +77,8 @@ The nine role families and their permitted specializations are configured in `bi
 
 The competency selection for any `(roleFamily, specialization?, cycleID)` tuple is called the **Active Competency Set** and is configured per cycle in `bin/config/config.active-competency-sets.json`. The resolved set is `baseline ∪ specialization`, deduplicated. The baseline applies to every employee in the family regardless of specialization; the specialization additions only apply to employees with that specialization set.
 
+Each family draws its competencies from a fixed **competency pool** (its applicability universe), defined in `bin/config/config.role-family-competencies.json` — the family's own family-specific competencies plus the 30 shared canonical ones. Cycle Setup only offers, and lock validation only accepts, competencies from within that pool. The not-yet-populated families (`QE`, `XD`, `DA`, `IO`, `MC`, `PD`) currently have a pool of the shared competencies only.
+
 ### Stage-Levels
 
 Employees progress through a sequence of **levels**, each with one or more **stages**. The combination of level and stage (e.g., `J2`, `S3`) is called the **stage-level** and determines the relevancy weight applied to each competency in score calculations.
@@ -92,7 +96,7 @@ At the Senior Specialist level, employees can advance either to Expert (`X`) or 
 
 ### Competency Framework
 
-Competencies are organized into a three-level hierarchy: **Category → Subcategory → Competency**. All competency names, descriptions, and per-level relevancy weights are fully configurable via JSON configuration files and are localized (currently English and Bulgarian).
+Competencies are organized into a three-level hierarchy: **Category → Subcategory → Competency**. All competency names, descriptions, and scope anchors are fully configurable via JSON configuration files (`bin/config/config.competencies.json`) and are localized (currently English and Bulgarian). Per-stage-level **relevancy** is not stored on the competency itself — each competency is assigned a reusable **relevancy archetype** (see [Relevancy Archetypes](#relevancy-archetypes) below).
 
 The default framework defines three top-level categories and nine subcategories:
 
@@ -109,6 +113,12 @@ The default framework defines three top-level categories and nine subcategories:
 |                |      | Mentorship            | `C3`             | Knowledge sharing and colleague support               |
 
 Each competency also carries a **scope** description per level (N/J/R/S/X/T), describing what mastery at that level looks like — used as guidance for graders, not in scoring.
+
+### Relevancy Archetypes
+
+A competency's **relevancy** — how much it weighs in scoring at each stage-level — is defined by one of seven reusable **archetype curves** in `bin/config/config.relevancy-archetypes.json`. Each competency in the dictionary references a single archetype (`relevancyArchetype`), and the archetype supplies a weight (integer 2–10) for every one of the twelve stage-levels (`N1`, `J1`–`J3`, `R1`–`R3`, `S1`–`S3`, `X1`, `T1`).
+
+The curve is **global** — a given competency carries the same relevancy wherever it is used. Whether a competency applies to a family at all is handled by selection into that family's Active Competency Set, not by the relevancy curve, so per-family curve divergence is intentionally not modelled. At evaluation creation, the resolved relevancy values are **frozen into the evaluation snapshot**, so later configuration edits never affect an in-flight evaluation. The archetypes (and the per-competency assignment) are editable through the Administration screens, and the file is regenerated from `design/competency-relevancy-model.md` by `bin/build/build-competency-relevancy.js`.
 
 ### Evaluation Grades
 
@@ -242,11 +252,11 @@ sequenceDiagram
     actor Team as Team Members
     participant Sys as System
 
-    rect rgba(180, 180, 180, 0.2)
-        Note over Sup, Sys: Step 1 — Appraisal Cycle (planned)
-        Sup ->> Sys: Configure and start appraisal cycle
-        Sys -->> Sys: Record cycle ID and closing date
-    end
+    Note over Sup, Sys: Step 1 — Appraisal Cycle Setup
+    Sup ->> Sys: Create cycle (status: PLANNING)
+    Sup ->> Sys: Configure Active Competency Sets per family (from each family's pool)
+    Sys -->> Sys: Validate (floor coverage · cap · references · pool membership)
+    Sup ->> Sys: Lock cycle to ACTIVE
 
     Note over Mgr, Sys: Step 2 — Evaluation Start
     Mgr ->> Sys: Start Evaluation for Employee
@@ -323,8 +333,8 @@ Performance scores are calculated automatically when the manager submits (evalua
 For each competency `c` allowed in the evaluation:
 
 - `grade_weight(grade)` — the numeric weight of a submitted grade: S=1.3, R=1.0, U=0.6, N=0.0
-- `relevancy(c, stageLevel)` — the pre-configured importance of competency `c` for the employee's specific stage-level (e.g., 7 at J1, 10 at S1); stored in `bin/config/config.competencies.json`
-- `max_score[category]` — the sum of all relevancy values for allowed competencies in that category at the given stage-level; pre-calculated on startup
+- `relevancy(c, stageLevel)` — the importance of competency `c` at the employee's specific stage-level (e.g., 7 at J1, 10 at S1), resolved from the competency's [relevancy archetype](#relevancy-archetypes) and frozen into the evaluation snapshot at creation
+- `max_score[category]` — the sum of all relevancy values for the snapshot's competencies in that category at the given stage-level; computed from the snapshot at scoring time
 
 ### Calculation
 
@@ -453,6 +463,42 @@ Shown to `Supervisor` and `Manager` users. The upper panel lists all `Ready` eva
 - **Cancel Interview** — visible when an interview date is set; cancels the booking and clears the date
 
 The slot picker shows all `available` slots from all managers, organized into a 4-column weekly grid. Each slot button shows the day and time on the first line and the manager's name below. Navigation shifts the visible window by 4 weeks at a time. Clicking a slot books it immediately and refreshes the screen.
+
+### Cycle Management
+
+Supervisor-only. A table of all appraisal cycles with their status (`PLANNING` / `ACTIVE` / `CLOSED`), key dates, and per-cycle actions:
+
+- **Create** — modal to define a new cycle (ID, name, dates); the cycle starts in `PLANNING`
+- **Configure** — opens Cycle Setup for a `PLANNING` cycle
+- **Lock** — promotes a `PLANNING` cycle to `ACTIVE` after validation; a modal surfaces any validation errors (floor coverage, cap, reference integrity, pool membership) grouped by family
+- **Close** — transitions an `ACTIVE` cycle to `CLOSED`
+
+Only one cycle may be `ACTIVE` at a time.
+
+### Cycle Setup
+
+Supervisor-only two-pane editor for a cycle's Active Competency Sets, editable while the cycle is in `PLANNING` (read-only otherwise). The left pane is a tree of role families and their specializations, each node showing a status dot (configured / intentionally-empty / unconfigured / has-issues) and a count. The right pane edits the selected node:
+
+- **Cap indicator** and **floor-coverage** pills (a baseline must cover all nine subcategories)
+- **Competency picker** — offers only competencies from the family's [pool](#role-families-and-specializations); for a specialization, competencies already in the baseline are shown disabled
+- **"No extra competencies"** marker for an intentionally-empty specialization, plus a clone-from-another-node flow
+- A topbar **Lock cycle** action, enabled once validation passes
+
+### Employee Management
+
+Supervisor + Manager master/detail editor (the "People" screen). Lists employees with a detail form whose fields are permission-gated per role. Changing an employee's role family or specialization surfaces the count of in-flight evaluations affected, and an audit log records every change.
+
+### Administration
+
+Admin-allowlisted screens (visible only to identities in `auth.admins`) for editing configuration through the UI. All changes are versioned, validated (ajv + semantic rules), and restorable, and can be exported as a git bundle of the source JSON files.
+
+- **Configuration** — landing screen with the config change feed, validated restore, and export-to-git
+- **Competency Text Editor** — bilingual (EN/BG) editor for competency names, descriptions, and scope anchors, built for the Bulgarian-translation review pass
+- **Archetype Assignment** — assigns a relevancy archetype to each competency, with a curve sparkline
+- **Archetype Curve Editor** — edits the twelve weights, name, and description of each relevancy archetype
+- **Role Families** — edits role-family names/descriptions and manages their specializations
+
+Competency texts and archetype names/descriptions are stored as localization labels — edits are versioned and exportable but appear only after an export → commit → redeploy; archetype assignments, role-family structure, and active sets are store-backed and take effect live.
 
 ---
 
@@ -875,6 +921,23 @@ end
 
 ## Configuration Reference
 
+### Configuration Files
+
+All configuration lives in `bin/config/` as JSON, validated against the schemas in `bin/data/schemas/`. The editable documents are registered with the framework's admin config registry and can be changed through the Administration screens; localization for every user-visible string is in `bin/localization/competence-labels.json`.
+
+| File                                  | Holds                                                                                              | Admin-editable                |
+|---------------------------------------|----------------------------------------------------------------------------------------------------|-------------------------------|
+| `config.application.json`             | App settings — evaluation/grade weights, performance thresholds, active-set cap, interview calendar | No                            |
+| `config.role-families.json`           | The nine role families and their permitted specializations                                         | Yes (text + specializations)  |
+| `config.competencies.json`            | The competency dictionary (108) — category, subcategory, scope anchors, archetype assignment, e-CF  | Yes                           |
+| `config.relevancy-archetypes.json`    | The seven relevancy archetype curves (twelve stage-level weights each)                              | Yes                           |
+| `config.role-family-competencies.json`| The per-family competency pool (applicability universe)                                            | No (read-only; exportable)    |
+| `config.active-competency-sets.json`  | Per-cycle baseline + specialization competency selections                                          | Yes                           |
+| `config.stage-levels.json`            | The stage-level ladder (N/J/R/S/X/T and their stage counts)                                         | No (read-only)                |
+| `config.organization-structure.json`  | The organization chart (units + employees) used to resolve managers                                | No                            |
+
+The competency dictionary, the relevancy archetypes, and the per-family pool are generated from the source-of-truth design documents in `design/` by `bin/build/build-competency-relevancy.js`; hand-edit those documents and re-run the build rather than editing the generated files directly.
+
 ### Application Settings
 
 All application settings are in `bin/config/config.application.json` and are validated against a JSON schema on startup.
@@ -907,3 +970,5 @@ All application settings are in `bin/config/config.application.json` and are val
 | Variable                  | Default | Description                                                                                                                       |
 |---------------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------|
 | `COMPETENCE_PRELOAD_DATA` | `false` | If `true`, seeds employee and evaluation data from `bin/data/seeders/` into Redis on startup (useful for development and testing) |
+
+This is the only application-specific variable. The standard `@ti-engine/core` and `@ti-engine/web-framework` variables also apply — service identity (`TI_INSTANCE_NAME`, `TI_INSTANCE_CLASS`), the Redis connection (`TI_MEMORY_CACHE_HOST`/`PORT`/`AUTH`/`DB`), logging, and the web/auth settings — and are loaded from the package `.env` via dotenvx. The administrator allowlist (`auth.admins`) and the authentication methods are configured in the web server's JSON config, not through environment variables.
