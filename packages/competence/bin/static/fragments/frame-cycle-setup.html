@@ -42,13 +42,17 @@
                 <div class="competence-cycle-tree">
                     <template x-for="family in families" x-bind:key="family.code">
                         <div class="competence-cycle-tree-family">
-                            <div class="competence-cycle-tree-family-head">
+                            <div class="competence-cycle-tree-family-head"
+                                 x-bind:class="isFamilyExcluded(family.code) ? 'is-excluded' : ''">
                                 <span class="ti-tag mono" x-text="family.code"></span>
                                 <span class="competence-cycle-tree-family-name" x-text="family.name"></span>
+                                <template x-if="isFamilyExcluded(family.code)">
+                                    <span class="ti-tag competence-cycle-excluded-tag" x-text-label="interface.cycle-setup.excluded-tag"></span>
+                                </template>
                             </div>
                             <div class="competence-cycle-tree-spec-list">
                                 <button type="button" class="competence-cycle-tree-node"
-                                        x-bind:class="(selectedFamily === family.code && selectedKey === 'baseline') ? 'is-selected' : ''"
+                                        x-bind:class="((selectedFamily === family.code && selectedKey === 'baseline') ? 'is-selected' : '') + (isFamilyExcluded(family.code) ? ' is-excluded' : '')"
                                         @click="selectNode(family.code, 'baseline')">
                                     <span class="competence-cycle-tree-node-dot"
                                           x-bind:class="'is-' + getNodeStatus(family.code, 'baseline')"
@@ -58,18 +62,20 @@
                                           x-show="getNodeCount(family.code, 'baseline') > 0"
                                           x-text="getNodeCount(family.code, 'baseline')"></span>
                                 </button>
-                                <template x-for="spec in family.specializations" x-bind:key="spec.code">
-                                    <button type="button" class="competence-cycle-tree-node spec"
-                                            x-bind:class="(selectedFamily === family.code && selectedKey === spec.code) ? 'is-selected' : ''"
-                                            @click="selectNode(family.code, spec.code)">
-                                        <span class="competence-cycle-tree-node-dot"
-                                              x-bind:class="'is-' + getNodeStatus(family.code, spec.code)"
-                                              x-bind:aria-label="getNodeStatusAria(family.code, spec.code)"></span>
-                                        <span class="competence-cycle-tree-node-label" x-text="spec.name"></span>
-                                        <span class="competence-cycle-tree-node-count"
-                                              x-show="getNodeCount(family.code, spec.code) > 0"
-                                              x-text="getNodeCount(family.code, spec.code)"></span>
-                                    </button>
+                                <template x-if="!isFamilyExcluded(family.code)">
+                                    <template x-for="spec in family.specializations" x-bind:key="spec.code">
+                                        <button type="button" class="competence-cycle-tree-node spec"
+                                                x-bind:class="(selectedFamily === family.code && selectedKey === spec.code) ? 'is-selected' : ''"
+                                                @click="selectNode(family.code, spec.code)">
+                                            <span class="competence-cycle-tree-node-dot"
+                                                  x-bind:class="'is-' + getNodeStatus(family.code, spec.code)"
+                                                  x-bind:aria-label="getNodeStatusAria(family.code, spec.code)"></span>
+                                            <span class="competence-cycle-tree-node-label" x-text="spec.name"></span>
+                                            <span class="competence-cycle-tree-node-count"
+                                                  x-show="getNodeCount(family.code, spec.code) > 0"
+                                                  x-text="getNodeCount(family.code, spec.code)"></span>
+                                        </button>
+                                    </template>
                                 </template>
                             </div>
                         </div>
@@ -122,9 +128,35 @@
                                      x-text-label="interface.cycle-setup.header-description-spec"></div>
                             </div>
 
+                            <!-- Family-level include/exclude control (baseline node only). Excluding a family removes
+                                 it from the cycle: its specializations are hidden in the tree, lock validation skips
+                                 it, and the configuration below is hidden. -->
+                            <template x-if="selectedKey === 'baseline'">
+                                <div class="competence-cycle-exclude-row"
+                                     x-bind:class="isSelectedFamilyExcluded() ? 'is-excluded' : ''">
+                                    <template x-if="!isSelectedFamilyExcluded()">
+                                        <button type="button" class="ti-btn ghost sm" x-show="!isReadOnly"
+                                                @click="toggleFamilyExcluded()" x-bind:disabled="saving">
+                                            <span class="ti-icon close sm" aria-hidden="true"></span>
+                                            <span x-text-label="interface.cycle-setup.exclude-family-btn"></span>
+                                        </button>
+                                    </template>
+                                    <template x-if="isSelectedFamilyExcluded()">
+                                        <div class="competence-cycle-excluded-notice">
+                                            <span class="ti-icon close sm" aria-hidden="true"></span>
+                                            <span x-text-label="interface.cycle-setup.excluded-banner"></span>
+                                            <button type="button" class="ti-btn sm" x-show="!isReadOnly"
+                                                    @click="toggleFamilyExcluded()" x-bind:disabled="saving">
+                                                <span x-text-label="interface.cycle-setup.include-family-btn"></span>
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
                             <!-- Cap indicator. Count rendered as <strong>; the rest is a muted qualifier, so the math
                                  (baseline + spec = total) reads as a hint rather than the headline number. -->
-                            <div class="competence-cycle-indicator-row">
+                            <div class="competence-cycle-indicator-row" x-show="!isSelectedFamilyExcluded()">
                                 <div class="competence-cycle-indicator-label" x-text-label="interface.cycle-setup.cap-label"></div>
                                 <div class="competence-cycle-indicator-content">
                                     <div class="competence-cap-indicator" x-bind:class="isOverCap() ? 'over' : ''">
@@ -141,7 +173,7 @@
 
                             <!-- Floor coverage pills (baseline only). Each pill includes a check/x icon, so the state
                                  is identifiable without color alone. -->
-                            <template x-if="selectedKey === 'baseline'">
+                            <template x-if="selectedKey === 'baseline' && !isSelectedFamilyExcluded()">
                                 <div class="competence-cycle-indicator-row">
                                     <div class="competence-cycle-indicator-label" x-text-label="interface.cycle-setup.floor-coverage-label"></div>
                                     <div class="competence-cycle-indicator-content">
@@ -179,7 +211,7 @@
                             <!-- Competency list. Bordered container with internal dividers when populated; the empty
                                  state replaces the list entirely (via .is-empty modifier removing the chrome) so the
                                  ti-empty-state primitive can read naturally. -->
-                            <div class="competence-cycle-codes" x-bind:class="draft.codes.length === 0 ? 'is-empty' : ''">
+                            <div class="competence-cycle-codes" x-show="!isSelectedFamilyExcluded()" x-bind:class="draft.codes.length === 0 ? 'is-empty' : ''">
                                 <template x-if="draft.codes.length === 0">
                                     <div class="ti-empty-state competence-cycle-codes-empty">
                                         <div class="ti-empty-state-icon" aria-hidden="true">
@@ -222,7 +254,7 @@
                 <!-- Sticky actions panel (sibling card). Mirrors the empmgmt actions panel pattern so the
                      save / cancel affordance reads the same way across editor screens. Hidden when read-only or
                      when no node is selected. -->
-                <template x-if="selectedFamily && !isReadOnly">
+                <template x-if="selectedFamily && !isReadOnly && !isSelectedFamilyExcluded()">
                     <div class="competence-cycle-setup-actions-panel">
                         <button type="button" class="ti-btn primary" @click="openPicker()">
                             <span class="ti-icon plus sm" aria-hidden="true"></span>

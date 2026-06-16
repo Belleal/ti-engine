@@ -6809,7 +6809,27 @@
         "unconfigured-aria": {
           "en": "Not yet configured",
           "bg": "Все още не е конфигурирано"
+        },
+        "excluded-aria": {
+          "en": "Excluded from this cycle",
+          "bg": "Изключено от този цикъл"
         }
+      },
+      "exclude-family-btn": {
+        "en": "Exclude this family from the cycle",
+        "bg": "Изключи това семейство от цикъла"
+      },
+      "include-family-btn": {
+        "en": "Include this family",
+        "bg": "Включи това семейство"
+      },
+      "excluded-banner": {
+        "en": "This family is excluded from this cycle — its competencies won't apply.",
+        "bg": "Това семейство е изключено от този цикъл — неговите компетенции няма да се прилагат."
+      },
+      "excluded-tag": {
+        "en": "Excluded",
+        "bg": "Изключено"
       },
       "header-baseline-suffix": {
         "en": "— Baseline",
@@ -7011,6 +7031,14 @@
         "cleared": {
           "en": "Specialization cleared.",
           "bg": "Специализацията е изчистена."
+        },
+        "family-excluded": {
+          "en": "Family excluded from the cycle.",
+          "bg": "Семейството е изключено от цикъла."
+        },
+        "family-included": {
+          "en": "Family included in the cycle.",
+          "bg": "Семейството е включено в цикъла."
         }
       }
     },

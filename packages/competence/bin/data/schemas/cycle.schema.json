@@ -83,6 +83,15 @@
         "null"
       ],
       "description": "Employee ID of the creator (Supervisor)"
+    },
+    "excludedFamilies": {
+      "type": "array",
+      "description": "Role family codes explicitly excluded from this cycle. Excluded families are skipped by lock validation and their sub-tree is hidden in Cycle Setup. Absent or empty means every family is included.",
+      "items": {
+        "type": "string",
+        "pattern": "^(SE|QE|BA|PM|XD|DA|IO|MC|PD)$"
+      },
+      "uniqueItems": true
     }
   }
 }

@@ -29,7 +29,7 @@ beforeEach( async () => {
     await dataManager.instance.initialize();
 } );
 
-describe( "CompetenceFramework.validateCycleForLock — four rules in pass and fail cases", () => {
+describe( "CompetenceFramework.validateCycleForLock — validation rules in pass and fail cases", () => {
 
     it( "accepts a well-formed cycle (seeded 2026-H2 SE/BA/PM baselines satisfy all four rules)", async () => {
         const result = await competenceFramework.instance.validateCycleForLock( "2026-H2" );
@@ -100,11 +100,35 @@ describe( "CompetenceFramework.validateCycleForLock — four rules in pass and f
     // ----- Rule 4: No empty baseline -----
 
     it( "rule 4 (no empty baseline): rejects a family that has specialization data but an empty baseline", async () => {
-        // Seed family QE with a specialization but no baseline (default seed has neither for QE).
+        // The seed excludes QE; include it, then give it a specialization but no baseline.
+        const cycle = await dataManager.instance.getCycle( "2026-H2" );
+        await dataManager.instance.setCycleExcludedFamilies( "2026-H2", cycle.excludedFamilies.filter( ( f ) => f !== "QE" ) );
         await dataManager.instance.setActiveCompetencySet( "QE", "AUTOMATION", "2026-H2", [ "E2-1" ] );
         const result = await competenceFramework.instance.validateCycleForLock( "2026-H2" );
         const ruleErrors = result.errors.filter( ( e ) => e.rule === "no-empty-baseline" && e.family === "QE" );
         assert.equal( ruleErrors.length, 1 );
+    } );
+
+    // ----- Rule 6: inclusion (excluded families are skipped; an included empty family blocks the lock) -----
+
+    it( "rule 6 (inclusion): an included family with no competencies blocks the lock", async () => {
+        // Include QE (the seed excludes it) without configuring anything — it must now block the lock.
+        const cycle = await dataManager.instance.getCycle( "2026-H2" );
+        await dataManager.instance.setCycleExcludedFamilies( "2026-H2", cycle.excludedFamilies.filter( ( f ) => f !== "QE" ) );
+        const result = await competenceFramework.instance.validateCycleForLock( "2026-H2" );
+        assert.equal( result.valid, false );
+        const notConfigured = result.errors.filter( ( e ) => e.rule === "family-not-configured" && e.family === "QE" );
+        assert.equal( notConfigured.length, 1 );
+    } );
+
+    it( "rule 6 (inclusion): excluding a family skips all of its validation", async () => {
+        // Break the SE baseline (floor coverage would fail), then exclude SE — its errors must disappear.
+        await dataManager.instance.setActiveCompetencySet( "SE", "baseline", "2026-H2", [ "E1-1" ] );
+        const cycle = await dataManager.instance.getCycle( "2026-H2" );
+        await dataManager.instance.setCycleExcludedFamilies( "2026-H2", [ ...cycle.excludedFamilies, "SE" ] );
+        const result = await competenceFramework.instance.validateCycleForLock( "2026-H2" );
+        const seErrors = result.errors.filter( ( e ) => e.family === "SE" );
+        assert.equal( seErrors.length, 0, "an excluded family must produce no errors" );
     } );
 
 } );

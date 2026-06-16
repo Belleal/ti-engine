@@ -183,6 +183,8 @@ class CompetenceFramework {
      *   4. No empty baseline — a family with any specialization data for the cycle must have a non-empty baseline.
      *   5. Pool membership — every competency in a family's sets must belong to that family's competency pool
      *      (`config.role-family-competencies.json`); skipped for families with no defined pool.
+     *   6. Inclusion — a family that is not listed in `cycle.excludedFamilies` must have at least some configuration;
+     *      a completely empty included family blocks the lock. Excluded families are skipped entirely.
      *
      * @method
      * @param {string} cycleID
@@ -197,12 +199,16 @@ class CompetenceFramework {
         const dictionary = ( configurationLoader.configCompetencies && configurationLoader.configCompetencies.competencies ) || {};
         const roleFamilies = configurationLoader.configRoleFamilies || {};
 
-        return dataManager.instance.getRoleFamilies().then( ( storedFamilies ) => {
+        return Promise.all( [
+            dataManager.instance.getRoleFamilies(),
+            dataManager.instance.getCycle( cycleID )
+        ] ).then( ( [ storedFamilies, cycle ] ) => {
             // Allow either the seeded cache copy or the static configuration as the authority for which specializations
             // are valid — they should be identical, but if the DB-backed copy is incomplete (e.g., never seeded),
             // fall back to the configuration source.
             const familySource = ( storedFamilies && Object.keys( storedFamilies ).length > 0 ) ? storedFamilies : roleFamilies;
-            return Promise.all( Object.keys( familySource ).map( ( family ) => this.#validateFamilyForLock( family, cycleID, dictionary, familySource[ family ], cap ) ) )
+            const excludedFamilies = new Set( ( cycle && Array.isArray( cycle.excludedFamilies ) ) ? cycle.excludedFamilies : [] );
+            return Promise.all( Object.keys( familySource ).map( ( family ) => this.#validateFamilyForLock( family, cycleID, dictionary, familySource[ family ], cap, excludedFamilies ) ) )
                 .then( ( perFamilyErrors ) => {
                     const errors = perFamilyErrors.flat();
                     return { valid: errors.length === 0, errors };
@@ -699,8 +705,9 @@ class CompetenceFramework {
     }
 
     /**
-     * Runs the five validation rules for one role family within the given cycle. Returns an array of error
-     * descriptors (empty when the family is well-formed).
+     * Runs the validation rules for one role family within the given cycle. Returns an array of error descriptors
+     * (empty when the family is well-formed). An excluded family is skipped (no errors); a non-excluded family with no
+     * configuration yields a single `family-not-configured` error.
      *
      * @method
      * @param {string} family
@@ -708,10 +715,15 @@ class CompetenceFramework {
      * @param {Object.<string, Competency>} dictionary
      * @param {RoleFamily} familyConfig
      * @param {number} cap
+     * @param {Set<string>} [excludedFamilies] - Family codes excluded from the cycle; excluded families are skipped.
      * @returns {Promise<Array<Object>>}
      * @private
      */
-    #validateFamilyForLock( family, cycleID, dictionary, familyConfig, cap ) {
+    #validateFamilyForLock( family, cycleID, dictionary, familyConfig, cap, excludedFamilies ) {
+        // A family explicitly excluded from the cycle is not part of it — skip all checks.
+        if ( excludedFamilies && excludedFamilies.has( family ) ) {
+            return Promise.resolve( [] );
+        }
         return dataManager.instance.getActiveCompetencySetsForFamily( family, cycleID ).then( ( allSets ) => {
             const baseline = Array.isArray( allSets[ BASELINE_KEY ] ) ? allSets[ BASELINE_KEY ] : [];
             const specializationSets = {};
@@ -725,6 +737,8 @@ class CompetenceFramework {
             const baselineArr = Array.isArray( baseline ) ? baseline : [];
             const hasAnyData = baselineArr.length > 0 || Object.values( specializationSets ).some( ( arr ) => arr.length > 0 );
             if ( !hasAnyData ) {
+                // Not excluded, but nothing is configured — a cycle cannot be locked with an empty, included family.
+                errors.push( { family, rule: "family-not-configured", detail: `Family '${ family }' has no competencies configured and is not excluded from the cycle. Configure it or exclude it from this cycle.` } );
                 return errors;
             }
 

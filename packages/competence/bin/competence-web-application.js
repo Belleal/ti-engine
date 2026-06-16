@@ -263,6 +263,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#markActiveSetEmpty( session, params );
         } else if ( service === "clear-active-competency-set" ) {
             return this.#clearActiveCompetencySet( session, params );
+        } else if ( service === "set-family-excluded" ) {
+            return this.#setFamilyExcluded( session, params );
         } else if ( service === "create-employee" ) {
             return this.#createEmployee( session, params );
         } else if ( service === "update-employee" ) {
@@ -1761,6 +1763,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                         sets,
                         competenciesByCode,
                         poolByFamily: configurationLoader.configRoleFamilyCompetencies,
+                        excludedFamilies: Array.isArray( cycle.excludedFamilies ) ? cycle.excludedFamilies : [],
                         subcategories,
                         validation: {
                             valid: validation ? validation.valid : true,
@@ -1822,7 +1825,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                     cycleStart: cycleStart || null,
                     cycleDate: cycleDate || cycleEnd,
                     cycleEnd,
-                    createdBy: userID
+                    createdBy: userID,
+                    excludedFamilies: []
                 } ).then( ( cycle ) => {
                     resolve( cycle );
                 } ).catch( ( error ) => {
@@ -2027,6 +2031,50 @@ class CompetenceWebApplication extends TiWebAppManager {
                     } ).then( () => ( { cycleID, roleFamily, key, cleared: true } ) );
                 } )
                 .then( resolve )
+                .catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Includes or excludes a role family from a cycle. Supervisor-only, PLANNING-only. An excluded family is skipped by
+     * lock validation and its sub-tree is hidden in Cycle Setup, letting a cycle be locked with only the families that
+     * can be completed.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.cycleID
+     * @param {string} params.roleFamily
+     * @param {boolean} params.excluded - true to exclude the family, false to include it.
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #setFamilyExcluded( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = String( params?.cycleID || "" ).trim();
+            const roleFamily = String( params?.roleFamily || "" ).trim();
+            const excluded = params?.excluded === true;
+
+            if ( !cycleID || !roleFamily ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID, roleFamily } ) );
+            }
+            if ( !configurationLoader.configRoleFamilies[ roleFamily ] ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: `Unknown role family '${ roleFamily }'.` } ) );
+            }
+
+            this.#assertCyclePlanning( cycleID )
+                .then( ( cycle ) => {
+                    const set = new Set( Array.isArray( cycle.excludedFamilies ) ? cycle.excludedFamilies : [] );
+                    if ( excluded ) {
+                        set.add( roleFamily );
+                    } else {
+                        set.delete( roleFamily );
+                    }
+                    return dataManager.instance.setCycleExcludedFamilies( cycleID, Array.from( set ) );
+                } )
+                .then( ( updated ) => resolve( { cycleID, excludedFamilies: updated.excludedFamilies } ) )
                 .catch( ( error ) => reject( exceptions.raise( error ) ) );
         } );
     }

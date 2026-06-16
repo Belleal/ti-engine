@@ -2,6 +2,15 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.2.0
+
+### Family exclusion + stricter lock validation
+
+* fix(framework): `validateCycleForLock` no longer lets a cycle lock with an *included* role family left unconfigured. The previous logic silently skipped any family with no competencies; a new `family-not-configured` rule now blocks the lock unless the family is configured or explicitly excluded
+* feat(web-app): a role family can be **excluded** from a cycle. A Supervisor toggles inclusion per family on the Cycle Setup baseline editor (`set-family-excluded`, Supervisor + PLANNING only); an excluded family is skipped by lock validation, its specializations are hidden in the tree, and its header is muted with an "Excluded" tag — letting a cycle be locked with only the families that can be completed
+* feat(data): add `cycle.excludedFamilies` (schema + `DataManager.setCycleExcludedFamilies`); `validateCycleForLock` reads it. The seeded cycle excludes the families it has no data for, so it stays lockable out of the box
+* test(framework): cover the inclusion rule (an included empty family blocks the lock; an excluded family is skipped entirely) and adjust the no-empty-baseline case for the new seed exclusions
+
 ## Version 3.1.0
 
 ### Role-family competency pool restored

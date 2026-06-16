@@ -2904,6 +2904,65 @@
     border: 1.5px dashed var(--border-strong, var(--border));
 }
 
+.competence-cycle-tree-node-dot.is-excluded {
+    background: transparent;
+    border: 1.5px dotted var(--muted, var(--fg-tertiary));
+    opacity: 0.7;
+}
+
+/* Excluded family: the header (name + tag) and its still-visible baseline node are muted to signal the family is not
+   part of this cycle; its specializations are hidden entirely (see the x-if in the fragment). */
+.competence-cycle-tree-family-head.is-excluded .competence-cycle-tree-family-name {
+    color: var(--fg-tertiary);
+    text-decoration: line-through;
+    text-decoration-color: var(--border-strong, var(--border));
+}
+
+.competence-cycle-tree-family-head.is-excluded .ti-tag.mono {
+    opacity: 0.55;
+}
+
+.competence-cycle-excluded-tag {
+    color: var(--fg-tertiary);
+    font-size: var(--fs-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.competence-cycle-tree-node.is-excluded {
+    opacity: 0.65;
+}
+
+.competence-cycle-tree-node.is-excluded .competence-cycle-tree-node-label {
+    text-decoration: line-through;
+    text-decoration-color: var(--border-strong, var(--border));
+}
+
+/* Editor: family-level include/exclude control on the baseline editor. The excluded notice mirrors the read-only
+   banner's muted, left-accented treatment. */
+.competence-cycle-exclude-row {
+    display: flex;
+    margin-bottom: var(--s-4);
+}
+
+.competence-cycle-excluded-notice {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    width: 100%;
+    padding: var(--s-3) var(--s-4);
+    background: var(--bg-sunken);
+    color: var(--fg-secondary);
+    border: 1px solid var(--border-soft);
+    border-left: 3px solid var(--muted, var(--fg-tertiary));
+    border-radius: var(--r-md);
+    font-size: var(--fs-sm);
+}
+
+.competence-cycle-excluded-notice .ti-btn {
+    margin-left: auto;
+}
+
 .competence-cycle-tree-node-label {
     flex: 1;
     overflow: hidden;
@@ -3181,6 +3240,7 @@
 .competence-cycle-code-name {
     color: var(--fg-primary);
     font-weight: 500;
+    font-size: var(--fs-md);
     letter-spacing: -0.005em;
     overflow: hidden;
     text-overflow: ellipsis;

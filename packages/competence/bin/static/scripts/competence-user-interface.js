@@ -1735,6 +1735,7 @@ const configureCycleSetup = () => {
         sets: {},
         competenciesByCode: {},
         poolByFamily: {},
+        excludedFamilies: [],
         subcategories: [],
         validation: { valid: true, errorsByFamily: {} },
         allCycles: [],
@@ -1795,6 +1796,7 @@ const configureCycleSetup = () => {
             this.sets = data.sets ? tiToolbox.structuredClone( data.sets ) : {};
             this.competenciesByCode = data.competenciesByCode ? tiToolbox.structuredClone( data.competenciesByCode ) : {};
             this.poolByFamily = data.poolByFamily ? tiToolbox.structuredClone( data.poolByFamily ) : {};
+            this.excludedFamilies = Array.isArray( data.excludedFamilies ) ? tiToolbox.structuredClone( data.excludedFamilies ) : [];
             this.subcategories = Array.isArray( data.subcategories ) ? tiToolbox.structuredClone( data.subcategories ) : [];
             this.validation = data.validation ? tiToolbox.structuredClone( data.validation ) : { valid: true, errorsByFamily: {} };
 
@@ -1866,17 +1868,23 @@ const configureCycleSetup = () => {
         /* -------------------------- Tree helpers --------------------------- */
 
         getNodeStatus( familyCode, key ) {
+            // An excluded family is not part of the cycle — its nodes read as "excluded" regardless of configuration.
+            if ( this.isFamilyExcluded( familyCode ) ) {
+                return "excluded";
+            }
             const persisted = this.sets[ familyCode ] && this.sets[ familyCode ][ key ];
             const groupKey = key === "baseline" ? familyCode : `${ familyCode }.${ key }`;
             const hasErrors = ( this.validation.errorsByFamily && Array.isArray( this.validation.errorsByFamily[ groupKey ] ) && this.validation.errorsByFamily[ groupKey ].length > 0 );
-            // Family-level errors also bubble into baseline nodes (no-empty-baseline, baseline-floor-coverage).
+            // Family-level errors also bubble into baseline nodes (no-empty-baseline, baseline-floor-coverage,
+            // family-not-configured). Checked before the unconfigured case so an empty *included* family reads as a
+            // blocker (warn), not a benign "unconfigured".
             const familyErrors = ( key === "baseline" && this.validation.errorsByFamily && Array.isArray( this.validation.errorsByFamily[ familyCode ] ) && this.validation.errorsByFamily[ familyCode ].length > 0 );
 
-            if ( !persisted ) {
-                return "unconfigured";
-            }
             if ( hasErrors || familyErrors ) {
                 return "warn";
+            }
+            if ( !persisted ) {
+                return "unconfigured";
             }
             if ( persisted.codes && persisted.codes.length === 0 ) {
                 return key === "baseline" ? "warn" : "empty";
@@ -1892,6 +1900,33 @@ const configureCycleSetup = () => {
         getNodeCount( familyCode, key ) {
             const persisted = this.sets[ familyCode ] && this.sets[ familyCode ][ key ];
             return ( persisted && Array.isArray( persisted.codes ) ) ? persisted.codes.length : 0;
+        },
+
+        /* -------------------------- Family exclusion ----------------------- */
+
+        isFamilyExcluded( familyCode ) {
+            return this.excludedFamilies.indexOf( familyCode ) >= 0;
+        },
+
+        isSelectedFamilyExcluded() {
+            return !!this.selectedFamily && this.isFamilyExcluded( this.selectedFamily );
+        },
+
+        // Toggle the selected family's inclusion in the cycle. An excluded family is skipped by lock validation and has
+        // its specializations hidden in the tree; the baseline node stays reachable so the family can be re-included.
+        toggleFamilyExcluded() {
+            if ( this.isReadOnly || !this.selectedFamily || this.saving ) return;
+            const family = this.selectedFamily;
+            const excluded = !this.isFamilyExcluded( family );
+            this.saving = true;
+            tiApplication.sendRequest( "/app/set-family-excluded", "POST", { cycleID: this.cycleID, roleFamily: family, excluded } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( excluded ? "interface.cycle-setup.toast.family-excluded" : "interface.cycle-setup.toast.family-included" ) );
+                this.saving = false;
+                this.reloadAfterSave();
+            } ).catch( ( error ) => {
+                this.saving = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
         },
 
         /* -------------------------- Editor helpers ------------------------- */

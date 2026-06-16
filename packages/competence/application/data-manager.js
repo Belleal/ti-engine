@@ -612,6 +612,32 @@ class DataManager {
         } );
     }
 
+    /**
+     * Persists the explicit set of role families excluded from a cycle. Excluded families are skipped by lock
+     * validation and hidden in Cycle Setup. Intended for PLANNING cycles (the precondition is enforced by the caller).
+     *
+     * @method
+     * @param {string} cycleID
+     * @param {Array<string>} excludedFamilies
+     * @returns {Promise<Cycle>} The updated cycle.
+     * @public
+     */
+    setCycleExcludedFamilies( cycleID, excludedFamilies ) {
+        return this.getCycle( cycleID ).then( ( cycle ) => {
+            const updated = _.cloneDeep( cycle );
+            updated.excludedFamilies = Array.isArray( excludedFamilies ) ? _.uniq( excludedFamilies ).sort() : [];
+            return new Promise( ( resolve, reject ) => {
+                if ( cache.instance.isOperational ) {
+                    cache.instance.editJSON( cacheEntryKeyCycles, { [ cycleID ]: updated } ).then( () => {
+                        resolve( _.cloneDeep( updated ) );
+                    } ).catch( reject );
+                } else {
+                    resolve( _.cloneDeep( updated ) );
+                }
+            } );
+        } );
+    }
+
     /* ------------------------------------------------------------------ */
     /*                       Active competency sets                       */
 
@@ -913,12 +939,22 @@ class DataManager {
         // organizationManager.resolveEmployeeName without coupling to a magic test-user ID.
         const seedEmployees = require( "#data-employees" ).employees;
         const seedCreator = ( Array.isArray( seedEmployees ) && seedEmployees.length > 0 ) ? seedEmployees[ 0 ].employeeID : null;
+        const allFamilies = Object.keys( configurationLoader.configRoleFamilies || {} );
         return Array.from( cycleIDs ).map( ( cycleID ) => {
             const [ yearStr, half ] = cycleID.split( "-" );
             const year = Number( yearStr );
             const cycleStart = ( half === "H1" ) ? `${ year }-01-15` : `${ year }-07-01`;
             const cycleDate = ( half === "H1" ) ? `${ year }-04-30` : `${ year }-11-30`;
             const cycleEnd = ( half === "H1" ) ? `${ year }-06-30` : `${ year }-12-31`;
+            // Exclude every family that has no competencies for this cycle, so the seeded cycle is lockable out of the
+            // box (lock validation now blocks a cycle that leaves an included family unconfigured).
+            const configuredFamilies = new Set();
+            for ( const [ family, familyEntry ] of Object.entries( activeSets || {} ) ) {
+                if ( !familyEntry || typeof familyEntry !== "object" ) continue;
+                const hasData = Object.values( familyEntry ).some( ( cycleMap ) => cycleMap && Array.isArray( cycleMap[ cycleID ] ) && cycleMap[ cycleID ].length > 0 );
+                if ( hasData ) configuredFamilies.add( family );
+            }
+            const excludedFamilies = allFamilies.filter( ( family ) => !configuredFamilies.has( family ) );
             return {
                 cycleID,
                 name: `${ half === "H1" ? "Spring" : "Autumn" } '${ String( year ).slice( -2 ) } cycle`,
@@ -930,7 +966,8 @@ class DataManager {
                 lockedAt: null,
                 lockedBy: null,
                 createdAt,
-                createdBy: seedCreator
+                createdBy: seedCreator,
+                excludedFamilies
             };
         } );
     }
