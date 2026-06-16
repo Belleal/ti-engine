@@ -29,7 +29,7 @@ The following features are currently implemented:
 - **[UI]** Manager Availability Calendar screen — weekly grid for toggling availability slots, cycle-bounded navigation
 - **[UI]** Interview Schedule screen — evaluation list with schedule/cancel actions and a 4-column weekly slot picker
 - **[UI]** Cycle Management screen — Supervisor-only table of cycles with create, lock (with validation-errors modal), and close actions
-- **[UI]** Cycle Setup screen — Supervisor-only two-pane editor for the Active Competency Sets of a cycle; tree of families and specializations, cap and floor-coverage indicators, competency picker, clone-from-another-node flow
+- **[UI]** Cycle Setup screen — Supervisor-only two-pane editor for the Active Competency Sets of a cycle; tree of families and specializations, cap and floor-coverage indicators, pool-scoped competency picker, per-family include/exclude, clone-from-another-node flow
 - **[UI]** Employee Management screen — Supervisor + Manager master/detail editor with field-level permission gating, audit log, in-flight evaluation count surfaced on role-family changes
 - **[UI]** Administration screens (admin-allowlisted users) — Configuration landing (config change feed, validated restore, export-to-git bundle), Competency Text Editor (bilingual, for BG review), Archetype Assignment, Archetype Curve Editor, and Role Families editor
 - **[Config]** Admin configuration management — versioned, validated, restorable editing of the competency dictionary, localization, relevancy archetypes, role families, and active competency sets through the UI, with export back to the source JSON files (reusable machinery lives in `@ti-engine/web-framework`)
@@ -77,7 +77,7 @@ The nine role families and their permitted specializations are configured in `bi
 
 The competency selection for any `(roleFamily, specialization?, cycleID)` tuple is called the **Active Competency Set** and is configured per cycle in `bin/config/config.active-competency-sets.json`. The resolved set is `baseline ∪ specialization`, deduplicated. The baseline applies to every employee in the family regardless of specialization; the specialization additions only apply to employees with that specialization set.
 
-Each family draws its competencies from a fixed **competency pool** (its applicability universe), defined in `bin/config/config.role-family-competencies.json` — the family's own family-specific competencies plus the 30 shared canonical ones. Cycle Setup only offers, and lock validation only accepts, competencies from within that pool. The not-yet-populated families (`QE`, `XD`, `DA`, `IO`, `MC`, `PD`) currently have a pool of the shared competencies only.
+Each family draws its competencies from a fixed **competency pool** (its applicability universe), defined in `bin/config/config.role-family-competencies.json` — the family's own family-specific competencies plus the 30 shared canonical ones. Cycle Setup only offers, and lock validation only accepts, competencies from within that pool. The not-yet-populated families (`QE`, `XD`, `DA`, `IO`, `MC`, `PD`) currently have a pool of the shared competencies only — too few to satisfy floor coverage, so they are typically **excluded** from a cycle (see [Cycle Setup](#cycle-setup)) until they have their own content.
 
 ### Stage-Levels
 
@@ -169,7 +169,7 @@ Status transitions are triggered by specific actions (submissions), not by deadl
 
 #### Step 1 — Appraisal Cycle Start
 
-A new **Performance Appraisal Cycle** is started by the `Supervisor` through the **Cycle Management** screen. The cycle receives a unique ID (e.g., `2026-H2`), a name, a planned close date, and starts in `PLANNING` status. The Supervisor then configures the **Active Competency Sets** for each role family + specialization on the **Cycle Setup** screen and, once validation passes (baseline floor coverage across all nine subcategories, cap not exceeded, reference integrity, non-empty baselines when specializations exist), locks the cycle to `ACTIVE`. Only one cycle can be `ACTIVE` at a time. Evaluations can only be started while the cycle is `ACTIVE`; closing it transitions the status to `CLOSED` and prevents new evaluations from being started (in-flight evaluations can still be completed).
+A new **Performance Appraisal Cycle** is started by the `Supervisor` through the **Cycle Management** screen. The cycle receives a unique ID (e.g., `2026-H2`), a name, a planned close date, and starts in `PLANNING` status. The Supervisor then configures the **Active Competency Sets** for each role family + specialization on the **Cycle Setup** screen, and may **exclude** any families that are not part of this cycle (for example disciplines that have no competency content yet). Once validation passes — baseline floor coverage across all nine subcategories, cap not exceeded, reference integrity, pool membership, non-empty baselines where specializations exist, and every *included* family configured (excluded families are skipped) — the Supervisor locks the cycle to `ACTIVE`. Only one cycle can be `ACTIVE` at a time. Evaluations can only be started while the cycle is `ACTIVE`; closing it transitions the status to `CLOSED` and prevents new evaluations from being started (in-flight evaluations can still be completed).
 
 #### Step 2 — Evaluation Start
 
@@ -254,8 +254,8 @@ sequenceDiagram
 
     Note over Sup, Sys: Step 1 — Appraisal Cycle Setup
     Sup ->> Sys: Create cycle (status: PLANNING)
-    Sup ->> Sys: Configure Active Competency Sets per family (from each family's pool)
-    Sys -->> Sys: Validate (floor coverage · cap · references · pool membership)
+    Sup ->> Sys: Configure Active Competency Sets per family (from each family's pool); exclude families not in scope
+    Sys -->> Sys: Validate (floor coverage · cap · references · pool membership · inclusion)
     Sup ->> Sys: Lock cycle to ACTIVE
 
     Note over Mgr, Sys: Step 2 — Evaluation Start
@@ -470,18 +470,19 @@ Supervisor-only. A table of all appraisal cycles with their status (`PLANNING` /
 
 - **Create** — modal to define a new cycle (ID, name, dates); the cycle starts in `PLANNING`
 - **Configure** — opens Cycle Setup for a `PLANNING` cycle
-- **Lock** — promotes a `PLANNING` cycle to `ACTIVE` after validation; a modal surfaces any validation errors (floor coverage, cap, reference integrity, pool membership) grouped by family
+- **Lock** — promotes a `PLANNING` cycle to `ACTIVE` after validation; a modal surfaces any validation errors (floor coverage, cap, reference integrity, pool membership, and any included-but-unconfigured family) grouped by family
 - **Close** — transitions an `ACTIVE` cycle to `CLOSED`
 
 Only one cycle may be `ACTIVE` at a time.
 
 ### Cycle Setup
 
-Supervisor-only two-pane editor for a cycle's Active Competency Sets, editable while the cycle is in `PLANNING` (read-only otherwise). The left pane is a tree of role families and their specializations, each node showing a status dot (configured / intentionally-empty / unconfigured / has-issues) and a count. The right pane edits the selected node:
+Supervisor-only two-pane editor for a cycle's Active Competency Sets, editable while the cycle is in `PLANNING` (read-only otherwise). The left pane is a tree of role families and their specializations, each node showing a status dot (configured / intentionally-empty / unconfigured / has-issues / excluded) and a count. The right pane edits the selected node:
 
 - **Cap indicator** and **floor-coverage** pills (a baseline must cover all nine subcategories)
 - **Competency picker** — offers only competencies from the family's [pool](#role-families-and-specializations); for a specialization, competencies already in the baseline are shown disabled
 - **"No extra competencies"** marker for an intentionally-empty specialization, plus a clone-from-another-node flow
+- **Include / exclude family** — a control on the family's Baseline editor excludes the whole family from the cycle (or includes it again). An excluded family is skipped by lock validation, and in the tree its specializations are hidden while its header is muted with an "Excluded" tag. This lets a cycle be locked with only the families that can be completed; an *included* family left with no competencies blocks the lock
 - A topbar **Lock cycle** action, enabled once validation passes
 
 ### Employee Management
