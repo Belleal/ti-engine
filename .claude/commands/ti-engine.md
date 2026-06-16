@@ -1,6 +1,6 @@
 # ti-engine Developer Skill
 
-You are working on the **ti-engine** monorepo — an open-source Node.js microservices framework by Boris Kostadinov. Whenever this skill is invoked, orient yourself fully before answering or making changes.
+You are working on the **ti-engine** monorepo — an open-source (GPL-3.0) Node.js microservices framework by Boris Kostadinov, plus the **competence** HR application built on top of it. Whenever this skill is invoked, orient yourself fully before answering or making changes.
 
 ---
 
@@ -9,21 +9,36 @@ You are working on the **ti-engine** monorepo — an open-source Node.js microse
 ```
 ti-engine/                         npm workspace root (v1.2.4)
 ├── packages/
-│   ├── core/          v1.4.3      Framework foundation (messaging, lifecycle, utils)
-│   ├── web-framework/ v1.6.3      Express-based HTTP server + auth layer
-│   ├── competence/    v2.0.0      HR competency appraisal application
+│   ├── core/          v1.5.0      Framework foundation (Redis messaging, lifecycle, utils)
+│   ├── web-framework/ v1.7.0      Express HTTP server + auth + admin config-management subsystem
+│   ├── competence/    v3.0.0      HR competency appraisal application (108-competency dictionary)
 │   └── tester/        v1.3.3      Reference/example service implementation
 ├── package.json                   Workspace root; devDeps: ESLint 10, Prettier 3
 └── eslint.config.mjs              Flat ESLint config (commonjs, browser+node globals)
 ```
 
+Dependency direction: `core` is standalone → `web-framework` depends on `core` → `competence` depends on both. Keep framework concerns in `core`/`web-framework` and application concerns in `competence`. Node `>=20`. Each package has its own independent semver version and `CHANGELOG.md`.
+
+Branches: `current` is the active feature branch; `master` is the release branch (PR target).
+
 ---
 
-## Package: core
+## Conventions & Constraints (read before editing)
 
-**Role**: Foundational framework. All other packages depend on it.
+- **CommonJS everywhere** — `"type": "commonjs"`; use `require()` / `module.exports`.
+- **Internal imports use `#alias`** from each package.json `imports` map (e.g. `#configuration-loader`, `#config-competencies`), not relative paths. Cross-package imports use the `exports` map (e.g. `@ti-engine/core/tools`, `@ti-engine/web-framework/config-management`).
+- **Alpine.js runs in CSP mode.** In HTML Alpine expressions: **no inline `style="..."` attributes** (CSP forbids them — use CSS classes) and **no optional chaining (`?.`)** (the CSP expression evaluator rejects it). `Array`, `Object`, etc. are also unavailable inside template expressions — use the `tiApplication.hasRole(...)`-style JS helpers instead of `Array.isArray(...)` inline.
+- **Design-first cadence.** Non-trivial features start from a design doc under the owning package's `design/` directory (meta header + running implementation log), and land as small, checkpointed Conventional-Commit steps. Check `design/` for the current plan before building.
+- **`.run/*.run.xml` are git-tracked but carry live local credentials** in the working tree — never commit changes to them.
+- **deepFreeze on config** — once settings/config are loaded they are immutable; never mutate them in place.
 
-**Dependency graph tier**:
+---
+
+## Package: core (v1.5.0)
+
+**Role**: Foundational framework. All other packages depend on it. Standalone (no intra-repo deps).
+
+**Layers**:
 1. `MessageExchange` (Redis-backed async broker) — envelope/payload split
 2. `ServiceInstance` → `ServiceConsumer` → `ServiceProvider` (lifecycle hierarchy)
 3. Utils: logger, config, cache, exceptions, localization, tools
@@ -31,22 +46,35 @@ ti-engine/                         npm workspace root (v1.2.4)
 **Key files**:
 | File | Purpose |
 |------|---------|
-| `bin/start-instance.js` | Process bootstrap; loads .env, instantiates service |
+| `bin/start-instance.js` | Process bootstrap; loads `.env` (dotenvx), instantiates service |
 | `bin/settings.json` | Default config values |
 | `components/service-instance.js` | **Abstract** base; lifecycle hooks (start/stop/healthCheck) |
 | `components/service-consumer.js` | Extends ServiceInstance; outbound calls via ServiceCaller |
 | `components/service-provider.js` | Extends ServiceConsumer; hosts business services via ServiceExecutor |
 | `components/service-caller.js` | Sends service calls, awaits responses, implements retry |
 | `components/service-executor.js` | Receives calls, dispatches to handler functions, sends results |
+| `components/auditing.js` | Structured audit logging |
+| `components/connection-observer.js` | Tracks broker connection health |
+| `components/definitions.types.js` | Shared JSDoc typedefs (object definitions live here, not inline) |
 | `components/exchange/message-exchange.js` | **Abstract** broker interface |
 | `components/exchange/default/default-message-exchange.js` | Redis (ioredis) implementation |
+| `components/exchange/message-dispatcher.js` / `message-sender.js` / `message-receiver.js` | Queue plumbing |
 | `components/exchange/message-tracer.js` | chainID / chainLevel tracking across hops |
 | `utils/tools.js` | `getUUID()`, `deepFreeze()`, `enum()` factory |
-| `utils/exceptions.js` | Error codes: E_GEN_*, E_COM_*, E_SEC_*, E_APP_* |
-| `utils/logger.js` | Severity levels: DEBUG/INFO/NOTICE/WARNING/ERROR/CRITICAL/ALERT |
+| `utils/exceptions.js` | `TiException` + standardized error codes (see below) |
+| `utils/logger.js` | Severity: DEBUG/INFO/NOTICE/WARNING/ERROR/CRITICAL/ALERT |
 | `utils/config.js` | Config enum + ENV overrides; frozen after init |
-| `utils/cache.js` | `CommonMemoryCache` singleton — Redis JSON wrapper |
-| `integrations/redis-integration.js` | ioredis client with connection pooling |
+| `utils/cache.js` | `CommonMemoryCache` singleton — RedisJSON wrapper (`getJSON`/`setJSON`/`editJSON`/`mergeJSON`; array-path support) |
+| `integrations/redis-integration.js` | ioredis client with connection pooling (RedisJSON: `JSON.MERGE`, `JSON.MGET`) |
+
+**Public exports** (`package.json` `exports`): `.` (start-instance), `./tools`, `./cache`, `./exceptions`, `./logger`, `./localization`, `./service-instance`, `./service-consumer`, `./service-provider`.
+
+**Exception families** (`utils/exceptions.js`) — the class is `TiException` (renamed from `Exception` in 1.4.0); `raise()` accepts an optional `httpCode`:
+- `E_GEN_*` 1000–1010 (general; incl. `E_GEN_NOT_IMPLEMENTED` 1010)
+- `E_SEC_*` 2000–2004 (security)
+- `E_COM_*` 3000–3010 (communication/messaging)
+- `E_WEB_*` 4000–4009 (web request validation)
+- `E_APP_*` 5004–5006 (application; incl. `E_APP_RESOURCE_NOT_FOUND` 5004, `E_APP_SERVICE_ERROR` 5005, `E_APP_RESOURCE_ALREADY_EXISTS` 5006 → raise with HTTP `409`)
 
 **ENV variables (core)**:
 - `TI_INSTANCE_NAME` — service domain name (required)
@@ -75,63 +103,104 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 ---
 
-## Package: web-framework
+## Package: web-framework (v1.7.0)
 
-**Role**: Express.js web server + authentication layer for web-facing UIs.
+**Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs.
 
 **Key files**:
 | File | Purpose |
 |------|---------|
 | `bin/web-server.js` | `TiWebServer` (extends ServiceConsumer); Express app, middleware stack |
-| `bin/web-app-manager.js` | `TiWebAppManager` **abstract**; HTML fragment rendering, nonces, CSRF |
-| `bin/web-server.json` | Server config (host, port, TLS, auth methods) |
+| `bin/web-app-manager.js` | `TiWebAppManager` **abstract**; HTML fragment rendering, nonces, CSRF, and the `registerConfigDocument` / `registerConfigEditor` API |
+| `bin/web-server.json` | Server config (host, port, TLS, auth methods, `auth.admins` identity list) |
+| `bin/build/post-install.js` | `postinstall` step (refreshes bundled static libs) |
 | `components/auth-manager.js` | OpenID Connect (Azure/Google) + local auth; session token generation |
+| `components/authorization.js` | Role checks/guards — `requireRole`, `hasRole`; backs admin gating |
 | `components/session-store.js` | Express session storage |
 | `components/web-handlers.js` | Middleware: CSP headers, CSRF validation, auth verification, error formatting |
 | `components/user.js` | User object model |
-| `bin/static/` | Frontend assets: HTMX, Alpine.js, CSS theme, HTML fragments |
+| `components/config-store.js` | Versioned, audited config store (Redis JSON) — current value, history, validated restore |
+| `components/config-registry.js` | In-process registry of config documents, schemas, validators, editors |
+| `components/config-service.js` | Facade orchestrating registry + store + validation (exported as `config-management`) |
+| `components/config-change-notifier.js` | In-process `config:changed` pub/sub so live config reloads |
+| `components/admin-config-handlers.js` | `/admin/config/*` HTTP API (get/list/save/restore/export, ajv + semantic validation) |
+| `components/definitions.types.js` | Shared JSDoc typedefs |
+| `bin/static/` | Frontend assets: HTMX, Alpine.js (CSP build), `safe-nonce`, framework CSS + themes, HTML fragments |
+| `design/admin-config-management.md` | Design doc + implementation log for the config-management feature |
+| `test/*.test.js` | `node --test` suites for the config subsystem + authorization |
 
-**Security stack**: Helmet, CSP nonces, CSRF (timing-safe), express-session, OpenID Connect OAuth2
+**Public exports**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`.
 
-**Frontend**: HTMX + Alpine.js (CSP variant) for fragment-driven UIs
+**Config-management subsystem** (the reusable machinery; competence is its first consumer):
+- An app subclass calls `TiWebAppManager.registerConfigDocument(key, {...})` (schema, semantic validators, file default, editor metadata) and `registerConfigEditor(name, editor)` (composite/entity editors) during init.
+- The store seeds from file defaults, serves the live value, versions every change, validates (ajv + semantic) on save, supports validated restore, audit, and export-to-git bundle.
+- `config-management.instance.onConfigChanged(...)` lets consumers hot-reload their in-memory config when an admin edit lands.
+- Admin gating: an identity must appear in `auth.admins` in `web-server.json`; gating is `hasRole('admin')`. Default is `[]` (no admins) — add one to test the admin UI.
+
+**Security stack**: Helmet, CSP nonces, CSRF (timing-safe), express-session, OpenID Connect OAuth2.
+
+**Frontend**: HTMX + Alpine.js (CSP build) for fragment-driven UIs. Reusable CSS primitives in `ti-framework.css` — `.ti-page-head`, `.ti-data-grid*`, `.ti-form*`, `.ti-panel-head*`, `.ti-modal-*`, and the mask-based `.ti-icon` system (size modifiers `.xs`–`.xl`, ~40 variants); themes `ti-theme-daylight.css` / `ti-theme-black-glass.css`. `ti-framework.js` exposes the `tiApplication` Alpine store (incl. `hasRole`, topbar CTA slots). Prefer these primitives over screen-specific CSS. **Remember the Alpine CSP constraints** (no inline styles, no `?.`).
 
 **ENV variables (web-framework)**:
 - `TI_WEB_APP_STATIC_CACHE_DISABLED` — disable static file caching
 
 ---
 
-## Package: competence
+## Package: competence (v3.0.0)
 
-**Role**: Complete HR application for competency-based performance appraisals. v2 introduces a three-dimensional competency model — **Role Family × Specialization × Stage-Level** — and a first-class appraisal **Cycle** entity with a `PLANNING → ACTIVE → CLOSED` lifecycle. Evaluations snapshot their resolved competency set at creation time so configuration drift never affects in-flight evaluations. Depends on `core` + `web-framework`.
+**Role**: Complete HR application for competency-based performance appraisals. Models competencies in three dimensions — **Role Family × Specialization × Stage-Level** — with a first-class appraisal **Cycle** (`PLANNING → ACTIVE → CLOSED`). Evaluations snapshot their resolved competency set at creation so later configuration drift never affects in-flight evaluations. Depends on `core` + `web-framework`; uses `graphology` for the org graph.
+
+**v3.0.0 = the 108-competency content rebuild** (from the prior 164): SE 31, BA 22, PM 25, plus 30 shared canonical, regenerated from the source-of-truth docs in `design/`. Six families (QE/XD/DA/IO/MC/PD) are defined but unpopulated. This was a content replacement — config shapes, schemas, and framework logic were unchanged — but old competency codes were dropped/renumbered, so stored evaluations keyed by old codes need migration.
+
+**Relevancy model**: per-family competency importance is expressed via **editable archetype curves** in `config.relevancy-archetypes.json` plus a per-competency `relevancyArchetype` pointer. (This superseded the earlier materialized `config.competency-relevancy.json`, which no longer exists.) `bin/build/build-competency-relevancy.js` is the re-runnable generator/expander for archetype-derived data.
 
 **Key files**:
 | File | Purpose |
 |------|---------|
-| `application/competence-framework.js` | Singleton; `getActiveCompetencySet`, `buildEvaluationSnapshot`, `validateCycleForLock`, `lockCycle`, `closeCycle`, snapshot-driven scoring |
-| `application/configuration-loader.js` | Loads config JSONs; exports frozen enums and `getSpecializationCodes(familyCode)` |
-| `application/data-manager.js` | Singleton; CRUD for role families, cycles, active competency sets, employees, evaluations, audit log (Redis JSON) |
+| `application/competence-framework.js` | Singleton (`module.exports.instance`); `getActiveCompetencySet`, `buildEvaluationSnapshot`, `validateCycleForLock`, `lockCycle`, `closeCycle`, `calculateTeamCumulativeGrades`, `calculateFinalEvaluationScores`, `buildCompetenciesTreeFromSnapshot`, `generateShortID` |
+| `application/configuration-loader.js` | Loads config JSONs; exports frozen config objects + enums; helpers `getSpecializationCodes`, `getStageLevelCodes`, `getStageLevelLadder`, `getArchetypeStageLevels`, `getSetting`; `initialize(service)` brings the store-backed configs under admin-config control |
+| `application/config-registration.js` | Registers competence config documents + composite editors with the framework registry (`registerCompetenceConfig`) |
+| `application/config-editors.js` | Composite (entity) editors: `competency-text`, `archetype-assignment`, `relevancy-archetype`, `role-families` |
+| `application/config-validators.js` | Semantic validators (Promise-chain style; `ValidationIssue` / `ValidatorContext` typedefs) incl. referential-integrity guards |
+| `application/data-manager.js` | Singleton; CRUD for role families, cycles, active sets, employees, evaluations, audit log (Redis JSON) |
 | `application/organization-manager.js` | Singleton; directed graph (graphology) for org chart; resolves manager + role-family attributes |
-| `bin/competence-web-server.js` | Main entry point (extends ServiceConsumer) |
-| `bin/competence-web-application.js` | UI renderer (extends TiWebAppManager); fragments for dashboard, employees-list, employee-management, cycles, cycle-setup, competence-evaluation, new-evaluation, manager-calendar, interview-schedule |
-| `bin/config/config.application.json` | App settings (grade/evaluation weights, performance thresholds, `activeCompetencySetCap`, interview-calendar) |
-| `bin/config/config.competencies.json` | Competency dictionary — categories E/I/C × subcategories 1–3, scope/relevancy per stage-level, optional `eCFMapping` |
-| `bin/config/config.role-families.json` | Nine families (`SE`, `QE`, `BA`, `PM`, `XD`, `DA`, `IO`, `MC`, `PD`) with their permitted specializations |
-| `bin/config/config.active-competency-sets.json` | Seeded baselines and specialization extensions, keyed by `family → "baseline"|<SPEC> → cycleID → [codes]` |
-| `bin/config/config.stage-levels.json` | N/J/R/S/X/T ladder with dual-track senior tier |
+| `application/data-objects.types.js` | Shared JSDoc typedefs for data objects |
+| `bin/competence-web-server.js` | Main entry point (extends ServiceConsumer); `onStart` initializes data-manager then `configurationLoader.initialize()` |
+| `bin/competence-web-application.js` | UI renderer (extends TiWebAppManager); registers config via `registerCompetenceConfig`; serves all fragments |
+| `bin/build/build-competency-relevancy.js` | Re-runnable generator for archetype-derived relevancy data + archetype labels |
+| `bin/config/config.application.json` | App settings under `performanceAppraisals` (weights, thresholds, `activeCompetencySetCap`, interview calendar) + `config.application.schema.json` |
+| `bin/config/config.competencies.json` | Competency dictionary — categories E/I/C × subcategories, scope/relevancy per stage-level, optional `eCFMapping` |
+| `bin/config/config.relevancy-archetypes.json` | Editable archetype curves (keyed by flattened stage-levels) |
+| `bin/config/config.role-families.json` | Nine families (`SE`,`QE`,`BA`,`PM`,`XD`,`DA`,`IO`,`MC`,`PD`) with permitted specializations |
+| `bin/config/config.active-competency-sets.json` | Baselines + specialization extensions, keyed `family → "baseline"|<SPEC> → cycleID → [codes]` (seed populates per-family baselines for `2026-H2`) |
+| `bin/config/config.stage-levels.json` | The ladder (see below) |
 | `bin/config/config.organization-structure.json` | Org-chart hierarchy; managers inferred via unit-walk |
-| `bin/data/schemas/` | JSON schemas for config + seed validation (role-families, active-competency-sets, stage-levels, cycle, audit-entry, competencies, employee(s), evaluation(s)) |
+| `bin/data/schemas/` | JSON schemas for config + seed validation (incl. `relevancy-archetypes.schema.json`) |
 | `bin/data/seeders/` | Destructive seed data behind `COMPETENCE_PRELOAD_DATA=true` |
-| `bin/localization/competence-labels.json` | en/bg labels for every user-visible string |
-| `test/` | Node built-in test runner (`node --test`): JSON validation + framework resolution / validation / lifecycle / snapshot suites |
+| `bin/localization/competence-labels.json` | en/bg labels for every user-visible string (incl. a `relevancy-archetype` label section; BG pending native review) |
+| `bin/static/scripts/competence-user-interface.js` | Alpine components for all screens (calls the framework `/admin/config/*` API for admin screens) |
+| `bin/static/scripts/competence-main.css` | App-specific styles layered on the framework primitives |
+| `design/` | Source-of-truth content docs — see below |
+| `test/*.test.js` | `node --test` — JSON validation, content integrity, config-management/editors/live, framework resolution/validation/lifecycle/snapshot |
 
-**Enums**:
+**UI fragments** (`bin/static/fragments/`): dashboard, employees-list, employee-management, cycles, cycle-setup, competence-evaluation, new-evaluation, manager-calendar, interview-schedule; plus admin-gated config screens: **admin-config** (landing: export + change feed/restore), **competency-text-editor**, **archetype-assignment**, **archetype-editor**, **role-families**. Admin screens live under an admin-only "Administration" sidebar section.
+
+**Design docs** (`design/`, source of truth for content): `competency-definitions-final.md`, `competency-master-index.md`, `competency-bg-translations.md`, `competency-relevancy-model.md`, plus phase-0 inventories.
+
+**Enums** (`configuration-loader.js`):
 - `RoleCode`: EMPLOYEE(1), MANAGER(2), SUPERVISOR(3), TEAM_MEMBER(4)
-- `RoleFamilyCode`: SE, QE, BA, PM, XD, DA, IO, MC, PD — specialization codes are nested per family in `config.role-families.json`, accessed via `getSpecializationCodes(familyCode)`
-- `CycleStatus`: PLANNING → ACTIVE → CLOSED — one-way transitions; single-active-cycle invariant
+- `RoleFamilyCode`: SE, QE, BA, PM, XD, DA, IO, MC, PD — specializations are nested per family; access via `getSpecializationCodes(familyCode)`
+- `CycleStatus`: PLANNING → ACTIVE → CLOSED — one-way; single-active-cycle invariant
 - `EvaluationStatus`: NOT_STARTED → OPEN → IN_REVIEW → READY → CLOSED / DELETED
-- `EvaluationGrade`: S(1.3), R(1.0), U(0.6), N(0.0) — weights used in score calculation
+- `EvaluationGrade`: S(1.3), R(1.0), U(0.6), N(0.0) — `gradeWeights` used in scoring
+- `PerformanceThreshold`: T1–T5 (76, 89, 105, 119, 150)
+- `SlotStatus`: available / booked / busy / deleted (interview calendar)
 
-**Evaluation weight formula**: self×20% + team×30% + manager×50%
+**Stage-level ladder** (`config.stage-levels.json`): N=Intern(1), J=Junior Specialist(3), R=Specialist(3), S=Senior Specialist(3), X=Expert(1), T=Manager(1). Flattened to 12 archetype curve keys `N1, J1–J3, R1–R3, S1–S3, X1, T1`. These six levels also double as the scope anchors in the dictionary.
+
+**Evaluation weights** (`performanceAppraisals.evaluationWeights`): self ×0.2 + team ×0.3 + manager ×0.5. Collective team mode grades by subcategory (3–5 members).
+
+**Store-backed configs**: `competencies`, `relevancy-archetypes`, `active-competency-sets`, `role-families`, `stage-levels` (read-only) — editable via the admin config API once `configurationLoader.initialize()` has run. Until then (and without it) the exported config objects are the file defaults, so the app works before/without store init. Liveness nuance: archetype *assignment* + *weights* are store-backed (live for future evaluations); competency texts and archetype names/descriptions are *labels* (versioned/exportable, but need export → commit → redeploy to show).
 
 **Test commands**:
 ```bash
@@ -141,7 +210,7 @@ npm run test:json    # validate JSON config schemas
 
 ---
 
-## Package: tester
+## Package: tester (v1.3.3)
 
 **Role**: Working example of a ServiceProvider with cross-service calls. Run to smoke-test the framework.
 
@@ -149,7 +218,7 @@ npm run test:json    # validate JSON config schemas
 | File | Purpose |
 |------|---------|
 | `bin/tester-service.js` | ServiceProvider; runs test suite on start |
-| `bin/tester-service.json` | Service registry (points to services/v1/*.js) |
+| `bin/tester-service.json` | Service registry (points to `services/v1/*.js`) |
 | `bin/services/v1/service1.js` | Returns current timestamp after 500ms |
 | `bin/services/v1/service2.js` | Calls service1, returns both timestamps |
 | `bin/.env` | `TI_INSTANCE_NAME=ti-tester-service`, etc. |
@@ -158,13 +227,8 @@ npm run test:json    # validate JSON config schemas
 
 ## Versioning & Changelog Conventions
 
-- Each package has its own independent semver version and `CHANGELOG.md`
-- Commit message format: Conventional Commits
-  - `feat(scope): description` → minor bump
-  - `fix(scope): description` → patch bump
-  - `refactor(scope)!: description` or `feat!:` → major bump (breaking)
-  - `build(deps): update X from ^A to ^B`
-  - `docs(scope): description`
+- Each package has its own independent semver version and `CHANGELOG.md`.
+- Commit messages: Conventional Commits, scoped to the package — `feat(scope)` (minor), `fix(scope)` (patch), `feat(scope)!` / `refactor(scope)!` (major/breaking), `build(deps)`, `docs(scope)`, `chore(build)`, `test(scope)`.
 - Changelog entry format:
   ```markdown
   ## Version X.Y.Z
@@ -172,27 +236,30 @@ npm run test:json    # validate JSON config schemas
   * fix(module): what was fixed
   * build(deps): updated dep from vA to vB
   ```
-- Commit message subject lines typically: `augment <package> version X.Y.Z` (feature work) or `submit <package> version X.Y.Z` (release commit)
+- Bumping a version means updating that package's `package.json` version **and** its `CHANGELOG.md`.
 
 ---
 
 ## Key Architectural Patterns
 
-1. **Abstract base classes** — Never instantiate `ServiceInstance`, `MessageExchange`, `TiWebAppManager` directly; subclass them
-2. **Singletons** — `CommonMemoryCache`, `DataManager`, `CompetenceFramework`, `OrganizationManager` are all singletons; access via the exported instance
-3. **deepFreeze on config** — Once settings are loaded they are immutable; don't try to mutate them
-4. **Envelope/payload split** — Large message payloads go in Redis hash; envelope (metadata) goes in the queue list
-5. **No blocking operations** — All service calls are Promise-based; use async/await
-6. **Module imports** — Internal imports use `#alias` form (package.json `imports` map), not relative paths
-7. **CommonJS** — All packages use `"type": "commonjs"`; use `require()` / `module.exports`
+1. **Abstract base classes** — never instantiate `ServiceInstance`, `MessageExchange`, `TiWebAppManager` directly; subclass them.
+2. **Singletons via frozen instance** — `CommonMemoryCache`, `DataManager`, `CompetenceFramework`, `OrganizationManager` export a single frozen `instance`; access that, don't re-construct.
+3. **deepFreeze on config** — config/settings are immutable once loaded.
+4. **Store-backed config** — competence config documents are registered with the framework registry and (after `initialize()`) served from a versioned, audited store; consumers hot-reload via `onConfigChanged`. File values are bootstrap defaults.
+5. **Envelope/payload split** — large message payloads go in a Redis hash; the envelope (metadata) goes in the queue list.
+6. **Promise-based, non-blocking** — all service calls return Promises; use async/await (validators here favour explicit Promise chains).
+7. **Snapshot isolation** — evaluations freeze their resolved competency set at creation; config edits never alter in-flight evaluations.
+8. **`#alias` / exports imports**, **CommonJS**, and the **Alpine CSP constraints** (see Conventions).
 
 ---
 
 ## When Working on This Codebase
 
-1. **Adding a new service to tester or competence**: add handler file in `services/v1/` and register it in the `.json` service registry
-2. **Extending the web UI**: subclass `TiWebAppManager`, override fragment rendering methods
-3. **Adding config**: add to `bin/config/*.json`, update the JSON schema in `bin/data/schemas/`, add enum entry in `configuration-loader.js`
-4. **New package**: follow the `core` exports pattern; add to `packages/` and npm workspaces
-5. **Testing**: use Node.js built-in `node --test`; no external test framework
-6. **Bumping versions**: update `package.json` version + `CHANGELOG.md` in the affected package(s)
+1. **New service (tester/competence)**: add the handler file in `services/v1/` and register it in the `.json` service registry.
+2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
+3. **Adding/changing config**: edit `bin/config/*.json`, update the JSON schema in `bin/data/schemas/`, add/adjust the enum or loader helper in `configuration-loader.js`, and — if it should be admin-editable — register it in `config-registration.js` (document + schema + semantic validator + optional composite editor).
+4. **New admin-editable entity**: register a config document and, for structured editing, a composite editor in `config-editors.js`; add referential-integrity guards in `config-validators.js`.
+5. **Competency content**: drive changes from the `design/` source-of-truth docs; re-run `bin/build/build-competency-relevancy.js` for archetype-derived data; the content-integrity test guards against empty names/descriptions/scopes.
+6. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory.
+7. **Bumping versions**: update the affected package's `package.json` + `CHANGELOG.md`.
+8. **Design-first**: for non-trivial work, start from / update the relevant `design/*.md` doc (meta header + implementation log) and land small checkpointed commits. Never commit `.run/*.run.xml` (live creds).
