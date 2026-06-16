@@ -733,6 +733,34 @@ class DataManager {
         } );
     }
 
+    /**
+     * Removes the persisted set for a (roleFamily, specialization, cycleID) tuple, reverting it to "not configured"
+     * (entry absent) — the inverse of {@link DataManager#setActiveCompetencySet}. Used to un-mark a specialization
+     * that was flagged as intentionally empty. No-op when nothing is persisted for the tuple.
+     *
+     * @method
+     * @param {RoleFamilyCodeValue|string} roleFamily
+     * @param {SpecializationCodeValue|string} key - A specialization code under the parent family (never "baseline").
+     * @param {string} cycleID
+     * @returns {Promise}
+     * @public
+     */
+    deleteActiveCompetencySet( roleFamily, key, cycleID ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( !roleFamily || !key || !cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { roleFamily, key, cycleID } ) );
+            }
+            if ( !cache.instance.isOperational ) {
+                return resolve();
+            }
+            // RedisJSON's JSON.MERGE (used by editJSON) follows RFC 7396 merge-patch semantics, where a null value
+            // deletes the target leaf. Merging null at (roleFamily → key → cycleID) drops just this cycle's set, leaving
+            // any other cycles under the same specialization — and the family's baseline — untouched.
+            const update = { [ roleFamily ]: { [ key ]: { [ cycleID ]: null } } };
+            cache.instance.editJSON( cacheEntryKeyActiveCompetencySets, update ).then( () => resolve() ).catch( reject );
+        } );
+    }
+
     /* ------------------------------------------------------------------ */
     /*                            Audit log                               */
 

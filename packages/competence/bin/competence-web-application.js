@@ -261,6 +261,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#setActiveCompetencySet( session, params );
         } else if ( service === "mark-active-set-empty" ) {
             return this.#markActiveSetEmpty( session, params );
+        } else if ( service === "clear-active-competency-set" ) {
+            return this.#clearActiveCompetencySet( session, params );
         } else if ( service === "create-employee" ) {
             return this.#createEmployee( session, params );
         } else if ( service === "update-employee" ) {
@@ -1758,6 +1760,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                         families,
                         sets,
                         competenciesByCode,
+                        poolByFamily: configurationLoader.configRoleFamilyCompetencies,
                         subcategories,
                         validation: {
                             valid: validation ? validation.valid : true,
@@ -1917,6 +1920,7 @@ class CompetenceWebApplication extends TiWebAppManager {
             this.#assertCyclePlanning( cycleID )
                 .then( () => this.#assertValidFamilyAndKey( roleFamily, key ) )
                 .then( () => this.#assertCodesKnown( codes ) )
+                .then( () => this.#assertCodesInPool( roleFamily, codes ) )
                 .then( () => dataManager.instance.setActiveCompetencySet( roleFamily, key, cycleID, codes ) )
                 .then( ( storedCodes ) => {
                     return dataManager.instance.appendAuditEntry( {
@@ -1974,6 +1978,53 @@ class CompetenceWebApplication extends TiWebAppManager {
                         oldValue: null,
                         newValue: true
                     } ).then( () => ( { cycleID, roleFamily, key, codes: [], markedEmpty: true } ) );
+                } )
+                .then( resolve )
+                .catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Used to clear a specialization's active set for the cycle, reverting it from "intentionally empty" back to "not
+     * configured" (entry removed). Supervisor-only. The inverse of {@link #markActiveSetEmpty}; baseline sets cannot be
+     * cleared this way.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.cycleID
+     * @param {string} params.roleFamily
+     * @param {string} params.key - Must be a specialization code (cannot be "baseline").
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #clearActiveCompetencySet( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = String( params?.cycleID || "" ).trim();
+            const roleFamily = String( params?.roleFamily || "" ).trim();
+            const key = String( params?.key || "" ).trim();
+
+            if ( !cycleID || !roleFamily || !key ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID, roleFamily, key } ) );
+            }
+            if ( key === "baseline" ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.cycle.cannot-clear-baseline" } ) );
+            }
+
+            this.#assertCyclePlanning( cycleID )
+                .then( () => this.#assertValidFamilyAndKey( roleFamily, key ) )
+                .then( () => dataManager.instance.deleteActiveCompetencySet( roleFamily, key, cycleID ) )
+                .then( () => {
+                    return dataManager.instance.appendAuditEntry( {
+                        subjectType: "activeCompetencySet",
+                        subjectID: `${ cycleID }|${ roleFamily }|${ key }`,
+                        changedBy: userID,
+                        field: "markedEmpty",
+                        oldValue: true,
+                        newValue: null
+                    } ).then( () => ( { cycleID, roleFamily, key, cleared: true } ) );
                 } )
                 .then( resolve )
                 .catch( ( error ) => reject( exceptions.raise( error ) ) );
@@ -2039,6 +2090,30 @@ class CompetenceWebApplication extends TiWebAppManager {
         const unknown = codes.filter( ( code ) => !dictionary[ code ] );
         if ( unknown.length > 0 ) {
             return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: `Unknown competency codes: ${ unknown.join( ", " ) }` } ) );
+        }
+        return Promise.resolve();
+    }
+
+    /**
+     * Asserts every code belongs to the role family's competency pool (the applicability universe). A family with no
+     * defined pool is not constrained. Mirrors the lock-time `pool-membership` rule so out-of-pool codes are rejected at
+     * save time, not just at lock time.
+     *
+     * @method
+     * @param {string} roleFamily
+     * @param {string[]} codes
+     * @returns {Promise<void>}
+     * @private
+     */
+    #assertCodesInPool( roleFamily, codes ) {
+        const pool = configurationLoader.getCompetencyPool( roleFamily );
+        if ( pool.length === 0 ) {
+            return Promise.resolve();
+        }
+        const poolSet = new Set( pool );
+        const outside = codes.filter( ( code ) => !poolSet.has( code ) );
+        if ( outside.length > 0 ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: `Competency codes not in the '${ roleFamily }' pool: ${ outside.join( ", " ) }` } ) );
         }
         return Promise.resolve();
     }

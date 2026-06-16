@@ -281,7 +281,7 @@
                                    x-bind:class="pickerRowClass(competency.code)">
                                 <input type="checkbox"
                                        x-bind:checked="isPickerCodeSelected(competency.code)"
-                                       x-bind:disabled="isCodeInDraft(competency.code)"
+                                       x-bind:disabled="isCodeInDraft(competency.code) || isCodeInBaseline(competency.code)"
                                        @change="togglePickerSelection(competency.code)"/>
                                 <div class="competence-cycle-picker-row-meta">
                                     <div class="competence-cycle-picker-row-top">
@@ -290,6 +290,9 @@
                                         <span x-show="isCodeInDraft(competency.code)"
                                               class="ti-tag muted competence-cycle-picker-added"
                                               x-text-label="interface.cycle-setup.picker.already-added"></span>
+                                        <span x-show="isCodeInBaseline(competency.code)"
+                                              class="ti-tag muted competence-cycle-picker-added"
+                                              x-text-label="interface.cycle-setup.picker.in-baseline"></span>
                                     </div>
                                     <div class="competence-cycle-picker-row-name" x-text="competency.name"></div>
                                 </div>

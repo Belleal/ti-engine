@@ -1734,6 +1734,7 @@ const configureCycleSetup = () => {
         families: [],
         sets: {},
         competenciesByCode: {},
+        poolByFamily: {},
         subcategories: [],
         validation: { valid: true, errorsByFamily: {} },
         allCycles: [],
@@ -1793,6 +1794,7 @@ const configureCycleSetup = () => {
             this.families = Array.isArray( data.families ) ? tiToolbox.structuredClone( data.families ) : [];
             this.sets = data.sets ? tiToolbox.structuredClone( data.sets ) : {};
             this.competenciesByCode = data.competenciesByCode ? tiToolbox.structuredClone( data.competenciesByCode ) : {};
+            this.poolByFamily = data.poolByFamily ? tiToolbox.structuredClone( data.poolByFamily ) : {};
             this.subcategories = Array.isArray( data.subcategories ) ? tiToolbox.structuredClone( data.subcategories ) : [];
             this.validation = data.validation ? tiToolbox.structuredClone( data.validation ) : { valid: true, errorsByFamily: {} };
 
@@ -2056,8 +2058,14 @@ const configureCycleSetup = () => {
             const q = ( payload.query || "" ).trim().toLowerCase();
             const cat = payload.category || "";
             const sub = payload.subcategory || "";
+            // Constrain the picker to the selected family's competency pool (its applicability universe). Every family
+            // has a pool (unpopulated disciplines still carry the shared canonical competencies); a family with no pool
+            // entry at all yields an empty picker, which is the correct "nothing to add yet" state.
+            const familyPool = this.poolByFamily[ this.selectedFamily ];
+            const poolSet = new Set( Array.isArray( familyPool ) ? familyPool : [] );
             const competencies = Object.values( this.competenciesByCode );
             return competencies.filter( ( competency ) => {
+                if ( !poolSet.has( competency.code ) ) return false;
                 if ( cat && competency.category !== cat ) return false;
                 if ( sub && competency.subcategory !== sub ) return false;
                 if ( q ) {
@@ -2069,7 +2077,7 @@ const configureCycleSetup = () => {
         },
 
         togglePickerSelection( code ) {
-            if ( this.isCodeInDraft( code ) ) return;
+            if ( this.isCodeInDraft( code ) || this.isCodeInBaseline( code ) ) return;
             const selected = this.modal.payload.selected || {};
             if ( selected[ code ] ) {
                 delete selected[ code ];
@@ -2089,7 +2097,7 @@ const configureCycleSetup = () => {
 
         pickerRowClass( code ) {
             const selectedClass = this.isPickerCodeSelected( code ) ? "is-selected" : "";
-            const disabledClass = this.isCodeInDraft( code ) ? " is-disabled" : "";
+            const disabledClass = ( this.isCodeInDraft( code ) || this.isCodeInBaseline( code ) ) ? " is-disabled" : "";
             return selectedClass + disabledClass;
         },
 
@@ -2104,6 +2112,14 @@ const configureCycleSetup = () => {
 
         isCodeInDraft( code ) {
             return this.draft.codes.indexOf( code ) >= 0;
+        },
+
+        // When configuring a specialization, the family's persisted baseline competencies are already part of every
+        // employee's resolved set (resolved = baseline ∪ specialization), so adding them here would be redundant. They
+        // surface as disabled rows flagged "in baseline". Baseline nodes have no parent set, so nothing is excluded.
+        isCodeInBaseline( code ) {
+            if ( this.selectedKey === "baseline" ) return false;
+            return this.getBaselineCodes().indexOf( code ) >= 0;
         },
 
         confirmPicker() {
@@ -2205,20 +2221,29 @@ const configureCycleSetup = () => {
         isDirty() {
             if ( !this.selectedFamily ) return false;
             const persisted = this.sets[ this.selectedFamily ] && this.sets[ this.selectedFamily ][ this.selectedKey ];
-            const persistedCodes = persisted && Array.isArray( persisted.codes ) ? persisted.codes : null;
+            const persistedCodes = ( persisted && Array.isArray( persisted.codes ) ) ? persisted.codes : null;
+            const persistedMarkedEmpty = ( persisted && persisted.markedEmpty === true );
             const draftCodes = this.draft.codes;
+            // Read the marker unconditionally so the binding always tracks it reactively, regardless of which branch
+            // below returns — otherwise toggling the checkbox would not re-enable the Save button.
+            const draftMarkedEmpty = ( this.draft.markedEmpty === true );
 
-            // Track "marked empty" specifically — when there are no codes either side, an explicit checkbox flip should
-            // count as dirty so the user can persist the "intentionally empty" marker.
-            if ( !persisted && draftCodes.length === 0 ) {
-                return this.draft.markedEmpty === true;
-            }
-            if ( !persisted && draftCodes.length > 0 ) {
+            // Any difference in the code set is a change.
+            if ( persistedCodes === null ) {
+                if ( draftCodes.length > 0 ) return true;
+            } else if ( persistedCodes.length !== draftCodes.length ) {
                 return true;
+            } else {
+                for ( let i = 0; i < persistedCodes.length; i++ ) {
+                    if ( persistedCodes[ i ] !== draftCodes[ i ] ) return true;
+                }
             }
-            if ( persistedCodes.length !== draftCodes.length ) return true;
-            for ( let i = 0; i < persistedCodes.length; i++ ) {
-                if ( persistedCodes[ i ] !== draftCodes[ i ] ) return true;
+
+            // Codes match the persisted state. For a specialization with no codes, flipping the "intentionally empty"
+            // marker is itself the saveable change — both marking it (→ persist empty) and un-marking it (→ revert to
+            // "not configured") count as dirty. Baseline sets have no such marker.
+            if ( this.selectedKey !== "baseline" && draftCodes.length === 0 ) {
+                return draftMarkedEmpty !== persistedMarkedEmpty;
             }
             return false;
         },
@@ -2227,20 +2252,31 @@ const configureCycleSetup = () => {
             if ( this.isReadOnly || this.saving || !this.isDirty() ) return;
             const family = this.selectedFamily;
             const key = this.selectedKey;
+            const isSpec = key !== "baseline";
             const draftCodes = this.draft.codes.slice();
             const markedEmpty = this.draft.markedEmpty === true;
+            const wasPersisted = !!( this.sets[ family ] && this.sets[ family ][ key ] );
 
             this.saving = true;
-            const endpoint = ( draftCodes.length === 0 && markedEmpty && key !== "baseline" ) ? "/app/mark-active-set-empty" : "/app/set-active-competency-set";
-            const params = ( endpoint === "/app/mark-active-set-empty" ) ? { cycleID: this.cycleID, roleFamily: family, key } : {
-                cycleID: this.cycleID,
-                roleFamily: family,
-                key,
-                codes: draftCodes
-            };
+
+            let endpoint;
+            let params;
+            if ( isSpec && draftCodes.length === 0 && !markedEmpty && wasPersisted ) {
+                // Un-marked an "intentionally empty" specialization → clear it back to "not configured".
+                endpoint = "/app/clear-active-competency-set";
+                params = { cycleID: this.cycleID, roleFamily: family, key };
+            } else if ( isSpec && draftCodes.length === 0 && markedEmpty ) {
+                endpoint = "/app/mark-active-set-empty";
+                params = { cycleID: this.cycleID, roleFamily: family, key };
+            } else {
+                endpoint = "/app/set-active-competency-set";
+                params = { cycleID: this.cycleID, roleFamily: family, key, codes: draftCodes };
+            }
 
             tiApplication.sendRequest( endpoint, "POST", params ).then( () => {
-                const toastLabel = ( endpoint === "/app/mark-active-set-empty" ) ? "interface.cycle-setup.toast.marked-empty" : "interface.cycle-setup.toast.saved";
+                const toastLabel = ( endpoint === "/app/mark-active-set-empty" ) ? "interface.cycle-setup.toast.marked-empty"
+                    : ( endpoint === "/app/clear-active-competency-set" ) ? "interface.cycle-setup.toast.cleared"
+                        : "interface.cycle-setup.toast.saved";
                 tiApplication.notify( tiApplication.getLabel( toastLabel ) );
                 this.saving = false;
                 this.reloadAfterSave();

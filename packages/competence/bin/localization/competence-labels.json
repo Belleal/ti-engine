@@ -5730,6 +5730,22 @@
       "competency-text-editor": {
         "en": "Competency Texts",
         "bg": "Текстове на компетенции"
+      },
+      "cycle-setup": {
+        "en": "Cycle Setup",
+        "bg": "Настройка на цикъл"
+      },
+      "archetype-assignment": {
+        "en": "Archetype Assignment",
+        "bg": "Присвояване на архетипи"
+      },
+      "archetype-editor": {
+        "en": "Relevancy Archetypes",
+        "bg": "Архетипи на релевантност"
+      },
+      "role-families": {
+        "en": "Role Families",
+        "bg": "Семейства роли"
       }
     },
     "sidebar": {
@@ -6931,6 +6947,10 @@
         "already-added": {
           "en": "Already added",
           "bg": "Вече е добавена"
+        },
+        "in-baseline": {
+          "en": "In baseline",
+          "bg": "В основния набор"
         }
       },
       "clone-modal": {
@@ -6987,6 +7007,10 @@
         "cloned": {
           "en": "Competencies cloned.",
           "bg": "Компетенциите са клонирани."
+        },
+        "cleared": {
+          "en": "Specialization cleared.",
+          "bg": "Специализацията е изчистена."
         }
       }
     },

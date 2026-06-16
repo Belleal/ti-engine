@@ -18,6 +18,8 @@ module.exports.configRelevancyArchetypes = tools.deepFreeze( require( "#config-r
 module.exports.configOrganizationStructure = tools.deepFreeze( require( "#config-organization-structure" ) );
 /** @type {ConfigRoleFamilies} */
 module.exports.configRoleFamilies = tools.deepFreeze( require( "#config-role-families" ) );
+/** @type {Object<string, Array<string>>} The per-family competency pool (applicability): family code → its complete pool (family-specific + shared) of competency codes. */
+module.exports.configRoleFamilyCompetencies = tools.deepFreeze( require( "#config-role-family-competencies" ) );
 /** @type {ConfigStageLevels} */
 module.exports.configStageLevels = tools.deepFreeze( require( "#config-stage-levels" ) );
 
@@ -67,6 +69,22 @@ module.exports.roleFamilyCode = roleFamilyCodeEnum;
 module.exports.getSpecializationCodes = ( roleFamilyCode ) => {
     const family = module.exports.configRoleFamilies?.[ roleFamilyCode ];
     return family && family.specializations ? Object.keys( family.specializations ) : [];
+};
+
+/**
+ * Returns the competency pool (applicability universe) for a given role family — its family-specific competencies plus
+ * the shared canonical ones — as defined in `config.role-family-competencies.json`. This is the set of codes a family
+ * may draw on when configuring its Active Competency Sets per cycle. Returns an empty array for an unknown or
+ * unpopulated family.
+ *
+ * @method
+ * @param {RoleFamilyCodeValue|string} roleFamilyCode
+ * @returns {Array<string>} The family's competency-code pool (empty if the family has no pool).
+ * @public
+ */
+module.exports.getCompetencyPool = ( roleFamilyCode ) => {
+    const pool = module.exports.configRoleFamilyCompetencies?.[ roleFamilyCode ];
+    return Array.isArray( pool ) ? pool : [];
 };
 
 /**
@@ -226,6 +244,7 @@ const STORE_BACKED = {
     "relevancy-archetypes": "configRelevancyArchetypes",
     "active-competency-sets": "configActiveCompetencySets",
     "role-families": "configRoleFamilies",
+    "role-family-competencies": "configRoleFamilyCompetencies",
     "stage-levels": "configStageLevels"
 };
 const fileDefaults = {};

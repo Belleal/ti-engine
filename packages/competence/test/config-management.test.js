@@ -108,6 +108,29 @@ describe( "config-validators (competence semantic validators)", () => {
         }
     } );
 
+    it( "activeSetsWithinPool flags active-set codes outside the family pool", async () => {
+        const value = { SE: { baseline: { "2026-H2": [ "E1-1", "E1-99" ] } } };
+        const issues = await validators.activeSetsWithinPool( value, ctx( { "role-family-competencies": { SE: [ "E1-1" ] } } ) );
+        assert.equal( issues.length, 1 );
+        assert.ok( issues[ 0 ].message.includes( "E1-99" ) && issues[ 0 ].code === "pool-membership" );
+    } );
+
+    it( "activeSetsWithinPool skips a family with no defined pool", async () => {
+        const value = { QE: { baseline: { "2026-H2": [ "E1-1" ] } } };
+        const issues = await validators.activeSetsWithinPool( value, ctx( { "role-family-competencies": {} } ) );
+        assert.deepEqual( issues, [] );
+    } );
+
+    it( "poolReferenceIntegrity flags unknown families and unknown codes", async () => {
+        const value = { SE: [ "E1-1", "E9-9" ], ZZ: [ "E1-1" ] };
+        const issues = await validators.poolReferenceIntegrity( value, ctx( {
+            competencies: { competencies: { "E1-1": {} } },
+            "role-families": { SE: {} }
+        } ) );
+        assert.ok( issues.some( ( i ) => i.message.includes( "E9-9" ) && i.code === "reference-integrity" ), "unknown code flagged" );
+        assert.ok( issues.some( ( i ) => i.message.includes( "ZZ" ) && i.code === "reference-integrity" ), "unknown family flagged" );
+    } );
+
 } );
 
 describe( "config-registration (competence)", () => {
@@ -123,7 +146,7 @@ describe( "config-registration (competence)", () => {
 
         assert.deepEqual(
             Object.keys( registered ).sort(),
-            [ "active-competency-sets", "competence-labels", "competencies", "relevancy-archetypes", "role-families", "stage-levels" ]
+            [ "active-competency-sets", "competence-labels", "competencies", "relevancy-archetypes", "role-families", "role-family-competencies", "stage-levels" ]
         );
         assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "relevancy-archetype", "role-families" ] );
         assert.deepEqual( editors[ "competency-text" ].documents, [ "competencies", "competence-labels" ] );
@@ -131,7 +154,9 @@ describe( "config-registration (competence)", () => {
         assert.ok( registered[ "role-families" ].validators.length >= 1, "role-families carries the referential-integrity validator" );
         assert.equal( registered.competencies.metadata.editable, true );
         assert.equal( registered[ "role-families" ].metadata.editable, true );
-        assert.ok( registered[ "active-competency-sets" ].validators.length >= 3 );
+        assert.ok( registered[ "active-competency-sets" ].validators.length >= 4, "active-competency-sets carries the pool-membership validator too" );
+        assert.equal( registered[ "role-family-competencies" ].metadata.editable, false, "the pool is registered read-only (exportable, not inline-editable yet)" );
+        assert.ok( registered[ "role-family-competencies" ].validators.length >= 1, "the pool carries its reference-integrity validator" );
         assert.ok( registered.competencies.defaultValue && registered.competencies.defaultValue.competencies );
         assert.ok( registered[ "relevancy-archetypes" ].defaultValue && registered[ "relevancy-archetypes" ].defaultValue.A );
     } );

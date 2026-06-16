@@ -2,6 +2,24 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.1.0
+
+### Role-family competency pool restored
+
+* feat(config): restore the per-family competency **pool** (applicability universe) as `config.role-family-competencies.json` — `{ <family>: [codes] }`. Every role family gets a pool: the populated families carry family-specific + shared (SE 61 / BA 52 / PM 55), and the six not-yet-populated families (QE/XD/DA/IO/MC/PD) carry the 30 shared canonical competencies only, so they share the core even now. The pool was previously carried by the keys of `config.competency-relevancy.json`, which `3.0.0`'s archetype refactor retired without a replacement; relevancy stays global, the pool is restored as its own document
+* feat(build): `bin/build/build-competency-relevancy.js` now also emits the pool — family-specific codes from the `## Assignments — <family>` sections of `design/competency-relevancy-model.md` plus the shared set, for every family in `config.role-families.json` — so the generator stays the single source of truth for both archetypes and pool
+* feat(framework): `validateCycleForLock` gains a fifth rule, `pool-membership` — every competency in a family's baseline/specialization sets must belong to that family's pool
+* feat(web-app): the Cycle Setup competency picker now lists exactly the selected family's pool (an empty picker when the family has none); the `set-active-competency-set` save path rejects out-of-pool codes server-side
+* feat(config): register `role-family-competencies` as a store-backed, exportable, restorable config document (read-only — no inline editor yet); add the `poolReferenceIntegrity` validator (pool families exist; pool codes exist) and an `activeSetsWithinPool` validator on the active competency sets
+* test(json): add pool schema validation plus integrity guards (pool ⊆ dictionary, pool families defined, active sets ⊆ pool) and `activeSetsWithinPool` / `poolReferenceIntegrity` unit tests
+* fix(test): load the relocated `config.application.schema.json` from `bin/data/schemas/`, keyed by filename (the package-local schema has no `$id`)
+
+### Cycle Setup fixes
+
+* fix(web-app): show the Cycle Setup screen's topbar title — add the missing `interface.topbar.cycle-setup` label (and the likewise-missing titles for the archetype-assignment, archetype-editor, and role-families admin screens)
+* fix(web-app): when configuring a specialization, the competency picker shows the family's baseline competencies as disabled and flagged "in baseline" instead of offering them as duplicate additions
+* fix(web-app): toggling the "no extra competencies" marker now correctly drives the Save button, and un-marking a previously intentionally-empty specialization clears it back to "not configured" via a new `clear-active-competency-set` endpoint (`DataManager.deleteActiveCompetencySet`)
+
 ## Version 3.0.0
 
 ### Competency content rebuild

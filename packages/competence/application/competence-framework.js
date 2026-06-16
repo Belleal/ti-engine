@@ -181,6 +181,8 @@ class CompetenceFramework {
      *   3. Reference integrity — every competency code must exist in the dictionary; every specialization key must be
      *      a valid specialization of the parent family.
      *   4. No empty baseline — a family with any specialization data for the cycle must have a non-empty baseline.
+     *   5. Pool membership — every competency in a family's sets must belong to that family's competency pool
+     *      (`config.role-family-competencies.json`); skipped for families with no defined pool.
      *
      * @method
      * @param {string} cycleID
@@ -697,7 +699,7 @@ class CompetenceFramework {
     }
 
     /**
-     * Runs the four validation rules for one role family within the given cycle. Returns an array of error
+     * Runs the five validation rules for one role family within the given cycle. Returns an array of error
      * descriptors (empty when the family is well-formed).
      *
      * @method
@@ -797,6 +799,31 @@ class CompetenceFramework {
                         rule: "cap",
                         detail: `Resolved set (baseline ∪ '${ specCode }') has size ${ resolved.size } and exceeds the configured cap of ${ cap }.`
                     } );
+                }
+            }
+
+            // Rule 5: pool membership — every known competency in the family's sets must belong to that family's
+            // competency pool (the applicability universe). Unknown codes are already reported by reference integrity,
+            // so only known-but-out-of-pool codes are flagged here. Skipped when the family has no defined pool.
+            const pool = configurationLoader.getCompetencyPool( family );
+            if ( pool.length > 0 ) {
+                const poolSet = new Set( pool );
+                for ( const code of baselineArr ) {
+                    if ( dictionary[ code ] && !poolSet.has( code ) ) {
+                        errors.push( { family, rule: "pool-membership", detail: `Baseline references competency '${ code }', which is not in the '${ family }' competency pool.` } );
+                    }
+                }
+                for ( const [ specCode, codes ] of Object.entries( specializationSets ) ) {
+                    for ( const code of codes ) {
+                        if ( dictionary[ code ] && !poolSet.has( code ) ) {
+                            errors.push( {
+                                family,
+                                specialization: specCode,
+                                rule: "pool-membership",
+                                detail: `Specialization '${ specCode }' references competency '${ code }', which is not in the '${ family }' competency pool.`
+                            } );
+                        }
+                    }
                 }
             }
 

@@ -25,9 +25,9 @@ function readJSON( filePath ) {
 }
 
 /**
- * Builds an Ajv instance preloaded with every schema in `bin/data/schemas/` so cross-schema `$ref`s resolve.
- * The package-local `config.application.schema.json` is added too, keyed by its filename so the relative
- * `$schema` reference inside `config.application.json` resolves.
+ * Builds an Ajv instance preloaded with every schema in `bin/data/schemas/` so cross-schema `$ref`s resolve. Schemas
+ * are keyed by their URL `$id`; the package-local `config.application.schema.json` (which has no `$id`) is keyed by its
+ * filename — the stable key that `config.application.json`'s relative `$schema` reference resolves to.
  */
 function buildAjv() {
     // ajv 6 (shipped via the workspace) supports JSON Schema Draft-07 as a strict superset of what we use. Our
@@ -49,16 +49,17 @@ function buildAjv() {
         return schema;
     }
 
-    // Pre-load every schema in the schemas folder so $ref by $id resolves correctly.
+    // Pre-load every schema in the schemas folder so $ref by $id resolves correctly. Schemas with a URL $id are keyed
+    // by it; the package-local application schema has no $id, so it is keyed by its filename (the stable key that the
+    // relative $schema reference inside config.application.json resolves to).
     for ( const entry of fs.readdirSync( SCHEMAS_DIR ) ) {
         if ( !entry.endsWith( ".schema.json" ) ) continue;
-        ajv.addSchema( loadSchema( path.join( SCHEMAS_DIR, entry ) ) );
-    }
-
-    // The application config validates against its sibling schema; mount under a stable key.
-    const applicationSchemaPath = path.join( CONFIG_DIR, "config.application.schema.json" );
-    if ( fs.existsSync( applicationSchemaPath ) ) {
-        ajv.addSchema( loadSchema( applicationSchemaPath ), "config.application.schema.json" );
+        const schema = loadSchema( path.join( SCHEMAS_DIR, entry ) );
+        if ( schema.$id ) {
+            ajv.addSchema( schema );
+        } else {
+            ajv.addSchema( schema, entry );
+        }
     }
 
     return ajv;
@@ -108,6 +109,10 @@ describe( "Configuration files validate against their schemas", () => {
 
     it( "config.stage-levels.json validates against stage-levels.schema.json", () => {
         expectValid( "https://ti-engine.dev/schemas/competence/stage-levels.json", path.join( CONFIG_DIR, "config.stage-levels.json" ) );
+    } );
+
+    it( "config.role-family-competencies.json validates against role-family-competencies.schema.json", () => {
+        expectValid( "https://ti-engine.dev/schemas/competence/role-family-competencies.json", path.join( CONFIG_DIR, "config.role-family-competencies.json" ) );
     } );
 
 } );
@@ -187,6 +192,51 @@ describe( "Active competency sets satisfy floor coverage for the seeded cycle", 
             }
         }
         assert.deepEqual( failures, [], `Invalid specialization key failures:\n  ${ failures.join( "\n  " ) }` );
+    } );
+
+} );
+
+describe( "Role-family competency pool integrity", () => {
+
+    it( "every pool code exists in the dictionary", () => {
+        const competencies = readJSON( path.join( CONFIG_DIR, "config.competencies.json" ) ).competencies;
+        const pool = readJSON( path.join( CONFIG_DIR, "config.role-family-competencies.json" ) );
+        const failures = [];
+        for ( const [ family, codes ] of Object.entries( pool ) ) {
+            for ( const code of codes ) {
+                if ( !competencies[ code ] ) {
+                    failures.push( `${ family }: unknown competency code '${ code }'` );
+                }
+            }
+        }
+        assert.deepEqual( failures, [], `Pool unknown-code failures:\n  ${ failures.join( "\n  " ) }` );
+    } );
+
+    it( "every pool family is a defined role family", () => {
+        const roleFamilies = readJSON( path.join( CONFIG_DIR, "config.role-families.json" ) );
+        const pool = readJSON( path.join( CONFIG_DIR, "config.role-family-competencies.json" ) );
+        const failures = Object.keys( pool ).filter( ( family ) => !roleFamilies[ family ] ).map( ( family ) => `'${ family }' is not a defined role family` );
+        assert.deepEqual( failures, [], `Pool unknown-family failures:\n  ${ failures.join( "\n  " ) }` );
+    } );
+
+    it( "every active-competency-set code is within its family's pool", () => {
+        const pool = readJSON( path.join( CONFIG_DIR, "config.role-family-competencies.json" ) );
+        const sets = readJSON( path.join( CONFIG_DIR, "config.active-competency-sets.json" ) );
+        const failures = [];
+        for ( const [ family, familyEntry ] of Object.entries( sets ) ) {
+            const familyPool = Array.isArray( pool[ family ] ) ? new Set( pool[ family ] ) : null;
+            if ( !familyPool ) continue;
+            for ( const [ key, cycleMap ] of Object.entries( familyEntry ) ) {
+                for ( const [ cycleID, codes ] of Object.entries( cycleMap ) ) {
+                    for ( const code of codes ) {
+                        if ( !familyPool.has( code ) ) {
+                            failures.push( `${ family }.${ key }.${ cycleID }: '${ code }' is not in the '${ family }' pool` );
+                        }
+                    }
+                }
+            }
+        }
+        assert.deepEqual( failures, [], `Active-set pool-membership failures:\n  ${ failures.join( "\n  " ) }` );
     } );
 
 } );

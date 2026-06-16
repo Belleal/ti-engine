@@ -169,6 +169,72 @@ function activeSetsCap( value ) {
 }
 
 /**
+ * active-competency-sets: every code in a family's sets (baseline and each specialization) must belong to that family's
+ * competency pool (`config.role-family-competencies.json`). This enforces the per-family applicability universe on the
+ * admin restore/import path; cycle-setup edits are additionally guarded on their own save path. A family with no
+ * defined pool is skipped (its plain reference integrity is covered by {@link activeSetsReferenceIntegrity}).
+ *
+ * @method
+ * @param {ConfigActiveCompetencySets} value - The pending active-competency-sets document being validated.
+ * @param {ValidatorContext} context
+ * @returns {Promise<Array<ValidationIssue>>}
+ * @public
+ */
+function activeSetsWithinPool( value, context ) {
+    return context.getConfig( "role-family-competencies" ).then( ( poolConfig ) => {
+        const issues = [];
+        const pools = poolConfig || {};
+        for ( const [ family, familyEntry ] of Object.entries( value || {} ) ) {
+            if ( !Array.isArray( pools[ family ] ) ) continue;
+            const pool = new Set( pools[ family ] );
+            for ( const [ key, cycleMap ] of Object.entries( familyEntry || {} ) ) {
+                for ( const [ cycleID, codes ] of Object.entries( cycleMap || {} ) ) {
+                    for ( const code of ( codes || [] ) ) {
+                        if ( !pool.has( code ) ) {
+                            issues.push( { path: `.${ family }.${ key }.${ cycleID }`, message: `competency '${ code }' is not in the '${ family }' pool`, code: "pool-membership" } );
+                        }
+                    }
+                }
+            }
+        }
+        return issues;
+    } );
+}
+
+/**
+ * role-family-competencies: every family key in the pool must be a defined role family, and every code in each family's
+ * pool must exist in the dictionary. The mirror constraint — active sets staying within the pool — is enforced from the
+ * active-sets side by {@link activeSetsWithinPool}.
+ *
+ * @method
+ * @param {Object<string, Array<string>>} value - The pending role-family competency pool being validated.
+ * @param {ValidatorContext} context
+ * @returns {Promise<Array<ValidationIssue>>}
+ * @public
+ */
+function poolReferenceIntegrity( value, context ) {
+    return Promise.all( [
+        context.getConfig( "competencies" ),
+        context.getConfig( "role-families" )
+    ] ).then( ( [ competenciesConfig, roleFamiliesConfig ] ) => {
+        const issues = [];
+        const dictionary = ( competenciesConfig || {} ).competencies || {};
+        const roleFamilies = roleFamiliesConfig || {};
+        for ( const [ family, codes ] of Object.entries( value || {} ) ) {
+            if ( !roleFamilies[ family ] ) {
+                issues.push( { path: `.${ family }`, message: `'${ family }' is not a defined role family`, code: "reference-integrity" } );
+            }
+            for ( const code of ( codes || [] ) ) {
+                if ( !dictionary[ code ] ) {
+                    issues.push( { path: `.${ family }`, message: `unknown competency '${ code }'`, code: "reference-integrity" } );
+                }
+            }
+        }
+        return issues;
+    } );
+}
+
+/**
  * relevancy-archetypes: every archetype currently assigned to a competency must still exist after the edit — the
  * mirror of competenciesArchetypeResolves, enforced from the archetypes side so removing/renaming an archetype that is
  * still in use (in the dictionary) is rejected. This is the "remove only when unassigned" guard.
@@ -353,6 +419,8 @@ module.exports = {
     activeSetsReferenceIntegrity,
     activeSetsFloorCoverage,
     activeSetsCap,
+    activeSetsWithinPool,
+    poolReferenceIntegrity,
     archetypesReferentialIntegrity,
     roleFamiliesReferentialIntegrity,
     fetchEmployeesForValidation,

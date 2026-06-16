@@ -16,7 +16,12 @@
  *   - writes `config.relevancy-archetypes.json` — `{ <id>: { weights: { N1..T1 } } }`;
  *   - sets `relevancyArchetype` on every entry in `config.competencies.json`;
  *   - writes the `relevancy-archetype` name/description labels into `competence-labels.json` (EN from the doc; BG
- *     maintained here, pending native-speaker review).
+ *     maintained here, pending native-speaker review);
+ *   - writes `config.role-family-competencies.json` — the per-family competency **pool** (`{ <family>: [codes] }`).
+ *     Every role family in `config.role-families.json` gets a pool: its family-specific competencies (from the doc's
+ *     `## Assignments — <family> family-specific` section — empty for the not-yet-populated families) plus all shared
+ *     competencies (from `## Assignments — Shared`, so even an unpopulated family shares the canonical core). This is
+ *     the applicability universe the cycle-setup picker filters to and the lock validation enforces.
  *
  * The stage-level ladder is read from `config.stage-levels.json` so it stays the single source of truth shared with
  * the runtime; the model doc's curve table must carry exactly one weight column per ladder rung, in ladder order.
@@ -34,6 +39,8 @@ const STAGE_LEVELS_FILE = path.join( PACKAGE_ROOT, "bin/config/config.stage-leve
 const ARCHETYPES_FILE = path.join( PACKAGE_ROOT, "bin/config/config.relevancy-archetypes.json" );
 const COMPETENCIES_FILE = path.join( PACKAGE_ROOT, "bin/config/config.competencies.json" );
 const LABELS_FILE = path.join( PACKAGE_ROOT, "bin/localization/competence-labels.json" );
+const POOL_FILE = path.join( PACKAGE_ROOT, "bin/config/config.role-family-competencies.json" );
+const ROLE_FAMILIES_FILE = path.join( PACKAGE_ROOT, "bin/config/config.role-families.json" );
 
 const readFile = ( filePath ) => fs.readFileSync( filePath, "utf8" );
 
@@ -50,13 +57,32 @@ for ( const [ code, definition ] of Object.entries( stageLevelsConfig ) ) {
 const ARCHETYPE_ROW_COLUMNS = LEVELS.length + 3; // id + name + one weight per level + description
 const ARCHETYPE_IDS = [ "A", "B", "C", "D", "E", "F", "G" ];
 
-// ---- parse the model doc: archetype curves + per-competency assignments ----
+// ---- parse the model doc: archetype curves + per-competency assignments + pool membership ----
 const curves = {};
 const archetypeMeta = {};
 const assignments = {};
 const issues = [];
+const familySpecificCodes = {}; // family code -> [codes], from each "## Assignments — <XX> family-specific" section
+const sharedCodes = []; // codes from the "## Assignments — Shared competencies" section (apply to every family)
+let currentAssignmentSection = null; // "SHARED" | family code | null — the section the current row belongs to
 
 for ( const line of readFile( MODEL_FILE ).split( /\r?\n/ ) ) {
+    // Track the current "## Assignments — …" section so each competency can be attributed to a family pool (its
+    // family-specific section, or the shared section that applies to every family).
+    const sectionMatch = line.match( /^##\s+Assignments\s+[—-]\s+(.+?)\s*$/ );
+    if ( sectionMatch ) {
+        const heading = sectionMatch[ 1 ];
+        if ( /^Shared\b/i.test( heading ) ) {
+            currentAssignmentSection = "SHARED";
+        } else {
+            const familyMatch = heading.match( /^([A-Z]{2})\b/ );
+            currentAssignmentSection = familyMatch ? familyMatch[ 1 ] : null;
+            if ( currentAssignmentSection && !familySpecificCodes[ currentAssignmentSection ] ) {
+                familySpecificCodes[ currentAssignmentSection ] = [];
+            }
+        }
+        continue;
+    }
     if ( !line.trim().startsWith( "|" ) ) {
         continue;
     }
@@ -78,10 +104,19 @@ for ( const line of readFile( MODEL_FILE ).split( /\r?\n/ ) ) {
         curves[ id ] = weights;
         archetypeMeta[ id ] = { name: columns[ 1 ], description: columns[ columns.length - 1 ] };
     } else if ( columns.length === 4 && /^[EIC][1-3]-\d+$/.test( columns[ 0 ] ) && /^[A-G]$/.test( columns[ 2 ] ) ) {
-        if ( assignments[ columns[ 0 ] ] && assignments[ columns[ 0 ] ] !== columns[ 2 ] ) {
-            issues.push( `conflicting archetype for ${ columns[ 0 ] }` );
+        const code = columns[ 0 ];
+        if ( assignments[ code ] && assignments[ code ] !== columns[ 2 ] ) {
+            issues.push( `conflicting archetype for ${ code }` );
         }
-        assignments[ columns[ 0 ] ] = columns[ 2 ];
+        assignments[ code ] = columns[ 2 ];
+        // Attribute the code to its pool bucket based on the section it appears under.
+        if ( currentAssignmentSection === "SHARED" ) {
+            if ( !sharedCodes.includes( code ) ) sharedCodes.push( code );
+        } else if ( currentAssignmentSection ) {
+            if ( !familySpecificCodes[ currentAssignmentSection ].includes( code ) ) familySpecificCodes[ currentAssignmentSection ].push( code );
+        } else {
+            issues.push( `assignment for ${ code } found outside any "## Assignments — …" section` );
+        }
     }
 }
 
@@ -114,6 +149,28 @@ for ( const id of ARCHETYPE_IDS ) {
     archetypesConfig[ id ] = { weights: curves[ id ] };
 }
 
+// ---- build the per-family competency pool ----
+// Every defined role family gets a pool: its family-specific competencies (none, for the not-yet-populated families)
+// plus all shared canonical competencies — so an unpopulated family (e.g. QE) still draws on the shared core.
+const sortCodes = ( a, b ) => a.localeCompare( b, undefined, { numeric: true } );
+const allFamilies = Object.keys( JSON.parse( readFile( ROLE_FAMILIES_FILE ) ) );
+// Flag any family-specific assignment section whose family isn't a defined role family (its codes would be dropped).
+for ( const family of Object.keys( familySpecificCodes ) ) {
+    if ( !allFamilies.includes( family ) ) {
+        issues.push( `family-specific section '${ family }' is not a defined role family in config.role-families.json` );
+    }
+}
+const poolConfig = {};
+for ( const family of allFamilies ) {
+    const pool = [ ...( familySpecificCodes[ family ] || [] ), ...sharedCodes ];
+    for ( const code of pool ) {
+        if ( !competenciesData.competencies[ code ] ) {
+            issues.push( `pool code ${ code } (family ${ family }) is not in the dictionary` );
+        }
+    }
+    poolConfig[ family ] = pool.sort( sortCodes );
+}
+
 if ( issues.length ) {
     console.error( "ABORT — model/assignment issues:\n  " + issues.join( "\n  " ) );
     process.exit( 1 );
@@ -121,6 +178,7 @@ if ( issues.length ) {
 
 fs.writeFileSync( ARCHETYPES_FILE, JSON.stringify( archetypesConfig, null, 2 ) + "\n", "utf8" );
 fs.writeFileSync( COMPETENCIES_FILE, JSON.stringify( competenciesData, null, 2 ) + ( competenciesRaw.endsWith( "\n" ) ? "\n" : "" ), "utf8" );
+fs.writeFileSync( POOL_FILE, JSON.stringify( poolConfig, null, 2 ) + "\n", "utf8" );
 
 // ---- archetype labels (EN from doc; BG maintained here, pending review) ----
 const archetypeBg = {
@@ -145,4 +203,5 @@ fs.writeFileSync( LABELS_FILE, JSON.stringify( labels, null, 2 ) + ( labelsRaw.e
 
 console.log( "archetypes:", ARCHETYPE_IDS.join( "," ) );
 console.log( "competencies assigned:", Object.keys( competenciesData.competencies ).filter( ( code ) => competenciesData.competencies[ code ].relevancyArchetype ).length, "/", Object.keys( competenciesData.competencies ).length );
+console.log( "pool (family-specific + " + sharedCodes.length + " shared):", Object.entries( poolConfig ).map( ( [ family, codes ] ) => `${ family }=${ codes.length }` ).join( "  " ) );
 console.log( "sample — E1-8:", competenciesData.competencies[ "E1-8" ].relevancyArchetype, "(expect F);  C1-4:", competenciesData.competencies[ "C1-4" ].relevancyArchetype, "(expect C)" );

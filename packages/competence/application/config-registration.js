@@ -13,8 +13,9 @@
  * endpoints then serve these documents and editors.
  *
  * Editable: the dictionary, its localization, the relevancy archetypes, the active competency sets, and the role
- * families (the nine disciplines are fixed by schema; their text and their specializations are editable). Stage levels
- * stay read-only so semantic validators and the store can resolve them, but they are not exposed for editing.
+ * families (the nine disciplines are fixed by schema; their text and their specializations are editable). The
+ * role-family competency pool and the stage levels are registered read-only — versioned, validated, restorable, and
+ * exportable, but not exposed for inline editing yet.
  *
  * @module config-registration
  */
@@ -27,6 +28,7 @@ const competenciesSchema = require( "../bin/data/schemas/competencies.schema.jso
 const activeCompetencySetsSchema = require( "../bin/data/schemas/active-competency-sets.schema.json" );
 const relevancyArchetypesSchema = require( "../bin/data/schemas/relevancy-archetypes.schema.json" );
 const roleFamiliesSchema = require( "../bin/data/schemas/role-families.schema.json" );
+const roleFamilyCompetenciesSchema = require( "../bin/data/schemas/role-family-competencies.schema.json" );
 const stageLevelsSchema = require( "../bin/data/schemas/stage-levels.schema.json" );
 const competenceLabels = require( "../bin/localization/competence-labels.json" );
 
@@ -61,7 +63,7 @@ function registerCompetenceConfig( app ) {
     } );
     app.registerConfigDocument( "active-competency-sets", {
         schema: activeCompetencySetsSchema,
-        validators: [ validators.activeSetsReferenceIntegrity, validators.activeSetsFloorCoverage, validators.activeSetsCap ],
+        validators: [ validators.activeSetsReferenceIntegrity, validators.activeSetsFloorCoverage, validators.activeSetsCap, validators.activeSetsWithinPool ],
         defaultValue: configurationLoader.configActiveCompetencySets,
         metadata: { path: "bin/config/config.active-competency-sets.json", label: "active.competency.sets", editable: true }
     } );
@@ -70,6 +72,12 @@ function registerCompetenceConfig( app ) {
         validators: [ validators.roleFamiliesReferentialIntegrity ],
         defaultValue: configurationLoader.configRoleFamilies,
         metadata: { path: "bin/config/config.role-families.json", label: "role.families", editable: true }
+    } );
+    app.registerConfigDocument( "role-family-competencies", {
+        schema: roleFamilyCompetenciesSchema,
+        validators: [ validators.poolReferenceIntegrity ],
+        defaultValue: configurationLoader.configRoleFamilyCompetencies,
+        metadata: { path: "bin/config/config.role-family-competencies.json", label: "role.family.competencies", editable: false }
     } );
     app.registerConfigDocument( "stage-levels", {
         schema: stageLevelsSchema,
