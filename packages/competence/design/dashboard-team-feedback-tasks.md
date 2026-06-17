@@ -30,7 +30,7 @@ The review established that the **feedback machinery already exists and works** 
    - Available **only once the team-feedback deadline has passed**.
    - **Allowed with zero submissions**, gated by a new app setting (default on).
    - Triggerable by the evaluatee's **manager** (org-hierarchy) **or a Supervisor**.
-   - **Writes an audit entry.**
+   - **Writes an audit entry on the evaluation's audit trail** (see §3.7).
 5. **Team-feedback deadline** = a **cycle-level date** (`cycle.teamFeedbackDeadline`), defaulted from an app-setting window and **overridable in Cycle Setup**. `workflow.teamEvaluationDeadline` becomes **required**, set at evaluation creation from the cycle. Resulting policy: reviewers submit **up to** the deadline (existing hard block after it stays); past it, only the manager/supervisor finalizes.
 
 ---
@@ -98,41 +98,50 @@ The resolver receives already-fetched `evaluations` plus an injected `canManage`
 - **Cycle Setup** — editable team-feedback-deadline date field (Supervisor, PLANNING-only).
 - **Localization** (`competence-labels.json`, en + bg): task titles/subs for both new types; finalize action + confirm copy; the deadline field label; new error messages (deadline-not-reached, no-submissions-not-allowed, etc.).
 
-### 3.7 Audit entry (corrected)
+### 3.7 Audit entry (evaluation-scoped)
 
-The audit log's `subjectType` enum is `"employee" | "cycle" | "activeCompetencySet"` and `getAuditEntriesForEmployee` reads only the `"employee"` bucket. So the finalize entry is scoped to the **evaluatee** to surface in their audit trail:
+The finalize is an event on the **evaluation's** outcome, so it is recorded against the evaluation — not the evaluatee. The audit log buckets by `subjectType`, which currently has no `"evaluation"`, so extend the (competence-local) audit subsystem in `data-manager.js`:
+
+- Add `"evaluation"` to the `AuditEntry.subjectType` enum (typedef in `data-objects.types.js`).
+- `#auditLogBucketForSubject`: add `case "evaluation": return "evaluations";`.
+- `#emptyAuditLogShape`: initialize an `evaluations: {}` bucket.
+- Add `getAuditEntriesForEvaluation(evaluationID)` mirroring `getAuditEntriesForEmployee` (reads `auditLog["evaluations"][evaluationID]`, newest-first).
+
+The finalize handler then writes (same format as today):
 
 ```
 appendAuditEntry({
-  subjectType: "employee",
-  subjectID:   <evaluatee employeeID>,
+  subjectType: "evaluation",
+  subjectID:   <evaluationID>,
   changedBy:   <actor userID>,
-  field:       "evaluation.teamFeedbackFinalized",
+  field:       "workflow.teamFeedbackFinalized",
   oldValue:    <pending reviewer count before>,
   newValue:    <"In Review" | "Open (awaiting self)">,
-  reason:      "Team feedback finalized after the deadline by <actor role>; N pending reviewer(s) dropped (evaluation <shortID>)."
+  reason:      "Team feedback finalized after the deadline by <actor role>; N pending reviewer(s) dropped."
 })
 ```
+
+**Display note:** no UI surfaces evaluation-scoped audit yet (the Employee-Management audit tab reads only the employee bucket), so this is *recorded, not yet displayed* — see §5.
 
 ---
 
 ## 4. Testing (`node --test`)
 
 - `test/task-resolver.test.js` — `team-feedback` discovery (membership, OPEN-only, excludes self); `team-finalize` discovery (deadline passed, pending non-empty, manager/supervisor scope); overdue flag; no false positives before the deadline.
-- `test/competence-framework.finalize.test.js` (or extend an existing suite) — finalize: drops pending reviewers, computes `cumulative` from submitted, transitions to `IN_REVIEW` only when self complete, respects `allowFinalizeTeamWithoutSubmissions`, rejects before the deadline / when not OPEN, writes one audit entry.
+- `test/competence-framework.finalize.test.js` (or extend an existing suite) — finalize: drops pending reviewers, computes `cumulative` from submitted, transitions to `IN_REVIEW` only when self complete, respects `allowFinalizeTeamWithoutSubmissions`, rejects before the deadline / when not OPEN, writes one **evaluation-scoped** audit entry (`subjectType:"evaluation"`, retrievable via `getAuditEntriesForEvaluation`).
 - `test:json` — schema updates validate: cycle `teamFeedbackDeadline`, the two new settings; seed cycle + `config.application.json` conform.
 
 ---
 
 ## 5. Out of scope (future)
 
-Team draft-save; scheduled auto-advance at the deadline; self/manager deadline population & enforcement; hardening the existing self-eval/manager-review/interview tasks; extracting the reusable `web-framework` tasks module (the resolver is its seed); a dedicated "Peer reviews" list screen / sidebar entry (revisit only if per-review tasks crowd the dashboard).
+Team draft-save; scheduled auto-advance at the deadline; self/manager deadline population & enforcement; hardening the existing self-eval/manager-review/interview tasks; extracting the reusable `web-framework` tasks module (the resolver is its seed); a dedicated "Peer reviews" list screen / sidebar entry (revisit only if per-review tasks crowd the dashboard); surfacing evaluation-scoped audit entries in the UI (the finalize event is recorded but not yet displayed).
 
 ---
 
 ## 6. Details to confirm during implementation
 
-- Exact `field` string + `oldValue`/`newValue` rendering in the Employee-Management audit tab.
+- Whether (and where) to surface the evaluation's audit entries in the UI now vs. defer (currently recorded-only).
 - Whether `team-finalize` should suppress when self is also incomplete (current decision: show it regardless; finalizing then waits on self).
 - Confirm the all-evaluations fetch in `load-dashboard` is an acceptable cost for resolving tasks (it already runs there).
 
