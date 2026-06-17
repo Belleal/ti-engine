@@ -1,4 +1,4 @@
-<div class="ti-page" x-data="competenceCycleSetup">
+<div class="ti-page competence-cycle-setup-page" x-data="competenceCycleSetup">
     <!-- Page head: eyebrow + title (left) and status pill + back button (right) on a single row. The default
          `.ti-page-head` is a vertical stack, but the local `.competence-cycle-setup-pagehead` modifier turns it into
          a two-column grid so the aside hangs next to the title (matches the cycle-setup design concept). -->
@@ -102,35 +102,34 @@
                 <!-- Node selected: editor card. -->
                 <template x-if="selectedFamily">
                     <div class="competence-cycle-editor-pane">
-                        <div class="competence-cycle-editor">
-
-                            <!-- Editor header: tag + family name + (·) + spec name. -->
-                            <div class="competence-cycle-editor-head">
-                                <div class="competence-cycle-editor-title">
-                                    <span class="ti-tag mono" x-text="selectedFamily"></span>
-                                    <span x-text="getSelectedFamily().name"></span>
-                                    <template x-if="selectedKey === 'baseline'">
+                        <!-- Editor header: tag + family name + (·) + spec name. -->
+                        <div class="competence-cycle-editor-head">
+                            <div class="competence-cycle-editor-title">
+                                <span class="ti-tag mono" x-text="selectedFamily"></span>
+                                <span x-text="getSelectedFamily().name"></span>
+                                <template x-if="selectedKey === 'baseline'">
                                         <span class="competence-cycle-editor-title-suffix"
                                               x-text-label="interface.cycle-setup.header-baseline-suffix"></span>
-                                    </template>
-                                    <template x-if="selectedKey !== 'baseline'">
-                                        <span class="competence-cycle-editor-title-sep">·</span>
-                                    </template>
-                                    <template x-if="selectedKey !== 'baseline'">
-                                        <span x-text="getSelectedSpec().name"></span>
-                                    </template>
-                                </div>
-                                <div class="competence-cycle-editor-desc"
-                                     x-show="selectedKey === 'baseline'"
-                                     x-text-label="interface.cycle-setup.header-description-baseline"></div>
-                                <div class="competence-cycle-editor-desc"
-                                     x-show="selectedKey !== 'baseline'"
-                                     x-text-label="interface.cycle-setup.header-description-spec"></div>
+                                </template>
+                                <template x-if="selectedKey !== 'baseline'">
+                                    <span class="competence-cycle-editor-title-sep">·</span>
+                                </template>
+                                <template x-if="selectedKey !== 'baseline'">
+                                    <span x-text="getSelectedSpec().name"></span>
+                                </template>
                             </div>
+                            <div class="competence-cycle-editor-desc"
+                                 x-show="selectedKey === 'baseline'"
+                                 x-text-label="interface.cycle-setup.header-description-baseline"></div>
+                            <div class="competence-cycle-editor-desc"
+                                 x-show="selectedKey !== 'baseline'"
+                                 x-text-label="interface.cycle-setup.header-description-spec"></div>
+                        </div>
 
-                            <!-- Family-level include/exclude control (baseline node only). Excluding a family removes
+                        <!-- Family-level include/exclude control (baseline node only). Excluding a family removes
                                  it from the cycle: its specializations are hidden in the tree, lock validation skips
                                  it, and the configuration below is hidden. -->
+                        <div class="competence-cycle-editor">
                             <template x-if="selectedKey === 'baseline'">
                                 <div class="competence-cycle-exclude-row"
                                      x-bind:class="isSelectedFamilyExcluded() ? 'is-excluded' : ''">

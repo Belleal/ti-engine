@@ -1,4 +1,4 @@
-<div class="ti-page" x-data="competenceEmployeeManagement">
+<div class="ti-page competence-empmgmt-page" x-data="competenceEmployeeManagement">
     <!-- Page header -->
     <div class="ti-page-head">
         <div class="ti-page-eyebrow" x-text-label="interface.employee-management.page-eyebrow"></div>
@@ -166,6 +166,10 @@
                                     @click="activeTab = 'audit'"
                                     x-text-label="interface.employee-management.tabs.audit"></button>
                         </div>
+
+                        <!-- Scrollable tab content. The detail head + tabs above stay fixed; only this region
+                             scrolls inside the pane (mirrors the tree/editor panes on Cycle Setup). -->
+                        <div class="competence-empmgmt-detail-content">
 
                         <!-- Tab content: Details -->
                         <template x-if="activeTab === 'details' && draft">
@@ -434,6 +438,7 @@
                                 </div>
                             </div>
                         </template>
+                        </div>
                     </div>
                 </template>
             </div>

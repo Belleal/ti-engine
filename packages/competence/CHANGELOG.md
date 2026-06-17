@@ -2,6 +2,12 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.2.3
+
+* fix(web-app): the Cycle Setup screen no longer shows a phantom vertical scrollbar with the bottom of the tree falling past the fold. The screen now fills the content area (`.competence-cycle-setup-page`) as a flex column and the role-family tree and the editor scroll inside their own panes, instead of document-scrolling a sticky tree sized to the full viewport. The old `max-height: calc(100vh - …)` could not account for the page head and the conditional read-only banner stacked above the tree in the same scroll container (already `100vh - topbar`), so the bottom always spilled past the fold. Narrow viewports (≤960px) still collapse to a single document-scrolling column
+* fix(web-app): the Cycle Setup editor pane now keeps its header (family/specialization name + description) pinned while the body — cap usage, subcategory coverage, and the competency list — scrolls inside the pane, mirroring the tree pane. Previously the whole pane scrolled, clipping the header off the top and the list off the bottom
+* fix(web-app): apply the same master/detail layout to the Employee Management screen — the page fills the content area, the employee list (master) and the detail card each scroll inside their own pane, and the detail's head + tabs stay fixed while the tab content (Details/Evaluations/Audit) scrolls. Removes the viewport-sized sticky master that produced the same phantom scroll. Narrow viewports (≤1080px) still collapse to a single document-scrolling column
+
 ## Version 3.2.2
 
 * refactor(web-app): align the evaluation screens with the shared design-system primitives. `frame-competence-evaluation` and `frame-new-evaluation` now use `.ti-panel` + `.ti-panel-head-aside` + `.ti-panel-body-intro` for their grade-guide / feedback / team panels, and the new-evaluation employee header reuses the evaluation screen's `.competence-eval-employee-card` + `.competence-eval-context-*` layout (role family / specialization / stage-level) for a consistent look. Removes the now-unused `competence-eval-grade-guide*`, `competence-eval-grade-scale-tag`, and `competence-new-eval-*` CSS

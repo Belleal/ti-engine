@@ -2701,18 +2701,34 @@
     color: var(--fg-tertiary);
 }
 
-/* Two-pane shell. align-items: start so the sticky tree stays at the top while the editor grows naturally. */
+/* Full-height master/detail. The page fills the scroll area (flex column) so the tree and the editor scroll inside
+   their own panes instead of the whole document. Document scrolling forced a phantom vertical scroll here: the tree
+   pane is sized to the viewport, but it sits below the page head and the (conditional) read-only banner in a scroll
+   container that is already `100vh - topbar`, so its bottom always spilled past the fold. A flex layout absorbs the
+   variable head/banner height automatically, which a static `max-height` calc cannot. */
+.competence-cycle-setup-page {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* Two-pane shell. Fills the remaining page height; both panes stretch to it and scroll internally. */
 .competence-cycle-setup-shell {
     display: grid;
     grid-template-columns: 300px 1fr;
+    grid-template-rows: minmax(0, 1fr);
     gap: var(--s-4);
-    align-items: start;
+    align-items: stretch;
+    flex: 1 1 0;
+    min-height: 0;
 }
 
 /* ---------- Left pane: tree ---------- */
 
-/* Sticky tree pane card. No .ti-content.pane wrapper — empmgmt master pattern: own card chrome so the document
-   scroll moves the editor while the tree stays pinned beneath the topbar. */
+/* Tree pane card. No .ti-content.pane wrapper — own card chrome. Fills the shell height; the head stays put while
+   the inner list (.competence-cycle-tree) scrolls. */
 .competence-cycle-tree-pane {
     display: flex;
     flex-direction: column;
@@ -2720,10 +2736,7 @@
     border: 1px solid var(--border);
     border-radius: var(--r-lg);
     overflow: hidden;
-    position: sticky;
-    top: calc(var(--header-h, 64px) + var(--s-4));
-    max-height: calc(100vh - var(--header-h, 64px) - var(--s-7));
-    align-self: start;
+    min-height: 0;
 }
 
 .competence-cycle-tree-pane-head {
@@ -2952,25 +2965,43 @@
     flex-direction: column;
     gap: var(--s-4);
     min-width: 0;
+    min-height: 0;
 }
 
-/* Editor card — own chrome (no .ti-content.pane). */
+/* Editor card — own chrome (no .ti-content.pane). Fills the stack height; the head stays fixed while the body
+   scrolls inside the pane, mirroring the tree pane on the left. */
 .competence-cycle-editor-pane {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--r-lg);
-    padding: var(--s-5);
 }
 
+/* No-family-selected empty state fills and centers within the pane. */
+.competence-cycle-editor-pane > .ti-empty-state {
+    flex: 1 1 auto;
+}
+
+/* Scrolling body beneath the fixed head. The head is a flex sibling above this (not a child), so it stays put
+   while this region scrolls. Left/right/bottom padding lives here. */
 .competence-cycle-editor {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: var(--s-3);
+    padding: 0 var(--s-5) var(--s-5);
 }
 
+/* Fixed head — a flex sibling above the scrolling body, so it stays put while the body scrolls. */
 .competence-cycle-editor-head {
-    margin-bottom: var(--s-2);
-    padding-bottom: var(--s-3);
+    background: var(--bg-surface);
+    padding: var(--s-5);
     border-bottom: 1px solid var(--border-soft);
 }
 
@@ -3395,22 +3426,39 @@
     font-size: var(--fs-sm);
 }
 
-/* Responsive collapse for two-pane on narrow viewports. The sticky tree releases its sticky positioning since
-   on a single column the tree+editor would scroll together and the sticky behavior would just pin the tree at
-   the top of the document. */
+/* Responsive collapse for two-pane on narrow viewports. The page releases its full-height flex layout and scrolls
+   as a normal document — on a single column the tree and editor stack vertically instead of sitting side by side,
+   so internal pane scrolling would trap content; the inner tree keeps a capped height of its own. */
 @media (max-width: 960px) {
     .competence-cycle-setup-pagehead {
         grid-template-columns: 1fr;
         align-items: start;
     }
 
-    .competence-cycle-setup-shell {
-        grid-template-columns: 1fr;
+    .competence-cycle-setup-page {
+        height: auto;
+        display: block;
+        overflow: visible;
     }
 
-    .competence-cycle-tree-pane {
+    .competence-cycle-setup-shell {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        flex: none;
+    }
+
+    .competence-cycle-editor-stack {
+        overflow: visible;
+    }
+
+    /* Release the pane's internal scroll + sticky head so the whole screen scrolls as one document. */
+    .competence-cycle-editor-pane,
+    .competence-cycle-editor {
+        overflow: visible;
+    }
+
+    .competence-cycle-editor-head {
         position: static;
-        max-height: none;
     }
 
     .competence-cycle-tree {
@@ -3429,16 +3477,31 @@
 /* ============================================================
    Employee Management screen
    ============================================================ */
+
+/* Full-height master/detail — same treatment as Cycle Setup: the page fills the content area so the master list
+   and the detail scroll inside their own panes instead of the whole document (which otherwise produced a phantom
+   scroll, with the sticky master sized to the viewport sitting below the page head). */
+.competence-empmgmt-page {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
 .competence-empmgmt-shell {
     display: grid;
     grid-template-columns: 380px 1fr;
+    grid-template-rows: minmax(0, 1fr);
     gap: var(--s-4);
     margin-top: var(--s-4);
-    align-items: start;
+    align-items: stretch;
+    flex: 1 1 0;
+    min-height: 0;
 }
 
-/* Master pane sticks beneath the app topbar while the detail scrolls with the document. Filters + meta bar
-   remain pinned at the top of the pane; only the .competence-empmgmt-list inside scrolls. */
+/* Master pane fills the shell height. Filters + meta bar stay pinned at the top of the pane; only the
+   .competence-empmgmt-list inside scrolls. */
 .competence-empmgmt-master {
     display: flex;
     flex-direction: column;
@@ -3446,10 +3509,7 @@
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--r-lg);
-    position: sticky;
-    top: calc(var(--header-h, 64px) + var(--s-4));
-    max-height: calc(100vh - var(--header-h, 64px) - var(--s-7));
-    align-self: start;
+    min-height: 0;
 }
 
 .competence-empmgmt-filters {
@@ -3563,6 +3623,8 @@
 .competence-empmgmt-detail {
     display: flex;
     flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--r-lg);
@@ -3570,18 +3632,25 @@
     min-width: 0;
 }
 
-/* Detail body is content-sized — the page (not the pane) handles scrolling so the sticky master can pin
-   against the viewport. The sticky save bar inside .competence-empmgmt-form-actions-sticky still pins
-   against the viewport as the user scrolls. */
+/* No-selection empty state fills and centers within the detail card. */
+.competence-empmgmt-detail > .ti-empty-state {
+    flex: 1 1 auto;
+}
+
+/* Detail body fills the card as a flex column: the head + tabs stay fixed while the content region scrolls. */
 .competence-empmgmt-detail-body {
     display: flex;
     flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
+/* Fixed detail head — does not scroll with the tab content. */
 .competence-empmgmt-detail-head {
     display: flex;
     gap: var(--s-4);
     align-items: center;
+    flex: 0 0 auto;
     padding: var(--s-5);
     border-bottom: 1px solid var(--border-soft);
     background: var(--bg-surface);
@@ -3710,6 +3779,14 @@
     flex-direction: column;
     gap: var(--s-4);
     min-width: 0;
+    min-height: 0;
+}
+
+/* Scrolling tab-content region — fills the detail body beneath the fixed head + tabs. */
+.competence-empmgmt-detail-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 /* Sticky actions panel — separate card beneath the main detail card. Mirrors .competence-eval-sticky-bar
@@ -3764,15 +3841,28 @@
 }
 
 @media (max-width: 1080px) {
-    .competence-empmgmt-shell {
-        grid-template-columns: 1fr;
+    /* Release the full-height flex layout so the screen scrolls as one document on a single column. */
+    .competence-empmgmt-page {
+        height: auto;
+        display: block;
+        overflow: visible;
     }
 
-    /* On narrow screens, drop sticky and cap the master at a reasonable height to avoid pushing the
-       detail pane far below the fold. */
+    .competence-empmgmt-shell {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        flex: none;
+    }
+
+    /* Cap the master at a reasonable height so it doesn't push the detail far below the fold; its inner
+       list keeps scrolling. */
     .competence-empmgmt-master {
-        position: static;
         max-height: 480px;
+    }
+
+    .competence-empmgmt-detail,
+    .competence-empmgmt-detail-content {
+        overflow: visible;
     }
 }
 
