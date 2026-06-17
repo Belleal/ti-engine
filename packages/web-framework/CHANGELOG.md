@@ -2,6 +2,12 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.9.1
+
+* build(deps): upgrade `ajv` from ^6.15.0 to ^8.20.0 — ajv 8 renamed the validation-error `dataPath` (dot style) to `instancePath` (JSON Pointer)
+* fix(config-registry): normalize ajv 8's `instancePath` back to the dot/bracket data path the registry has always exposed on schema issues (e.g. `.competencies.E1-1.name`, array indices as `[0]`), so the public `ConfigValidationIssue.path` contract is unchanged across the upgrade; the ajv compile options (`meta`, `schemaId: "$id"`, `validateSchema: false`) and Draft-07 handling are unchanged
+* build(deps): update `helmet` from ^8.1.0 to ^8.2.0
+
 ## Version 1.9.0
 
 * feat(css): add `.ti-panel-body-intro` — the canonical description/intro line under a `.ti-panel-head` (`--fs-sm`, secondary foreground, `0 var(--s-3) var(--s-5)` padding, 1.5 line-height); replaces the per-screen intro paragraphs that screens used to hand-style

@@ -10,6 +10,29 @@ const Ajv = require( "ajv" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 
 /**
+ * Converts an ajv `instancePath` (a JSON Pointer, e.g. `/competencies/E1-1/name`) into the dot/bracket data path this
+ * registry has always exposed on schema issues (e.g. `.competencies.E1-1.name`, array indices rendered as `[0]`).
+ * ajv 8 renamed `dataPath` (dot style) to `instancePath` (JSON Pointer); normalizing here keeps the public
+ * {@link ConfigValidationIssue} `path` contract stable across the ajv 6 → 8 upgrade.
+ *
+ * @param {string} [instancePath] The ajv instance path (JSON Pointer), or empty for the document root.
+ * @returns {string} The dot/bracket data path, or "" for the document root.
+ */
+const instancePathToDataPath = ( instancePath ) => {
+    if ( !instancePath ) {
+        return "";
+    }
+    return instancePath
+        .split( "/" )
+        .slice( 1 )
+        .map( ( segment ) => {
+            const key = segment.replace( /~1/g, "/" ).replace( /~0/g, "~" );
+            return ( /^\d+$/.test( key ) ) ? `[${ key }]` : `.${ key }`;
+        } )
+        .join( "" );
+};
+
+/**
  * @typedef {Object} ConfigValidationIssue
  * @property {string} path A JSON pointer / data path to the offending value (e.g. ".competencies.E1-1.name"), or "".
  * @property {string} message Human-readable problem description.
@@ -38,7 +61,7 @@ class ConfigRegistry {
     #registrations = new Map();
 
     constructor() {
-        // ajv 6 (workspace) speaks Draft-07; our schema files annotate Draft 2020-12 only for editor support, so we
+        // ajv 8 speaks Draft-07 by default; our schema files annotate Draft 2020-12 only for editor support, so we
         // strip that annotation (see #stripUnsupportedMeta) and skip meta-validation.
         this.#ajv = new Ajv( { allErrors: true, schemaId: "$id", meta: true, validateSchema: false } );
     }
@@ -155,7 +178,7 @@ class ConfigRegistry {
         const validateSchema = this.#schemaValidator( registration );
         if ( !validateSchema( value ) ) {
             for ( const error of ( validateSchema.errors || [] ) ) {
-                errors.push( { path: error.dataPath || error.instancePath || "", message: error.message || "schema violation", code: "schema", params: error.params } );
+                errors.push( { path: error.dataPath || instancePathToDataPath( error.instancePath ), message: error.message || "schema violation", code: "schema", params: error.params } );
             }
         }
 
