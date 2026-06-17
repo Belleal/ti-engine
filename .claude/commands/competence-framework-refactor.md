@@ -1,5 +1,11 @@
 # Competence Framework Refactor — Claude Code Brief
 
+> **STATUS: ✅ COMPLETED — historical reference only. Do NOT execute this as pending work.**
+>
+> This refactor shipped as **`competence` v2.0.0** and has since been superseded by 2.1.0 → 3.2.3 (current). The three-dimensional model, cycle lifecycle, snapshot semantics, and all six phase deliverables are live. Several decisions here have also moved on — e.g. relevancy is now global via editable archetype curves (`config.relevancy-archetypes.json`), the per-family competency **pool** was reintroduced separately (`config.role-family-competencies.json`, 3.1.0), and `validateCycleForLock` now applies six rules plus family exclusion.
+>
+> Keep this document for its **design rationale and locked decisions** (the nine Role Families, the permission matrix, the EU Directive 2023/970 / eMBA context in §1 and §4). For the **current** state of the codebase, use the `ti-engine` skill (`.claude/commands/ti-engine.md`), not this brief.
+
 This document specifies a structured refactor of the `competence` package in the `ti-engine` monorepo. The refactor introduces a three-dimensional competency model (Role Family × Specialization × Stage-Level), an Active Competency Set concept per evaluation cycle, a cycle lifecycle state machine, and supporting UI screens. Existing pilot data is **not preserved** — the refactor performs a destructive reseed against a fresh database state.
 
 The work is organized into seven phases (0–6). Phase 0 is reconnaissance with no code changes; Phases 1–6 each produce an isolated commit. Phase 0 must be checkpointed with the project owner before continuing.
