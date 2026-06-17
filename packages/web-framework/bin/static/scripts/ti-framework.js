@@ -429,6 +429,12 @@ const configureComponentSidebarFlyout = ( configKey ) => {
                 this.$nextTick( () => {
                     this.setAria();
                     this.reposition();
+                    // The menu items bind their hx-* attributes via Alpine (x-bind), which HTMX does not pick up on its
+                    // initial document scan — so without this the buttons close the flyout but never fire the request.
+                    // Processing the panel attaches HTMX behaviour to the now-rendered buttons (idempotent on re-open).
+                    if ( window.htmx && this.$refs.flyoutPanel ) {
+                        window.htmx.process( this.$refs.flyoutPanel );
+                    }
                 } );
             }
         },

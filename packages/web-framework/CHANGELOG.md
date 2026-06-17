@@ -2,6 +2,16 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.9.0
+
+* feat(css): add `.ti-panel-body-intro` — the canonical description/intro line under a `.ti-panel-head` (`--fs-sm`, secondary foreground, `0 var(--s-3) var(--s-5)` padding, 1.5 line-height); replaces the per-screen intro paragraphs that screens used to hand-style
+* refactor(css): tighten the key/value primitives — `.ti-kv-label` is now an uppercase `--fs-xs` 600-weight caption (0.05em letter-spacing); `.ti-kv-value` is `--fs-sm` 400-weight — for a consistent, scannable key/value rhythm across screens
+* refactor(css): drop the redundant `margin-left: auto` from `.ti-panel-head-aside` (the panel head already positions it via its flex layout)
+* fix(sidebar): the user-profile flyout actions (Profile, Settings, Logout) now actually fire. The menu items bind their `hx-*` attributes through Alpine (`x-bind`), which HTMX does not pick up on its initial document scan — so the buttons previously only closed the flyout. The flyout now runs `htmx.process` on its panel when it opens (idempotent on re-open), wiring up each button's `hx-get`/`hx-post`/`hx-target`/`hx-swap`
+* fix(sidebar): the role/department line under the user name no longer overflows the fixed-width sidebar — `.ti-sidebar-user-name` and `.ti-sidebar-user-sub` truncate with an ellipsis, and `.ti-sidebar-user-text` gets `flex: 1` so it bounds the text column
+* style(css): expand the `.ti-icon` size-modifier one-liners (`.xs`/`.sm`/`.md`/`.lg`/`.xl`) to block form for consistency with the rest of the sheet
+* build(release): bump package version from `1.8.0` to `1.9.0`
+
 ## Version 1.8.0
 
 * feat(notifications): notifications can now show a secondary **details** line under the generic message. `tiApplication.formatException` returns `{ message, details }` (resolved from the exception's `data.details`, falling back to the raw text for non-localized messages) and `tiApplication.notify` accepts that payload — so an error like "The request parameters are not recognized or not supported." now also shows the specifics (e.g. "Competency codes not in the 'QE' pool: …") in a smaller, muted font. The returned object stringifies to its message, so existing string usages keep working unchanged

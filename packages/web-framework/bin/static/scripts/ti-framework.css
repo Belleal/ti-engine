@@ -78,11 +78,25 @@ body {
 
 /* Size modifiers — pick the one closest to the surrounding text. xs/sm/md/lg/xl cover the
    10–32px range we use across the app. The bare .ti-icon keeps a sensible 20px default. */
-.ti-icon.xs { --ti-icon-size: 12px; }
-.ti-icon.sm { --ti-icon-size: 14px; }
-.ti-icon.md { --ti-icon-size: 16px; }
-.ti-icon.lg { --ti-icon-size: 24px; }
-.ti-icon.xl { --ti-icon-size: 32px; }
+.ti-icon.xs {
+    --ti-icon-size: 12px;
+}
+
+.ti-icon.sm {
+    --ti-icon-size: 14px;
+}
+
+.ti-icon.md {
+    --ti-icon-size: 16px;
+}
+
+.ti-icon.lg {
+    --ti-icon-size: 24px;
+}
+
+.ti-icon.xl {
+    --ti-icon-size: 32px;
+}
 
 /* Legacy color modifiers preserved for the user-profile flyout (which still uses the explicit
    gray on a dark sidebar). New screens inherit color from their parent automatically. */
@@ -973,6 +987,7 @@ body {
 .ti-sidebar-user-text {
     display: flex;
     flex-direction: column;
+    flex: 1;
     min-width: 0;
     transition: opacity var(--dur-fast);
 }
@@ -985,11 +1000,17 @@ body {
     font-weight: 600;
     font-size: 13px;
     color: var(--sidebar-fg-active);
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
+/* Keep the role/department line to a single, ellipsised line — names like "Project & Delivery Management" would
+   otherwise overflow the fixed-width sidebar. */
 .ti-sidebar-user-sub {
     font-size: 11px;
     opacity: 0.7;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* ============================================================
@@ -1150,7 +1171,6 @@ body {
 /* Right-aligned secondary info with a thin separator border on the left. Use for read-only
    informative content (counts, hints, recommended thresholds, etc.). */
 .ti-panel-head-aside {
-    margin-left: auto;
     padding-left: var(--s-3);
     border-left: 1px solid var(--border);
     color: var(--fg-tertiary);
@@ -1178,6 +1198,13 @@ body {
    auto-margin — the actions sit immediately next to it. */
 .ti-panel-head-aside + .ti-panel-head-actions {
     margin-left: 0;
+}
+
+.ti-panel-body-intro {
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+    padding: 0 var(--s-3) var(--s-5);
+    line-height: 1.5;
 }
 
 /* ============================================================
@@ -1952,14 +1979,17 @@ body {
 }
 
 .ti-kv-label {
-    font-size: var(--fs-sm);
+    font-size: var(--fs-xs);
+    font-weight: 600;
     color: var(--fg-tertiary);
-    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     white-space: nowrap;
 }
 
 .ti-kv-value {
-    font-size: var(--fs-base);
+    font-size: var(--fs-sm);
+    font-weight: 400;
     color: var(--fg-primary);
 }
 
