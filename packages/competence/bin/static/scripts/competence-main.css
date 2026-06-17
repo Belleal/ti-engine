@@ -2319,7 +2319,6 @@
     font-weight: 500;
     white-space: nowrap;
     flex-shrink: 0;
-    min-width: 36px;
     text-align: right;
 }
 
@@ -2992,7 +2991,6 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
-    display: flex;
     flex-direction: column;
     gap: var(--s-3);
     padding: 0 var(--s-5) var(--s-5);
@@ -3793,7 +3791,6 @@
    visual treatment so the editor's "save / cancel" affordance reads the same way across screens. */
 .competence-empmgmt-actions-panel {
     position: sticky;
-    bottom: var(--s-4);
     z-index: 40;
     display: flex;
     align-items: center;
@@ -3810,7 +3807,6 @@
 }
 
 .competence-empmgmt-evaluations {
-    padding: var(--s-5);
 }
 
 /* Column template for the Evaluations data grid: ID / Cycle / Level / Status / Interview / Open */

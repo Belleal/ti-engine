@@ -2,6 +2,13 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.2.4
+
+* fix(web-app): the Dashboard no longer throws "Cannot read property of null or undefined" for an employee with no evaluation (e.g. a fresh hire). The "Your Self-Grades" stat card's three `x-show` expressions dereferenced `myEvaluation.status` unguarded; they now short-circuit on `myEvaluation` first (the Alpine CSP build forbids `?.`), matching the hero section's existing guard
+* fix(web-app): the Dashboard "Tasks for you" panel now lists real tasks. `_buildTasks` compared `evaluation.status` against uppercase enum *keys* (`OPEN`/`READY`/`IN_REVIEW`), but the stored values are the title-case enum *values* (`Open`/`Ready`/`In Review`), so the self-evaluation / interview / manager-review tasks never matched; the casing is corrected, the three hardcoded placeholder tasks are removed, and the real "All caught up!" empty state now shows when there are genuinely no tasks
+* refactor(web-app): drop the unused `statusColorClass` and `stageProgressPct` dashboard helpers (referenced nowhere; both carried the same status-casing bug)
+* fix(css): minor layout cleanups — remove the `bottom` offset from the sticky `.competence-empmgmt-actions-panel`, the leftover `padding` on `.competence-empmgmt-evaluations`, a now-redundant `display: flex` on a scrolling content pane, and a fixed `min-width` on a right-aligned value cell
+
 ## Version 3.2.3
 
 * fix(web-app): the Cycle Setup screen no longer shows a phantom vertical scrollbar with the bottom of the tree falling past the fold. The screen now fills the content area (`.competence-cycle-setup-page`) as a flex column and the role-family tree and the editor scroll inside their own panes, instead of document-scrolling a sticky tree sized to the full viewport. The old `max-height: calc(100vh - …)` could not account for the page head and the conditional read-only banner stacked above the tree in the same scroll container (already `100vh - topbar`), so the bottom always spilled past the fold. Narrow viewports (≤960px) still collapse to a single document-scrolling column

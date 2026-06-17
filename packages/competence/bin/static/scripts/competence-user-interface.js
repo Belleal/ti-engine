@@ -1300,18 +1300,6 @@ const configureDashboard = () => {
             return ( user && user.name ) ? user.name.split( " " )[ 0 ] : "there";
         },
 
-        statusColorClass( status ) {
-            const map = {
-                "NOT_STARTED": "muted",
-                "OPEN": "info",
-                "IN_REVIEW": "warn",
-                "READY": "success",
-                "CLOSED": "muted",
-                "DELETED": "danger"
-            };
-            return map[ status ] || "muted";
-        },
-
         cycleProgressPct() {
             if ( this.stats.total <= 0 ) {
                 return 0;
@@ -1335,18 +1323,11 @@ const configureDashboard = () => {
             return Math.max( 0, Math.ceil( diff / ( 1000 * 60 * 60 * 24 ) ) );
         },
 
-        stageProgressPct() {
-            const order = [ "NOT_STARTED", "OPEN", "IN_REVIEW", "READY", "CLOSED" ];
-            if ( !this.myEvaluation ) return 0;
-            const idx = order.indexOf( this.myEvaluation.status );
-            return idx < 0 ? 0 : Math.round( ( idx / ( order.length - 1 ) ) * 100 );
-        },
-
         _buildTasks() {
             const tasks = [];
             if ( this.myEvaluation ) {
                 const s = this.myEvaluation.status;
-                if ( s === "NOT_STARTED" || s === "OPEN" ) {
+                if ( s === "Not Started" || s === "Open" ) {
                     tasks.push( {
                         id: "self-eval",
                         tone: "info",
@@ -1355,7 +1336,7 @@ const configureDashboard = () => {
                         action: "evaluation"
                     } );
                 }
-                if ( s === "READY" ) {
+                if ( s === "Ready" ) {
                     tasks.push( {
                         id: "interview",
                         tone: "success",
@@ -1366,7 +1347,7 @@ const configureDashboard = () => {
                 }
             }
             if ( this.isManager ) {
-                const pendingReview = this.teamEvaluations.filter( ( e ) => e.status === "IN_REVIEW" ).length;
+                const pendingReview = this.teamEvaluations.filter( ( e ) => e.status === "In Review" ).length;
                 if ( pendingReview > 0 ) {
                     tasks.push( {
                         id: "manager-review",
@@ -1376,29 +1357,6 @@ const configureDashboard = () => {
                         action: "employees"
                     } );
                 }
-            }
-            if ( tasks.length === 0 ) {
-                tasks.push( {
-                    id: "stub-1",
-                    tone: "info",
-                    title: tiApplication.getLabel( "interface.evaluation.appraisal.title", "Complete self-evaluation" ),
-                    sub: "21 competencies · saved 2h ago · due 21 May",
-                    action: "evaluation"
-                } );
-                tasks.push( {
-                    id: "stub-2",
-                    tone: "muted",
-                    title: tiApplication.getLabel( "interface.dashboard.task-team-feedback", "Provide team feedback for a colleague" ),
-                    sub: "Software Engineer · R3 · due 21 May",
-                    action: "evaluation"
-                } );
-                tasks.push( {
-                    id: "stub-3",
-                    tone: "muted",
-                    title: tiApplication.getLabel( "interface.schedule.title", "Block your availability for interviews" ),
-                    sub: "Your team needs ~6 slots in late May",
-                    action: "schedule"
-                } );
             }
             return tasks;
         },
