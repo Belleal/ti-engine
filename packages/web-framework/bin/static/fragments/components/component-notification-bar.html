@@ -11,6 +11,7 @@
             <div class="ti-toast-body">
                 <div class="ti-toast-title" x-text="n.title || ''"></div>
                 <div class="ti-toast-msg" x-text="n.message || ''"></div>
+                <div class="ti-toast-details" x-show="n.details" x-text="n.details || ''"></div>
             </div>
             <button class="ti-toast-close" @click="remove(n.id)" aria-label="Dismiss notification" type="button">
                 <span class="ti-icon close sm" aria-hidden="true"></span>

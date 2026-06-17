@@ -1589,7 +1589,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: var(--s-3);
-    z-index: 1100;
+    /* Above the modal layer (backdrop is z-index 1200) so a toast raised while a modal is open stays visible. */
+    z-index: 1300;
     pointer-events: none;
 }
 
@@ -1686,6 +1687,14 @@ body {
     font-size: var(--fs-sm);
     color: var(--fg-secondary);
     margin-top: 2px;
+}
+
+.ti-toast-details {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+    margin-top: 3px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
 }
 
 .ti-toast-close {

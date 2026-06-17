@@ -855,7 +855,8 @@ const configureApplication = () => {
 
                 this.user = null;
                 this.isInitialized = false;
-                this.notify( this.getLabel( "error.application.init-failed" ) + this.formatException( error ) );
+                const formatted = this.formatException( error );
+                this.notify( { message: this.getLabel( "error.application.init-failed" ) + " " + formatted.message, details: formatted.details } );
             } );
         },
 
@@ -1018,31 +1019,43 @@ const configureApplication = () => {
         },
 
         /**
-         * Used to format an exception notification message.
+         * Used to format an exception into a notification payload: a generic localized `message` plus optional, more
+         * specific `details`. The returned object stringifies to its `message`, so existing string usages
+         * (concatenation, `x-text`) keep working, while {@link notify} can surface the `details` on a second line.
          *
          * @method
          * @param {Object} error
-         * @returns {string}
+         * @returns {{message: string, details: string, toString: function(): string}}
          * @public
          */
         formatException( error ) {
-            return this.getLabel( ( error.exception?.code === 5005 && error.exception?.data ) ? error.exception.data.details : error.exception?.label );
+            const exception = error && error.exception;
+            const message = ( error && error.message ) || this.getLabel( exception && exception.label );
+            const rawDetails = exception && exception.data && exception.data.details;
+            // Resolve the details as a label when it is a known label key; otherwise show the raw text (using it as its
+            // own fallback so dynamic, non-localized messages pass through unchanged).
+            const details = rawDetails ? this.getLabel( rawDetails, rawDetails ) : "";
+            return { message: message, details: details, toString() { return this.message; } };
         },
 
         /**
-         * Used to display a notification in the notification bar.
+         * Used to display a notification in the notification bar. Accepts either a plain message string or a payload
+         * object `{ message, details }` (e.g. the result of {@link formatException}); the optional `details` render on
+         * a smaller second line.
          *
          * @method
-         * @param {string} message
+         * @param {string|{message: string, details?: string}} message
          * @param {number} [timeout=6000]
          * @public
          */
         notify( message, timeout = 6000 ) {
             const notificationBar = document.querySelector( "#ti-notifications" );
             if ( notificationBar ) {
+                const payload = ( message && typeof message === "object" ) ? message : { message: message };
                 Alpine.$data( notificationBar ).add( {
                     id: this.notificationIDCounter++,
-                    message: message || this.getLabel( "error.application.unexpected" ),
+                    message: payload.message || this.getLabel( "error.application.unexpected" ),
+                    details: payload.details || "",
                     timeout: timeout
                 } );
             }

@@ -2,6 +2,11 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.8.0
+
+* feat(notifications): notifications can now show a secondary **details** line under the generic message. `tiApplication.formatException` returns `{ message, details }` (resolved from the exception's `data.details`, falling back to the raw text for non-localized messages) and `tiApplication.notify` accepts that payload — so an error like "The request parameters are not recognized or not supported." now also shows the specifics (e.g. "Competency codes not in the 'QE' pool: …") in a smaller, muted font. The returned object stringifies to its message, so existing string usages keep working unchanged
+* fix(css): raise the toast stack above the modal layer (`z-index` 1100 → 1300; the modal backdrop is 1200) so a notification raised while a modal is open is no longer hidden behind it
+
 ## Version 1.7.1
 
 * fix(web-handlers): web-application request errors that carry no explicit `httpCode` are no longer reported as `500`. A new `resolveHttpCode` derives the status from the exception code — request-validation and application-logic errors (`E_WEB_*` / `E_APP_*`) map to `422 Unprocessable Content`, security (`E_SEC_*`) to `403`, resource not-found/already-exists to `404`/`409`, and method/URI/content errors to `405`/`404`/`415`; only genuine internal, communication, and unknown errors still default to `500`. An explicit `httpCode` on the exception always wins. Applied in both the `/app` request handler (`formatException`) and the default error handler
