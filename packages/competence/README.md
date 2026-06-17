@@ -77,6 +77,8 @@ The nine role families and their permitted specializations are configured in `bi
 
 The competency selection for any `(roleFamily, specialization?, cycleID)` tuple is called the **Active Competency Set** and is configured per cycle in `bin/config/config.active-competency-sets.json`. The resolved set is `baseline ∪ specialization`, deduplicated. The baseline applies to every employee in the family regardless of specialization; the specialization additions only apply to employees with that specialization set.
 
+**Set size — a hard maximum, no minimum count.** The only numeric bound is the **cap** (`performanceAppraisals.activeCompetencySetCap`, default **30**), a *maximum* enforced at lock time on the baseline **and** on every resolved `baseline ∪ specialization` set. The cap is a **ceiling, not a target** — a set may be any size up to it (the seeded baselines are 22 / 21 / 21). There is **no minimum-count** setting; the only lower bound is structural — the baseline must satisfy **floor coverage** (at least one competency in each of the nine subcategories), so a valid baseline is effectively ≥ 9. Specializations carry no floor of their own and are bounded only by the cap on the resolved set.
+
 Each family draws its competencies from a fixed **competency pool** (its applicability universe), defined in `bin/config/config.role-family-competencies.json` — the family's own family-specific competencies plus the 30 shared canonical ones. Cycle Setup only offers, and lock validation only accepts, competencies from within that pool. The not-yet-populated families (`QE`, `XD`, `DA`, `IO`, `MC`, `PD`) currently have a pool of the shared competencies only — too few to satisfy floor coverage, so they are typically **excluded** from a cycle (see [Cycle Setup](#cycle-setup)) until they have their own content.
 
 ### Stage-Levels
@@ -955,6 +957,7 @@ All application settings are in `bin/config/config.application.json` and are val
 | `performanceAppraisals.isTeamEvaluationCollective`            | `true`        | If `true`, team members grade by subcategory; if `false`, by individual competency  |
 | `performanceAppraisals.minTeamEvaluationMembers`              | `3`           | Minimum number of team members required to start a peer evaluation (enforced)       |
 | `performanceAppraisals.maxTeamEvaluationMembers`              | `5`           | Maximum number of team members allowed per evaluation (enforced; `null` = no limit) |
+| `performanceAppraisals.activeCompetencySetCap`               | `30`          | Maximum competencies in a resolved active set (baseline ∪ specialization); a ceiling enforced at cycle lock. There is no minimum count (see [Active Competency Set](#role-families-and-specializations)) |
 | `performanceAppraisals.numberOfNextPeriodGoals`               | `5`           | Maximum number of goals for the next period *(planned feature)*                     |
 | `performanceAppraisals.performanceThresholds.T1`              | `76`          | Score ceiling for T1 (Weak)                                                         |
 | `performanceAppraisals.performanceThresholds.T2`              | `89`          | Score ceiling for T2 (Insufficient)                                                 |
