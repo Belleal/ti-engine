@@ -9,9 +9,9 @@ You are working on the **ti-engine** monorepo — an open-source (GPL-3.0) Node.
 ```
 ti-engine/                         npm workspace root (v1.2.4)
 ├── packages/
-│   ├── core/          v1.5.0      Framework foundation (Redis messaging, lifecycle, utils)
-│   ├── web-framework/ v1.9.0      Express HTTP server + auth + admin config-management subsystem
-│   ├── competence/    v3.2.3      HR competency appraisal application (108-competency dictionary)
+│   ├── core/          v1.5.1      Framework foundation (Redis messaging, lifecycle, utils)
+│   ├── web-framework/ v1.9.1      Express HTTP server + auth + admin config-management subsystem
+│   ├── competence/    v3.2.4      HR competency appraisal application (108-competency dictionary)
 │   └── tester/        v1.3.3      Reference/example service implementation
 ├── package.json                   Workspace root; devDeps: ESLint 10, Prettier 3
 └── eslint.config.mjs              Flat ESLint config (commonjs, browser+node globals)
@@ -34,7 +34,7 @@ Branches: `current` is the active feature branch; `master` is the release branch
 
 ---
 
-## Package: core (v1.5.0)
+## Package: core (v1.5.1)
 
 **Role**: Foundational framework. All other packages depend on it. Standalone (no intra-repo deps).
 
@@ -60,7 +60,7 @@ Branches: `current` is the active feature branch; `master` is the release branch
 | `components/exchange/default/default-message-exchange.js` | Redis (ioredis) implementation |
 | `components/exchange/message-dispatcher.js` / `message-sender.js` / `message-receiver.js` | Queue plumbing |
 | `components/exchange/message-tracer.js` | chainID / chainLevel tracking across hops |
-| `utils/tools.js` | `getUUID()`, `deepFreeze()`, `enum()` factory |
+| `utils/tools.js` | `getUUID()`, `deepFreeze()`, `enum()` factory (enum value = **first element of its seed array**, not the key — see gotcha under competence enums) |
 | `utils/exceptions.js` | `TiException` + standardized error codes (see below) |
 | `utils/logger.js` | Severity: DEBUG/INFO/NOTICE/WARNING/ERROR/CRITICAL/ALERT |
 | `utils/config.js` | Config enum + ENV overrides; frozen after init |
@@ -103,7 +103,7 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 ---
 
-## Package: web-framework (v1.9.0)
+## Package: web-framework (v1.9.1)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs.
 
@@ -146,7 +146,7 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 ---
 
-## Package: competence (v3.2.3)
+## Package: competence (v3.2.4)
 
 **Role**: Complete HR application for competency-based performance appraisals. Models competencies in three dimensions — **Role Family × Specialization × Stage-Level** — with a first-class appraisal **Cycle** (`PLANNING → ACTIVE → CLOSED`). Evaluations snapshot their resolved competency set at creation so later configuration drift never affects in-flight evaluations. Depends on `core` + `web-framework`; uses `graphology` for the org graph.
 
@@ -198,6 +198,8 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 - `EvaluationGrade`: S(1.3), R(1.0), U(0.6), N(0.0) — `gradeWeights` used in scoring
 - `PerformanceThreshold`: T1–T5 (76, 89, 105, 119, 150)
 - `SlotStatus`: available / booked / busy / deleted (interview calendar)
+
+> **Enum value gotcha** — `tools.enum()` sets each member's runtime value to the **first element of its seed array, not the key**. So `EvaluationStatus.OPEN === "Open"` and `IN_REVIEW === "In Review"` (title-case), whereas `CycleStatus` values are uppercase (`"PLANNING"`, `"ACTIVE"`, `"CLOSED"`) and `SlotStatus` values are lowercase (`"available"`, `"booked"`, …). Backend code routes through `configurationLoader.<enum>.*` so it stays correct; **front-end and any hand-written string comparison must use the value (`"Open"`), not the key (`"OPEN"`)** — comparing to the key silently never matches (this caused a dashboard bug fixed in competence 3.2.4).
 
 **Stage-level ladder** (`config.stage-levels.json`): N=Intern(1), J=Junior Specialist(3), R=Specialist(3), S=Senior Specialist(3), X=Expert(1), T=Manager(1). Flattened to 12 archetype curve keys `N1, J1–J3, R1–R3, S1–S3, X1, T1`. These six levels also double as the scope anchors in the dictionary.
 
