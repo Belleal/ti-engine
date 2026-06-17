@@ -2,6 +2,10 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.7.1
+
+* fix(web-handlers): web-application request errors that carry no explicit `httpCode` are no longer reported as `500`. A new `resolveHttpCode` derives the status from the exception code — request-validation and application-logic errors (`E_WEB_*` / `E_APP_*`) map to `422 Unprocessable Content`, security (`E_SEC_*`) to `403`, resource not-found/already-exists to `404`/`409`, and method/URI/content errors to `405`/`404`/`415`; only genuine internal, communication, and unknown errors still default to `500`. An explicit `httpCode` on the exception always wins. Applied in both the `/app` request handler (`formatException`) and the default error handler
+
 ## Version 1.7.0
 
 * feat(css): introduce `.ti-data-grid` family — `.ti-data-grid`, `.ti-data-grid-head`, `.ti-data-grid-rows`, `.ti-data-grid-row` with shared `--ti-grid-cols` template; row state modifiers `.is-current` (accent-soft, "current user") and `.is-selected` (accent-soft + left accent bar); wrapper variants `.bordered` (horizontal dividers for tabular displays) and `.compact` (denser padding); cell utilities `.ti-cell-center` / `.ti-cell-right` for per-cell alignment
