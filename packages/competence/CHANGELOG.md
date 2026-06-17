@@ -2,6 +2,10 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.2.1
+
+* fix(web-app): the lock-cycle, close-cycle, and Cycle Setup lock confirmation modals no longer report a non-validation error (e.g. "another cycle is already ACTIVE") via a toast left behind the open modal. The confirm modal now closes and the error surfaces as a toast (which also carries the details line); the lock **validation** errors keep their dedicated `lock-errors` modal
+
 ## Version 3.2.0
 
 ### Family exclusion + stricter lock validation

@@ -1666,7 +1666,9 @@ const configureCycleManagement = () => {
                     };
                     return;
                 }
-                this.modal.busy = false;
+                // Non-validation failure (e.g. another cycle already ACTIVE): close the confirm modal and surface the
+                // error as a toast — it now renders above the modal layer, and the toast carries the details line.
+                this.closeModal();
                 tiApplication.notify( tiApplication.formatException( error ) );
             } );
         },
@@ -1679,7 +1681,7 @@ const configureCycleManagement = () => {
                 this.closeModal();
                 this.loadCycles();
             } ).catch( ( error ) => {
-                this.modal.busy = false;
+                this.closeModal();
                 tiApplication.notify( tiApplication.formatException( error ) );
             } );
         },
@@ -1847,6 +1849,7 @@ const configureCycleSetup = () => {
                 // Re-load so isReadOnly flips and the CTA goes away.
                 this.loadData();
             } ).catch( ( error ) => {
+                this.closeModal();
                 tiApplication.notify( tiApplication.formatException( error ) );
             } );
         },
