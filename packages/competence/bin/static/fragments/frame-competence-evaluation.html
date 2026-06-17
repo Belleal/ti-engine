@@ -152,13 +152,13 @@
             </div>
 
             <!-- How to grade cards -->
-            <div class="competence-eval-grade-guide">
+            <div class="ti-panel competence-panel-body competence-panel-mb">
                 <div class="ti-panel-head">
                     <div class="ti-panel-title" x-text-label="interface.evaluation.instructions.title"></div>
-                    <span class="competence-eval-grade-scale-tag" x-text="getGradeScaleLabel()"></span>
+                    <span class="ti-panel-head-aside" x-text="getGradeScaleLabel()"></span>
                 </div>
-                <div class="competence-eval-grade-guide-intro" x-text-label="interface.evaluation.instructions.grades"></div>
-                <div class="competence-eval-grade-guide-intro" x-show="userRole === 4" x-text-label="interface.evaluation.instructions.team-grading"></div>
+                <div class="ti-panel-body-intro" x-text-label="interface.evaluation.instructions.grades"></div>
+                <div class="ti-panel-body-intro" x-show="userRole === 4" x-text-label="interface.evaluation.instructions.team-grading"></div>
                 <div class="competence-eval-grade-guide-grid">
                     <template x-for="(grade, gradeKey) in grades" x-bind:key="gradeKey">
                         <div class="competence-eval-grade-card" x-bind:title="grade.description">
@@ -364,7 +364,7 @@
             </template>
 
             <!-- Feedback section -->
-            <div class="ti-panel competence-panel-mt" x-show="userRole === 1 || userRole === 2 || ( userRole === 4 && canEdit )">
+            <div class="ti-panel competence-panel-body competence-panel-mt" x-show="userRole === 1 || userRole === 2 || ( userRole === 4 && canEdit )">
                 <div class="ti-panel-head">
                     <div class="ti-panel-title" x-text-label="interface.evaluation.appraisal.feedback-title"></div>
                     <span class="ti-panel-head-aside" x-text-label="interface.evaluation.appraisal.feedback-desc"></span>

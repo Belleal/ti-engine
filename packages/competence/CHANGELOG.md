@@ -2,6 +2,12 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.2.2
+
+* refactor(web-app): align the evaluation screens with the shared design-system primitives. `frame-competence-evaluation` and `frame-new-evaluation` now use `.ti-panel` + `.ti-panel-head-aside` + `.ti-panel-body-intro` for their grade-guide / feedback / team panels, and the new-evaluation employee header reuses the evaluation screen's `.competence-eval-employee-card` + `.competence-eval-context-*` layout (role family / specialization / stage-level) for a consistent look. Removes the now-unused `competence-eval-grade-guide*`, `competence-eval-grade-scale-tag`, and `competence-new-eval-*` CSS
+* style(localization): Title-Case the evaluation labels `Cycle & Framework`, `Team Reviewers`, `Add Reviewer`, and `Open Evaluation`
+* build(release): bump package version from `3.2.1` to `3.2.2`
+
 ## Version 3.2.1
 
 * fix(web-app): the lock-cycle, close-cycle, and Cycle Setup lock confirmation modals no longer report a non-validation error (e.g. "another cycle is already ACTIVE") via a toast left behind the open modal. The confirm modal now closes and the error surfaces as a toast (which also carries the details line); the lock **validation** errors keep their dedicated `lock-errors` modal

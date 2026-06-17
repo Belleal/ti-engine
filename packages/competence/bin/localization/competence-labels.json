@@ -4987,7 +4987,7 @@
           "bg": "Организационна единица"
         },
         "cycle-title": {
-          "en": "Cycle & framework",
+          "en": "Cycle & Framework",
           "bg": "Цикъл & рамка"
         },
         "cycle-desc": {
@@ -5015,7 +5015,7 @@
           "bg": "в {n} категории"
         },
         "team-title": {
-          "en": "Team reviewers",
+          "en": "Team Reviewers",
           "bg": "Екипни оценители"
         },
         "team-optional": {
@@ -5031,11 +5031,11 @@
           "bg": "Изберете колега…"
         },
         "add-reviewer": {
-          "en": "Add reviewer",
+          "en": "Add Reviewer",
           "bg": "Добави оценител"
         },
         "open-evaluation": {
-          "en": "Open evaluation",
+          "en": "Open Evaluation",
           "bg": "Отвори оценката"
         },
         "team-hint-range": {

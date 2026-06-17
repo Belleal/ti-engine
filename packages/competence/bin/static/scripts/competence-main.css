@@ -1884,19 +1884,6 @@
     gap: var(--s-5);
 }
 
-.competence-new-eval-kv-ext {
-}
-
-.competence-new-eval-team-desc {
-    font-size: var(--fs-sm);
-    color: var(--fg-secondary);
-    padding: 0 var(--s-5) var(--s-4);
-    line-height: 1.5;
-}
-
-.competence-new-eval-team-body {
-}
-
 .competence-new-eval-select-row {
     display: flex;
     gap: var(--s-3);
@@ -2001,8 +1988,6 @@
     display: flex;
     align-items: flex-start;
     gap: var(--s-4);
-    border-bottom: 1px solid var(--border-soft);
-    padding-bottom: var(--s-5);
 }
 
 .competence-eval-emp-avatar-block {
@@ -2091,7 +2076,8 @@
     display: flex;
     align-items: center;
     gap: 0;
-    padding: 4px 0;
+    border-top: 1px solid var(--border-soft);
+    padding: var(--s-5) 0 var(--s-1);
 }
 
 .state-step {
@@ -2229,34 +2215,6 @@
 }
 
 /* How to grade guide */
-.competence-eval-grade-guide {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--r-lg);
-    margin-bottom: var(--s-4);
-    padding: var(--s-5);
-    overflow: hidden;
-}
-
-.competence-eval-grade-guide .ti-panel-head {
-    border-bottom: 1px solid var(--border-soft);
-}
-
-.competence-eval-grade-scale-tag {
-    color: var(--fg-tertiary);
-    font-size: var(--fs-sm);
-    margin-left: var(--s-3);
-    padding-left: var(--s-3);
-    border-left: 1px solid var(--border);
-    white-space: nowrap;
-}
-
-.competence-eval-grade-guide-intro {
-    font-size: var(--fs-sm);
-    color: var(--fg-secondary);
-    padding: 0 var(--s-3) var(--s-5);
-    line-height: 1.5;
-}
 
 .competence-eval-grade-guide-grid {
     display: grid;
@@ -2320,7 +2278,7 @@
     z-index: 40;
     display: flex;
     align-items: center;
-    gap: var(--s-5);
+    gap: var(--s-3);
     padding: var(--s-3) var(--s-5);
     background: var(--bg-surface);
     border: 1px solid var(--border);
@@ -3240,7 +3198,7 @@
 .competence-cycle-code-name {
     color: var(--fg-primary);
     font-weight: 500;
-    font-size: var(--fs-md);
+    font-size: var(--fs-base);
     letter-spacing: -0.005em;
     overflow: hidden;
     text-overflow: ellipsis;
