@@ -2,6 +2,11 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.5.1
+
+* build(deps): update `@dotenvx/dotenvx` from ^1.66.0 to ^1.73.1
+* build(deps): update `ioredis` from ^5.10.1 to ^5.11.1
+
 ## Version 1.5.0
 
 * feat(exceptions): add `E_APP_RESOURCE_ALREADY_EXISTS` (5006) for resource-creation conflicts; intended to be raised with HTTP `409`
