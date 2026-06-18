@@ -2492,6 +2492,11 @@ body {
     box-sizing: border-box;
 }
 
+/* Flexible spacer: pushes following siblings to the far end of a flex row/column. */
+.ti-spacer {
+    flex: 1 1 auto;
+}
+
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;

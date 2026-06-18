@@ -3890,6 +3890,22 @@
       "team-above-maximum": {
         "en": "Team reviewers cannot exceed {max} members.",
         "bg": "Екипните оценители не могат да надвишават {max} члена."
+      },
+      "finalize-not-open": {
+        "en": "This evaluation is not open, so team feedback cannot be finalized.",
+        "bg": "Тази оценка не е отворена, така че екипната обратна връзка не може да бъде финализирана."
+      },
+      "finalize-deadline-not-reached": {
+        "en": "The team-feedback deadline has not passed yet.",
+        "bg": "Крайният срок за екипна обратна връзка все още не е изтекъл."
+      },
+      "finalize-no-pending-team": {
+        "en": "There are no pending team reviewers to finalize.",
+        "bg": "Няма чакащи екипни оценители за финализиране."
+      },
+      "finalize-no-submissions": {
+        "en": "Team feedback cannot be finalized without at least one submission.",
+        "bg": "Екипната обратна връзка не може да бъде финализирана без поне едно подадено мнение."
       }
     },
     "employee": {
@@ -4745,6 +4761,18 @@
         "en": "gave feedback",
         "bg": "дадоха обратна връзка"
       },
+      "facilitator-notice": {
+        "en": "You are viewing this evaluation as a process facilitator (read-only). You cannot rate it, but you may finalize team feedback once the deadline has passed.",
+        "bg": "Преглеждате тази оценка като фасилитатор на процеса (само за четене). Не можете да я оценявате, но можете да финализирате екипната обратна връзка след изтичане на крайния срок."
+      },
+      "finalize-team-title": {
+        "en": "Team feedback ready to finalize",
+        "bg": "Екипната обратна връзка е готова за финализиране"
+      },
+      "finalize-team-hint": {
+        "en": "The team-feedback deadline has passed — proceed to manager review.",
+        "bg": "Крайният срок за екипна обратна връзка изтече — продължете към преглед от мениджър."
+      },
       "you-tag": {
         "en": "You",
         "bg": "Вие"
@@ -4939,6 +4967,10 @@
         "add-team-member": {
           "en": "Add Team Member",
           "bg": "Добави член на екипа"
+        },
+        "finalize-team": {
+          "en": "Proceed to manager review",
+          "bg": "Към преглед от мениджър"
         }
       },
       "new-eval": {
@@ -5063,6 +5095,14 @@
         "submitted": {
           "en": "The Evaluation was submitted successfully.",
           "bg": "Оценката беше изпратена успешно."
+        },
+        "confirm-finalize-team": {
+          "en": "Proceed to manager review? Any pending reviewers will be dropped and the team feedback finalized.",
+          "bg": "Към преглед от мениджър? Всички чакащи оценители ще бъдат премахнати и екипната обратна връзка ще бъде финализирана."
+        },
+        "team-finalized": {
+          "en": "Team feedback finalized.",
+          "bg": "Екипната обратна връзка е финализирана."
         },
         "waiting-for-employees": {
           "en": "The Evaluation is waiting for the employee and team members to submit their ratings.",

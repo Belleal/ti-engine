@@ -109,6 +109,11 @@
                         <span class="ti-icon warning-triangle sm" aria-hidden="true"></span>
                         <span x-text="getLabel(warningMessage)"></span>
                     </div>
+                    <!-- Supervisor facilitator notice (read-only; see design 3.8) -->
+                    <div class="competence-eval-emp-warn" x-show="isFacilitator">
+                        <span class="ti-icon eye sm" aria-hidden="true"></span>
+                        <span x-text-label="interface.evaluation.facilitator-notice"></span>
+                    </div>
                 </div>
 
                 <!-- Right column: deadline card + team reviewers stacked vertically -->
@@ -445,6 +450,19 @@
                             x-text-label="interface.evaluation.actions.save-draft"></button>
                     <button type="button" class="ti-btn primary sm" @click="submitEvaluation()"
                             x-text-label="interface.evaluation.actions.submit"></button>
+                </div>
+            </div>
+
+            <!-- Finalize team feedback: manager / supervisor, after the team-feedback deadline (design 3.4 / 3.8) -->
+            <div class="competence-eval-sticky-bar" x-show="canFinalizeTeam">
+                <div class="competence-eval-sticky-label">
+                    <strong x-text-label="interface.evaluation.finalize-team-title"></strong>
+                    <span x-text-label="interface.evaluation.finalize-team-hint"></span>
+                </div>
+                <div class="ti-spacer"></div>
+                <div class="competence-eval-sticky-actions">
+                    <button type="button" class="ti-btn primary sm" @click="finalizeTeamFeedback()"
+                            x-text-label="interface.evaluation.actions.finalize-team"></button>
                 </div>
             </div>
 

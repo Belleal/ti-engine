@@ -24,6 +24,8 @@ const configureCompetenceEvaluation = () => {
         teamReviewers: null,
         isTeamEvaluationCollective: false,
         canEdit: false,
+        canFinalizeTeam: false,
+        isFacilitator: false,
         manager: {},
         personal: {},
         evaluation: {
@@ -64,6 +66,8 @@ const configureCompetenceEvaluation = () => {
             this.deadlineDate = fresh.deadlineDate;
             this.teamReviewers = fresh.teamReviewers ? tiToolbox.structuredClone( fresh.teamReviewers ) : null;
             this.canEdit = fresh.canEdit;
+            this.canFinalizeTeam = ( fresh.canFinalizeTeam === true );
+            this.isFacilitator = ( fresh.isFacilitator === true );
             this.evaluation = fresh.evaluation ? tiToolbox.structuredClone( fresh.evaluation ) : {
                 scores: {},
                 finalScore: {}
@@ -131,6 +135,21 @@ const configureCompetenceEvaluation = () => {
             if ( confirm( tiApplication.getLabel( "interface.evaluation.messages.confirm-submit", "Are you sure you want to submit the evaluation?" ) ) ) {
                 tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: this.evaluation } ).then( () => {
                     tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.submitted" ) );
+                    tiApplication.openScreen( "dashboard" );
+                } ).catch( ( error ) => {
+                    tiApplication.notify( tiApplication.formatException( error ) );
+                } );
+            }
+        },
+
+        finalizeTeamFeedback() {
+            const evaluationID = this.evaluation && this.evaluation.evaluationID;
+            if ( !evaluationID ) {
+                return;
+            }
+            if ( confirm( tiApplication.getLabel( "interface.evaluation.messages.confirm-finalize-team", "Proceed to manager review? Any pending reviewers will be dropped and the team feedback finalized." ) ) ) {
+                tiApplication.sendRequest( "/app/finalize-team-feedback", "POST", { evaluationID: evaluationID } ).then( () => {
+                    tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.team-finalized", "Team feedback finalized." ) );
                     tiApplication.openScreen( "dashboard" );
                 } ).catch( ( error ) => {
                     tiApplication.notify( tiApplication.formatException( error ) );

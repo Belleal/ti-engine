@@ -3802,10 +3802,6 @@
     box-shadow: 0 -4px 24px color-mix(in oklab, var(--fg-primary) 6%, transparent);
 }
 
-.competence-empmgmt-actions-spacer {
-    flex: 1 1 auto;
-}
-
 .competence-empmgmt-evaluations {
 }
 

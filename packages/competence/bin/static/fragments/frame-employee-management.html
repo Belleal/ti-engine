@@ -452,7 +452,7 @@
                 <div class="ti-form-state"
                      x-bind:class="isDirty() ? 'unsaved' : 'saved'"
                      x-text="isDirty() ? getLabel('interface.employee-management.form.unsaved-state') : getLabel('interface.employee-management.form.saved-state')"></div>
-                <div class="competence-empmgmt-actions-spacer"></div>
+                <div class="ti-spacer"></div>
                 <button type="button" class="ti-btn ghost sm"
                         x-bind:disabled="!isDirty() || saving"
                         @click="resetDraft()"
