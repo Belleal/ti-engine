@@ -5724,6 +5724,10 @@
       "task-finalize-pending": {
         "en": "reviewer(s) still pending",
         "bg": "рецензент(и) все още чакат"
+      },
+      "task-self-eval-sub": {
+        "en": "Your evaluation is open — complete your self-assessment.",
+        "bg": "Вашата оценка е отворена — попълнете самооценката си."
       }
     },
     "navigation": {

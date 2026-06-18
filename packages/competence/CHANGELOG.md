@@ -2,6 +2,17 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.3.1
+
+Bug fixes and polish from the first QA pass over the 3.3.0 team-feedback feature.
+
+* fix(web-app): the team-reviewer evaluation view (newly reachable via the dashboard tasks) rendered a blank SELF column header and bare "–" placeholders. The SELF header now renders for every role, and competencies hidden from a viewer (self/manager for team reviewers — in both the per-competency and collective sub-category modes) show a lock icon
+* feat(web-app): once an evaluation reaches `Ready`, the employee can see the manager grade and the team cumulative so they can prepare for the interview; individual peer grades remain anonymous. Enforced in `CompetenceFramework.anonymizeEvaluationGrades` (revealed only at `Ready`) and reflected in the evaluation grid
+* fix(web-app): the dashboard "Performance Appraisal Form" task no longer shows the misleading "No active evaluation found for this cycle." copy, and it now appears only while the self-evaluation is genuinely outstanding (gated on `selfEvaluationCompleted`, surfaced on the dashboard payload) — a submitted self-eval awaiting peers/manager shows no stale task
+* feat(css): an awaited (empty) grade now renders an hourglass glyph for permitted viewers (managers/supervisors, and the employee's own pending self-grades) instead of a dash — promoted onto the shared `.ti-grade-chip.empty` primitive (requires web-framework ≥ 1.9.3)
+* test: +4 unit tests for the employee reveal-at-Ready anonymization behavior
+* build(release): bump package version from `3.3.0` to `3.3.1`
+
 ## Version 3.3.0
 
 ### Dashboard tasks for team-member evaluation feedback

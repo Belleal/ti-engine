@@ -1490,7 +1490,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                         status: myLatestEvaluation.status,
                         statusName: configurationLoader.evaluationStatus.name( myLatestEvaluation.status ),
                         statusTone: evalStatusTone( myLatestEvaluation.status ),
-                        cycleDate: myLatestEvaluation.cycleDate
+                        cycleDate: myLatestEvaluation.cycleDate,
+                        selfEvaluationCompleted: !!( myLatestEvaluation.workflow && myLatestEvaluation.workflow.selfEvaluationCompleted )
                     }
                     : null;
 

@@ -1348,12 +1348,14 @@ const configureDashboard = () => {
             const tasks = [];
             if ( this.myEvaluation ) {
                 const s = this.myEvaluation.status;
-                if ( s === "Not Started" || s === "Open" ) {
+                // Only prompt the self-evaluation while it is genuinely outstanding. An Open evaluation whose self part
+                // is already submitted has no action for the employee (it is waiting on peers / the manager).
+                if ( ( s === "Not Started" || s === "Open" ) && !this.myEvaluation.selfEvaluationCompleted ) {
                     tasks.push( {
                         id: "self-eval",
                         tone: "info",
-                        title: tiApplication.getLabel( "interface.evaluation.appraisal.title", "Complete self-evaluation" ),
-                        sub: tiApplication.getLabel( "interface.dashboard.no-evaluation", "Your evaluation is open and waiting for your input" ),
+                        title: tiApplication.getLabel( "interface.evaluation.appraisal.title", "Performance Appraisal Form" ),
+                        sub: tiApplication.getLabel( "interface.dashboard.task-self-eval-sub", "Your evaluation is open — complete your self-assessment" ),
                         action: "evaluation"
                     } );
                 }
