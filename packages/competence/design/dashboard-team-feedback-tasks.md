@@ -2,8 +2,8 @@
 
 ## Meta
 
-- **Status:** In implementation — Phase 1
-- **Date:** 2026-06-18 (approved); supervisor read-only facilitator semantics + framework seam added 2026-06-18
+- **Status:** Implemented (2026-06-18)
+- **Date:** 2026-06-18 (approved); supervisor read-only facilitator semantics + framework seam added 2026-06-18; implemented across phases 1–6 the same day
 - **Package:** `competence` (no `core` / `web-framework` changes in this scope)
 - **Scope:** **A** — the team-member peer-feedback loop, end-to-end, surfaced as dashboard tasks, plus the accompanying logic required for the evaluation process to complete. See [[project-tasks-system]] for the two-stage plan (the later goal is a reusable tasks module in `@ti-engine/web-framework`).
 - **Owner:** Boris Kostadinov
@@ -156,9 +156,9 @@ Team draft-save; scheduled auto-advance at the deadline; self/manager deadline p
 
 ## 6. Details to confirm during implementation
 
-- Whether (and where) to surface the evaluation's audit entries in the UI now vs. defer (currently recorded-only).
-- Whether `team-finalize` should suppress when self is also incomplete (current decision: show it regardless; finalizing then waits on self).
-- Confirm the all-evaluations fetch in `load-dashboard` is an acceptable cost for resolving tasks (it already runs there).
+- Whether (and where) to surface the evaluation's audit entries in the UI now vs. defer — **Resolved: deferred** (recorded-only; see §5).
+- Whether `team-finalize` should suppress when self is also incomplete — **Resolved: shown regardless**; finalizing then holds the evaluation OPEN until the self-eval lands (no self-exclusion on finalize either — a supervisor could finalize their own; accepted as an edge).
+- Confirm the all-evaluations fetch in `load-dashboard` is an acceptable cost — **Resolved: accepted** (the resolver reuses the fetch that already runs there; it is now also the single source for `peerFeedback.requested`).
 
 ---
 
@@ -166,13 +166,13 @@ Team draft-save; scheduled auto-advance at the deadline; self/manager deadline p
 
 Phased, one commit per phase, with a checkpoint between each:
 
-| Phase | Scope | Commit | Date |
-|-------|-------|--------|------|
-| 1 | **Schema & config foundation** (no behavior change): two app settings (`teamFeedbackWindowDays`=14, `allowFinalizeTeamWithoutSubmissions`=true) in `config.application.json` + schema; `teamFeedbackDeadline` in `cycle.schema.json`; `teamEvaluationDeadline` → `workflow.required` in `evaluation.schema.json`; typedef updates (workflow field + `"evaluation"` audit `subjectType`); extend `test:json` (new settings + a `cycle.schema.json` conformance check). | _pending_ | |
-| 2 | **Deadline derivation & population**: `createNewEvaluation` sets the team deadline from the cycle; `#createCycle` default `min(cycleStart + window, cycleDate)` (fallback `cycleDate` when no `cycleStart`); `#deriveSeededCycles` for `2026-H2`; `DataManager.setCycleTeamFeedbackDeadline`. | _pending_ | |
-| 3 | **Task resolver** (`application/task-resolver.js`, frozen singleton, pure) + `test/task-resolver.test.js`. Missing/empty deadline treated as "not past". | _pending_ | |
-| 4 | **Backend**: audit `evaluations` bucket + `getAuditEntriesForEvaluation`; `CompetenceFramework.finalizeTeamFeedback` + thin `finalize-team-feedback` handler; `#loadDashboard` resolver wiring; `#loadEvaluation` supervisor facilitator branch + `canFinalizeTeam`; framework finalize + guard tests. | _pending_ | |
-| 5 | **UI** (CSP-safe): dashboard task cards + `evaluationID` routing; evaluation-screen finalize action + confirm modal; Cycle Setup deadline field + save; en/bg localization. | _pending_ | |
-| 6 | **Full test pass + docs**: `npm test` + `test:json`; finalize this log; version bump. | _pending_ | |
+| Phase | Scope | Commit(s) | Date |
+|-------|-------|-----------|------|
+| 1 | Schema & config foundation: two app settings; `cycle.teamFeedbackDeadline`; required `workflow.teamEvaluationDeadline`; typedefs (`"evaluation"` audit subject); `test:json` cycle-schema conformance. | `4e9cfa5` | 2026-06-18 |
+| 2 | Deadline derivation & population: `#deriveTeamFeedbackDeadline` (clamp to `cycleDate`); `createCycle` + `#deriveSeededCycles`; `createNewEvaluation` copies it onto the workflow; `setCycleTeamFeedbackDeadline`. | `df6ce27` | 2026-06-18 |
+| 3 | Pure `application/task-resolver.js` (frozen singleton) + `test/task-resolver.test.js` (16 cases); missing/empty deadline treated as "not past". | `5d09b1f` | 2026-06-18 |
+| 4 | Backend: **4a** audit `evaluations` bucket + `getAuditEntriesForEvaluation` + `CompetenceFramework.finalizeTeamFeedback` (+8 tests, `*.id` cache-helper wildcard); **4b** `finalize-team-feedback` handler, `#loadDashboard` resolver wiring, `#loadEvaluation` supervisor facilitator branch + `canFinalizeTeam`. | `def52f7`, `15e6283` | 2026-06-18 |
+| 5 | UI (CSP-safe): **5a** dashboard task cards + `employeeID`/`evaluationID` routing; **5b** evaluation finalize action + facilitator notice (promoted shared `.ti-spacer`, web-framework → 1.9.2); **5c** Cycle Setup deadline field (load/save) + en/bg localization incl. new `error.cycle` section. | `5d7c1b6`, `e83d0ec`, `ceabad1` | 2026-06-18 |
+| 6 | Full test pass (`npm test` 113/113, `test:json` 19/19); log reconciliation + competence → 3.3.0. | _this commit_ | 2026-06-18 |
 
-_(Append one entry per checkpointed commit during implementation; fill in the commit hash + date as each phase lands.)_
+_All phases landed on branch `current` on 2026-06-18; the supervisor read-only facilitator semantics + framework seam were folded into the design earlier the same day (`05c6313`)._

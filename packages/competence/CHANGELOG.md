@@ -2,6 +2,20 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.3.0
+
+### Dashboard tasks for team-member evaluation feedback
+
+* feat(web-app): team members now discover their pending peer reviews as **dashboard tasks**. `load-dashboard` derives `team-feedback` and `team-finalize` descriptors from evaluation/workflow state via a new pure `TaskResolver` (`application/task-resolver.js`; the manager predicate and name lookup are injected, so it is persistence-free and unit-tested), and the dashboard renders them as cards that open the referenced colleague's evaluation by `employeeID` + `evaluationID`
+* feat(framework): a manager (org-hierarchy) or Supervisor can **finalize team feedback** once the team-feedback deadline has passed ("Proceed to manager review") — `CompetenceFramework.finalizeTeamFeedback` drops the still-pending reviewers, recomputes the team cumulative from whoever submitted, and advances `OPEN → IN_REVIEW` only when the self-evaluation is also complete (otherwise it stays OPEN, awaiting self). Exposed via the `finalize-team-feedback` service; gated by the new `allowFinalizeTeamWithoutSubmissions` app setting (default `true`)
+* feat(web-app): a Supervisor can open any evaluation as a **read-only process facilitator** — manager-level visibility but no rating or draft (`submit-evaluation` / `save-evaluation-draft` continue to reject any non-org-manager). The only action exposed is finalize, gated on a server-authoritative `canFinalizeTeam` flag returned by `load-evaluation`
+* feat(data): the team-feedback deadline is now a **cycle-level date** (`cycle.teamFeedbackDeadline`), defaulted at cycle creation from the new `teamFeedbackWindowDays` setting (clamped to the manager-review deadline `cycleDate`) and editable in Cycle Setup (Supervisor + PLANNING, via `set-cycle-team-feedback-deadline` → `DataManager.setCycleTeamFeedbackDeadline`). `workflow.teamEvaluationDeadline` becomes required and is populated from the cycle at evaluation creation
+* feat(data): finalize records an **evaluation-scoped audit entry** (`subjectType: "evaluation"`) — adds the `evaluations` audit bucket and `getAuditEntriesForEvaluation`; recorded but not yet surfaced in the UI
+* feat(localization): en/bg labels for both task types, the finalize action + confirm copy, the facilitator notice, the Cycle Setup deadline field, and the finalize errors; also adds the previously-missing `error.cycle.*` messages (`invalid-id-format`, `invalid-date-range`, `not-in-planning`, `cannot-mark-baseline-empty`, `cannot-clear-baseline`)
+* refactor(css): promote the bespoke `competence-empmgmt-actions-spacer` to a shared `.ti-spacer` primitive in `@ti-engine/web-framework` (requires web-framework ≥ 1.9.2)
+* test: add 31 unit tests (16 task-resolver, 8 finalize, 6 cycle-deadline derivation, 1 evaluation-deadline) plus 2 cycle-schema conformance checks
+* build(release): bump package version from `3.2.4` to `3.3.0`
+
 ## Version 3.2.4
 
 * fix(web-app): the Dashboard no longer throws "Cannot read property of null or undefined" for an employee with no evaluation (e.g. a fresh hire). The "Your Self-Grades" stat card's three `x-show` expressions dereferenced `myEvaluation.status` unguarded; they now short-circuit on `myEvaluation` first (the Alpine CSP build forbids `?.`), matching the hero section's existing guard
