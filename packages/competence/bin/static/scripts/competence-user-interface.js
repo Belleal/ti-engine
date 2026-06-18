@@ -1231,6 +1231,7 @@ const configureDashboard = () => {
         stats: { total: 0, open: 0, inReview: 0, ready: 0 },
         activity: [],
         tasks: [],
+        serverTasks: [],
         employeeMetrics: { peerFeedback: { submitted: 0, requested: 0 }, selfGrades: { completed: 0, total: 0 }, teamCoverage: { started: 0, total: 0 } },
 
         init() {
@@ -1259,6 +1260,7 @@ const configureDashboard = () => {
                 this.teamEvaluations = Array.isArray( data.teamEvaluations ) ? tiToolbox.structuredClone( data.teamEvaluations ) : [];
                 this.stats = data.stats ? tiToolbox.structuredClone( data.stats ) : { total: 0, open: 0, inReview: 0, ready: 0 };
                 this.activity = Array.isArray( data.activity ) ? tiToolbox.structuredClone( data.activity ) : [];
+                this.serverTasks = Array.isArray( data.tasks ) ? tiToolbox.structuredClone( data.tasks ) : [];
                 this.tasks = this._buildTasks();
                 this.employeeMetrics = data.employeeMetrics ? tiToolbox.structuredClone( data.employeeMetrics ) : {
                     peerFeedback: {
@@ -1358,10 +1360,44 @@ const configureDashboard = () => {
                     } );
                 }
             }
+            // Server-derived tasks from the TaskResolver (team-feedback, team-finalize). Each carries the evaluatee's
+            // employeeID + evaluationID so handleTaskClick can open the correct record (a colleague's, not the viewer's).
+            for ( const serverTask of this.serverTasks ) {
+                const name = serverTask.employeeName || serverTask.employeeID || "";
+                if ( serverTask.type === "team-feedback" ) {
+                    const stateLabel = serverTask.overdue
+                        ? tiApplication.getLabel( "interface.dashboard.task-feedback-overdue", "Feedback overdue" )
+                        : tiApplication.getLabel( "interface.dashboard.task-feedback-due", "Feedback requested" );
+                    tasks.push( {
+                        id: "team-feedback-" + serverTask.evaluationID,
+                        tone: serverTask.overdue ? "warn" : "info",
+                        title: tiApplication.getLabel( "interface.dashboard.task-team-feedback", "Provide team feedback for a colleague" ),
+                        sub: name + " · " + stateLabel,
+                        employeeID: serverTask.employeeID,
+                        evaluationID: serverTask.evaluationID
+                    } );
+                } else if ( serverTask.type === "team-finalize" ) {
+                    tasks.push( {
+                        id: "team-finalize-" + serverTask.evaluationID,
+                        tone: "warn",
+                        title: tiApplication.getLabel( "interface.dashboard.task-team-finalize", "Finalize team feedback" ),
+                        sub: name + " · " + serverTask.pendingCount + " " + tiApplication.getLabel( "interface.dashboard.task-finalize-pending", "reviewer(s) still pending" ),
+                        employeeID: serverTask.employeeID,
+                        evaluationID: serverTask.evaluationID
+                    } );
+                }
+            }
             return tasks;
         },
 
         handleTaskClick( task ) {
+            if ( task.evaluationID ) {
+                const params = new URLSearchParams();
+                if ( task.employeeID ) params.set( "employeeID", task.employeeID );
+                params.set( "evaluationID", task.evaluationID );
+                tiApplication.openScreen( "competence-evaluation?" + params.toString() );
+                return;
+            }
             if ( task.action ) {
                 tiApplication.openScreen( task.action === "evaluation" ? "competence-evaluation" :
                     task.action === "schedule" ? "interview-schedule" : "employees-list" );

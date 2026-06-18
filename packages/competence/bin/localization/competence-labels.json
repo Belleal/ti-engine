@@ -5634,6 +5634,22 @@
       "task-team-feedback": {
         "en": "Provide team feedback for a colleague",
         "bg": "Дайте обратна връзка за колега"
+      },
+      "task-team-finalize": {
+        "en": "Finalize team feedback",
+        "bg": "Финализиране на екипната обратна връзка"
+      },
+      "task-feedback-due": {
+        "en": "Feedback requested",
+        "bg": "Заявена обратна връзка"
+      },
+      "task-feedback-overdue": {
+        "en": "Feedback overdue",
+        "bg": "Просрочена обратна връзка"
+      },
+      "task-finalize-pending": {
+        "en": "reviewer(s) still pending",
+        "bg": "рецензент(и) все още чакат"
       }
     },
     "navigation": {
