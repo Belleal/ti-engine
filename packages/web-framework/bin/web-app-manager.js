@@ -11,6 +11,8 @@ const tools = require( "@ti-engine/core/tools" );
 const localization = require( "@ti-engine/core/localization" );
 const path = require( "node:path" );
 const fs = require( "node:fs" );
+const configRegistry = require( "#config-registry" );
+const configService = require( "#config-service" );
 
 const RE_NONCE_ATTR = /\{ti-nonce-placeholder}/g;
 const RE_CSRF_ATTR = /\{ti-csrf-placeholder}/g;
@@ -59,7 +61,7 @@ class TiWebAppManager {
         this.#fragments[ 'application-main' ] = {
             title: "Application",
             path: "fragments/frame-application.html",
-            components: [ "component-sidebar-flyout", "component-sidebar-flyout" ]
+            components: [ "component-topbar", "component-sidebar", "component-notification-bar", "component-sidebar-flyout" ]
         };
         this.#fragments[ 'login' ] = {
             title: "Login",
@@ -116,6 +118,49 @@ class TiWebAppManager {
     }
 
     /**
+     * Registers an editable configuration document with the framework config registry (JSON Schema + semantic
+     * validators + default value + editor metadata). Call during initialization. See {@link ConfigRegistry#register}.
+     *
+     * @method
+     * @param {string} configKey
+     * @param {Object} definition
+     * @returns {TiWebAppManager} this (chainable)
+     * @public
+     */
+    registerConfigDocument( configKey, definition ) {
+        configRegistry.instance.register( configKey, definition );
+        return this;
+    }
+
+    /**
+     * Registers a JSON Schema that is referenced (via `$ref`) by config-document schemas but is not itself a document.
+     *
+     * @method
+     * @param {Object} schema
+     * @returns {TiWebAppManager} this (chainable)
+     * @public
+     */
+    registerConfigSchema( schema ) {
+        configRegistry.instance.addSchema( schema );
+        return this;
+    }
+
+    /**
+     * Registers a composite (entity) editor with the framework config service — a `compose(docs)`/`decompose(edited,docs)`
+     * pair over one or more documents. Call during initialization. See {@link ConfigService#registerEditor}.
+     *
+     * @method
+     * @param {string} editorKey
+     * @param {Object} definition
+     * @returns {TiWebAppManager} this (chainable)
+     * @public
+     */
+    registerConfigEditor( editorKey, definition ) {
+        configService.instance.registerEditor( editorKey, definition );
+        return this;
+    }
+
+    /**
      * Used to clear the static file cache. This is useful for testing purposes to ensure that the web server is always serving fresh content.
      *
      * @method
@@ -162,9 +207,7 @@ class TiWebAppManager {
             const csrfToken = ( typeof options?.csrfToken === "string" ) ? options?.csrfToken : "";
             transformedHtml = transformedHtml.replaceAll( RE_CSRF_ATTR, csrfToken );
 
-            if ( options.title ) {
-                transformedHtml = transformedHtml.replace( "{ti-title-placeholder}", options.title );
-            }
+            transformedHtml = transformedHtml.replace( "{ti-title-placeholder}", options.title || "" );
 
             resolve( transformedHtml );
         } );
@@ -201,7 +244,7 @@ class TiWebAppManager {
                 fragment = ( session && session.user ) ? this.#fragments[ 'application-main' ] : this.#fragments[ 'login' ];
                 getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, fragment, localOptions ) );
             } else if ( route === "/not-found" ) {
-                getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, this.#fragments[ 'home' ], { ...localOptions, isHome: true } ) );
+                getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, this.#fragments[ 'home' ], { ...localOptions, isHome: true, title: this.#fragments[ 'not-found' ].title } ) );
                 getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, this.#fragments[ 'not-found' ], localOptions ) );
             } else {
                 fragment = this.#fragments[ options.view ];
@@ -213,7 +256,8 @@ class TiWebAppManager {
                     if ( options.isPartial !== true ) {
                         getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, this.#fragments[ 'home' ], {
                             ...localOptions,
-                            isHome: true
+                            isHome: true,
+                            title: fragment.title
                         } ) );
                         getHtmlPromises.push( this.#getHtmlFragment( session, staticContentPaths, this.#fragments[ 'application-main' ], localOptions ) );
                     }
@@ -316,7 +360,7 @@ class TiWebAppManager {
             } ).then( ( fileData ) => {
                 return this.#replaceComponentPlaceholders( fileData, staticContentPaths, fragment.components );
             } ).then( ( fileData ) => {
-                return this.transformHtml( fileData, { ...options, title: fragment.title } );
+                return this.transformHtml( fileData, { ...options, title: fragment.title || options.title } );
             } ).then( ( fileData ) => {
                 resolve( fileData );
             } ).catch( ( error ) => {
@@ -405,6 +449,13 @@ class TiWebAppManager {
 
     /**
      * Used to replace a placeholder element in the HTML with the provided replacement.
+     * <br/>
+     * The placeholder's attributes are exposed to the replacement HTML as `{ti-<attr-name>}` tokens, allowing the
+     * component template to consume initial data without changing its `x-data` factory.
+     * <br/>
+     * If the replacement HTML contains a `<ti-slot></ti-slot>` (or self-closing `<ti-slot/>`) marker, the placeholder's
+     * inner content replaces it precisely; otherwise, inner content is appended before the replacement's last closing
+     * tag (legacy behaviour) so existing components keep working.
      *
      * @method
      * @param {string} html
@@ -440,17 +491,59 @@ class TiWebAppManager {
             end += close.length;
         }
 
-        let replacementWithInner = replacement;
-        if ( inner ) {
-            const insertAt = replacement.lastIndexOf( "</" );
-            if ( insertAt !== -1 ) {
-                replacementWithInner = replacement.slice( 0, insertAt ) + inner + replacement.slice( insertAt );
+        // Substitute the placeholder's attributes as `{ti-<name>}` tokens inside the replacement HTML:
+        const placeholderAttributes = this.#parsePlaceholderAttributes( html.slice( start, gt + 1 ) );
+        let processedReplacement = replacement;
+        Object.keys( placeholderAttributes ).forEach( ( name ) => {
+            const value = placeholderAttributes[ name ];
+            const token = `{ti-${ name }}`;
+            // Use split/join for a literal replaceAll without regex escaping concerns:
+            processedReplacement = processedReplacement.split( token ).join( value );
+        } );
+
+        let replacementWithInner = processedReplacement;
+        const slotMatch = processedReplacement.match( /<ti-slot\b[^>]*>[\s\S]*?<\/ti-slot>|<ti-slot\b[^>]*\/>/ );
+        if ( slotMatch ) {
+            // If a slot marker exists, the placeholder's inner content (when present) replaces it. When inner is
+            // empty, the slot's own default content (between <ti-slot> and </ti-slot>) is kept by unwrapping it:
+            if ( inner ) {
+                replacementWithInner = processedReplacement.replace( slotMatch[ 0 ], inner );
             } else {
-                replacementWithInner = replacement + inner;
+                replacementWithInner = processedReplacement.replace( slotMatch[ 0 ], ( match ) => {
+                    const defaultMatch = match.match( /<ti-slot\b[^>]*>([\s\S]*?)<\/ti-slot>/ );
+                    return defaultMatch ? defaultMatch[ 1 ] : "";
+                } );
+            }
+        } else if ( inner ) {
+            const insertAt = processedReplacement.lastIndexOf( "</" );
+            if ( insertAt !== -1 ) {
+                replacementWithInner = processedReplacement.slice( 0, insertAt ) + inner + processedReplacement.slice( insertAt );
+            } else {
+                replacementWithInner = processedReplacement + inner;
             }
         }
 
         return html.slice( 0, start ) + replacementWithInner + html.slice( end );
+    }
+
+    /**
+     * Parses the attribute name/value pairs declared on a placeholder element's opening tag.
+     *
+     * @method
+     * @param {string} openingTag The full opening tag text, e.g. `<ti-foo-placeholder bar="baz">`.
+     * @returns {Object<string, string>}
+     * @private
+     */
+    #parsePlaceholderAttributes( openingTag ) {
+        const attributes = {};
+        // Strip the element name and the surrounding angle brackets so only the attribute string remains:
+        const trimmed = openingTag.replace( /^<[^\s>/]+/, "" ).replace( /\/?>\s*$/, "" );
+        const regex = /([a-zA-Z_][\w:.-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g;
+        let match;
+        while ( ( match = regex.exec( trimmed ) ) !== null ) {
+            attributes[ match[ 1 ] ] = match[ 2 ] ?? match[ 3 ] ?? match[ 4 ] ?? "";
+        }
+        return attributes;
     }
 
 }

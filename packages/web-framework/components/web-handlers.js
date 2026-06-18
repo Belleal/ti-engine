@@ -14,6 +14,7 @@ const URL = require( "node:url" ).URL;
 const _ = require( "lodash" );
 const helmet = require( "helmet" );
 const authMethod = require( "#auth-manager" ).authMethod;
+const authorization = require( "#authorization" );
 
 /** @typedef {import("express").Request} ExpressRequest */
 /** @typedef {import("express").res} ExpressResponse */
@@ -38,6 +39,47 @@ const authMethod = require( "#auth-manager" ).authMethod;
  * @param {function( Error | null )} next
  * @returns {void}
  */
+
+/**
+ * Default HTTP status for specific exception codes that do not carry an explicit `httpCode`.
+ *
+ * @type {Object<number, TiHttpCode>}
+ */
+const DEFAULT_HTTP_CODE_BY_EXCEPTION = {
+    [ exceptions.exceptionCode.E_WEB_INVALID_REQUEST_METHOD ]: exceptions.httpCode.C_405,
+    [ exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI ]: exceptions.httpCode.C_404,
+    [ exceptions.exceptionCode.E_WEB_INVALID_REQUEST_CONTENT_TYPE ]: exceptions.httpCode.C_415,
+    [ exceptions.exceptionCode.E_WEB_INVALID_REQUEST_CONTENT_LENGTH ]: exceptions.httpCode.C_413,
+    [ exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND ]: exceptions.httpCode.C_404,
+    [ exceptions.exceptionCode.E_APP_RESOURCE_ALREADY_EXISTS ]: exceptions.httpCode.C_409
+};
+
+/**
+ * Resolves the HTTP status to report for an exception. An explicit `httpCode` on the exception always wins; otherwise
+ * the status is derived from the exception code so that client and application errors surface as 4xx — request and
+ * application-logic failures as `422 Unprocessable Content`, security as `403` — instead of being misreported as a
+ * generic `500`. Only genuine internal, communication, and unknown errors default to `500`.
+ *
+ * @method
+ * @param {TiException} exception
+ * @returns {TiHttpCode}
+ */
+const resolveHttpCode = ( exception ) => {
+    if ( exception.httpCode ) {
+        return exception.httpCode;
+    }
+    const code = exception.code;
+    if ( DEFAULT_HTTP_CODE_BY_EXCEPTION[ code ] ) {
+        return DEFAULT_HTTP_CODE_BY_EXCEPTION[ code ];
+    }
+    if ( code >= 2000 && code < 3000 ) {
+        return exceptions.httpCode.C_403; // security / authorization
+    }
+    if ( code >= 4000 && code < 6000 ) {
+        return exceptions.httpCode.C_422; // request validation + application logic → unprocessable content
+    }
+    return exceptions.httpCode.C_500; // general, communication, or unknown → internal server error
+};
 
 /**
  * Used to assemble the current URL of a request.
@@ -249,7 +291,7 @@ module.exports.authenticationHandler = ( instance ) => {
                     session.user = user.asJSON();
                     session.language = user.language || instance.serviceConfig.language;
 
-                    return instance.augmentSession( session );
+                    return authorization.applyAdminRole( instance.augmentSession( session, request ), instance.serviceConfig?.auth?.admins );
                 } );
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
@@ -299,7 +341,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
 
                     delete session.oidc;
 
-                    return instance.augmentSession( session );
+                    return authorization.applyAdminRole( instance.augmentSession( session, request ), instance.serviceConfig?.auth?.admins );
                 } );
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
@@ -448,7 +490,7 @@ module.exports.defaultErrorHandler = () => {
             }
         } else {
             logger.log( "Received request caused an exception.", logger.logSeverity.DEBUG, exception );
-            const status = exception.httpCode || exceptions.httpCode.C_500;
+            const status = resolveHttpCode( exception );
 
             if ( isHtmxRequest( request ) ) {
                 response.set( {
@@ -554,11 +596,7 @@ module.exports.webAppHandler = ( instance ) => {
          * @return {TiException}
          */
         const formatException = ( exception ) => {
-            exception.httpCode = exception.httpCode || (
-                exception.code === exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI
-                    ? exceptions.httpCode.C_404
-                    : exceptions.httpCode.C_500
-            );
+            exception.httpCode = resolveHttpCode( exception );
             return exception;
         };
 

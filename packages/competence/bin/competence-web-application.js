@@ -14,6 +14,8 @@ const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
 const organizationManager = require( "#organization-manager" );
 const competenceFramework = require( "#competence-framework" );
+const taskResolver = require( "#task-resolver" );
+const { registerCompetenceConfig } = require( "../application/config-registration" );
 
 /**
  * NOTE: This is still a work in progress.
@@ -30,6 +32,9 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     constructor( identifier = "competence" ) {
         super( identifier );
+
+        // Register competence's editable configuration documents with the framework admin config registry/service.
+        registerCompetenceConfig( this );
 
         this.addFragment( "competence-evaluation", {
             title: "Competence Evaluation",
@@ -52,6 +57,38 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "Interview Schedule",
             path: "fragments/frame-interview-schedule.html"
         } );
+        this.addFragment( "cycles", {
+            title: "Appraisal Cycles",
+            path: "fragments/frame-cycles.html"
+        } );
+        this.addFragment( "cycle-setup", {
+            title: "Cycle Setup",
+            path: "fragments/frame-cycle-setup.html"
+        } );
+        this.addFragment( "employee-management", {
+            title: "Employee Management",
+            path: "fragments/frame-employee-management.html"
+        } );
+        this.addFragment( "admin-config", {
+            title: "Configuration",
+            path: "fragments/frame-admin-config.html"
+        } );
+        this.addFragment( "competency-text-editor", {
+            title: "Competency Texts",
+            path: "fragments/frame-competency-text-editor.html"
+        } );
+        this.addFragment( "archetype-assignment", {
+            title: "Archetype Assignment",
+            path: "fragments/frame-archetype-assignment.html"
+        } );
+        this.addFragment( "archetype-editor", {
+            title: "Relevancy Archetypes",
+            path: "fragments/frame-archetype-editor.html"
+        } );
+        this.addFragment( "role-families", {
+            title: "Role Families",
+            path: "fragments/frame-role-families.html"
+        } );
     }
 
     /* Public interface */
@@ -71,7 +108,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @public
      */
     transformHtml( html, options ) {
-        return super.transformHtml( html, options );
+        return super.transformHtml( html, { ...options, title: options.title || "Competence" } );
     }
 
     /**
@@ -96,10 +133,73 @@ class CompetenceWebApplication extends TiWebAppManager {
                 };
             } );
 
-            return super.processDataRequest( session, view, options ).then( ( result ) => ( {
+            return Promise.all( [
+                super.processDataRequest( session, view, options ),
+                this.#resolveCurrentCycle()
+            ] ).then( ( [ result, currentCycle ] ) => ( {
                 ...result,
-                grades: grades
+                grades: grades,
+                cycle: currentCycle ? {
+                    id: currentCycle.cycleID,
+                    name: currentCycle.name,
+                    status: currentCycle.status,
+                    startDate: currentCycle.cycleStart,
+                    date: currentCycle.cycleDate,
+                    endDate: currentCycle.cycleEnd
+                } : null,
+                employeeLevel: this.#resolveSessionEmployeeLevel( session ),
+                sidebarNavMapping: {
+                    "dashboard": "dashboard",
+                    "employees-list": "employees",
+                    "competence-evaluation": "evaluation",
+                    "new-evaluation": "evaluation",
+                    "manager-calendar": "calendar",
+                    "interview-schedule": "interviews",
+                    "cycles": "cycles",
+                    "cycle-setup": "cycles",
+                    "employee-management": "employee-management",
+                    "admin-config": "administration",
+                    "competency-text-editor": "administration",
+                    "archetype-assignment": "administration",
+                    "archetype-editor": "administration",
+                    "role-families": "administration"
+                },
+                componentsConfig: {
+                    userProfileMenu: {
+                        menuTitle: localization.getLabel( "interface.topbar.user-profile", session?.language ),
+                        placement: "right-end",
+                        offset: 0,
+                        buttonConfigs: [ {
+                            title: localization.getLabel( "interface.user-menu.profile", session?.language ),
+                            icon: "user-profile",
+                            action: {
+                                href: "/app/profile",
+                                target: "#ti-content",
+                                swap: "innerHTML"
+                            }
+                        }, {
+                            title: localization.getLabel( "interface.user-menu.settings", session?.language ),
+                            icon: "settings",
+                            action: {
+                                href: "/app/administration",
+                                target: "#ti-content",
+                                swap: "innerHTML"
+                            }
+                        }, {
+                            title: localization.getLabel( "interface.user-menu.logout", session?.language ),
+                            icon: "logout",
+                            action: {
+                                href: "/logout",
+                                method: "post",
+                                target: "body",
+                                swap: "outerHTML"
+                            }
+                        } ]
+                    }
+                }
             } ) );
+        } else if ( view === "load-dashboard" ) {
+            return this.#loadDashboard( session );
         } else if ( view === "load-evaluation" ) {
             const employeeID = String( options?.query?.employeeID || "" ).trim();
             const evaluationID = String( options?.query?.evaluationID || "" ).trim();
@@ -113,6 +213,16 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#loadManagerCalendar( session );
         } else if ( view === "load-interview-schedule" ) {
             return this.#loadInterviewSchedule( session );
+        } else if ( view === "load-cycle-list" ) {
+            return this.#loadCycleList( session );
+        } else if ( view === "load-cycle-setup" ) {
+            const cycleID = String( options?.query?.cycleID || "" ).trim();
+            return this.#loadCycleSetup( session, cycleID );
+        } else if ( view === "load-employee-management-list" ) {
+            return this.#loadEmployeeManagementList( session );
+        } else if ( view === "load-employee-detail" ) {
+            const employeeID = String( options?.query?.employeeID || "" ).trim();
+            return this.#loadEmployeeDetail( session, employeeID );
         } else {
             return super.processDataRequest( session, view, options );
         }
@@ -136,12 +246,34 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#submitEvaluation( session, params.evaluation );
         } else if ( service === "start-evaluation" ) {
             return this.#startEvaluation( session, params.employeeID, params.team );
+        } else if ( service === "finalize-team-feedback" ) {
+            return this.#finalizeTeamFeedback( session, params );
         } else if ( service === "toggle-calendar-slot" ) {
             return this.#toggleCalendarSlot( session, params );
         } else if ( service === "book-interview-slot" ) {
             return this.#bookInterviewSlot( session, params );
         } else if ( service === "cancel-interview-booking" ) {
             return this.#cancelInterviewBooking( session, params );
+        } else if ( service === "create-cycle" ) {
+            return this.#createCycle( session, params );
+        } else if ( service === "lock-cycle" ) {
+            return this.#lockCycle( session, params );
+        } else if ( service === "close-cycle" ) {
+            return this.#closeCycle( session, params );
+        } else if ( service === "set-active-competency-set" ) {
+            return this.#setActiveCompetencySet( session, params );
+        } else if ( service === "mark-active-set-empty" ) {
+            return this.#markActiveSetEmpty( session, params );
+        } else if ( service === "clear-active-competency-set" ) {
+            return this.#clearActiveCompetencySet( session, params );
+        } else if ( service === "set-family-excluded" ) {
+            return this.#setFamilyExcluded( session, params );
+        } else if ( service === "set-cycle-team-feedback-deadline" ) {
+            return this.#setCycleTeamFeedbackDeadline( session, params );
+        } else if ( service === "create-employee" ) {
+            return this.#createEmployee( session, params );
+        } else if ( service === "update-employee" ) {
+            return this.#updateEmployee( session, params );
         } else {
             return super.processServiceRequest( session, service, params );
         }
@@ -162,6 +294,56 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /* Private interface */
+
+    /**
+     * Resolves the cycle that should drive screens with a "current cycle" affordance (dashboard cycle card,
+     * calendar window, interview-schedule, etc.). Prefers the single ACTIVE cycle; falls back to the most-recently
+     * created cycle (any status) so PLANNING-only environments still render usefully. Returns null when no cycle
+     * exists at all.
+     *
+     * @method
+     * @private
+     * @returns {Promise<Cycle|null>}
+     */
+    #resolveCurrentCycle() {
+        return dataManager.instance.getActiveCycle().then( ( activeCycle ) => {
+            if ( activeCycle ) return activeCycle;
+            return dataManager.instance.getAllCycles().then( ( all ) => ( all && all.length > 0 ) ? all[ 0 ] : null );
+        } );
+    }
+
+    /**
+     * Resolves the career attributes (level/stage/role family) for the session user, or null when the session carries
+     * no employee identity.
+     *
+     * @method
+     * @private
+     * @param {TiSession} session
+     * @returns {Object|null}
+     */
+    #resolveSessionEmployeeLevel( session ) {
+        const userID = session && session.user && session.user.employeeID;
+        return userID ? organizationManager.instance.resolveEmployeeAttributes( userID, session?.language ) : null;
+    }
+
+    /**
+     * Builds a display label combining a role family name and (optionally) a specialization name as
+     * `<roleFamily> · <specialization>`. Used by handlers that need a single string for read-only displays.
+     *
+     * @method
+     * @private
+     * @param {string} roleFamily
+     * @param {string|null} specialization
+     * @param {TiLocalizationLanguage} [language]
+     * @returns {string}
+     */
+    #formatRoleFamilyLabel( roleFamily, specialization, language ) {
+        if ( !roleFamily ) return "";
+        const familyName = localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ roleFamily ]?.name || configurationLoader.roleFamilyCode.name( roleFamily ) || roleFamily, language );
+        if ( !specialization ) return familyName;
+        const specName = localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ roleFamily ]?.specializations?.[ specialization ]?.name || specialization, language );
+        return `${ familyName } · ${ specName }`;
+    }
 
     /**
      * Used to load the employee list sorted by organization unit.
@@ -203,7 +385,13 @@ class CompetenceWebApplication extends TiWebAppManager {
                 return [ managerName || managerID ];
             };
 
-            dataManager.instance.fetchEvaluations( null, false ).then( ( evaluations ) => {
+            Promise.all( [
+                dataManager.instance.fetchEvaluations( null, false ),
+                // Used purely to gate UI affordances (e.g., the "Start evaluation" button) — the backend's
+                // #startEvaluation still independently enforces that creation requires an ACTIVE cycle.
+                dataManager.instance.getActiveCycle()
+            ] ).then( ( [ evaluations, activeCycle ] ) => {
+                const hasActiveCycle = !!( activeCycle && activeCycle.status === configurationLoader.cycleStatus.ACTIVE );
                 const latestEvaluationByEmployeeID = new Map();
 
                 evaluations.forEach( ( evaluation ) => {
@@ -218,7 +406,14 @@ class CompetenceWebApplication extends TiWebAppManager {
                     }
                 } );
 
-                const toEmployeeEntry = ( employeeNode ) => {
+                const evalStatusTone = ( status ) => {
+                    if ( status === configurationLoader.evaluationStatus.OPEN ) return "info";
+                    if ( status === configurationLoader.evaluationStatus.IN_REVIEW ) return "warn";
+                    if ( status === configurationLoader.evaluationStatus.READY ) return "success";
+                    return "";
+                };
+
+                const toEmployeeEntry = ( employeeNode, unitManagerID = null ) => {
                     if ( !employeeNode ) {
                         return null;
                     }
@@ -228,26 +423,40 @@ class CompetenceWebApplication extends TiWebAppManager {
                     const canSeePersonalData = ( isManagerOfCurrentUnit || employeeNode.employeeID === userID );
 
                     let evaluationDate = "";
+                    let evaluationDateType = "";
                     if ( latestEvaluation ) {
                         if ( latestEvaluation.status === configurationLoader.evaluationStatus.OPEN ) {
                             const selfDeadline = latestEvaluation.workflow?.selfEvaluationDeadline || "";
                             const teamDeadline = latestEvaluation.workflow?.teamEvaluationDeadline || "";
                             evaluationDate = selfDeadline > teamDeadline ? selfDeadline : teamDeadline;
+                            evaluationDateType = "due";
                         } else if ( latestEvaluation.status === configurationLoader.evaluationStatus.IN_REVIEW ) {
                             evaluationDate = latestEvaluation.workflow?.managerEvaluationDeadline || "";
+                            evaluationDateType = "due";
                         } else if ( latestEvaluation.status === configurationLoader.evaluationStatus.READY ) {
                             evaluationDate = latestEvaluation.interviewDate || "";
+                            evaluationDateType = "interview";
                         }
                     }
 
                     return {
                         id: employeeNode.employeeID,
                         name: employeeNode.name,
+                        email: employeeNode.email,
                         isCurrentUser: employeeNode.employeeID === userID,
+                        isManager: unitManagerID !== null && unitManagerID === employeeNode.employeeID,
                         organizationUnitID: employeeNode.organizationUnitID,
+                        personal: canSeePersonalData ? {
+                            workMode: employeeNode.workMode,
+                            workLocation: employeeNode.workLocation
+                        } : null,
                         career: {
-                            careerPath: employeeNode.careerPath,
-                            careerPathName: configurationLoader.careerPathCode.name( employeeNode.careerPath ) || employeeNode.careerPath,
+                            roleFamily: employeeNode.roleFamily,
+                            specialization: employeeNode.specialization ?? null,
+                            roleFamilyName: localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ employeeNode.roleFamily ]?.name || configurationLoader.roleFamilyCode.name( employeeNode.roleFamily ) || employeeNode.roleFamily || "", session?.language ),
+                            specializationName: employeeNode.specialization
+                                ? localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ employeeNode.roleFamily ]?.specializations?.[ employeeNode.specialization ]?.name || employeeNode.specialization, session?.language )
+                                : null,
                             level: employeeNode.level,
                             stage: canSeePersonalData ? employeeNode.stage : null,
                             startingDate: canSeePersonalData ? employeeNode.startingDate : null
@@ -260,8 +469,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                             evaluationID: latestEvaluation.evaluationID,
                             status: latestEvaluation.status,
                             statusName: configurationLoader.evaluationStatus.name( latestEvaluation.status ),
-                            date: evaluationDate
-                        } : null
+                            statusTone: evalStatusTone( latestEvaluation.status ),
+                            date: evaluationDate,
+                            dateType: evaluationDateType
+                        } : null,
+                        evaluationHidden: !canSeePersonalData
                     };
                 };
 
@@ -270,13 +482,37 @@ class CompetenceWebApplication extends TiWebAppManager {
                         return null;
                     }
 
+                    const rawEmployees = Array.isArray( unitNode.employees ) ? unitNode.employees : [];
+                    const employees = rawEmployees.map( ( e ) => toEmployeeEntry( e, unitNode.managerID ) );
+                    const activeEvalStatuses = [
+                        configurationLoader.evaluationStatus.OPEN,
+                        configurationLoader.evaluationStatus.IN_REVIEW,
+                        configurationLoader.evaluationStatus.READY
+                    ];
+                    const inCycle = rawEmployees.filter( ( e ) => {
+                        const latestEval = latestEvaluationByEmployeeID.get( e.employeeID );
+                        return latestEval && activeEvalStatuses.includes( latestEval.status );
+                    } ).length;
+                    const ready = rawEmployees.filter( ( e ) => {
+                        const latestEval = latestEvaluationByEmployeeID.get( e.employeeID );
+                        return latestEval && latestEval.status === configurationLoader.evaluationStatus.READY;
+                    } ).length;
+
+                    const managerRawEmployee = rawEmployees.find( ( e ) => e.employeeID === unitNode.managerID );
+                    const managerWorkLocation = managerRawEmployee ? ( managerRawEmployee.workLocation || null ) : null;
+
                     return {
                         id: unitNode.id,
                         type: unitNode.type,
                         name: unitNode.name,
                         description: unitNode.description,
+                        branch: unitNode.branch || null,
+                        location: unitNode.location || null,
+                        managerWorkLocation: managerWorkLocation,
                         managers: toUnitManagers( unitNode ),
-                        employees: ( Array.isArray( unitNode.employees ) ? unitNode.employees : [] ).map( toEmployeeEntry ),
+                        employees: employees,
+                        inCycle: inCycle,
+                        ready: ready,
                         parents: organizationManager.instance.resolveParentUnitNames( unitNode.id ),
                         children: ( Array.isArray( unitNode.children ) ? unitNode.children : [] ).map( toUnitEntry )
                     };
@@ -284,7 +520,8 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 resolve( {
                     organizationUnits: [ toUnitEntry( unitSubtree ) ],
-                    isManagerView: isManagerOfCurrentUnit
+                    isManagerView: isManagerOfCurrentUnit,
+                    hasActiveCycle: hasActiveCycle
                 } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -417,7 +654,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     // At this point calculate the performance scores:
                     competenceFramework.instance.calculateFinalEvaluationScores( existingEvaluation );
                 } else {
-                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
                 }
 
                 if ( existingEvaluation.status === configurationLoader.evaluationStatus.OPEN ) {
@@ -553,13 +790,18 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #loadEvaluation( session, employeeID, evaluationID = null ) {
         return new Promise( ( resolve, reject ) => {
-            const { userID } = this.#requireSessionUser( session );
+            const { userID, userRoles } = this.#requireSessionUser( session );
+
+            // When no employeeID is supplied (e.g., an employee opening their own evaluation),
+            // fall back to the session user's own ID so the server can resolve the record.
+            const resolvedEmployeeID = employeeID || userID;
+            const noEvaluationSentinel = Symbol();
 
             let currentEvaluation = null;
             let employee = null;
             let isEmployee = false;
             let isTeamMember = false;
-            dataManager.instance.fetchEmployee( employeeID ).then( ( employeeData ) => {
+            dataManager.instance.fetchEmployee( resolvedEmployeeID ).then( ( employeeData ) => {
                 if ( !employeeData ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-employee-found" }, exceptions.httpCode.C_404 );
                 }
@@ -576,7 +818,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 } else if ( evaluations.length > 0 ) {
                     currentEvaluation = evaluations.slice().sort( ( a, b ) => new Date( b.cycleDate ) - new Date( a.cycleDate ) )[ 0 ];
                 } else {
-                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-evaluation-found" }, exceptions.httpCode.C_404 );
+                    throw noEvaluationSentinel;
                 }
 
                 if ( currentEvaluation.status === configurationLoader.evaluationStatus.CLOSED ) {
@@ -591,6 +833,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                 let userRole;
                 let canEdit;
                 let deadlineDate;
+                let isFacilitator = false;
+                const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
                 const today = new Date().toISOString().split( "T" )[ 0 ];
                 if ( isTeamMember ) {
                     userRole = configurationLoader.roleCode.TEAM_MEMBER;
@@ -610,24 +854,57 @@ class CompetenceWebApplication extends TiWebAppManager {
                     canEdit = !currentEvaluation.workflow.managerEvaluationCompleted
                         && currentEvaluation.status === configurationLoader.evaluationStatus.IN_REVIEW
                         && ( !deadlineDate || today <= deadlineDate );
+                } else if ( isSupervisor ) {
+                    // Supervisor as a read-only process facilitator (see design 3.8): manager-level visibility for the
+                    // render (anonymize as MANAGER), but no assessment actions — canEdit is hard false, and the submit/
+                    // draft handlers independently reject any non-org-manager. The only action is finalize (canFinalizeTeam).
+                    isFacilitator = true;
+                    userRole = configurationLoader.roleCode.MANAGER;
+                    deadlineDate = currentEvaluation.workflow.teamEvaluationDeadline;
+                    canEdit = false;
                 } else {
-                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
                 }
 
                 // NOTE: Remove information that should not be exposed to some roles:
                 competenceFramework.instance.anonymizeEvaluationGrades( currentEvaluation, userRole );
                 competenceFramework.instance.anonymizeEvaluationScores( currentEvaluation, userRole );
 
+                // Extract team reviewer counts before deleting workflow:
+                const teamSubmitted = currentEvaluation.workflow?.teamEvaluationsSubmitted || 0;
+                const teamRemaining = Array.isArray( currentEvaluation.workflow?.team ) ? currentEvaluation.workflow.team.length : 0;
+                const teamTotal = teamSubmitted + teamRemaining;
+
+                // Whether the manager/supervisor may finalize the team round now (drives the "Proceed to manager
+                // review" action). Mirrors the precondition set enforced by CompetenceFramework.finalizeTeamFeedback.
+                const teamDeadline = currentEvaluation.workflow?.teamEvaluationDeadline || "";
+                const allowFinalizeWithoutSubmissions = configurationLoader.getSetting( "performanceAppraisals.allowFinalizeTeamWithoutSubmissions", true );
+                const canFinalizeTeam =
+                    ( isSupervisor || isManager )
+                    && currentEvaluation.status === configurationLoader.evaluationStatus.OPEN
+                    && teamDeadline !== ""
+                    && today > teamDeadline
+                    && teamRemaining > 0
+                    && ( allowFinalizeWithoutSubmissions || teamSubmitted > 0 );
+
                 // NOTE: Make sure to delete the workflow system information:
                 delete currentEvaluation.workflow;
 
                 const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee );
                 resolve( {
-                    employeeID: employeeID,
+                    employeeID: resolvedEmployeeID,
                     personal: {
                         ...employee.personal,
+                        name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
                         organizationUnitName: organizationContext.organizationUnitName,
-                        positionName: configurationLoader.careerPathCode.name( employee.personal?.careerPath )
+                        roleFamily: employee.career?.roleFamily,
+                        specialization: employee.career?.specialization ?? null,
+                        roleFamilyName: localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ employee.career?.roleFamily ]?.name || configurationLoader.roleFamilyCode.name( employee.career?.roleFamily ) || employee.career?.roleFamily || "", session?.language ),
+                        specializationName: employee.career?.specialization
+                            ? localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ employee.career.roleFamily ]?.specializations?.[ employee.career.specialization ]?.name || employee.career.specialization, session?.language )
+                            : null,
+                        startingDate: employee.career?.startingDate || null,
+                        stageLevel: ( employee.career?.level && employee.career?.stage ) ? `${ employee.career.level }${ employee.career.stage }` : ""
                     },
                     manager: {
                         managerID: organizationContext.managerID,
@@ -635,21 +912,26 @@ class CompetenceWebApplication extends TiWebAppManager {
                     },
                     evaluation: {
                         ...currentEvaluation,
-                        careerPathName: configurationLoader.careerPathCode.name( currentEvaluation.careerPath ),
+                        roleFamilyName: localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ currentEvaluation.roleFamily ]?.name || configurationLoader.roleFamilyCode.name( currentEvaluation.roleFamily ) || currentEvaluation.roleFamily || "", session?.language ),
+                        specializationName: currentEvaluation.specialization
+                            ? localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ currentEvaluation.roleFamily ]?.specializations?.[ currentEvaluation.specialization ]?.name || currentEvaluation.specialization, session?.language )
+                            : null,
                         statusName: configurationLoader.evaluationStatus.name( currentEvaluation.status ),
                         statusDescription: configurationLoader.evaluationStatus.description( currentEvaluation.status )
                     },
                     userRole: userRole,
                     deadlineDate: deadlineDate,
+                    teamReviewers: teamTotal > 0 ? { total: teamTotal, submitted: teamSubmitted } : null,
                     canEdit: canEdit, // Used only for UI visualization purposes - do NOT rely on this!
+                    isFacilitator: isFacilitator, // Supervisor viewing read-only as process facilitator (cannot rate).
+                    canFinalizeTeam: canFinalizeTeam, // Drives the "Proceed to manager review" action; server-authoritative.
                     isTeamEvaluationCollective: configurationLoader.getSetting( "performanceAppraisals.isTeamEvaluationCollective" ),
-                    competencies: competenceFramework.instance.buildCompetenciesTree(
-                        configurationLoader.configCompetencies,
-                        session?.language,
-                        competenceFramework.instance.getAllowedCompetencyCodes( employee.personal.careerPath, currentEvaluation.cycleID )
-                    )
+                    competencies: competenceFramework.instance.buildCompetenciesTreeFromSnapshot( currentEvaluation.snapshot, session?.language )
                 } );
             } ).catch( ( error ) => {
+                if ( error === noEvaluationSentinel ) {
+                    return resolve( { noEvaluation: true } );
+                }
                 reject( exceptions.raise( error ) );
             } );
         } );
@@ -671,6 +953,7 @@ class CompetenceWebApplication extends TiWebAppManager {
             const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
             let employee;
 
+            let cycle;
             dataManager.instance.fetchEmployee( employeeID ).then( ( result ) => {
                 if ( !result ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-employee-found" }, exceptions.httpCode.C_404 );
@@ -680,9 +963,18 @@ class CompetenceWebApplication extends TiWebAppManager {
                 return this.#canManagerPerformEvaluation( userID, employee.employeeID );
             } ).then( ( isManager ) => {
                 if ( !isSupervisor && !isManager ) {
-                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
                 }
 
+                // Phase 5: starting an evaluation requires a strictly ACTIVE cycle. PLANNING / CLOSED / no cycle at all
+                // are all surfaced to the UI as the same "no active appraisal cycle" error, so the action remains
+                // disabled in the operator-friendly sense rather than silently snapshotting against a fallback cycle.
+                return dataManager.instance.getActiveCycle();
+            } ).then( ( activeCycle ) => {
+                if ( !activeCycle || activeCycle.status !== configurationLoader.cycleStatus.ACTIVE ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.no-active-cycle" }, exceptions.httpCode.C_422 );
+                }
+                cycle = activeCycle;
                 return dataManager.instance.fetchEvaluations( employee.employeeID );
             } ).then( ( evaluations ) => {
                 const activeStatuses = [
@@ -696,30 +988,80 @@ class CompetenceWebApplication extends TiWebAppManager {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.active-evaluation-exists" }, exceptions.httpCode.C_409 );
                 }
 
-                const newEvaluation = competenceFramework.instance.createNewEvaluation( employee );
-                const resolvedManagerID = organizationManager.instance.resolveManagerIDForEmployee( employee.employeeID, employee.personal?.organizationUnitID );
+                return competenceFramework.instance.buildEvaluationSnapshot( employee.career.roleFamily, employee.career.specialization, cycle.cycleID );
+            } ).then( ( snapshot ) => {
+                if ( !Array.isArray( snapshot ) || snapshot.length === 0 ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.empty-competency-set" }, exceptions.httpCode.C_422 );
+                }
+
+                const newEvaluation = competenceFramework.instance.createNewEvaluation( employee, cycle, snapshot );
+                const resolvedManagerID = organizationManager.instance.resolveManagerIDForEmployee( employee.employeeID, employee.career?.organizationUnitID );
                 if ( resolvedManagerID ) {
                     newEvaluation.managerID = resolvedManagerID;
                 }
 
-                if ( Array.isArray( team ) ) {
-                    const uniqueTeam = [ ...new Set( team.map( String ) ) ]
-                        .filter( ( id ) => id !== employee.employeeID && id !== resolvedManagerID );
-                    const invalidIDs = uniqueTeam.filter( ( id ) => !organizationManager.instance.resolveEmployeeName( id ) );
-                    if ( invalidIDs.length > 0 ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.evaluation.invalid-team-members" } );
-                    }
-                    newEvaluation.workflow.team = uniqueTeam;
+                const uniqueTeam = Array.isArray( team )
+                    ? [ ...new Set( team.map( String ) ) ].filter( ( id ) => id !== employee.employeeID && id !== resolvedManagerID )
+                    : [];
+
+                const invalidIDs = uniqueTeam.filter( ( id ) => !organizationManager.instance.resolveEmployeeName( id ) );
+                if ( invalidIDs.length > 0 ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.evaluation.invalid-team-members" } );
                 }
 
-                // Populate the competencies based on the employee career path and the role configuration:
-                for ( const competencyCode of competenceFramework.instance.getAllowedCompetencyCodes( employee.personal.careerPath, newEvaluation.cycleID ) ) {
-                    newEvaluation.grades[ competencyCode ] = competenceFramework.instance.normalizeGrades( newEvaluation.grades, competencyCode );
+                const minTeam = configurationLoader.getSetting( "performanceAppraisals.minTeamEvaluationMembers", 1 );
+                const maxTeam = configurationLoader.getSetting( "performanceAppraisals.maxTeamEvaluationMembers", null );
+                if ( uniqueTeam.length < minTeam ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.team-below-minimum" }, exceptions.httpCode.C_422 );
                 }
+                if ( maxTeam !== null && uniqueTeam.length > maxTeam ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.team-above-maximum" }, exceptions.httpCode.C_422 );
+                }
+
+                newEvaluation.workflow.team = uniqueTeam;
 
                 return dataManager.instance.saveEvaluation( newEvaluation );
             } ).then( ( savedEvaluation ) => {
                 resolve( savedEvaluation.evaluationID );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Finalizes the team-feedback round for an evaluation after its deadline — the "Proceed to manager review" action.
+     * Authorized for the evaluatee's org-hierarchy manager OR any Supervisor; everyone else is rejected with 403. The
+     * precondition checks, reviewer drop, cumulative recompute, status transition, and audit entry are performed by
+     * `CompetenceFramework.finalizeTeamFeedback`.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.evaluationID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #finalizeTeamFeedback( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireSessionUser( session );
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+
+            const evaluationID = String( params?.evaluationID || "" ).trim();
+            if ( !evaluationID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID } ) );
+            }
+
+            dataManager.instance.fetchEvaluation( evaluationID ).then( ( evaluation ) => {
+                return this.#canManagerPerformEvaluation( userID, evaluation.employeeID ).then( ( isManager ) => {
+                    if ( !isSupervisor && !isManager ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
+                    }
+                    const actorRoleLabel = isManager ? "manager" : "supervisor";
+                    return competenceFramework.instance.finalizeTeamFeedback( evaluationID, userID, actorRoleLabel );
+                } );
+            } ).then( ( updatedEvaluation ) => {
+                resolve( { evaluationID: updatedEvaluation.evaluationID, status: updatedEvaluation.status } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
@@ -740,41 +1082,80 @@ class CompetenceWebApplication extends TiWebAppManager {
             this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR, configurationLoader.roleCode.MANAGER );
 
             let employee;
+            let cycle;
             dataManager.instance.fetchEmployee( employeeID ).then( ( employeeData ) => {
                 if ( !employeeData ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-employee-found" }, exceptions.httpCode.C_404 );
                 }
                 employee = employeeData;
-                return dataManager.instance.fetchEmployees();
-            } ).then( ( allEmployees ) => {
+                return Promise.all( [
+                    dataManager.instance.fetchEmployees(),
+                    // Mirrors #startEvaluation: the new-evaluation preview only makes sense against a strictly ACTIVE
+                    // cycle so the user does not populate a form they cannot actually submit.
+                    dataManager.instance.getActiveCycle()
+                ] );
+            } ).then( ( [ allEmployees, resolvedCycle ] ) => {
+                if ( !resolvedCycle || resolvedCycle.status !== configurationLoader.cycleStatus.ACTIVE ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.no-active-cycle" }, exceptions.httpCode.C_422 );
+                }
+                cycle = resolvedCycle;
+
                 const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee );
-                let availableTeamMembers = [];
+                const availableTeamMembers = [];
                 allEmployees.forEach( ( currentEmployee ) => {
                     if ( currentEmployee.employeeID !== employeeID && currentEmployee.employeeID !== organizationContext.managerID ) {
+                        const firstName = currentEmployee.personal.firstName || "";
+                        const lastName = currentEmployee.personal.lastName || "";
                         availableTeamMembers.push( {
                             employeeID: currentEmployee.employeeID,
-                            name: currentEmployee.personal.name,
-                            careerPathName: configurationLoader.careerPathCode.name( currentEmployee.personal.careerPath )
+                            name: `${ firstName } ${ lastName }`.trim(),
+                            roleFamilyName: this.#formatRoleFamilyLabel( currentEmployee.career?.roleFamily, currentEmployee.career?.specialization, session?.language )
                         } );
                     }
                 } );
 
-                resolve( {
-                    personal: {
-                        ...employee.personal,
-                        organizationUnitName: organizationContext.organizationUnitName
-                    },
-                    manager: {
-                        managerID: organizationContext.managerID,
-                        name: organizationContext.managerName
-                    },
-                    evaluation: {
-                        cycleID: competenceFramework.instance.evaluationCycleID,
-                        cycleDate: competenceFramework.instance.evaluationCycleDate,
-                        careerPathName: configurationLoader.careerPathCode.name( employee.personal.careerPath ),
-                        stageLevel: `${ employee.personal.level }${ employee.personal.stage }`
-                    },
-                    availableTeamMembers: availableTeamMembers
+                return competenceFramework.instance.getActiveCompetencySet( employee.career.roleFamily, employee.career.specialization, cycle.cycleID ).then( ( allowedCodes ) => {
+                    const allCompetencies = configurationLoader.configCompetencies?.competencies || {};
+                    const competencyCategories = new Set();
+                    let competencyCount = 0;
+                    allowedCodes.forEach( ( code ) => {
+                        const comp = allCompetencies[ code ];
+                        if ( comp && comp.category ) {
+                            competencyCategories.add( comp.category );
+                            competencyCount++;
+                        }
+                    } );
+
+                    resolve( {
+                        personal: {
+                            id: employeeID,
+                            ...employee.personal,
+                            name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
+                            organizationUnitName: organizationContext.organizationUnitName,
+                            startingDate: employee.career?.startingDate || null
+                        },
+                        manager: {
+                            managerID: organizationContext.managerID,
+                            name: organizationContext.managerName
+                        },
+                        evaluation: {
+                            cycleID: cycle.cycleID,
+                            cycleDate: cycle.cycleDate,
+                            cycleEndDate: cycle.cycleEnd,
+                            roleFamily: employee.career.roleFamily,
+                            specialization: employee.career.specialization ?? null,
+                            roleFamilyName: localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ employee.career.roleFamily ]?.name || configurationLoader.roleFamilyCode.name( employee.career.roleFamily ) || employee.career.roleFamily || "", session?.language ),
+                            specializationName: employee.career.specialization
+                                ? localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ employee.career.roleFamily ]?.specializations?.[ employee.career.specialization ]?.name || employee.career.specialization, session?.language )
+                                : null,
+                            stageLevel: `${ employee.career.level }${ employee.career.stage }`,
+                            competencyCount: competencyCount,
+                            categoryCount: competencyCategories.size
+                        },
+                        minTeamMembers: configurationLoader.getSetting( "performanceAppraisals.minTeamEvaluationMembers", 1 ),
+                        maxTeamMembers: configurationLoader.getSetting( "performanceAppraisals.maxTeamEvaluationMembers", null ),
+                        availableTeamMembers: availableTeamMembers
+                    } );
                 } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -794,16 +1175,20 @@ class CompetenceWebApplication extends TiWebAppManager {
         return new Promise( ( resolve, reject ) => {
             const { userID } = this.#requireRole( session, configurationLoader.roleCode.MANAGER );
 
-            const cycleID = competenceFramework.instance.evaluationCycleID;
             const calendarConfig = this.#getCalendarConfig();
 
-            dataManager.instance.fetchManagerCalendar( cycleID, userID ).then( ( slots ) => {
-                resolve( {
-                    cycleID: cycleID,
-                    cycleDate: competenceFramework.instance.evaluationCycleDate,
-                    managerID: userID,
-                    slots: slots,
-                    config: calendarConfig
+            this.#resolveCurrentCycle().then( ( cycle ) => {
+                if ( !cycle ) {
+                    return resolve( { cycleID: null, cycleDate: null, managerID: userID, slots: [], config: calendarConfig } );
+                }
+                return dataManager.instance.fetchManagerCalendar( cycle.cycleID, userID ).then( ( slots ) => {
+                    resolve( {
+                        cycleID: cycle.cycleID,
+                        cycleDate: cycle.cycleDate,
+                        managerID: userID,
+                        slots: slots,
+                        config: calendarConfig
+                    } );
                 } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -823,48 +1208,57 @@ class CompetenceWebApplication extends TiWebAppManager {
         return new Promise( ( resolve, reject ) => {
             this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR, configurationLoader.roleCode.MANAGER );
 
-            const cycleID = competenceFramework.instance.evaluationCycleID;
             const calendarConfig = this.#getCalendarConfig();
 
-            Promise.all( [
-                dataManager.instance.fetchEvaluations( null, false ),
-                dataManager.instance.fetchAllCalendarSlots( cycleID )
-            ] ).then( ( [ allEvaluations, allSlots ] ) => {
-                const readyStatus = configurationLoader.evaluationStatus.READY;
-                const readyEvaluations = allEvaluations.filter( ( evaluation ) => evaluation.status === readyStatus );
+            this.#resolveCurrentCycle().then( ( cycle ) => {
+                if ( !cycle ) {
+                    return resolve( { cycleID: null, evaluations: [], slots: [], config: calendarConfig } );
+                }
+                return Promise.all( [
+                    dataManager.instance.fetchEvaluations( null, false ),
+                    dataManager.instance.fetchAllCalendarSlots( cycle.cycleID )
+                ] ).then( ( [ allEvaluations, allSlots ] ) => {
+                    const readyStatus = configurationLoader.evaluationStatus.READY;
+                    const readyEvaluations = allEvaluations.filter( ( evaluation ) => evaluation.status === readyStatus );
 
-                const bookedSlotByEvaluationID = new Map();
-                allSlots.forEach( ( slot ) => {
-                    if ( slot.status === configurationLoader.slotStatus.BOOKED && slot.booking?.evaluationID ) {
-                        bookedSlotByEvaluationID.set( slot.booking.evaluationID, slot );
-                    }
-                } );
+                    const bookedSlotByEvaluationID = new Map();
+                    allSlots.forEach( ( slot ) => {
+                        if ( slot.status === configurationLoader.slotStatus.BOOKED && slot.booking?.evaluationID ) {
+                            bookedSlotByEvaluationID.set( slot.booking.evaluationID, slot );
+                        }
+                    } );
 
-                const evaluations = readyEvaluations.map( ( evaluation ) => {
-                    const bookedSlot = bookedSlotByEvaluationID.get( evaluation.evaluationID ) || null;
-                    return {
-                        evaluationID: evaluation.evaluationID,
-                        employeeID: evaluation.employeeID,
-                        employeeName: organizationManager.instance.resolveEmployeeName( evaluation.employeeID ) || evaluation.employeeID,
-                        managerID: evaluation.managerID,
-                        managerName: organizationManager.instance.resolveEmployeeName( evaluation.managerID ) || evaluation.managerID,
-                        interviewDate: evaluation.interviewDate || null,
-                        bookedSlotID: bookedSlot ? bookedSlot.slotID : null
-                    };
-                } );
+                    const evaluations = readyEvaluations.map( ( evaluation ) => {
+                        const bookedSlot = bookedSlotByEvaluationID.get( evaluation.evaluationID ) || null;
+                        return {
+                            evaluationID: evaluation.evaluationID,
+                            shortID: evaluation.shortID,
+                            employeeID: evaluation.employeeID,
+                            employeeName: organizationManager.instance.resolveEmployeeName( evaluation.employeeID ) || evaluation.employeeID,
+                            managerID: evaluation.managerID,
+                            managerName: organizationManager.instance.resolveEmployeeName( evaluation.managerID ) || evaluation.managerID,
+                            roleFamilyName: this.#formatRoleFamilyLabel( evaluation.roleFamily, evaluation.specialization, session?.language ),
+                            stageLevel: evaluation.stageLevel || "",
+                            finalScore: evaluation.finalScore?.score ?? null,
+                            finalScoreGrade: configurationLoader.performanceThreshold.name( evaluation.finalScore?.interpretation ) || "",
+                            interviewDate: evaluation.interviewDate || null,
+                            bookedSlotID: bookedSlot ? bookedSlot.slotID : null
+                        };
+                    } );
 
-                const slots = allSlots
-                    .filter( ( slot ) => slot.status === configurationLoader.slotStatus.AVAILABLE )
-                    .map( ( slot ) => ( {
-                        ...slot,
-                        managerName: organizationManager.instance.resolveEmployeeName( slot.managerID ) || slot.managerID
-                    } ) );
+                    const slots = allSlots
+                        .filter( ( slot ) => slot.status === configurationLoader.slotStatus.AVAILABLE )
+                        .map( ( slot ) => ( {
+                            ...slot,
+                            managerName: organizationManager.instance.resolveEmployeeName( slot.managerID ) || slot.managerID
+                        } ) );
 
-                resolve( {
-                    cycleID: cycleID,
-                    evaluations: evaluations,
-                    slots: slots,
-                    config: calendarConfig
+                    resolve( {
+                        cycleID: cycle.cycleID,
+                        evaluations: evaluations,
+                        slots: slots,
+                        config: calendarConfig
+                    } );
                 } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -880,8 +1274,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @param {Object} params
      * @param {string} params.date
      * @param {string} params.startTime
-     * @param {string} [params.targetStatus] The desired slot status. Accepts `available` or `busy`. Defaults to `available`.
-     * If a slot with the same status already exists it will be removed (toggle off).
+     * @param {string} [params.targetStatus] The desired slot status. Accepts `available` or `busy`. Defaults to `available`. If a slot with the same status already exists, it will be removed (toggle off).
      * @returns {Promise<Object>}
      * @private
      */
@@ -900,11 +1293,16 @@ class CompetenceWebApplication extends TiWebAppManager {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { targetStatus } ) );
             }
 
-            const cycleID = competenceFramework.instance.evaluationCycleID;
-            const slotID = `${ cycleID }|${ userID }|${ date }|${ startTime }`;
             const durationMinutes = configurationLoader.getSetting( "performanceAppraisals.interviewCalendar.slotDurationMinutes", 30 );
 
-            dataManager.instance.fetchManagerCalendar( cycleID, userID ).then( ( existingSlots ) => {
+            this.#resolveCurrentCycle().then( ( cycle ) => {
+                if ( !cycle ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.calendar.no-active-cycle" }, exceptions.httpCode.C_422 );
+                }
+                const cycleID = cycle.cycleID;
+                const slotID = `${ cycleID }|${ userID }|${ date }|${ startTime }`;
+                return dataManager.instance.fetchManagerCalendar( cycleID, userID ).then( ( existingSlots ) => ( { cycleID, slotID, existingSlots } ) );
+            } ).then( ( { cycleID, slotID, existingSlots } ) => {
                 const existing = existingSlots.find( ( s ) => s.slotID === slotID );
 
                 if ( existing ) {
@@ -1057,6 +1455,1488 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
+     * Used to load the dashboard data for the current user.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadDashboard( session ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireSessionUser( session );
+
+            const isManager = userRoles.includes( configurationLoader.roleCode.MANAGER ) || userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+
+            const evalStatusTone = ( status ) => {
+                if ( status === configurationLoader.evaluationStatus.OPEN ) return "info";
+                if ( status === configurationLoader.evaluationStatus.IN_REVIEW ) return "warn";
+                if ( status === configurationLoader.evaluationStatus.READY ) return "success";
+                return "";
+            };
+
+            Promise.all( [
+                dataManager.instance.fetchEvaluations( userID ),
+                dataManager.instance.fetchEvaluations( null, false ),
+                this.#resolveCurrentCycle()
+            ] ).then( ( [ myEvaluations, allEvaluations, currentCycle ] ) => {
+                const myLatestEvaluation = myEvaluations.length > 0
+                    ? myEvaluations.slice().sort( ( a, b ) => new Date( b.cycleDate ) - new Date( a.cycleDate ) )[ 0 ]
+                    : null;
+
+                const myEvalStatus = myLatestEvaluation
+                    ? {
+                        evaluationID: myLatestEvaluation.evaluationID,
+                        status: myLatestEvaluation.status,
+                        statusName: configurationLoader.evaluationStatus.name( myLatestEvaluation.status ),
+                        statusTone: evalStatusTone( myLatestEvaluation.status ),
+                        cycleDate: myLatestEvaluation.cycleDate,
+                        selfEvaluationCompleted: !!( myLatestEvaluation.workflow && myLatestEvaluation.workflow.selfEvaluationCompleted )
+                    }
+                    : null;
+
+                // Self-grades progress from the user's own latest evaluation, read off the snapshot frozen at creation.
+                let selfGrades = { completed: 0, total: 0 };
+                if ( myLatestEvaluation ) {
+                    const gradeEntries = myLatestEvaluation.grades ? Object.values( myLatestEvaluation.grades ) : [];
+                    selfGrades.total = Array.isArray( myLatestEvaluation.snapshot ) ? myLatestEvaluation.snapshot.length : 0;
+                    if ( gradeEntries.length > 0 ) {
+                        selfGrades.completed = gradeEntries.filter( ( grade ) => configurationLoader.evaluationGrade.contains( grade.employee ) ).length;
+                    }
+                }
+
+                // Derive the user's actionable tasks (team-feedback, team-finalize) from workflow state. The resolver is
+                // pure; the handler injects the org lookups (manager predicate + name resolver) and today's date.
+                const today = new Date().toISOString().split( "T" )[ 0 ];
+                const tasks = taskResolver.instance.resolveTasks( userID, {
+                    isSupervisor: userRoles.includes( configurationLoader.roleCode.SUPERVISOR ),
+                    canManage: ( evaluatedID ) => organizationManager.instance.isSuperiorManagerOfEmployee( userID, evaluatedID ),
+                    today: today,
+                    resolveName: ( id ) => organizationManager.instance.resolveEmployeeName( id ) || id
+                }, allEvaluations );
+
+                // Peer feedback: pending team reviews requested of the user — single source of truth is the resolver.
+                const requestedCount = tasks.filter( ( task ) => task.type === "team-feedback" ).length;
+                const peerFeedback = { submitted: 0, requested: requestedCount };
+
+                // Team coverage: active evaluations among teammates in the same org unit
+                const activeStatuses = [
+                    configurationLoader.evaluationStatus.OPEN,
+                    configurationLoader.evaluationStatus.IN_REVIEW,
+                    configurationLoader.evaluationStatus.READY
+                ];
+                const userUnitID = organizationManager.instance.resolveOrganizationUnitIDForEmployee( userID );
+                const unitSubtree = userUnitID ? organizationManager.instance.getOrganizationUnitSubtree( userUnitID ) : null;
+                const unitEmployees = unitSubtree && Array.isArray( unitSubtree.employees ) ? unitSubtree.employees : [];
+                const teammates = unitEmployees.filter( ( e ) => e.employeeID !== userID );
+
+                const latestEvalByEmployee = new Map();
+                allEvaluations.forEach( ( e ) => {
+                    const existing = latestEvalByEmployee.get( e.employeeID );
+                    if ( !existing || new Date( e.cycleDate ) > new Date( existing.cycleDate ) ) {
+                        latestEvalByEmployee.set( e.employeeID, e );
+                    }
+                } );
+                const teamCoverageStarted = teammates.filter( ( teammate ) => {
+                    const latestEval = latestEvalByEmployee.get( teammate.employeeID );
+                    return latestEval && activeStatuses.includes( latestEval.status );
+                } ).length;
+                const teamCoverage = { started: teamCoverageStarted, total: teammates.length };
+
+                // Team evaluations for managers
+                const teamEvaluations = isManager
+                    ? allEvaluations
+                        .filter( ( e ) =>
+                            e.managerID === userID &&
+                            e.status !== configurationLoader.evaluationStatus.CLOSED &&
+                            e.status !== configurationLoader.evaluationStatus.DELETED
+                        )
+                        .map( ( e ) => ( {
+                            evaluationID: e.evaluationID,
+                            employeeID: e.employeeID,
+                            employeeName: organizationManager.instance.resolveEmployeeName( e.employeeID ) || e.employeeID,
+                            status: e.status,
+                            statusName: configurationLoader.evaluationStatus.name( e.status )
+                        } ) )
+                    : [];
+
+                const stats = {
+                    total: teamEvaluations.length,
+                    open: teamEvaluations.filter( ( e ) => e.status === configurationLoader.evaluationStatus.OPEN ).length,
+                    inReview: teamEvaluations.filter( ( e ) => e.status === configurationLoader.evaluationStatus.IN_REVIEW ).length,
+                    ready: teamEvaluations.filter( ( e ) => e.status === configurationLoader.evaluationStatus.READY ).length
+                };
+
+                resolve( {
+                    userID: userID,
+                    isManager: isManager,
+                    cycle: currentCycle ? {
+                        id: currentCycle.cycleID,
+                        name: currentCycle.name,
+                        status: currentCycle.status,
+                        statusName: localization.getLabel( configurationLoader.cycleStatus.name( currentCycle.status ) || currentCycle.status, session?.language ),
+                        statusTone: this.#cycleStatusTone( currentCycle.status ),
+                        startDate: currentCycle.cycleStart,
+                        date: currentCycle.cycleDate,
+                        endDate: currentCycle.cycleEnd
+                    } : null,
+                    myEvaluation: myEvalStatus,
+                    teamEvaluations: teamEvaluations,
+                    stats: stats,
+                    tasks: tasks,
+                    employeeMetrics: {
+                        peerFeedback: peerFeedback,
+                        selfGrades: selfGrades,
+                        teamCoverage: teamCoverage
+                    },
+                    activity: [
+                        {
+                            id: 1,
+                            type: "cycle_opened",
+                            actorID: null,
+                            actorName: "System",
+                            action: "opened the evaluation cycle",
+                            statusLabel: null,
+                            statusTone: null,
+                            time: "2 days ago"
+                        },
+                        {
+                            id: 2,
+                            type: "self_eval",
+                            actorID: userID,
+                            actorName: organizationManager.instance.resolveEmployeeName( userID ) || "You",
+                            action: "submitted a self-evaluation",
+                            statusLabel: "Open",
+                            statusTone: "info",
+                            time: "1 day ago"
+                        },
+                        {
+                            id: 3,
+                            type: "peer_eval",
+                            actorID: null,
+                            actorName: "A colleague",
+                            action: "submitted peer feedback for you",
+                            statusLabel: null,
+                            statusTone: null,
+                            time: "6 hours ago"
+                        },
+                        {
+                            id: 4,
+                            type: "review_started",
+                            actorID: null,
+                            actorName: "Your manager",
+                            action: "started the manager review",
+                            statusLabel: "In Review",
+                            statusTone: "warn",
+                            time: "2 hours ago"
+                        }
+                    ]
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*                       Cycle management screens                     */
+
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Used to load the cycle list for the Cycle Management screen. Supervisor-only. Returns every cycle ordered by
+     * createdAt descending, each enriched with localized status, planned dates, lock metadata, and per-cycle evaluation
+     * counts (in-progress vs. completed).
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadCycleList( session ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const activeStatuses = [
+                configurationLoader.evaluationStatus.OPEN,
+                configurationLoader.evaluationStatus.IN_REVIEW,
+                configurationLoader.evaluationStatus.READY
+            ];
+
+            Promise.all( [
+                dataManager.instance.getAllCycles(),
+                dataManager.instance.fetchEvaluations( null, false )
+            ] ).then( ( [ cycles, evaluations ] ) => {
+                const countsByCycle = new Map();
+                evaluations.forEach( ( evaluation ) => {
+                    const cycleID = evaluation?.cycleID;
+                    if ( !cycleID ) return;
+                    const bucket = countsByCycle.get( cycleID ) || { inProgress: 0, completed: 0 };
+                    if ( activeStatuses.includes( evaluation.status ) ) {
+                        bucket.inProgress++;
+                    } else if ( evaluation.status === configurationLoader.evaluationStatus.CLOSED ) {
+                        bucket.completed++;
+                    }
+                    countsByCycle.set( cycleID, bucket );
+                } );
+
+                const projected = cycles.map( ( cycle ) => {
+                    const counts = countsByCycle.get( cycle.cycleID ) || { inProgress: 0, completed: 0 };
+                    return {
+                        cycleID: cycle.cycleID,
+                        name: cycle.name,
+                        status: cycle.status,
+                        statusName: localization.getLabel( configurationLoader.cycleStatus.name( cycle.status ) || cycle.status, session?.language ),
+                        statusTone: this.#cycleStatusTone( cycle.status ),
+                        createdAt: cycle.createdAt || null,
+                        createdBy: cycle.createdBy || null,
+                        createdByName: cycle.createdBy ? ( organizationManager.instance.resolveEmployeeName( cycle.createdBy ) || cycle.createdBy ) : null,
+                        cycleStart: cycle.cycleStart || null,
+                        cycleDate: cycle.cycleDate || null,
+                        cycleEnd: cycle.cycleEnd || null,
+                        actualCloseDate: cycle.actualCloseDate || null,
+                        lockedAt: cycle.lockedAt || null,
+                        lockedBy: cycle.lockedBy || null,
+                        lockedByName: cycle.lockedBy ? ( organizationManager.instance.resolveEmployeeName( cycle.lockedBy ) || cycle.lockedBy ) : null,
+                        counts: counts
+                    };
+                } );
+
+                const activeCycle = projected.find( ( cycle ) => cycle.status === configurationLoader.cycleStatus.ACTIVE ) || null;
+                const hasOpenCycle = projected.some( ( cycle ) => cycle.status !== configurationLoader.cycleStatus.CLOSED );
+                resolve( {
+                    cycles: projected,
+                    activeCycleID: activeCycle ? activeCycle.cycleID : null,
+                    hasOpenCycle: hasOpenCycle,
+                    suggestedCycleID: this.#suggestNextCycleID( projected )
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to load the data backing the Cycle Setup screen for a specific cycle. Supervisor-only. Returns the cycle,
+     * the full role-families catalogue with localized names, the persisted active competency sets for the cycle, the
+     * full competencies dictionary (localized) the picker filters over, the canonical subcategory list, the
+     * validation result, the cap, and a readOnly flag.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {string} cycleID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadCycleSetup( session, cycleID ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            if ( !cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID } ) );
+            }
+
+            const language = session?.language;
+
+            Promise.all( [
+                dataManager.instance.getCycle( cycleID ),
+                dataManager.instance.getRoleFamilies(),
+                competenceFramework.instance.validateCycleForLock( cycleID )
+            ] ).then( ( [ cycle, roleFamilies, validation ] ) => {
+                return Promise.all( Object.keys( roleFamilies ).map( ( familyCode ) =>
+                    dataManager.instance.getActiveCompetencySetsForFamily( familyCode, cycleID )
+                        .then( ( familySets ) => [ familyCode, familySets ] )
+                ) ).then( ( familySetPairs ) => {
+                    const families = Object.entries( roleFamilies ).map( ( [ code, family ] ) => ( {
+                        code,
+                        name: localization.getLabel( family.name || configurationLoader.roleFamilyCode.name( code ) || code, language ),
+                        description: localization.getLabel( family.description || "", language ),
+                        specializations: Object.entries( family.specializations || {} ).map( ( [ specCode, spec ] ) => ( {
+                            code: specCode,
+                            name: localization.getLabel( spec.name || specCode, language ),
+                            description: localization.getLabel( spec.description || "", language ),
+                            eCFMapping: Array.isArray( spec.eCFMapping ) ? spec.eCFMapping : []
+                        } ) )
+                    } ) );
+
+                    const sets = {};
+                    familySetPairs.forEach( ( [ familyCode, familySets ] ) => {
+                        sets[ familyCode ] = {};
+                        Object.entries( familySets ).forEach( ( [ key, codes ] ) => {
+                            sets[ familyCode ][ key ] = {
+                                codes: Array.isArray( codes ) ? codes.slice() : [],
+                                markedEmpty: Array.isArray( codes ) && codes.length === 0 && key !== "baseline"
+                            };
+                        } );
+                    } );
+
+                    const errorsByFamily = {};
+                    if ( validation && Array.isArray( validation.errors ) ) {
+                        validation.errors.forEach( ( error ) => {
+                            const groupKey = error.specialization ? `${ error.family }.${ error.specialization }` : error.family;
+                            errorsByFamily[ groupKey ] = errorsByFamily[ groupKey ] || [];
+                            errorsByFamily[ groupKey ].push( {
+                                rule: error.rule,
+                                detail: error.detail || ""
+                            } );
+                        } );
+                    }
+
+                    const dictionary = ( configurationLoader.configCompetencies && configurationLoader.configCompetencies.competencies ) || {};
+                    const categories = ( configurationLoader.configCompetencies && configurationLoader.configCompetencies.categories ) || {};
+
+                    const competenciesByCode = {};
+                    Object.entries( dictionary ).forEach( ( [ code, competency ] ) => {
+                        const subcategoryConfig = categories[ competency.category ]?.subcategories?.[ competency.subcategory ];
+                        competenciesByCode[ code ] = {
+                            code,
+                            name: localization.getLabel( competency.name, language ),
+                            description: localization.getLabel( competency.description, language ),
+                            category: competency.category,
+                            categoryName: localization.getLabel( categories[ competency.category ]?.name || competency.category, language ),
+                            subcategory: competency.subcategory,
+                            subcategoryName: localization.getLabel( subcategoryConfig?.name || competency.subcategory, language ),
+                            subcategoryDescription: localization.getLabel( subcategoryConfig?.description || "", language ),
+                            relevancyArchetype: competency.relevancyArchetype,
+                            eCFMapping: Array.isArray( competency.eCFMapping ) ? _.cloneDeep( competency.eCFMapping ) : []
+                        };
+                    } );
+
+                    const subcategories = [];
+                    Object.entries( categories ).forEach( ( [ catCode, category ] ) => {
+                        Object.entries( category.subcategories || {} ).forEach( ( [ subCode, sub ] ) => {
+                            subcategories.push( {
+                                code: subCode,
+                                name: localization.getLabel( sub.name || subCode, language ),
+                                description: localization.getLabel( sub.description || "", language ),
+                                categoryCode: catCode,
+                                categoryName: localization.getLabel( category.name || catCode, language )
+                            } );
+                        } );
+                    } );
+
+                    resolve( {
+                        cycle: {
+                            cycleID: cycle.cycleID,
+                            name: cycle.name,
+                            status: cycle.status,
+                            statusName: localization.getLabel( configurationLoader.cycleStatus.name( cycle.status ) || cycle.status, language ),
+                            statusTone: this.#cycleStatusTone( cycle.status ),
+                            cycleStart: cycle.cycleStart || null,
+                            cycleDate: cycle.cycleDate || null,
+                            cycleEnd: cycle.cycleEnd || null,
+                            teamFeedbackDeadline: cycle.teamFeedbackDeadline || null,
+                            actualCloseDate: cycle.actualCloseDate || null,
+                            lockedAt: cycle.lockedAt || null,
+                            lockedBy: cycle.lockedBy || null,
+                            lockedByName: cycle.lockedBy ? ( organizationManager.instance.resolveEmployeeName( cycle.lockedBy ) || cycle.lockedBy ) : null,
+                            createdAt: cycle.createdAt || null,
+                            createdBy: cycle.createdBy || null,
+                            createdByName: cycle.createdBy ? ( organizationManager.instance.resolveEmployeeName( cycle.createdBy ) || cycle.createdBy ) : null
+                        },
+                        isReadOnly: cycle.status !== configurationLoader.cycleStatus.PLANNING,
+                        cap: configurationLoader.getSetting( "performanceAppraisals.activeCompetencySetCap", 30 ),
+                        families,
+                        sets,
+                        competenciesByCode,
+                        poolByFamily: configurationLoader.configRoleFamilyCompetencies,
+                        excludedFamilies: Array.isArray( cycle.excludedFamilies ) ? cycle.excludedFamilies : [],
+                        subcategories,
+                        validation: {
+                            valid: validation ? validation.valid : true,
+                            errorsByFamily
+                        }
+                    } );
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to create a new cycle in a PLANNING state. Supervisor-only.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.cycleID
+     * @param {string} params.name
+     * @param {string} params.cycleStart
+     * @param {string} params.cycleDate
+     * @param {string} params.cycleEnd
+     * @returns {Promise<Cycle>}
+     * @private
+     */
+    #createCycle( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = String( params?.cycleID || "" ).trim();
+            const name = String( params?.name || "" ).trim();
+            const cycleStart = String( params?.cycleStart || "" ).trim();
+            const cycleDate = String( params?.cycleDate || "" ).trim();
+            const cycleEnd = String( params?.cycleEnd || "" ).trim();
+
+            if ( !cycleID || !name || !cycleEnd ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID, name, cycleEnd } ) );
+            }
+            if ( !/^\d{4}-H[12]$/.test( cycleID ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, {
+                    details: "error.cycle.invalid-id-format",
+                    cycleID
+                } ) );
+            }
+            if ( cycleStart && cycleEnd && cycleStart > cycleEnd ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.cycle.invalid-date-range" } ) );
+            }
+
+            dataManager.instance.getAllCycles().then( ( cycles ) => {
+                const openCycle = cycles.find( ( cycle ) => cycle.status !== configurationLoader.cycleStatus.CLOSED );
+                if ( openCycle ) {
+                    return reject( exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: `Cannot create a new cycle while cycle '${ openCycle.cycleID }' is still '${ openCycle.status }'. Close it first.` }, exceptions.httpCode.C_409 ) );
+                }
+                dataManager.instance.createCycle( {
+                    cycleID,
+                    name,
+                    cycleStart: cycleStart || null,
+                    cycleDate: cycleDate || cycleEnd,
+                    cycleEnd,
+                    createdBy: userID,
+                    excludedFamilies: []
+                } ).then( ( cycle ) => {
+                    resolve( cycle );
+                } ).catch( ( error ) => {
+                    reject( exceptions.raise( error ) );
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to lock a cycle: validates and transitions PLANNING → ACTIVE. Supervisor-only. On validation failure the
+     * structured errors propagate to the caller so the UI can render them grouped by family.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.cycleID
+     * @returns {Promise<Cycle>}
+     * @private
+     */
+    #lockCycle( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = String( params?.cycleID || "" ).trim();
+            if ( !cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID } ) );
+            }
+
+            competenceFramework.instance.lockCycle( cycleID, userID ).then( ( cycle ) => {
+                resolve( cycle );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to close a cycle: transitions ACTIVE → CLOSED. Supervisor-only.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.cycleID
+     * @returns {Promise<Cycle>}
+     * @private
+     */
+    #closeCycle( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = String( params?.cycleID || "" ).trim();
+            if ( !cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID } ) );
+            }
+
+            competenceFramework.instance.closeCycle( cycleID ).then( ( cycle ) => {
+                resolve( cycle );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to persist the competency codes for a (roleFamily, key, cycleID) tuple. Supervisor-only. Refuses writes
+     * when the cycle is not in PLANNING. Validates that every code exists in the dictionary and that the key is a
+     * valid `baseline` or specialization code under the parent family.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.cycleID
+     * @param {string} params.roleFamily
+     * @param {string} params.key - Literal "baseline" or a specialization code under the parent family.
+     * @param {string[]} params.codes
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #setActiveCompetencySet( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = String( params?.cycleID || "" ).trim();
+            const roleFamily = String( params?.roleFamily || "" ).trim();
+            const key = String( params?.key || "" ).trim();
+            const codes = Array.isArray( params?.codes ) ? params.codes.map( String ) : null;
+
+            if ( !cycleID || !roleFamily || !key || !codes ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID, roleFamily, key, codes: !!codes } ) );
+            }
+
+            this.#assertCyclePlanning( cycleID )
+                .then( () => this.#assertValidFamilyAndKey( roleFamily, key ) )
+                .then( () => this.#assertCodesKnown( codes ) )
+                .then( () => this.#assertCodesInPool( roleFamily, codes ) )
+                .then( () => dataManager.instance.setActiveCompetencySet( roleFamily, key, cycleID, codes ) )
+                .then( ( storedCodes ) => {
+                    return dataManager.instance.appendAuditEntry( {
+                        subjectType: "activeCompetencySet",
+                        subjectID: `${ cycleID }|${ roleFamily }|${ key }`,
+                        changedBy: userID,
+                        field: "codes",
+                        oldValue: null,
+                        newValue: storedCodes
+                    } ).then( () => ( { cycleID, roleFamily, key, codes: storedCodes } ) );
+                } )
+                .then( resolve )
+                .catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Used to mark a specialization's active set as intentionally empty for the cycle. Supervisor-only. Persists an
+     * explicit empty array, so the UI can distinguish "intentionally empty" (entry presents, codes.length === 0) from
+     * "not configured" (entry absent).
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.cycleID
+     * @param {string} params.roleFamily
+     * @param {string} params.key - Must be a specialization code (cannot be "baseline").
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #markActiveSetEmpty( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = String( params?.cycleID || "" ).trim();
+            const roleFamily = String( params?.roleFamily || "" ).trim();
+            const key = String( params?.key || "" ).trim();
+
+            if ( !cycleID || !roleFamily || !key ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID, roleFamily, key } ) );
+            }
+            if ( key === "baseline" ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.cycle.cannot-mark-baseline-empty" } ) );
+            }
+
+            this.#assertCyclePlanning( cycleID )
+                .then( () => this.#assertValidFamilyAndKey( roleFamily, key ) )
+                .then( () => dataManager.instance.setActiveCompetencySet( roleFamily, key, cycleID, [] ) )
+                .then( () => {
+                    return dataManager.instance.appendAuditEntry( {
+                        subjectType: "activeCompetencySet",
+                        subjectID: `${ cycleID }|${ roleFamily }|${ key }`,
+                        changedBy: userID,
+                        field: "markedEmpty",
+                        oldValue: null,
+                        newValue: true
+                    } ).then( () => ( { cycleID, roleFamily, key, codes: [], markedEmpty: true } ) );
+                } )
+                .then( resolve )
+                .catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Used to clear a specialization's active set for the cycle, reverting it from "intentionally empty" back to "not
+     * configured" (entry removed). Supervisor-only. The inverse of {@link #markActiveSetEmpty}; baseline sets cannot be
+     * cleared this way.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.cycleID
+     * @param {string} params.roleFamily
+     * @param {string} params.key - Must be a specialization code (cannot be "baseline").
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #clearActiveCompetencySet( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = String( params?.cycleID || "" ).trim();
+            const roleFamily = String( params?.roleFamily || "" ).trim();
+            const key = String( params?.key || "" ).trim();
+
+            if ( !cycleID || !roleFamily || !key ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID, roleFamily, key } ) );
+            }
+            if ( key === "baseline" ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.cycle.cannot-clear-baseline" } ) );
+            }
+
+            this.#assertCyclePlanning( cycleID )
+                .then( () => this.#assertValidFamilyAndKey( roleFamily, key ) )
+                .then( () => dataManager.instance.deleteActiveCompetencySet( roleFamily, key, cycleID ) )
+                .then( () => {
+                    return dataManager.instance.appendAuditEntry( {
+                        subjectType: "activeCompetencySet",
+                        subjectID: `${ cycleID }|${ roleFamily }|${ key }`,
+                        changedBy: userID,
+                        field: "markedEmpty",
+                        oldValue: true,
+                        newValue: null
+                    } ).then( () => ( { cycleID, roleFamily, key, cleared: true } ) );
+                } )
+                .then( resolve )
+                .catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Includes or excludes a role family from a cycle. Supervisor-only, PLANNING-only. An excluded family is skipped by
+     * lock validation and its sub-tree is hidden in Cycle Setup, letting a cycle be locked with only the families that
+     * can be completed.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.cycleID
+     * @param {string} params.roleFamily
+     * @param {boolean} params.excluded - true to exclude the family, false to include it.
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #setFamilyExcluded( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = String( params?.cycleID || "" ).trim();
+            const roleFamily = String( params?.roleFamily || "" ).trim();
+            const excluded = params?.excluded === true;
+
+            if ( !cycleID || !roleFamily ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID, roleFamily } ) );
+            }
+            if ( !configurationLoader.configRoleFamilies[ roleFamily ] ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: `Unknown role family '${ roleFamily }'.` } ) );
+            }
+
+            this.#assertCyclePlanning( cycleID )
+                .then( ( cycle ) => {
+                    const set = new Set( Array.isArray( cycle.excludedFamilies ) ? cycle.excludedFamilies : [] );
+                    if ( excluded ) {
+                        set.add( roleFamily );
+                    } else {
+                        set.delete( roleFamily );
+                    }
+                    return dataManager.instance.setCycleExcludedFamilies( cycleID, Array.from( set ) );
+                } )
+                .then( ( updated ) => resolve( { cycleID, excludedFamilies: updated.excludedFamilies } ) )
+                .catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Persists the cycle-wide team-feedback deadline from Cycle Setup. Supervisor-only, PLANNING-only. The date must be
+     * a valid YYYY-MM-DD on or before the manager-review deadline (cycleDate) and on or after the cycle start.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.cycleID
+     * @param {string} params.teamFeedbackDeadline - YYYY-MM-DD.
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #setCycleTeamFeedbackDeadline( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = String( params?.cycleID || "" ).trim();
+            const teamFeedbackDeadline = String( params?.teamFeedbackDeadline || "" ).trim();
+
+            if ( !cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID } ) );
+            }
+            if ( !/^\d{4}-\d{2}-\d{2}$/.test( teamFeedbackDeadline ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.cycle.invalid-team-feedback-deadline" } ) );
+            }
+
+            this.#assertCyclePlanning( cycleID )
+                .then( ( cycle ) => {
+                    // The team window must sit within the cycle: on/after the start and on/before the manager-review deadline.
+                    const tooLate = cycle.cycleDate && teamFeedbackDeadline > cycle.cycleDate;
+                    const tooEarly = cycle.cycleStart && teamFeedbackDeadline < cycle.cycleStart;
+                    if ( tooLate || tooEarly ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.cycle.team-feedback-deadline-out-of-range" }, exceptions.httpCode.C_422 );
+                    }
+                    return dataManager.instance.setCycleTeamFeedbackDeadline( cycleID, teamFeedbackDeadline );
+                } )
+                .then( ( updated ) => resolve( { cycleID, teamFeedbackDeadline: updated.teamFeedbackDeadline } ) )
+                .catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Asserts that the cycle is in a PLANNING state. Used as a precondition by every active-set mutation.
+     *
+     * @method
+     * @param {string} cycleID
+     * @returns {Promise<Cycle>}
+     * @private
+     */
+    #assertCyclePlanning( cycleID ) {
+        return dataManager.instance.getCycle( cycleID ).then( ( cycle ) => {
+            if ( cycle.status !== configurationLoader.cycleStatus.PLANNING ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, {
+                    details: "error.cycle.not-in-planning",
+                    cycleID,
+                    status: cycle.status
+                }, exceptions.httpCode.C_422 );
+            }
+            return cycle;
+        } );
+    }
+
+    /**
+     * Asserts that the role family exists and the key is `baseline` or one of the family's specialization codes.
+     *
+     * @method
+     * @param {string} roleFamily
+     * @param {string} key
+     * @returns {Promise<void>}
+     * @private
+     */
+    #assertValidFamilyAndKey( roleFamily, key ) {
+        const families = configurationLoader.configRoleFamilies || {};
+        const family = families[ roleFamily ];
+        if ( !family ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: `Role family '${ roleFamily }' is not defined.` }, exceptions.httpCode.C_404 ) );
+        }
+        if ( key === "baseline" ) {
+            return Promise.resolve();
+        }
+        const validSpecs = family.specializations || {};
+        if ( !validSpecs[ key ] ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: `Specialization '${ key }' is not valid for family '${ roleFamily }'.` } ) );
+        }
+        return Promise.resolve();
+    }
+
+    /**
+     * Asserts every code is present in the competencies' dictionary.
+     *
+     * @method
+     * @param {string[]} codes
+     * @returns {Promise<void>}
+     * @private
+     */
+    #assertCodesKnown( codes ) {
+        const dictionary = ( configurationLoader.configCompetencies && configurationLoader.configCompetencies.competencies ) || {};
+        const unknown = codes.filter( ( code ) => !dictionary[ code ] );
+        if ( unknown.length > 0 ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: `Unknown competency codes: ${ unknown.join( ", " ) }` } ) );
+        }
+        return Promise.resolve();
+    }
+
+    /**
+     * Asserts every code belongs to the role family's competency pool (the applicability universe). A family with no
+     * defined pool is not constrained. Mirrors the lock-time `pool-membership` rule so out-of-pool codes are rejected at
+     * save time, not just at lock time.
+     *
+     * @method
+     * @param {string} roleFamily
+     * @param {string[]} codes
+     * @returns {Promise<void>}
+     * @private
+     */
+    #assertCodesInPool( roleFamily, codes ) {
+        const pool = configurationLoader.getCompetencyPool( roleFamily );
+        if ( pool.length === 0 ) {
+            return Promise.resolve();
+        }
+        const poolSet = new Set( pool );
+        const outside = codes.filter( ( code ) => !poolSet.has( code ) );
+        if ( outside.length > 0 ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: `Competency codes not in the '${ roleFamily }' pool: ${ outside.join( ", " ) }` } ) );
+        }
+        return Promise.resolve();
+    }
+
+    /**
+     * Maps a cycle status to a status-pill tone variant. PLANNING → info, ACTIVE → success, CLOSED → muted.
+     * <br/>
+     * NOTE: This is intentionally a separate scale from the evaluation status tones (see {@link getEvalTone}
+     * inside {@link #loadEmployeeList}). The two lifecycles only overlap on "info" today (PLANNING and OPEN), which
+     * is fine semantically — but if visual differentiation is ever needed, the door is open here.
+     *
+     * @method
+     * @param {CycleStatusValue|string} status
+     * @returns {"info"|"success"|"muted"|""}
+     * @private
+     */
+    #cycleStatusTone( status ) {
+        if ( status === configurationLoader.cycleStatus.PLANNING ) return "info";
+        if ( status === configurationLoader.cycleStatus.ACTIVE ) return "success";
+        if ( status === configurationLoader.cycleStatus.CLOSED ) return "muted";
+        return "";
+    }
+
+    /**
+     * Maps an evaluation status to a status-pill tone variant. OPEN → info, IN_REVIEW → warn, READY → success.
+     * Returns "" for any other status (e.g., CLOSED, NOT_STARTED) so the consumer can fall back to the default pill.
+     * <br/>
+     * NOTE: Two inline copies of this helper still live in {@link #loadEmployeeList} and the dashboard projection.
+     * Future cleanup can route them through here; this method exists now because the People > Evaluations data-grid
+     * needs the tone to render the StatusPill consistently with the org chart.
+     *
+     * @method
+     * @param {string} status
+     * @returns {"info"|"warn"|"success"|""}
+     * @private
+     */
+    #evaluationStatusTone( status ) {
+        if ( status === configurationLoader.evaluationStatus.OPEN ) return "info";
+        if ( status === configurationLoader.evaluationStatus.IN_REVIEW ) return "warn";
+        if ( status === configurationLoader.evaluationStatus.READY ) return "success";
+        return "";
+    }
+
+    /**
+     * Suggests the next free cycle ID based on today's half-year. Iterates YYYY-Hx forward until an unused ID is
+     * found. Used as the default value in the Create Cycle modal.
+     *
+     * @method
+     * @param {Array<{cycleID: string}>} existingCycles
+     * @returns {string}
+     * @private
+     */
+    #suggestNextCycleID( existingCycles ) {
+        const used = new Set( ( existingCycles || [] ).map( ( cycle ) => cycle.cycleID ) );
+        const today = new Date();
+        let year = today.getUTCFullYear();
+        let half = ( today.getUTCMonth() < 6 ) ? 2 : 1;
+        if ( half === 1 ) {
+            year++;
+        }
+        // Iterate forward until we land on an unused slot.
+        for ( let i = 0; i < 20; i++ ) {
+            const candidate = `${ year }-H${ half }`;
+            if ( !used.has( candidate ) ) {
+                return candidate;
+            }
+            if ( half === 1 ) {
+                half = 2;
+            } else {
+                half = 1;
+                year++;
+            }
+        }
+        return `${ year }-H${ half }`;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*                      Employee management screen                    */
+
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Loads the employee list for the management screen. Scope-aware: a Supervisor sees every employee; a Manager
+     * sees only their direct or indirect reports (via `isSuperiorManagerOfEmployee`). Also returns the dropdown
+     * options the detail form needs.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadEmployeeManagementList( session ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR, configurationLoader.roleCode.MANAGER );
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+
+            dataManager.instance.fetchEmployees().then( ( employees ) => {
+                const filtered = isSupervisor
+                    ? employees
+                    : employees.filter( ( employee ) => employee.employeeID !== userID && organizationManager.instance.isSuperiorManagerOfEmployee( userID, employee.employeeID ) );
+
+                const rows = filtered.map( ( employee ) => this.#projectEmployeeRow( employee, session ) );
+                rows.sort( ( a, b ) => ( a.name || "" ).localeCompare( b.name || "" ) );
+
+                resolve( {
+                    scope: isSupervisor ? "supervisor" : "manager",
+                    employees: rows,
+                    options: this.#buildEmployeeFormOptions( session )
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Loads the full detail for a single employee, including manager context, in-flight evaluation count, and the
+     * audit log (Supervisor only). Manager scope is enforced — a Manager cannot read the detail of an employee not
+     * under their reporting chain.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {string} employeeID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadEmployeeDetail( session, employeeID ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR, configurationLoader.roleCode.MANAGER );
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+
+            if ( !employeeID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID } ) );
+            }
+
+            dataManager.instance.fetchEmployee( employeeID ).then( ( employee ) => {
+                if ( !isSupervisor && !organizationManager.instance.isSuperiorManagerOfEmployee( userID, employeeID ) ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
+                }
+
+                const activeStatuses = [
+                    configurationLoader.evaluationStatus.OPEN,
+                    configurationLoader.evaluationStatus.IN_REVIEW,
+                    configurationLoader.evaluationStatus.READY
+                ];
+
+                return Promise.all( [
+                    dataManager.instance.fetchEvaluations( employeeID, false ),
+                    isSupervisor ? dataManager.instance.getAuditEntriesForEmployee( employeeID ) : Promise.resolve( [] )
+                ] ).then( ( [ evaluations, auditEntries ] ) => {
+                    const inFlightList = ( evaluations || [] ).filter( ( evaluation ) => activeStatuses.includes( evaluation.status ) );
+                    const auditProjected = ( auditEntries || [] ).map( ( entry ) => ( {
+                        entryID: entry.entryID,
+                        timestamp: entry.timestamp,
+                        changedBy: entry.changedBy,
+                        changedByName: entry.changedBy ? ( organizationManager.instance.resolveEmployeeName( entry.changedBy ) || entry.changedBy ) : null,
+                        field: entry.field,
+                        oldValue: entry.oldValue,
+                        newValue: entry.newValue,
+                        reason: entry.reason || null
+                    } ) );
+
+                    const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee );
+                    const isSelf = employeeID === userID;
+                    const isDirectManager = !isSupervisor && organizationManager.instance.isSuperiorManagerOfEmployee( userID, employeeID );
+
+                    resolve( {
+                        employee: this.#projectEmployeeDetail( employee, session ),
+                        manager: organizationContext,
+                        inFlightEvaluations: {
+                            count: inFlightList.length,
+                            entries: inFlightList.map( ( evaluation ) => ( {
+                                evaluationID: evaluation.evaluationID,
+                                shortID: evaluation.shortID,
+                                cycleID: evaluation.cycleID,
+                                status: evaluation.status,
+                                statusName: configurationLoader.evaluationStatus.name( evaluation.status ),
+                                statusTone: this.#evaluationStatusTone( evaluation.status ),
+                                // Used by the People > Evaluations tab to render a level pip and an interview-date column.
+                                stageLevel: ( evaluation.stageLevel || ( employee?.career?.level && employee?.career?.stage ? `${ employee.career.level }${ employee.career.stage }` : "" ) ) || "",
+                                interviewDate: evaluation.interviewDate || null
+                            } ) )
+                        },
+                        audit: auditProjected,
+                        permissions: {
+                            isSupervisor,
+                            isDirectManager,
+                            isSelf,
+                            canEditAllFields: isSupervisor,
+                            canEditSpecialization: isSupervisor || isDirectManager,
+                            canViewAudit: isSupervisor
+                        }
+                    } );
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Creates a new employee record. Supervisor-only. Auto-assigns the next available employeeID. Validates the
+     * record against the schema rules and writes a single "created" audit entry.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {Object} params.employee
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #createEmployee( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const input = params?.employee;
+            if ( !input || typeof input !== "object" ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employee: !!input } ) );
+            }
+
+            dataManager.instance.fetchEmployees().then( ( employees ) => {
+                const nextID = this.#deriveNextEmployeeID( employees );
+                const newEmployee = {
+                    employeeID: nextID,
+                    email: String( input.email || "" ).trim() || undefined,
+                    employmentStatus: input.employmentStatus || "active",
+                    personal: {
+                        firstName: String( input.personal?.firstName || "" ).trim(),
+                        lastName: String( input.personal?.lastName || "" ).trim(),
+                        workMode: input.personal?.workMode || "Full-time",
+                        workLocation: input.personal?.workLocation || "On-site",
+                        ...( input.personal?.birthDate ? { birthDate: input.personal.birthDate } : {} ),
+                        ...( input.personal?.gender ? { gender: input.personal.gender } : {} )
+                    },
+                    career: {
+                        organizationUnitID: String( input.career?.organizationUnitID || "" ).trim(),
+                        roleFamily: String( input.career?.roleFamily || "" ).trim(),
+                        specialization: input.career?.specialization || null,
+                        level: String( input.career?.level || "" ).trim(),
+                        stage: Number( input.career?.stage ),
+                        ...( input.career?.startingDate ? { startingDate: input.career.startingDate } : {} )
+                    }
+                };
+                // Strip undefined fields so the persisted record is clean.
+                if ( !newEmployee.email ) delete newEmployee.email;
+
+                const validationError = this.#validateEmployeeFields( newEmployee );
+                if ( validationError ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: validationError }, exceptions.httpCode.C_422 );
+                }
+
+                return dataManager.instance.saveEmployee( newEmployee ).then( ( saved ) => {
+                    return dataManager.instance.appendAuditEntry( {
+                        subjectType: "employee",
+                        subjectID: saved.employeeID,
+                        changedBy: userID,
+                        field: "__created__",
+                        oldValue: null,
+                        newValue: saved
+                    } ).then( () => organizationManager.instance.buildOrganizationChart().then( () => saved ) );
+                } );
+            } ).then( ( saved ) => {
+                resolve( this.#projectEmployeeDetail( saved, session ) );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Updates an employee record with the supplied field diff. Field-level permission gating per §4: a Supervisor can
+     * edit every field; a Manager (only on direct reports) can edit `career.specialization` only; all other edits are
+     * rejected with 403. Each changed field writes one audit entry through DataManager.appendAuditEntry.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.employeeID
+     * @param {Object.<string, *>} params.fields - Dotted-path field paths mapped to new values.
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #updateEmployee( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR, configurationLoader.roleCode.MANAGER );
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+
+            const employeeID = String( params?.employeeID || "" ).trim();
+            const fields = params?.fields;
+            if ( !employeeID || !fields || typeof fields !== "object" ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID, hasFields: !!fields } ) );
+            }
+
+            dataManager.instance.fetchEmployee( employeeID ).then( ( employee ) => {
+                const isDirectManager = !isSupervisor && organizationManager.instance.isSuperiorManagerOfEmployee( userID, employeeID );
+                if ( !isSupervisor && !isDirectManager ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
+                }
+
+                const updated = _.cloneDeep( employee );
+                const changes = [];
+
+                for ( const [ path, rawValue ] of Object.entries( fields ) ) {
+                    this.#assertEditableField( path, { isSupervisor, isDirectManager } );
+                    const oldValue = this.#getFieldByPath( updated, path );
+                    const newValue = this.#normalizeFieldValue( path, rawValue );
+                    if ( this.#fieldsEqual( oldValue, newValue ) ) {
+                        continue;
+                    }
+                    this.#setFieldByPath( updated, path, newValue );
+                    changes.push( { path, oldValue, newValue } );
+                }
+
+                if ( changes.length === 0 ) {
+                    resolve( this.#projectEmployeeDetail( employee, session ) );
+                    return;
+                }
+
+                const validationError = this.#validateEmployeeFields( updated );
+                if ( validationError ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: validationError }, exceptions.httpCode.C_422 );
+                }
+
+                return dataManager.instance.saveEmployee( updated ).then( ( saved ) => {
+                    return Promise.all( changes.map( ( change ) => dataManager.instance.appendAuditEntry( {
+                        subjectType: "employee",
+                        subjectID: saved.employeeID,
+                        changedBy: userID,
+                        field: change.path,
+                        oldValue: change.oldValue,
+                        newValue: change.newValue
+                    } ) ) ).then( () => organizationManager.instance.buildOrganizationChart().then( () => saved ) );
+                } ).then( ( saved ) => {
+                    resolve( this.#projectEmployeeDetail( saved, session ) );
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Projects an employee record for the master list. Strips internal-only data, resolves localized labels, and
+     * surfaces the resolved manager (via the org chart).
+     *
+     * @method
+     * @param {Employee} employee
+     * @param {TiSession} session
+     * @returns {Object}
+     * @private
+     */
+    #projectEmployeeRow( employee, session ) {
+        const firstName = employee?.personal?.firstName || "";
+        const lastName = employee?.personal?.lastName || "";
+        const roleFamily = employee?.career?.roleFamily || "";
+        const specialization = employee?.career?.specialization || null;
+        const level = employee?.career?.level || "";
+        const stage = employee?.career?.stage || null;
+        const stageLevel = ( level && stage ) ? `${ level }${ stage }` : ( level ? `${ level }1` : "" );
+        const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee ) || {};
+
+        return {
+            employeeID: employee.employeeID,
+            name: `${ firstName } ${ lastName }`.trim(),
+            email: employee.email || "",
+            employmentStatus: employee.employmentStatus || "active",
+            roleFamily,
+            roleFamilyName: roleFamily ? localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ roleFamily ]?.name || roleFamily, session?.language ) : "",
+            specialization,
+            specializationName: ( roleFamily && specialization )
+                ? localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ roleFamily ]?.specializations?.[ specialization ]?.name || specialization, session?.language )
+                : null,
+            level,
+            stage,
+            stageLevel,
+            organizationUnitID: employee?.career?.organizationUnitID || "",
+            organizationUnitName: organizationContext.organizationUnitName || "",
+            managerID: organizationContext.managerID || null,
+            managerName: organizationContext.managerName || null
+        };
+    }
+
+    /**
+     * Projects a full employee record for the detail panel. Returns the persisted shape augmented with localized
+     * labels for the form.
+     *
+     * @method
+     * @param {Employee} employee
+     * @param {TiSession} session
+     * @returns {Object}
+     * @private
+     */
+    #projectEmployeeDetail( employee, session ) {
+        const projection = this.#projectEmployeeRow( employee, session );
+        return {
+            ...projection,
+            personal: {
+                firstName: employee?.personal?.firstName || "",
+                lastName: employee?.personal?.lastName || "",
+                birthDate: employee?.personal?.birthDate || null,
+                gender: employee?.personal?.gender || null,
+                workMode: employee?.personal?.workMode || "",
+                workLocation: employee?.personal?.workLocation || ""
+            },
+            career: {
+                organizationUnitID: employee?.career?.organizationUnitID || "",
+                roleFamily: employee?.career?.roleFamily || "",
+                specialization: employee?.career?.specialization || null,
+                level: employee?.career?.level || "",
+                stage: employee?.career?.stage || null,
+                startingDate: employee?.career?.startingDate || null
+            }
+        };
+    }
+
+    /**
+     * Builds the dropdown options used by the detail form (role families with their specializations, stage levels,
+     * organization units, employment statuses, work modes / locations). All localized via session language.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Object}
+     * @private
+     */
+    #buildEmployeeFormOptions( session ) {
+        const language = session?.language;
+        const families = configurationLoader.configRoleFamilies || {};
+        const roleFamilies = Object.entries( families ).map( ( [ code, family ] ) => ( {
+            code,
+            name: localization.getLabel( family.name || code, language ),
+            specializations: Object.entries( family.specializations || {} ).map( ( [ specCode, spec ] ) => ( {
+                code: specCode,
+                name: localization.getLabel( spec.name || specCode, language )
+            } ) )
+        } ) );
+
+        // Stage-level dual-track ladder, derived from config.stage-levels.json (single source of truth).
+        const stageLevels = configurationLoader.getStageLevelLadder();
+
+        const orgStructure = configurationLoader.configOrganizationStructure || {};
+        const organizationUnits = Object.entries( orgStructure ).map( ( [ id, unit ] ) => ( {
+            id: unit.id || id,
+            name: unit.displayName || unit.name || id,
+            parent: unit.parent || null,
+            managerID: unit.managerID || null,
+            managerName: unit.managerID ? ( organizationManager.instance.resolveEmployeeName( unit.managerID ) || unit.managerID ) : null
+        } ) ).sort( ( a, b ) => ( a.name || "" ).localeCompare( b.name || "" ) );
+
+        return {
+            roleFamilies,
+            stageLevels,
+            organizationUnits,
+            employmentStatuses: [ "active", "on-leave", "terminated" ],
+            workModes: [ "Full-time", "Part-time", "Contract" ],
+            workLocations: [ "On-site", "Hybrid", "Remote" ]
+        };
+    }
+
+    /**
+     * Returns the set of field paths a non-Supervisor manager is allowed to edit on a direct report.
+     *
+     * @method
+     * @returns {Set<string>}
+     * @private
+     */
+    #managerEditableFields() {
+        return new Set( [ "career.specialization" ] );
+    }
+
+    /**
+     * Throws E_SEC_UNAUTHORIZED_ACCESS when the supplied field is outside the caller's edit scope.
+     *
+     * @method
+     * @param {string} fieldPath
+     * @param {{isSupervisor: boolean, isDirectManager: boolean}} actorScope
+     * @private
+     */
+    #assertEditableField( fieldPath, actorScope ) {
+        if ( actorScope.isSupervisor ) return;
+        if ( actorScope.isDirectManager && this.#managerEditableFields().has( fieldPath ) ) return;
+        throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: `Field '${ fieldPath }' is not editable by the current role.` }, exceptions.httpCode.C_403 );
+    }
+
+    /**
+     * Reads a value out of an object by dotted path (e.g., "career.roleFamily").
+     *
+     * @method
+     * @param {Object} obj
+     * @param {string} path
+     * @returns {*}
+     * @private
+     */
+    #getFieldByPath( obj, path ) {
+        const parts = path.split( "." );
+        let current = obj;
+        for ( const part of parts ) {
+            if ( current === null || current === undefined ) return undefined;
+            current = current[ part ];
+        }
+        return ( current === undefined ) ? null : current;
+    }
+
+    /**
+     * Sets a value into an object by dotted path, creating any intermediate objects as needed.
+     *
+     * @method
+     * @param {Object} obj
+     * @param {string} path
+     * @param {*} value
+     * @private
+     */
+    #setFieldByPath( obj, path, value ) {
+        const parts = path.split( "." );
+        let current = obj;
+        for ( let i = 0; i < parts.length - 1; i++ ) {
+            if ( current[ parts[ i ] ] === undefined || current[ parts[ i ] ] === null ) {
+                current[ parts[ i ] ] = {};
+            }
+            current = current[ parts[ i ] ];
+        }
+        const lastPart = parts[ parts.length - 1 ];
+        if ( value === null || value === undefined || value === "" ) {
+            // For specialization specifically, store null. For optional scalars (email, birthDate), delete the key.
+            if ( path === "career.specialization" ) {
+                current[ lastPart ] = null;
+            } else if ( path === "email" || path === "personal.birthDate" || path === "personal.gender" || path === "career.startingDate" ) {
+                delete current[ lastPart ];
+            } else {
+                current[ lastPart ] = value;
+            }
+        } else {
+            current[ lastPart ] = value;
+        }
+    }
+
+    /**
+     * Normalizes a raw submitted value for the given field path — coerces stage to integer, trims strings, leaves
+     * null / empty as-is.
+     *
+     * @method
+     * @param {string} path
+     * @param {*} rawValue
+     * @returns {*}
+     * @private
+     */
+    #normalizeFieldValue( path, rawValue ) {
+        if ( rawValue === null || rawValue === undefined ) {
+            return null;
+        }
+        if ( path === "career.stage" ) {
+            const n = Number( rawValue );
+            return Number.isFinite( n ) ? n : null;
+        }
+        if ( typeof rawValue === "string" ) {
+            return rawValue.trim();
+        }
+        return rawValue;
+    }
+
+    /**
+     * Loose equality used to detect a no-op field change (audit log entries are only written for real changes).
+     *
+     * @method
+     * @param {*} a
+     * @param {*} b
+     * @returns {boolean}
+     * @private
+     */
+    #fieldsEqual( a, b ) {
+        const norm = ( v ) => ( v === undefined || v === "" ) ? null : v;
+        return norm( a ) === norm( b );
+    }
+
+    /**
+     * Runs the cross-field validation rules on a candidate employee record (used by both create and update before
+     * persisting). Returns an i18n key when invalid, null when valid.
+     *
+     * @method
+     * @param {Employee} employee
+     * @returns {string|null}
+     * @private
+     */
+    #validateEmployeeFields( employee ) {
+        const firstName = employee?.personal?.firstName;
+        const lastName = employee?.personal?.lastName;
+        if ( !firstName || !lastName ) {
+            return "error.employee.missing-name";
+        }
+
+        const workMode = employee?.personal?.workMode;
+        if ( ![ "Full-time", "Part-time", "Contract" ].includes( workMode ) ) {
+            return "error.employee.invalid-work-mode";
+        }
+        const workLocation = employee?.personal?.workLocation;
+        if ( ![ "On-site", "Hybrid", "Remote" ].includes( workLocation ) ) {
+            return "error.employee.invalid-work-location";
+        }
+
+        const employmentStatus = employee?.employmentStatus || "active";
+        if ( ![ "active", "on-leave", "terminated" ].includes( employmentStatus ) ) {
+            return "error.employee.invalid-employment-status";
+        }
+
+        const roleFamily = employee?.career?.roleFamily;
+        const families = configurationLoader.configRoleFamilies || {};
+        if ( !roleFamily || !families[ roleFamily ] ) {
+            return "error.employee.invalid-role-family";
+        }
+        const specialization = employee?.career?.specialization || null;
+        if ( specialization && !( families[ roleFamily ].specializations || {} )[ specialization ] ) {
+            return "error.employee.invalid-specialization";
+        }
+
+        const level = employee?.career?.level;
+        const stage = employee?.career?.stage;
+        if ( ![ "N", "J", "R", "S", "X", "T" ].includes( level ) ) {
+            return "error.employee.invalid-level";
+        }
+        if ( !Number.isInteger( stage ) || stage < 1 || stage > 3 ) {
+            return "error.employee.invalid-stage";
+        }
+        // Dual-track rule: N, X, T have only stage 1.
+        if ( ( level === "N" || level === "X" || level === "T" ) && stage !== 1 ) {
+            return "error.employee.invalid-stage-for-level";
+        }
+
+        const organizationUnitID = employee?.career?.organizationUnitID;
+        const orgStructure = configurationLoader.configOrganizationStructure || {};
+        if ( !organizationUnitID || !orgStructure[ organizationUnitID ] ) {
+            return "error.employee.invalid-organization-unit";
+        }
+
+        if ( employee.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test( employee.email ) ) {
+            return "error.employee.invalid-email";
+        }
+
+        return null;
+    }
+
+    /**
+     * Picks the next available employeeID by incrementing the highest numeric ID already in the registry. Falls back
+     * to `1` when the registry is empty.
+     *
+     * @method
+     * @param {Array<Employee>} employees
+     * @returns {string}
+     * @private
+     */
+    #deriveNextEmployeeID( employees ) {
+        const maxID = ( employees || [] ).reduce( ( accumulator, employee ) => {
+            const n = Number( employee?.employeeID );
+            return Number.isFinite( n ) && n > accumulator ? n : accumulator;
+        }, 0 );
+        return String( maxID + 1 );
+    }
+
+    /**
      * Used to check if the provided user ID is authorized to act as a manager for the evaluation.
      *
      * @method
@@ -1094,13 +2974,13 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @param {TiSession} session
      * @param {...string} roles One or more role codes; at least one must be present in the session.
      * @returns {{ userID: string, userRoles: string[] }}
-     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} (401) If the session is unauthenticated or no role matches.
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} (401) when unauthenticated, or (403) when authenticated but holding none of the required roles.
      * @private
      */
     #requireRole( session, ...roles ) {
         const context = this.#requireSessionUser( session );
         if ( !roles.some( ( role ) => context.userRoles.includes( role ) ) ) {
-            throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+            throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
         }
         return context;
     }

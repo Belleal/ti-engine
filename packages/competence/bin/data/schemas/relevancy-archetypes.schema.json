@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/relevancy-archetypes.json",
+  "title": "Relevancy Archetypes Configuration",
+  "description": "Relevancy curve archetypes. Each archetype maps to a 12 stage-level weight curve; competencies reference an archetype by id (config.competencies.json relevancyArchetype) and the effective per-stage-level relevancy is resolved from the archetype's curve.",
+  "type": "object",
+  "patternProperties": {
+    "^[A-Za-z0-9_-]+$": {
+      "$ref": "#/$defs/archetype"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "archetype": {
+      "type": "object",
+      "description": "A relevancy archetype: its stage-level weight curve.",
+      "required": [
+        "weights"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "weights": {
+          "$ref": "#/$defs/weights"
+        }
+      }
+    },
+    "weights": {
+      "type": "object",
+      "description": "Full per-stage-level weight map.",
+      "required": [
+        "N1",
+        "J1",
+        "J2",
+        "J3",
+        "R1",
+        "R2",
+        "R3",
+        "S1",
+        "S2",
+        "S3",
+        "X1",
+        "T1"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "N1": { "$ref": "#/$defs/score" },
+        "J1": { "$ref": "#/$defs/score" },
+        "J2": { "$ref": "#/$defs/score" },
+        "J3": { "$ref": "#/$defs/score" },
+        "R1": { "$ref": "#/$defs/score" },
+        "R2": { "$ref": "#/$defs/score" },
+        "R3": { "$ref": "#/$defs/score" },
+        "S1": { "$ref": "#/$defs/score" },
+        "S2": { "$ref": "#/$defs/score" },
+        "S3": { "$ref": "#/$defs/score" },
+        "X1": { "$ref": "#/$defs/score" },
+        "T1": { "$ref": "#/$defs/score" }
+      }
+    },
+    "score": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10,
+      "description": "Relevancy weight indicating importance (1-10 scale)"
+    }
+  }
+}

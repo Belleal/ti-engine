@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/role-family-competencies.json",
+  "title": "Role-Family Competency Pool",
+  "description": "The per-family competency pool (applicability universe). Top-level keys are Role Family codes; each value is the array of competency codes that family may draw on — its family-specific competencies plus the shared canonical ones. A family without an entry has no defined pool.",
+  "type": "object",
+  "patternProperties": {
+    "^(SE|QE|BA|PM|XD|DA|IO|MC|PD)$": {
+      "type": "array",
+      "description": "The complete competency-code pool for the family (family-specific + shared).",
+      "items": {
+        "type": "string",
+        "pattern": "^[EIC][1-3]-\\d+$"
+      },
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": false
+}

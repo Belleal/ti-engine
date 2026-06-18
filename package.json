@@ -22,5 +22,9 @@
     "eslint": "^10.0.0",
     "globals": "^17.3.0",
     "prettier": "^3.8.1"
+  },
+  "allowScripts": {
+    "blake2@5.0.1": true,
+    "zeromq@6.5.0": true
   }
 }

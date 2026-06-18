@@ -1,0 +1,470 @@
+<div class="ti-page competence-cycle-setup-page" x-data="competenceCycleSetup">
+    <!-- Page head: eyebrow + title (left) and status pill + back button (right) on a single row. The default
+         `.ti-page-head` is a vertical stack, but the local `.competence-cycle-setup-pagehead` modifier turns it into
+         a two-column grid so the aside hangs next to the title (matches the cycle-setup design concept). -->
+    <div class="ti-page-head competence-cycle-setup-pagehead">
+        <div class="competence-cycle-setup-pagehead-main">
+            <div class="ti-page-eyebrow" x-text-label="interface.cycle-setup.page-eyebrow"></div>
+            <h1 class="ti-page-title">
+                <span class="competence-cycle-setup-id-mono" x-text="cycle.cycleID || ''"></span>
+                <span class="competence-cycle-setup-name" x-show="cycle.name" x-text="cycle.name || ''"></span>
+            </h1>
+        </div>
+        <div class="competence-cycle-setup-pagehead-aside">
+            <span class="ti-status-pill" x-show="cycle.statusName"
+                  x-bind:class="cycle.statusTone || ''"
+                  x-text="cycle.statusName || ''"></span>
+            <button type="button" class="ti-btn ghost sm" @click="backToCycles()">
+                <span class="ti-icon chevron-left sm" aria-hidden="true"></span>
+                <span x-text-label="interface.cycle-setup.back-to-cycles"></span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Read-only banner. Quieter "info" treatment (sunken bg + muted left border) instead of warn, since the read-only
+         state is informational, not a problem. Copy adapts to the cycle status (active vs closed vs generic). -->
+    <template x-if="loaded && isReadOnly">
+        <div class="competence-cycle-setup-readonly">
+            <span class="ti-icon lock sm" aria-hidden="true"></span>
+            <span x-text="getReadOnlyBannerText()"></span>
+        </div>
+    </template>
+
+    <!-- Cycle-level settings: the team-feedback deadline (editable while PLANNING; read-only otherwise). -->
+    <template x-if="loaded">
+        <div class="ti-panel competence-panel-mb">
+            <div class="ti-panel-head">
+                <div class="ti-panel-title" x-text-label="interface.cycle-setup.settings-title"></div>
+            </div>
+            <div class="ti-panel-body-intro" x-text-label="interface.cycle-setup.team-feedback-deadline-hint"></div>
+            <div class="ti-form-row">
+                <label class="ti-field-label" x-text-label="interface.cycle-setup.team-feedback-deadline-label"></label>
+                <input type="date" class="ti-input"
+                       x-model="cycle.teamFeedbackDeadline"
+                       x-bind:disabled="isReadOnly"
+                       x-bind:min="cycle.cycleStart || ''"
+                       x-bind:max="cycle.cycleDate || ''"
+                       @change="saveTeamFeedbackDeadline()"/>
+            </div>
+        </div>
+    </template>
+
+    <!-- Two-pane shell. The tree pane is sticky beneath the topbar, so it stays visible while the editor scrolls with
+         the document. No `.ti-content.pane` here — each pane owns its own card chrome (mirrors the empmgmt master /
+         detail pattern). -->
+    <template x-if="loaded">
+        <div class="competence-cycle-setup-shell">
+
+            <!-- Left pane: role-family / specialization tree -->
+            <div class="competence-cycle-tree-pane">
+                <div class="competence-cycle-tree-pane-head" x-text-label="interface.cycle-setup.tree-title"></div>
+                <div class="competence-cycle-tree">
+                    <template x-for="family in families" x-bind:key="family.code">
+                        <div class="competence-cycle-tree-family">
+                            <div class="competence-cycle-tree-family-head"
+                                 x-bind:class="isFamilyExcluded(family.code) ? 'is-excluded' : ''">
+                                <span class="ti-tag mono" x-text="family.code"></span>
+                                <span class="competence-cycle-tree-family-name" x-text="family.name"></span>
+                                <template x-if="isFamilyExcluded(family.code)">
+                                    <span class="ti-tag competence-cycle-excluded-tag" x-text-label="interface.cycle-setup.excluded-tag"></span>
+                                </template>
+                            </div>
+                            <div class="competence-cycle-tree-spec-list">
+                                <button type="button" class="competence-cycle-tree-node"
+                                        x-bind:class="((selectedFamily === family.code && selectedKey === 'baseline') ? 'is-selected' : '') + (isFamilyExcluded(family.code) ? ' is-excluded' : '')"
+                                        @click="selectNode(family.code, 'baseline')">
+                                    <span class="competence-cycle-tree-node-dot"
+                                          x-bind:class="'is-' + getNodeStatus(family.code, 'baseline')"
+                                          x-bind:aria-label="getNodeStatusAria(family.code, 'baseline')"></span>
+                                    <span class="competence-cycle-tree-node-label" x-text-label="interface.cycle-setup.tree-baseline"></span>
+                                    <span class="competence-cycle-tree-node-count"
+                                          x-show="getNodeCount(family.code, 'baseline') > 0"
+                                          x-text="getNodeCount(family.code, 'baseline')"></span>
+                                </button>
+                                <template x-if="!isFamilyExcluded(family.code)">
+                                    <template x-for="spec in family.specializations" x-bind:key="spec.code">
+                                        <button type="button" class="competence-cycle-tree-node spec"
+                                                x-bind:class="(selectedFamily === family.code && selectedKey === spec.code) ? 'is-selected' : ''"
+                                                @click="selectNode(family.code, spec.code)">
+                                            <span class="competence-cycle-tree-node-dot"
+                                                  x-bind:class="'is-' + getNodeStatus(family.code, spec.code)"
+                                                  x-bind:aria-label="getNodeStatusAria(family.code, spec.code)"></span>
+                                            <span class="competence-cycle-tree-node-label" x-text="spec.name"></span>
+                                            <span class="competence-cycle-tree-node-count"
+                                                  x-show="getNodeCount(family.code, spec.code) > 0"
+                                                  x-text="getNodeCount(family.code, spec.code)"></span>
+                                        </button>
+                                    </template>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Right pane: editor stack (editor card + sticky actions panel as siblings). -->
+            <div class="competence-cycle-editor-stack">
+
+                <!-- No node selected: empty-state inside the editor card. -->
+                <template x-if="!selectedFamily">
+                    <div class="competence-cycle-editor-pane">
+                        <div class="ti-empty-state">
+                            <div class="ti-empty-state-icon" aria-hidden="true">
+                                <span class="ti-icon folder xl"></span>
+                            </div>
+                            <div class="ti-empty-state-title" x-text-label="interface.cycle-setup.no-family-selected-title"></div>
+                            <div class="ti-empty-state-desc" x-text-label="interface.cycle-setup.no-family-selected-desc"></div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Node selected: editor card. -->
+                <template x-if="selectedFamily">
+                    <div class="competence-cycle-editor-pane">
+                        <!-- Editor header: tag + family name + (·) + spec name. -->
+                        <div class="competence-cycle-editor-head">
+                            <div class="competence-cycle-editor-title">
+                                <span class="ti-tag mono" x-text="selectedFamily"></span>
+                                <span x-text="getSelectedFamily().name"></span>
+                                <template x-if="selectedKey === 'baseline'">
+                                        <span class="competence-cycle-editor-title-suffix"
+                                              x-text-label="interface.cycle-setup.header-baseline-suffix"></span>
+                                </template>
+                                <template x-if="selectedKey !== 'baseline'">
+                                    <span class="competence-cycle-editor-title-sep">·</span>
+                                </template>
+                                <template x-if="selectedKey !== 'baseline'">
+                                    <span x-text="getSelectedSpec().name"></span>
+                                </template>
+                            </div>
+                            <div class="competence-cycle-editor-desc"
+                                 x-show="selectedKey === 'baseline'"
+                                 x-text-label="interface.cycle-setup.header-description-baseline"></div>
+                            <div class="competence-cycle-editor-desc"
+                                 x-show="selectedKey !== 'baseline'"
+                                 x-text-label="interface.cycle-setup.header-description-spec"></div>
+                        </div>
+
+                        <!-- Family-level include/exclude control (baseline node only). Excluding a family removes
+                                 it from the cycle: its specializations are hidden in the tree, lock validation skips
+                                 it, and the configuration below is hidden. -->
+                        <div class="competence-cycle-editor">
+                            <template x-if="selectedKey === 'baseline'">
+                                <div class="competence-cycle-exclude-row"
+                                     x-bind:class="isSelectedFamilyExcluded() ? 'is-excluded' : ''">
+                                    <template x-if="!isSelectedFamilyExcluded()">
+                                        <button type="button" class="ti-btn ghost sm" x-show="!isReadOnly"
+                                                @click="toggleFamilyExcluded()" x-bind:disabled="saving">
+                                            <span class="ti-icon close sm" aria-hidden="true"></span>
+                                            <span x-text-label="interface.cycle-setup.exclude-family-btn"></span>
+                                        </button>
+                                    </template>
+                                    <template x-if="isSelectedFamilyExcluded()">
+                                        <div class="competence-cycle-excluded-notice">
+                                            <span class="ti-icon close sm" aria-hidden="true"></span>
+                                            <span x-text-label="interface.cycle-setup.excluded-banner"></span>
+                                            <button type="button" class="ti-btn sm" x-show="!isReadOnly"
+                                                    @click="toggleFamilyExcluded()" x-bind:disabled="saving">
+                                                <span x-text-label="interface.cycle-setup.include-family-btn"></span>
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- Cap indicator. Count rendered as <strong>; the rest is a muted qualifier, so the math
+                                 (baseline + spec = total) reads as a hint rather than the headline number. -->
+                            <div class="competence-cycle-indicator-row" x-show="!isSelectedFamilyExcluded()">
+                                <div class="competence-cycle-indicator-label" x-text-label="interface.cycle-setup.cap-label"></div>
+                                <div class="competence-cycle-indicator-content">
+                                    <div class="competence-cap-indicator" x-bind:class="isOverCap() ? 'over' : ''">
+                                        <div class="competence-cap-bar">
+                                            <div class="competence-cap-bar-fill" x-bind:style="capBarStyle()"></div>
+                                        </div>
+                                        <div class="competence-cap-text">
+                                            <strong x-text="getCapCount()"></strong>
+                                            <span class="competence-cap-text-suffix" x-text="getCapSuffix()"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Floor coverage pills (baseline only). Each pill includes a check/x icon, so the state
+                                 is identifiable without color alone. -->
+                            <template x-if="selectedKey === 'baseline' && !isSelectedFamilyExcluded()">
+                                <div class="competence-cycle-indicator-row">
+                                    <div class="competence-cycle-indicator-label" x-text-label="interface.cycle-setup.floor-coverage-label"></div>
+                                    <div class="competence-cycle-indicator-content">
+                                        <div class="competence-floor-pills">
+                                            <template x-for="sub in subcategories" x-bind:key="sub.code">
+                                                <span class="competence-floor-pill"
+                                                      x-bind:class="isSubcategoryCovered(sub.code) ? 'satisfied' : 'missing'"
+                                                      x-bind:aria-label="getFloorPillAria(sub.code)"
+                                                      x-bind:title="sub.name + (isSubcategoryCovered(sub.code) ? '' : ' — missing')">
+                                                    <span class="ti-icon xs"
+                                                          x-bind:class="isSubcategoryCovered(sub.code) ? 'check' : 'close'"
+                                                          aria-hidden="true"></span>
+                                                    <span x-text="sub.code"></span>
+                                                </span>
+                                            </template>
+                                        </div>
+                                        <div class="competence-cycle-floor-hint" x-text-label="interface.cycle-setup.floor-coverage-hint"></div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- "No extras" checkbox (specialization only). -->
+                            <template x-if="selectedKey !== 'baseline'">
+                                <div class="competence-cycle-no-extras">
+                                    <label class="competence-cycle-no-extras-label">
+                                        <input type="checkbox" x-model="draft.markedEmpty"
+                                               x-bind:disabled="isReadOnly || draft.codes.length > 0"
+                                               @change="onMarkedEmptyChange()"/>
+                                        <span x-text-label="interface.cycle-setup.no-extras-label"></span>
+                                    </label>
+                                    <div class="competence-cycle-no-extras-desc" x-text-label="interface.cycle-setup.no-extras-desc"></div>
+                                </div>
+                            </template>
+
+                            <!-- Competency list. Bordered container with internal dividers when populated; the empty
+                                 state replaces the list entirely (via .is-empty modifier removing the chrome) so the
+                                 ti-empty-state primitive can read naturally. -->
+                            <div class="competence-cycle-codes" x-show="!isSelectedFamilyExcluded()" x-bind:class="draft.codes.length === 0 ? 'is-empty' : ''">
+                                <template x-if="draft.codes.length === 0">
+                                    <div class="ti-empty-state competence-cycle-codes-empty">
+                                        <div class="ti-empty-state-icon" aria-hidden="true">
+                                            <span class="ti-icon book xl"></span>
+                                        </div>
+                                        <div class="ti-empty-state-title"
+                                             x-text="getLabel(selectedKey === 'baseline' ? 'interface.cycle-setup.competencies-empty-title-baseline' : 'interface.cycle-setup.competencies-empty-title-spec')"></div>
+                                        <div class="ti-empty-state-desc"
+                                             x-text="getLabel(selectedKey === 'baseline' ? 'interface.cycle-setup.competencies-empty-desc-baseline' : 'interface.cycle-setup.competencies-empty-desc-spec')"></div>
+                                    </div>
+                                </template>
+                                <template x-for="code in draft.codes" x-bind:key="code">
+                                    <div class="competence-cycle-code-row">
+                                        <span class="ti-tag mono" x-text="code"></span>
+                                        <div class="competence-cycle-code-meta">
+                                            <div class="competence-cycle-code-name" x-text="getCompetencyName(code)"></div>
+                                            <div class="competence-cycle-code-sub">
+                                                <span class="ti-tag" x-text="getCompetencySubcategory(code)"></span>
+                                                <template x-for="(mapping, mIdx) in getCompetencyECF(code)" x-bind:key="mIdx">
+                                                    <span class="ti-tag mono competence-cycle-code-ecf">
+                                                        <span x-text-label="interface.cycle-setup.ecf-prefix"></span>:
+                                                        <span x-text="mapping.competence + ' (' + mapping.level + ')'"></span>
+                                                    </span>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="ti-btn ghost icon competence-cycle-code-remove"
+                                                x-show="!isReadOnly"
+                                                @click="removeCode(code)"
+                                                x-bind:aria-label="getRemoveAria(code)">
+                                            <span class="ti-icon close sm" aria-hidden="true"></span>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Sticky actions panel (sibling card). Mirrors the empmgmt actions panel pattern so the
+                     save / cancel affordance reads the same way across editor screens. Hidden when read-only or
+                     when no node is selected. -->
+                <template x-if="selectedFamily && !isReadOnly && !isSelectedFamilyExcluded()">
+                    <div class="competence-cycle-setup-actions-panel">
+                        <button type="button" class="ti-btn primary" @click="openPicker()">
+                            <span class="ti-icon plus sm" aria-hidden="true"></span>
+                            <span x-text-label="interface.cycle-setup.add-btn"></span>
+                        </button>
+                        <button type="button" class="ti-btn" @click="openCloneModal()" x-text-label="interface.cycle-setup.clone-btn"></button>
+                        <div class="competence-cycle-setup-actions-spacer"></div>
+                        <div class="competence-cycle-editor-state"
+                             x-bind:class="isDirty() ? 'unsaved' : 'saved'"
+                             x-text="isDirty() ? getLabel('interface.cycle-setup.unsaved-state') : getLabel('interface.cycle-setup.saved-state')"></div>
+                        <button type="button" class="ti-btn primary" @click="saveDraft()"
+                                x-bind:disabled="!isDirty() || saving"
+                                x-text-label="interface.cycle-setup.save-btn"></button>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </template>
+
+    <!-- =============================================================
+         Competency picker modal
+         ============================================================= -->
+    <template x-if="modal.kind === 'picker'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal large" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.cycle-setup.picker.title"></div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <span class="ti-icon close md" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <div class="competence-cycle-picker-filters">
+                        <input type="text" class="ti-input competence-cycle-picker-search"
+                               x-model="modal.payload.query"
+                               x-bind:placeholder="getLabel('interface.cycle-setup.picker.search-placeholder')"/>
+                        <select class="ti-select" x-model="modal.payload.category">
+                            <option value="" x-text-label="interface.cycle-setup.picker.category-all"></option>
+                            <template x-for="cat in categoryOptions()" x-bind:key="cat.code">
+                                <option x-bind:value="cat.code" x-text="cat.name"></option>
+                            </template>
+                        </select>
+                        <select class="ti-select" x-model="modal.payload.subcategory">
+                            <option value="" x-text-label="interface.cycle-setup.picker.subcategory-all"></option>
+                            <template x-for="sub in subcategoryOptionsForCategory(modal.payload.category)" x-bind:key="sub.code">
+                                <option x-bind:value="sub.code" x-text="sub.code + ' · ' + sub.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="competence-cycle-picker-list">
+                        <template x-if="pickerFilteredCompetencies().length === 0">
+                            <div class="competence-cycle-picker-empty" x-text-label="interface.cycle-setup.picker.no-results"></div>
+                        </template>
+                        <template x-for="competency in pickerFilteredCompetencies()" x-bind:key="competency.code">
+                            <label class="competence-cycle-picker-row"
+                                   x-bind:class="pickerRowClass(competency.code)">
+                                <input type="checkbox"
+                                       x-bind:checked="isPickerCodeSelected(competency.code)"
+                                       x-bind:disabled="isCodeInDraft(competency.code) || isCodeInBaseline(competency.code)"
+                                       @change="togglePickerSelection(competency.code)"/>
+                                <div class="competence-cycle-picker-row-meta">
+                                    <div class="competence-cycle-picker-row-top">
+                                        <span class="ti-tag mono" x-text="competency.code"></span>
+                                        <span class="ti-tag" x-text="competency.subcategoryName"></span>
+                                        <span x-show="isCodeInDraft(competency.code)"
+                                              class="ti-tag muted competence-cycle-picker-added"
+                                              x-text-label="interface.cycle-setup.picker.already-added"></span>
+                                        <span x-show="isCodeInBaseline(competency.code)"
+                                              class="ti-tag muted competence-cycle-picker-added"
+                                              x-text-label="interface.cycle-setup.picker.in-baseline"></span>
+                                    </div>
+                                    <div class="competence-cycle-picker-row-name" x-text="competency.name"></div>
+                                </div>
+                            </label>
+                        </template>
+                    </div>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.cycle-setup.picker.cancel-btn"></button>
+                    <button type="button" class="ti-btn primary" @click="confirmPicker()"
+                            x-bind:disabled="pickerSelectedCount() === 0"
+                            x-text="getPickerConfirmLabel()"></button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- =============================================================
+         Clone modal
+         ============================================================= -->
+    <template x-if="modal.kind === 'clone'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal medium" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.cycle-setup.clone-modal.title"></div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <span class="ti-icon close md" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <div class="competence-cycle-clone-section">
+                        <div class="ti-field-label" x-text-label="interface.cycle-setup.clone-modal.source-label"></div>
+                        <label class="competence-cycle-clone-radio">
+                            <input type="radio" name="clone-source" value="prev-cycle" x-model="modal.payload.source"/>
+                            <span x-text-label="interface.cycle-setup.clone-modal.source-prev-cycle"></span>
+                        </label>
+                        <label class="competence-cycle-clone-radio">
+                            <input type="radio" name="clone-source" value="other" x-model="modal.payload.source"/>
+                            <span x-text-label="interface.cycle-setup.clone-modal.source-other"></span>
+                        </label>
+                    </div>
+
+                    <template x-if="modal.payload.source === 'prev-cycle'">
+                        <div class="competence-cycle-clone-section">
+                            <template x-if="!modal.payload.prevCycleID">
+                                <div class="competence-cycle-clone-empty" x-text-label="interface.cycle-setup.clone-modal.prev-empty"></div>
+                            </template>
+                            <template x-if="modal.payload.prevCycleID">
+                                <div class="competence-cycle-clone-preview">
+                                    <span class="ti-tag mono" x-text="modal.payload.prevCycleID"></span>
+                                    <span class="competence-cycle-clone-count" x-text="formatCount(modal.payload.prevCodes.length)"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <template x-if="modal.payload.source === 'other'">
+                        <div class="competence-cycle-clone-section">
+                            <div class="ti-form-grid">
+                                <div>
+                                    <label class="ti-field-label" x-text-label="interface.cycle-setup.clone-modal.source-family-label"></label>
+                                    <select class="ti-select" x-model="modal.payload.otherFamily" @change="onCloneFamilyChange()">
+                                        <option value=""></option>
+                                        <template x-for="family in families" x-bind:key="family.code">
+                                            <option x-bind:value="family.code" x-text="family.code + ' · ' + family.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="ti-field-label" x-text-label="interface.cycle-setup.clone-modal.source-key-label"></label>
+                                    <select class="ti-select" x-model="modal.payload.otherKey">
+                                        <option value=""></option>
+                                        <option value="baseline" x-text-label="interface.cycle-setup.tree-baseline"></option>
+                                        <template x-for="spec in otherFamilySpecs()" x-bind:key="spec.code">
+                                            <option x-bind:value="spec.code" x-text="spec.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="competence-cycle-clone-preview" x-show="modal.payload.otherFamily && modal.payload.otherKey">
+                                <span class="competence-cycle-clone-count" x-text="formatCount(otherSourceCodes().length)"></span>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div class="competence-cycle-clone-warning" x-show="draft.codes.length > 0"
+                         x-text-label="interface.cycle-setup.clone-modal.replace-warning"></div>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.cycle-setup.clone-modal.cancel-btn"></button>
+                    <button type="button" class="ti-btn primary" @click="confirmClone()"
+                            x-bind:disabled="!canCloneConfirm()"
+                            x-text-label="interface.cycle-setup.clone-modal.confirm-btn"></button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- =============================================================
+         Lock confirmation modal (triggered from the topbar "Lock cycle" CTA)
+         ============================================================= -->
+    <template x-if="modal.kind === 'lock-confirm'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.cycles.lock-modal.title"></div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <span class="ti-icon close md" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <p x-text-label="interface.cycles.lock-modal.desc"></p>
+                    <p class="competence-cycle-lock-target">
+                        <span class="ti-tag mono" x-text="modal.payload.cycleID"></span>
+                        <span x-text="modal.payload.name"></span>
+                    </p>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.cycles.lock-modal.cancel-btn"></button>
+                    <button type="button" class="ti-btn primary" @click="submitLock()" x-text-label="interface.cycles.lock-modal.confirm-btn"></button>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>

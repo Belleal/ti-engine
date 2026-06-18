@@ -1,95 +1,233 @@
-<title id="ti-page-title" hx-swap-oob="outerHTML">{ti-title-placeholder}</title>
-<div class="ti-content pane" x-data="employeesList()">
-    <div class="ti-panel ti-sub-panel">
-        <div class="ti-sub-panel-title" x-text-label="interface.employees.organization-title"></div>
-        <div class="ti-form-grid employees">
-            <div class="ti-label" x-text-label="interface.employees.unit.name-type"></div>
-            <div class="employee-organization-value-group unit">
-                <div class="ti-data-value compact-centered" x-text="unitType"></div>
-                <div class="ti-data-value" x-text="unitName"></div>
-            </div>
-            <div class="ti-label" x-text-label="interface.employees.unit.managers"></div>
-            <div class="ti-data-value" x-text="unitManagers"></div>
-            <div class="ti-label" x-text-label="interface.employees.unit.location"></div>
-            <div class="ti-data-value" x-text="unitLocation"></div>
+<div class="ti-page" x-data="competenceEmployeesList">
+
+    <template x-if="units.length === 0">
+        <div class="ti-empty-state">
+            <div class="ti-empty-state-title" x-text-label="interface.employees.empty-state">No employees found</div>
         </div>
-    </div>
+    </template>
 
-    <div class="ti-panel ti-sub-panel">
-        <div class="ti-sub-panel-title" x-text-label="interface.employees.list-title"></div>
-        <div class="employees-organization-list">
-            <template x-if="units.length > 0">
-                <template x-for="unit in units" x-bind:key="unit.id">
-                    <div class="employees-unit">
-                        <div class="employees-unit-header">
-                            <div class="employees-unit-title" x-text="unit.name"></div>
-                            <div class="employees-unit-manager" x-text="formatList( unit.managers )"></div>
+    <template x-if="units.length > 0">
+        <div>
+            <!-- [1] Page info header -->
+            <div class="ti-page-head">
+                <div class="ti-page-eyebrow" x-text-label="interface.employees.header-eyebrow">ORGANIZATION</div>
+                <h1 class="ti-page-title" x-text-label="interface.employees.header-title">Org chart</h1>
+                <p class="ti-page-subtitle" x-text-label="interface.employees.header-desc">Your department and the teams beneath it.</p>
+            </div>
+
+            <!-- Org summary card -->
+            <div class="competence-org-summary">
+                <div class="competence-org-mark">
+                    <span class="ti-icon briefcase lg" aria-hidden="true"></span>
+                </div>
+                <div class="competence-org-meta">
+                    <div class="competence-org-name" x-text="unitName || 'Organization'"></div>
+                    <!-- [1] Department · Branch · Location · headed by Manager -->
+                    <div class="competence-org-sub">
+                        <span x-show="unitType" x-text="unitType"></span>
+                        <template x-if="unitBranch">
+                            <span class="competence-org-sub-sep">·</span>
+                        </template>
+                        <template x-if="unitBranch">
+                            <span x-text="unitBranch"></span>
+                        </template>
+                        <template x-if="unitLocation">
+                            <span class="competence-org-sub-sep">·</span>
+                        </template>
+                        <template x-if="unitLocation">
+                            <span x-text="unitLocation"></span>
+                        </template>
+                        <template x-if="unitManagers">
+                            <span class="competence-org-sub-sep">·</span>
+                        </template>
+                        <template x-if="unitManagers">
+                            <span>
+                                <span x-text-label="interface.employees.headed-by">headed by</span>
+                                <span class="competence-manager-name" x-text="unitManagers"></span>
+                            </span>
+                        </template>
+                    </div>
+                </div>
+                <!-- [5] Equal-width stats -->
+                <div class="competence-org-summary-stats">
+                    <div>
+                        <div class="competence-org-stat-num" x-text="totalEmployees()"></div>
+                        <div class="competence-org-stat-label" x-text-label="interface.employees.stats.people">PEOPLE</div>
+                    </div>
+                    <div>
+                        <div class="competence-org-stat-num" x-text="units.length"></div>
+                        <div class="competence-org-stat-label" x-text-label="interface.employees.stats.teams">TEAMS</div>
+                    </div>
+                    <div>
+                        <div class="competence-org-stat-num" x-text="totalInCycle()"></div>
+                        <div class="competence-org-stat-label" x-text-label="interface.employees.stats.in-cycle">IN CYCLE</div>
+                    </div>
+                    <div>
+                        <div class="competence-org-stat-num" x-text="totalReady()"></div>
+                        <div class="competence-org-stat-label" x-text-label="interface.employees.stats.ready">READY</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Team blocks -->
+            <template x-for="unit in units" x-bind:key="unit.id">
+                <div class="ti-panel competence-team-block">
+
+                    <!-- Team block header -->
+                    <div class="ti-panel-head bar">
+                        <div class="ti-panel-head-icon">
+                            <span class="ti-icon briefcase md" aria-hidden="true"></span>
                         </div>
-                        <div class="employees-list">
-                            <template x-if="unit.employees.length > 0">
-                                <div class="employees-table">
-                                    <div class="employees-static">
-                                        <div class="employees-list-head-static">
-                                            <div class="employees-list-head-label id" x-text-label="interface.employees.columns.id"></div>
-                                            <div class="employees-list-head-label name" x-text-label="interface.employees.columns.name"></div>
-                                        </div>
-
-                                        <template x-for="(employee, index) in unit.employees" x-bind:key="'unit-static-' + unit.id + '-' + index">
-                                            <div class="employees-row-static">
-                                                <div class="employees-id" x-text="employee.id"></div>
-                                                <div class="ti-data-value" x-text="employee.name"></div>
-                                            </div>
-                                        </template>
-                                    </div>
-
-                                    <div class="employees-list-scroll">
-                                        <div class="employees-list-head-dynamic">
-                                            <div class="employees-list-head-label career-path" x-text-label="interface.employees.columns.career-path"></div>
-                                            <div class="employees-list-head-label level" x-text-label="interface.employees.columns.level"></div>
-                                            <div class="employees-list-head-label since" x-text-label="interface.employees.columns.since"></div>
-                                            <div class="employees-list-head-label evaluation" x-text-label="interface.employees.columns.evaluation"></div>
-                                            <div class="employees-list-head-label actions" x-text-label="interface.employees.columns.actions"></div>
-                                        </div>
-
-                                        <template x-for="( employee, index ) in unit.employees" x-bind:key="'unit-dynamic-' + unit.id + '-' + index">
-                                            <div class="employees-row-dynamic">
-                                                <div class="ti-data-value" x-text="employee.career.careerPathName"></div>
-                                                <div class="ti-data-value compact-centered"
-                                                     x-text="employee.career.level + ( employee.career.stage || '' )"></div>
-                                                <div class="ti-data-value" x-text="formatDate( employee.career.startingDate )"></div>
-                                                <div class="employees-evaluation">
-                                                    <span class="employees-evaluation-status"
-                                                          x-show="employee.isCurrentUser || isManagerView"
-                                                          x-text="getLabel( employee.evaluation ? employee.evaluation.statusName : 'framework.status.name.not-started' )"></span>
-                                                    <span class="employees-evaluation-date"
-                                                          x-show="employee.isCurrentUser || isManagerView"
-                                                          x-text="employee.evaluation ? formatDate( employee.evaluation.date ) : ''"></span>
-                                                </div>
-                                                <div class="employees-actions">
-                                                    <button type="button" class="ti-button inline ti-glass-btn-black large on-screen"
-                                                            x-show="employee.evaluation && ( isManagerView || employee.isCurrentUser )"
-                                                            x-on:click="openEvaluation( employee.id, employee.evaluation.evaluationID )"
-                                                            x-text-label="interface.employees.actions.review"></button>
-                                                    <button type="button" class="ti-button inline ti-glass-btn-black large on-screen"
-                                                            x-show="!employee.evaluation && isManagerView && !employee.isCurrentUser"
-                                                            x-on:click="startNewEvaluation( employee.id )"
-                                                            x-text-label="interface.employees.actions.start-new"></button>
-                                                    <span class="ti-icon lock dark-style competence-icon-lock" role="img"
-                                                          x-show="( !isManagerView && !employee.isCurrentUser ) || ( employee.isCurrentUser && !employee.evaluation )"
-                                                          x-text-label:aria-label="interface.evaluation.competencies.locked"></span>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </div>
+                        <div class="ti-panel-head-text">
+                            <div class="ti-panel-title" x-text="unit.name"></div>
+                            <!-- [2] Led by (bold) · Location · Work Location -->
+                            <div class="ti-panel-subtitle">
+                                <span class="ti-icon user xs" aria-hidden="true"></span>
+                                <span x-text-label="interface.employees.led-by">Led by</span>
+                                <span class="competence-manager-name" x-text="formatList(unit.managers)"></span>
+                                <template x-if="unit.location">
+                                    <span class="competence-org-sub-sep">·</span>
+                                </template>
+                                <template x-if="unit.location">
+                                    <span x-text="unit.location"></span>
+                                </template>
+                                <template x-if="unit.managerWorkLocation">
+                                    <span class="competence-org-sub-sep">·</span>
+                                </template>
+                                <template x-if="unit.managerWorkLocation">
+                                    <span x-text="unit.managerWorkLocation"></span>
+                                </template>
+                            </div>
+                        </div>
+                        <!-- People + in-cycle count -->
+                        <div class="ti-panel-head-aside">
+                            <span>
+                                <strong x-text="unit.employees.length"></strong>
+                                <span x-text-label="interface.employees.people">people</span>
+                            </span>
+                            <template x-if="unit.inCycle > 0">
+                                <span class="competence-team-incycle">
+                                    <span x-text="unit.inCycle"></span>
+                                    <span x-text-label="interface.employees.in-cycle">in cycle</span>
+                                </span>
                             </template>
                         </div>
                     </div>
-                </template>
-            </template>
-            <template x-if="units.length === 0">
-                <div class="ti-data-value">No employees found for the selected unit.</div>
+
+                    <template x-if="unit.employees.length > 0">
+                        <div class="ti-data-grid competence-org-grid">
+                            <!-- Column headers -->
+                            <div class="ti-data-grid-head">
+                                <span></span>
+                                <span></span>
+                                <span x-text-label="interface.employees.col.person">PERSON</span>
+                                <span x-text-label="interface.employees.col.role">ROLE</span>
+                                <span class="ti-cell-center" x-text-label="interface.employees.col.level">LEVEL</span>
+                                <span x-text-label="interface.employees.col.evaluation">EVALUATION</span>
+                                <span class="ti-cell-right" x-text-label="interface.employees.col.actions">ACTIONS</span>
+                            </div>
+                            <div class="ti-data-grid-rows">
+                                <template x-for="employee in unit.employees" x-bind:key="employee.id">
+                                    <div class="ti-data-grid-row" x-bind:class="{ 'is-current': employee.isCurrentUser }">
+                                        <div class="competence-org-tree-connector"></div>
+                                        <div class="ti-avatar sm" x-bind:style="$store.tiToolbox.generateAvatarStyle( employee.id, employee.name )"
+                                             x-bind:aria-label="employee.name">
+                                            <span x-text="(employee.name || '?').charAt(0).toUpperCase()"></span>
+                                        </div>
+                                        <!-- [3+4] Employee cell: name + tags + ID · Email -->
+                                        <div class="competence-org-employee-cell">
+                                            <div class="competence-org-employee-name">
+                                                <span x-text="employee.name"></span>
+                                                <span class="competence-you-tag" x-show="employee.isCurrentUser"
+                                                      x-text-label="interface.employees.you-tag">You</span>
+                                                <span class="competence-manager-tag" x-show="employee.isManager"
+                                                      x-text-label="interface.employees.manager-tag">Manager</span>
+                                            </div>
+                                            <div class="competence-org-employee-id">
+                                                <span x-text="employee.id"></span>
+                                                <template x-if="employee.email">
+                                                    <span class="competence-org-sub-sep">·</span>
+                                                </template>
+                                                <template x-if="employee.email">
+                                                    <span class="competence-org-employee-email" x-text="employee.email"></span>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        <div class="competence-org-career-cell">
+                                            <span x-text="employee.career.specialization ? (employee.career.roleFamilyName + ' · ' + employee.career.specializationName) : employee.career.roleFamilyName"></span>
+                                        </div>
+                                        <div class="ti-cell-center">
+                                            <span class="competence-level-pip" x-bind:class="employee.career.level"
+                                                  x-text="employee.career.level + ( employee.career.stage || '' )"></span>
+                                        </div>
+                                        <!-- [4+6] Evaluation column: status pill + labeled date -->
+                                        <div class="competence-org-eval-cell">
+                                            <template x-if="employee.evaluation">
+                                                <div>
+                                                    <span class="ti-status-pill" x-bind:class="employee.evaluation.statusTone">
+                                                        <span class="dot"></span>
+                                                        <span x-text="getLabel( employee.evaluation.statusName )"></span>
+                                                    </span>
+                                                    <div class="competence-org-eval-date" x-show="employee.evaluation.date">
+                                                        <span class="ti-icon calendar-blank xs" aria-hidden="true"></span>
+                                                        <template x-if="employee.evaluation.dateType === 'due'">
+                                                            <span x-text-label="interface.employees.eval-date.due">Due</span>
+                                                        </template>
+                                                        <template x-if="employee.evaluation.dateType === 'interview'">
+                                                            <span x-text-label="interface.employees.eval-date.interview">Interview</span>
+                                                        </template>
+                                                        <span x-text="formatDate( employee.evaluation.date )"></span>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            <!-- [4] Only show lock when data is actually hidden (not when no evaluation exists) -->
+                                            <template x-if="!employee.evaluation && employee.evaluationHidden">
+                                                <span class="competence-org-locked">
+                                                    <span class="ti-icon lock xs" aria-hidden="true"></span>
+                                                    <span x-text-label="interface.employees.private">Private</span>
+                                                </span>
+                                            </template>
+                                        </div>
+                                        <!-- Actions -->
+                                        <div class="competence-org-action-cell">
+                                            <button type="button" class="ti-btn sm"
+                                                    x-show="employee.evaluation && (isManagerView || employee.isCurrentUser)"
+                                                    @click="openEvaluation(employee.id, employee.evaluation.evaluationID)">
+                                                <span class="ti-icon check-clipboard sm" aria-hidden="true"></span>
+                                                <span x-text-label="interface.employees.action.open">Open</span>
+                                            </button>
+                                            <!-- Start Evaluation is only meaningful while a cycle is ACTIVE.
+                                                 The backend's #startEvaluation independently enforces this; the
+                                                 gate here just hides the button so the user isn't tempted. -->
+                                            <button type="button" class="ti-btn sm primary"
+                                                    x-show="!employee.evaluation && isManagerView && !employee.isCurrentUser && hasActiveCycle"
+                                                    @click="startNewEvaluation(employee.id)">
+                                                <span x-text-label="interface.employees.action.start">Start Evaluation</span>
+                                            </button>
+                                            <button type="button" class="ti-btn sm"
+                                                    x-show="$store.tiApplication.hasRole(2) || $store.tiApplication.hasRole(3)"
+                                                    @click="openEmployeeManagement(employee.id)">
+                                                <span x-text-label="interface.employees.action.manage">Manage</span>
+                                            </button>
+                                            <span class="competence-org-locked"
+                                                  x-show="(!isManagerView && !employee.isCurrentUser) || (employee.isCurrentUser && !employee.evaluation)">
+                                                <span class="ti-icon lock xs" aria-hidden="true"></span>
+                                                <span x-text-label="interface.employees.action.locked">Locked</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="unit.employees.length === 0">
+                        <div class="ti-empty-state">
+                            <div class="ti-empty-state-title" x-text-label="interface.employees.empty-team">No employees in this team</div>
+                        </div>
+                    </template>
+                </div>
             </template>
         </div>
-    </div>
+    </template>
 </div>

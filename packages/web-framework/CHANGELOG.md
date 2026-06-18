@@ -2,6 +2,60 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.9.3
+
+* feat(css): an empty `.ti-grade-chip` (a competency whose rating is still awaited) now renders an hourglass glyph via `::before` instead of a literal dash, so "awaiting rating" reads as a clear visual state wherever an empty grade chip is shown to a permitted viewer
+* build(release): bump package version from `1.9.2` to `1.9.3`
+
+## Version 1.9.2
+
+* feat(css): add `.ti-spacer` — a flexible spacer (`flex: 1 1 auto`) that pushes following siblings to the far end of a flex row/column. Promotes the bespoke per-screen `competence-empmgmt-actions-spacer` into a shared primitive, now consumed by the employee-management actions panel and the evaluation screen's team-feedback finalize bar
+* build(release): bump package version from `1.9.1` to `1.9.2`
+
+## Version 1.9.1
+
+* build(deps): upgrade `ajv` from ^6.15.0 to ^8.20.0 — ajv 8 renamed the validation-error `dataPath` (dot style) to `instancePath` (JSON Pointer)
+* fix(config-registry): normalize ajv 8's `instancePath` back to the dot/bracket data path the registry has always exposed on schema issues (e.g. `.competencies.E1-1.name`, array indices as `[0]`), so the public `ConfigValidationIssue.path` contract is unchanged across the upgrade; the ajv compile options (`meta`, `schemaId: "$id"`, `validateSchema: false`) and Draft-07 handling are unchanged
+* build(deps): update `helmet` from ^8.1.0 to ^8.2.0
+
+## Version 1.9.0
+
+* feat(css): add `.ti-panel-body-intro` — the canonical description/intro line under a `.ti-panel-head` (`--fs-sm`, secondary foreground, `0 var(--s-3) var(--s-5)` padding, 1.5 line-height); replaces the per-screen intro paragraphs that screens used to hand-style
+* refactor(css): tighten the key/value primitives — `.ti-kv-label` is now an uppercase `--fs-xs` 600-weight caption (0.05em letter-spacing); `.ti-kv-value` is `--fs-sm` 400-weight — for a consistent, scannable key/value rhythm across screens
+* refactor(css): drop the redundant `margin-left: auto` from `.ti-panel-head-aside` (the panel head already positions it via its flex layout)
+* fix(sidebar): the user-profile flyout actions (Profile, Settings, Logout) now actually fire. The menu items bind their `hx-*` attributes through Alpine (`x-bind`), which HTMX does not pick up on its initial document scan — so the buttons previously only closed the flyout. The flyout now runs `htmx.process` on its panel when it opens (idempotent on re-open), wiring up each button's `hx-get`/`hx-post`/`hx-target`/`hx-swap`
+* fix(sidebar): the role/department line under the user name no longer overflows the fixed-width sidebar — `.ti-sidebar-user-name` and `.ti-sidebar-user-sub` truncate with an ellipsis, and `.ti-sidebar-user-text` gets `flex: 1` so it bounds the text column
+* style(css): expand the `.ti-icon` size-modifier one-liners (`.xs`/`.sm`/`.md`/`.lg`/`.xl`) to block form for consistency with the rest of the sheet
+* build(release): bump package version from `1.8.0` to `1.9.0`
+
+## Version 1.8.0
+
+* feat(notifications): notifications can now show a secondary **details** line under the generic message. `tiApplication.formatException` returns `{ message, details }` (resolved from the exception's `data.details`, falling back to the raw text for non-localized messages) and `tiApplication.notify` accepts that payload — so an error like "The request parameters are not recognized or not supported." now also shows the specifics (e.g. "Competency codes not in the 'QE' pool: …") in a smaller, muted font. The returned object stringifies to its message, so existing string usages keep working unchanged
+* fix(css): raise the toast stack above the modal layer (`z-index` 1100 → 1300; the modal backdrop is 1200) so a notification raised while a modal is open is no longer hidden behind it
+
+## Version 1.7.1
+
+* fix(web-handlers): web-application request errors that carry no explicit `httpCode` are no longer reported as `500`. A new `resolveHttpCode` derives the status from the exception code — request-validation and application-logic errors (`E_WEB_*` / `E_APP_*`) map to `422 Unprocessable Content`, security (`E_SEC_*`) to `403`, resource not-found/already-exists to `404`/`409`, and method/URI/content errors to `405`/`404`/`415`; only genuine internal, communication, and unknown errors still default to `500`. An explicit `httpCode` on the exception always wins. Applied in both the `/app` request handler (`formatException`) and the default error handler
+
+## Version 1.7.0
+
+* feat(css): introduce `.ti-data-grid` family — `.ti-data-grid`, `.ti-data-grid-head`, `.ti-data-grid-rows`, `.ti-data-grid-row` with shared `--ti-grid-cols` template; row state modifiers `.is-current` (accent-soft, "current user") and `.is-selected` (accent-soft + left accent bar); wrapper variants `.bordered` (horizontal dividers for tabular displays) and `.compact` (denser padding); cell utilities `.ti-cell-center` / `.ti-cell-right` for per-cell alignment
+* feat(css): introduce `.ti-page-head` as a vertical block stack (eyebrow above title, subtitle below) using `--fs-xs` for the eyebrow and clamping subtitle width at 60ch
+* feat(css): introduce a reusable `.ti-form*` family — `.ti-form`, `.ti-form-section`, `.ti-form-section-title`, `.ti-form-grid` (with `.cols-1` / `.cols-3` modifiers), `.ti-form-row` (with `.wide` for grid-spanning), `.ti-form-readonly`, `.ti-form-hint`, `.ti-form-error`, `.ti-form-actions`, `.ti-form-state` (with `.saved` / `.unsaved`); single responsive collapse to one column under 720px
+* feat(css): extend `.ti-panel-head` with sub-elements — `.ti-panel-head-icon` (32x32 framed icon slot), `.ti-panel-head-text` (title + subtitle stack inside a flex row), `.ti-panel-title-aside` (inline qualifier next to the title), `.ti-panel-subtitle` (dimmed sub line), `.ti-panel-head-aside` (right-aligned read-only info with left-border separator), and the `.bar` modifier (sunken full-width banner)
+* feat(icons)!: rebase `.ti-icon` on `background-color: currentColor` so icons inherit the surrounding text colour; add size modifiers `.xs` (12px), `.sm` (14px), `.md` (16px), `.lg` (24px), `.xl` (32px); add `.legacy-gray` modifier to preserve the previous gray/hover behaviour for consumers that rely on the fixed colour scheme
+* feat(icons): add 21 new `.ti-icon` variants (lucide / feather style, 24x24 viewBox) — `plus`, `close`, `check`, `check-clipboard`, `send`, `search`, `clock`, `warning-triangle`, `info-circle`, `bell`, `check-circle`, `eye`, `calendar-blank`, `user`, `users`, `briefcase`, `folder`, `book`, `help-circle`, `bar-chart`, `chevron-left`, `chevron-right`, `dashboard-grid`, `cycles-loop`, `sun`
+* feat(icons): add `.ti-icon.moon` mask variant so theme toggles can mirror the target mode
+* feat(framework): add `tiApplication.hasRole(roleCode)` helper that does the array-shape check in plain JS (the Alpine CSP build does not expose `Array` to its expression evaluator, so `Array.isArray(...)` written inline in a template raises `Undefined variable: Array`)
+* feat(framework): add `tiApplication.topbarPrimaryCta` store slot plus `setTopbarPrimaryCta` / `setTopbarPrimaryCtaDisabled` API for per-screen CTA buttons in the topbar; auto-cleared on screen navigation so each screen owns its slot
+* feat(css): native select chevron replaced by a custom down-chevron SVG positioned at right: 10px / 14x14; padding-right reserves the slot; glass theme overrides the SVG stroke colour because `background-image` can't pick up `currentColor`
+* feat(css): subdue `::-webkit-calendar-picker-indicator` to opacity 0.7 (1 on hover) so date-input visual weight matches the chevron
+* feat(notification bar): replace inline toast SVGs with `.ti-icon` mask classes (success check, danger close, warn triangle, info circle, close button)
+* feat(sidebar): replace inline navigation SVGs with `.ti-icon` mask classes (collapse chevron, dashboard home, sun theme toggle)
+* refactor(css): drop the screen-specific page-header, form, and tabular-layout CSS that duplicated framework primitives; all in-tree screens (`frame-employees-list`, `frame-cycles`, `frame-cycle-setup`, `frame-competence-evaluation`, `frame-new-evaluation`, `frame-manager-calendar`, `frame-interview-schedule`, `frame-employee-management`) now consume `.ti-page-head`, `.ti-data-grid`, `.ti-form*`, and `.ti-panel-head*` instead
+* docs(modal): doc-block on `.ti-modal-*` confirming it as the canonical shared primitive (introduced in 1.6.3 via the competence cycle-setup work)
+* build(release): bump package version from `1.6.3` to `1.7.0`
+
 ## Version 1.6.3
 
 * feat(css): add `--ti-internal-padding` CSS variable to the design token system

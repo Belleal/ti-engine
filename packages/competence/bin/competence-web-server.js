@@ -12,6 +12,7 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const ServiceConsumer = require( "@ti-engine/core/service-consumer" );
 const dataManager = require( "#data-manager" );
 const organizationManager = require( "#organization-manager" );
+const configurationLoader = require( "#configuration-loader" );
 
 /**
  * NOTE: This is still a work in progress.
@@ -42,18 +43,14 @@ class CompetenceWebServer extends TiWebServer {
      * @public
      */
     onStart() {
-        return new Promise( ( resolve, reject ) => {
-            super.onStart().then( () => {
-                return dataManager.instance.initialize();
-            } ).then( () => {
-                return organizationManager.instance.buildOrganizationChart();
-            } ).then( () => {
-                resolve();
-            } ).catch( ( error ) => {
+        return super.onStart()
+            .then( () => dataManager.instance.initialize() )
+            .then( () => organizationManager.instance.buildOrganizationChart() )
+            .then( () => configurationLoader.initialize() )
+            .catch( ( error ) => {
                 logger.log( `Error while trying to start competence web server within instance '${ ServiceConsumer.instanceID }'!`, logger.logSeverity.ERROR, error );
-                reject( exceptions.raise( error ) );
+                throw exceptions.raise( error );
             } );
-        } );
     }
 
     /**
@@ -84,17 +81,50 @@ class CompetenceWebServer extends TiWebServer {
      * @method
      * @override
      * @param {TiSession} session
+     * @param {Object} [request] Express request used to read the test user selection (cookie).
      * @returns {TiSession}
      * @public
      */
-    augmentSession( session ) {
+    augmentSession( session, request ) {
         // TODO: This part is for testing purposes only! Normally, the employeeID (if any) and roles should come from the AD response.
         if ( session.user ) {
-            session.user.employeeID = session.user.employeeID || "20";
-            session.user.roles = [ 1, 2, 3 ];
+            const testUser = this.#readTestUserSelection( request );
+            session.user.employeeID = ( testUser && testUser.employeeID ) || session.user.employeeID || "20";
+            session.user.roles = ( testUser && Array.isArray( testUser.roles ) && testUser.roles.length > 0 ) ? testUser.roles : [ 1, 2, 3 ];
         }
 
         return session;
+    }
+
+    /* Private interface */
+
+    /**
+     * Reads the temporary "ti-test-user" cookie set by the login screen pill panel and returns the parsed selection.
+     * <br/>
+     * NOTE: For testing purposes only — should be removed once real identity propagation is implemented.
+     *
+     * @method
+     * @param {Object} [request]
+     * @returns {{ employeeID: string, roles: number[] } | null}
+     * @private
+     */
+    #readTestUserSelection( request ) {
+        const raw = request && request.cookies && request.cookies[ "ti-test-user" ];
+        if ( !raw ) {
+            return null;
+        }
+        try {
+            const parsed = JSON.parse( decodeURIComponent( raw ) );
+            if ( parsed && parsed.employeeID ) {
+                return {
+                    employeeID: String( parsed.employeeID ),
+                    roles: Array.isArray( parsed.roles ) ? parsed.roles.map( ( role ) => Number( role ) ).filter( ( role ) => Number.isFinite( role ) ) : []
+                };
+            }
+        } catch {
+            // Ignore malformed cookie values.
+        }
+        return null;
     }
 
 }

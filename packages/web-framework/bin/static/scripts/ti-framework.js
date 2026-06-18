@@ -10,7 +10,7 @@
  * @typedef {Object} SidebarFlyoutConfig
  * @property {string} menuTitle
  * @property {number} [offset]
- * @property {string} icon
+ * @property {string} [icon]
  * @property {string} [placement]
  * @property {boolean} [fixed]
  * @property {Array<SidebarFlyoutButtonConfig>} [buttonConfigs]
@@ -28,47 +28,17 @@
  */
 
 /**
+ * Default configuration applied as a base when an application-supplied flyout config is merged into the store.
+ *
  * @constant
  * @type {SidebarFlyoutConfig}
  */
-const configSidebarApplicationMenu = {
-    menuTitle: "Application Menu",
-    offset: 20,
-    icon: "app-menu",
-    buttonConfigs: [ {
-        title: "Error",
-        icon: "error",
-        action: {
-            href: "/app/error",
-            target: "#ti-content",
-            swap: "innerHTML"
-        }
-    }, {
-        title: "Profile",
-        icon: "user-profile",
-        action: {
-            href: "/app/profile",
-            target: "#ti-content",
-            swap: "innerHTML"
-        }
-    }, {
-        title: "Settings",
-        icon: "settings",
-        action: {
-            href: "/app/administration",
-            target: "#ti-content",
-            swap: "innerHTML"
-        }
-    }, {
-        title: "Logout",
-        icon: "logout",
-        action: {
-            href: "/logout",
-            method: "post",
-            target: "body",
-            swap: "outerHTML"
-        }
-    } ]
+const defaultSidebarFlyoutConfig = {
+    menuTitle: "Menu",
+    placement: "right-start",
+    offset: 10,
+    fixed: true,
+    buttonConfigs: []
 };
 
 /**
@@ -176,6 +146,7 @@ const configureToolbox = () => {
          * @public
          */
         formatDate( value, placeholder = "" ) {
+            if ( !value ) return placeholder;
             const normalized = /^\d{4}-\d{2}-\d{2}$/.test( value )
                 ? `${ value }T00:00:00`
                 : value;
@@ -194,6 +165,34 @@ const configureToolbox = () => {
         getCookie( name ) {
             const cookie = document.cookie.match( new RegExp( "(?:^|; )" + name.replace( /[$()*+.?[\]\\^{}|]/g, "\\$&" ) + "=([^;]*)" ) );
             return cookie ? decodeURIComponent( cookie[ 1 ] ) : "";
+        },
+
+        /**
+         * Used to get the Monday of the week for a given date.
+         *
+         * @method
+         * @param {Date} date
+         * @returns {Date}
+         * @public
+         */
+        getMonday( date ) {
+            const d = new Date( date );
+            const day = d.getDay();
+            d.setDate( d.getDate() + ( day === 0 ? -6 : 1 - day ) );
+            d.setHours( 0, 0, 0, 0 );
+            return d;
+        },
+
+        /**
+         * Used to get a URL query parameter value by name.
+         *
+         * @method
+         * @param {string} name
+         * @returns {string|null}
+         * @public
+         */
+        getUrlParam( name ) {
+            return new URLSearchParams( window.location.search ).get( name );
         },
 
         /**
@@ -260,7 +259,10 @@ const configureToolbox = () => {
         /**
          * Used to perform a structured clone operation.
          * <br/>
-         * NOTE: If 'structuredClone' is not available, fall back to JSON.parse/JSON.stringify. The later will not preserve non-JSON-serializable.
+         * NOTE: If 'structuredClone' is not available — or throws DataCloneError on a reactive Proxy
+         * (Alpine/Vue reactivity wraps assigned objects in Proxies that the browser's structured-clone
+         * algorithm can refuse) — fall back to JSON.parse/JSON.stringify. The fallback will not preserve
+         * non-JSON-serializable values (functions, undefined, symbols, Dates, RegExp).
          *
          * @method
          * @param {Object} value
@@ -269,7 +271,56 @@ const configureToolbox = () => {
          * @public
          */
         structuredClone( value, options ) {
-            return ( typeof structuredClone === "function" ) ? structuredClone( value, options ) : JSON.parse( JSON.stringify( value ) );
+            if ( typeof structuredClone === "function" ) {
+                try {
+                    return structuredClone( value, options );
+                } catch {
+                    return JSON.parse( JSON.stringify( value ) );
+                }
+            }
+            return JSON.parse( JSON.stringify( value ) );
+        },
+
+        /**
+         * Used to convert a Date object to an ISO date string (YYYY-MM-DD).
+         *
+         * @method
+         * @param {Date} date
+         * @returns {string}
+         * @public
+         */
+        toDateString( date ) {
+            const y = date.getFullYear();
+            const m = String( date.getMonth() + 1 ).padStart( 2, "0" );
+            const d = String( date.getDate() ).padStart( 2, "0" );
+            return `${ y }-${ m }-${ d }`;
+        },
+
+        /**
+         * Deterministically maps a seed value (e.g. employeeID) to an HSL color string.
+         * The result is stable across sessions and consistent for the same seed.
+         *
+         * @method
+         * @param {string|number} id
+         * @param {string} name
+         * @returns {Object} HSL color string
+         * @public
+         */
+        generateAvatarStyle( id, name ) {
+            const seed = String( id ?? "" ) + "\x00" + String( name ?? "" );
+            const djb2 = ( s ) => {
+                let h = 5381;
+                for ( let i = 0; i < s.length; i++ ) {
+                    h = ( ( h << 5 ) + h + s.charCodeAt( i ) ) | 0;
+                }
+                return Math.abs( h );
+            };
+            const h0 = djb2( seed + "A" ) % 360;
+            const h1 = djb2( seed + "B" ) % 360;
+            const h2 = djb2( seed + "C" ) % 360;
+            return {
+                "--avatar-bg": `linear-gradient( 135deg, hsl( ${ h0 }, 70%, 48% ) 0%, hsl( ${ h1 }, 62%, 54% ) 50%, hsl( ${ h2 }, 65%, 44% ) 100% )`
+            };
         }
 
     };
@@ -277,13 +328,17 @@ const configureToolbox = () => {
 
 /**
  * Returns a configuration object for the sidebar flyout component "component-sidebar-flyout.html".
+ * <br/>
+ * The component looks up its menu definition from the "tiComponentsConfig" Alpine store using the supplied
+ * configuration key. This allows each application to register its own flyout menus via the application
+ * configuration response without modifying the framework.
  *
  * @method
- * @param {Object} options
+ * @param {string} configKey Key into the "tiComponentsConfig" store identifying the flyout configuration to use.
  * @returns {Object}
  * @public
  */
-const configureComponentSidebarFlyout = ( options = {} ) => {
+const configureComponentSidebarFlyout = ( configKey ) => {
     const tiToolbox = Alpine.store( "tiToolbox" );
     const TI_EVENT_CLOSE_ALL_FLYOUT = "ti-close-all-flyout";
 
@@ -291,11 +346,39 @@ const configureComponentSidebarFlyout = ( options = {} ) => {
      * @typedef {Object} TiSidebarFlyout
      */
     return {
-        placement: options.placement ?? "right-start",
-        offset: options.offset ?? 10,
-        fixed: options.fixed ?? true,
-        icon: options.icon ?? "app-menu",
+        configKey: configKey || "",
         isOpen: false,
+
+        get config() {
+            const store = Alpine.store( "tiComponentsConfig" ) || {};
+            return store[ this.configKey ] || defaultSidebarFlyoutConfig;
+        },
+        get menuTitle() {
+            return this.config.menuTitle || "";
+        },
+        get placement() {
+            return this.config.placement || "right-start";
+        },
+        get side() {
+            if ( this.config.side ) return this.config.side;
+            return this.placement.split( "-" )[ 0 ] || "right";
+        },
+        get align() {
+            if ( this.config.align ) return this.config.align;
+            return this.placement.split( "-" )[ 1 ] || "start";
+        },
+        get offset() {
+            return ( typeof this.config.offset === "number" ) ? this.config.offset : 10;
+        },
+        get fixed() {
+            return ( typeof this.config.fixed === "boolean" ) ? this.config.fixed : true;
+        },
+        get icon() {
+            return this.config.icon || "";
+        },
+        get buttonConfigs() {
+            return Array.isArray( this.config.buttonConfigs ) ? this.config.buttonConfigs : [];
+        },
 
         /**
          * Used to initialize the sidebar flyout component.
@@ -346,6 +429,12 @@ const configureComponentSidebarFlyout = ( options = {} ) => {
                 this.$nextTick( () => {
                     this.setAria();
                     this.reposition();
+                    // The menu items bind their hx-* attributes via Alpine (x-bind), which HTMX does not pick up on its
+                    // initial document scan — so without this the buttons close the flyout but never fire the request.
+                    // Processing the panel attaches HTMX behaviour to the now-rendered buttons (idempotent on re-open).
+                    if ( window.htmx && this.$refs.flyoutPanel ) {
+                        window.htmx.process( this.$refs.flyoutPanel );
+                    }
                 } );
             }
         },
@@ -396,7 +485,8 @@ const configureComponentSidebarFlyout = ( options = {} ) => {
             let top = rect.top + ( this.fixed ? 0 : scrollY );
             let left = rect.left + ( this.fixed ? 0 : scrollX );
 
-            const [ side, align = "start" ] = this.placement.split( "-" );
+            const side = this.side;
+            const align = this.align;
             if ( side === "right" ) {
                 left = rect.right + ( this.fixed ? 0 : scrollX ) + this.offset;
             } else if ( side === "left" ) {
@@ -439,7 +529,106 @@ const configureComponentSidebarFlyout = ( options = {} ) => {
 };
 
 /**
- * Returns a configuration object for the notifications component "component-notification-bar.html".
+ * Returns a configuration object for the sidebar navigation component.
+ * The screen-to-active-key mapping is read at runtime from tiApplication.configuration.sidebarNavMapping,
+ * allowing each application to define its own mapping without changing the framework.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureSidebarNav = () => {
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    const getActiveFromScreen = ( screen ) => {
+        const mapping = ( tiApplication.configuration && tiApplication.configuration.sidebarNavMapping ) || {};
+        return mapping[ screen ] || "";
+    };
+
+    const getActiveFromUrl = () => {
+        const match = window.location.pathname.match( /^\/app\/([\w-]+)/ );
+        return match ? getActiveFromScreen( match[ 1 ] ) : "";
+    };
+
+    return {
+        active: "",
+
+        init() {
+            this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                if ( isInitialized ) {
+                    const fromUrl = getActiveFromUrl();
+                    if ( fromUrl ) {
+                        this.active = fromUrl;
+                    }
+                }
+            } );
+            this.$watch( () => tiApplication.currentScreen, ( screen ) => {
+                const mapped = getActiveFromScreen( screen );
+                if ( mapped ) {
+                    this.active = mapped;
+                }
+            } );
+            if ( tiApplication.isInitialized ) {
+                const fromUrl = getActiveFromUrl();
+                if ( fromUrl ) {
+                    this.active = fromUrl;
+                }
+            }
+        },
+
+        navigate( activeKey, screen ) {
+            this.active = activeKey;
+            tiApplication.openScreen( screen );
+        }
+    };
+};
+
+/**
+ * Returns a configuration object for the topbar component "component-topbar.html".
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureComponentTopbar = () => {
+    /**
+     * @typedef {Object} TiTopbar
+     */
+    return {
+
+        screenTitle: "",
+
+        init() {
+            const tiApplication = Alpine.store( "tiApplication" );
+
+            const updateTitle = () => {
+                const screen = ( tiApplication && tiApplication.currentScreen ) || "";
+                const title = screen ? tiApplication.getLabel( `interface.topbar.${ screen }`, "" ) : "";
+                this.screenTitle = title;
+                if ( title ) {
+                    document.title = title;
+                }
+            };
+
+            // If the htmx:afterSwap listener was registered after the initial swap already fired,
+            // currentScreen won't be set yet — fall back to reading the URL that hx-push-url already updated:
+            if ( tiApplication && !tiApplication.currentScreen ) {
+                const match = window.location.pathname.match( /^\/app\/([\w-]+)/ );
+                if ( match ) {
+                    tiApplication.setCurrentScreen( match[ 1 ] );
+                }
+            }
+
+            updateTitle();
+            this.$watch( () => tiApplication.currentScreen, updateTitle );
+            this.$watch( () => tiApplication.isInitialized, updateTitle );
+        }
+
+    };
+};
+
+/**
+ * Returns a configuration object for the notification component "component-notification-bar.html".
  *
  * @method
  * @returns {Object}
@@ -593,6 +782,10 @@ const configureComponentTooltip = () => {
  * @public
  */
 const configureApplication = () => {
+    const STORAGE_KEY_COLLAPSED = "ti-sidebar-collapsed";
+    const STORAGE_KEY_THEME = "ti-theme";
+    const DEFAULT_THEME = "daylight";
+
     const tiToolbox = Alpine.store( "tiToolbox" );
 
     /**
@@ -626,8 +819,13 @@ const configureApplication = () => {
         isInitialized: false,
         user: null,
         configuration: {},
+        currentScreen: "",
+        topbarSubtitle: "",
+        topbarPrimaryCta: null,
         notificationIDCounter: 1,
         requestControllers: new Map(),
+        collapsed: false,
+        theme: DEFAULT_THEME,
 
         /**
          * Used to initialize the web application.
@@ -637,9 +835,21 @@ const configureApplication = () => {
                 this.notify( this.formatException( event.detail ) );
             } );
 
+            try {
+                const savedCollapsed = localStorage.getItem( STORAGE_KEY_COLLAPSED );
+                if ( savedCollapsed !== null ) this.collapsed = savedCollapsed === "true";
+
+                const savedTheme = localStorage.getItem( STORAGE_KEY_THEME );
+                if ( savedTheme ) this.theme = savedTheme;
+            } catch {
+                // localStorage may be unavailable (private browsing, security policy).
+            }
+            this._applyTheme( this.theme );
+
             // Use application settings to configure the application at load-time:
             this.sendRequest( "/app/config" ).then( ( result ) => {
                 this.configuration = result?.data || {};
+                this._mergeComponentsConfig( this.configuration?.componentsConfig );
                 return ( this.configuration?.auth?.isAuthenticated ) ? this.sendRequest( "/me" ) : {};
             } ).then( ( result ) => {
                 this.user = result?.data?.user || null;
@@ -651,7 +861,8 @@ const configureApplication = () => {
 
                 this.user = null;
                 this.isInitialized = false;
-                this.notify( this.getLabel( "error.application.init-failed" ) + this.formatException( error ) );
+                const formatted = this.formatException( error );
+                this.notify( { message: this.getLabel( "error.application.init-failed" ) + " " + formatted.message, details: formatted.details } );
             } );
         },
 
@@ -736,44 +947,121 @@ const configureApplication = () => {
          * @public
          */
         openScreen( screen ) {
-            if ( !screen || !/^[\w-]+$/.test( screen ) || !window.htmx ) {
+            const [ basePath, ...queryParts ] = ( screen || "" ).split( "?" );
+            const query = queryParts.length ? "?" + queryParts.join( "?" ) : "";
+            if ( !basePath || !/^[\w-]+$/.test( basePath ) || !window.htmx ) {
                 window.location.href = "/";
             } else {
-                let screenUrl = "/app/" + screen;
-                window.htmx.ajax( "get", screenUrl, { target: "#ti-content", swap: "innerHTML" } ).then( () => {
-                    window.history.pushState( null, "", screenUrl );
-                } ).catch( () => {
+                const screenUrl = "/app/" + basePath + query;
+                // Push the URL before the HTMX swap so that any Alpine component initialized
+                // during the swap (via MutationObserver microtask) already sees the correct URL.
+                window.history.pushState( null, "", screenUrl );
+                this.currentScreen = basePath;
+                window.htmx.ajax( "get", screenUrl, { target: "#ti-content", swap: "innerHTML" } ).catch( () => {
                     window.location.href = "/";
                 } );
             }
         },
 
         /**
-         * Used to format an exception notification message.
+         * Used to update the current screen name and push the URL to history.
          *
          * @method
-         * @param {Object} error
-         * @returns {string}
+         * @param {string} screen
          * @public
          */
-        formatException( error ) {
-            return this.getLabel( ( error.exception?.code === 5005 && error.exception?.data ) ? error.exception.data.details : error.exception?.label );
+        setCurrentScreen( screen ) {
+            if ( screen ) {
+                this.currentScreen = screen;
+                this.topbarSubtitle = "";
+                this.topbarPrimaryCta = null;
+            }
         },
 
         /**
-         * Used to display a notification in the notification bar.
+         * Used to set a per-screen subtitle in the topbar, overriding the default cycle name.
+         * Automatically cleared on screen navigation.
          *
          * @method
-         * @param {string} message
+         * @param {string} subtitle
+         * @public
+         */
+        setTopbarSubtitle( subtitle ) {
+            this.topbarSubtitle = String( subtitle || "" ).trim();
+        },
+
+        /**
+         * Used to register a primary call-to-action button in the topbar for the current screen. The CTA is
+         * automatically cleared on screen navigation so each screen owns its own slot. Pass {@link null} to remove
+         * the CTA without leaving the screen.
+         *
+         * @typedef {Object} TiTopbarPrimaryCta
+         * @property {string} labelKey Localization key for the button text.
+         * @property {string} [icon] Optional icon class name (e.g. "plus", "send"); rendered as a leading glyph.
+         * @property {string} [tone] Button tone class — "primary" (default), "danger", "ghost".
+         * @property {Function} handler Click handler invoked when the button is activated.
+         * @property {boolean} [disabled] Optional disabled flag.
+         *
+         * @method
+         * @param {TiTopbarPrimaryCta|null} cta
+         * @public
+         */
+        setTopbarPrimaryCta( cta ) {
+            this.topbarPrimaryCta = ( cta && typeof cta === "object" ) ? cta : null;
+        },
+
+        /**
+         * Used to mutate just the disabled flag of the active topbar CTA without re-registering the full object.
+         * Useful when validation state changes while the screen is open (e.g. cycle setup becoming lockable).
+         *
+         * @method
+         * @param {boolean} disabled
+         * @public
+         */
+        setTopbarPrimaryCtaDisabled( disabled ) {
+            if ( this.topbarPrimaryCta ) {
+                this.topbarPrimaryCta = { ...this.topbarPrimaryCta, disabled: disabled === true };
+            }
+        },
+
+        /**
+         * Used to format an exception into a notification payload: a generic localized `message` plus optional, more
+         * specific `details`. The returned object stringifies to its `message`, so existing string usages
+         * (concatenation, `x-text`) keep working, while {@link notify} can surface the `details` on a second line.
+         *
+         * @method
+         * @param {Object} error
+         * @returns {{message: string, details: string, toString: function(): string}}
+         * @public
+         */
+        formatException( error ) {
+            const exception = error && error.exception;
+            const message = ( error && error.message ) || this.getLabel( exception && exception.label );
+            const rawDetails = exception && exception.data && exception.data.details;
+            // Resolve the details as a label when it is a known label key; otherwise show the raw text (using it as its
+            // own fallback so dynamic, non-localized messages pass through unchanged).
+            const details = rawDetails ? this.getLabel( rawDetails, rawDetails ) : "";
+            return { message: message, details: details, toString() { return this.message; } };
+        },
+
+        /**
+         * Used to display a notification in the notification bar. Accepts either a plain message string or a payload
+         * object `{ message, details }` (e.g. the result of {@link formatException}); the optional `details` render on
+         * a smaller second line.
+         *
+         * @method
+         * @param {string|{message: string, details?: string}} message
          * @param {number} [timeout=6000]
          * @public
          */
         notify( message, timeout = 6000 ) {
             const notificationBar = document.querySelector( "#ti-notifications" );
             if ( notificationBar ) {
+                const payload = ( message && typeof message === "object" ) ? message : { message: message };
                 Alpine.$data( notificationBar ).add( {
                     id: this.notificationIDCounter++,
-                    message: message || this.getLabel( "error.application.unexpected" ),
+                    message: payload.message || this.getLabel( "error.application.unexpected" ),
+                    details: payload.details || "",
                     timeout: timeout
                 } );
             }
@@ -794,6 +1082,83 @@ const configureApplication = () => {
             } else {
                 return extractLabel( this.configuration.labels || {}, label.split( "." ).filter( Boolean ), fallback );
             }
+        },
+
+        /**
+         * Returns true when the current session user holds the given role code. Safe to call before the session has
+         * loaded (returns false). Provided as a helper because the Alpine CSP evaluator does not expose `Array`, so
+         * `Array.isArray( ... )` cannot be written inline in templates.
+         *
+         * @method
+         * @param {number|string} roleCode
+         * @returns {boolean}
+         * @public
+         */
+        hasRole( roleCode ) {
+            const roles = this.user && this.user.roles;
+            if ( !roles || typeof roles.indexOf !== "function" ) {
+                return false;
+            }
+            return roles.indexOf( roleCode ) >= 0;
+        },
+
+        /**
+         * Toggle the sidebar between expanded and collapsed states.
+         *
+         * @method
+         * @public
+         */
+        toggleCollapse() {
+            this.collapsed = !this.collapsed;
+            try {
+                localStorage.setItem( STORAGE_KEY_COLLAPSED, String( this.collapsed ) );
+            } catch { /* ignore */
+            }
+        },
+
+        /**
+         * Toggle between daylight and glass themes.
+         *
+         * @method
+         * @public
+         */
+        toggleTheme() {
+            this.theme = ( this.theme === "daylight" ) ? "glass" : "daylight";
+            this._applyTheme( this.theme );
+            try {
+                localStorage.setItem( STORAGE_KEY_THEME, this.theme );
+            } catch { /* ignore */
+            }
+        },
+
+        /**
+         * Apply a theme by setting the data-theme attribute on <html>.
+         *
+         * @method
+         * @param {string} theme
+         * @private
+         */
+        _applyTheme( theme ) {
+            document.documentElement.dataset.theme = theme;
+        },
+
+        /**
+         * Merges app-supplied component configurations into the "tiComponentsConfig" Alpine store.
+         * Each entry is deep-merged on top of the framework's default flyout config, so apps only need
+         * to supply the differences.
+         *
+         * @method
+         * @param {Object} [componentsConfig]
+         * @private
+         */
+        _mergeComponentsConfig( componentsConfig ) {
+            if ( !componentsConfig || typeof componentsConfig !== "object" ) {
+                return;
+            }
+            const store = Alpine.store( "tiComponentsConfig" );
+            Object.keys( componentsConfig ).forEach( ( key ) => {
+                store[ key ] = tiToolbox.deepMerge( defaultSidebarFlyoutConfig, componentsConfig[ key ] || {} );
+            } );
         }
 
     };
@@ -855,6 +1220,19 @@ document.addEventListener( "htmx:configRequest", ( event ) => {
 /**
  * Add a custom event listener to the HTMX framework.
  */
+document.addEventListener( "htmx:afterSwap", ( event ) => {
+    const target = event.detail.target;
+    if ( target.id !== "ti-content" && target.tagName !== "TI-NESTED-FRAME-PLACEHOLDER" ) return;
+    const path = ( event.detail.pathInfo && event.detail.pathInfo.requestPath ) || "";
+    const match = path.match( /^\/app\/([\w-]+)/ );
+    if ( match ) {
+        const tiApplication = Alpine.store( "tiApplication" );
+        if ( tiApplication ) {
+            tiApplication.setCurrentScreen( match[ 1 ] );
+        }
+    }
+} );
+
 document.addEventListener( "htmx:responseError", ( event ) => {
     // If the server sent HX-Trigger with our payload, it will also emit a separate event,
     // But here we parse body as fallback when body is JSON
@@ -874,25 +1252,97 @@ document.addEventListener( "htmx:responseError", ( event ) => {
 } );
 
 /**
+ * Returns a configuration object for the login screen test user pill panel.
+ * <br/>
+ * NOTE: This is a TEMPORARY testing aid that injects an employeeID and roles into the session via a cookie
+ * which the server-side {@link augmentSession} reads. Remove together with the panel HTML once real identity
+ * propagation is in place.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureLoginTestUserPanel = () => {
+    const COOKIE_NAME = "ti-test-user";
+    const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+
+    const readCookie = () => {
+        try {
+            const tiToolbox = Alpine.store( "tiToolbox" );
+            const raw = tiToolbox.getCookie( COOKIE_NAME );
+            if ( !raw ) return null;
+            const parsed = JSON.parse( raw );
+            return ( parsed && parsed.employeeID ) ? parsed : null;
+        } catch {
+            return null;
+        }
+    };
+
+    const writeCookie = ( value ) => {
+        const encoded = encodeURIComponent( JSON.stringify( value ) );
+        document.cookie = `${ COOKIE_NAME }=${ encoded }; path=/; max-age=${ COOKIE_MAX_AGE_SECONDS }; SameSite=Lax`;
+    };
+
+    const clearCookie = () => {
+        document.cookie = `${ COOKIE_NAME }=; path=/; max-age=0; SameSite=Lax`;
+    };
+
+    return {
+        profiles: [
+            { employeeID: "22", roles: [ 1, 2, 3 ] },
+            { employeeID: "20", roles: [ 1, 2 ] },
+            { employeeID: "1", roles: [ 1 ] },
+            { employeeID: "4", roles: [ 1 ] }
+        ],
+        selected: null,
+
+        init() {
+            this.selected = readCookie();
+        },
+
+        isSelected( profile ) {
+            return Boolean( this.selected && this.selected.employeeID === profile.employeeID );
+        },
+
+        select( profile ) {
+            this.selected = { employeeID: profile.employeeID, roles: profile.roles.slice() };
+            writeCookie( this.selected );
+        },
+
+        clear() {
+            this.selected = null;
+            clearCookie();
+        }
+    };
+};
+
+/**
  * Register on-initialization tasks for the Alpine.js framework.
  */
 document.addEventListener( "alpine:init", () => {
-    const defaultComponentConfig = {
-        menuTitle: "Menu",
-        placement: "right-start",
-        offset: 10,
-        fixed: true,
-        buttonConfigs: []
-    };
-
     // Note: Sequence here is important!
     Alpine.directive( "text-label", configureDirectiveTextLabel() );
     Alpine.store( "tiToolbox", configureToolbox() );
     Alpine.store( "tiApplication", configureApplication() );
-    Alpine.store( "tiComponentsConfig", {
-        sidebarApplicationMenu: Alpine.store( "tiToolbox" ).deepMerge( defaultComponentConfig, configSidebarApplicationMenu )
-    } );
+    Alpine.store( "tiComponentsConfig", {} );
+    Alpine.data( "tiApplication", () => ( {
+        get collapsed() {
+            return Alpine.store( "tiApplication" ).collapsed;
+        },
+        get theme() {
+            return Alpine.store( "tiApplication" ).theme;
+        },
+        toggleCollapse() {
+            Alpine.store( "tiApplication" ).toggleCollapse();
+        },
+        toggleTheme() {
+            Alpine.store( "tiApplication" ).toggleTheme();
+        }
+    } ) );
+    Alpine.data( "tiComponentSidebarNav", configureSidebarNav );
+    Alpine.data( "tiComponentTopbar", configureComponentTopbar );
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
     Alpine.data( "tiComponentTooltip", configureComponentTooltip );
+    Alpine.data( "tiLoginTestUserPanel", configureLoginTestUserPanel );
 } );

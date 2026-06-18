@@ -1,0 +1,324 @@
+<div class="ti-page" x-data="competenceDashboard">
+
+    <!-- Loading state -->
+    <template x-if="isLoading">
+        <div class="ti-empty-state">
+            <div class="ti-empty-state-title" x-text-label="interface.dashboard.loading">Loading dashboard…</div>
+        </div>
+    </template>
+
+    <!-- Dashboard content -->
+    <template x-if="!isLoading">
+        <div>
+            <!-- Hero row -->
+            <div class="competence-dash-hero">
+                <!-- Greeting card -->
+                <div class="competence-dash-hero-card">
+                    <div class="competence-dash-hero-date" x-text="getDayInfo()"></div>
+                    <div class="competence-dash-hero-greeting" x-text="getGreeting() + ','"></div>
+                    <div class="competence-dash-hero-title" x-text="getUserName() + '.'"></div>
+                    <div class="competence-dash-hero-msg">
+                        <template x-if="myEvaluation">
+                            <span>
+                                <span x-text-label="interface.dashboard.my-eval-status">Your evaluation is currently</span>
+                                <span class="ti-status-pill" x-bind:class="myEvaluation.statusTone">
+                                    <span class="dot"></span>
+                                    <span x-text="getLabel(myEvaluation.statusName)"></span>
+                                </span>
+                            </span>
+                        </template>
+                        <template x-if="!myEvaluation">
+                            <span x-text-label="interface.dashboard.no-evaluation">No active evaluation found for this cycle.</span>
+                        </template>
+                    </div>
+                    <div class="competence-dash-hero-actions" x-show="myEvaluation">
+                        <button @click="openMyEvaluation()" class="ti-btn primary" type="button">
+                            <span class="ti-icon check-clipboard md" aria-hidden="true"></span>
+                            <span x-text-label="interface.dashboard.open-evaluation">Open My Evaluation</span>
+                        </button>
+                    </div>
+
+                    <!-- Background mark -->
+                    <div class="competence-dash-hero-mark" aria-hidden="true">
+                        <svg viewBox="0 0 120 120" fill="none" class="competence-dash-hero-frame">
+                            <path d="M60 10 L110 35 L110 85 L60 110 L10 85 L10 35 Z" stroke="currentColor" stroke-width="2" fill="none" opacity="0.5"/>
+                            <circle cx="60" cy="60" r="30" stroke="currentColor" stroke-width="2" fill="none"/>
+                        </svg>
+                        <div class="ti-avatar xl"
+                             x-bind:style="$store.tiToolbox.generateAvatarStyle( $store.tiApplication.user && $store.tiApplication.user.employeeID, $store.tiApplication.user && $store.tiApplication.user.name )"
+                             x-bind:aria-label="getUserName()">
+                            <span x-text="( ( $store.tiApplication.user && $store.tiApplication.user.name ) || '?' ).charAt( 0 ).toUpperCase()"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cycle card -->
+                <div class="competence-dash-cycle-card">
+                    <div class="competence-cycle-meta">
+                        <span x-text-label="interface.dashboard.cycle-active">Active Cycle</span>
+                        <span class="ti-status-pill" x-show="cycle.statusName" x-bind:class="cycle.statusTone || ''">
+                            <span class="dot"></span>
+                            <span x-text="cycle.statusName"></span>
+                        </span>
+                    </div>
+                    <div class="competence-cycle-id" x-text="cycle.id || '—'"></div>
+
+                    <!-- Time-elapsed bar -->
+                    <div>
+                        <div class="competence-bar" x-bind:style="{ '--pct': cycleTimePct() + '%' }">
+                            <div class="competence-fill"></div>
+                        </div>
+                        <div class="competence-cycle-progress-meta">
+                            <span>
+                                <span x-text="daysToDeadline()"></span>
+                                <span x-text-label="interface.dashboard.cycle-days-left">days left</span>
+                            </span>
+                            <span>
+                                <span x-text="cycleTimePct()"></span>% <span x-text-label="interface.dashboard.cycle-elapsed">elapsed</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Deadline grid -->
+                    <div class="competence-cycle-deadline-grid">
+                        <div class="competence-cycle-deadline-item">
+                            <span class="competence-cycle-deadline-label" x-text-label="interface.dashboard.cycle-start">Start</span>
+                            <span class="competence-cycle-deadline-date" x-text="formatDate(cycle.startDate)"></span>
+                        </div>
+                        <div class="competence-cycle-deadline-item">
+                            <span class="competence-cycle-deadline-label" x-text-label="interface.dashboard.manager-review">Manager Review</span>
+                            <span class="competence-cycle-deadline-date" x-text="formatDate(cycle.date)"></span>
+                        </div>
+                        <div class="competence-cycle-deadline-item">
+                            <span class="competence-cycle-deadline-label" x-text-label="interface.dashboard.cycle-closes">Closes</span>
+                            <span class="competence-cycle-deadline-date" x-text="formatDate(cycle.endDate)"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stat cards — manager view -->
+            <template x-if="isManager">
+                <div class="competence-dash-stats">
+                    <div class="competence-stat-card competence-accent">
+                        <div class="competence-stat-card-head">
+                            <span class="ti-icon users sm" aria-hidden="true"></span>
+                            <span x-text-label="interface.dashboard.stats.total">Total</span>
+                            <span class="competence-spacer"></span>
+                        </div>
+                        <div class="competence-stat-card-value">
+                            <span x-text="stats.total"></span>
+                            <span class="competence-stat-card-value-suffix" x-text-label="interface.dashboard.stats.total-suffix">evals</span>
+                        </div>
+                        <div class="competence-stat-card-sub" x-text-label="interface.dashboard.stats.total-desc">Team evaluations this cycle</div>
+                        <div class="competence-stat-card-viz" x-show="stats.total > 0">
+                            <div class="competence-fill"></div>
+                        </div>
+                    </div>
+                    <div class="competence-stat-card">
+                        <div class="competence-stat-card-head">
+                            <span class="ti-icon clock sm" aria-hidden="true"></span>
+                            <span x-text-label="interface.dashboard.stats.open">In Progress</span>
+                        </div>
+                        <div class="competence-stat-card-value">
+                            <span x-text="stats.open"></span>
+                            <span class="competence-stat-card-value-suffix" x-text-label="interface.dashboard.stats.open-suffix">open</span>
+                        </div>
+                        <div class="competence-stat-card-sub" x-text-label="interface.dashboard.stats.open-desc">Awaiting self or team evaluation</div>
+                        <div class="competence-stat-card-viz info" x-show="stats.total > 0"
+                             x-bind:style="{ '--pct': (stats.open / stats.total * 100) + '%' }">
+                            <div class="competence-fill"></div>
+                        </div>
+                    </div>
+                    <div class="competence-stat-card">
+                        <div class="competence-stat-card-head">
+                            <span class="ti-icon eye sm" aria-hidden="true"></span>
+                            <span x-text-label="interface.dashboard.stats.review">In Review</span>
+                        </div>
+                        <div class="competence-stat-card-value">
+                            <span x-text="stats.inReview"></span>
+                            <span class="competence-stat-card-value-suffix" x-text-label="interface.dashboard.stats.review-suffix">review</span>
+                        </div>
+                        <div class="competence-stat-card-sub" x-text-label="interface.dashboard.stats.review-desc">Awaiting manager evaluation</div>
+                        <div class="competence-stat-card-viz warn" x-show="stats.total > 0"
+                             x-bind:style="{ '--pct': (stats.inReview / stats.total * 100) + '%' }">
+                            <div class="competence-fill"></div>
+                        </div>
+                    </div>
+                    <div class="competence-stat-card">
+                        <div class="competence-stat-card-head">
+                            <span class="ti-icon check-circle sm" aria-hidden="true"></span>
+                            <span x-text-label="interface.dashboard.stats.ready">Ready</span>
+                        </div>
+                        <div class="competence-stat-card-value">
+                            <span x-text="stats.ready"></span>
+                            <span class="competence-stat-card-value-suffix" x-text-label="interface.dashboard.stats.ready-suffix">ready</span>
+                        </div>
+                        <div class="competence-stat-card-sub" x-text-label="interface.dashboard.stats.ready-desc">Awaiting interview scheduling</div>
+                        <div class="competence-stat-card-viz success" x-show="stats.total > 0"
+                             x-bind:style="{ '--pct': (stats.ready / stats.total * 100) + '%' }">
+                            <div class="competence-fill"></div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Stat cards — employee view -->
+            <template x-if="!isManager">
+                <div class="competence-dash-stats">
+                    <!-- Team Feedback -->
+                    <div class="competence-stat-card">
+                        <div class="competence-stat-card-head">
+                            <span class="ti-icon users sm" aria-hidden="true"></span>
+                            <span x-text-label="interface.dashboard.peer-feedback">Team Feedback</span>
+                        </div>
+                        <div class="competence-stat-card-value">
+                            <span x-text="employeeMetrics.peerFeedback.submitted + ' / ' + employeeMetrics.peerFeedback.requested"></span>
+                            <span class="competence-stat-card-value-suffix" x-text-label="interface.dashboard.peer-feedback-suffix">submitted</span>
+                        </div>
+                        <div class="competence-stat-card-sub" x-text-label="interface.dashboard.peer-feedback-desc">Peer reviews submitted of requested</div>
+                        <div class="competence-stat-card-viz info"
+                             x-bind:style="{ '--pct': (employeeMetrics.peerFeedback.requested > 0 ? (employeeMetrics.peerFeedback.submitted / employeeMetrics.peerFeedback.requested * 100) : 0) + '%' }">
+                            <div class="competence-fill"></div>
+                        </div>
+                    </div>
+                    <!-- Your Self-Grades -->
+                    <div class="competence-stat-card">
+                        <div class="competence-stat-card-head">
+                            <span class="ti-icon check-clipboard sm" aria-hidden="true"></span>
+                            <span x-text-label="interface.dashboard.self-grades">Your Self-Grades</span>
+                        </div>
+                        <div class="competence-stat-card-value">
+                            <span x-text="employeeMetrics.selfGrades.completed + ' / ' + employeeMetrics.selfGrades.total"></span>
+                            <span class="competence-stat-card-value-suffix" x-text-label="interface.dashboard.self-grades-suffix">complete</span>
+                        </div>
+                        <div x-show="myEvaluation && myEvaluation.status === 'In Review'" class="competence-stat-card-sub"
+                             x-text-label="interface.dashboard.self-grades-in-review">Competencies submitted
+                        </div>
+                        <div x-show="myEvaluation && myEvaluation.status === 'Open'" class="competence-stat-card-sub"
+                             x-text-label="interface.dashboard.self-grades-awaiting">Competencies awaiting
+                        </div>
+                        <div x-show="myEvaluation && myEvaluation.status !== 'Open' && myEvaluation.status !== 'In Review'" class="competence-stat-card-sub"
+                             x-text-label="interface.dashboard.self-grades-completed">Competencies completed
+                        </div>
+                        <div class="competence-stat-card-viz"
+                             x-bind:style="{ '--pct': (employeeMetrics.selfGrades.total > 0 ? (employeeMetrics.selfGrades.completed / employeeMetrics.selfGrades.total * 100) : 0) + '%' }">
+                            <div class="competence-fill"></div>
+                        </div>
+                    </div>
+                    <!-- Next Deadline -->
+                    <div class="competence-stat-card competence-accent">
+                        <div class="competence-stat-card-head">
+                            <span class="ti-icon clock sm" aria-hidden="true"></span>
+                            <span x-text-label="interface.dashboard.next-deadline">Next Deadline</span>
+                        </div>
+                        <div class="competence-stat-card-value">
+                            <span x-text="daysToDeadline()"></span>
+                            <span class="competence-stat-card-value-suffix" x-text-label="interface.dashboard.next-deadline-suffix">days</span>
+                        </div>
+                        <div class="competence-stat-card-sub" x-text-label="interface.dashboard.next-deadline-desc">Until manager review closes</div>
+                        <div class="competence-stat-card-viz" x-bind:style="{ '--pct': cycleTimePct() + '%' }">
+                            <div class="competence-fill"></div>
+                        </div>
+                    </div>
+                    <!-- Team Coverage -->
+                    <div class="competence-stat-card">
+                        <div class="competence-stat-card-head">
+                            <span class="ti-icon bar-chart sm" aria-hidden="true"></span>
+                            <span x-text-label="interface.dashboard.team-coverage">Team Coverage</span>
+                        </div>
+                        <div class="competence-stat-card-value">
+                            <span x-text="employeeMetrics.teamCoverage.started + ' / ' + employeeMetrics.teamCoverage.total"></span>
+                            <span class="competence-stat-card-value-suffix" x-text-label="interface.dashboard.team-coverage-suffix">started</span>
+                        </div>
+                        <div class="competence-stat-card-sub" x-text-label="interface.dashboard.team-coverage-desc">Teammates have started their evaluations
+                        </div>
+                        <div class="competence-stat-card-viz success"
+                             x-bind:style="{ '--pct': (employeeMetrics.teamCoverage.total > 0 ? (employeeMetrics.teamCoverage.started / employeeMetrics.teamCoverage.total * 100) : 0) + '%' }">
+                            <div class="competence-fill"></div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Two-column: tasks + activity -->
+            <div class="competence-dash-cols">
+                <!-- Tasks for you -->
+                <div class="ti-panel">
+                    <div class="ti-panel-head">
+                        <div class="ti-panel-title" x-text-label="interface.dashboard.tasks-title">Tasks for you</div>
+                        <span class="competence-panel-head-count" x-show="tasks.length > 0">
+                            <span x-text="tasks.length"></span>
+                            <span x-text-label="interface.dashboard.tasks-count-suffix">items</span>
+                        </span>
+                        <div class="ti-panel-head-actions">
+                            <button class="ti-btn sm ghost" type="button" x-text-label="interface.dashboard.view-all">View all</button>
+                        </div>
+                    </div>
+
+                    <template x-if="tasks.length > 0">
+                        <div class="competence-task-list">
+                            <template x-for="task in tasks" x-bind:key="task.id">
+                                <div class="competence-task-item" @click="handleTaskClick(task)">
+                                    <div class="competence-task-item-icon" x-bind:class="task.tone">
+                                        <span class="ti-icon check-clipboard md" aria-hidden="true"></span>
+                                    </div>
+                                    <div>
+                                        <div class="competence-task-item-title" x-text="task.title"></div>
+                                        <div class="competence-task-item-sub" x-text="task.sub"></div>
+                                    </div>
+                                    <span class="ti-icon chevron-right sm" aria-hidden="true"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <template x-if="tasks.length === 0">
+                        <div class="ti-empty-state">
+                            <div class="ti-empty-state-title" x-text-label="interface.dashboard.no-tasks">All caught up!</div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Activity feed -->
+                <div class="ti-panel">
+                    <div class="ti-panel-head">
+                        <div class="ti-panel-title" x-text-label="interface.dashboard.activity-title">Recent Activity</div>
+                        <div class="ti-panel-head-actions">
+                            <button class="ti-btn sm ghost" type="button" x-text-label="interface.dashboard.view-all">View all</button>
+                        </div>
+                    </div>
+                    <template x-if="activity.length > 0">
+                        <div class="competence-activity-list">
+                            <template x-for="item in activity" x-bind:key="item.id">
+                                <div class="competence-activity-item">
+                                    <div class="ti-avatar xs"
+                                         x-bind:style="$store.tiToolbox.generateAvatarStyle(item.actorID || item.id, item.actorName)"
+                                         x-bind:aria-label="item.actorName">
+                                        <span x-text="(item.actorName || '?').charAt(0).toUpperCase()"></span>
+                                    </div>
+                                    <div>
+                                        <div class="competence-activity-text">
+                                            <strong x-text="item.actorName"></strong>
+                                            <span x-text="item.action"></span>
+                                            <span class="ti-status-pill" x-bind:class="item.statusTone" x-show="item.statusLabel">
+                                                <span class="dot"></span>
+                                                <span x-text="item.statusLabel"></span>
+                                            </span>
+                                        </div>
+                                        <div class="competence-activity-time" x-text="item.time"></div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    <template x-if="activity.length === 0">
+                        <div class="ti-empty-state">
+                            <div class="ti-empty-state-title" x-text-label="interface.dashboard.no-activity">No recent activity</div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>

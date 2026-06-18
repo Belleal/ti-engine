@@ -1,11 +1,21 @@
-<div id="ti-notifications" x-data="tiComponentNotificationBar()" role="region" aria-live="polite" aria-atomic="false" class="ti-notifications">
-    <template x-for="notification in notifications"
-              x-bind:key="notification.id">
-        <div x-on:click="remove( notification.id )"
-             x-on:keydown.enter="remove( notification.id )"
-             x-on:keydown.space.prevent="remove( notification.id )"
-             role="alert" tabindex="0" class="ti-notification ti-glass-panel-black">
-            <span class="ti-icon error"></span><span x-text="notification.message"></span>
+<div id="ti-notifications" x-data="tiComponentNotificationBar" class="ti-toast-stack" aria-live="polite" aria-atomic="false">
+    <template x-for="n in notifications" x-bind:key="n.id">
+        <div class="ti-toast" x-bind:class="n.tone || 'info'" role="alert">
+            <div class="ti-toast-bar" aria-hidden="true"></div>
+            <div class="ti-toast-icon" aria-hidden="true">
+                <span class="ti-icon check md" aria-hidden="true" x-show="n.tone === 'success'"></span>
+                <span class="ti-icon close md" aria-hidden="true" x-show="n.tone === 'danger'"></span>
+                <span class="ti-icon warning-triangle md" aria-hidden="true" x-show="n.tone === 'warn'"></span>
+                <span class="ti-icon info-circle md" aria-hidden="true" x-show="!n.tone || n.tone === 'info'"></span>
+            </div>
+            <div class="ti-toast-body">
+                <div class="ti-toast-title" x-text="n.title || ''"></div>
+                <div class="ti-toast-msg" x-text="n.message || ''"></div>
+                <div class="ti-toast-details" x-show="n.details" x-text="n.details || ''"></div>
+            </div>
+            <button class="ti-toast-close" @click="remove(n.id)" aria-label="Dismiss notification" type="button">
+                <span class="ti-icon close sm" aria-hidden="true"></span>
+            </button>
         </div>
     </template>
 </div>

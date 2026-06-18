@@ -1,15 +1,22 @@
 {
   "name": "@ti-engine/web-framework",
-  "version": "1.6.3",
+  "version": "1.9.3",
   "description": "A web-framework based on the ti-engine. It provides a customizable ready-to-use web-server microservice and a set of tools for creating web applications. NOTICE: This is still a work in progress and the full architecture, design, and functionality are not available!",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "exports": {
+    "./config-management": "./components/config-service.js",
     "./web-application": "./bin/web-app-manager.js",
     "./web-server": "./bin/web-server.js"
   },
   "imports": {
+    "#admin-config-handlers": "./components/admin-config-handlers.js",
     "#auth-manager": "./components/auth-manager.js",
+    "#authorization": "./components/authorization.js",
+    "#config-change-notifier": "./components/config-change-notifier.js",
+    "#config-registry": "./components/config-registry.js",
+    "#config-service": "./components/config-service.js",
+    "#config-store": "./components/config-store.js",
     "#session-store": "./components/session-store.js",
     "#user": "./components/user.js",
     "#web-app-manager": "./bin/web-app-manager.js",
@@ -19,10 +26,11 @@
   },
   "dependencies": {
     "@ti-engine/core": "*",
+    "ajv": "^8.20.0",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
-    "helmet": "^8.1.0",
+    "helmet": "^8.2.0",
     "lodash": "^4.18.1",
     "openid-client": "^6.8.4"
   },
@@ -51,6 +59,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "postinstall": "node ./bin/build/post-install.js"
+    "postinstall": "node ./bin/build/post-install.js",
+    "test": "node --test test/*.test.js"
   }
 }

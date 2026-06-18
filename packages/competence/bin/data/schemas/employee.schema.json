@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/employee.json",
+  "title": "Employee Profile",
+  "description": "A single employee record containing personal and career details.",
+  "type": "object",
+  "required": [
+    "employeeID",
+    "personal",
+    "career"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "employeeID": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for the employee"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Corporate email address"
+    },
+    "employmentStatus": {
+      "type": "string",
+      "enum": [
+        "active",
+        "on-leave",
+        "terminated"
+      ],
+      "description": "Employment status of the employee"
+    },
+    "personal": {
+      "type": "object",
+      "description": "Personal information about the employee",
+      "required": [
+        "firstName",
+        "lastName",
+        "workMode",
+        "workLocation"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "firstName": {
+          "type": "string",
+          "minLength": 1,
+          "description": "First name of the employee"
+        },
+        "lastName": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Last name of the employee"
+        },
+        "birthDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Birth date of the employee"
+        },
+        "gender": {
+          "type": "string",
+          "description": "Gender of the employee"
+        },
+        "workMode": {
+          "type": "string",
+          "enum": [
+            "Full-time",
+            "Part-time",
+            "Contract"
+          ],
+          "description": "Employment mode"
+        },
+        "workLocation": {
+          "type": "string",
+          "enum": [
+            "On-site",
+            "Hybrid",
+            "Remote"
+          ],
+          "description": "Work location arrangement"
+        }
+      }
+    },
+    "career": {
+      "type": "object",
+      "description": "Career information about the employee",
+      "required": [
+        "organizationUnitID",
+        "roleFamily",
+        "level",
+        "stage"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "organizationUnitID": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Organization unit ID"
+        },
+        "roleFamily": {
+          "type": "string",
+          "enum": [
+            "SE",
+            "QE",
+            "BA",
+            "PM",
+            "XD",
+            "DA",
+            "IO",
+            "MC",
+            "PD"
+          ],
+          "description": "Top-level role family discipline"
+        },
+        "specialization": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Specialization code within the role family (e.g., BACKEND for SE). Null indicates a generalist within the family. Runtime-validated against the role-families configuration."
+        },
+        "level": {
+          "type": "string",
+          "enum": [
+            "N",
+            "J",
+            "R",
+            "S",
+            "X",
+            "T"
+          ],
+          "description": "Stage-level code: N (Intern), J (Junior Specialist), R (Specialist), S (Senior Specialist), X (Expert track from S3), T (Manager track from S3)"
+        },
+        "stage": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3,
+          "description": "Progression stage within the level (1-3). Levels N, X, and T have only stage 1."
+        },
+        "startingDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of joining the company"
+        }
+      }
+    }
+  }
+}

@@ -5,3 +5,6 @@ package-lock.json
 */package-lock.json
 /packages/competence/bin/tls/
 /packages/web-framework/bin/tls/
+/.claude/settings.local.json
+# WebStorm/IntelliJ run configs carry local, per-developer secrets in their <env> blocks — keep them out of git.
+packages/*/.run/*.run.xml

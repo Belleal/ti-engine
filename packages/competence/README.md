@@ -4,13 +4,14 @@ Specialized software for managing and monitoring a **Competence-based Performanc
 
 ## Overview
 
-The application supports a structured annual or semi-annual performance appraisal cycle where each employee is evaluated across a set of competencies relevant to their career path and level. Evaluations are conducted collaboratively: the employee completes a self-assessment, selected team members provide peer feedback, and the direct manager reviews all input and adds their own assessment. The result is a weighted performance score across multiple competency categories, interpreted against defined performance thresholds.
+The application supports a structured annual or semi-annual performance appraisal cycle where each employee is evaluated across a set of competencies relevant to their **role family**, **specialization**, and **stage-level**. Evaluations are conducted collaboratively: the employee completes a self-assessment, selected team members provide peer feedback, and the direct manager reviews all input and adds their own assessment. The result is a weighted performance score across multiple competency categories, interpreted against defined performance thresholds.
 
 ## Current Status
 
 The following features are currently implemented:
 
-- **[Process]** Starting evaluations by an authorized Manager or Supervisor, with the competency set determined by the employee's career path and appraisal cycle
+- **[Process]** Starting evaluations by an authorized Manager or Supervisor, with the competency set resolved from the employee's role family + specialization for the currently `ACTIVE` cycle and frozen as a snapshot onto the evaluation record
+- **[Process]** Cycle lifecycle — Supervisors create cycles in `PLANNING`, configure per-family Active Competency Sets, validate and lock to `ACTIVE`, and later close to `CLOSED`. One-way transitions; only one `ACTIVE` cycle at a time
 - **[Process]** Loading evaluations by Employee, Team Member, or Manager — with role-based data visibility and edit authorization
 - **[Process]** Saving evaluation drafts (Employee for self-grades; Manager for manager-grades and comment)
 - **[Process]** Submitting evaluations with role-based validation, deadline enforcement, and automatic status transitions
@@ -21,13 +22,19 @@ The following features are currently implemented:
 - **[Data]** Employee data management and retrieval from Redis
 - **[Data]** Evaluation persistence in Redis with full workflow state tracking
 - **[Data]** Calendar slot persistence in Redis with `available`, `booked`, `busy`, and `deleted` (logical) states
+- **[UI]** Dashboard screen — personalized landing page with appraisal cycle progress, evaluation status, role-specific metrics, a contextual task list, and an activity feed
 - **[UI]** Employees List screen — hierarchical organization chart view with role-aware data and evaluation status
 - **[UI]** Evaluation Form screen — role-specific grading interface with deadline and submit-state awareness
 - **[UI]** New Evaluation screen — form for starting a new evaluation with optional team member selection
 - **[UI]** Manager Availability Calendar screen — weekly grid for toggling availability slots, cycle-bounded navigation
 - **[UI]** Interview Schedule screen — evaluation list with schedule/cancel actions and a 4-column weekly slot picker
+- **[UI]** Cycle Management screen — Supervisor-only table of cycles with create, lock (with validation-errors modal), and close actions
+- **[UI]** Cycle Setup screen — Supervisor-only two-pane editor for the Active Competency Sets of a cycle; tree of families and specializations, cap and floor-coverage indicators, pool-scoped competency picker, per-family include/exclude, clone-from-another-node flow
+- **[UI]** Employee Management screen — Supervisor + Manager master/detail editor with field-level permission gating, audit log, in-flight evaluation count surfaced on role-family changes
+- **[UI]** Administration screens (admin-allowlisted users) — Configuration landing (config change feed, validated restore, export-to-git bundle), Competency Text Editor (bilingual, for BG review), Archetype Assignment, Archetype Curve Editor, and Role Families editor
+- **[Config]** Admin configuration management — versioned, validated, restorable editing of the competency dictionary, localization, relevancy archetypes, role families, and active competency sets through the UI, with export back to the source JSON files (reusable machinery lives in `@ti-engine/web-framework`)
 
-> **Note on planned features:** Step 8 of the process (goal-setting and formal closure) is part of the full intended workflow and is described below, but is not yet implemented. The appraisal cycle ID and date will be configurable by Supervisors in a planned future release; they are currently hardcoded in the application.
+> **Note on planned features:** Step 8 of the process (goal-setting and formal closure) is part of the full intended workflow and is described below, but is not yet implemented.
 
 ---
 
@@ -46,19 +53,35 @@ The system defines four roles that govern what actions a user can take and what 
 
 A user can hold multiple roles. The active role for a given operation is resolved from context: being the employee of record, appearing in the `workflow.team` list, or being the resolved manager in the organization hierarchy.
 
-### Career Paths
+### Role Families and Specializations
 
-Each employee is assigned a **career path** that determines which competencies appear in their evaluation:
+Each employee is identified by three orthogonal dimensions that together determine which competencies appear in their evaluation:
 
-| Code   | Name              |
-|--------|-------------------|
-| `SE01` | Software Engineer |
-| `PM01` | Project Manager   |
-| `BA01` | Business Analyst  |
+1. **Role Family** — the broad discipline (one of nine codes below). Mandatory.
+2. **Specialization** — a narrower focus within the family (e.g., `BACKEND` under `SE`). Optional — when unset, the employee is treated as a *generalist* within the family.
+3. **Stage-Level** — the seniority code (`N1`, `J1`–`J3`, `R1`–`R3`, `S1`–`S3`, `X1`, `T1`) that maps to per-competency relevancy weights.
 
-Additional career paths and their competency mappings are configurable in `bin/config/config.career-path-competencies.json`.
+The nine role families and their permitted specializations are configured in `bin/config/config.role-families.json`:
 
-### Career Path Levels
+| Code | Role Family                  | Specializations                                                    |
+|------|------------------------------|--------------------------------------------------------------------|
+| `SE` | Software Engineering         | `BACKEND`, `FRONTEND`, `MOBILE`, `FULLSTACK`, `EMBEDDED`           |
+| `QE` | Quality Engineering          | `MANUAL`, `AUTOMATION`, `PERFORMANCE`, `SECURITY`                  |
+| `BA` | Business Analysis            | `REQUIREMENTS`, `PROCESS`, `PRODUCT_OWNERSHIP`, `DATA_BA`, `DOC_PROC` |
+| `PM` | Project & Delivery Management| `AGILE`, `TRADITIONAL`, `PROGRAM`                                  |
+| `XD` | Experience Design            | `RESEARCH`, `INTERACTION`, `VISUAL`, `SERVICE`                     |
+| `DA` | Data & Analytics             | `ENGINEERING`, `ANALYTICS`, `ML`, `RESEARCH`                       |
+| `IO` | Infrastructure & Ops         | `DEVOPS`, `SRE`, `CLOUD`, `SYSADMIN`, `SECOPS`                     |
+| `MC` | Marketing & Communications   | `DIGITAL`, `BRAND_PR`, `CONTENT`, `INTERNAL_COMMS`                 |
+| `PD` | Product Management           | `STRATEGY`, `OWNERSHIP`, `ACCOUNT`, `GROWTH`                       |
+
+The competency selection for any `(roleFamily, specialization?, cycleID)` tuple is called the **Active Competency Set** and is configured per cycle in `bin/config/config.active-competency-sets.json`. The resolved set is `baseline ∪ specialization`, deduplicated. The baseline applies to every employee in the family regardless of specialization; the specialization additions only apply to employees with that specialization set.
+
+**Set size — a hard maximum, no minimum count.** The only numeric bound is the **cap** (`performanceAppraisals.activeCompetencySetCap`, default **30**), a *maximum* enforced at lock time on the baseline **and** on every resolved `baseline ∪ specialization` set. The cap is a **ceiling, not a target** — a set may be any size up to it (the seeded baselines are 22 / 21 / 21). There is **no minimum-count** setting; the only lower bound is structural — the baseline must satisfy **floor coverage** (at least one competency in each of the nine subcategories), so a valid baseline is effectively ≥ 9. Specializations carry no floor of their own and are bounded only by the cap on the resolved set.
+
+Each family draws its competencies from a fixed **competency pool** (its applicability universe), defined in `bin/config/config.role-family-competencies.json` — the family's own family-specific competencies plus the 30 shared canonical ones. Cycle Setup only offers, and lock validation only accepts, competencies from within that pool. The not-yet-populated families (`QE`, `XD`, `DA`, `IO`, `MC`, `PD`) currently have a pool of the shared competencies only — too few to satisfy floor coverage, so they are typically **excluded** from a cycle (see [Cycle Setup](#cycle-setup)) until they have their own content.
+
+### Stage-Levels
 
 Employees progress through a sequence of **levels**, each with one or more **stages**. The combination of level and stage (e.g., `J2`, `S3`) is called the **stage-level** and determines the relevancy weight applied to each competency in score calculations.
 
@@ -75,7 +98,7 @@ At the Senior Specialist level, employees can advance either to Expert (`X`) or 
 
 ### Competency Framework
 
-Competencies are organized into a three-level hierarchy: **Category → Subcategory → Competency**. All competency names, descriptions, and per-level relevancy weights are fully configurable via JSON configuration files and are localized (currently English and Bulgarian).
+Competencies are organized into a three-level hierarchy: **Category → Subcategory → Competency**. All competency names, descriptions, and scope anchors are fully configurable via JSON configuration files (`bin/config/config.competencies.json`) and are localized (currently English and Bulgarian). Per-stage-level **relevancy** is not stored on the competency itself — each competency is assigned a reusable **relevancy archetype** (see [Relevancy Archetypes](#relevancy-archetypes) below).
 
 The default framework defines three top-level categories and nine subcategories:
 
@@ -92,6 +115,12 @@ The default framework defines three top-level categories and nine subcategories:
 |                |      | Mentorship            | `C3`             | Knowledge sharing and colleague support               |
 
 Each competency also carries a **scope** description per level (N/J/R/S/X/T), describing what mastery at that level looks like — used as guidance for graders, not in scoring.
+
+### Relevancy Archetypes
+
+A competency's **relevancy** — how much it weighs in scoring at each stage-level — is defined by one of seven reusable **archetype curves** in `bin/config/config.relevancy-archetypes.json`. Each competency in the dictionary references a single archetype (`relevancyArchetype`), and the archetype supplies a weight (integer 2–10) for every one of the twelve stage-levels (`N1`, `J1`–`J3`, `R1`–`R3`, `S1`–`S3`, `X1`, `T1`).
+
+The curve is **global** — a given competency carries the same relevancy wherever it is used. Whether a competency applies to a family at all is handled by selection into that family's Active Competency Set, not by the relevancy curve, so per-family curve divergence is intentionally not modelled. At evaluation creation, the resolved relevancy values are **frozen into the evaluation snapshot**, so later configuration edits never affect an in-flight evaluation. The archetypes (and the per-competency assignment) are editable through the Administration screens, and the file is regenerated from `design/competency-relevancy-model.md` by `bin/build/build-competency-relevancy.js`.
 
 ### Evaluation Grades
 
@@ -140,9 +169,9 @@ Status transitions are triggered by specific actions (submissions), not by deadl
 
 ### Detailed Process Steps
 
-#### Step 1 — Appraisal Cycle Start *(planned)*
+#### Step 1 — Appraisal Cycle Start
 
-A new **Performance Appraisal Cycle** is started by the `Supervisor`. The cycle receives a unique ID (e.g., `2026-H1`) and an official closing date. All evaluations opened within this cycle reference both values. A configuration UI for Supervisors to initiate cycles is planned; the cycle ID and date are currently hardcoded.
+A new **Performance Appraisal Cycle** is started by the `Supervisor` through the **Cycle Management** screen. The cycle receives a unique ID (e.g., `2026-H2`), a name, a planned close date, and starts in `PLANNING` status. The Supervisor then configures the **Active Competency Sets** for each role family + specialization on the **Cycle Setup** screen, and may **exclude** any families that are not part of this cycle (for example disciplines that have no competency content yet). Once validation passes — baseline floor coverage across all nine subcategories, cap not exceeded, reference integrity, pool membership, non-empty baselines where specializations exist, and every *included* family configured (excluded families are skipped) — the Supervisor locks the cycle to `ACTIVE`. Only one cycle can be `ACTIVE` at a time. Evaluations can only be started while the cycle is `ACTIVE`; closing it transitions the status to `CLOSED` and prevents new evaluations from being started (in-flight evaluations can still be completed).
 
 #### Step 2 — Evaluation Start
 
@@ -151,7 +180,7 @@ An authorized `Manager` (or `Supervisor`) starts a new `Evaluation` for an `Empl
 The new evaluation is created with:
 
 - Status: `Open`
-- A set of competencies determined by the employee's career path and the current cycle ID
+- A frozen snapshot of the competency set resolved from the employee's role family + specialization for the currently `ACTIVE` cycle. The snapshot includes per-competency localization keys, full scope/relevancy maps, e-CF mappings, and an origin marker so the evaluation form is self-contained and immune to later configuration drift
 - The employee's resolved manager ID, derived from the organization chart
 - An optional list of team member IDs to provide peer feedback
 
@@ -225,17 +254,17 @@ sequenceDiagram
     actor Team as Team Members
     participant Sys as System
 
-    rect rgba(180, 180, 180, 0.2)
-        Note over Sup, Sys: Step 1 — Appraisal Cycle (planned)
-        Sup ->> Sys: Configure and start appraisal cycle
-        Sys -->> Sys: Record cycle ID and closing date
-    end
+    Note over Sup, Sys: Step 1 — Appraisal Cycle Setup
+    Sup ->> Sys: Create cycle (status: PLANNING)
+    Sup ->> Sys: Configure Active Competency Sets per family (from each family's pool); exclude families not in scope
+    Sys -->> Sys: Validate (floor coverage · cap · references · pool membership · inclusion)
+    Sup ->> Sys: Lock cycle to ACTIVE
 
     Note over Mgr, Sys: Step 2 — Evaluation Start
     Mgr ->> Sys: Start Evaluation for Employee
     Sys -->> Sys: Verify no active evaluation exists
     Sys -->> Sys: Create Evaluation (status: Open)
-    Sys -->> Sys: Populate competencies by career path + cycle
+    Sys -->> Sys: Resolve and snapshot competencies by role family + specialization + cycle
     Sys -->> Sys: Resolve and record manager from org chart
     opt Team feedback requested
         Mgr ->> Sys: Provide team member list
@@ -306,8 +335,8 @@ Performance scores are calculated automatically when the manager submits (evalua
 For each competency `c` allowed in the evaluation:
 
 - `grade_weight(grade)` — the numeric weight of a submitted grade: S=1.3, R=1.0, U=0.6, N=0.0
-- `relevancy(c, stageLevel)` — the pre-configured importance of competency `c` for the employee's specific stage-level (e.g., 7 at J1, 10 at S1); stored in `bin/config/config.competencies.json`
-- `max_score[category]` — the sum of all relevancy values for allowed competencies in that category at the given stage-level; pre-calculated on startup
+- `relevancy(c, stageLevel)` — the importance of competency `c` at the employee's specific stage-level (e.g., 7 at J1, 10 at S1), resolved from the competency's [relevancy archetype](#relevancy-archetypes) and frozen into the evaluation snapshot at creation
+- `max_score[category]` — the sum of all relevancy values for the snapshot's competencies in that category at the given stage-level; computed from the snapshot at scoring time
 
 ### Calculation
 
@@ -385,16 +414,28 @@ When an evaluation is returned — whether on load or after a save/submit — it
 
 ## Implemented Screens
 
+### Dashboard
+
+The default landing screen after login. Presents a personalized summary of the current appraisal cycle and guides users to their most relevant next action.
+
+- A **hero section** displays a time-of-day greeting, the user's first name, and the status of their own most recent evaluation. A quick "Open My Evaluation" button is shown when an active evaluation exists.
+- A **cycle card** shows the current cycle ID, a time-elapsed progress bar (calculated from `startDate` to `cycleDate`), and the three key dates (start, manager review deadline, and close date).
+- **Stat cards** adapt to the active role:
+  - **Manager/Supervisor view**: four cards showing total team evaluations and the count in each active status (open, in-review, ready), each with a proportional fill bar
+  - **Employee view**: four cards showing peer feedback submitted vs. requested, self-grades completed vs. total, days until the manager review deadline, and team coverage (how many teammates have started their evaluations)
+- A **Tasks** panel lists the user's most relevant pending actions (e.g. "Complete self-evaluation", "Schedule your interview", "Review pending evaluations") with click-through navigation to the relevant screen.
+- An **Activity feed** panel lists recent evaluation lifecycle events.
+
 ### Employees List
 
-Shows the organization chart rooted at the current user's unit. Each employee entry displays their career path, level, manager, and the status and next relevant date of their most recent evaluation (self-evaluation deadline when `Open`; manager deadline when `In Review`; interview date when `Ready`).
+Shows the organization chart rooted at the current user's unit. Each employee entry displays their role family + specialization, stage-level, manager, and the status and next relevant date of their most recent evaluation (self-evaluation deadline when `Open`; manager deadline when `In Review`; interview date when `Ready`).
 
 - **Manager view** (`isManagerView: true`): Shown when the current user is the manager of the root unit. Displays full personal data (stage, starting date) for all employees. A "Start Evaluation" action is available for employees without an active evaluation; the current user cannot start their own evaluation.
 - **Employee view**: Personal data (stage, starting date) is only visible for the current user's own entry. Other employees' evaluation details are accessible if the user is a team member.
 
 ### Evaluation Form
 
-The primary grading interface. Displays the employee's personal and career information, evaluation metadata, the current deadline, and the full competency tree for their career path and level. Each competency shows its scope description and a grade selector.
+The primary grading interface. Displays the employee's personal and career information (role family, specialization with a "Generalist" fallback when unset, stage-level), evaluation metadata, the current deadline, and the full competency tree built from the evaluation's snapshot. Each competency shows its scope description, a grade selector, an origin badge ("Baseline" or the specialization name), and any e-CF mappings.
 
 - A **role banner** at the top indicates the active role (Employee / Manager / Team)
 - Grade inputs are disabled once the role has already submitted or if the deadline has passed
@@ -425,9 +466,78 @@ Shown to `Supervisor` and `Manager` users. The upper panel lists all `Ready` eva
 
 The slot picker shows all `available` slots from all managers, organized into a 4-column weekly grid. Each slot button shows the day and time on the first line and the manager's name below. Navigation shifts the visible window by 4 weeks at a time. Clicking a slot books it immediately and refreshes the screen.
 
+### Cycle Management
+
+Supervisor-only. A table of all appraisal cycles with their status (`PLANNING` / `ACTIVE` / `CLOSED`), key dates, and per-cycle actions:
+
+- **Create** — modal to define a new cycle (ID, name, dates); the cycle starts in `PLANNING`
+- **Configure** — opens Cycle Setup for a `PLANNING` cycle
+- **Lock** — promotes a `PLANNING` cycle to `ACTIVE` after validation; a modal surfaces any validation errors (floor coverage, cap, reference integrity, pool membership, and any included-but-unconfigured family) grouped by family
+- **Close** — transitions an `ACTIVE` cycle to `CLOSED`
+
+Only one cycle may be `ACTIVE` at a time.
+
+### Cycle Setup
+
+Supervisor-only two-pane editor for a cycle's Active Competency Sets, editable while the cycle is in `PLANNING` (read-only otherwise). The left pane is a tree of role families and their specializations, each node showing a status dot (configured / intentionally-empty / unconfigured / has-issues / excluded) and a count. The right pane edits the selected node:
+
+- **Cap indicator** and **floor-coverage** pills (a baseline must cover all nine subcategories)
+- **Competency picker** — offers only competencies from the family's [pool](#role-families-and-specializations); for a specialization, competencies already in the baseline are shown disabled
+- **"No extra competencies"** marker for an intentionally-empty specialization, plus a clone-from-another-node flow
+- **Include / exclude family** — a control on the family's Baseline editor excludes the whole family from the cycle (or includes it again). An excluded family is skipped by lock validation, and in the tree its specializations are hidden while its header is muted with an "Excluded" tag. This lets a cycle be locked with only the families that can be completed; an *included* family left with no competencies blocks the lock
+- A topbar **Lock cycle** action, enabled once validation passes
+
+### Employee Management
+
+Supervisor + Manager master/detail editor (the "People" screen). Lists employees with a detail form whose fields are permission-gated per role. Changing an employee's role family or specialization surfaces the count of in-flight evaluations affected, and an audit log records every change.
+
+### Administration
+
+Admin-allowlisted screens (visible only to identities in `auth.admins`) for editing configuration through the UI. All changes are versioned, validated (ajv + semantic rules), and restorable, and can be exported as a git bundle of the source JSON files.
+
+- **Configuration** — landing screen with the config change feed, validated restore, and export-to-git
+- **Competency Text Editor** — bilingual (EN/BG) editor for competency names, descriptions, and scope anchors, built for the Bulgarian-translation review pass
+- **Archetype Assignment** — assigns a relevancy archetype to each competency, with a curve sparkline
+- **Archetype Curve Editor** — edits the twelve weights, name, and description of each relevancy archetype
+- **Role Families** — edits role-family names/descriptions and manages their specializations
+
+Competency texts and archetype names/descriptions are stored as localization labels — edits are versioned and exportable but appear only after an export → commit → redeploy; archetype assignments, role-family structure, and active sets are store-backed and take effect live.
+
 ---
 
 ## Information Flows
+
+### Load Dashboard
+
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant Client as Competence UI
+    participant Server as Competence Web Server
+    participant OrgMgr as Organization Manager
+    participant DataMgr as Data Manager
+    participant DB as Redis Database
+
+    rect rgba(100, 150, 200, 0.5)
+        note over User, DB: Load Dashboard Flow
+        User ->> Client: Open dashboard
+        Client ->> Server: POST /app/load-dashboard
+        Server -->> Server: Resolve userID and isManager flag
+        Server ->> DataMgr: fetchEvaluations(userID)
+        DataMgr ->> DB: GET evaluations for current user
+        DB -->> DataMgr: Employee's own evaluations
+        DataMgr -->> Server: Own evaluations (most recent selected)
+        opt isManager
+            Server ->> DataMgr: fetchEvaluations(null)
+            DataMgr ->> DB: GET all evaluations
+            DB -->> DataMgr: All active evaluations
+            DataMgr -->> Server: Team evaluations filtered to managerID = userID
+            Server -->> Server: Calculate team stats (total / open / inReview / ready)
+        end
+        Server -->> Client: {isManager, cycle, myEvaluation, teamEvaluations, stats, employeeMetrics, activity}
+        Client -->> User: Display greeting, cycle progress bar, stat cards, and tasks
+    end
+```
 
 ### Load Employee List
 
@@ -486,8 +596,8 @@ sequenceDiagram
         Server ->> CF: anonymizeEvaluationScores(evaluation, userRole)
         Server ->> OrgMgr: resolveEmployeeOrganizationContext(employee)
         OrgMgr -->> Server: Organization unit name + manager info
-        Server ->> CF: buildCompetenciesTree(config, language, allowedCodes)
-        CF -->> Server: Competency tree for career path
+        Server ->> CF: buildCompetenciesTreeFromSnapshot(snapshot, language)
+        CF -->> Server: Competency tree rendered from the snapshot (no live dictionary lookup)
         Server -->> Client: Evaluation + personal info + competencies (role-filtered, workflow stripped)
         Client -->> User: Display evaluation form with canEdit and deadlineDate
     end
@@ -798,8 +908,8 @@ CF -->> Server: New evaluation object (status: Open)
 Server ->> OrgMgr: resolveManagerIDForEmployee(employeeID, unitID)
 OrgMgr -->> Server: Resolved manager ID
 Server -->> Server: Set managerID, set workflow.team from provided list
-        Server ->> CF: getAllowedCompetencyCodes(careerPath, cycleID)
-CF -->> Server: Competency codes for career path and cycle
+        Server ->> CF: buildEvaluationSnapshot(roleFamily, specialization, cycleID)
+CF -->> Server: Snapshot entries (code, name, description, scope, relevancy, eCFMapping, origin)
 Server -->> Server: Populate grades map with empty grade entries per competency
 Server ->> DataMgr: saveEvaluation(newEvaluation)
 DataMgr ->> DB: SET new evaluation record
@@ -814,34 +924,55 @@ end
 
 ## Configuration Reference
 
+### Configuration Files
+
+All configuration lives in `bin/config/` as JSON, validated against the schemas in `bin/data/schemas/`. The editable documents are registered with the framework's admin config registry and can be changed through the Administration screens; localization for every user-visible string is in `bin/localization/competence-labels.json`.
+
+| File                                  | Holds                                                                                              | Admin-editable                |
+|---------------------------------------|----------------------------------------------------------------------------------------------------|-------------------------------|
+| `config.application.json`             | App settings — evaluation/grade weights, performance thresholds, active-set cap, interview calendar | No                            |
+| `config.role-families.json`           | The nine role families and their permitted specializations                                         | Yes (text + specializations)  |
+| `config.competencies.json`            | The competency dictionary (108) — category, subcategory, scope anchors, archetype assignment, e-CF  | Yes                           |
+| `config.relevancy-archetypes.json`    | The seven relevancy archetype curves (twelve stage-level weights each)                              | Yes                           |
+| `config.role-family-competencies.json`| The per-family competency pool (applicability universe)                                            | No (read-only; exportable)    |
+| `config.active-competency-sets.json`  | Per-cycle baseline + specialization competency selections                                          | Yes                           |
+| `config.stage-levels.json`            | The stage-level ladder (N/J/R/S/X/T and their stage counts)                                         | No (read-only)                |
+| `config.organization-structure.json`  | The organization chart (units + employees) used to resolve managers                                | No                            |
+
+The competency dictionary, the relevancy archetypes, and the per-family pool are generated from the source-of-truth design documents in `design/` by `bin/build/build-competency-relevancy.js`; hand-edit those documents and re-run the build rather than editing the generated files directly.
+
 ### Application Settings
 
 All application settings are in `bin/config/config.application.json` and are validated against a JSON schema on startup.
 
-| Setting                                                       | Default       | Description                                                                        |
-|---------------------------------------------------------------|---------------|------------------------------------------------------------------------------------|
-| `performanceAppraisals.evaluationWeights.self`                | `0.20`        | Weight of self-evaluation in the final score                                       |
-| `performanceAppraisals.evaluationWeights.team`                | `0.30`        | Weight of team evaluation in the final score                                       |
-| `performanceAppraisals.evaluationWeights.manager`             | `0.50`        | Weight of manager evaluation in the final score                                    |
-| `performanceAppraisals.gradeWeights.S`                        | `1.3`         | Numeric weight for grade S (Superior)                                              |
-| `performanceAppraisals.gradeWeights.R`                        | `1.0`         | Numeric weight for grade R (Regular)                                               |
-| `performanceAppraisals.gradeWeights.U`                        | `0.6`         | Numeric weight for grade U (Unsatisfactory)                                        |
-| `performanceAppraisals.gradeWeights.N`                        | `0.0`         | Numeric weight for grade N (Not Utilized)                                          |
-| `performanceAppraisals.isTeamEvaluationCollective`            | `true`        | If `true`, team members grade by subcategory; if `false`, by individual competency |
-| `performanceAppraisals.minTeamEvaluationMembers`              | `3`           | Minimum number of team members recommended for peer evaluation                     |
-| `performanceAppraisals.numberOfNextPeriodGoals`               | `5`           | Maximum number of goals for the next period *(planned feature)*                    |
-| `performanceAppraisals.performanceThresholds.T1`              | `76`          | Score ceiling for T1 (Weak)                                                        |
-| `performanceAppraisals.performanceThresholds.T2`              | `89`          | Score ceiling for T2 (Insufficient)                                                |
-| `performanceAppraisals.performanceThresholds.T3`              | `105`         | Score ceiling for T3 (Expected)                                                    |
-| `performanceAppraisals.performanceThresholds.T4`              | `119`         | Score ceiling for T4 (Good)                                                        |
-| `performanceAppraisals.performanceThresholds.T5`              | `150`         | Score ceiling for T5 (Outstanding)                                                 |
-| `performanceAppraisals.interviewCalendar.slotDurationMinutes` | `30`          | Duration in minutes of each calendar slot                                          |
-| `performanceAppraisals.interviewCalendar.workingHoursStart`   | `"09:00"`     | First slot start time (HH:MM, local time)                                          |
-| `performanceAppraisals.interviewCalendar.workingHoursEnd`     | `"18:00"`     | No slot may start at or after this time (HH:MM, local time)                        |
-| `performanceAppraisals.interviewCalendar.workingDays`         | `[1,2,3,4,5]` | Working days shown in the calendar grid (0 = Sunday … 6 = Saturday)                |
+| Setting                                                       | Default       | Description                                                                         |
+|---------------------------------------------------------------|---------------|-------------------------------------------------------------------------------------|
+| `performanceAppraisals.evaluationWeights.self`                | `0.20`        | Weight of self-evaluation in the final score                                        |
+| `performanceAppraisals.evaluationWeights.team`                | `0.30`        | Weight of team evaluation in the final score                                        |
+| `performanceAppraisals.evaluationWeights.manager`             | `0.50`        | Weight of manager evaluation in the final score                                     |
+| `performanceAppraisals.gradeWeights.S`                        | `1.3`         | Numeric weight for grade S (Superior)                                               |
+| `performanceAppraisals.gradeWeights.R`                        | `1.0`         | Numeric weight for grade R (Regular)                                                |
+| `performanceAppraisals.gradeWeights.U`                        | `0.6`         | Numeric weight for grade U (Unsatisfactory)                                         |
+| `performanceAppraisals.gradeWeights.N`                        | `0.0`         | Numeric weight for grade N (Not Utilized)                                           |
+| `performanceAppraisals.isTeamEvaluationCollective`            | `true`        | If `true`, team members grade by subcategory; if `false`, by individual competency  |
+| `performanceAppraisals.minTeamEvaluationMembers`              | `3`           | Minimum number of team members required to start a peer evaluation (enforced)       |
+| `performanceAppraisals.maxTeamEvaluationMembers`              | `5`           | Maximum number of team members allowed per evaluation (enforced; `null` = no limit) |
+| `performanceAppraisals.activeCompetencySetCap`               | `30`          | Maximum competencies in a resolved active set (baseline ∪ specialization); a ceiling enforced at cycle lock. There is no minimum count (see [Active Competency Set](#role-families-and-specializations)) |
+| `performanceAppraisals.numberOfNextPeriodGoals`               | `5`           | Maximum number of goals for the next period *(planned feature)*                     |
+| `performanceAppraisals.performanceThresholds.T1`              | `76`          | Score ceiling for T1 (Weak)                                                         |
+| `performanceAppraisals.performanceThresholds.T2`              | `89`          | Score ceiling for T2 (Insufficient)                                                 |
+| `performanceAppraisals.performanceThresholds.T3`              | `105`         | Score ceiling for T3 (Expected)                                                     |
+| `performanceAppraisals.performanceThresholds.T4`              | `119`         | Score ceiling for T4 (Good)                                                         |
+| `performanceAppraisals.performanceThresholds.T5`              | `150`         | Score ceiling for T5 (Outstanding)                                                  |
+| `performanceAppraisals.interviewCalendar.slotDurationMinutes` | `30`          | Duration in minutes of each calendar slot                                           |
+| `performanceAppraisals.interviewCalendar.workingHoursStart`   | `"09:00"`     | First slot start time (HH:MM, local time)                                           |
+| `performanceAppraisals.interviewCalendar.workingHoursEnd`     | `"18:00"`     | No slot may start at or after this time (HH:MM, local time)                         |
+| `performanceAppraisals.interviewCalendar.workingDays`         | `[1,2,3,4,5]` | Working days shown in the calendar grid (0 = Sunday … 6 = Saturday)                 |
 
 ### Environment Variables
 
 | Variable                  | Default | Description                                                                                                                       |
 |---------------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------|
 | `COMPETENCE_PRELOAD_DATA` | `false` | If `true`, seeds employee and evaluation data from `bin/data/seeders/` into Redis on startup (useful for development and testing) |
+
+This is the only application-specific variable. The standard `@ti-engine/core` and `@ti-engine/web-framework` variables also apply — service identity (`TI_INSTANCE_NAME`, `TI_INSTANCE_CLASS`), the Redis connection (`TI_MEMORY_CACHE_HOST`/`PORT`/`AUTH`/`DB`), logging, and the web/auth settings — and are loaded from the package `.env` via dotenvx. The administrator allowlist (`auth.admins`) and the authentication methods are configured in the web server's JSON config, not through environment variables.

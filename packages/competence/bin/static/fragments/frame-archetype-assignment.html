@@ -1,0 +1,104 @@
+<div class="ti-page" x-data="competenceArchetypeAssignment">
+    <div class="ti-page-head competence-cte-pagehead">
+        <div class="competence-cte-pagehead-main">
+            <div class="ti-page-eyebrow" x-text-label="interface.admin.assignment.page-eyebrow">CONFIGURATION</div>
+            <h1 class="ti-page-title" x-text-label="interface.admin.assignment.page-title">Archetype Assignment</h1>
+            <div class="competence-admin-page-desc" x-text-label="interface.admin.assignment.page-desc"></div>
+        </div>
+        <div class="competence-cte-pagehead-aside">
+            <div class="competence-cte-langswitch" role="group" x-bind:aria-label="getLabel('interface.admin.assignment.lang-switch-aria', 'Display language')">
+                <button type="button" class="competence-cte-langswitch-btn"
+                        x-bind:class="isDisplayLang('bg') ? 'is-active' : ''" @click="setDisplayLang('bg')"
+                        x-text-label="interface.admin.text-editor.lang-bg-short">BG</button>
+                <button type="button" class="competence-cte-langswitch-btn"
+                        x-bind:class="isDisplayLang('en') ? 'is-active' : ''" @click="setDisplayLang('en')"
+                        x-text-label="interface.admin.text-editor.lang-en-short">EN</button>
+            </div>
+            <button type="button" class="ti-btn ghost sm" @click="backToConfig()">
+                <span class="ti-icon chevron-left sm" aria-hidden="true"></span>
+                <span x-text-label="interface.admin.assignment.back"></span>
+            </button>
+        </div>
+    </div>
+
+    <template x-if="loaded">
+        <div class="competence-aa-stack">
+            <div class="competence-aa-toolbar">
+                <input type="text" class="ti-input competence-aa-search" x-model="search"
+                       x-bind:placeholder="getLabel('interface.admin.assignment.search-placeholder', 'Search competencies…')"/>
+            </div>
+
+            <template x-if="saveErrors.length > 0">
+                <div class="competence-cte-errors">
+                    <div class="competence-cte-errors-head">
+                        <span class="ti-icon warning-triangle sm" aria-hidden="true"></span>
+                        <span x-text-label="interface.admin.assignment.errors-title"></span>
+                    </div>
+                    <template x-for="(issue, idx) in saveErrors" x-bind:key="idx">
+                        <div class="competence-cte-error-row">
+                            <span class="ti-tag mono" x-text="issue.code"></span>
+                            <span class="competence-cte-error-msg" x-text="issue.message"></span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <div class="competence-aa-list">
+                <template x-if="filteredGroups().length === 0">
+                    <div class="competence-cte-list-empty" x-text-label="interface.admin.assignment.no-results"></div>
+                </template>
+                <template x-for="group in filteredGroups()" x-bind:key="group.category">
+                    <div class="competence-aa-group">
+                        <div class="competence-aa-group-head">
+                            <span class="ti-tag mono" x-text="group.category"></span>
+                            <span class="competence-aa-group-name" x-text="group.categoryName"></span>
+                        </div>
+                        <template x-for="sub in group.subs" x-bind:key="sub.subcategory">
+                            <div class="competence-aa-subgroup">
+                                <div class="competence-aa-subgroup-head">
+                                    <span class="ti-tag" x-text="sub.subcategory"></span>
+                                    <span x-text="sub.subName"></span>
+                                </div>
+                                <template x-for="code in sub.codes" x-bind:key="code">
+                                    <div class="competence-aa-row" x-bind:class="isRowDirty(code) ? 'is-dirty' : ''">
+                                        <span class="ti-tag mono competence-aa-row-code" x-text="code"></span>
+                                        <span class="competence-aa-row-name" x-text="rowName(code)"></span>
+                                        <div class="competence-aa-spark" aria-hidden="true">
+                                            <template x-for="(bar, bIdx) in rowCurve(code)" x-bind:key="bIdx">
+                                                <span class="competence-aa-spark-bar" x-bind:style="barStyle(bar.weight)"
+                                                      x-bind:title="bar.level + ': ' + bar.weight"></span>
+                                            </template>
+                                        </div>
+                                        <select class="ti-select competence-aa-select"
+                                                @change="setArchetype(code, $event.target.value)"
+                                                x-bind:aria-label="getLabel('interface.admin.assignment.select-aria', 'Archetype')">
+                                            <template x-for="archetype in archetypes" x-bind:key="archetype.id">
+                                                <option x-bind:value="archetype.id"
+                                                        x-bind:selected="archetype.id === rowArchetype(code)"
+                                                        x-text="archetype.id + ' · ' + archetypeName(archetype.id)"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Sticky actions panel (shared styling with the text editor). -->
+            <template x-if="isDirty()">
+                <div class="competence-cte-actions-panel">
+                    <div class="competence-cte-actions-state" x-text="dirtyCountLabel()"></div>
+                    <div class="competence-cte-actions-spacer"></div>
+                    <button type="button" class="ti-btn ghost" @click="discard()" x-bind:disabled="saving"
+                            x-text-label="interface.admin.assignment.discard-btn"></button>
+                    <button type="button" class="ti-btn primary" @click="save()" x-bind:disabled="saving">
+                        <span class="ti-icon send sm" aria-hidden="true"></span>
+                        <span x-text-label="interface.admin.assignment.save-btn"></span>
+                    </button>
+                </div>
+            </template>
+        </div>
+    </template>
+</div>

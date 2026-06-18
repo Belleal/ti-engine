@@ -17,6 +17,7 @@
       "local",
       "openid-google"
     ],
+    "admins": [],
     "oauth2": {
       "azure": {
         "tokenEndpointAuthMethod": "client_secret_post",

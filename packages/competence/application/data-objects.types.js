@@ -12,6 +12,7 @@
  * @property {Object.<EvaluationGradeValue, decimal>} gradeWeights
  * @property {boolean} [isTeamEvaluationCollective]
  * @property {number} minTeamEvaluationMembers
+ * @property {number} [maxTeamEvaluationMembers]
  * @property {number} numberOfNextPeriodGoals
  * @property {Object.<PerformanceThresholdValue, number>} performanceThresholds
  */
@@ -24,7 +25,115 @@
 /**
  * @typedef {Object} ConfigCompetencies
  * @property {Object.<CompetencyCategory, Object>} categories
- * @property {Object.<string, Object>} competencies
+ * @property {Object.<string, Competency>} competencies
+ */
+
+/**
+ * @typedef {Object} ConfigRoleFamilies
+ * @property {RoleFamily} SE
+ * @property {RoleFamily} QE
+ * @property {RoleFamily} BA
+ * @property {RoleFamily} PM
+ * @property {RoleFamily} XD
+ * @property {RoleFamily} DA
+ * @property {RoleFamily} IO
+ * @property {RoleFamily} MC
+ * @property {RoleFamily} PD
+ */
+
+/**
+ * @typedef {Object} RoleFamily
+ * @property {string} name - Localization key for the family name.
+ * @property {string} description - Localization key for the family description.
+ * @property {Object.<string, Specialization>} specializations - Permitted specializations, keyed by specialization code.
+ */
+
+/**
+ * @typedef {Object} Specialization
+ * @property {string} name - Localization key for the specialization name.
+ * @property {string} description - Localization key for the specialization description.
+ * @property {ECFMapping[]} eCFMapping - e-CF cross-walk entries; empty array when none.
+ */
+
+/**
+ * @typedef {Object} ECFMapping
+ * @property {string} competence - e-CF competence reference (e.g., B.6).
+ * @property {string} level - e-CF level (e-1 through e-5).
+ */
+
+/**
+ * @typedef {Object.<RoleFamilyCodeValue, FamilyCompetencyAssignments>} ConfigActiveCompetencySets
+ */
+
+/**
+ * @typedef {Object} FamilyCompetencyAssignments
+ * @description Keys are either the literal "baseline" or a specialization code. Each value maps cycleID → competency-code array.
+ */
+
+/**
+ * @typedef {Object} ConfigStageLevels
+ * @property {StageLevel} N
+ * @property {StageLevel} J
+ * @property {StageLevel} R
+ * @property {StageLevel} S
+ * @property {StageLevel} X
+ * @property {StageLevel} T
+ */
+
+/**
+ * @typedef {Object} StageLevel
+ * @property {string} name
+ * @property {string} description
+ * @property {number} grade
+ * @property {number} stages
+ * @property {CareerLevelCodeValue[]} previous
+ * @property {CareerLevelCodeValue[]} next
+ */
+
+/**
+ * @typedef {Object} Cycle
+ * @property {string} cycleID - e.g., "2026-H2".
+ * @property {string} name - Display name (e.g., "Autumn '26 cycle").
+ * @property {CycleStatusValue} status - Lifecycle status.
+ * @property {string} cycleStart - Cycle start date (YYYY-MM-DD).
+ * @property {string} cycleDate - Manager review deadline (YYYY-MM-DD).
+ * @property {string} cycleEnd - Planned close date (YYYY-MM-DD).
+ * @property {string|null} [actualCloseDate] - Set on CLOSE transition.
+ * @property {string|null} [lockedAt] - ISO-8601 timestamp set on LOCK transition.
+ * @property {string|null} [lockedBy] - Actor that locked the cycle.
+ * @property {string} createdAt - Creation timestamp.
+ * @property {string|null} [createdBy] - Actor that created the cycle.
+ */
+
+/**
+ * @typedef {"PLANNING"|"ACTIVE"|"CLOSED"} CycleStatusValue
+ */
+
+/**
+ * @typedef {Object} AuditEntry
+ * @property {string} entryID - UUID.
+ * @property {"employee"|"cycle"|"activeCompetencySet"|"evaluation"} subjectType
+ * @property {string} subjectID - Identifier of the subject entity.
+ * @property {string} changedBy - Employee ID of the actor.
+ * @property {string} timestamp - ISO-8601 timestamp.
+ * @property {string} field - Dot-path of the field that changed.
+ * @property {*} oldValue
+ * @property {*} newValue
+ * @property {string|null} [reason]
+ */
+
+/**
+ * @typedef {Object} SnapshotEntry
+ * @property {string} code - Competency code (e.g., E1-1).
+ * @property {string} name - Localization key for the competency name.
+ * @property {string} description - Localization key for the competency description.
+ * @property {CompetencyCategory} category
+ * @property {string} subcategory
+ * @property {CompetencyScope} scope - Full scope map.
+ * @property {CompetencyRelevancy} relevancy - Full per-stage-level relevancy.
+ * @property {ECFMapping[]} [eCFMapping] - e-CF cross-walk if any.
+ * @property {string} origin - Literal "baseline" or the specialization code that contributed this competency.
+ * @property {string} [originLabel] - Localization key resolving to the user-facing origin label ("Baseline" or the specialization's localized name).
  */
 
 /**
@@ -58,7 +167,7 @@
  * @property {boolean} [selfEvaluationCompleted=false] - Indicates if self-evaluation has been completed.
  * @property {string} [selfEvaluationDeadline] - Deadline for self-evaluation submission (YYYY-MM-DD).
  * @property {boolean} [teamEvaluationCompleted=false] - Indicates if team-evaluation has been completed.
- * @property {string} [teamEvaluationDeadline] - Deadline for team-evaluation submission (YYYY-MM-DD).
+ * @property {string} teamEvaluationDeadline - Deadline for team-evaluation submission (YYYY-MM-DD). Required: populated from cycle.teamFeedbackDeadline at evaluation creation.
  * @property {boolean} [managerEvaluationCompleted=false] - Indicates if manager-evaluation has been completed.
  * @property {string} [managerEvaluationDeadline] - Deadline for manager-evaluation submission (YYYY-MM-DD).
  * @property {number} [teamEvaluationsSubmitted=0] - Number of team evaluations submitted.
@@ -80,15 +189,18 @@
 /**
  * @typedef {Object} Evaluation
  * @property {string} evaluationID - Unique identifier for the evaluation (UUID).
+ * @property {string} shortID - Short human-readable identifier for the evaluation.
  * @property {string} employeeID - ID of the employee being evaluated.
  * @property {string} [managerID] - ID of the manager who reviews the evaluation.
- * @property {string} cycleID - Identifier of the evaluation cycle (e.g., 2025.H1).
- * @property {string} cycleDate - Official date of the evaluation cycle starting (YYYY-MM-DD).
+ * @property {string} cycleID - Identifier of the evaluation cycle (e.g., 2026-H2).
+ * @property {string} cycleDate - Manager review deadline date of the cycle (YYYY-MM-DD).
  * @property {string|null} [interviewDate] - Date when the evaluation interview took place (YYYY-MM-DD).
  * @property {EvaluationStatusValue} status - Current status of the evaluation.
+ * @property {RoleFamilyCodeValue} roleFamily - Role family at evaluation creation time.
+ * @property {SpecializationCodeValue|null} [specialization] - Specialization at evaluation creation time, or null for a generalist within the family.
+ * @property {string} stageLevel - Stage-level at evaluation creation time (e.g., S2).
+ * @property {SnapshotEntry[]} snapshot - Frozen competency list resolved at creation time. The form reads exclusively from this snapshot.
  * @property {Object.<string, EvaluationGradeEntry>} [grades] - Collection of grades keyed by competency ID.
- * @property {CareerPathCodeValue} careerPath - The career path of the employee at the time of this evaluation.
- * @property {string} stageLevel - The level and sage of the employee at the time of this evaluation.
  * @property {Object.<CompetencyCategory, EvaluationScore>} [scores] - The evaluation scores per category based on the given grades.
  * @property {EvaluationScore} [finalScore] - The final score of the evaluation itself.
  * @property {string} [comment] - Comment submitted by the employee.
@@ -98,27 +210,31 @@
 
 /**
  * @typedef {Object} EmployeePersonalInformation
- * @property {string} name - Full name of the employee.
- * @property {string} [email] - Corporate email address.
- * @property {CareerPathCodeValue} careerPath - Career path.
- * @property {CareerLevelCodeValue} level - Career path level.
- * @property {CareerLevelStageCodeValue} stage - Progression stage within the level.
- * @property {string} organizationUnitID - Organization unit ID.
- * @property {string} [organizationUnitName] - Organization unit display name.
- * @property {string} [startingDate] - Date of joining the company (YYYY-MM-DD).
+ * @property {string} firstName - First name of the employee.
+ * @property {string} lastName - Last name of the employee.
+ * @property {string} [birthDate] - Birth date of the employee.
+ * @property {string} [gender] - Gender of the employee.
+ * @property {string} workMode - Work mode of the employee (e.g., "Full-time", "Part-time", "Contract").
+ * @property {string} workLocation - Work location of the employee (e.g., "Remote", "On-site").
  */
 
 /**
- * @typedef {Object} EmployeeManagerInformation
- * @property {string} [name] - Name of the direct manager.
- * @property {string} managerID - Employee ID of the direct manager.
+ * @typedef {Object} EmployeeCareerInformation
+ * @property {string} organizationUnitID - Organization unit ID.
+ * @property {RoleFamilyCodeValue} roleFamily - Role family code.
+ * @property {SpecializationCodeValue|null} [specialization] - Specialization code, or null/absent for a generalist within the family.
+ * @property {CareerLevelCodeValue} level - Stage-level code.
+ * @property {CareerLevelStageCodeValue} stage - Progression stage within the level.
+ * @property {string} [startingDate] - Date of joining the company (YYYY-MM-DD).
  */
 
 /**
  * @typedef {Object} Employee
  * @property {string} employeeID - Unique identifier for the employee.
+ * @property {string} [email] - Corporate email address.
+ * @property {"active"|"on-leave"|"terminated"} [employmentStatus] - Employment status.
  * @property {EmployeePersonalInformation} personal - Personal information about the employee.
- * @property {EmployeeManagerInformation} [manager] - Information about the direct manager.
+ * @property {EmployeeCareerInformation} career - Career information about the employee.
  */
 
 /**
@@ -157,8 +273,21 @@
  * @property {string} description - Localization key for competency description.
  * @property {CompetencyCategory} category - Category code: E (Expertise), I (Insight), or C (Commitment).
  * @property {string} subcategory - Subcategory code matching the parent category.
- * @property {CompetencyScope} scope - Scope descriptions per career path level.
- * @property {CompetencyRelevancy} relevancy - Relevancy scores per career path level tier/stage.
+ * @property {CompetencyScope} scope - Scope descriptions per stage-level.
+ * @property {ECFMapping[]} [eCFMapping] - Optional e-CF cross-walk.
+ * @property {string} relevancyArchetype - Relevancy archetype id (see config.relevancy-archetypes.json) whose curve defines this competency's per-stage-level relevancy.
+ */
+
+/**
+ * @typedef {Object.<string, RelevancyArchetype>} ConfigRelevancyArchetypes
+ * @description Maps archetype id → its relevancy curve. A competency references an archetype by id (its
+ * `relevancyArchetype`); the effective per-stage-level relevancy is resolved from the archetype. Assignment is global
+ * (the same curve wherever a competency is used); per-family divergence would be an optional override layer (deferred).
+ */
+
+/**
+ * @typedef {Object} RelevancyArchetype
+ * @property {CompetencyRelevancy} weights - The twelve stage-level weights (N1..T1) for this archetype.
  */
 
 /**
@@ -166,7 +295,12 @@
  */
 
 /**
- * @typedef {"SE01"|"PM01"|"BA01"} CareerPathCodeValue
+ * @typedef {"SE"|"QE"|"BA"|"PM"|"XD"|"DA"|"IO"|"MC"|"PD"} RoleFamilyCodeValue
+ */
+
+/**
+ * @typedef {string} SpecializationCodeValue
+ * @description An uppercase, alphanumeric (with underscores) specialization code. Valid values are family-dependent; validate at runtime against `configuration-loader.getSpecializationCodes(roleFamily)`.
  */
 
 /**
@@ -183,7 +317,9 @@
  * @property {string} name - System name of the organization unit.
  * @property {string} [displayName] - Display name of the organization unit.
  * @property {string} description - Description of the organization unit.
- * @property {string} type - Type of the organization unit (e.g., "Department", "Division", "Team").
+ * @property {string} type - Type of the organization unit (e.g., "Department", "Division", "Unit", "Team").
+ * @property {string} [branch] - The branch structure the organization unit belongs to (e.g., "HQ", "Branch City A", "Branch Country B").
+ * @property {string} [location] - The address location of the organization unit.
  * @property {string} managerID - Employee ID of the manager of the organization unit.
  * @property {Employee[]} [employees] - List of employees in the organization unit.
  * @property {string} [parent] - Parent organization unit ID.

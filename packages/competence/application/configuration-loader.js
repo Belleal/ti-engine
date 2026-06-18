@@ -9,11 +9,19 @@
 const _ = require( "lodash" );
 const tools = require( "@ti-engine/core/tools" );
 
-module.exports.configCareerPathCompetencies = tools.deepFreeze( require( "#config-career-path-competencies" ) );
-module.exports.configCareerPathLevels = tools.deepFreeze( require( "#config-career-path-levels" ) );
+/** @type {ConfigActiveCompetencySets} */
+module.exports.configActiveCompetencySets = tools.deepFreeze( require( "#config-active-competency-sets" ) );
 /** @type {ConfigCompetencies} */
 module.exports.configCompetencies = tools.deepFreeze( require( "#config-competencies" ) );
+/** @type {ConfigRelevancyArchetypes} */
+module.exports.configRelevancyArchetypes = tools.deepFreeze( require( "#config-relevancy-archetypes" ) );
 module.exports.configOrganizationStructure = tools.deepFreeze( require( "#config-organization-structure" ) );
+/** @type {ConfigRoleFamilies} */
+module.exports.configRoleFamilies = tools.deepFreeze( require( "#config-role-families" ) );
+/** @type {Object<string, Array<string>>} The per-family competency pool (applicability): family code → its complete pool (family-specific + shared) of competency codes. */
+module.exports.configRoleFamilyCompetencies = tools.deepFreeze( require( "#config-role-family-competencies" ) );
+/** @type {ConfigStageLevels} */
+module.exports.configStageLevels = tools.deepFreeze( require( "#config-stage-levels" ) );
 
 /**
  * Enum for the organization role values.
@@ -31,18 +39,103 @@ const roleCodeEnum = tools.enum( {
 module.exports.roleCode = roleCodeEnum;
 
 /**
- * Enum for the organization career path values.
+ * Enum for the role family codes (top-level discipline).
  *
  * @readonly
- * @enum {CareerPathCode}
- * @typedef {CareerPathCodeValue} CareerPathCode
+ * @enum {RoleFamilyCode}
+ * @typedef {RoleFamilyCodeValue} RoleFamilyCode
  */
-const careerPathCodeEnum = tools.enum( {
-    SE01: [ "SE01", "Software Engineer", "A career path suitable for a general software engineer position without a focus on specific technology stack." ],
-    PM01: [ "PM01", "Project Manager", "A career path suitable for a standard project manager position that is responsible for managing a portfolio of projects." ],
-    BA01: [ "BA01", "Business Analyst", "A career path suitable for a standard business analyst position that is responsible for analyzing business requirements and providing solutions." ]
+const roleFamilyCodeEnum = tools.enum( {
+    SE: [ "SE", "Software Engineering", "Disciplines focused on building software systems." ],
+    QE: [ "QE", "Quality Engineering", "Disciplines focused on validating product quality." ],
+    BA: [ "BA", "Business Analysis", "Disciplines focused on translating business needs into solutions." ],
+    PM: [ "PM", "Project & Delivery Management", "Disciplines focused on planning and delivering projects." ],
+    XD: [ "XD", "Experience Design", "Disciplines focused on user research and interaction design." ],
+    DA: [ "DA", "Data & Analytics", "Disciplines focused on data engineering, analytics, and ML." ],
+    IO: [ "IO", "Infrastructure & Ops", "Disciplines focused on infrastructure, platforms, and operations." ],
+    MC: [ "MC", "Marketing & Communications", "Disciplines focused on marketing, brand, content, and PR." ],
+    PD: [ "PD", "Product Management", "Disciplines focused on product strategy and ownership." ]
 } );
-module.exports.careerPathCode = careerPathCodeEnum;
+module.exports.roleFamilyCode = roleFamilyCodeEnum;
+
+/**
+ * Returns the valid specialization codes for a given role family, as defined in `config.role-families.json`.
+ *
+ * @method
+ * @param {RoleFamilyCodeValue|string} roleFamilyCode
+ * @returns {Array<string>} Specialization codes for the family, or empty array if the family is unknown.
+ * @public
+ */
+module.exports.getSpecializationCodes = ( roleFamilyCode ) => {
+    const family = module.exports.configRoleFamilies?.[ roleFamilyCode ];
+    return family && family.specializations ? Object.keys( family.specializations ) : [];
+};
+
+/**
+ * Returns the competency pool (applicability universe) for a given role family — its family-specific competencies plus
+ * the shared canonical ones — as defined in `config.role-family-competencies.json`. This is the set of codes a family
+ * may draw on when configuring its Active Competency Sets per cycle. Returns an empty array for an unknown or
+ * unpopulated family.
+ *
+ * @method
+ * @param {RoleFamilyCodeValue|string} roleFamilyCode
+ * @returns {Array<string>} The family's competency-code pool (empty if the family has no pool).
+ * @public
+ */
+module.exports.getCompetencyPool = ( roleFamilyCode ) => {
+    const pool = module.exports.configRoleFamilyCompetencies?.[ roleFamilyCode ];
+    return Array.isArray( pool ) ? pool : [];
+};
+
+/**
+ * Returns the ordered stage-level codes (the discipline-agnostic ladder rungs), e.g. `[ "N", "J", "R", "S", "X", "T" ]`.
+ * These double as the six scope anchors used throughout the competency dictionary.
+ *
+ * @method
+ * @returns {Array<string>}
+ * @public
+ */
+module.exports.getStageLevelCodes = () => {
+    return Object.keys( module.exports.configStageLevels || {} );
+};
+
+/**
+ * Returns the stage-level ladder as an ordered list of `{ code, stages }`, where `stages` is the array of valid stage
+ * numbers for that level (e.g. `N → [ 1 ]`, `J → [ 1, 2, 3 ]`). Derived from `config.stage-levels.json` so the ladder
+ * has a single source of truth.
+ *
+ * @method
+ * @returns {Array<{code: string, stages: Array<number>}>}
+ * @public
+ */
+module.exports.getStageLevelLadder = () => {
+    return Object.entries( module.exports.configStageLevels || {} ).map( ( [ code, definition ] ) => {
+        const stageCount = ( definition && Number.isInteger( definition.stages ) && definition.stages > 0 ) ? definition.stages : 1;
+        const stages = [];
+        for ( let stage = 1; stage <= stageCount; stage++ ) {
+            stages.push( stage );
+        }
+        return { code: code, stages: stages };
+    } );
+};
+
+/**
+ * Returns the flattened stage-level identifiers used as relevancy-archetype curve keys — every `<level><stage>`
+ * combination in ladder order, e.g. `[ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1" ]`.
+ *
+ * @method
+ * @returns {Array<string>}
+ * @public
+ */
+module.exports.getArchetypeStageLevels = () => {
+    const levels = [];
+    module.exports.getStageLevelLadder().forEach( ( entry ) => {
+        entry.stages.forEach( ( stage ) => {
+            levels.push( `${ entry.code }${ stage }` );
+        } );
+    } );
+    return levels;
+};
 
 /**
  * Enum for the calendar slot status values.
@@ -58,6 +151,20 @@ const slotStatusEnum = tools.enum( {
     DELETED: [ "deleted", "framework.slot.status.name.deleted", "framework.slot.status.description.deleted" ]
 } );
 module.exports.slotStatus = slotStatusEnum;
+
+/**
+ * Enum for the appraisal cycle lifecycle status. One-way transitions: PLANNING → ACTIVE → CLOSED.
+ *
+ * @readonly
+ * @enum {CycleStatus}
+ * @typedef {CycleStatusValue} CycleStatus
+ */
+const cycleStatusEnum = tools.enum( {
+    PLANNING: [ "PLANNING", "framework.cycle.status.name.planning", "framework.cycle.status.description.planning" ],
+    ACTIVE: [ "ACTIVE", "framework.cycle.status.name.active", "framework.cycle.status.description.active" ],
+    CLOSED: [ "CLOSED", "framework.cycle.status.name.closed", "framework.cycle.status.description.closed" ]
+} );
+module.exports.cycleStatus = cycleStatusEnum;
 
 /**
  * Enum for the evaluation status values.
@@ -124,4 +231,60 @@ tools.deepFreeze( configApplication );
  */
 module.exports.getSetting = ( setting, defaultValue ) => {
     return _.get( configApplication, setting, defaultValue );
+};
+
+/**
+ * Configuration documents that become store-backed (editable via the admin config API), keyed by their admin
+ * configKey → the property exported above. The file values loaded at module-load are the bootstrap defaults.
+ *
+ * @type {Object<string, string>}
+ */
+const STORE_BACKED = {
+    "competencies": "configCompetencies",
+    "relevancy-archetypes": "configRelevancyArchetypes",
+    "active-competency-sets": "configActiveCompetencySets",
+    "role-families": "configRoleFamilies",
+    "role-family-competencies": "configRoleFamilyCompetencies",
+    "stage-levels": "configStageLevels"
+};
+const fileDefaults = {};
+Object.entries( STORE_BACKED ).forEach( ( [ configKey, property ] ) => { fileDefaults[ configKey ] = module.exports[ property ]; } );
+
+/**
+ * @method
+ * @param {string} configKey
+ * @param {Object} value
+ * @private
+ */
+function applyStoreValue( configKey, value ) {
+    if ( value !== undefined && value !== null ) {
+        module.exports[ STORE_BACKED[ configKey ] ] = tools.deepFreeze( value );
+    }
+}
+
+/**
+ * Brings configuration under store control: seeds the store from the file defaults (empty-store-only), loads the
+ * current store values into the exported config objects, and refreshes them whenever a `config:changed` event fires.
+ * Idempotent. Reads stay synchronous — the exported `configX` objects are reassigned in place — and until this runs
+ * (and without it) the exported objects are the file defaults, so the app works before/without store initialization.
+ *
+ * @method
+ * @param {Object} [service] The framework config service (defaults to the `@ti-engine/web-framework/config-management` facade).
+ * @returns {Promise}
+ * @public
+ */
+module.exports.initialize = ( service ) => {
+    const configService = service || require( "@ti-engine/web-framework/config-management" ).instance;
+    return Promise.all( Object.keys( STORE_BACKED ).map( ( configKey ) => {
+        return configService.seedDefault( configKey, fileDefaults[ configKey ] )
+            .then( () => configService.getCurrent( configKey ) )
+            .then( ( current ) => { if ( current ) applyStoreValue( configKey, current.value ); } );
+    } ) ).then( () => {
+        configService.onConfigChanged( ( event ) => {
+            const keys = ( event && event.configKeys ) || [];
+            return Promise.all( keys.filter( ( key ) => STORE_BACKED[ key ] ).map( ( key ) => {
+                return configService.getCurrent( key ).then( ( current ) => { if ( current ) applyStoreValue( key, current.value ); } );
+            } ) );
+        } );
+    } );
 };

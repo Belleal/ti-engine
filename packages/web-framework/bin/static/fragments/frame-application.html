@@ -1,19 +1,19 @@
-<div id="ti-sidebar" class="ti-sidebar ti-glass-panel-black">
-    <div id="ti-sidebar-menu-top" class="ti-sidebar-menu top">
-        <a href="/" class="ti-sidebar-button ti-glass-btn-black" aria-label="Dashboard">
-            <span class="ti-icon dashboard" aria-hidden="true"></span>
-        </a>
-        <span class="ti-spacer-v-10"></span>
-        <button type="button" class="ti-sidebar-button ti-glass-btn-black" aria-label="Settings">
-            <span class="ti-icon settings" aria-hidden="true"></span>
-        </button>
-    </div>
-    <div id="ti-sidebar-menu-bottom" class="ti-sidebar-menu bottom">
-        <div x-data="$store.tiComponentsConfig.sidebarApplicationMenu">
-            <ti-component-sidebar-flyout-placeholder/>
+<div class="ti-application" x-data="tiApplication" x-bind:class="{ collapsed: collapsed }">
+    <!-- Sidebar -->
+    <ti-component-sidebar-placeholder></ti-component-sidebar-placeholder>
+
+    <!-- Content -->
+    <div id="ti-content-wrapper" class="ti-content">
+        <!-- Topbar -->
+        <ti-component-topbar-placeholder></ti-component-topbar-placeholder>
+
+        <!-- Application Screen -->
+        <div id="ti-content" class="ti-page-scrollable">
+            <ti-nested-frame-placeholder hx-get="/app/dashboard" hx-trigger="load" hx-target="this" hx-swap="outerHTML"
+                                         hx-push-url="true"></ti-nested-frame-placeholder>
         </div>
     </div>
-</div>
-<div id="ti-content" class="ti-content">
-    <ti-nested-frame-placeholder hx-get="/app/dashboard" hx-trigger="load" hx-target="this" hx-swap="outerHTML" hx-push-url="true"/>
+
+    <!-- Toast notification stack -->
+    <ti-component-notification-bar-placeholder></ti-component-notification-bar-placeholder>
 </div>

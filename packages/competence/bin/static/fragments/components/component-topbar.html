@@ -1,0 +1,29 @@
+<header id="ti-topbar" class="ti-topbar" x-data="tiComponentTopbar">
+    <div id="ti-topbar-info">
+        <div class="ti-topbar-title" x-text="screenTitle"></div>
+        <div class="ti-topbar-sub"
+             x-text="$store.tiApplication.topbarSubtitle || ($store.tiApplication.configuration && $store.tiApplication.configuration.cycle && $store.tiApplication.configuration.cycle.name) || ''"></div>
+    </div>
+    <div class="ti-topbar-spacer"></div>
+    <div class="ti-topbar-actions">
+        <button class="ti-btn icon ghost" type="button" x-text-label:aria-label="interface.topbar.search" aria-label="Search">
+            <span class="ti-icon search md" aria-hidden="true"></span>
+        </button>
+        <button class="ti-btn icon ghost" type="button" x-text-label:aria-label="interface.topbar.notifications" aria-label="Notifications">
+            <span class="ti-icon bell md" aria-hidden="true"></span>
+        </button>
+        <!-- Per-screen primary CTA slot. Each screen registers its own action via tiApplication.setTopbarPrimaryCta(). -->
+        <template x-if="$store.tiApplication.topbarPrimaryCta">
+            <button type="button" class="ti-btn"
+                    x-bind:class="$store.tiApplication.topbarPrimaryCta.tone || 'primary'"
+                    x-bind:disabled="$store.tiApplication.topbarPrimaryCta.disabled === true"
+                    x-bind:aria-label="$store.tiApplication.getLabel($store.tiApplication.topbarPrimaryCta.labelKey)"
+                    @click="$store.tiApplication.topbarPrimaryCta && $store.tiApplication.topbarPrimaryCta.handler && $store.tiApplication.topbarPrimaryCta.handler()">
+                <span x-show="$store.tiApplication.topbarPrimaryCta.icon"
+                      class="ti-icon sm" aria-hidden="true"
+                      x-bind:class="$store.tiApplication.topbarPrimaryCta.icon"></span>
+                <span x-text="$store.tiApplication.getLabel($store.tiApplication.topbarPrimaryCta.labelKey)"></span>
+            </button>
+        </template>
+    </div>
+</header>

@@ -61,18 +61,50 @@ body {
 
 .ti-icon {
     display: inline-block;
-    width: var(--ti-icon-size);
-    height: var(--ti-icon-size);
-    background-color: var(--ti-icon-color);
+    width: var(--ti-icon-size, 20px);
+    height: var(--ti-icon-size, 20px);
+    background-color: currentColor;
     -webkit-mask-image: none;
     mask-image: none;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
     mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    flex-shrink: 0;
+    vertical-align: middle;
 }
 
-.ti-icon:hover {
+/* Size modifiers — pick the one closest to the surrounding text. xs/sm/md/lg/xl cover the
+   10–32px range we use across the app. The bare .ti-icon keeps a sensible 20px default. */
+.ti-icon.xs {
+    --ti-icon-size: 12px;
+}
+
+.ti-icon.sm {
+    --ti-icon-size: 14px;
+}
+
+.ti-icon.md {
+    --ti-icon-size: 16px;
+}
+
+.ti-icon.lg {
+    --ti-icon-size: 24px;
+}
+
+.ti-icon.xl {
+    --ti-icon-size: 32px;
+}
+
+/* Legacy color modifiers preserved for the user-profile flyout (which still uses the explicit
+   gray on a dark sidebar). New screens inherit color from their parent automatically. */
+.ti-icon.legacy-gray {
+    background-color: var(--ti-icon-color);
+}
+
+.ti-icon.legacy-gray:hover {
     background-color: var(--ti-icon-hover-color);
 }
 
@@ -194,10 +226,161 @@ body {
     mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22currentColor%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M12%202.25c-5.385%200-9.75%204.365-9.75%209.75s4.365%209.75%209.75%209.75%209.75-4.365%209.75-9.75S17.385%202.25%2012%202.25ZM12.75%206a.75.75%200%200%200-1.5%200v6c0%20.414.336.75.75.75h4.5a.75.75%200%200%200%200-1.5h-3.75V6Z%22%20clip-rule%3D%22evenodd%22%20%2F%3E%3C%2Fsvg%3E");
 }
 
+/* ============================================================
+   Inline icons — small lucide-style stroked glyphs extracted
+   from the screens. All inherit colour via currentColor and
+   size via the .xs/.sm/.md/.lg/.xl modifiers on .ti-icon.
+   Group A: actions (plus, close, check, send, search)
+   Group B: status / signals (clock, warning-triangle, info,
+            check-circle, bell)
+   Group C: nouns (calendar-blank, user, users, briefcase,
+            book, folder, help-circle)
+   Group D: layout / navigation (chevron-left, chevron-right,
+            dashboard-grid, cycles-loop, sun, theme-toggle)
+   ============================================================ */
+
+.ti-icon.plus {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
+}
+
+.ti-icon.close {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6L6 18M6 6l12 12'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6L6 18M6 6l12 12'/%3E%3C/svg%3E");
+}
+
+.ti-icon.check {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+}
+
+/* Check inside a clipboard — used as the "evaluation" affordance on rows / panels. */
+.ti-icon.check-clipboard {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 11l3 3L22 4'/%3E%3Cpath d='M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 11l3 3L22 4'/%3E%3Cpath d='M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'/%3E%3C/svg%3E");
+}
+
+/* Right-pointing solid triangle — open / submit / play. */
+.ti-icon.send {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor' stroke='currentColor' stroke-width='1' stroke-linejoin='round'%3E%3Cpolygon points='5 3 19 12 5 21 5 3'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor' stroke='currentColor' stroke-width='1' stroke-linejoin='round'%3E%3Cpolygon points='5 3 19 12 5 21 5 3'/%3E%3C/svg%3E");
+}
+
+.ti-icon.search {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+}
+
+.ti-icon.clock {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
+}
+
+.ti-icon.warning-triangle {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/%3E%3Cline x1='12' y1='9' x2='12' y2='13'/%3E%3Cline x1='12' y1='17' x2='12.01' y2='17'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/%3E%3Cline x1='12' y1='9' x2='12' y2='13'/%3E%3Cline x1='12' y1='17' x2='12.01' y2='17'/%3E%3C/svg%3E");
+}
+
+.ti-icon.info-circle {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y1='16' x2='12' y2='12'/%3E%3Cline x1='12' y1='8' x2='12.01' y2='8'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y1='16' x2='12' y2='12'/%3E%3Cline x1='12' y1='8' x2='12.01' y2='8'/%3E%3C/svg%3E");
+}
+
+.ti-icon.bell {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9'/%3E%3Cpath d='M13.73 21a2 2 0 0 1-3.46 0'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9'/%3E%3Cpath d='M13.73 21a2 2 0 0 1-3.46 0'/%3E%3C/svg%3E");
+}
+
+/* Simple Feather-style calendar — used by deadline cards / period columns / date inputs. */
+.ti-icon.calendar-blank {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");
+}
+
+.ti-icon.user {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E");
+}
+
+.ti-icon.users {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='9' cy='7' r='4'/%3E%3Cpath d='M23 21v-2a4 4 0 0 0-3-3.87'/%3E%3Cpath d='M16 3.13a4 4 0 0 1 0 7.75'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='9' cy='7' r='4'/%3E%3Cpath d='M23 21v-2a4 4 0 0 0-3-3.87'/%3E%3Cpath d='M16 3.13a4 4 0 0 1 0 7.75'/%3E%3C/svg%3E");
+}
+
+.ti-icon.briefcase {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='7' width='20' height='14' rx='2'/%3E%3Cpath d='M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='7' width='20' height='14' rx='2'/%3E%3Cpath d='M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2'/%3E%3C/svg%3E");
+}
+
+.ti-icon.folder {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z'/%3E%3C/svg%3E");
+}
+
+.ti-icon.book {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z'/%3E%3Cpath d='M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z'/%3E%3Cpath d='M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z'/%3E%3C/svg%3E");
+}
+
+.ti-icon.help-circle {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3'/%3E%3Cline x1='12' y1='17' x2='12.01' y2='17'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3'/%3E%3Cline x1='12' y1='17' x2='12.01' y2='17'/%3E%3C/svg%3E");
+}
+
+.ti-icon.chevron-left {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='15 18 9 12 15 6'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='15 18 9 12 15 6'/%3E%3C/svg%3E");
+}
+
+.ti-icon.chevron-right {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 18 15 12 9 6'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 18 15 12 9 6'/%3E%3C/svg%3E");
+}
+
+/* Four small rounded squares — sidebar Dashboard nav entry. */
+.ti-icon.dashboard-grid {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='7' height='7' rx='1.5'/%3E%3Crect x='14' y='3' width='7' height='7' rx='1.5'/%3E%3Crect x='3' y='14' width='7' height='7' rx='1.5'/%3E%3Crect x='14' y='14' width='7' height='7' rx='1.5'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='7' height='7' rx='1.5'/%3E%3Crect x='14' y='3' width='7' height='7' rx='1.5'/%3E%3Crect x='3' y='14' width='7' height='7' rx='1.5'/%3E%3Crect x='14' y='14' width='7' height='7' rx='1.5'/%3E%3C/svg%3E");
+}
+
+/* Circular arrow with a small arrowhead — sidebar Cycles nav entry. */
+.ti-icon.cycles-loop {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12a9 9 0 1 1-3-6.7'/%3E%3Cpolyline points='21 4 21 10 15 10'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12a9 9 0 1 1-3-6.7'/%3E%3Cpolyline points='21 4 21 10 15 10'/%3E%3C/svg%3E");
+}
+
+.ti-icon.sun {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='5'/%3E%3Cline x1='12' y1='1' x2='12' y2='3'/%3E%3Cline x1='12' y1='21' x2='12' y2='23'/%3E%3Cline x1='4.22' y1='4.22' x2='5.64' y2='5.64'/%3E%3Cline x1='18.36' y1='18.36' x2='19.78' y2='19.78'/%3E%3Cline x1='1' y1='12' x2='3' y2='12'/%3E%3Cline x1='21' y1='12' x2='23' y2='12'/%3E%3Cline x1='4.22' y1='19.78' x2='5.64' y2='18.36'/%3E%3Cline x1='18.36' y1='5.64' x2='19.78' y2='4.22'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='5'/%3E%3Cline x1='12' y1='1' x2='12' y2='3'/%3E%3Cline x1='12' y1='21' x2='12' y2='23'/%3E%3Cline x1='4.22' y1='4.22' x2='5.64' y2='5.64'/%3E%3Cline x1='18.36' y1='18.36' x2='19.78' y2='19.78'/%3E%3Cline x1='1' y1='12' x2='3' y2='12'/%3E%3Cline x1='21' y1='12' x2='23' y2='12'/%3E%3Cline x1='4.22' y1='19.78' x2='5.64' y2='18.36'/%3E%3Cline x1='18.36' y1='5.64' x2='19.78' y2='4.22'/%3E%3C/svg%3E");
+}
+
+.ti-icon.moon {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z'/%3E%3C/svg%3E");
+}
+
+.ti-icon.eye {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E");
+}
+
+/* Check inside a circle — Ready / completed indicator. */
+.ti-icon.check-circle {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 11.08V12a10 10 0 1 1-5.93-9.14'/%3E%3Cpolyline points='22 4 12 14.01 9 11.01'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 11.08V12a10 10 0 1 1-5.93-9.14'/%3E%3Cpolyline points='22 4 12 14.01 9 11.01'/%3E%3C/svg%3E");
+}
+
+/* Three vertical bars of varying height — column / bar chart. */
+.ti-icon.bar-chart {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='18' y1='20' x2='18' y2='10'/%3E%3Cline x1='12' y1='20' x2='12' y2='4'/%3E%3Cline x1='6' y1='20' x2='6' y2='14'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='18' y1='20' x2='18' y2='10'/%3E%3Cline x1='12' y1='20' x2='12' y2='4'/%3E%3Cline x1='6' y1='20' x2='6' y2='14'/%3E%3C/svg%3E");
+}
+
 .ti-main {
     display: flex;
+    flex-direction: column;
     width: 100%;
-    height: 100%;
+    min-height: 100vh;
     overflow: hidden;
 }
 
@@ -209,66 +392,6 @@ body {
     z-index: 1000;
 }
 
-.ti-sidebar-menu {
-    display: flex;
-    flex-direction: column;
-    gap: var(--ti-gap);
-    margin: var(--ti-margin);
-}
-
-.ti-sidebar-menu.top {
-    justify-self: flex-start;
-    justify-content: flex-start;
-    align-items: flex-start;
-}
-
-.ti-sidebar-menu.bottom {
-    justify-self: flex-end;
-    justify-content: flex-end;
-    align-items: flex-end;
-}
-
-.ti-button {
-    display: inline-flex;
-    align-items: center;
-    flex-direction: row;
-    text-align: center;
-    text-decoration: none;
-    cursor: pointer;
-    appearance: none;
-    gap: var(--ti-button-gap);
-    border: 0;
-    background: transparent;
-    box-sizing: border-box;
-    font-family: var(--ti-font-family), system-ui;
-    font-size: var(--ti-font-size);
-    color: inherit;
-    height: var(--ti-button-size);
-    width: fit-content;
-    border-radius: var(--ti-button-radius);
-    padding-inline: var(--ti-padding);
-    -webkit-tap-highlight-color: transparent;
-}
-
-.ti-button:link {
-    text-decoration: none !important;
-}
-
-.ti-button:visited {
-    text-decoration: none !important;
-}
-
-.ti-button.login {
-    grid-column: 2;
-    justify-self: center;
-}
-
-.ti-button.inline {
-    padding: calc(var(--ti-data-field-padding-v) - 1px) var(--ti-data-field-padding-h) calc(var(--ti-data-field-padding-v) + 1px);
-    height: var(--ti-button-inline-height);
-    border-radius: var(--ti-data-field-border-radius);
-    width: auto;
-}
 
 .ti-sidebar-button {
     width: var(--ti-button-size);
@@ -311,119 +434,6 @@ body {
     overflow: auto;
 }
 
-.ti-error {
-    color: var(--ti-error-color, #811010);
-}
-
-.ti-spacer-v-10 {
-    flex: auto;
-    height: 10px;
-    width: 100%;
-}
-
-.ti-panel {
-    display: flex;
-    flex-direction: column;
-    gap: var(--ti-gap);
-    width: 100%;
-}
-
-.ti-panel.login {
-    flex-direction: column;
-    gap: var(--ti-gap);
-    align-items: center;
-    justify-content: center;
-    width: auto;
-}
-
-.ti-panel-title {
-    font-size: var(--ti-title-font-size);
-    font-weight: 600;
-    color: var(--ti-title-color);
-}
-
-.ti-sub-panel {
-    background-color: var(--ti-sub-panel-background);
-    padding: var(--ti-panel-padding);
-    gap: var(--ti-grid-gap);
-    border-radius: var(--ti-panel-border-radius);
-    box-sizing: border-box;
-    width: 100%;
-}
-
-.ti-sub-panel-title {
-    font-size: var(--ti-title-font-size);
-    font-weight: 600;
-    color: var(--ti-title-color);
-}
-
-.ti-form-grid {
-    display: grid;
-    gap: var(--ti-grid-gap);
-    align-items: center;
-}
-
-.ti-form-grid.login {
-    grid-template-columns: 120px minmax(220px, 1fr);
-}
-
-.ti-label {
-    font-size: var(--ti-label-font-size);
-    color: var(--ti-label-color);
-}
-
-.ti-input {
-    background-color: var(--ti-input-background-color);
-    border: 1px solid var(--ti-input-border-color);
-    border-radius: var(--ti-data-field-border-radius);
-    padding: var(--ti-data-field-padding-v) var(--ti-data-field-padding-h);
-    font-family: var(--ti-font-family);
-    font-size: var(--ti-label-font-size);
-    line-height: var(--ti-data-field-height);
-    min-height: var(--ti-data-field-height);
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.ti-input:focus,
-.ti-input:focus-visible {
-    outline: 1px solid var(--ti-input-outline-color);
-    outline-offset: -1px;
-    box-shadow: 0 0 4px 2px var(--ti-input-outline-shadow-color);
-}
-
-.ti-input.area {
-    resize: vertical;
-}
-
-.ti-data-value {
-    background-color: var(--ti-data-field-background-color);
-    font-size: var(--ti-label-font-size);
-    font-weight: normal;
-    color: var(--ti-data-field-text-color);
-    padding: calc(var(--ti-data-field-padding-v) - 1px) var(--ti-data-field-padding-h) calc(var(--ti-data-field-padding-v) + 1px);
-    min-height: var(--ti-data-field-height);
-    display: flex;
-    align-items: center;
-    border: 1px solid var(--ti-data-field-border-color);
-    border-radius: var(--ti-data-field-border-radius);
-}
-
-.ti-data-value.compact-centered {
-    justify-content: center;
-}
-
-.ti-data-value.fill-space {
-    flex-grow: 1;
-}
-
-.ti-button-bar {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    gap: var(--ti-gap);
-    width: 100%;
-}
 
 .ti-notifications {
     position: fixed;
@@ -453,7 +463,7 @@ body {
     padding: var(--ti-padding);
     border-radius: 12px;
     max-width: 60%;
-    width: fit-content; /* Ensures the container shrinks to fit content if text is short */
+    width: fit-content; /* Ensures the container shrinks to fit ti-content if text is short */
     margin-left: auto; /* Centers the container if it has relative positioning */
     margin-right: auto;
 }
@@ -467,6 +477,7 @@ body {
 .ti-sidebar-flyout-container {
     display: inline-flex;
     position: relative;
+    width: 100%;
 }
 
 .ti-sidebar-flyout[hidden] {
@@ -482,54 +493,71 @@ body {
     transform: none;
 
     /* Box model */
-    min-width: 180px;
-    padding: var(--ti-padding);
-    border-radius: 12px;
+    min-width: 220px;
+    padding: var(--s-2);
+    margin-left: 20px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-lg);
 
     /* Layout */
     display: flex;
     flex-direction: column;
-    gap: var(--ti-gap);
+    gap: 2px;
+}
+
+.ti-application.collapsed .ti-sidebar-flyout {
+    margin-left: 16px;
 }
 
 /* Flyout items */
 .ti-sidebar-flyout-item {
     display: inline-flex;
     align-items: center;
-    justify-content: left;
-    flex-direction: row;
+    justify-content: flex-start;
     cursor: pointer;
-    gap: 5px;
-    font-family: var(--ti-font-family), system-ui;
-    font-size: var(--ti-font-size);
+    gap: var(--s-3);
+    font-family: inherit;
+    font-size: var(--fs-base);
+    font-weight: 500;
     -webkit-tap-highlight-color: transparent;
     appearance: none;
     width: 100%;
-    height: var(--ti-button-size);
     box-sizing: border-box;
     border: 0;
     background: transparent;
-    color: var(--ti-sidebar-fg);
+    color: var(--fg-primary);
     text-align: left;
-    padding: var(--ti-padding);
-    border-radius: var(--ti-button-radius);
-    box-shadow: var(--ti-flyout-item-shadow, inset 5px 5px 10px rgba(0, 0, 0, 0.35), inset -5px -5px 10px rgba(255, 255, 255, 0.03));
-    transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-md);
+    transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.ti-sidebar-flyout-item .ti-icon {
+    width: 18px;
+    height: 18px;
+    background-color: var(--fg-secondary);
+    flex-shrink: 0;
 }
 
 .ti-sidebar-flyout-item:hover {
-    background-color: var(--ti-flyout-item-hover-bg, rgba(255, 255, 255, 0.03));
+    background: var(--bg-tint);
+}
+
+.ti-sidebar-flyout-item:hover .ti-icon {
+    background-color: var(--fg-primary);
 }
 
 .ti-sidebar-flyout-item:active {
-    box-shadow: var(--ti-flyout-item-active-shadow, inset 8px 8px 16px rgba(0, 0, 0, 0.55), inset -8px -8px 16px rgba(255, 255, 255, 0.02));
+    background: var(--bg-sunken);
 }
 
-.ti-sidebar-flyout-sep {
-    border: 0;
-    border-top: 1px solid var(--ti-flyout-sep-color, rgba(255, 255, 255, 0.06));
-    margin: 6px 4px;
+.ti-sidebar-flyout-item:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
 }
+
 
 .ti-tooltip {
     position: relative;
@@ -573,4 +601,1931 @@ body {
         max-width: 90%; /* Allows more space on smaller screens */
         width: 90%; /* Ensures consistent width on very small screens */
     }
+}
+
+/* ============================================================
+   Design System v2 — Shared tokens (theme-agnostic)
+   Theme-specific values live in ti-theme-daylight.css and
+   ti-theme-black-glass.css, keyed by [data-theme] attribute.
+   ============================================================ */
+
+:root {
+    /* Type scale */
+    --fs-xxs: 10px;
+    --fs-xs: 11px;
+    --fs-sm: 12px;
+    --fs-base: 13.5px;
+    --fs-md: 15px;
+    --fs-lg: 18px;
+    --fs-xl: 22px;
+    --fs-2xl: 28px;
+    --fs-3xl: 36px;
+    --fs-display: 48px;
+
+    /* Spacing */
+    --s-1: 4px;
+    --s-2: 8px;
+    --s-3: 12px;
+    --s-4: 16px;
+    --s-5: 20px;
+    --s-6: 24px;
+    --s-7: 32px;
+    --s-8: 40px;
+    --s-9: 56px;
+    --s-10: 72px;
+
+    /* Radius */
+    --r-xs: 4px;
+    --r-sm: 6px;
+    --r-md: 10px;
+    --r-lg: 14px;
+    --r-xl: 20px;
+    --r-pill: 999px;
+
+    /* Layout */
+    --sidebar-w: 220px;
+    --sidebar-w-collapsed: 64px;
+    --header-h: 64px;
+    --content-max: 1180px;
+
+    /* Animation */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --dur-fast: 140ms;
+    --dur-base: 220ms;
+    --dur-slow: 380ms;
+}
+
+/* ============================================================
+   App shell — CSS grid with collapsible ti-sidebar
+   ============================================================ */
+.ti-application {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    height: 100vh;
+    background: var(--bg-app);
+    transition: grid-template-columns var(--dur-base) var(--ease-out);
+}
+
+.ti-application.collapsed {
+    grid-template-columns: var(--sidebar-w-collapsed) 1fr;
+}
+
+/* ============================================================
+   Sidebar
+   ============================================================ */
+.ti-sidebar {
+    background: var(--sidebar-bg);
+    color: var(--sidebar-fg);
+    display: flex;
+    flex-direction: column;
+    padding: var(--s-3) 0 var(--s-3);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    border-right: 1px solid var(--sidebar-divider);
+    overflow: hidden;
+}
+
+.ti-sidebar-collapse-btn {
+    position: absolute;
+    top: 20px;
+    right: -12px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--fg-secondary);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    z-index: 11;
+    box-shadow: var(--shadow-sm);
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity var(--dur-fast), transform var(--dur-fast), background var(--dur-fast);
+}
+
+.ti-application:hover .ti-sidebar-collapse-btn,
+.ti-sidebar-collapse-btn:focus-visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.ti-sidebar-collapse-btn:hover {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+.ti-application.collapsed .ti-sidebar-collapse-btn svg {
+    transform: rotate(180deg);
+}
+
+.ti-sidebar-collapse-btn svg {
+    transition: transform var(--dur-base) var(--ease-out);
+}
+
+.ti-sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-4) var(--s-4);
+    color: var(--sidebar-fg-active);
+    white-space: nowrap;
+    min-height: 56px;
+}
+
+.ti-application.collapsed .ti-sidebar-brand {
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+.ti-application.collapsed .ti-sidebar-brand-text-block {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.ti-sidebar-brand-text-block {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    transition: opacity var(--dur-fast);
+}
+
+.ti-sidebar-brand-mark {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 70%, #000));
+    color: #FFF;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: -0.02em;
+    box-shadow: 0 4px 12px color-mix(in oklab, var(--accent) 32%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    flex: 0 0 auto;
+}
+
+.ti-sidebar-brand-text {
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+}
+
+.ti-sidebar-brand-sub {
+    font-size: 11px;
+    color: var(--sidebar-fg);
+    font-weight: 400;
+}
+
+.ti-sidebar-section-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--sidebar-fg);
+    opacity: 0.5;
+    padding: var(--s-2) var(--s-4) 6px;
+    margin-top: var(--s-3);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: opacity var(--dur-fast), padding var(--dur-fast);
+}
+
+.ti-application.collapsed .ti-sidebar-section-label {
+    font-size: 0;
+    padding-top: var(--s-3);
+    padding-bottom: 0;
+    margin-top: 0;
+    height: 8px;
+    position: relative;
+}
+
+.ti-application.collapsed .ti-sidebar-section-label::after {
+    content: "";
+    position: absolute;
+    left: 18px;
+    right: 18px;
+    top: 50%;
+    height: 1px;
+    background: var(--sidebar-divider);
+}
+
+.ti-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 var(--s-3);
+}
+
+.ti-sidebar-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--sidebar-fg);
+    background: transparent;
+    border: 0;
+    text-align: left;
+    font-size: var(--fs-base);
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+    width: 100%;
+    white-space: nowrap;
+    min-height: 36px;
+    text-decoration: none;
+}
+
+.ti-sidebar-item-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity var(--dur-fast);
+}
+
+.ti-application.collapsed .ti-sidebar-item-label {
+    opacity: 0;
+    pointer-events: none;
+    flex: 0 0 0;
+    max-width: 0;
+    margin: 0;
+    overflow: hidden;
+}
+
+.ti-application.collapsed .ti-sidebar-nav {
+    padding-left: var(--s-2);
+    padding-right: var(--s-2);
+}
+
+.ti-application.collapsed .ti-sidebar-foot {
+    padding-left: var(--s-2);
+    padding-right: var(--s-2);
+}
+
+.ti-application.collapsed .ti-sidebar-item {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+    gap: 0;
+}
+
+.ti-application.collapsed .ti-sidebar-item .ti-sidebar-item-icon {
+    margin: 0;
+}
+
+/* Collapsed tooltip */
+.ti-application.collapsed .ti-sidebar-item:hover::after,
+.ti-application.collapsed .ti-sidebar-user:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--fg-primary);
+    color: var(--bg-surface);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    z-index: 50;
+    pointer-events: none;
+    box-shadow: var(--shadow-md);
+}
+
+.ti-sidebar-item:hover {
+    background: var(--sidebar-hover-bg);
+    color: var(--sidebar-fg-active);
+}
+
+.ti-sidebar-item.active {
+    background: var(--sidebar-active-bg);
+    color: var(--sidebar-fg-active);
+}
+
+.ti-sidebar-item.active::before {
+    content: "";
+    position: absolute;
+    left: calc(-1 * var(--s-3));
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 3px;
+    background: var(--sidebar-accent);
+}
+
+.ti-application.collapsed .ti-sidebar-item.active::before {
+    left: calc(-1 * var(--s-2));
+}
+
+.ti-sidebar-item:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.ti-sidebar-item-icon {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    opacity: 0.85;
+}
+
+.ti-sidebar-item.active .ti-sidebar-item-icon {
+    opacity: 1;
+}
+
+
+.ti-sidebar-foot {
+    margin-top: auto;
+    padding: var(--s-2) var(--s-3) 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-top: 1px solid var(--sidebar-divider);
+}
+
+.ti-sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: 8px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: 0;
+    background: transparent;
+    color: var(--sidebar-fg);
+    text-align: left;
+    width: 100%;
+    white-space: nowrap;
+    min-height: 44px;
+    position: relative;
+}
+
+.ti-application.collapsed .ti-sidebar-user {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+    gap: 0;
+}
+
+.ti-application.collapsed .ti-sidebar-user-text {
+    display: none;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.ti-sidebar-user-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    transition: opacity var(--dur-fast);
+}
+
+.ti-sidebar-user:hover {
+    background: var(--sidebar-hover-bg);
+}
+
+.ti-sidebar-user-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--sidebar-fg-active);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Keep the role/department line to a single, ellipsised line — names like "Project & Delivery Management" would
+   otherwise overflow the fixed-width sidebar. */
+.ti-sidebar-user-sub {
+    font-size: 11px;
+    opacity: 0.7;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ============================================================
+   Content area & ti-topbar
+   ============================================================ */
+.ti-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.ti-topbar {
+    height: var(--header-h);
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    padding: 0 var(--s-7);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-surface);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex: 0 0 auto;
+}
+
+.ti-topbar-title {
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--fg-primary);
+    white-space: nowrap;
+}
+
+.ti-topbar-sub {
+    color: var(--fg-tertiary);
+    font-size: var(--fs-sm);
+    margin-left: var(--s-3);
+    padding-left: var(--s-3);
+    border-left: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+#ti-topbar-info {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+}
+
+.ti-topbar-spacer {
+    flex: 1;
+}
+
+.ti-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+}
+
+.ti-page {
+    padding: var(--s-3) var(--s-5) var(--s-5);
+    max-width: var(--content-max);
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+
+.ti-page-scrollable {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    width: 100%;
+}
+
+/* Hide OOB elements that land in the ti-content area before HTMX swaps them out */
+#ti-content [hx-swap-oob] {
+    display: none;
+}
+
+/* ============================================================
+   Panel & ti-card
+   ============================================================ */
+.ti-panel, .ti-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-xs);
+    overflow: hidden;
+}
+
+.ti-panel-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding-bottom: var(--s-3);
+    margin-bottom: var(--s-4);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+/* Banner variant — the head reads as a full-width strip on a panel that does not use the default
+   .ti-panel padding (e.g. sectioned cards with internal sub-content beneath the head). */
+.ti-panel-head.bar {
+    padding: var(--s-4) var(--s-5);
+    margin: 0;
+    background: var(--bg-sunken);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+/* Square icon on the left of the head. Sized for a 16-18px stroked SVG. */
+.ti-panel-head-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--r-sm);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-secondary);
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+}
+
+/* Wraps the title + subtitle so they stack while the head itself stays a single flex row. */
+.ti-panel-head-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ti-panel-title {
+    font-size: var(--fs-md);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--fg-primary);
+}
+
+/* Small qualifier inline with the title (e.g. "(optional)"). */
+.ti-panel-title-aside {
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    color: var(--fg-tertiary);
+    margin-left: var(--s-2);
+}
+
+/* Smaller dimmed subtitle line under the title, optionally with an inline icon + meta string. */
+.ti-panel-subtitle {
+    font-size: var(--fs-sm);
+    color: var(--fg-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+}
+
+/* Right-aligned secondary info with a thin separator border on the left. Use for read-only
+   informative content (counts, hints, recommended thresholds, etc.). */
+.ti-panel-head-aside {
+    padding-left: var(--s-3);
+    border-left: 1px solid var(--border);
+    color: var(--fg-tertiary);
+    font-size: var(--fs-sm);
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+.ti-panel-head-aside strong {
+    color: var(--fg-primary);
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-weight: 500;
+}
+
+/* Right-aligned action buttons (Cancel / Save / + New …). Sits to the right alongside or in place
+   of .ti-panel-head-aside. */
+.ti-panel-head-actions {
+    margin-left: auto;
+    display: flex;
+    gap: var(--s-2);
+    flex: 0 0 auto;
+}
+
+/* When both .ti-panel-head-aside and .ti-panel-head-actions appear, only the aside gets the
+   auto-margin — the actions sit immediately next to it. */
+.ti-panel-head-aside + .ti-panel-head-actions {
+    margin-left: 0;
+}
+
+.ti-panel-body-intro {
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+    padding: 0 var(--s-3) var(--s-5);
+    line-height: 1.5;
+}
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+.ti-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 9px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
+    font-size: var(--fs-base);
+    font-family: inherit;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    cursor: pointer;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.ti-btn:hover {
+    background: var(--bg-sunken);
+    border-color: var(--border-strong);
+}
+
+.ti-btn:active {
+    transform: translateY(1px);
+}
+
+.ti-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+}
+
+.ti-btn[disabled] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.ti-btn.primary {
+    background: var(--accent);
+    color: var(--fg-on-accent);
+    border-color: transparent;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+
+.ti-btn.primary:hover {
+    background: var(--accent-hover);
+}
+
+.ti-btn.ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--fg-secondary);
+}
+
+.ti-btn.ghost:hover {
+    background: var(--bg-tint);
+    color: var(--fg-primary);
+}
+
+.ti-btn.danger {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--danger);
+}
+
+.ti-btn.danger:hover {
+    background: var(--danger-soft);
+    border-color: var(--danger);
+}
+
+.ti-btn.lg {
+    height: 42px;
+    padding: 0 18px;
+    font-size: var(--fs-md);
+}
+
+.ti-btn.sm {
+    height: 28px;
+    padding: 0 10px;
+    font-size: var(--fs-sm);
+    border-radius: 7px;
+}
+
+.ti-btn.icon {
+    width: 36px;
+    padding: 0;
+}
+
+.ti-btn.sm.icon {
+    width: 28px;
+}
+
+
+/* ============================================================
+   Inputs
+   ============================================================ */
+.ti-input, .ti-select, .ti-textarea {
+    width: 100%;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
+    font-size: var(--fs-base);
+    font-family: inherit;
+    outline: none;
+    transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+    box-sizing: border-box;
+}
+
+.ti-input:hover, .ti-select:hover, .ti-textarea:hover {
+    border-color: var(--border-strong);
+}
+
+.ti-input:focus, .ti-select:focus, .ti-textarea:focus {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-focus);
+}
+
+.ti-input.has-error, .ti-select.has-error, .ti-textarea.has-error {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
+.ti-textarea {
+    height: auto;
+    padding: 10px 12px;
+    resize: vertical;
+    min-height: 100px;
+    line-height: 1.5;
+}
+
+/* Custom chevron for selects.
+   The native <select> chevron position is browser-controlled and ends up visually offset from the calendar
+   icon that <input type="date"> renders. Disable the native chevron with appearance:none and draw our own
+   so both glyphs sit at the same right offset. Padding-right reserves the glyph slot; padding-right on
+   the date input matches so the calendar icon's natural right margin lines up with the chevron.
+   Theme-specific stroke colour because SVG inside background-image can't pick up currentColor. */
+.ti-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 32px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238B8478' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 14px 14px;
+}
+
+[data-theme="glass"] .ti-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A6ACB8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+}
+
+/* Hide the legacy IE/Edge native arrow if the engine still renders it. */
+.ti-select::-ms-expand {
+    display: none;
+}
+
+/* Date input — leave the base padding alone (extra padding-right would shrink the content box and
+   drag the calendar icon left of where it naturally sits, which is what we're trying to match). */
+.ti-input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+.ti-input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
+.ti-field-label {
+    display: block;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: var(--fg-secondary);
+    margin-bottom: 6px;
+    letter-spacing: -0.005em;
+}
+
+/* ============================================================
+   Status pill
+   ============================================================ */
+.ti-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 22px;
+    padding: 0 9px;
+    border-radius: var(--r-pill);
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    background: var(--muted-soft);
+    color: var(--fg-secondary);
+    white-space: nowrap;
+}
+
+.ti-status-pill .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    position: relative;
+}
+
+.ti-status-pill.success {
+    background: var(--success-soft);
+    color: var(--success);
+}
+
+.ti-status-pill.success .dot {
+    background: var(--success);
+}
+
+.ti-status-pill.danger .dot::after,
+.ti-status-pill.success .dot::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    color: var(--success);
+    border: 2px solid var(--success);
+    opacity: 0;
+    animation: statusPulse 1.6s var(--ease-out) infinite;
+}
+
+.ti-status-pill.info {
+    background: var(--info-soft);
+    color: var(--info);
+}
+
+.ti-status-pill.info .dot {
+    background: var(--info);
+}
+
+.ti-status-pill.warn {
+    background: var(--warn-soft);
+    color: var(--warn);
+}
+
+.ti-status-pill.warn .dot {
+    background: var(--warn);
+}
+
+.ti-status-pill.danger {
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.ti-status-pill.danger .dot {
+    background: var(--danger);
+}
+
+.ti-status-pill.danger .dot::after {
+    color: var(--danger);
+    border: 2px solid var(--danger);
+}
+
+.ti-status-pill.muted {
+    background: var(--muted-soft);
+    color: var(--fg-tertiary);
+}
+
+.ti-status-pill.muted .dot {
+    background: var(--fg-tertiary);
+}
+
+@keyframes statusPulse {
+    0% {
+        transform: scale(0.6);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(1.8);
+        opacity: 0;
+    }
+}
+
+
+/* ============================================================
+   Grade chips
+   ============================================================ */
+.ti-grade-chip {
+    --c: var(--grade-N);
+    --c-soft: var(--grade-N-soft);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    background: var(--c-soft);
+    color: var(--c);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast), border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+
+.ti-grade-chip[data-grade="S"] {
+    --c: var(--grade-S);
+    --c-soft: var(--grade-S-soft);
+}
+
+.ti-grade-chip[data-grade="R"] {
+    --c: var(--grade-R);
+    --c-soft: var(--grade-R-soft);
+}
+
+.ti-grade-chip[data-grade="U"] {
+    --c: var(--grade-U);
+    --c-soft: var(--grade-U-soft);
+}
+
+.ti-grade-chip[data-grade="N"] {
+    --c: var(--grade-N);
+    --c-soft: var(--grade-N-soft);
+}
+
+.ti-grade-chip.empty {
+    background: transparent;
+    color: var(--fg-tertiary);
+    border: 1px dashed var(--border-strong);
+}
+
+/* An empty grade chip means the rating is still awaited — render an hourglass glyph (lucide) rather than a bare
+   dash, so the "awaiting rating" state reads clearly wherever an empty chip is shown to a permitted viewer. */
+.ti-grade-chip.empty::before {
+    content: "";
+    width: 16px;
+    height: 16px;
+    background-color: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 22h14'/%3E%3Cpath d='M5 2h14'/%3E%3Cpath d='M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22'/%3E%3Cpath d='M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 22h14'/%3E%3Cpath d='M5 2h14'/%3E%3Cpath d='M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22'/%3E%3Cpath d='M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.ti-grade-chip.selectable:hover {
+    transform: translateY(-1px);
+    border-color: var(--c);
+    box-shadow: 0 4px 10px color-mix(in oklab, var(--c) 24%, transparent);
+}
+
+.ti-grade-chip.selected {
+    background: var(--c);
+    color: var(--fg-on-accent);
+    box-shadow: 0 4px 12px color-mix(in oklab, var(--c) 28%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    border-color: var(--c);
+}
+
+.ti-grade-chip.locked {
+    cursor: default;
+    opacity: 0.65;
+}
+
+.ti-grade-chip.locked.empty {
+    opacity: 0.4;
+}
+
+
+/* ============================================================
+   Avatar
+   ============================================================ */
+.ti-avatar {
+    display: inline-grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--avatar-bg, var(--accent));
+    color: #FFF;
+    font-weight: 600;
+    font-size: 12px;
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.ti-avatar.lg {
+    width: 44px;
+    height: 44px;
+    font-size: 15px;
+}
+
+.ti-avatar.xl {
+    width: 60px;
+    height: 60px;
+    font-size: 20px;
+}
+
+.ti-avatar.sm {
+    width: 24px;
+    height: 24px;
+    font-size: 10.5px;
+}
+
+.ti-avatar.xs {
+    width: 20px;
+    height: 20px;
+    font-size: 9px;
+}
+
+/* ============================================================
+   Toast stack (replaces old notification bar)
+   ============================================================ */
+.ti-toast-stack {
+    position: fixed;
+    bottom: var(--s-5);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    /* Above the modal layer (backdrop is z-index 1200) so a toast raised while a modal is open stays visible. */
+    z-index: 1300;
+    pointer-events: none;
+}
+
+.ti-toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-3);
+    padding: 12px 16px 12px 18px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-lg);
+    min-width: 320px;
+    max-width: 440px;
+    position: relative;
+    animation: toastIn 360ms var(--ease-out);
+    overflow: hidden;
+}
+
+.ti-toast-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--accent);
+}
+
+.ti-toast.success .ti-toast-bar {
+    background: var(--success);
+}
+
+.ti-toast.warn .ti-toast-bar {
+    background: var(--warn);
+}
+
+.ti-toast.danger .ti-toast-bar {
+    background: var(--danger);
+}
+
+.ti-toast.info .ti-toast-bar {
+    background: var(--info);
+}
+
+.ti-toast.leaving {
+    animation: toastOut 300ms var(--ease-in-out) forwards;
+}
+
+.ti-toast-icon {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    margin-top: 1px;
+    display: grid;
+    place-items: center;
+    color: var(--fg-secondary);
+}
+
+.ti-toast-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.ti-toast.success .ti-toast-icon {
+    color: var(--success);
+}
+
+.ti-toast.warn .ti-toast-icon {
+    color: var(--warn);
+}
+
+.ti-toast.danger .ti-toast-icon {
+    color: var(--danger);
+}
+
+.ti-toast.info .ti-toast-icon {
+    color: var(--info);
+}
+
+.ti-toast-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.ti-toast-title {
+    font-weight: 600;
+    font-size: var(--fs-base);
+    color: var(--fg-primary);
+}
+
+.ti-toast-desc,
+.ti-toast-msg {
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+    margin-top: 2px;
+}
+
+.ti-toast-details {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+    margin-top: 3px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.ti-toast-close {
+    flex: 0 0 auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    color: var(--fg-tertiary);
+    border-radius: 4px;
+    line-height: 1;
+    transition: color var(--dur-fast), background var(--dur-fast);
+}
+
+.ti-toast-close:hover {
+    color: var(--fg-primary);
+    background: var(--bg-tint);
+}
+
+@keyframes toastIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes toastOut {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(6px) scale(0.97);
+    }
+}
+
+/* ============================================================
+   Modal / dialog overlay — shared web-framework primitive.
+
+   This is the canonical modal chrome for every ti-engine app. Use
+   the following structure in any HTML fragment:
+
+     <template x-if="modal.kind === 'foo'">
+       <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+         <div class="ti-modal medium" role="dialog" aria-modal="true">
+           <div class="ti-modal-head">
+             <div class="ti-modal-head-content">
+               <span class="ti-modal-eyebrow">…</span>
+               <div class="ti-modal-title">…</div>
+             </div>
+             <button class="ti-modal-close" @click="closeModal()" aria-label="Close">
+               <span class="ti-icon close md" aria-hidden="true"></span>
+             </button>
+           </div>
+           <div class="ti-modal-body">…</div>
+           <div class="ti-modal-foot">…</div>
+         </div>
+       </div>
+     </template>
+
+   Size variants: medium (640), large (880), full (~1100). Tone
+   variants: danger (red head), warn (amber head). Footer alignment
+   variants: between (space-between), start (flex-start).
+
+   App-specific styles (e.g. .competence-cycle-lock-target) live in
+   the app's CSS and target content inside .ti-modal-body. Don't
+   override .ti-modal-* in app CSS — extend with a new wrapper class.
+   ============================================================ */
+.ti-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--s-5);
+    animation: modalBackdropIn var(--dur-base) var(--ease-out);
+}
+
+[data-theme="glass"] .ti-modal-backdrop {
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.ti-modal {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-lg);
+    width: 100%;
+    max-width: 480px;
+    max-height: calc(100vh - var(--s-7));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: modalIn var(--dur-base) var(--ease-out);
+}
+
+.ti-modal.medium {
+    max-width: 640px;
+}
+
+.ti-modal.large {
+    max-width: 880px;
+}
+
+.ti-modal.full {
+    max-width: min(1100px, 100% - var(--s-7));
+}
+
+.ti-modal-head-content {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    gap: var(--s-1);
+}
+
+.ti-modal-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-4) var(--s-5);
+    border-bottom: 1px solid var(--border-soft);
+    background: var(--bg-sunken);
+}
+
+.ti-modal-title {
+    flex: 1;
+    font-size: var(--fs-md);
+    font-weight: 600;
+    color: var(--fg-primary);
+    line-height: 1.3;
+}
+
+.ti-modal-eyebrow {
+    display: block;
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fg-tertiary);
+    padding: 0 var(--s-1);
+}
+
+.ti-modal-close {
+    flex: 0 0 auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--fg-tertiary);
+    border-radius: var(--r-xs);
+    line-height: 1;
+    display: grid;
+    place-items: center;
+    transition: color var(--dur-fast), background var(--dur-fast);
+}
+
+.ti-modal-close:hover {
+    color: var(--fg-primary);
+    background: var(--bg-tint);
+}
+
+.ti-modal-close svg {
+    width: 16px;
+    height: 16px;
+}
+
+.ti-modal-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: var(--s-5);
+    color: var(--fg-primary);
+    font-size: var(--fs-base);
+    line-height: 1.5;
+}
+
+.ti-modal-body p {
+    margin: 0 0 var(--s-3) 0;
+}
+
+.ti-modal-body p:last-child {
+    margin-bottom: 0;
+}
+
+.ti-modal-foot {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-5);
+    border-top: 1px solid var(--border-soft);
+    background: var(--bg-sunken);
+}
+
+.ti-modal-foot.between {
+    justify-content: space-between;
+}
+
+.ti-modal-foot.start {
+    justify-content: flex-start;
+}
+
+.ti-modal.danger .ti-modal-head {
+    background: var(--danger-soft);
+}
+
+.ti-modal.danger .ti-modal-title {
+    color: var(--danger);
+}
+
+.ti-modal.warn .ti-modal-head {
+    background: var(--warn-soft);
+}
+
+.ti-modal.warn .ti-modal-title {
+    color: var(--warn);
+}
+
+@keyframes modalBackdropIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modalIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ============================================================
+   KV grid (label / value pairs)
+   ============================================================ */
+.ti-kv-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--s-2) var(--s-4);
+    align-items: baseline;
+}
+
+.ti-kv-label {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--fg-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.ti-kv-value {
+    font-size: var(--fs-sm);
+    font-weight: 400;
+    color: var(--fg-primary);
+}
+
+/* ============================================================
+   Tag / pill label
+   ============================================================ */
+.ti-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 20px;
+    padding: 0 8px;
+    border-radius: var(--r-pill);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    background: var(--muted-soft);
+    color: var(--fg-tertiary);
+    white-space: nowrap;
+}
+
+.ti-tag.mono {
+    font-family: "JetBrains Mono", monospace;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+/* ============================================================
+   Empty state
+   ============================================================ */
+.ti-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-3);
+    padding: var(--s-10) var(--s-6);
+    text-align: center;
+}
+
+.ti-empty-state-icon {
+    width: 48px;
+    height: 48px;
+    opacity: 0.3;
+}
+
+.ti-empty-state-title {
+    font-size: var(--fs-md);
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.ti-empty-state-desc {
+    font-size: var(--fs-base);
+    color: var(--fg-tertiary);
+    max-width: 40ch;
+    line-height: 1.55;
+}
+
+/* ============================================================
+   Page layout helpers — eyebrow / title / subtitle stacked
+   vertically. Used as the single canonical page header pattern
+   across every screen.
+   ============================================================ */
+.ti-page-head {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: var(--s-5);
+    gap: var(--s-1);
+}
+
+.ti-page-eyebrow {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--fg-tertiary);
+    padding: 0 var(--s-1)
+}
+
+.ti-page-title {
+    font-size: var(--fs-2xl);
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    color: var(--fg-primary);
+    margin: 0;
+}
+
+.ti-page-subtitle {
+    color: var(--fg-tertiary);
+    margin: 0;
+    font-size: var(--fs-sm);
+    line-height: 1.55;
+    padding: var(--s-1);
+}
+
+/* ============================================================
+   Form layout helpers — single canonical pattern for modal /
+   master-detail / panel forms. Compose grid + row + section
+   instead of cloning per-screen CSS.
+   ============================================================ */
+.ti-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-5);
+}
+
+.ti-form.compact {
+    gap: var(--s-4);
+}
+
+.ti-form-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+}
+
+.ti-form-section-title {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--fg-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.ti-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-3);
+}
+
+.ti-form-grid.cols-1 {
+    grid-template-columns: 1fr;
+}
+
+.ti-form-grid.cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ti-form-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.ti-form-row.wide {
+    grid-column: 1 / -1;
+}
+
+.ti-form-readonly {
+    padding: 6px 0;
+    color: var(--fg-primary);
+    font-size: var(--fs-base);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ti-form-hint {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+}
+
+.ti-form-error {
+    color: var(--danger);
+    font-size: var(--fs-sm);
+    background: var(--danger-soft);
+    border: 1px solid var(--danger);
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-sm);
+}
+
+.ti-form-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--border-soft);
+}
+
+.ti-form-state {
+    flex: 1;
+    font-size: var(--fs-sm);
+}
+
+.ti-form-state.saved {
+    color: var(--success);
+}
+
+.ti-form-state.unsaved {
+    color: var(--warn);
+    font-weight: 500;
+}
+
+@media (max-width: 720px) {
+    .ti-form-grid,
+    .ti-form-grid.cols-3 {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================================
+   Data grid — CSS-grid replacement for <table>. Pass column
+   widths via --ti-grid-cols (set on the wrapper or on a parent
+   class). Head + rows share the same template so cells align.
+   Use .ti-cell-center / .ti-cell-right on any direct grid child
+   to override alignment.
+   ============================================================ */
+.ti-data-grid {
+    width: 100%;
+    /* Sensible single-column fallback. Override on a screen-specific class. */
+    --ti-grid-cols: 1fr;
+}
+
+.ti-data-grid-head {
+    display: grid;
+    grid-template-columns: var(--ti-grid-cols);
+    gap: var(--s-3);
+    padding: var(--s-2) var(--s-5);
+    font-size: var(--fs-xxs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-tertiary);
+    border-bottom: 1px solid var(--border-soft);
+    white-space: nowrap;
+    align-items: center;
+}
+
+.ti-data-grid-rows {
+    display: flex;
+    flex-direction: column;
+}
+
+.ti-data-grid-row {
+    display: grid;
+    grid-template-columns: var(--ti-grid-cols);
+    gap: var(--s-3);
+    align-items: center;
+    padding: var(--s-3) var(--s-5);
+    transition: background var(--dur-fast);
+    color: var(--fg-primary);
+    font-size: var(--fs-sm);
+}
+
+.ti-data-grid-row:hover {
+    background: var(--bg-tint);
+}
+
+/* Highlight the row representing the current user / actor. Used by the org tree to mark
+   "this is you". */
+.ti-data-grid-row.is-current {
+    background: var(--accent-soft);
+}
+
+.ti-data-grid-row.is-current:hover {
+    background: color-mix(in oklab, var(--accent-soft) 80%, var(--accent) 6%);
+}
+
+/* Highlight a user-picked row (e.g., selected cycle, selected employee). */
+.ti-data-grid-row.is-selected {
+    background: var(--accent-soft);
+    border-left: 2px solid var(--accent);
+    padding-left: calc(var(--s-5) - 2px);
+}
+
+/* Bordered variant — visible horizontal divider between rows. Use on tabular displays. */
+.ti-data-grid.bordered .ti-data-grid-row {
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.ti-data-grid.bordered .ti-data-grid-row:last-child {
+    border-bottom: 0;
+}
+
+/* Compact variant — tighter row padding for dense data. */
+.ti-data-grid.compact .ti-data-grid-row,
+.ti-data-grid.compact .ti-data-grid-head {
+    padding: var(--s-2) var(--s-4);
+}
+
+/* Per-cell alignment utilities. Apply directly to any grid-child element
+   (span / div / button) to override the default left alignment. */
+.ti-cell-center {
+    justify-self: center;
+    text-align: center;
+}
+
+.ti-cell-right {
+    justify-self: end;
+    text-align: right;
+}
+
+/* ============================================================
+   Login ti-page
+   ============================================================ */
+#ti-login {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    width: 100%;
+    background: var(--bg-app);
+}
+
+.ti-login-container {
+    width: 100%;
+    max-width: 400px;
+    padding: var(--s-5);
+}
+
+.ti-login-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--s-3);
+    margin-bottom: var(--s-7);
+}
+
+.ti-login-brand-mark {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 70%, #000));
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    box-shadow: 0 8px 24px color-mix(in oklab, var(--accent) 28%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.ti-login-brand-text {
+    text-align: center;
+}
+
+.ti-login-brand-title {
+    font-size: var(--fs-xl);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--fg-primary);
+}
+
+.ti-login-brand-sub {
+    font-size: var(--fs-base);
+    color: var(--fg-tertiary);
+    margin-top: 4px;
+}
+
+.ti-login-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    padding: var(--s-6);
+    box-shadow: var(--shadow-lg);
+}
+
+.ti-login-error {
+    display: none;
+    color: var(--danger);
+    font-size: var(--fs-sm);
+    margin-bottom: var(--s-4);
+    padding: var(--s-3);
+    background: var(--danger-soft);
+    border-radius: var(--r-md);
+}
+
+.ti-login-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+}
+
+.ti-login-submit {
+    margin-top: var(--s-1);
+}
+
+.ti-login-divider {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin: var(--s-5) 0;
+}
+
+.ti-login-divider-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+.ti-login-divider-label {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+}
+
+.ti-login-social {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.ti-btn.full {
+    width: 100%;
+}
+
+/* TEMPORARY: Test user selector panel — remove with the corresponding panel in frame-login.html */
+.ti-login-test-panel {
+    margin-top: var(--s-4);
+    padding: var(--s-4);
+    background: var(--bg-surface);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-xs);
+}
+
+.ti-login-test-panel-title {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--fg-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.ti-login-test-panel-sub {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+    margin-top: 2px;
+    margin-bottom: var(--s-3);
+}
+
+.ti-login-test-panel-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.ti-login-test-pill {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    padding: 6px 12px;
+    background: var(--bg-tint);
+    border: 1px solid var(--border);
+    border-radius: var(--r-pill);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+    transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.ti-login-test-pill:hover {
+    background: var(--bg-sunken);
+    border-color: var(--border-strong);
+    color: var(--fg-primary);
+}
+
+.ti-login-test-pill.selected {
+    background: var(--accent);
+    border-color: transparent;
+    color: var(--fg-on-accent);
+    box-shadow: 0 1px 2px color-mix(in oklab, var(--accent) 24%, transparent);
+}
+
+.ti-login-test-pill.selected .ti-login-test-pill-roles {
+    color: color-mix(in oklab, var(--fg-on-accent) 80%, transparent);
+}
+
+.ti-login-test-pill-id {
+    font-weight: 600;
+}
+
+.ti-login-test-pill-roles {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+}
+
+.ti-login-test-pill.ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--fg-tertiary);
+}
+
+.ti-login-test-pill.ghost:hover {
+    color: var(--fg-primary);
+    background: var(--bg-tint);
+}
+
+/* ============================================================
+   Utility
+   ============================================================ */
+* {
+    box-sizing: border-box;
+}
+
+/* Flexible spacer: pushes following siblings to the far end of a flex row/column. */
+.ti-spacer {
+    flex: 1 1 auto;
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border, rgba(0, 0, 0, 0.15));
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-strong, rgba(0, 0, 0, 0.28));
+    background-clip: padding-box;
+    border: 2px solid transparent;
 }

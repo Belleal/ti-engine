@@ -1,0 +1,147 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "performanceAppraisals": {
+      "type": "object",
+      "properties": {
+        "evaluationWeights": {
+          "type": "object",
+          "description": "Weights assigned to different evaluation roles",
+          "properties": {
+            "self": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "team": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "manager": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": [
+            "self",
+            "team",
+            "manager"
+          ],
+          "additionalProperties": false
+        },
+        "gradeWeights": {
+          "type": "object",
+          "description": "Numeric weights for each grade code",
+          "properties": {
+            "S": {
+              "type": "number",
+              "minimum": 0
+            },
+            "R": {
+              "type": "number",
+              "minimum": 0
+            },
+            "U": {
+              "type": "number",
+              "minimum": 0
+            },
+            "N": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "S",
+            "R",
+            "U",
+            "N"
+          ],
+          "additionalProperties": false
+        },
+        "isTeamEvaluationCollective": {
+          "type": "boolean",
+          "description": "Whether team evaluations are collective or individual"
+        },
+        "minTeamEvaluationMembers": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Minimum number of team members required for team evaluations"
+        },
+        "maxTeamEvaluationMembers": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Maximum number of team members allowed for team evaluations"
+        },
+        "teamFeedbackWindowDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 365,
+          "description": "Default number of days after a cycle's start used to derive its team-feedback deadline (cycle.teamFeedbackDeadline), clamped to the manager-review deadline (cycleDate)."
+        },
+        "allowFinalizeTeamWithoutSubmissions": {
+          "type": "boolean",
+          "description": "When true, a manager/supervisor may finalize team feedback after the deadline even if no team member submitted. When false, finalize requires at least one submission."
+        },
+        "activeCompetencySetCap": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "description": "Maximum number of competencies allowed in a single (baseline ∪ specialization) resolved active competency set. Enforced when locking a cycle from PLANNING to ACTIVE."
+        },
+        "numberOfNextPeriodGoals": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Number of goals to set for the next evaluation period"
+        },
+        "performanceThresholds": {
+          "type": "object",
+          "description": "Threshold scores for performance levels",
+          "properties": {
+            "T1": {
+              "type": "number"
+            },
+            "T2": {
+              "type": "number"
+            },
+            "T3": {
+              "type": "number"
+            },
+            "T4": {
+              "type": "number"
+            },
+            "T5": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "T1",
+            "T2",
+            "T3",
+            "T4",
+            "T5"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "evaluationWeights",
+        "gradeWeights",
+        "isTeamEvaluationCollective",
+        "minTeamEvaluationMembers",
+        "teamFeedbackWindowDays",
+        "allowFinalizeTeamWithoutSubmissions",
+        "numberOfNextPeriodGoals",
+        "performanceThresholds"
+      ]
+    }
+  },
+  "required": [
+    "performanceAppraisals"
+  ]
+}

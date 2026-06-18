@@ -1,21 +1,25 @@
 {
   "name": "@ti-engine/competence",
-  "version": "1.5.0",
+  "version": "3.3.1",
   "description": "The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "imports": {
     "#competence-framework": "./application/competence-framework.js",
+    "#config-active-competency-sets": "./bin/config/config.active-competency-sets.json",
     "#config-application": "./bin/config/config.application.json",
-    "#config-career-path-competencies": "./bin/config/config.career-path-competencies.json",
-    "#config-career-path-levels": "./bin/config/config.career-path-levels.json",
     "#config-competencies": "./bin/config/config.competencies.json",
+    "#config-relevancy-archetypes": "./bin/config/config.relevancy-archetypes.json",
     "#config-organization-structure": "./bin/config/config.organization-structure.json",
+    "#config-role-families": "./bin/config/config.role-families.json",
+    "#config-role-family-competencies": "./bin/config/config.role-family-competencies.json",
+    "#config-stage-levels": "./bin/config/config.stage-levels.json",
     "#configuration-loader": "./application/configuration-loader.js",
     "#data-employees": "./bin/data/seeders/employees.json",
     "#data-evaluations": "./bin/data/seeders/evaluations.json",
     "#data-manager": "./application/data-manager.js",
-    "#organization-manager": "./application/organization-manager.js"
+    "#organization-manager": "./application/organization-manager.js",
+    "#task-resolver": "./application/task-resolver.js"
   },
   "dependencies": {
     "@ti-engine/core": "*",

@@ -1,0 +1,160 @@
+<nav class="ti-sidebar" x-data="tiComponentSidebarNav" aria-label="Main navigation">
+    <button class="ti-sidebar-collapse-btn" @click="toggleCollapse()" x-bind:aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'" type="button">
+        <span class="ti-icon chevron-left xs" aria-hidden="true"></span>
+    </button>
+
+    <!-- Brand -->
+    <div class="ti-sidebar-brand">
+        <div class="ti-sidebar-brand-mark">C</div>
+        <div class="ti-sidebar-brand-text-block">
+            <span class="ti-sidebar-brand-text">Competence</span>
+            <span class="ti-sidebar-brand-sub"
+                  x-text="($store.tiApplication.configuration && $store.tiApplication.configuration.cycle && $store.tiApplication.configuration.cycle.name) || $store.tiApplication.getLabel('interface.sidebar.cycle-loading', 'Loading…')">Cycle</span>
+        </div>
+    </div>
+
+    <!-- Workspace: items every user works inside (their own evaluation, their own team's org chart, their slots). -->
+    <div class="ti-sidebar-section-label" x-text-label="interface.navigation.workspace">Workspace</div>
+    <div class="ti-sidebar-nav">
+        <button hx-get="/app/dashboard" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'dashboard'"
+                x-bind:class="{ active: active === 'dashboard' }" class="ti-sidebar-item" data-tip="Dashboard" aria-label="Dashboard" type="button">
+            <span class="ti-sidebar-item-icon">
+                <span class="ti-icon dashboard-grid md" aria-hidden="true"></span>
+            </span>
+            <span class="ti-sidebar-item-label" x-text-label="interface.topbar.dashboard">Dashboard</span>
+        </button>
+
+        <button hx-get="/app/employees-list" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'employees'"
+                x-bind:class="{ active: active === 'employees' }" class="ti-sidebar-item" data-tip="Org chart" aria-label="Org chart" type="button">
+            <span class="ti-sidebar-item-icon">
+                <span class="ti-icon users md" aria-hidden="true"></span>
+            </span>
+            <span class="ti-sidebar-item-label" x-text-label="interface.topbar.employees">Org chart</span>
+        </button>
+
+        <button @click="navigate('evaluation', 'competence-evaluation')"
+                x-bind:class="{ active: active === 'evaluation' }" class="ti-sidebar-item" data-tip="My Evaluation" aria-label="My Evaluation"
+                type="button">
+            <span class="ti-sidebar-item-icon">
+                <span class="ti-icon check-clipboard md" aria-hidden="true"></span>
+            </span>
+            <span class="ti-sidebar-item-label" x-text-label="interface.topbar.evaluation">My Evaluation</span>
+        </button>
+
+        <button hx-get="/app/manager-calendar" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'calendar'"
+                x-bind:class="{ active: active === 'calendar' }" class="ti-sidebar-item" data-tip="Availability" aria-label="My Availability Calendar"
+                type="button">
+            <span class="ti-sidebar-item-icon">
+                <span class="ti-icon calendar-blank md" aria-hidden="true"></span>
+            </span>
+            <span class="ti-sidebar-item-label" x-text-label="interface.topbar.calendar">Availability</span>
+        </button>
+
+        <button hx-get="/app/interview-schedule" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'interviews'"
+                x-bind:class="{ active: active === 'interviews' }" class="ti-sidebar-item" data-tip="Interviews" aria-label="Interview Schedule"
+                type="button">
+            <span class="ti-sidebar-item-icon">
+                <span class="ti-icon clock md" aria-hidden="true"></span>
+            </span>
+            <span class="ti-sidebar-item-label" x-text-label="interface.topbar.interviews">Interviews</span>
+        </button>
+    </div>
+
+    <!-- Manage: cross-team / cross-cycle administration. Visible only to managers and supervisors.
+         (Org chart stays in Workspace because regular employees use it to browse their team — backend allows it.)
+         x-show (not x-if) so htmx — which scans hx-* attributes once at page load — can wire these buttons up
+         even when the current user can't see the section yet. -->
+    <div x-show="$store.tiApplication.hasRole(2) || $store.tiApplication.hasRole(3)">
+        <div class="ti-sidebar-section-label" x-text-label="interface.navigation.manage">Manage</div>
+        <div class="ti-sidebar-nav">
+            <button hx-get="/app/employee-management" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'employee-management'"
+                    x-bind:class="{ active: active === 'employee-management' }" class="ti-sidebar-item" data-tip="People" aria-label="People" type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon user md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.topbar.employee-management">People</span>
+            </button>
+
+            <button hx-get="/app/cycles" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'cycles'"
+                    x-show="$store.tiApplication.hasRole(3)"
+                    x-bind:class="{ active: active === 'cycles' }" class="ti-sidebar-item" data-tip="Cycles" aria-label="Cycles" type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon cycles-loop md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.topbar.cycles">Cycles</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Administration: configuration management. Visible only to admin-allowlisted users (auth.admins).
+         x-show (not x-if) so htmx — which scans hx-* attributes once at page load — wires the button up
+         even when the current user can't see the section yet. -->
+    <div x-show="$store.tiApplication.hasRole('admin')">
+        <div class="ti-sidebar-section-label" x-text-label="interface.navigation.administration">Administration</div>
+        <div class="ti-sidebar-nav">
+            <button hx-get="/app/admin-config" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'administration'"
+                    x-bind:class="{ active: active === 'administration' }" class="ti-sidebar-item" data-tip="Configuration" aria-label="Configuration" type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon settings md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.topbar.admin-config">Configuration</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick links section -->
+    <div class="ti-sidebar-section-label" x-text-label="interface.navigation.quick-links">Quick links</div>
+    <div class="ti-sidebar-nav">
+        <button class="ti-sidebar-item" type="button" x-text-label:data-tip="interface.navigation.process-guide"
+                x-text-label:aria-label="interface.navigation.process-guide" disabled>
+            <span class="ti-sidebar-item-icon">
+                <span class="ti-icon book md" aria-hidden="true"></span>
+            </span>
+            <span class="ti-sidebar-item-label" x-text-label="interface.navigation.process-guide">Process Guide</span>
+        </button>
+        <button class="ti-sidebar-item" type="button" x-text-label:data-tip="interface.navigation.help" x-text-label:aria-label="interface.navigation.help"
+                disabled>
+            <span class="ti-sidebar-item-icon">
+                <span class="ti-icon help-circle md" aria-hidden="true"></span>
+            </span>
+            <span class="ti-sidebar-item-label" x-text-label="interface.navigation.help">Help</span>
+        </button>
+    </div>
+
+    <!-- Footer -->
+    <div class="ti-sidebar-foot">
+        <!-- Theme toggle: glyph mirrors tooltip — sun = "switch to dark", moon = "switch to light". -->
+        <button class="ti-sidebar-item" @click="toggleTheme()"
+                x-bind:data-tip="theme === 'daylight' ? $store.tiApplication.getLabel('interface.sidebar.theme-glass') : $store.tiApplication.getLabel('interface.sidebar.theme-daylight')"
+                x-bind:aria-label="theme === 'daylight' ? $store.tiApplication.getLabel('interface.sidebar.theme-glass') : $store.tiApplication.getLabel('interface.sidebar.theme-daylight')"
+                type="button">
+            <span class="ti-sidebar-item-icon">
+                <span class="ti-icon md" aria-hidden="true"
+                      x-bind:class="theme === 'daylight' ? 'sun' : 'moon'"></span>
+            </span>
+            <span class="ti-sidebar-item-label"
+                  x-text="theme === 'daylight' ? $store.tiApplication.getLabel('interface.sidebar.theme-glass') : $store.tiApplication.getLabel('interface.sidebar.theme-daylight')">Toggle Theme</span>
+        </button>
+
+        <ti-component-sidebar-flyout-placeholder config-key="userProfileMenu">
+            <button class="ti-sidebar-user" type="button"
+                    x-on:click.stop="toggle()"
+                    x-on:ti-close-all-flyout="close()"
+                    x-bind:aria-expanded="isOpen"
+                    x-bind:aria-controls="$id( 'component-flyout' )"
+                    x-ref="flyoutButton"
+                    x-text-label:data-tip="interface.topbar.user-profile"
+                    data-tip="Your profile">
+                <span class="ti-avatar sm"
+                      x-bind:style="$store.tiToolbox.generateAvatarStyle( $store.tiApplication.user && $store.tiApplication.user.employeeID, $store.tiApplication.user && $store.tiApplication.user.name )"
+                      aria-hidden="true"
+                      x-text="( ( $store.tiApplication.user && $store.tiApplication.user.name ) || '?' ).charAt( 0 ).toUpperCase()">?</span>
+                <span class="ti-sidebar-user-text">
+                    <span class="ti-sidebar-user-name" x-text="( $store.tiApplication.user && $store.tiApplication.user.name ) || ''"></span>
+                    <span class="ti-sidebar-user-sub"
+                          x-text="( $store.tiApplication.configuration && $store.tiApplication.configuration.employeeLevel && $store.tiApplication.configuration.employeeLevel.roleFamilyName && $store.tiApplication.configuration.employeeLevel.level ) ? ($store.tiApplication.configuration.employeeLevel.roleFamilyName + ( $store.tiApplication.configuration.employeeLevel.specializationName ? ( ' · ' + $store.tiApplication.configuration.employeeLevel.specializationName ) : '' ) + ' · ' + $store.tiApplication.configuration.employeeLevel.level + ( $store.tiApplication.configuration.employeeLevel.stage || '' ) ) : ( ( $store.tiApplication.user && $store.tiApplication.user.roles ) || [] ).join( ' · ' )"></span>
+                </span>
+            </button>
+        </ti-component-sidebar-flyout-placeholder>
+    </div>
+</nav>

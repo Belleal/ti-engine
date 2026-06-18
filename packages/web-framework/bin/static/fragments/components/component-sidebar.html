@@ -1,0 +1,33 @@
+<nav class="ti-sidebar" x-data="tiComponentSidebarNav" aria-label="Main navigation">
+    <button class="ti-sidebar-collapse-btn" @click="toggleCollapse()" x-bind:aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'" type="button">
+        <span class="ti-icon chevron-left xs" aria-hidden="true"></span>
+    </button>
+
+    <!-- Brand slot — override in app-specific frame -->
+    <div class="ti-sidebar-brand">
+        <div class="ti-sidebar-brand-mark">T</div>
+        <div class="ti-sidebar-brand-text-block">
+            <span class="ti-sidebar-brand-text">ti-engine</span>
+        </div>
+    </div>
+
+    <!-- Navigation slot — override in app-specific frame -->
+    <div class="ti-sidebar-nav">
+        <a href="/" class="ti-sidebar-item" data-tip="Dashboard" aria-label="Dashboard">
+            <span class="ti-sidebar-item-icon">
+                <span class="ti-icon dashboard md" aria-hidden="true"></span>
+            </span>
+            <span class="ti-sidebar-item-label">Dashboard</span>
+        </a>
+    </div>
+
+    <!-- Footer -->
+    <div class="ti-sidebar-foot">
+        <button class="ti-sidebar-item" @click="toggleTheme()" data-tip="Toggle theme" aria-label="Toggle theme" type="button">
+            <span class="ti-sidebar-item-icon">
+                <span class="ti-icon sun md" aria-hidden="true"></span>
+            </span>
+            <span class="ti-sidebar-item-label" x-text="theme === 'daylight' ? 'Glass Theme' : 'Daylight Theme'">Toggle Theme</span>
+        </button>
+    </div>
+</nav>
