@@ -14,6 +14,7 @@ const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
 const organizationManager = require( "#organization-manager" );
 const competenceFramework = require( "#competence-framework" );
+const taskResolver = require( "#task-resolver" );
 const { registerCompetenceConfig } = require( "../application/config-registration" );
 
 /**
@@ -245,6 +246,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#submitEvaluation( session, params.evaluation );
         } else if ( service === "start-evaluation" ) {
             return this.#startEvaluation( session, params.employeeID, params.team );
+        } else if ( service === "finalize-team-feedback" ) {
+            return this.#finalizeTeamFeedback( session, params );
         } else if ( service === "toggle-calendar-slot" ) {
             return this.#toggleCalendarSlot( session, params );
         } else if ( service === "book-interview-slot" ) {
@@ -785,7 +788,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #loadEvaluation( session, employeeID, evaluationID = null ) {
         return new Promise( ( resolve, reject ) => {
-            const { userID } = this.#requireSessionUser( session );
+            const { userID, userRoles } = this.#requireSessionUser( session );
 
             // When no employeeID is supplied (e.g., an employee opening their own evaluation),
             // fall back to the session user's own ID so the server can resolve the record.
@@ -828,6 +831,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                 let userRole;
                 let canEdit;
                 let deadlineDate;
+                let isFacilitator = false;
+                const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
                 const today = new Date().toISOString().split( "T" )[ 0 ];
                 if ( isTeamMember ) {
                     userRole = configurationLoader.roleCode.TEAM_MEMBER;
@@ -847,6 +852,14 @@ class CompetenceWebApplication extends TiWebAppManager {
                     canEdit = !currentEvaluation.workflow.managerEvaluationCompleted
                         && currentEvaluation.status === configurationLoader.evaluationStatus.IN_REVIEW
                         && ( !deadlineDate || today <= deadlineDate );
+                } else if ( isSupervisor ) {
+                    // Supervisor as a read-only process facilitator (see design 3.8): manager-level visibility for the
+                    // render (anonymize as MANAGER), but no assessment actions — canEdit is hard false, and the submit/
+                    // draft handlers independently reject any non-org-manager. The only action is finalize (canFinalizeTeam).
+                    isFacilitator = true;
+                    userRole = configurationLoader.roleCode.MANAGER;
+                    deadlineDate = currentEvaluation.workflow.teamEvaluationDeadline;
+                    canEdit = false;
                 } else {
                     throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
                 }
@@ -859,6 +872,18 @@ class CompetenceWebApplication extends TiWebAppManager {
                 const teamSubmitted = currentEvaluation.workflow?.teamEvaluationsSubmitted || 0;
                 const teamRemaining = Array.isArray( currentEvaluation.workflow?.team ) ? currentEvaluation.workflow.team.length : 0;
                 const teamTotal = teamSubmitted + teamRemaining;
+
+                // Whether the manager/supervisor may finalize the team round now (drives the "Proceed to manager
+                // review" action). Mirrors the precondition set enforced by CompetenceFramework.finalizeTeamFeedback.
+                const teamDeadline = currentEvaluation.workflow?.teamEvaluationDeadline || "";
+                const allowFinalizeWithoutSubmissions = configurationLoader.getSetting( "performanceAppraisals.allowFinalizeTeamWithoutSubmissions", true );
+                const canFinalizeTeam =
+                    ( isSupervisor || isManager )
+                    && currentEvaluation.status === configurationLoader.evaluationStatus.OPEN
+                    && teamDeadline !== ""
+                    && today > teamDeadline
+                    && teamRemaining > 0
+                    && ( allowFinalizeWithoutSubmissions || teamSubmitted > 0 );
 
                 // NOTE: Make sure to delete the workflow system information:
                 delete currentEvaluation.workflow;
@@ -896,6 +921,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                     deadlineDate: deadlineDate,
                     teamReviewers: teamTotal > 0 ? { total: teamTotal, submitted: teamSubmitted } : null,
                     canEdit: canEdit, // Used only for UI visualization purposes - do NOT rely on this!
+                    isFacilitator: isFacilitator, // Supervisor viewing read-only as process facilitator (cannot rate).
+                    canFinalizeTeam: canFinalizeTeam, // Drives the "Proceed to manager review" action; server-authoritative.
                     isTeamEvaluationCollective: configurationLoader.getSetting( "performanceAppraisals.isTeamEvaluationCollective" ),
                     competencies: competenceFramework.instance.buildCompetenciesTreeFromSnapshot( currentEvaluation.snapshot, session?.language )
                 } );
@@ -994,6 +1021,45 @@ class CompetenceWebApplication extends TiWebAppManager {
                 return dataManager.instance.saveEvaluation( newEvaluation );
             } ).then( ( savedEvaluation ) => {
                 resolve( savedEvaluation.evaluationID );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Finalizes the team-feedback round for an evaluation after its deadline — the "Proceed to manager review" action.
+     * Authorized for the evaluatee's org-hierarchy manager OR any Supervisor; everyone else is rejected with 403. The
+     * precondition checks, reviewer drop, cumulative recompute, status transition, and audit entry are performed by
+     * `CompetenceFramework.finalizeTeamFeedback`.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.evaluationID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #finalizeTeamFeedback( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireSessionUser( session );
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+
+            const evaluationID = String( params?.evaluationID || "" ).trim();
+            if ( !evaluationID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID } ) );
+            }
+
+            dataManager.instance.fetchEvaluation( evaluationID ).then( ( evaluation ) => {
+                return this.#canManagerPerformEvaluation( userID, evaluation.employeeID ).then( ( isManager ) => {
+                    if ( !isSupervisor && !isManager ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
+                    }
+                    const actorRoleLabel = isManager ? "manager" : "supervisor";
+                    return competenceFramework.instance.finalizeTeamFeedback( evaluationID, userID, actorRoleLabel );
+                } );
+            } ).then( ( updatedEvaluation ) => {
+                resolve( { evaluationID: updatedEvaluation.evaluationID, status: updatedEvaluation.status } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
@@ -1436,13 +1502,19 @@ class CompetenceWebApplication extends TiWebAppManager {
                     }
                 }
 
-                // Peer feedback: evaluations still waiting for the current user's team review
-                const pendingTeamEvals = allEvaluations.filter( ( evaluation ) =>
-                    evaluation.status === configurationLoader.evaluationStatus.OPEN &&
-                    Array.isArray( evaluation.workflow?.team ) &&
-                    evaluation.workflow.team.includes( userID )
-                );
-                const peerFeedback = { submitted: 0, requested: pendingTeamEvals.length };
+                // Derive the user's actionable tasks (team-feedback, team-finalize) from workflow state. The resolver is
+                // pure; the handler injects the org lookups (manager predicate + name resolver) and today's date.
+                const today = new Date().toISOString().split( "T" )[ 0 ];
+                const tasks = taskResolver.instance.resolveTasks( userID, {
+                    isSupervisor: userRoles.includes( configurationLoader.roleCode.SUPERVISOR ),
+                    canManage: ( evaluatedID ) => organizationManager.instance.isSuperiorManagerOfEmployee( userID, evaluatedID ),
+                    today: today,
+                    resolveName: ( id ) => organizationManager.instance.resolveEmployeeName( id ) || id
+                }, allEvaluations );
+
+                // Peer feedback: pending team reviews requested of the user — single source of truth is the resolver.
+                const requestedCount = tasks.filter( ( task ) => task.type === "team-feedback" ).length;
+                const peerFeedback = { submitted: 0, requested: requestedCount };
 
                 // Team coverage: active evaluations among teammates in the same org unit
                 const activeStatuses = [
@@ -1508,6 +1580,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     myEvaluation: myEvalStatus,
                     teamEvaluations: teamEvaluations,
                     stats: stats,
+                    tasks: tasks,
                     employeeMetrics: {
                         peerFeedback: peerFeedback,
                         selfGrades: selfGrades,
