@@ -112,7 +112,7 @@
 /**
  * @typedef {Object} AuditEntry
  * @property {string} entryID - UUID.
- * @property {"employee"|"cycle"|"activeCompetencySet"} subjectType
+ * @property {"employee"|"cycle"|"activeCompetencySet"|"evaluation"} subjectType
  * @property {string} subjectID - Identifier of the subject entity.
  * @property {string} changedBy - Employee ID of the actor.
  * @property {string} timestamp - ISO-8601 timestamp.
@@ -167,7 +167,7 @@
  * @property {boolean} [selfEvaluationCompleted=false] - Indicates if self-evaluation has been completed.
  * @property {string} [selfEvaluationDeadline] - Deadline for self-evaluation submission (YYYY-MM-DD).
  * @property {boolean} [teamEvaluationCompleted=false] - Indicates if team-evaluation has been completed.
- * @property {string} [teamEvaluationDeadline] - Deadline for team-evaluation submission (YYYY-MM-DD).
+ * @property {string} teamEvaluationDeadline - Deadline for team-evaluation submission (YYYY-MM-DD). Required: populated from cycle.teamFeedbackDeadline at evaluation creation.
  * @property {boolean} [managerEvaluationCompleted=false] - Indicates if manager-evaluation has been completed.
  * @property {string} [managerEvaluationDeadline] - Deadline for manager-evaluation submission (YYYY-MM-DD).
  * @property {number} [teamEvaluationsSubmitted=0] - Number of team evaluations submitted.

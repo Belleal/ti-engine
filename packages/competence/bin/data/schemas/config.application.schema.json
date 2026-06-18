@@ -77,6 +77,16 @@
           "maximum": 10,
           "description": "Maximum number of team members allowed for team evaluations"
         },
+        "teamFeedbackWindowDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 365,
+          "description": "Default number of days after a cycle's start used to derive its team-feedback deadline (cycle.teamFeedbackDeadline), clamped to the manager-review deadline (cycleDate)."
+        },
+        "allowFinalizeTeamWithoutSubmissions": {
+          "type": "boolean",
+          "description": "When true, a manager/supervisor may finalize team feedback after the deadline even if no team member submitted. When false, finalize requires at least one submission."
+        },
         "activeCompetencySetCap": {
           "type": "integer",
           "minimum": 1,
@@ -124,6 +134,8 @@
         "gradeWeights",
         "isTeamEvaluationCollective",
         "minTeamEvaluationMembers",
+        "teamFeedbackWindowDays",
+        "allowFinalizeTeamWithoutSubmissions",
         "numberOfNextPeriodGoals",
         "performanceThresholds"
       ]

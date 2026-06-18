@@ -129,6 +129,54 @@ describe( "Seed data files validate against their schemas", () => {
 
 } );
 
+describe( "Cycle schema accepts the team-feedback deadline", () => {
+
+    const CYCLE_SCHEMA_ID = "https://ti-engine.dev/schemas/competence/cycle.json";
+
+    it( "a fully-populated cycle (incl. teamFeedbackDeadline) validates against cycle.schema.json", () => {
+        const validate = ajv.getSchema( CYCLE_SCHEMA_ID );
+        assert.ok( validate, "Schema 'cycle.json' must be loaded." );
+        // Mirrors the shape produced by DataManager#deriveSeededCycles / createCycle, now including the new
+        // teamFeedbackDeadline. Guards against the cycle schema's additionalProperties:false rejecting the field.
+        const cycle = {
+            cycleID: "2026-H2",
+            name: "Autumn '26 cycle",
+            status: "PLANNING",
+            cycleStart: "2026-07-01",
+            cycleDate: "2026-11-30",
+            cycleEnd: "2026-12-31",
+            teamFeedbackDeadline: "2026-07-15",
+            actualCloseDate: null,
+            lockedAt: null,
+            lockedBy: null,
+            createdAt: "2026-06-18T00:00:00.000Z",
+            createdBy: "1",
+            excludedFamilies: []
+        };
+        const ok = validate( cycle );
+        if ( !ok ) {
+            const details = ( validate.errors || [] ).map( ( e ) => `${ e.dataPath || e.instancePath || "<root>" } ${ e.message }` ).join( "\n  " );
+            assert.fail( `Cycle failed validation against cycle.json:\n  ${ details }` );
+        }
+    } );
+
+    it( "still rejects an unknown cycle property (additionalProperties:false intact)", () => {
+        const validate = ajv.getSchema( CYCLE_SCHEMA_ID );
+        const ok = validate( {
+            cycleID: "2026-H2",
+            name: "Autumn '26 cycle",
+            status: "PLANNING",
+            cycleStart: "2026-07-01",
+            cycleDate: "2026-11-30",
+            cycleEnd: "2026-12-31",
+            createdAt: "2026-06-18T00:00:00.000Z",
+            bogusField: true
+        } );
+        assert.equal( ok, false, "Schema must reject unknown properties." );
+    } );
+
+} );
+
 describe( "Active competency sets satisfy floor coverage for the seeded cycle", () => {
 
     const SUBCATEGORIES = [ "E1", "E2", "E3", "I1", "I2", "I3", "C1", "C2", "C3" ];

@@ -49,6 +49,11 @@
       "format": "date",
       "description": "Planned close date — when the cycle is scheduled to close"
     },
+    "teamFeedbackDeadline": {
+      "type": "string",
+      "format": "date",
+      "description": "Cycle-wide deadline for team (peer) feedback submission. Defaulted from teamFeedbackWindowDays at create-cycle (clamped to cycleDate) and editable in Cycle Setup; copied onto each evaluation's workflow.teamEvaluationDeadline at creation."
+    },
     "actualCloseDate": {
       "type": [
         "string",
