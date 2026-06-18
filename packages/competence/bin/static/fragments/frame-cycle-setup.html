@@ -30,6 +30,25 @@
         </div>
     </template>
 
+    <!-- Cycle-level settings: the team-feedback deadline (editable while PLANNING; read-only otherwise). -->
+    <template x-if="loaded">
+        <div class="ti-panel competence-panel-mb">
+            <div class="ti-panel-head">
+                <div class="ti-panel-title" x-text-label="interface.cycle-setup.settings-title"></div>
+            </div>
+            <div class="ti-panel-body-intro" x-text-label="interface.cycle-setup.team-feedback-deadline-hint"></div>
+            <div class="ti-form-row">
+                <label class="ti-field-label" x-text-label="interface.cycle-setup.team-feedback-deadline-label"></label>
+                <input type="date" class="ti-input"
+                       x-model="cycle.teamFeedbackDeadline"
+                       x-bind:disabled="isReadOnly"
+                       x-bind:min="cycle.cycleStart || ''"
+                       x-bind:max="cycle.cycleDate || ''"
+                       @change="saveTeamFeedbackDeadline()"/>
+            </div>
+        </div>
+    </template>
+
     <!-- Two-pane shell. The tree pane is sticky beneath the topbar, so it stays visible while the editor scrolls with
          the document. No `.ti-content.pane` here — each pane owns its own card chrome (mirrors the empmgmt master /
          detail pattern). -->

@@ -3908,6 +3908,36 @@
         "bg": "Екипната обратна връзка не може да бъде финализирана без поне едно подадено мнение."
       }
     },
+    "cycle": {
+      "invalid-id-format": {
+        "en": "The cycle ID must be in the format YYYY-H1 or YYYY-H2 (for example, 2026-H2).",
+        "bg": "Идентификаторът на цикъла трябва да е във формат YYYY-H1 или YYYY-H2 (например 2026-H2)."
+      },
+      "invalid-date-range": {
+        "en": "The cycle start date must be on or before the end date.",
+        "bg": "Началната дата на цикъла трябва да е на или преди крайната дата."
+      },
+      "not-in-planning": {
+        "en": "This action is only allowed while the cycle is in PLANNING.",
+        "bg": "Това действие е позволено само докато цикълът е в статус ПЛАНИРАНЕ."
+      },
+      "cannot-mark-baseline-empty": {
+        "en": "The baseline set cannot be marked as empty — only specialization sets can.",
+        "bg": "Базовият набор не може да бъде маркиран като празен — само наборите за специализация могат."
+      },
+      "cannot-clear-baseline": {
+        "en": "The baseline set cannot be cleared — only specialization sets can.",
+        "bg": "Базовият набор не може да бъде изчистен — само наборите за специализация могат."
+      },
+      "invalid-team-feedback-deadline": {
+        "en": "Enter a valid team-feedback deadline.",
+        "bg": "Въведете валиден краен срок за екипна обратна връзка."
+      },
+      "team-feedback-deadline-out-of-range": {
+        "en": "The team-feedback deadline must fall within the cycle, on or before the manager-review deadline.",
+        "bg": "Крайният срок за екипна обратна връзка трябва да е в рамките на цикъла, на или преди крайния срок за преглед от мениджър."
+      }
+    },
     "employee": {
       "missing-name": {
         "en": "First and last name are required.",
@@ -6828,6 +6858,22 @@
       "back-to-cycles": {
         "en": "Back to cycles",
         "bg": "Към циклите"
+      },
+      "settings-title": {
+        "en": "Team feedback",
+        "bg": "Екипна обратна връзка"
+      },
+      "team-feedback-deadline-label": {
+        "en": "Team-feedback deadline",
+        "bg": "Краен срок за екипна обратна връзка"
+      },
+      "team-feedback-deadline-hint": {
+        "en": "Reviewers may submit peer feedback up to this date. It defaults from the configured window and must fall on or before the manager-review deadline.",
+        "bg": "Оценителите могат да подават колегиална обратна връзка до тази дата. Стойността по подразбиране идва от конфигурирания прозорец и трябва да е на или преди крайния срок за преглед от мениджър."
+      },
+      "team-feedback-deadline-saved": {
+        "en": "Team-feedback deadline saved.",
+        "bg": "Крайният срок за екипна обратна връзка е запазен."
       },
       "read-only-banner": {
         "en": "This cycle is no longer in PLANNING. The configuration is read-only.",

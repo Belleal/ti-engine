@@ -1844,6 +1844,21 @@ const configureCycleSetup = () => {
             tiApplication.openScreen( "cycles" );
         },
 
+        saveTeamFeedbackDeadline() {
+            if ( this.isReadOnly ) {
+                return;
+            }
+            const value = ( this.cycle && this.cycle.teamFeedbackDeadline ) ? this.cycle.teamFeedbackDeadline : "";
+            tiApplication.sendRequest( "/app/set-cycle-team-feedback-deadline", "POST", { cycleID: this.cycleID, teamFeedbackDeadline: value } ).then( ( result ) => {
+                if ( result && result.data && result.data.teamFeedbackDeadline ) {
+                    this.cycle.teamFeedbackDeadline = result.data.teamFeedbackDeadline;
+                }
+                tiApplication.notify( tiApplication.getLabel( "interface.cycle-setup.team-feedback-deadline-saved", "Team-feedback deadline saved." ) );
+            } ).catch( ( error ) => {
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
         /* -------------------------- Lock ----------------------------------- */
 
         openLockModal() {

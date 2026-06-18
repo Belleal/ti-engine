@@ -268,6 +268,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#clearActiveCompetencySet( session, params );
         } else if ( service === "set-family-excluded" ) {
             return this.#setFamilyExcluded( session, params );
+        } else if ( service === "set-cycle-team-feedback-deadline" ) {
+            return this.#setCycleTeamFeedbackDeadline( session, params );
         } else if ( service === "create-employee" ) {
             return this.#createEmployee( session, params );
         } else if ( service === "update-employee" ) {
@@ -1822,6 +1824,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                             cycleStart: cycle.cycleStart || null,
                             cycleDate: cycle.cycleDate || null,
                             cycleEnd: cycle.cycleEnd || null,
+                            teamFeedbackDeadline: cycle.teamFeedbackDeadline || null,
                             actualCloseDate: cycle.actualCloseDate || null,
                             lockedAt: cycle.lockedAt || null,
                             lockedBy: cycle.lockedBy || null,
@@ -2148,6 +2151,47 @@ class CompetenceWebApplication extends TiWebAppManager {
                     return dataManager.instance.setCycleExcludedFamilies( cycleID, Array.from( set ) );
                 } )
                 .then( ( updated ) => resolve( { cycleID, excludedFamilies: updated.excludedFamilies } ) )
+                .catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Persists the cycle-wide team-feedback deadline from Cycle Setup. Supervisor-only, PLANNING-only. The date must be
+     * a valid YYYY-MM-DD on or before the manager-review deadline (cycleDate) and on or after the cycle start.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.cycleID
+     * @param {string} params.teamFeedbackDeadline - YYYY-MM-DD.
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #setCycleTeamFeedbackDeadline( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const cycleID = String( params?.cycleID || "" ).trim();
+            const teamFeedbackDeadline = String( params?.teamFeedbackDeadline || "" ).trim();
+
+            if ( !cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID } ) );
+            }
+            if ( !/^\d{4}-\d{2}-\d{2}$/.test( teamFeedbackDeadline ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "error.cycle.invalid-team-feedback-deadline" } ) );
+            }
+
+            this.#assertCyclePlanning( cycleID )
+                .then( ( cycle ) => {
+                    // The team window must sit within the cycle: on/after the start and on/before the manager-review deadline.
+                    const tooLate = cycle.cycleDate && teamFeedbackDeadline > cycle.cycleDate;
+                    const tooEarly = cycle.cycleStart && teamFeedbackDeadline < cycle.cycleStart;
+                    if ( tooLate || tooEarly ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.cycle.team-feedback-deadline-out-of-range" }, exceptions.httpCode.C_422 );
+                    }
+                    return dataManager.instance.setCycleTeamFeedbackDeadline( cycleID, teamFeedbackDeadline );
+                } )
+                .then( ( updated ) => resolve( { cycleID, teamFeedbackDeadline: updated.teamFeedbackDeadline } ) )
                 .catch( ( error ) => reject( exceptions.raise( error ) ) );
         } );
     }
