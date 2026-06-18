@@ -104,3 +104,51 @@ describe( "CompetenceFramework — cycle lifecycle state machine", () => {
     } );
 
 } );
+
+describe( "DataManager — team-feedback deadline derivation", () => {
+
+    it( "the seeded cycle gets cycleStart + window, clamped to cycleDate", async () => {
+        // 2026-H2 seeds cycleStart 2026-07-01; default window is 14 days → 2026-07-15 (well within cycleDate).
+        const cycle = await dataManager.instance.getCycle( "2026-H2" );
+        assert.equal( cycle.teamFeedbackDeadline, "2026-07-15" );
+    } );
+
+    it( "createCycle derives the default deadline as cycleStart + teamFeedbackWindowDays, and persists it", async () => {
+        const created = await dataManager.instance.createCycle( {
+            cycleID: "2027-H1", name: "Spring '27 cycle", cycleStart: "2027-01-15", cycleDate: "2027-04-30", cycleEnd: "2027-06-30"
+        } );
+        assert.equal( created.teamFeedbackDeadline, "2027-01-29" );
+        const fetched = await dataManager.instance.getCycle( "2027-H1" );
+        assert.equal( fetched.teamFeedbackDeadline, "2027-01-29" );
+    } );
+
+    it( "createCycle clamps the deadline to cycleDate when the window overshoots", async () => {
+        const created = await dataManager.instance.createCycle( {
+            cycleID: "2027-H2", name: "Autumn '27 cycle", cycleStart: "2027-07-01", cycleDate: "2027-07-10", cycleEnd: "2027-12-31"
+        } );
+        // 2027-07-01 + 14 = 2027-07-15, past cycleDate 2027-07-10 → clamped to cycleDate.
+        assert.equal( created.teamFeedbackDeadline, "2027-07-10" );
+    } );
+
+    it( "createCycle falls back to cycleDate when there is no cycleStart", async () => {
+        const created = await dataManager.instance.createCycle( {
+            cycleID: "2028-H1", name: "Spring '28 cycle", cycleStart: null, cycleDate: "2028-04-30", cycleEnd: "2028-06-30"
+        } );
+        assert.equal( created.teamFeedbackDeadline, "2028-04-30" );
+    } );
+
+    it( "createCycle honours an explicit teamFeedbackDeadline over the computed default", async () => {
+        const created = await dataManager.instance.createCycle( {
+            cycleID: "2028-H2", name: "Autumn '28 cycle", cycleStart: "2028-07-01", cycleDate: "2028-11-30", cycleEnd: "2028-12-31", teamFeedbackDeadline: "2028-08-15"
+        } );
+        assert.equal( created.teamFeedbackDeadline, "2028-08-15" );
+    } );
+
+    it( "setCycleTeamFeedbackDeadline persists an override", async () => {
+        const updated = await dataManager.instance.setCycleTeamFeedbackDeadline( "2026-H2", "2026-08-01" );
+        assert.equal( updated.teamFeedbackDeadline, "2026-08-01" );
+        const fetched = await dataManager.instance.getCycle( "2026-H2" );
+        assert.equal( fetched.teamFeedbackDeadline, "2026-08-01" );
+    } );
+
+} );

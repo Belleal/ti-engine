@@ -494,6 +494,7 @@ class DataManager {
                     actualCloseDate: null,
                     lockedAt: null,
                     lockedBy: null,
+                    teamFeedbackDeadline: this.#deriveTeamFeedbackDeadline( cycleData.cycleStart, cycleData.cycleDate || cycleData.cycleEnd ),
                     createdAt: new Date().toISOString(),
                     createdBy: null,
                     ...cycleData
@@ -626,6 +627,32 @@ class DataManager {
         return this.getCycle( cycleID ).then( ( cycle ) => {
             const updated = _.cloneDeep( cycle );
             updated.excludedFamilies = Array.isArray( excludedFamilies ) ? _.uniq( excludedFamilies ).sort() : [];
+            return new Promise( ( resolve, reject ) => {
+                if ( cache.instance.isOperational ) {
+                    cache.instance.editJSON( cacheEntryKeyCycles, { [ cycleID ]: updated } ).then( () => {
+                        resolve( _.cloneDeep( updated ) );
+                    } ).catch( reject );
+                } else {
+                    resolve( _.cloneDeep( updated ) );
+                }
+            } );
+        } );
+    }
+
+    /**
+     * Persists the cycle-wide team-feedback deadline. Intended for PLANNING cycles (the precondition is enforced by
+     * the caller, mirroring setCycleExcludedFamilies).
+     *
+     * @method
+     * @param {string} cycleID
+     * @param {string} date - Team-feedback deadline (YYYY-MM-DD).
+     * @returns {Promise<Cycle>} The updated cycle.
+     * @public
+     */
+    setCycleTeamFeedbackDeadline( cycleID, date ) {
+        return this.getCycle( cycleID ).then( ( cycle ) => {
+            const updated = _.cloneDeep( cycle );
+            updated.teamFeedbackDeadline = date;
             return new Promise( ( resolve, reject ) => {
                 if ( cache.instance.isOperational ) {
                     cache.instance.editJSON( cacheEntryKeyCycles, { [ cycleID ]: updated } ).then( () => {
@@ -965,11 +992,37 @@ class DataManager {
                 actualCloseDate: null,
                 lockedAt: null,
                 lockedBy: null,
+                teamFeedbackDeadline: this.#deriveTeamFeedbackDeadline( cycleStart, cycleDate ),
                 createdAt,
                 createdBy: seedCreator,
                 excludedFamilies
             };
         } );
+    }
+
+    /**
+     * Derives the default team-feedback deadline for a cycle: `cycleStart` + `teamFeedbackWindowDays`, clamped so it
+     * never extends past the manager-review deadline (`cycleDate`). Falls back to `cycleDate` when there is no
+     * `cycleStart`. Reads only the app setting; shared by createCycle and #deriveSeededCycles.
+     *
+     * @method
+     * @private
+     * @param {string|null} cycleStart - Cycle start date (YYYY-MM-DD) or null.
+     * @param {string} cycleDate - Manager-review deadline (YYYY-MM-DD); the clamp ceiling.
+     * @returns {string} Derived team-feedback deadline (YYYY-MM-DD), or "" when neither date is available.
+     */
+    #deriveTeamFeedbackDeadline( cycleStart, cycleDate ) {
+        const windowDays = configurationLoader.getSetting( "performanceAppraisals.teamFeedbackWindowDays", 14 );
+        if ( !cycleStart ) {
+            return cycleDate || "";
+        }
+        const start = new Date( `${ cycleStart }T00:00:00.000Z` );
+        if ( Number.isNaN( start.getTime() ) ) {
+            return cycleDate || "";
+        }
+        start.setUTCDate( start.getUTCDate() + windowDays );
+        const derived = start.toISOString().slice( 0, 10 );
+        return ( cycleDate && derived > cycleDate ) ? cycleDate : derived;
     }
 
 }

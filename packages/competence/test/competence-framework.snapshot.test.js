@@ -164,4 +164,24 @@ describe( "CompetenceFramework.buildEvaluationSnapshot — completeness and immu
         assert.equal( evaluation.cycleID, "2026-H2" );
     } );
 
+    it( "createNewEvaluation copies the cycle's team-feedback deadline onto the workflow", async () => {
+        const snapshot = await competenceFramework.instance.buildEvaluationSnapshot( "SE", "BACKEND", "2026-H2" );
+        const employee = {
+            employeeID: "test-1",
+            career: { roleFamily: "SE", specialization: "BACKEND", level: "R", stage: 2 }
+        };
+
+        // With teamFeedbackDeadline present, the workflow deadline mirrors it exactly.
+        const withDeadline = competenceFramework.instance.createNewEvaluation( employee, {
+            cycleID: "2026-H2", name: "Autumn '26 cycle", cycleDate: "2026-11-30", teamFeedbackDeadline: "2026-07-15", status: "PLANNING"
+        }, snapshot );
+        assert.equal( withDeadline.workflow.teamEvaluationDeadline, "2026-07-15" );
+
+        // Legacy cycle without teamFeedbackDeadline → falls back to the manager-review deadline (cycleDate).
+        const legacy = competenceFramework.instance.createNewEvaluation( employee, {
+            cycleID: "2026-H2", name: "Autumn '26 cycle", cycleDate: "2026-11-30", status: "PLANNING"
+        }, snapshot );
+        assert.equal( legacy.workflow.teamEvaluationDeadline, "2026-11-30" );
+    } );
+
 } );

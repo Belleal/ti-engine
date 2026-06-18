@@ -316,7 +316,9 @@ class CompetenceFramework {
                 managerEvaluationCompleted: false,
                 managerEvaluationDeadline: "",
                 teamEvaluationCompleted: false,
-                teamEvaluationDeadline: "",
+                // Populated from the cycle's team-feedback deadline (clamped at create-cycle). Falls back to the
+                // manager-review deadline for any legacy cycle created before teamFeedbackDeadline existed.
+                teamEvaluationDeadline: cycle.teamFeedbackDeadline || cycle.cycleDate || "",
                 teamEvaluationsSubmitted: 0,
                 team: []
             }
