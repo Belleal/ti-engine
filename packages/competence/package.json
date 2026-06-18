@@ -18,7 +18,8 @@
     "#data-employees": "./bin/data/seeders/employees.json",
     "#data-evaluations": "./bin/data/seeders/evaluations.json",
     "#data-manager": "./application/data-manager.js",
-    "#organization-manager": "./application/organization-manager.js"
+    "#organization-manager": "./application/organization-manager.js",
+    "#task-resolver": "./application/task-resolver.js"
   },
   "dependencies": {
     "@ti-engine/core": "*",
