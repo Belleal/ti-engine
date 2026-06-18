@@ -879,22 +879,52 @@ class DataManager {
         } );
     }
 
+    /**
+     * Returns every audit entry for the given evaluation, ordered by `timestamp` descending. Mirrors
+     * getAuditEntriesForEmployee against the evaluation-scoped bucket.
+     *
+     * @method
+     * @param {string} evaluationID
+     * @returns {Promise<Array<AuditEntry>>}
+     * @public
+     */
+    getAuditEntriesForEvaluation( evaluationID ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( !evaluationID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID } ) );
+            }
+            if ( cache.instance.isOperational ) {
+                cache.instance.getJSON( cacheEntryKeyAuditLog, [ "evaluations", `${ evaluationID }` ] ).then( ( result ) => {
+                    const source = _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result );
+                    if ( !source || typeof source !== "object" ) {
+                        return resolve( [] );
+                    }
+                    const entries = Object.values( source );
+                    entries.sort( ( a, b ) => ( b.timestamp || "" ).localeCompare( a.timestamp || "" ) );
+                    resolve( entries );
+                } ).catch( reject );
+            } else {
+                resolve( [] );
+            }
+        } );
+    }
+
     /* Private interface */
 
     /**
      * @method
      * @private
-     * @returns {{employees: {}, cycles: {}, activeCompetencySets: {}}}
+     * @returns {{employees: {}, cycles: {}, activeCompetencySets: {}, evaluations: {}}}
      */
     #emptyAuditLogShape() {
-        return { employees: {}, cycles: {}, activeCompetencySets: {} };
+        return { employees: {}, cycles: {}, activeCompetencySets: {}, evaluations: {} };
     }
 
     /**
      * @method
      * @private
-     * @param {"employee"|"cycle"|"activeCompetencySet"} subjectType
-     * @returns {"employees"|"cycles"|"activeCompetencySets"}
+     * @param {"employee"|"cycle"|"activeCompetencySet"|"evaluation"} subjectType
+     * @returns {"employees"|"cycles"|"activeCompetencySets"|"evaluations"}
      */
     #auditLogBucketForSubject( subjectType ) {
         switch ( subjectType ) {
@@ -904,6 +934,8 @@ class DataManager {
                 return "cycles";
             case "activeCompetencySet":
                 return "activeCompetencySets";
+            case "evaluation":
+                return "evaluations";
             default:
                 return "employees";
         }

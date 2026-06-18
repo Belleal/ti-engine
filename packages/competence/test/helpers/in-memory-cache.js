@@ -35,7 +35,19 @@ function resolvePath( root, path ) {
     if ( path === undefined || path === null || path === "$" ) return root;
     const parts = Array.isArray( path ) ? path : String( path ).split( "." );
     let cursor = root;
-    for ( const part of parts ) {
+    for ( let i = 0; i < parts.length; i++ ) {
+        const part = parts[ i ];
+        // Wildcard segment (e.g. `*.<evaluationID>`): search every value of the current object for the remaining
+        // path and return the first match — matching Redis-JSON `$.*.<key>` semantics as used by fetchEvaluation.
+        if ( part === "*" ) {
+            if ( !cursor || typeof cursor !== "object" ) return undefined;
+            const rest = parts.slice( i + 1 );
+            for ( const value of Object.values( cursor ) ) {
+                const found = resolvePath( value, rest.length ? rest : "$" );
+                if ( found !== undefined ) return found;
+            }
+            return undefined;
+        }
         if ( cursor && typeof cursor === "object" && Object.prototype.hasOwnProperty.call( cursor, part ) ) {
             cursor = cursor[ part ];
         } else {

@@ -267,6 +267,72 @@ class CompetenceFramework {
     }
 
     /**
+     * Finalizes the team-feedback round for an OPEN evaluation after its team-feedback deadline has passed, letting the
+     * manager review proceed when one or more reviewers never submitted. Drops the still-pending reviewers, marks the
+     * team evaluation complete, recomputes the team cumulative grades from whoever submitted, and — only if the
+     * self-evaluation is also complete — transitions OPEN → IN_REVIEW (otherwise the evaluation stays OPEN, awaiting
+     * self). Writes one evaluation-scoped audit entry. Authorization (manager/supervisor) is enforced by the caller.
+     *
+     * @method
+     * @param {string} evaluationID
+     * @param {string} actorID - Employee ID of the manager/supervisor performing the finalize (audit `changedBy`).
+     * @param {string} actorRoleLabel - Human-readable actor role for the audit reason (e.g. "manager", "supervisor").
+     * @returns {Promise<Evaluation>} The updated evaluation.
+     * @public
+     */
+    finalizeTeamFeedback( evaluationID, actorID, actorRoleLabel ) {
+        return dataManager.instance.fetchEvaluation( evaluationID ).then( ( evaluation ) => {
+            const today = new Date().toISOString().split( "T" )[ 0 ];
+            const workflow = evaluation.workflow || {};
+
+            // Preconditions.
+            if ( evaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.finalize-not-open" }, exceptions.httpCode.C_422 );
+            }
+            const deadline = workflow.teamEvaluationDeadline || "";
+            if ( !deadline || today <= deadline ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.finalize-deadline-not-reached" }, exceptions.httpCode.C_422 );
+            }
+            const pending = Array.isArray( workflow.team ) ? workflow.team : [];
+            if ( pending.length === 0 ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.finalize-no-pending-team" }, exceptions.httpCode.C_422 );
+            }
+            const submittedCount = workflow.teamEvaluationsSubmitted || 0;
+            const allowWithoutSubmissions = configurationLoader.getSetting( "performanceAppraisals.allowFinalizeTeamWithoutSubmissions", true );
+            if ( submittedCount === 0 && !allowWithoutSubmissions ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.finalize-no-submissions" }, exceptions.httpCode.C_422 );
+            }
+
+            // Effect: drop the pending reviewers, close the team round, and recompute cumulatives from submissions.
+            const pendingCount = pending.length;
+            workflow.team = [];
+            workflow.teamEvaluationCompleted = true;
+            this.calculateTeamCumulativeGrades( evaluation );
+
+            // Advance to manager review only when self is also done; otherwise hold OPEN until the self-eval lands.
+            let newValueLabel;
+            if ( workflow.selfEvaluationCompleted ) {
+                evaluation.status = configurationLoader.evaluationStatus.IN_REVIEW;
+                newValueLabel = configurationLoader.evaluationStatus.IN_REVIEW;
+            } else {
+                newValueLabel = "Open (awaiting self)";
+            }
+
+            return dataManager.instance.saveEvaluation( evaluation ).then( ( saved ) => {
+                return dataManager.instance.appendAuditEntry( {
+                    subjectType: "evaluation",
+                    subjectID: evaluationID,
+                    changedBy: actorID,
+                    field: "workflow.teamFeedbackFinalized",
+                    oldValue: pendingCount,
+                    newValue: newValueLabel,
+                    reason: `Team feedback finalized after the deadline by ${ actorRoleLabel || "actor" }; ${ pendingCount } pending reviewer(s) dropped.`
+                } ).then( () => saved );
+            } );
+        } );
+    }
+
+    /**
      * Used to create a new Evaluation object. The caller is responsible for pre-resolving the cycle (e.g. via
      * `DataManager.getActiveCycle()`) and the snapshot (via `buildEvaluationSnapshot`).
      *
