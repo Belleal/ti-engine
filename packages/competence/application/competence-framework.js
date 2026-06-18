@@ -606,8 +606,15 @@ class CompetenceFramework {
         if ( evaluation.grades ) {
             Object.keys( evaluation.grades ).forEach( ( competencyCode ) => {
                 if ( userRole === configurationLoader.roleCode.EMPLOYEE ) {
-                    delete evaluation.grades[ competencyCode ].manager;
-                    delete evaluation.grades[ competencyCode ].team;
+                    if ( evaluation.status === configurationLoader.evaluationStatus.READY ) {
+                        // Results are final — reveal the manager grade and the team cumulative so the employee can
+                        // review their scores ahead of the interview. Individual peer grades stay collapsed to the
+                        // cumulative (peer feedback is anonymous).
+                        evaluation.grades[ competencyCode ].team = evaluation.grades[ competencyCode ].team?.cumulative || "";
+                    } else {
+                        delete evaluation.grades[ competencyCode ].manager;
+                        delete evaluation.grades[ competencyCode ].team;
+                    }
                 } else if ( userRole === configurationLoader.roleCode.TEAM_MEMBER ) {
                     const isCollective = configurationLoader.getSetting( "performanceAppraisals.isTeamEvaluationCollective" );
                     if ( isCollective ) {

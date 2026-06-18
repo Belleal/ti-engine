@@ -201,9 +201,7 @@
                         <span x-text-label="interface.evaluation.competencies.title"></span>
                         <span class="competence-h-self"
                               x-bind:class="userRole === 1 ? 'active' : ''"
-                              x-show="userRole !== 4"
                               x-text-label="interface.evaluation.competencies.self"></span>
-                        <span class="competence-h-self" x-show="userRole === 4">—</span>
                         <span class="competence-h-mgr"
                               x-bind:class="userRole === 2 ? 'active' : ''"
                               x-text-label="interface.evaluation.competencies.manager"></span>
@@ -230,13 +228,17 @@
                                         <span class="competence-comp-name" x-text="sub.name"></span>
                                     </div>
                                 </div>
-                                <!-- Self (locked) -->
+                                <!-- Self — hidden from team reviewers (does not apply at sub-category level): show a lock -->
                                 <div class="competence-comp-cell">
-                                    <span class="ti-grade-chip locked empty" aria-hidden="true">–</span>
+                                    <span class="ti-grade-chip locked" x-bind:aria-label="getLabel('interface.evaluation.grade-hidden-aria')">
+                                        <span class="ti-icon lock xs" aria-hidden="true"></span>
+                                    </span>
                                 </div>
-                                <!-- Manager (locked) -->
+                                <!-- Manager — hidden from team reviewers (does not apply at sub-category level): show a lock -->
                                 <div class="competence-comp-cell">
-                                    <span class="ti-grade-chip locked empty" aria-hidden="true">–</span>
+                                    <span class="ti-grade-chip locked" x-bind:aria-label="getLabel('interface.evaluation.grade-hidden-aria')">
+                                        <span class="ti-icon lock xs" aria-hidden="true"></span>
+                                    </span>
                                 </div>
                                 <!-- Team grade (editable pills or read-only chip) -->
                                 <div class="competence-comp-cell">
@@ -253,7 +255,7 @@
                                     <span class="ti-grade-chip"
                                           x-bind:data-grade="getItemGrade(sub.id, 'team')"
                                           x-bind:class="getItemGrade(sub.id, 'team') ? '' : 'empty'"
-                                          x-text="getItemGrade(sub.id, 'team') || '–'"
+                                          x-text="getItemGrade(sub.id, 'team')"
                                           x-show="!canEdit"></span>
                                 </div>
                             </div>
@@ -295,15 +297,13 @@
                                         <span class="ti-grade-chip"
                                               x-bind:data-grade="getItemGrade(item.id, 'employee')"
                                               x-bind:class="getItemGrade(item.id, 'employee') ? '' : 'empty'"
-                                              x-text="getItemGrade(item.id, 'employee') || '–'"
+                                              x-text="getItemGrade(item.id, 'employee')"
                                               x-show="(userRole === 1 && !canEdit) || userRole === 2"></span>
-                                        <!-- Locked: team reviewer -->
-                                        <span class="ti-grade-chip locked"
-                                              x-bind:data-grade="getItemGrade(item.id, 'employee')"
-                                              x-bind:class="getItemGrade(item.id, 'employee') ? 'locked' : 'locked empty'"
-                                              x-text="getItemGrade(item.id, 'employee') || '–'"
-                                              x-show="userRole === 4"
-                                              x-bind:aria-label="'Self grade: ' + (getItemGrade(item.id, 'employee') || 'not graded')"></span>
+                                        <!-- Hidden from team reviewers (stripped server-side): show a lock, never a value or progress -->
+                                        <span class="ti-grade-chip locked" x-show="userRole === 4"
+                                              x-bind:aria-label="getLabel('interface.evaluation.grade-hidden-aria')">
+                                            <span class="ti-icon lock xs" aria-hidden="true"></span>
+                                        </span>
                                     </div>
 
                                     <!-- Manager-grade cell -->
@@ -319,19 +319,17 @@
                                                       @click="toggleGrade(item.id, 'manager', gradeKey)"></span>
                                             </template>
                                         </div>
-                                        <!-- Read-only: manager when not editing -->
+                                        <!-- Read-only value: manager not editing, or the employee once results are Ready -->
                                         <span class="ti-grade-chip"
                                               x-bind:data-grade="getItemGrade(item.id, 'manager')"
                                               x-bind:class="getItemGrade(item.id, 'manager') ? '' : 'empty'"
-                                              x-text="getItemGrade(item.id, 'manager') || '–'"
-                                              x-show="userRole === 2 && !canEdit"></span>
-                                        <!-- Locked: employee or team reviewer -->
-                                        <span class="ti-grade-chip locked"
-                                              x-bind:data-grade="getItemGrade(item.id, 'manager')"
-                                              x-bind:class="getItemGrade(item.id, 'manager') ? 'locked' : 'locked empty'"
-                                              x-text="getItemGrade(item.id, 'manager') || '–'"
-                                              x-show="userRole === 1 || userRole === 4"
-                                              x-bind:aria-label="'Manager grade: ' + (getItemGrade(item.id, 'manager') || 'not graded')"></span>
+                                              x-text="getItemGrade(item.id, 'manager')"
+                                              x-show="(userRole === 2 && !canEdit) || (userRole === 1 && evaluation.status === 'Ready')"></span>
+                                        <!-- Hidden: team reviewers always; the employee until results are Ready (stripped server-side) -->
+                                        <span class="ti-grade-chip locked" x-show="userRole === 4 || (userRole === 1 && evaluation.status !== 'Ready')"
+                                              x-bind:aria-label="getLabel('interface.evaluation.grade-hidden-aria')">
+                                            <span class="ti-icon lock xs" aria-hidden="true"></span>
+                                        </span>
                                     </div>
 
                                     <!-- Team-grade cell -->
@@ -347,19 +345,17 @@
                                                       @click="toggleGrade(item.id, 'team', gradeKey)"></span>
                                             </template>
                                         </div>
-                                        <!-- Read-only: team reviewer not editing, or manager viewing -->
+                                        <!-- Read-only value: team reviewer not editing, manager viewing, or the employee once Ready -->
                                         <span class="ti-grade-chip"
                                               x-bind:data-grade="getItemGrade(item.id, 'team')"
                                               x-bind:class="getItemGrade(item.id, 'team') ? '' : 'empty'"
-                                              x-text="getItemGrade(item.id, 'team') || '–'"
-                                              x-show="(userRole === 4 && !canEdit) || userRole === 2"></span>
-                                        <!-- Locked: employee -->
-                                        <span class="ti-grade-chip locked"
-                                              x-bind:data-grade="getItemGrade(item.id, 'team')"
-                                              x-bind:class="getItemGrade(item.id, 'team') ? 'locked' : 'locked empty'"
-                                              x-text="getItemGrade(item.id, 'team') || '–'"
-                                              x-show="userRole === 1"
-                                              x-bind:aria-label="'Team grade: ' + (getItemGrade(item.id, 'team') || 'not graded')"></span>
+                                              x-text="getItemGrade(item.id, 'team')"
+                                              x-show="(userRole === 4 && !canEdit) || userRole === 2 || (userRole === 1 && evaluation.status === 'Ready')"></span>
+                                        <!-- Hidden from the employee until results are Ready (stripped server-side): show a lock -->
+                                        <span class="ti-grade-chip locked" x-show="userRole === 1 && evaluation.status !== 'Ready'"
+                                              x-bind:aria-label="getLabel('interface.evaluation.grade-hidden-aria')">
+                                            <span class="ti-icon lock xs" aria-hidden="true"></span>
+                                        </span>
                                     </div>
                                 </div>
                             </template>

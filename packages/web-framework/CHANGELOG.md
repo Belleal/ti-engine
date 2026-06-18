@@ -2,6 +2,11 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.9.3
+
+* feat(css): an empty `.ti-grade-chip` (a competency whose rating is still awaited) now renders an hourglass glyph via `::before` instead of a literal dash, so "awaiting rating" reads as a clear visual state wherever an empty grade chip is shown to a permitted viewer
+* build(release): bump package version from `1.9.2` to `1.9.3`
+
 ## Version 1.9.2
 
 * feat(css): add `.ti-spacer` — a flexible spacer (`flex: 1 1 auto`) that pushes following siblings to the far end of a flex row/column. Promotes the bespoke per-screen `competence-empmgmt-actions-spacer` into a shared primitive, now consumed by the employee-management actions panel and the evaluation screen's team-feedback finalize bar

@@ -4803,6 +4803,10 @@
         "en": "The team-feedback deadline has passed — proceed to manager review.",
         "bg": "Крайният срок за екипна обратна връзка изтече — продължете към преглед от мениджър."
       },
+      "grade-hidden-aria": {
+        "en": "Hidden — not visible to you",
+        "bg": "Скрито — не е видимо за вас"
+      },
       "you-tag": {
         "en": "You",
         "bg": "Вие"
