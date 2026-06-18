@@ -2,8 +2,8 @@
 
 ## Meta
 
-- **Status:** Approved design (pre-implementation)
-- **Date:** 2026-06-18
+- **Status:** In implementation — Phase 1
+- **Date:** 2026-06-18 (approved); supervisor read-only facilitator semantics + framework seam added 2026-06-18
 - **Package:** `competence` (no `core` / `web-framework` changes in this scope)
 - **Scope:** **A** — the team-member peer-feedback loop, end-to-end, surfaced as dashboard tasks, plus the accompanying logic required for the evaluation process to complete. See [[project-tasks-system]] for the two-stage plan (the later goal is a reusable tasks module in `@ti-engine/web-framework`).
 - **Owner:** Boris Kostadinov
@@ -29,7 +29,7 @@ The review established that the **feedback machinery already exists and works** 
 4. **Manager/Supervisor can finalize team feedback early** ("Proceed to manager review"):
    - Available **only once the team-feedback deadline has passed**.
    - **Allowed with zero submissions**, gated by a new app setting (default on).
-   - Triggerable by the evaluatee's **manager** (org-hierarchy) **or a Supervisor**.
+   - Triggerable by the evaluatee's **manager** (org-hierarchy) **or a Supervisor**. A Supervisor reaches it through a **read-only facilitator view** of the evaluation screen (see §3.8): view-only with manager-level visibility, but **never able to rate or submit** any part of the assessment (process admin / facilitator). A Supervisor who *is* the org-hierarchy manager is the ordinary manager case (full capability).
    - **Writes an audit entry on the evaluation's audit trail** (see §3.7).
 5. **Team-feedback deadline** = a **cycle-level date** (`cycle.teamFeedbackDeadline`), defaulted from an app-setting window and **overridable in Cycle Setup**. `workflow.teamEvaluationDeadline` becomes **required**, set at evaluation creation from the cycle. Resulting policy: reviewers submit **up to** the deadline (existing hard block after it stays); past it, only the manager/supervisor finalizes.
 
@@ -87,6 +87,8 @@ The resolver receives already-fetched `evaluations` plus an injected `canManage`
   - **Preconditions:** status `OPEN`; `today > workflow.teamEvaluationDeadline`; `workflow.team` non-empty; if no team submissions yet, require `allowFinalizeTeamWithoutSubmissions`. Violations → `E_APP_*` with the appropriate 4xx.
   - **Effect:** drop the still-pending reviewers from `workflow.team`; set `teamEvaluationCompleted = true`; compute `cumulative` from whoever submitted (`calculateTeamCumulativeGrades`); if `selfEvaluationCompleted` is also true, transition `OPEN → IN_REVIEW` (else stay OPEN, awaiting self); persist.
   - **Audit:** `appendAuditEntry` — see §3.7.
+  - **Seam:** the handler stays thin (authz + param validation); the preconditions, mutation, `cumulative`, transition, persist, and audit write live in a new `CompetenceFramework.finalizeTeamFeedback(evaluationID, actorID, actorRoleLabel)` (mirrors how `#lockCycle` delegates to `CompetenceFramework.lockCycle`), so the logic is unit-testable against the in-memory cache.
+- **`load-evaluation`** — add the supervisor read-only facilitator branch and return a `canFinalizeTeam` flag (+ pending/submitted counts) that drives the on-screen finalize action. See §3.8.
 - **Cycle Setup save** path for `teamFeedbackDeadline`; **create-cycle** default computation.
 
 ### 3.6 UI (`competence-user-interface.js`, fragments, localization)
@@ -94,7 +96,7 @@ The resolver receives already-fetched `evaluations` plus an injected `canManage`
 - **`configureDashboard._buildTasks`** renders the server-provided `team-feedback` and `team-finalize` descriptors as task cards alongside the existing tasks (shape `{ id, tone, title, sub, action, evaluationID }`). Deadline/overdue reflected in tone/sub.
 - **`handleTaskClick`** routes:
   - `team-feedback` → `competence-evaluation?evaluationID=<id>`.
-  - `team-finalize` → `competence-evaluation?evaluationID=<id>` (manager view); a **"Proceed to manager review"** action (confirm modal) on that screen calls `finalize-team-feedback`. (Alternative considered: inline dashboard confirm — rejected so the manager sees who/how-many submitted before finalizing.)
+  - `team-finalize` → `competence-evaluation?evaluationID=<id>` (manager view); a **"Proceed to manager review"** action (confirm modal) on that screen calls `finalize-team-feedback`. The action is gated on the server-provided `canFinalizeTeam` flag and is available to both the manager and the read-only supervisor facilitator (§3.8). (Alternative considered: inline dashboard confirm — rejected so the actor sees who/how-many submitted before finalizing.)
 - **Cycle Setup** — editable team-feedback-deadline date field (Supervisor, PLANNING-only).
 - **Localization** (`competence-labels.json`, en + bg): task titles/subs for both new types; finalize action + confirm copy; the deadline field label; new error messages (deadline-not-reached, no-submissions-not-allowed, etc.).
 
@@ -123,12 +125,25 @@ appendAuditEntry({
 
 **Display note:** no UI surfaces evaluation-scoped audit yet (the Employee-Management audit tab reads only the employee bucket), so this is *recorded, not yet displayed* — see §5.
 
+### 3.8 Supervisor facilitator view (`load-evaluation`)
+
+The `team-finalize` task routes a Supervisor to `competence-evaluation?evaluationID=…`, but `#loadEvaluation` today authorizes only the employee, a team member, or the **org-hierarchy** manager (`#canManagerPerformEvaluation`) — a pure Supervisor is `403`'d. Add a fourth, **read-only facilitator** branch (evaluated only when the user is *not* employee / team member / org-manager):
+
+- **Authorized** when the user holds the `SUPERVISOR` role.
+- **Visibility:** anonymize as `MANAGER` so the facilitator sees who/what before finalizing (manager-level view).
+- **No actions:** force `canEdit = false`. The evaluation form already gates every grade input and the entire submit/draft bar on `canEdit`, so they vanish automatically — **no grade-cell template changes**. The returned `userRole` is `MANAGER` purely for rendering; the only exposed action is finalize, driven by `canFinalizeTeam` (not by role). An optional `isFacilitator: true` flag lets the screen show a small "viewing as facilitator (read-only)" banner.
+- **Hard server guard:** `submit-evaluation` / `save-evaluation-draft` keep gating manager actions on org-hierarchy (`#canManagerPerformEvaluation`), so a pure Supervisor can **never** rate or submit — backed by an explicit precondition + test.
+- A Supervisor who *is* the org-hierarchy manager hits the manager branch first → full capability, unchanged.
+
+`#loadEvaluation` returns `canFinalizeTeam` (+ `pendingCount` / `submittedCount`) computed server-side as: `(isSupervisor || canManage) && status === OPEN && today > workflow.teamEvaluationDeadline && workflow.team` non-empty `&& (allowFinalizeTeamWithoutSubmissions || submittedCount > 0)`. The "Proceed to manager review" action shows iff `canFinalizeTeam`.
+
 ---
 
 ## 4. Testing (`node --test`)
 
 - `test/task-resolver.test.js` — `team-feedback` discovery (membership, OPEN-only, excludes self); `team-finalize` discovery (deadline passed, pending non-empty, manager/supervisor scope); overdue flag; no false positives before the deadline.
-- `test/competence-framework.finalize.test.js` (or extend an existing suite) — finalize: drops pending reviewers, computes `cumulative` from submitted, transitions to `IN_REVIEW` only when self complete, respects `allowFinalizeTeamWithoutSubmissions`, rejects before the deadline / when not OPEN, writes one **evaluation-scoped** audit entry (`subjectType:"evaluation"`, retrievable via `getAuditEntriesForEvaluation`).
+- `test/competence-framework.finalize.test.js` (or extend an existing suite) — `CompetenceFramework.finalizeTeamFeedback`: drops pending reviewers, computes `cumulative` from submitted, transitions to `IN_REVIEW` only when self complete, respects `allowFinalizeTeamWithoutSubmissions`, rejects before the deadline / when not OPEN, writes one **evaluation-scoped** audit entry (`subjectType:"evaluation"`, retrievable via `getAuditEntriesForEvaluation`).
+- **Supervisor facilitator guard** — a pure Supervisor can finalize but `submit-evaluation` / `save-evaluation-draft` reject them (cannot rate); a Supervisor who is the org-manager keeps full capability. Covered at the `CompetenceFramework` / authz seam (the web-app handler class isn't unit-instantiable without web-framework scaffolding) plus manual verification.
 - `test:json` — schema updates validate: cycle `teamFeedbackDeadline`, the two new settings; seed cycle + `config.application.json` conform.
 
 ---
@@ -147,6 +162,17 @@ Team draft-save; scheduled auto-advance at the deadline; self/manager deadline p
 
 ---
 
-## 7. Implementation log
+## 7. Implementation plan & log
 
-_(Append one entry per checkpointed commit during implementation.)_
+Phased, one commit per phase, with a checkpoint between each:
+
+| Phase | Scope | Commit | Date |
+|-------|-------|--------|------|
+| 1 | **Schema & config foundation** (no behavior change): two app settings (`teamFeedbackWindowDays`=14, `allowFinalizeTeamWithoutSubmissions`=true) in `config.application.json` + schema; `teamFeedbackDeadline` in `cycle.schema.json`; `teamEvaluationDeadline` → `workflow.required` in `evaluation.schema.json`; typedef updates (workflow field + `"evaluation"` audit `subjectType`); extend `test:json` (new settings + a `cycle.schema.json` conformance check). | _pending_ | |
+| 2 | **Deadline derivation & population**: `createNewEvaluation` sets the team deadline from the cycle; `#createCycle` default `min(cycleStart + window, cycleDate)` (fallback `cycleDate` when no `cycleStart`); `#deriveSeededCycles` for `2026-H2`; `DataManager.setCycleTeamFeedbackDeadline`. | _pending_ | |
+| 3 | **Task resolver** (`application/task-resolver.js`, frozen singleton, pure) + `test/task-resolver.test.js`. Missing/empty deadline treated as "not past". | _pending_ | |
+| 4 | **Backend**: audit `evaluations` bucket + `getAuditEntriesForEvaluation`; `CompetenceFramework.finalizeTeamFeedback` + thin `finalize-team-feedback` handler; `#loadDashboard` resolver wiring; `#loadEvaluation` supervisor facilitator branch + `canFinalizeTeam`; framework finalize + guard tests. | _pending_ | |
+| 5 | **UI** (CSP-safe): dashboard task cards + `evaluationID` routing; evaluation-screen finalize action + confirm modal; Cycle Setup deadline field + save; en/bg localization. | _pending_ | |
+| 6 | **Full test pass + docs**: `npm test` + `test:json`; finalize this log; version bump. | _pending_ | |
+
+_(Append one entry per checkpointed commit during implementation; fill in the commit hash + date as each phase lands.)_
