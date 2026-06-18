@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Phases 1–4 implemented (uncommitted, pending review) |
+| **Status** | Implemented (shipped in competence 3.1.0) |
 | **Created** | 2026-06-16 |
-| **Last updated** | 2026-06-16 |
+| **Last updated** | 2026-06-18 |
 | **Owner** | Boris Kostadinov |
 | **Scope** | `@ti-engine/competence` — config + build script + configuration-loader + config-registration/validators + cycle-setup (server + UI) + tests |
 | **Relates to** | restores the per-family applicability **pool** dropped by `1b38ffe` (admin-config B1, see `packages/web-framework/design/admin-config-management.md` §5); source of truth = `design/competency-relevancy-model.md` + `design/competency-master-index.md` |
