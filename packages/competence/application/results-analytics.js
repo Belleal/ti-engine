@@ -163,6 +163,109 @@ class ResultsAnalytics {
         return Object.prototype.hasOwnProperty.call( GRADE_WEIGHTS, letter ) ? GRADE_WEIGHTS[ letter ] : null;
     }
 
+    /**
+     * Computes the Coverage report payload from a frame + the in-scope roster. "Completed" = Ready + Closed
+     * (resolved decision §7.1); "Not started" = roster employees with no evaluation row (synthetic label, not the
+     * NOT_STARTED enum). Groups by roleFamily or orgUnit per filter.groupBy.
+     *
+     * @method
+     * @param {Array<Object>} frame - CohortRow[] (only status/employeeID/roleFamily/organizationUnitID/evaluationID read).
+     * @param {Array<Object>} roster - [{employeeID, name, roleFamily, organizationUnitID}].
+     * @param {Object} filter - CohortFilter; filter.groupBy ∈ {"roleFamily","orgUnit"}.
+     * @returns {Object} coverage payload
+     * @public
+     */
+    computeCoverage( frame, roster, filter ) {
+        const rows = Array.isArray( frame ) ? frame : [];
+        const members = Array.isArray( roster ) ? roster : [];
+        const groupBy = ( filter && filter.groupBy === "orgUnit" ) ? "orgUnit" : "roleFamily";
+
+        const rowByEmployee = new Map();
+        for ( const row of rows ) {
+            if ( row && row.employeeID ) {
+                rowByEmployee.set( row.employeeID, row );
+            }
+        }
+
+        const overall = this.#emptyCoverageBucket();
+        const groups = new Map();   // groupKey → { groupType, groupKey, groupLabel, bucket }
+        const pending = [];
+
+        for ( const member of members ) {
+            const row = rowByEmployee.get( member.employeeID ) || null;
+            const groupKey = ( groupBy === "orgUnit" ) ? ( member.organizationUnitID || "" ) : ( member.roleFamily || "" );
+            if ( !groups.has( groupKey ) ) {
+                groups.set( groupKey, { groupType: groupBy, groupKey: groupKey, groupLabel: groupKey, bucket: this.#emptyCoverageBucket() } );
+            }
+            const group = groups.get( groupKey );
+
+            this.#tallyCoverage( overall, row );
+            this.#tallyCoverage( group.bucket, row );
+
+            const status = row ? row.status : NOT_STARTED_LABEL;
+            if ( status !== "Ready" && status !== "Closed" ) {
+                pending.push( {
+                    evaluationID: row ? row.evaluationID : null,
+                    employeeID: member.employeeID,
+                    name: ( member.name !== undefined ) ? member.name : null,
+                    groupLabel: groupKey,
+                    status: status   // one of Open / In Review / "Not started"
+                } );
+            }
+        }
+
+        return {
+            overall: this.#finalizeCoverageBucket( overall ),
+            byGroup: Array.from( groups.values() ).map( ( g ) => Object.assign(
+                { groupType: g.groupType, groupKey: g.groupKey, groupLabel: g.groupLabel },
+                this.#finalizeCoverageBucket( g.bucket )
+            ) ),
+            pending: pending
+        };
+    }
+
+    /**
+     * @method
+     * @returns {Object} A fresh coverage accumulator.
+     * @private
+     */
+    #emptyCoverageBucket() {
+        return { N: 0, n: 0, notStarted: 0, byStatus: { "Open": 0, "In Review": 0, "Ready": 0, "Closed": 0 } };
+    }
+
+    /**
+     * Tallies one roster member (with its evaluation row or null) into a coverage accumulator.
+     * @method
+     * @param {Object} bucket
+     * @param {Object|null} row
+     * @private
+     */
+    #tallyCoverage( bucket, row ) {
+        bucket.N += 1;
+        if ( !row ) {
+            bucket.notStarted += 1;
+            return;
+        }
+        if ( Object.prototype.hasOwnProperty.call( bucket.byStatus, row.status ) ) {
+            bucket.byStatus[ row.status ] += 1;
+        }
+        if ( row.status === "Ready" || row.status === "Closed" ) {
+            bucket.n += 1;
+        }
+    }
+
+    /**
+     * Finalizes an accumulator: appends the rounded completion pct.
+     * @method
+     * @param {Object} bucket
+     * @returns {Object}
+     * @private
+     */
+    #finalizeCoverageBucket( bucket ) {
+        const pct = ( bucket.N > 0 ) ? Math.round( ( bucket.n / bucket.N ) * 100 ) : 0;
+        return { N: bucket.N, n: bucket.n, pct: pct, byStatus: bucket.byStatus, notStarted: bucket.notStarted };
+    }
+
 }
 
 const instance = new ResultsAnalytics();

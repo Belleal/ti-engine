@@ -139,3 +139,100 @@ describe( "ResultsAnalytics.buildCohortFrame — normalization", () => {
     } );
 
 } );
+
+// Minimal roster member fixture (shape produced by buildRoster in Task B4).
+function rosterMember( over = {} ) {
+    return {
+        employeeID: over.employeeID || "emp1",
+        name: ( over.name !== undefined ) ? over.name : "Name(" + ( over.employeeID || "emp1" ) + ")",
+        roleFamily: over.roleFamily || "SE",
+        organizationUnitID: over.organizationUnitID || "unit-A"
+    };
+}
+
+describe( "ResultsAnalytics.computeCoverage — overall", () => {
+
+    it( "counts N (in-scope roster), n (completed = Ready+Closed), and the four live byStatus buckets", () => {
+        const roster = [
+            rosterMember( { employeeID: "emp1" } ),
+            rosterMember( { employeeID: "emp2" } ),
+            rosterMember( { employeeID: "emp3" } ),
+            rosterMember( { employeeID: "emp4" } )   // no evaluation → Not started
+        ];
+        const frame = [
+            { evaluationID: "a", employeeID: "emp1", status: "Closed", roleFamily: "SE", organizationUnitID: "unit-A" },
+            { evaluationID: "b", employeeID: "emp2", status: "Ready", roleFamily: "SE", organizationUnitID: "unit-A" },
+            { evaluationID: "c", employeeID: "emp3", status: "In Review", roleFamily: "SE", organizationUnitID: "unit-A" }
+        ];
+        const coverage = resultsAnalyticsInstance.computeCoverage( frame, roster, filterFixture( { groupBy: "roleFamily" } ) );
+        assert.equal( coverage.overall.N, 4 );
+        assert.equal( coverage.overall.n, 2 );                 // completed = Ready + Closed
+        assert.equal( coverage.overall.pct, 50 );              // 2/4
+        assert.equal( coverage.overall.notStarted, 1 );        // emp4 has no evaluation
+        assert.deepEqual( coverage.overall.byStatus, { "Open": 0, "In Review": 1, "Ready": 1, "Closed": 1 } );
+    } );
+
+    it( "computes pct as 0 for an empty roster (no divide-by-zero)", () => {
+        const coverage = resultsAnalyticsInstance.computeCoverage( [], [], filterFixture() );
+        assert.equal( coverage.overall.N, 0 );
+        assert.equal( coverage.overall.pct, 0 );
+    } );
+
+    it( "groups by roleFamily with per-group N / byStatus / notStarted / pct", () => {
+        const roster = [
+            rosterMember( { employeeID: "emp1", roleFamily: "SE" } ),
+            rosterMember( { employeeID: "emp2", roleFamily: "SE" } ),
+            rosterMember( { employeeID: "emp3", roleFamily: "QA" } )
+        ];
+        const frame = [
+            { evaluationID: "a", employeeID: "emp1", status: "Ready", roleFamily: "SE", organizationUnitID: "unit-A" }
+        ];
+        const coverage = resultsAnalyticsInstance.computeCoverage( frame, roster, filterFixture( { groupBy: "roleFamily" } ) );
+        const se = coverage.byGroup.find( ( g ) => g.groupKey === "SE" );
+        const qa = coverage.byGroup.find( ( g ) => g.groupKey === "QA" );
+        assert.equal( se.groupType, "roleFamily" );
+        assert.equal( se.N, 2 );
+        assert.equal( se.notStarted, 1 );    // emp2 has no eval
+        assert.equal( se.pct, 50 );
+        assert.equal( qa.N, 1 );
+        assert.equal( qa.notStarted, 1 );    // emp3 has no eval
+        assert.equal( qa.pct, 0 );
+    } );
+
+    it( "groups by orgUnit when filter.groupBy === 'orgUnit'", () => {
+        const roster = [
+            rosterMember( { employeeID: "emp1", organizationUnitID: "unit-A" } ),
+            rosterMember( { employeeID: "emp2", organizationUnitID: "unit-B" } )
+        ];
+        const frame = [
+            { evaluationID: "a", employeeID: "emp1", status: "Closed", roleFamily: "SE", organizationUnitID: "unit-A" }
+        ];
+        const coverage = resultsAnalyticsInstance.computeCoverage( frame, roster, filterFixture( { groupBy: "orgUnit" } ) );
+        const a = coverage.byGroup.find( ( g ) => g.groupKey === "unit-A" );
+        assert.equal( a.groupType, "orgUnit" );
+        assert.equal( a.N, 1 );
+        assert.equal( a.pct, 100 );
+    } );
+
+    it( "lists pending: in-progress evals (Open/In Review) AND Not-started roster gaps", () => {
+        const roster = [
+            rosterMember( { employeeID: "emp1" } ),
+            rosterMember( { employeeID: "emp2" } ),
+            rosterMember( { employeeID: "emp3" } )
+        ];
+        const frame = [
+            { evaluationID: "a", employeeID: "emp1", status: "Closed", roleFamily: "SE", organizationUnitID: "unit-A" },
+            { evaluationID: "b", employeeID: "emp2", status: "Open", roleFamily: "SE", organizationUnitID: "unit-A" }
+        ];
+        const coverage = resultsAnalyticsInstance.computeCoverage( frame, roster, filterFixture() );
+        const open = coverage.pending.find( ( p ) => p.employeeID === "emp2" );
+        const gap = coverage.pending.find( ( p ) => p.employeeID === "emp3" );
+        assert.equal( open.status, "Open" );
+        assert.equal( open.evaluationID, "b" );
+        assert.equal( gap.status, "Not started" );    // synthetic label
+        assert.equal( gap.evaluationID, null );
+        // A completed (Closed) row is NOT pending.
+        assert.equal( coverage.pending.some( ( p ) => p.employeeID === "emp1" ), false );
+    } );
+
+} );
