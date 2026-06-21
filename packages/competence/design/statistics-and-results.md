@@ -402,4 +402,4 @@ All nine questions raised by the design pass were decided with the product owner
 
 _Running log — append a dated entry per checkpointed step as phases land. Track each phase as a YouTrack `CA` epic with child cards (`CA-F*`, `CA-L*`, `CA-M*`, `CA-I*`, `CA-X*`) referenced in commit messages._
 
-- _(not started — Phase 0 next)_
+- 2026-06-21 — Design approved & committed. **Phase 0** broken into four implementation plans under `docs/superpowers/plans/` (`…-phase-0a` chart primitives, `0b` aggregation + Coverage, `0c` snapshot store, `0d` Insights shell + Coverage screen), each TDD/bite-sized and adversarially verified (the empty-org-roster blocker — resolve the root unit via a new `getOrganizationRootUnitID()` — folded in). Implementation not yet started. Phase 0 gate = Coverage renders live + from a snapshot, in both themes.
