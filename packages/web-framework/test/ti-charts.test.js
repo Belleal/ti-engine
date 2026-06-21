@@ -98,3 +98,29 @@ describe( "ti-charts — bar segment layout", () => {
         assert.equal( segs[ 0 ].width, 30 );
     } );
 } );
+
+describe( "ti-charts — spec envelope", () => {
+    it( "fills defaults and preserves the three Phase-0 types", () => {
+        const s = TiCharts.normalizeSpec( { type: "gauge", data: { value: 0.5 }, a11yLabel: "Coverage" } );
+        assert.equal( s.type, "gauge" );
+        assert.deepEqual( s.options, {} );
+        assert.equal( s.a11yLabel, "Coverage" );
+        assert.equal( s.a11yDesc, "" );
+        assert.equal( s.provisional, false );
+        assert.deepEqual( s.data, { value: 0.5 } );
+    } );
+    it( "coerces provisional to a boolean and defaults a11yLabel to empty", () => {
+        const s = TiCharts.normalizeSpec( { type: "bars", data: { rows: [] }, provisional: 1 } );
+        assert.equal( s.provisional, true );
+        assert.equal( s.a11yLabel, "" );
+    } );
+    it( "marks an unknown type as unsupported and empties data", () => {
+        const s = TiCharts.normalizeSpec( { type: "heatmap", data: { rows: [] } } );
+        assert.equal( s.type, "unsupported" );
+        assert.deepEqual( s.data, {} );
+    } );
+    it( "returns an unsupported spec for null/garbage input", () => {
+        assert.equal( TiCharts.normalizeSpec( null ).type, "unsupported" );
+        assert.equal( TiCharts.normalizeSpec( 42 ).type, "unsupported" );
+    } );
+} );

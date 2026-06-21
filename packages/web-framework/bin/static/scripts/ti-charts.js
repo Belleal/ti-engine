@@ -129,11 +129,45 @@ const TiCharts = ( function () {
         return Number( value ).toFixed( d );
     }
 
+    const SUPPORTED_TYPES = [ "gauge", "bars", "stat" ]; // Phase 0 subset
+
+    /**
+     * @typedef {Object} TiChartSpec
+     * @property {"gauge"|"bars"|"stat"} type   Phase 0 supports these three only.
+     * @property {Object}  data                 per-primitive payload (the aggregation output)
+     * @property {Object}  [options]            domains, sizing, labels, formatting
+     * @property {string}  a11yLabel            role=img label (also injected as <title>)
+     * @property {string}  [a11yDesc]           injected as <desc>
+     * @property {boolean} [provisional]        draws the "as of now / % reporting" hatch for ACTIVE cycles
+     */
+
+    /**
+     * Validates + fills defaults on a chart spec. Unknown/unsupported types collapse to
+     * { type:"unsupported", data:{} } so the renderer can show a graceful empty state.
+     * @param {*} spec
+     * @returns {TiChartSpec}
+     */
+    function normalizeSpec( spec ) {
+        if ( !spec || typeof spec !== "object" ) {
+            return { type: "unsupported", data: {}, options: {}, a11yLabel: "", a11yDesc: "", provisional: false };
+        }
+        const supported = ( SUPPORTED_TYPES.indexOf( spec.type ) >= 0 );
+        return {
+            type: supported ? spec.type : "unsupported",
+            data: ( supported && spec.data && typeof spec.data === "object" ) ? spec.data : {},
+            options: ( spec.options && typeof spec.options === "object" ) ? spec.options : {},
+            a11yLabel: ( typeof spec.a11yLabel === "string" ) ? spec.a11yLabel : "",
+            a11yDesc: ( typeof spec.a11yDesc === "string" ) ? spec.a11yDesc : "",
+            provisional: Boolean( spec.provisional )
+        };
+    }
+
     return {
         SVG_NS,
         gaugeValueToAngle,
         gaugeArcPath,
         barSegments,
+        normalizeSpec,
         formatPercent,
         formatNumber
     };
