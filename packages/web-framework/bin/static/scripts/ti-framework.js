@@ -1206,6 +1206,34 @@ const configureDirectiveTextLabel = () => {
 };
 
 /**
+ * Returns a callback for the Alpine.js "ti-chart" directive. Renders a themeable SVG chart from a
+ * reactive spec property path into the host <figure class="ti-chart"> element.
+ *
+ * Usage (CSP-legal — the expression is a bare reactive property path or a registered method call):
+ *   <figure class="ti-chart" x-ti-chart="coverageSpec"
+ *           role="img" x-bind:aria-label="coverageSpec.a11yLabel"></figure>
+ *
+ * The geometry/format math and the SVG assembly live in ti-charts.js (window.TiCharts); this
+ * directive only wires the reactive spec to TiCharts.renderChart.
+ *
+ * @method
+ * @returns {Function}
+ * @public
+ */
+const configureDirectiveTiChart = () => {
+    return ( element, { expression }, { effect, evaluateLater } ) => {
+        const getSpec = evaluateLater( expression );
+        effect( () => {
+            getSpec( ( spec ) => {
+                if ( typeof window !== "undefined" && window.TiCharts && typeof window.TiCharts.renderChart === "function" ) {
+                    window.TiCharts.renderChart( element, spec );
+                }
+            } );
+        } );
+    };
+};
+
+/**
  * Perform a one-time configuration of the HTMX framework.
  */
 document.addEventListener( "htmx:configRequest", ( event ) => {
@@ -1322,6 +1350,7 @@ const configureLoginTestUserPanel = () => {
 document.addEventListener( "alpine:init", () => {
     // Note: Sequence here is important!
     Alpine.directive( "text-label", configureDirectiveTextLabel() );
+    Alpine.directive( "ti-chart", configureDirectiveTiChart() );
     Alpine.store( "tiToolbox", configureToolbox() );
     Alpine.store( "tiApplication", configureApplication() );
     Alpine.store( "tiComponentsConfig", {} );
