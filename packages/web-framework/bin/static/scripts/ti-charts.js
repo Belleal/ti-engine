@@ -19,7 +19,51 @@ const TiCharts = ( function () {
 
     const SVG_NS = "http://www.w3.org/2000/svg";
 
-    function gaugeArcPath() { throw new Error( "not implemented" ); }
+    /**
+     * Clamps a 0..1 value and maps it onto an arc beginning at `startAngle` (degrees, SVG screen
+     * convention: 0°=east, +y=down/clockwise) spanning `sweep` degrees clockwise.
+     * @param {number} value 0..1
+     * @param {number} startAngle degrees
+     * @param {number} sweep degrees (positive = clockwise)
+     * @returns {number}
+     */
+    function gaugeValueToAngle( value, startAngle, sweep ) {
+        let v = value;
+        if ( v < 0 || Number.isNaN( v ) ) { v = 0; }
+        if ( v > 1 ) { v = 1; }
+        return startAngle + ( v * sweep );
+    }
+
+    function _polar( cx, cy, r, angleDeg ) {
+        const a = ( angleDeg * Math.PI ) / 180;
+        return { x: cx + ( r * Math.cos( a ) ), y: cy + ( r * Math.sin( a ) ) };
+    }
+
+    function _round( n ) {
+        return Math.round( n * 100 ) / 100;
+    }
+
+    /**
+     * Builds an SVG path "d" for a gauge value arc on a circle radius r centred at (cx,cy),
+     * running clockwise from `startAngle` for value·sweep degrees.
+     * @param {number} value 0..1
+     * @param {{cx:number,cy:number,r:number,startAngle:number,sweep:number}} opts
+     * @returns {string}
+     */
+    function gaugeArcPath( value, opts ) {
+        const cx = opts.cx, cy = opts.cy, r = opts.r;
+        const startAngle = opts.startAngle, sweep = opts.sweep;
+        const endAngle = gaugeValueToAngle( value, startAngle, sweep );
+        const start = _polar( cx, cy, r, startAngle );
+        const end = _polar( cx, cy, r, endAngle );
+        const spanned = endAngle - startAngle;
+        const largeArc = ( spanned > 180 ) ? 1 : 0;
+        const sweepFlag = 1; // clockwise
+        return "M" + _round( start.x ) + " " + _round( start.y ) +
+               " A" + r + " " + r + " 0 " + largeArc + " " + sweepFlag + " " +
+               _round( end.x ) + " " + _round( end.y );
+    }
+
     function barSegments() { throw new Error( "not implemented" ); }
 
     /**
@@ -55,6 +99,7 @@ const TiCharts = ( function () {
 
     return {
         SVG_NS,
+        gaugeValueToAngle,
         gaugeArcPath,
         barSegments,
         formatPercent,

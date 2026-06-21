@@ -44,3 +44,31 @@ describe( "ti-charts — number/percent formatting", () => {
         assert.equal( TiCharts.formatNumber( null ), "—" );
     } );
 } );
+
+describe( "ti-charts — gauge geometry", () => {
+    const R = 42, CX = 50, CY = 50, SWEEP = 270;
+
+    it( "gaugeValueToAngle maps 0 to start and 1 to start+sweep", () => {
+        assert.equal( TiCharts.gaugeValueToAngle( 0, -225, SWEEP ), -225 );
+        assert.equal( TiCharts.gaugeValueToAngle( 1, -225, SWEEP ), 45 );
+        assert.equal( TiCharts.gaugeValueToAngle( 0.5, -225, SWEEP ), -90 );
+    } );
+    it( "gaugeValueToAngle clamps value into 0..1", () => {
+        assert.equal( TiCharts.gaugeValueToAngle( -1, -225, SWEEP ), -225 );
+        assert.equal( TiCharts.gaugeValueToAngle( 2, -225, SWEEP ), 45 );
+    } );
+    it( "gaugeArcPath returns an M…A path with the large-arc flag set for a 270° track", () => {
+        const full = TiCharts.gaugeArcPath( 1, { cx: CX, cy: CY, r: R, startAngle: -225, sweep: SWEEP } );
+        assert.match( full, /^M-?\d/ );
+        assert.match( full, / A42 42 0 1 1 / ); // large-arc-flag 1, sweep-flag 1 (clockwise)
+    } );
+    it( "gaugeArcPath start point sits at the start angle (bottom-left for -225°)", () => {
+        const p = TiCharts.gaugeArcPath( 0.0001, { cx: CX, cy: CY, r: R, startAngle: -225, sweep: SWEEP } );
+        // start x = 50 + 42*cos(-225°) = 50 + 42*(-0.7071) ≈ 20.30
+        assert.match( p, /^M20\.3/ );
+    } );
+    it( "gaugeArcPath of 0 progress yields a near-degenerate span (large-arc-flag 0)", () => {
+        const p = TiCharts.gaugeArcPath( 0, { cx: CX, cy: CY, r: R, startAngle: -225, sweep: SWEEP } );
+        assert.match( p, /A42 42 0 0 1 / );
+    } );
+} );
