@@ -129,6 +129,39 @@ const TiCharts = ( function () {
         return Number( value ).toFixed( d );
     }
 
+    /**
+     * Lays out Coverage gauge sub-rows: each row's coverage ratio (explicit `value`, else n/total)
+     * and its bar width along the track. Guards total=0.
+     * @param {Array<{id:string,name:string,value?:number,n?:number,total?:number,tone?:string}>} rows
+     * @param {{width:number}} opts
+     * @returns {Array<{id:string,label:string,ratio:number,width:number,tone:string}>}
+     */
+    function gaugeRowsLayout( rows, opts ) {
+        const width = opts.width;
+        const out = [];
+        for ( let i = 0; i < rows.length; i++ ) {
+            const row = rows[ i ];
+            let ratio;
+            if ( typeof row.value === "number" ) {
+                ratio = row.value;
+            } else if ( row.total ) {
+                ratio = ( row.n || 0 ) / row.total;
+            } else {
+                ratio = 0;
+            }
+            if ( ratio < 0 ) { ratio = 0; }
+            if ( ratio > 1 ) { ratio = 1; }
+            out.push( {
+                id: row.id,
+                label: row.name || row.id,
+                ratio: ratio,
+                width: _round( ratio * width ),
+                tone: row.tone || ""
+            } );
+        }
+        return out;
+    }
+
     const SUPPORTED_TYPES = [ "gauge", "bars", "stat" ]; // Phase 0 subset
 
     /**
@@ -168,6 +201,7 @@ const TiCharts = ( function () {
         gaugeArcPath,
         barSegments,
         normalizeSpec,
+        gaugeRowsLayout,
         formatPercent,
         formatNumber
     };

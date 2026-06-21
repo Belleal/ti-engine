@@ -124,3 +124,27 @@ describe( "ti-charts — spec envelope", () => {
         assert.equal( TiCharts.normalizeSpec( 42 ).type, "unsupported" );
     } );
 } );
+
+describe( "ti-charts — gauge rows layout", () => {
+    it( "computes ratio + track width per row from n/total", () => {
+        const rows = TiCharts.gaugeRowsLayout(
+            [ { id: "se", name: "SE", n: 3, total: 4 }, { id: "qa", name: "QA", n: 0, total: 2 } ],
+            { width: 100 }
+        );
+        assert.equal( rows[ 0 ].ratio, 0.75 );
+        assert.equal( rows[ 0 ].width, 75 );
+        assert.equal( rows[ 0 ].label, "SE" );
+        assert.equal( rows[ 1 ].ratio, 0 );
+        assert.equal( rows[ 1 ].width, 0 );
+    } );
+    it( "prefers an explicit value (0..1) over n/total when present", () => {
+        const rows = TiCharts.gaugeRowsLayout( [ { id: "x", name: "X", value: 0.4 } ], { width: 50 } );
+        assert.equal( rows[ 0 ].ratio, 0.4 );
+        assert.equal( rows[ 0 ].width, 20 );
+    } );
+    it( "guards total=0 (ratio 0, no NaN)", () => {
+        const rows = TiCharts.gaugeRowsLayout( [ { id: "z", name: "Z", n: 0, total: 0 } ], { width: 100 } );
+        assert.equal( rows[ 0 ].ratio, 0 );
+        assert.equal( rows[ 0 ].width, 0 );
+    } );
+} );
