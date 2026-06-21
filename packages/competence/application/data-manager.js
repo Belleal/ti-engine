@@ -303,6 +303,82 @@ class DataManager {
         } );
     }
 
+    /* ------------------------------------------------------------------ */
+    /*                        Results snapshots                            */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Persists an immutable per-cycle results snapshot, keyed by `cycleID`. Merge-write (saveEvaluation idiom): because
+     * the snapshot shape is fixed, re-saving the same cycle replaces all of that cycle's populated leaves.
+     *
+     * @method
+     * @param {Object} snapshot - A ResultsSnapshot; must carry `cycleID`.
+     * @returns {Promise<Object>}
+     * @public
+     */
+    saveResultsSnapshot( snapshot ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( !snapshot || !snapshot.cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { snapshot } ) );
+            }
+            cache.instance.editJSON( cacheEntryKeyResultsSnapshots, { [ snapshot.cycleID ]: snapshot } ).then( () => {
+                resolve( snapshot );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Returns the results snapshot for a cycle, or null when none has been persisted.
+     *
+     * @method
+     * @param {string} cycleID
+     * @returns {Promise<Object|null>}
+     * @public
+     */
+    getResultsSnapshot( cycleID ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( !cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID } ) );
+            }
+            if ( cache.instance.isOperational ) {
+                cache.instance.getJSON( cacheEntryKeyResultsSnapshots, `${ cycleID }` ).then( ( result ) => {
+                    const snapshot = _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result );
+                    resolve( snapshot || null );
+                } ).catch( reject );
+            } else {
+                resolve( null );
+            }
+        } );
+    }
+
+    /**
+     * Returns every persisted results snapshot, ordered by `chronoKey` ascending (oldest cycle first) so cross-cycle
+     * trend axes read left-to-right in chronological order.
+     *
+     * @method
+     * @returns {Promise<Array<Object>>}
+     * @public
+     */
+    getAllResultsSnapshots() {
+        return new Promise( ( resolve, reject ) => {
+            if ( cache.instance.isOperational ) {
+                cache.instance.getJSON( cacheEntryKeyResultsSnapshots, "$" ).then( ( result ) => {
+                    const source = _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result );
+                    if ( !source || typeof source !== "object" ) {
+                        return resolve( [] );
+                    }
+                    const snapshots = Object.values( source );
+                    snapshots.sort( ( a, b ) => ( a.chronoKey || 0 ) - ( b.chronoKey || 0 ) );
+                    resolve( snapshots );
+                } ).catch( reject );
+            } else {
+                resolve( [] );
+            }
+        } );
+    }
+
     /**
      * Used to fetch all non-deleted calendar slots for a specific manager and cycle.
      *
