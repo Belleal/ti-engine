@@ -64,7 +64,39 @@ const TiCharts = ( function () {
                _round( end.x ) + " " + _round( end.y );
     }
 
-    function barSegments() { throw new Error( "not implemented" ); }
+    /**
+     * Lays out horizontal/stacked bar segments along a track. Segment widths are proportional to
+     * each segment's `v`; offsets accumulate left-to-right. With `opts.total` the denominator is
+     * fixed (e.g. a roster size) so partial rows do not stretch to fill; otherwise the segments
+     * normalize to their own sum.
+     * @param {Array<{key:string,v:number,tone?:string}>} segments
+     * @param {{width:number,total?:number}} opts
+     * @returns {Array<{key:string,tone:string,x:number,width:number}>}
+     */
+    function barSegments( segments, opts ) {
+        const width = opts.width;
+        let denom = opts.total;
+        if ( denom === undefined || denom === null ) {
+            denom = 0;
+            for ( let i = 0; i < segments.length; i++ ) {
+                denom += ( segments[ i ].v || 0 );
+            }
+        }
+        const out = [];
+        let cursor = 0;
+        for ( let i = 0; i < segments.length; i++ ) {
+            const v = segments[ i ].v || 0;
+            const w = ( denom > 0 ) ? _round( ( v / denom ) * width ) : 0;
+            out.push( {
+                key: segments[ i ].key,
+                tone: segments[ i ].tone || "",
+                x: _round( cursor ),
+                width: w
+            } );
+            cursor += w;
+        }
+        return out;
+    }
 
     /**
      * Formats a 0..1 ratio as a percent string. Clamps to [0,1]; null/undefined/NaN → em dash.

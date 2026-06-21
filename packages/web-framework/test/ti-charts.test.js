@@ -72,3 +72,29 @@ describe( "ti-charts — gauge geometry", () => {
         assert.match( p, /A42 42 0 0 1 / );
     } );
 } );
+
+describe( "ti-charts — bar segment layout", () => {
+    it( "lays stacked segments end-to-end, proportional to value, filling the track", () => {
+        const segs = TiCharts.barSegments(
+            [ { key: "Closed", v: 3, tone: "grade-s" }, { key: "Ready", v: 1, tone: "grade-r" } ],
+            { width: 100 }
+        );
+        assert.equal( segs.length, 2 );
+        assert.deepEqual( segs[ 0 ], { key: "Closed", tone: "grade-s", x: 0, width: 75 } );
+        assert.deepEqual( segs[ 1 ], { key: "Ready", tone: "grade-r", x: 75, width: 25 } );
+    } );
+    it( "handles a single segment that fills the whole track", () => {
+        const segs = TiCharts.barSegments( [ { key: "Not started", v: 5, tone: "ink" } ], { width: 200 } );
+        assert.deepEqual( segs[ 0 ], { key: "Not started", tone: "ink", x: 0, width: 200 } );
+    } );
+    it( "returns zero-width segments when the row total is zero (no NaN)", () => {
+        const segs = TiCharts.barSegments( [ { key: "a", v: 0 }, { key: "b", v: 0 } ], { width: 100 } );
+        assert.equal( segs[ 0 ].width, 0 );
+        assert.equal( segs[ 1 ].width, 0 );
+        assert.equal( segs[ 1 ].x, 0 );
+    } );
+    it( "uses an explicit total when provided (fixed roster denominator)", () => {
+        const segs = TiCharts.barSegments( [ { key: "Closed", v: 3 } ], { width: 100, total: 10 } );
+        assert.equal( segs[ 0 ].width, 30 );
+    } );
+} );
