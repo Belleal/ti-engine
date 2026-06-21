@@ -148,3 +148,31 @@ describe( "ti-charts — gauge rows layout", () => {
         assert.equal( rows[ 0 ].width, 0 );
     } );
 } );
+
+describe( "ti-charts — svgEl builder (CSP attribute discipline)", () => {
+    function fakeDoc() {
+        const created = [];
+        return {
+            created,
+            createElementNS( ns, tag ) {
+                const node = {
+                    ns, tag, attrs: {}, children: [], textContent: "",
+                    setAttribute( k, v ) { this.attrs[ k ] = String( v ); },
+                    appendChild( c ) { this.children.push( c ); return c; },
+                    style: new Proxy( {}, { set() { throw new Error( "element.style.* is forbidden" ); } } )
+                };
+                created.push( node );
+                return node;
+            }
+        };
+    }
+    it( "creates an SVG-namespaced node and sets all attrs via setAttribute", () => {
+        const doc = fakeDoc();
+        const el = TiCharts.svgEl( "path", { d: "M0 0", "stroke-dasharray": "4 3", class: "ti-chart-gauge-arc" }, doc );
+        assert.equal( el.ns, TiCharts.SVG_NS );
+        assert.equal( el.tag, "path" );
+        assert.equal( el.attrs.d, "M0 0" );
+        assert.equal( el.attrs[ "stroke-dasharray" ], "4 3" );
+        assert.equal( el.attrs.class, "ti-chart-gauge-arc" );
+    } );
+} );

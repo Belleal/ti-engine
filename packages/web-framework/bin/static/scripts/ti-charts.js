@@ -130,6 +130,60 @@ const TiCharts = ( function () {
     }
 
     /**
+     * Creates an SVG-namespaced element and applies every attribute via setAttribute (CSP-legal).
+     * Never touches element.style. Pass `doc` to inject a document in tests.
+     * @param {string} tag
+     * @param {Object<string,string|number>} attrs
+     * @param {Document} [doc]
+     * @returns {Element}
+     */
+    function svgEl( tag, attrs, doc ) {
+        const d = doc || ( typeof document !== "undefined" ? document : null );
+        const el = d.createElementNS( SVG_NS, tag );
+        if ( attrs ) {
+            const keys = Object.keys( attrs );
+            for ( let i = 0; i < keys.length; i++ ) {
+                el.setAttribute( keys[ i ], String( attrs[ keys[ i ] ] ) );
+            }
+        }
+        return el;
+    }
+
+    /**
+     * Builds the visually-hidden HTML <table class="ti-chart-sr"> a11y mirror placed beside the <svg>.
+     * @param {string[]} headers
+     * @param {Array<Array<string|number>>} rows
+     * @param {Document} [doc]
+     * @returns {HTMLTableElement}
+     */
+    function buildSrTable( headers, rows, doc ) {
+        const d = doc || ( typeof document !== "undefined" ? document : null );
+        const table = d.createElement( "table" );
+        table.setAttribute( "class", "ti-chart-sr" );
+        const thead = d.createElement( "thead" );
+        const htr = d.createElement( "tr" );
+        for ( let i = 0; i < headers.length; i++ ) {
+            const th = d.createElement( "th" );
+            th.textContent = String( headers[ i ] );
+            htr.appendChild( th );
+        }
+        thead.appendChild( htr );
+        table.appendChild( thead );
+        const tbody = d.createElement( "tbody" );
+        for ( let r = 0; r < rows.length; r++ ) {
+            const tr = d.createElement( "tr" );
+            for ( let c = 0; c < rows[ r ].length; c++ ) {
+                const td = d.createElement( "td" );
+                td.textContent = String( rows[ r ][ c ] );
+                tr.appendChild( td );
+            }
+            tbody.appendChild( tr );
+        }
+        table.appendChild( tbody );
+        return table;
+    }
+
+    /**
      * Lays out Coverage gauge sub-rows: each row's coverage ratio (explicit `value`, else n/total)
      * and its bar width along the track. Guards total=0.
      * @param {Array<{id:string,name:string,value?:number,n?:number,total?:number,tone?:string}>} rows
@@ -202,6 +256,8 @@ const TiCharts = ( function () {
         barSegments,
         normalizeSpec,
         gaugeRowsLayout,
+        svgEl,
+        buildSrTable,
         formatPercent,
         formatNumber
     };
