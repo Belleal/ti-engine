@@ -21,8 +21,37 @@ const TiCharts = ( function () {
 
     function gaugeArcPath() { throw new Error( "not implemented" ); }
     function barSegments() { throw new Error( "not implemented" ); }
-    function formatPercent() { throw new Error( "not implemented" ); }
-    function formatNumber() { throw new Error( "not implemented" ); }
+
+    /**
+     * Formats a 0..1 ratio as a percent string. Clamps to [0,1]; null/undefined/NaN → em dash.
+     * @param {number} ratio
+     * @param {number} [digits=0]
+     * @returns {string}
+     */
+    function formatPercent( ratio, digits ) {
+        if ( ratio === null || ratio === undefined || Number.isNaN( ratio ) ) {
+            return "—";
+        }
+        const d = ( typeof digits === "number" ) ? digits : 0;
+        let r = ratio;
+        if ( r < 0 ) { r = 0; }
+        if ( r > 1 ) { r = 1; }
+        return ( r * 100 ).toFixed( d ) + "%";
+    }
+
+    /**
+     * Formats a number to fixed digits (default 0). null/undefined/NaN → em dash.
+     * @param {number} value
+     * @param {number} [digits=0]
+     * @returns {string}
+     */
+    function formatNumber( value, digits ) {
+        if ( value === null || value === undefined || Number.isNaN( value ) ) {
+            return "—";
+        }
+        const d = ( typeof digits === "number" ) ? digits : 0;
+        return Number( value ).toFixed( d );
+    }
 
     return {
         SVG_NS,

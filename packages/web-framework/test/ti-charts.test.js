@@ -19,3 +19,28 @@ describe( "ti-charts module", () => {
         assert.equal( typeof TiCharts.formatNumber, "function" );
     } );
 } );
+
+describe( "ti-charts — number/percent formatting", () => {
+    it( "formatPercent renders a 0..1 ratio as a whole-percent string", () => {
+        assert.equal( TiCharts.formatPercent( 0 ), "0%" );
+        assert.equal( TiCharts.formatPercent( 1 ), "100%" );
+        assert.equal( TiCharts.formatPercent( 0.4267 ), "43%" );
+    } );
+    it( "formatPercent honours an explicit fraction-digits argument", () => {
+        assert.equal( TiCharts.formatPercent( 0.4267, 1 ), "42.7%" );
+    } );
+    it( "formatPercent clamps out-of-range ratios into 0..1", () => {
+        assert.equal( TiCharts.formatPercent( -0.2 ), "0%" );
+        assert.equal( TiCharts.formatPercent( 1.5 ), "100%" );
+    } );
+    it( "formatPercent returns an em dash for null/NaN", () => {
+        assert.equal( TiCharts.formatPercent( null ), "—" );
+        assert.equal( TiCharts.formatPercent( NaN ), "—" );
+    } );
+    it( "formatNumber rounds to the requested digits and dashes null", () => {
+        assert.equal( TiCharts.formatNumber( 105 ), "105" );
+        assert.equal( TiCharts.formatNumber( 104.6 ), "105" );
+        assert.equal( TiCharts.formatNumber( 104.56, 1 ), "104.6" );
+        assert.equal( TiCharts.formatNumber( null ), "—" );
+    } );
+} );
