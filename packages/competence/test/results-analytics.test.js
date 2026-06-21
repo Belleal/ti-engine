@@ -236,3 +236,84 @@ describe( "ResultsAnalytics.computeCoverage — overall", () => {
     } );
 
 } );
+
+// Mirrors getOrganizationUnitSubtree output: nested {id,name,employees(direct-only),children[]} (organization-manager.js:459-470).
+function subtreeFixture() {
+    return {
+        id: "1",
+        name: "Org",
+        employees: [ { employeeID: "ceo", name: "CEO", roleFamily: "MG", organizationUnitID: "1" } ],
+        children: [
+            {
+                id: "unit-A",
+                name: "Unit A",
+                employees: [
+                    { employeeID: "emp1", name: "Emp One", roleFamily: "SE", organizationUnitID: "unit-A" },
+                    { employeeID: "emp2", name: "Emp Two", roleFamily: "SE", organizationUnitID: "unit-A" }
+                ],
+                children: [
+                    {
+                        id: "unit-A1",
+                        name: "Unit A1",
+                        employees: [ { employeeID: "emp3", name: "Emp Three", roleFamily: "QA", organizationUnitID: "unit-A1" } ],
+                        children: []
+                    }
+                ]
+            },
+            {
+                id: "unit-B",
+                name: "Unit B",
+                employees: [ { employeeID: "emp4", name: "Emp Four", roleFamily: "SE", organizationUnitID: "unit-B" } ],
+                children: []
+            }
+        ]
+    };
+}
+
+describe( "ResultsAnalytics.buildRoster — recursive subtree flatten", () => {
+
+    it( "flattens every node's direct employees across the whole subtree (walks .children)", () => {
+        const roster = resultsAnalyticsInstance.buildRoster( subtreeFixture() );
+        const ids = roster.map( ( m ) => m.employeeID ).sort();
+        assert.deepEqual( ids, [ "ceo", "emp1", "emp2", "emp3", "emp4" ] );
+    } );
+
+    it( "carries employeeID/name/roleFamily/organizationUnitID onto each roster member", () => {
+        const roster = resultsAnalyticsInstance.buildRoster( subtreeFixture() );
+        const emp3 = roster.find( ( m ) => m.employeeID === "emp3" );
+        assert.deepEqual( emp3, { employeeID: "emp3", name: "Emp Three", roleFamily: "QA", organizationUnitID: "unit-A1" } );
+    } );
+
+    it( "de-duplicates an employee that appears under two nodes (defensive against graph cycles)", () => {
+        const tree = subtreeFixture();
+        tree.children[ 1 ].employees.push( { employeeID: "emp1", name: "Emp One", roleFamily: "SE", organizationUnitID: "unit-B" } );
+        const roster = resultsAnalyticsInstance.buildRoster( tree );
+        assert.equal( roster.filter( ( m ) => m.employeeID === "emp1" ).length, 1 );
+    } );
+
+    it( "returns [] for a null subtree (e.g. an unresolved root id)", () => {
+        assert.deepEqual( resultsAnalyticsInstance.buildRoster( null ), [] );
+    } );
+
+} );
+
+describe( "ResultsAnalytics.resolveScopeFilter — manager vs supervisor", () => {
+
+    it( "supervisor scope is whole-org: allowedEmployeeIDs null, rootUnitID is the resolved org root", () => {
+        const scope = resultsAnalyticsInstance.resolveScopeFilter( { isSupervisor: true, employeeID: "sup", orgRootUnitID: "1" } );
+        assert.equal( scope.allowedEmployeeIDs, null );
+        assert.equal( scope.rootUnitID, "1" );
+    } );
+
+    it( "manager scope roots at the manager's own unit and allow-lists their subtree", () => {
+        const scope = resultsAnalyticsInstance.resolveScopeFilter( {
+            isSupervisor: false,
+            employeeID: "mgr1",
+            managerUnitID: "unit-A",
+            subtreeEmployeeIDs: [ "emp1", "emp2", "emp3" ]
+        } );
+        assert.equal( scope.rootUnitID, "unit-A" );
+        assert.deepEqual( scope.allowedEmployeeIDs.sort(), [ "emp1", "emp2", "emp3" ] );
+    } );
+
+} );

@@ -266,6 +266,68 @@ class ResultsAnalytics {
         return { N: bucket.N, n: bucket.n, pct: pct, byStatus: bucket.byStatus, notStarted: bucket.notStarted };
     }
 
+    /**
+     * Recursively flattens an org subtree node into a de-duplicated roster. The subtree's `.employees` are direct
+     * members only; descendants live under `.children` (organization-manager.js:459-470), so the roster walks
+     * `.children` recursively concatenating each node's `.employees`.
+     *
+     * @method
+     * @param {Object|null} subtree - Output of organizationManager.getOrganizationUnitSubtree(rootUnitID).
+     * @returns {Array<Object>} [{employeeID, name, roleFamily, organizationUnitID}]
+     * @public
+     */
+    buildRoster( subtree ) {
+        const seen = new Set();
+        const roster = [];
+        const walk = ( node ) => {
+            if ( !node || typeof node !== "object" ) {
+                return;
+            }
+            const employees = Array.isArray( node.employees ) ? node.employees : [];
+            for ( const employee of employees ) {
+                if ( !employee || !employee.employeeID || seen.has( employee.employeeID ) ) {
+                    continue;
+                }
+                seen.add( employee.employeeID );
+                roster.push( {
+                    employeeID: employee.employeeID,
+                    name: ( employee.name !== undefined ) ? employee.name : null,
+                    roleFamily: employee.roleFamily || "",
+                    organizationUnitID: employee.organizationUnitID || ""
+                } );
+            }
+            const children = Array.isArray( node.children ) ? node.children : [];
+            for ( const child of children ) {
+                walk( child );
+            }
+        };
+        walk( subtree );
+        return roster;
+    }
+
+    /**
+     * Resolves the cohort scope from an injected authority descriptor. Supervisor → whole org (allowedEmployeeIDs
+     * null, rooted at the resolved org root — the web layer computes orgRootUnitID via
+     * organizationManager.getOrganizationRootUnitID(), Task B0). Manager → own subtree (rooted at the manager's
+     * unit, allow-listed by the pre-computed subtree member IDs). The web layer computes
+     * managerUnitID/subtreeEmployeeIDs via organizationManager + isSuperiorManagerOfEmployee (resolved decision
+     * §7.7: full multi-level subtree).
+     *
+     * @method
+     * @param {Object} authority - { isSupervisor, employeeID, orgRootUnitID?, managerUnitID?, subtreeEmployeeIDs? }
+     * @returns {Object} { rootUnitID, allowedEmployeeIDs }
+     * @public
+     */
+    resolveScopeFilter( authority ) {
+        if ( authority && authority.isSupervisor === true ) {
+            return { rootUnitID: authority.orgRootUnitID || "", allowedEmployeeIDs: null };
+        }
+        return {
+            rootUnitID: ( authority && authority.managerUnitID ) || "",
+            allowedEmployeeIDs: ( authority && Array.isArray( authority.subtreeEmployeeIDs ) ) ? authority.subtreeEmployeeIDs.slice() : []
+        };
+    }
+
 }
 
 const instance = new ResultsAnalytics();
