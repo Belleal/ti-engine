@@ -8,6 +8,7 @@
 
 const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
+const exceptions = require( "@ti-engine/core/exceptions" );
 const organizationManager = require( "#organization-manager" );
 const packageVersion = require( "../package.json" ).version;
 
@@ -398,7 +399,7 @@ class ResultsAnalytics {
     resolve( cycleID, filter, reportKey ) {
         const deps = {
             getCycle: ( id ) => dataManager.instance.getCycle( id ).catch( ( error ) => {
-                if ( error && error.code === "E_APP_RESOURCE_NOT_FOUND" ) {
+                if ( error && error.code === exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND ) {
                     return null;
                 }
                 throw error;
@@ -492,6 +493,9 @@ class ResultsAnalytics {
     persistResultsSnapshot( cycleID ) {
         return dataManager.instance.getCycle( cycleID ).then( ( cycle ) => {
             const rootUnitID = organizationManager.instance.getOrganizationRootUnitID();
+            if ( !rootUnitID ) {
+                return Promise.reject( new Error( "Cannot persist results snapshot for cycle '" + cycleID + "': organization chart not initialised" ) );
+            }
             const filter = { groupBy: "orgUnit", allowedEmployeeIDs: null, rootUnitID: rootUnitID };
             const resolveOrgUnit = ( employeeID ) => organizationManager.instance.resolveOrganizationUnitIDForEmployee( employeeID );
             const frameFilter = Object.assign( {}, filter, { resolveOrgUnit: resolveOrgUnit } );
@@ -501,13 +505,8 @@ class ResultsAnalytics {
                 const subtree = organizationManager.instance.getOrganizationUnitSubtree( rootUnitID );
                 const roster = this.buildRoster( subtree );
                 const coverageReport = this.computeCoverage( frame, roster, frameFilter );
-                const meta = {
-                    cycleID: cycleID,
-                    mode: "snapshot",
-                    cycleStatus: cycle.status,
-                    computedAt: new Date().toISOString(),
-                    partial: false
-                };
+                const metaPayload = this.#withMeta( {}, cycleID, cycle.status, frame, false );
+                const meta = metaPayload.meta;
                 const snapshot = this.buildResultsSnapshot( cycleID, {
                     frame: frame,
                     coverageReport: coverageReport,
@@ -548,20 +547,21 @@ class ResultsAnalytics {
         const half = parts[ 1 ];
         const chronoKey = ( year * 2 ) + ( half === "H2" ? 1 : 0 );
 
+        const computedAt = ( input.meta && input.meta.computedAt ) ? input.meta.computedAt : new Date().toISOString();
         return {
             cycleID: cycleID,
             schemaVersion: 1,
             dictionaryVersion: input.dictionaryVersion || null,
             competencyCodeEra: "v3.0.0",
-            computedAt: new Date().toISOString(),
+            computedAt: computedAt,
             cycleClosedAt: cycle.actualCloseDate || null,
             provisional: false,
             chronoKey: chronoKey,
             meta: input.meta || {},
             cohort: {
                 nEligible: ( overall.N != null ) ? overall.N : 0,
-                nClosed: frame.length,
-                nScored: frame.length,
+                nClosed: frame.filter( ( r ) => r.status === configurationLoader.evaluationStatus.CLOSED ).length,
+                nScored: frame.filter( ( r ) => r.isScored ).length,
                 reportingPct: ( overall.pct != null ) ? overall.pct : 0
             },
 

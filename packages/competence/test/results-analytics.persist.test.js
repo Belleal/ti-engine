@@ -13,11 +13,13 @@ const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
 const configurationLoader = require( "#configuration-loader" );
 
 let dataManager;
+let organizationManager;
 let resultsAnalytics;
 
 before( () => {
     installInMemoryCache();
     dataManager = require( "#data-manager" );
+    organizationManager = require( "#organization-manager" );
     resultsAnalytics = require( "#results-analytics" );
 } );
 
@@ -25,6 +27,9 @@ beforeEach( async () => {
     installInMemoryCache();
     delete process.env.COMPETENCE_PRELOAD_DATA;
     await dataManager.instance.initialize();
+    // Build the org chart so getOrganizationRootUnitID() returns the real root unit id ("1").
+    // persistResultsSnapshot rejects when the chart is not initialised (null-root guard, Fix 3).
+    await organizationManager.instance.buildOrganizationChart();
 } );
 
 describe( "ResultsAnalytics.persistResultsSnapshot — re-reads cycle for actualCloseDate", () => {

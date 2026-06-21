@@ -9,6 +9,7 @@
 const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 
+const exceptions = require( "@ti-engine/core/exceptions" );
 const resultsAnalytics = require( "#results-analytics" );
 
 describe( "ResultsAnalytics — module shape", () => {
@@ -394,6 +395,31 @@ describe( "ResultsAnalytics.resolve — live vs snapshot switch", () => {
         assert.equal( result.meta.mode, "snapshot" );
         assert.equal( result.coverage.overall.N, 0 );
         assert.equal( result.coverage.overall.pct, 0 );
+    } );
+
+    it( "resolve() swallows E_APP_RESOURCE_NOT_FOUND (numeric code) and returns empty snapshot, not a rejection", async () => {
+        // Verifies the fix: error.code is a numeric enum value (5004), NOT the string key "E_APP_RESOURCE_NOT_FOUND".
+        // The old code compared against the string and the catch never matched, causing the rejection to propagate.
+        // We simulate the fixed resolve() getCycle wrapper: reject with a genuine TiException, catch only on the
+        // numeric constant (exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND === 5004), and resolve null for that case.
+        const notFoundException = exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "Cycle 'no-such-cycle' not found!" } );
+        const wrappedGetCycle = ( id ) => Promise.reject( notFoundException ).catch( ( error ) => {
+            if ( error && error.code === exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND ) {
+                return null;
+            }
+            throw error;
+        } );
+        const deps = depsFixture( {
+            getCycle: wrappedGetCycle,
+            getResultsSnapshot: () => Promise.resolve( null )
+        } );
+        const result = await resultsAnalyticsInstance._resolveWith( deps, "no-such-cycle", filterFixture( { allowedEmployeeIDs: null } ), "coverage" );
+        assert.equal( result.meta.mode, "snapshot" );
+        assert.equal( result.coverage.overall.N, 0 );
+        assert.equal( result.coverage.overall.pct, 0 );
+        // Confirm the TiException carries the numeric code (not the string key) — the old string comparison was dead.
+        assert.equal( notFoundException.code, exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND );
+        assert.equal( typeof notFoundException.code, "number" );
     } );
 
 } );

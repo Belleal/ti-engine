@@ -78,13 +78,18 @@ describe( "ResultsAnalytics.buildResultsSnapshot — locked shape", () => {
     } );
 
     it( "derives cohort counts from the frame and coverage report", () => {
+        // Frame rows must carry status and isScored so nClosed and nScored are accurate (Fix 2).
         const snap = resultsAnalytics.instance.buildResultsSnapshot( "2026-H2", {
-            frame: [ { evaluationID: "e1" }, { evaluationID: "e2" } ],
+            frame: [
+                { evaluationID: "e1", status: "Closed", isScored: true },
+                { evaluationID: "e2", status: "Closed", isScored: true }
+            ],
             coverageReport: coverageReport( { n: 2, N: 3, pct: 66.7 } ),
             cycle: cycle(), dictionaryVersion: "3.3.1", meta: {}
         } );
         assert.equal( snap.cohort.nEligible, 3 );
         assert.equal( snap.cohort.nClosed, 2 );
+        assert.equal( snap.cohort.nScored, 2 );
         assert.equal( snap.cohort.reportingPct, 66.7 );
     } );
 
