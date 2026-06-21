@@ -6,6 +6,7 @@
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
 const organizationManager = require( "#organization-manager" );
 
@@ -203,7 +204,7 @@ class ResultsAnalytics {
             this.#tallyCoverage( group.bucket, row );
 
             const status = row ? row.status : NOT_STARTED_LABEL;
-            if ( status !== "Ready" && status !== "Closed" ) {
+            if ( status !== configurationLoader.evaluationStatus.READY && status !== configurationLoader.evaluationStatus.CLOSED ) {
                 pending.push( {
                     evaluationID: row ? row.evaluationID : null,
                     employeeID: member.employeeID,
@@ -249,7 +250,7 @@ class ResultsAnalytics {
         if ( Object.prototype.hasOwnProperty.call( bucket.byStatus, row.status ) ) {
             bucket.byStatus[ row.status ] += 1;
         }
-        if ( row.status === "Ready" || row.status === "Closed" ) {
+        if ( row.status === configurationLoader.evaluationStatus.READY || row.status === configurationLoader.evaluationStatus.CLOSED ) {
             bucket.n += 1;
         }
     }
@@ -346,10 +347,11 @@ class ResultsAnalytics {
      */
     _resolveWith( deps, cycleID, filter, reportKey ) {
         return deps.getCycle( cycleID ).then( ( cycle ) => {
-            const status = cycle ? cycle.status : "CLOSED";   // falsy cycle (not-found) → treated as closed/empty
+            const status = cycle ? cycle.status : configurationLoader.cycleStatus.CLOSED;   // falsy cycle (not-found) → treated as closed/empty
             const wholeOrg = !filter || filter.allowedEmployeeIDs === null;
 
-            if ( status === "CLOSED" && wholeOrg ) {
+            if ( status === configurationLoader.cycleStatus.CLOSED && wholeOrg ) {
+                // @todo 0C: deps.getResultsSnapshot is provided by dataManager.getResultsSnapshot (not yet present).
                 return deps.getResultsSnapshot( cycleID ).then( ( snapshot ) => {
                     const payload = ( snapshot && snapshot.reports && snapshot.reports[ reportKey ] ) ? { coverage: snapshot.reports[ reportKey ] } : this.#emptyReport( reportKey );
                     return this.#withMeta( payload, cycleID, status, null, false );
@@ -360,7 +362,7 @@ class ResultsAnalytics {
             return deps.fetchEvaluations( null, false ).then( ( evaluations ) => {
                 const allowed = ( filter && Array.isArray( filter.allowedEmployeeIDs ) ) ? new Set( filter.allowedEmployeeIDs ) : null;
                 const liveEvals = evaluations.filter( ( evaluation ) => {
-                    if ( !evaluation || evaluation.status === "Deleted" ) {   // explicit DELETED re-filter on the raw path
+                    if ( !evaluation || evaluation.status === configurationLoader.evaluationStatus.DELETED ) {   // defensive: fetchEvaluations already strips DELETED; guard against a future change
                         return false;
                     }
                     return allowed === null || allowed.has( evaluation.employeeID );
@@ -374,7 +376,7 @@ class ResultsAnalytics {
                 }
 
                 const payload = this.#computeReport( reportKey, frame, roster, frameFilter );
-                return this.#withMeta( payload, cycleID, status, frame, status === "ACTIVE" );
+                return this.#withMeta( payload, cycleID, status, frame, status === configurationLoader.cycleStatus.ACTIVE );
             } );
         } );
     }
@@ -451,18 +453,18 @@ class ResultsAnalytics {
      * @private
      */
     #withMeta( payload, cycleID, cycleStatus, frame, isActive ) {
-        const mode = ( cycleStatus === "ACTIVE" ) ? "live" : "snapshot";
+        const mode = ( cycleStatus === configurationLoader.cycleStatus.ACTIVE ) ? "live" : "snapshot";
         let total = 0;
         let reporting = 0;
         if ( Array.isArray( frame ) ) {
             total = frame.length;
-            reporting = frame.filter( ( row ) => row && ( row.status === "Ready" || row.status === "Closed" ) ).length;
+            reporting = frame.filter( ( row ) => row && ( row.status === configurationLoader.evaluationStatus.READY || row.status === configurationLoader.evaluationStatus.CLOSED ) ).length;
         }
         const pctReporting = ( total > 0 ) ? Math.round( ( reporting / total ) * 100 ) : 0;
         const meta = {
             cycleID: cycleID,
             mode: mode,
-            cycleStatus: ( cycleStatus === "ACTIVE" ) ? "ACTIVE" : "CLOSED",
+            cycleStatus: cycleStatus,
             computedAt: new Date().toISOString(),
             total: total,
             reporting: reporting,
