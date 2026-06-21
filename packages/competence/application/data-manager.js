@@ -19,6 +19,7 @@ const cacheEntryKeyCycles = "ti:competence:data:cycles";
 const cacheEntryKeyEmployees = "ti:competence:data:employees";
 const cacheEntryKeyEvaluations = "ti:competence:data:evaluations";
 const cacheEntryKeyRoleFamilies = "ti:competence:data:role-families";
+const cacheEntryKeyResultsSnapshots = "ti:competence:data:results-snapshots"; // { [cycleID]: ResultsSnapshot }
 
 const BASELINE_KEY = "baseline";
 
@@ -64,6 +65,7 @@ class DataManager {
         promises.push( cache.instance.setJSON( cacheEntryKeyEmployees, {}, "$", 1 ) );
         promises.push( cache.instance.setJSON( cacheEntryKeyEvaluations, {}, "$", 1 ) );
         promises.push( cache.instance.setJSON( cacheEntryKeyRoleFamilies, {}, "$", 1 ) );
+        promises.push( cache.instance.setJSON( cacheEntryKeyResultsSnapshots, {}, "$", 1 ) );
 
         let preloadData = ( process.env.COMPETENCE_PRELOAD_DATA !== undefined ) ? tools.toBool( process.env.COMPETENCE_PRELOAD_DATA ) : false;
 
