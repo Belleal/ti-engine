@@ -328,6 +328,150 @@ class ResultsAnalytics {
         };
     }
 
+    /**
+     * Pure live/snapshot resolution core. Deps are injected so the branch logic unit-tests without Redis. The public
+     * `resolve` wires the real singletons. A falsy cycle (the real getCycle rejection is swallowed to null by the
+     * public wrapper) is treated as a CLOSED whole-org read, which projects an empty snapshot. CLOSED + whole-org →
+     * snapshot projection (no recompute); CLOSED + narrow filter → recompute from the still-present closed evals
+     * (re-applying the DELETED exclusion, since the raw path bypasses fetchEvaluations' default filter). ACTIVE →
+     * live compute with meta.partial / pctReporting. (Coverage is the only reportKey for Phase 0.)
+     *
+     * @method
+     * @param {Object} deps - { getCycle, fetchEvaluations, getResultsSnapshot, buildSubtree, resolveOrgUnit }
+     * @param {string} cycleID
+     * @param {Object} filter - CohortFilter (allowedEmployeeIDs decides whole-org vs narrow; rootUnitID roots the roster).
+     * @param {string} reportKey - "coverage" for Phase 0.
+     * @returns {Promise<Object>} report payload merged with { meta }.
+     * @public
+     */
+    _resolveWith( deps, cycleID, filter, reportKey ) {
+        return deps.getCycle( cycleID ).then( ( cycle ) => {
+            const status = cycle ? cycle.status : "CLOSED";   // falsy cycle (not-found) → treated as closed/empty
+            const wholeOrg = !filter || filter.allowedEmployeeIDs === null;
+
+            if ( status === "CLOSED" && wholeOrg ) {
+                return deps.getResultsSnapshot( cycleID ).then( ( snapshot ) => {
+                    const payload = ( snapshot && snapshot.reports && snapshot.reports[ reportKey ] ) ? { coverage: snapshot.reports[ reportKey ] } : this.#emptyReport( reportKey );
+                    return this.#withMeta( payload, cycleID, status, null, false );
+                } );
+            }
+
+            // ACTIVE (live), or CLOSED + narrow filter (recompute) — both read evals and re-apply DELETED exclusion.
+            return deps.fetchEvaluations( null, false ).then( ( evaluations ) => {
+                const allowed = ( filter && Array.isArray( filter.allowedEmployeeIDs ) ) ? new Set( filter.allowedEmployeeIDs ) : null;
+                const liveEvals = evaluations.filter( ( evaluation ) => {
+                    if ( !evaluation || evaluation.status === "Deleted" ) {   // explicit DELETED re-filter on the raw path
+                        return false;
+                    }
+                    return allowed === null || allowed.has( evaluation.employeeID );
+                } );
+                const frameFilter = Object.assign( {}, filter, { resolveOrgUnit: deps.resolveOrgUnit } );
+                const frame = this.buildCohortFrame( liveEvals, cycleID, frameFilter );
+
+                let roster = this.buildRoster( deps.buildSubtree( filter ) );
+                if ( allowed !== null ) {
+                    roster = roster.filter( ( member ) => allowed.has( member.employeeID ) );
+                }
+
+                const payload = this.#computeReport( reportKey, frame, roster, frameFilter );
+                return this.#withMeta( payload, cycleID, status, frame, status === "ACTIVE" );
+            } );
+        } );
+    }
+
+    /**
+     * Public entrypoint: wires the real singletons into the pure resolve core. The web layer first computes the
+     * scope (resolveScopeFilter) and injects rootUnitID + allowedEmployeeIDs into `filter`. The real getCycle
+     * REJECTS with E_APP_RESOURCE_NOT_FOUND for an unknown cycle (data-manager.js:529-530), so it is wrapped to
+     * resolve null on that one exception — letting the pure core's falsy-cycle branch handle it instead of throwing.
+     *
+     * @method
+     * @param {string} cycleID
+     * @param {Object} filter - CohortFilter with rootUnitID + allowedEmployeeIDs already resolved by the web layer.
+     * @param {string} reportKey
+     * @returns {Promise<Object>}
+     * @public
+     */
+    resolve( cycleID, filter, reportKey ) {
+        const deps = {
+            getCycle: ( id ) => dataManager.instance.getCycle( id ).catch( ( error ) => {
+                if ( error && error.code === "E_APP_RESOURCE_NOT_FOUND" ) {
+                    return null;
+                }
+                throw error;
+            } ),
+            fetchEvaluations: ( employeeID, filterClosed ) => dataManager.instance.fetchEvaluations( employeeID, filterClosed ),
+            getResultsSnapshot: ( id ) => dataManager.instance.getResultsSnapshot( id ),
+            buildSubtree: ( f ) => organizationManager.instance.getOrganizationUnitSubtree( f ? f.rootUnitID : "" ),
+            resolveOrgUnit: ( employeeID ) => organizationManager.instance.resolveOrganizationUnitIDForEmployee( employeeID )
+        };
+        return this._resolveWith( deps, cycleID, filter, reportKey );
+    }
+
+    /**
+     * Dispatches a frame+roster to the requested report computation. Phase 0 supports "coverage" only.
+     * @method
+     * @param {string} reportKey
+     * @param {Array<Object>} frame
+     * @param {Array<Object>} roster
+     * @param {Object} filter
+     * @returns {Object}
+     * @private
+     */
+    #computeReport( reportKey, frame, roster, filter ) {
+        if ( reportKey === "coverage" ) {
+            return { coverage: this.computeCoverage( frame, roster, filter ) };
+        }
+        return this.#emptyReport( reportKey );
+    }
+
+    /**
+     * @method
+     * @param {string} reportKey
+     * @returns {Object}
+     * @private
+     */
+    #emptyReport( reportKey ) {
+        return ( reportKey === "coverage" )
+            ? { coverage: { overall: this.#finalizeCoverageBucket( this.#emptyCoverageBucket() ), byGroup: [], pending: [] } }
+            : {};
+    }
+
+    /**
+     * Wraps a report payload with the shared ResultMeta envelope. `reporting` = Ready+Closed rows in the frame;
+     * `partial` is true only for ACTIVE cycles where not everyone is reporting. CLOSED / snapshot is always
+     * partial:false (no frame is passed, so total/reporting are 0).
+     * @method
+     * @param {Object} payload
+     * @param {string} cycleID
+     * @param {string} cycleStatus
+     * @param {Array<Object>|null} frame - frame (live/recompute) used for reporting counts; null for projection.
+     * @param {boolean} isActive
+     * @returns {Object}
+     * @private
+     */
+    #withMeta( payload, cycleID, cycleStatus, frame, isActive ) {
+        const mode = ( cycleStatus === "ACTIVE" ) ? "live" : "snapshot";
+        let total = 0;
+        let reporting = 0;
+        if ( Array.isArray( frame ) ) {
+            total = frame.length;
+            reporting = frame.filter( ( row ) => row && ( row.status === "Ready" || row.status === "Closed" ) ).length;
+        }
+        const pctReporting = ( total > 0 ) ? Math.round( ( reporting / total ) * 100 ) : 0;
+        const meta = {
+            cycleID: cycleID,
+            mode: mode,
+            cycleStatus: ( cycleStatus === "ACTIVE" ) ? "ACTIVE" : "CLOSED",
+            computedAt: new Date().toISOString(),
+            total: total,
+            reporting: reporting,
+            pctReporting: pctReporting,
+            partial: ( isActive === true ) && ( reporting < total )
+        };
+        return Object.assign( {}, payload, { meta: meta } );
+    }
+
 }
 
 const instance = new ResultsAnalytics();

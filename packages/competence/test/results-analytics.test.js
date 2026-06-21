@@ -317,3 +317,83 @@ describe( "ResultsAnalytics.resolveScopeFilter — manager vs supervisor", () =>
     } );
 
 } );
+
+// Builds a deps stub for _resolveWith: getCycle / fetchEvaluations / getResultsSnapshot / buildSubtree / resolveOrgUnit.
+function depsFixture( over = {} ) {
+    return {
+        getCycle: over.getCycle || ( ( id ) => Promise.resolve( { cycleID: id, status: over.cycleStatus || "ACTIVE" } ) ),
+        fetchEvaluations: over.fetchEvaluations || ( () => Promise.resolve( over.evaluations || [] ) ),
+        getResultsSnapshot: over.getResultsSnapshot || ( () => Promise.resolve( over.snapshot || null ) ),
+        buildSubtree: over.buildSubtree || ( () => over.subtree || subtreeFixture() ),
+        resolveOrgUnit: over.resolveOrgUnit || ( ( employeeID ) => ( employeeID === "emp1" ? "unit-A" : "unit-B" ) )
+    };
+}
+
+describe( "ResultsAnalytics.resolve — live vs snapshot switch", () => {
+
+    it( "ACTIVE cycle → live mode: computes a NON-EMPTY org-wide roster, sets meta.mode 'live' and partial flag", async () => {
+        const evaluations = [
+            evaluationFixture( { evaluationID: "a", employeeID: "emp1", status: "Ready" } ),
+            evaluationFixture( { evaluationID: "b", employeeID: "emp2", status: "Open", finalScore: null } )
+        ];
+        const deps = depsFixture( { cycleStatus: "ACTIVE", evaluations } );
+        const result = await resultsAnalyticsInstance._resolveWith( deps, "2026-H2", filterFixture( { allowedEmployeeIDs: null } ), "coverage" );
+        assert.equal( result.meta.mode, "live" );
+        assert.equal( result.meta.cycleStatus, "ACTIVE" );
+        // Walking-skeleton guard: the whole-org roster (from subtreeFixture) is non-empty, so N reflects the roster, not just the eval count.
+        assert.equal( result.coverage.overall.N, 5 );
+        assert.equal( result.coverage.overall.notStarted, 3 );   // ceo, emp3, emp4 have no eval
+        assert.equal( typeof result.coverage.overall.pct, "number" );
+        // partial ⇒ not everyone reporting (only Ready/Closed report).
+        assert.equal( result.meta.partial, true );
+    } );
+
+    it( "CLOSED cycle with a snapshot → snapshot mode, partial:false, no recompute", async () => {
+        let fetched = false;
+        const snapshot = { reports: { coverage: { overall: { N: 5, n: 5, pct: 100, notStarted: 0, byStatus: { "Open": 0, "In Review": 0, "Ready": 0, "Closed": 5 } }, byGroup: [], pending: [] } } };
+        const deps = depsFixture( { cycleStatus: "CLOSED", snapshot, fetchEvaluations: () => { fetched = true; return Promise.resolve( [] ); } } );
+        const result = await resultsAnalyticsInstance._resolveWith( deps, "2026-H2", filterFixture( { allowedEmployeeIDs: null } ), "coverage" );
+        assert.equal( result.meta.mode, "snapshot" );
+        assert.equal( result.meta.cycleStatus, "CLOSED" );
+        assert.equal( result.meta.partial, false );
+        assert.equal( result.coverage.overall.pct, 100 );
+        assert.equal( fetched, false, "whole-org closed snapshot must not recompute" );
+    } );
+
+    it( "CLOSED cycle with a narrower-than-whole-org filter → snapshot-recompute branch (still mode 'snapshot')", async () => {
+        let fetched = false;
+        const evaluations = [ evaluationFixture( { evaluationID: "a", employeeID: "emp1", status: "Closed" } ) ];
+        const deps = depsFixture( {
+            cycleStatus: "CLOSED",
+            snapshot: { reports: { coverage: {} } },
+            fetchEvaluations: () => { fetched = true; return Promise.resolve( evaluations ); }
+        } );
+        const filter = filterFixture( { allowedEmployeeIDs: [ "emp1" ] } );   // narrower than whole-org
+        const result = await resultsAnalyticsInstance._resolveWith( deps, "2026-H2", filter, "coverage" );
+        assert.equal( result.meta.mode, "snapshot" );
+        assert.equal( result.meta.partial, false );
+        assert.equal( fetched, true, "narrow closed filter must recompute from closed evals" );
+    } );
+
+    it( "applies allowedEmployeeIDs to both the frame and the roster (privacy allow-list)", async () => {
+        const evaluations = [
+            evaluationFixture( { evaluationID: "a", employeeID: "emp1", status: "Ready" } ),
+            evaluationFixture( { evaluationID: "b", employeeID: "emp4", status: "Ready" } )
+        ];
+        const deps = depsFixture( { cycleStatus: "ACTIVE", evaluations } );
+        const filter = filterFixture( { allowedEmployeeIDs: [ "emp1", "emp2", "emp3" ] } );   // excludes emp4 / unit-B / ceo
+        const result = await resultsAnalyticsInstance._resolveWith( deps, "2026-H2", filter, "coverage" );
+        // Roster (from subtreeFixture) limited to the allow-list; emp4 and ceo excluded.
+        assert.equal( result.coverage.overall.N, 3 );
+        assert.equal( result.coverage.pending.some( ( p ) => p.employeeID === "emp4" ), false );
+    } );
+
+    it( "treats a falsy cycle (not-found swallowed to null) as CLOSED snapshot/empty rather than throwing", async () => {
+        const deps = depsFixture( { getCycle: () => Promise.resolve( null ), getResultsSnapshot: () => Promise.resolve( null ) } );
+        const result = await resultsAnalyticsInstance._resolveWith( deps, "missing", filterFixture( { allowedEmployeeIDs: null } ), "coverage" );
+        assert.equal( result.meta.mode, "snapshot" );
+        assert.equal( result.coverage.overall.N, 0 );
+        assert.equal( result.coverage.overall.pct, 0 );
+    } );
+
+} );
