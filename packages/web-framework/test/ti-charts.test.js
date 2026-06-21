@@ -13,10 +13,17 @@ const TiCharts = require( "../bin/static/scripts/ti-charts.js" );
 
 describe( "ti-charts module", () => {
     it( "exports the pure helper surface", () => {
+        assert.equal( typeof TiCharts.gaugeValueToAngle, "function" );
         assert.equal( typeof TiCharts.gaugeArcPath, "function" );
         assert.equal( typeof TiCharts.barSegments, "function" );
+        assert.equal( typeof TiCharts.normalizeSpec, "function" );
+        assert.equal( typeof TiCharts.gaugeRowsLayout, "function" );
+        assert.equal( typeof TiCharts.svgEl, "function" );
+        assert.equal( typeof TiCharts.buildSrTable, "function" );
+        assert.equal( typeof TiCharts.renderChart, "function" );
         assert.equal( typeof TiCharts.formatPercent, "function" );
         assert.equal( typeof TiCharts.formatNumber, "function" );
+        assert.equal( typeof TiCharts.SVG_NS, "string" );
     } );
 } );
 
@@ -144,6 +151,11 @@ describe( "ti-charts — gauge rows layout", () => {
     } );
     it( "guards total=0 (ratio 0, no NaN)", () => {
         const rows = TiCharts.gaugeRowsLayout( [ { id: "z", name: "Z", n: 0, total: 0 } ], { width: 100 } );
+        assert.equal( rows[ 0 ].ratio, 0 );
+        assert.equal( rows[ 0 ].width, 0 );
+    } );
+    it( "guards value: NaN — yields ratio 0 and width 0", () => {
+        const rows = TiCharts.gaugeRowsLayout( [ { id: "nan", name: "NaN row", value: NaN } ], { width: 100 } );
         assert.equal( rows[ 0 ].ratio, 0 );
         assert.equal( rows[ 0 ].width, 0 );
     } );

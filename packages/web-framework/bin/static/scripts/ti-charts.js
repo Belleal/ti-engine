@@ -34,11 +34,13 @@ const TiCharts = ( function () {
         return startAngle + ( v * sweep );
     }
 
+    // Converts polar (cx, cy, r, angleDeg, degrees) to a Cartesian { x, y } point.
     function _polar( cx, cy, r, angleDeg ) {
         const a = ( angleDeg * Math.PI ) / 180;
         return { x: cx + ( r * Math.cos( a ) ), y: cy + ( r * Math.sin( a ) ) };
     }
 
+    // Rounds to 2 decimals to keep SVG path strings compact.
     function _round( n ) {
         return Math.round( n * 100 ) / 100;
     }
@@ -203,6 +205,7 @@ const TiCharts = ( function () {
             } else {
                 ratio = 0;
             }
+            if ( Number.isNaN( ratio ) ) { ratio = 0; }
             if ( ratio < 0 ) { ratio = 0; }
             if ( ratio > 1 ) { ratio = 1; }
             out.push( {
@@ -313,6 +316,11 @@ const TiCharts = ( function () {
     function renderBars( figure, spec ) {
         const data = spec.data;
         const rows = Array.isArray( data.rows ) ? data.rows : [];
+        if ( rows.length === 0 ) {
+            figure.setAttribute( "data-ti-chart-empty", "1" );
+            return;
+        }
+        // viewBox units — not CSS pixels
         const trackW = 100, rowH = 14, gap = 8, padTop = 4;
         const height = padTop + ( rows.length * ( rowH + gap ) );
 
@@ -324,18 +332,14 @@ const TiCharts = ( function () {
         for ( let r = 0; r < rows.length; r++ ) {
             const y = padTop + ( r * ( rowH + gap ) );
             const segSource = rows[ r ].segments || rows[ r ].values || [];
-            const segInput = [];
-            for ( let s = 0; s < segSource.length; s++ ) {
-                segInput.push( { key: segSource[ s ].key, v: segSource[ s ].v, tone: segSource[ s ].tone } );
-            }
-            const segs = barSegments( segInput, { width: trackW, total: rows[ r ].total } );
+            const segs = barSegments( segSource, { width: trackW, total: rows[ r ].total } );
             for ( let s = 0; s < segs.length; s++ ) {
                 let cls = "ti-chart-bar-seg";
                 if ( segs[ s ].tone ) { cls = cls + " tone-" + segs[ s ].tone; }
                 if ( spec.provisional && segs[ s ].key === "Not started" ) { cls = cls + " ti-chart-provisional"; }
                 const rect = svgEl( "rect", { x: segs[ s ].x, y: y, width: segs[ s ].width, height: rowH, rx: 2, class: cls } );
                 svg.appendChild( rect );
-                srRows.push( [ rows[ r ].label || rows[ r ].id, segs[ s ].key, String( segSource[ s ] ? ( segSource[ s ].v || 0 ) : 0 ) ] );
+                srRows.push( [ rows[ r ].label || rows[ r ].id, segs[ s ].key, String( segSource[ s ].v || 0 ) ] );
             }
         }
         figure.appendChild( svg );
