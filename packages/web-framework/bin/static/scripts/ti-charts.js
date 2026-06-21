@@ -249,6 +249,141 @@ const TiCharts = ( function () {
         };
     }
 
+    function _clearChildren( node ) {
+        while ( node.firstChild ) { node.removeChild( node.firstChild ); }
+    }
+
+    /**
+     * Renders a Coverage-style gauge: a 270° track, a value arc (dashed cap when provisional),
+     * a centre value, a label, an optional sublabel ("% reporting" caveat), and optional sub-rows.
+     * All geometry from gaugeArcPath/gaugeRowsLayout.
+     * @param {Element} figure host <figure class="ti-chart">
+     * @param {TiChartSpec} spec
+     */
+    function renderGauge( figure, spec ) {
+        const data = spec.data;
+        const value = ( typeof data.value === "number" ) ? data.value : 0;
+        const geom = { cx: 50, cy: 50, r: 42, startAngle: -225, sweep: 270 };
+
+        const svg = svgEl( "svg", { viewBox: "0 0 100 100", preserveAspectRatio: "xMidYMid meet", role: "img" } );
+        const title = svgEl( "title", {} ); title.textContent = spec.a11yLabel; svg.appendChild( title );
+        if ( spec.a11yDesc ) { const desc = svgEl( "desc", {} ); desc.textContent = spec.a11yDesc; svg.appendChild( desc ); }
+
+        const track = svgEl( "path", { d: gaugeArcPath( 1, geom ), class: "ti-chart-gauge-track", fill: "none" } );
+        svg.appendChild( track );
+
+        const arc = svgEl( "path", { d: gaugeArcPath( value, geom ), class: "ti-chart-gauge-arc", fill: "none" } );
+        if ( spec.provisional ) { arc.setAttribute( "stroke-dasharray", "4 3" ); }
+        svg.appendChild( arc );
+
+        const valueText = svgEl( "text", { x: 50, y: 48, class: "ti-chart-gauge-value", "text-anchor": "middle", "dominant-baseline": "central" } );
+        valueText.textContent = formatPercent( value );
+        svg.appendChild( valueText );
+
+        if ( data.label ) {
+            const labelText = svgEl( "text", { x: 50, y: 62, class: "ti-chart-gauge-label", "text-anchor": "middle" } );
+            labelText.textContent = data.label;
+            svg.appendChild( labelText );
+        }
+        if ( data.sublabel ) {
+            const subText = svgEl( "text", { x: 50, y: 71, class: "ti-chart-gauge-sublabel", "text-anchor": "middle" } );
+            subText.textContent = data.sublabel;
+            svg.appendChild( subText );
+        }
+
+        figure.appendChild( svg );
+
+        // a11y mirror: overall (+ the reporting caveat) + each sub-row
+        const headers = [ "Group", "Coverage" ];
+        const srRows = [ [ data.label || spec.a11yLabel, formatPercent( value ) ] ];
+        if ( data.sublabel ) { srRows.push( [ "Reporting", data.sublabel ] ); }
+        if ( Array.isArray( data.rows ) ) {
+            const laid = gaugeRowsLayout( data.rows, { width: 100 } );
+            for ( let i = 0; i < laid.length; i++ ) { srRows.push( [ laid[ i ].label, formatPercent( laid[ i ].ratio ) ] ); }
+        }
+        figure.appendChild( buildSrTable( headers, srRows ) );
+    }
+
+    /**
+     * Renders horizontal/stacked bars. Each row is a track of segments laid out by barSegments;
+     * a provisional "Not started" tail is dashed/dimmed via the .ti-chart-provisional class.
+     * @param {Element} figure
+     * @param {TiChartSpec} spec
+     */
+    function renderBars( figure, spec ) {
+        const data = spec.data;
+        const rows = Array.isArray( data.rows ) ? data.rows : [];
+        const trackW = 100, rowH = 14, gap = 8, padTop = 4;
+        const height = padTop + ( rows.length * ( rowH + gap ) );
+
+        const svg = svgEl( "svg", { viewBox: "0 0 100 " + height, preserveAspectRatio: "xMidYMid meet", role: "img" } );
+        const title = svgEl( "title", {} ); title.textContent = spec.a11yLabel; svg.appendChild( title );
+        if ( spec.a11yDesc ) { const desc = svgEl( "desc", {} ); desc.textContent = spec.a11yDesc; svg.appendChild( desc ); }
+
+        const srRows = [];
+        for ( let r = 0; r < rows.length; r++ ) {
+            const y = padTop + ( r * ( rowH + gap ) );
+            const segSource = rows[ r ].segments || rows[ r ].values || [];
+            const segInput = [];
+            for ( let s = 0; s < segSource.length; s++ ) {
+                segInput.push( { key: segSource[ s ].key, v: segSource[ s ].v, tone: segSource[ s ].tone } );
+            }
+            const segs = barSegments( segInput, { width: trackW, total: rows[ r ].total } );
+            for ( let s = 0; s < segs.length; s++ ) {
+                let cls = "ti-chart-bar-seg";
+                if ( segs[ s ].tone ) { cls = cls + " tone-" + segs[ s ].tone; }
+                if ( spec.provisional && segs[ s ].key === "Not started" ) { cls = cls + " ti-chart-provisional"; }
+                const rect = svgEl( "rect", { x: segs[ s ].x, y: y, width: segs[ s ].width, height: rowH, rx: 2, class: cls } );
+                svg.appendChild( rect );
+                srRows.push( [ rows[ r ].label || rows[ r ].id, segs[ s ].key, String( segSource[ s ] ? ( segSource[ s ].v || 0 ) : 0 ) ] );
+            }
+        }
+        figure.appendChild( svg );
+        figure.appendChild( buildSrTable( [ "Row", "Segment", "Count" ], srRows ) );
+    }
+
+    /**
+     * Renders a KPI stat tile (HTML+SVG-free). value/label/sub plus an optional pct mini-bar whose
+     * fill width rides as a CSS var via setProperty (the sanctioned style exception).
+     * @param {Element} figure
+     * @param {TiChartSpec} spec
+     */
+    function renderStat( figure, spec ) {
+        const data = spec.data;
+        const doc = ( typeof document !== "undefined" ) ? document : null;
+        const wrap = doc.createElement( "div" ); wrap.setAttribute( "class", "ti-chart-stat" );
+        const valueEl = doc.createElement( "div" ); valueEl.setAttribute( "class", "ti-chart-stat-value tabular-nums" );
+        valueEl.textContent = ( typeof data.value === "number" ) ? formatNumber( data.value ) : String( data.value );
+        wrap.appendChild( valueEl );
+        if ( data.label ) { const l = doc.createElement( "div" ); l.setAttribute( "class", "ti-chart-stat-label" ); l.textContent = data.label; wrap.appendChild( l ); }
+        if ( data.sub ) { const sub = doc.createElement( "div" ); sub.setAttribute( "class", "ti-chart-stat-sub" ); sub.textContent = data.sub; wrap.appendChild( sub ); }
+        if ( typeof data.pct === "number" ) {
+            const bar = doc.createElement( "div" ); bar.setAttribute( "class", "ti-chart-stat-bar" );
+            const fill = doc.createElement( "div" ); fill.setAttribute( "class", "ti-chart-stat-fill" );
+            fill.style.setProperty( "--pct", formatPercent( data.pct ) ); // sanctioned --var exception
+            bar.appendChild( fill ); wrap.appendChild( bar );
+        }
+        figure.appendChild( wrap );
+        figure.appendChild( buildSrTable( [ "Metric", "Value" ], [ [ data.label || spec.a11yLabel, String( data.value ) ] ] ) );
+    }
+
+    /**
+     * Top-level dispatcher: clears the host figure, normalizes the spec, routes to a renderer.
+     * @param {Element} figure  host <figure class="ti-chart">
+     * @param {*} rawSpec
+     */
+    function renderChart( figure, rawSpec ) {
+        if ( !figure ) { return; }
+        const spec = normalizeSpec( rawSpec );
+        _clearChildren( figure );
+        figure.setAttribute( "role", "img" );
+        if ( spec.a11yLabel ) { figure.setAttribute( "aria-label", spec.a11yLabel ); }
+        if ( spec.type === "gauge" ) { renderGauge( figure, spec ); }
+        else if ( spec.type === "bars" ) { renderBars( figure, spec ); }
+        else if ( spec.type === "stat" ) { renderStat( figure, spec ); }
+        else { figure.setAttribute( "data-ti-chart-empty", "1" ); }
+    }
+
     return {
         SVG_NS,
         gaugeValueToAngle,
@@ -258,6 +393,7 @@ const TiCharts = ( function () {
         gaugeRowsLayout,
         svgEl,
         buildSrTable,
+        renderChart,
         formatPercent,
         formatNumber
     };
