@@ -15,6 +15,8 @@ const dataManager = require( "#data-manager" );
 const organizationManager = require( "#organization-manager" );
 const competenceFramework = require( "#competence-framework" );
 const taskResolver = require( "#task-resolver" );
+const resultsAnalytics = require( "#results-analytics" );
+const logger = require( "@ti-engine/core/logger" );
 const { registerCompetenceConfig } = require( "../application/config-registration" );
 
 /**
@@ -1963,6 +1965,13 @@ class CompetenceWebApplication extends TiWebAppManager {
             }
 
             competenceFramework.instance.closeCycle( cycleID ).then( ( cycle ) => {
+                // Post-close: persist the immutable results snapshot. persistResultsSnapshot re-reads the cycle (for
+                // actualCloseDate) itself, so it does not depend on `cycle` freshness. A snapshot failure — including
+                // the getCycle not-found rejection, which cannot occur here since the cycle was just closed — is logged,
+                // not propagated: the cycle is already CLOSED and the close response must still succeed.
+                resultsAnalytics.instance.persistResultsSnapshot( cycleID ).catch( ( snapshotError ) => {
+                    logger.log( `Failed to persist results snapshot for cycle '${ cycleID }': ${ snapshotError && snapshotError.message ? snapshotError.message : snapshotError }`, logger.logSeverity.WARNING, { cycleID: cycleID } );
+                } );
                 resolve( cycle );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );

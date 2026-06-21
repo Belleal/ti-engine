@@ -9,6 +9,7 @@
 const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
 const organizationManager = require( "#organization-manager" );
+const packageVersion = require( "../package.json" ).version;
 
 // Grade-letter → numeric weight (mirrors competence-framework.js:17-22). Empty "" → null (ungraded, excluded from means).
 const GRADE_WEIGHTS = Object.freeze( { S: 1.3, R: 1.0, U: 0.6, N: 0.0 } );
@@ -472,6 +473,51 @@ class ResultsAnalytics {
             partial: ( isActive === true ) && ( reporting < total )
         };
         return Object.assign( {}, payload, { meta: meta } );
+    }
+
+    /**
+     * Builds and persists the immutable results snapshot for a just-closed cycle. RE-READS the cycle via getCycle so
+     * `actualCloseDate` (written by updateCycleStatus on ACTIVE→CLOSED, data-manager.js:602) is captured — the cycle
+     * object that entered closeCycle predates that write. CONTRACT: only ever called post-close on an existing cycle;
+     * getCycle rejects (E_APP_RESOURCE_NOT_FOUND) for an unknown cycleID rather than resolving null, and that rejection
+     * is logged by the caller's catch, not swallowed here. Whole-org scope uses the resolved org-root unit id (never
+     * the empty string, which getOrganizationUnitSubtree rejects → empty roster). Idempotent: re-running merge-writes
+     * the cycle's snapshot, and since the shape is fixed every populated leaf is replaced.
+     *
+     * @method
+     * @param {string} cycleID
+     * @returns {Promise<Object>} The persisted ResultsSnapshot.
+     * @public
+     */
+    persistResultsSnapshot( cycleID ) {
+        return dataManager.instance.getCycle( cycleID ).then( ( cycle ) => {
+            const rootUnitID = organizationManager.instance.getOrganizationRootUnitID();
+            const filter = { groupBy: "orgUnit", allowedEmployeeIDs: null, rootUnitID: rootUnitID };
+            const resolveOrgUnit = ( employeeID ) => organizationManager.instance.resolveOrganizationUnitIDForEmployee( employeeID );
+            const frameFilter = Object.assign( {}, filter, { resolveOrgUnit: resolveOrgUnit } );
+            return dataManager.instance.fetchEvaluations( null, false ).then( ( evaluations ) => {
+                const cycleEvals = evaluations.filter( ( ev ) => ev && ev.cycleID === cycleID && ev.status !== configurationLoader.evaluationStatus.DELETED );
+                const frame = this.buildCohortFrame( cycleEvals, cycleID, frameFilter );
+                const subtree = organizationManager.instance.getOrganizationUnitSubtree( rootUnitID );
+                const roster = this.buildRoster( subtree );
+                const coverageReport = this.computeCoverage( frame, roster, frameFilter );
+                const meta = {
+                    cycleID: cycleID,
+                    mode: "snapshot",
+                    cycleStatus: cycle.status,
+                    computedAt: new Date().toISOString(),
+                    partial: false
+                };
+                const snapshot = this.buildResultsSnapshot( cycleID, {
+                    frame: frame,
+                    coverageReport: coverageReport,
+                    cycle: cycle,
+                    dictionaryVersion: packageVersion,
+                    meta: meta
+                } );
+                return dataManager.instance.saveResultsSnapshot( snapshot );
+            } );
+        } );
     }
 
     /**
