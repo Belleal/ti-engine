@@ -474,6 +474,72 @@ class ResultsAnalytics {
         return Object.assign( {}, payload, { meta: meta } );
     }
 
+    /**
+     * Builds the immutable ResultsSnapshot for a closed cycle. PURE — takes the already-built cohort `frame`, the
+     * already-computed Coverage report, and the re-read `cycle` (so `actualCloseDate` is populated). For Phase 0 only
+     * `reports.coverage` is populated; the cross-cycle stable-axis aggregates are present with their locked shape but
+     * empty (back-fill is impossible, so the envelope is locked now — §4 / §6).
+     *
+     * @method
+     * @param {string} cycleID
+     * @param {Object} input
+     * @param {Array<Object>} input.frame - The CohortRow[] (Component B); used for cohort counts.
+     * @param {Object|null} input.coverageReport - The Coverage payload (Component B computeCoverage output).
+     * @param {Object} input.cycle - The re-read cycle (carries `actualCloseDate`).
+     * @param {string} input.dictionaryVersion - The competence package version (code-drift guard).
+     * @param {Object} input.meta - The ResultMeta envelope.
+     * @returns {Object} The locked ResultsSnapshot.
+     * @public
+     */
+    buildResultsSnapshot( cycleID, input ) {
+        const frame = Array.isArray( input.frame ) ? input.frame : [];
+        const coverageReport = input.coverageReport || null;
+        const cycle = input.cycle || {};
+        const overall = ( coverageReport && coverageReport.overall ) ? coverageReport.overall : {};
+
+        const parts = String( cycleID ).split( "-" );
+        const year = Number( parts[ 0 ] ) || 0;
+        const half = parts[ 1 ];
+        const chronoKey = ( year * 2 ) + ( half === "H2" ? 1 : 0 );
+
+        return {
+            cycleID: cycleID,
+            schemaVersion: 1,
+            dictionaryVersion: input.dictionaryVersion || null,
+            competencyCodeEra: "v3.0.0",
+            computedAt: new Date().toISOString(),
+            cycleClosedAt: cycle.actualCloseDate || null,
+            provisional: false,
+            chronoKey: chronoKey,
+            meta: input.meta || {},
+            cohort: {
+                nEligible: ( overall.N != null ) ? overall.N : 0,
+                nClosed: frame.length,
+                nScored: frame.length,
+                reportingPct: ( overall.pct != null ) ? overall.pct : 0
+            },
+
+            // Phase 0: only coverage is populated; the rest of the locked report envelope is present but null.
+            reports: {
+                coverage: coverageReport,
+                timeDistribution: null,
+                alignment: null,
+                heatmap: null,
+                levelDistribution: null,
+                predictiveDrivers: null
+            },
+
+            // Cross-cycle stable-axis substrate — locked SHAPE now, populated in later phases (never back-fillable).
+            overall: { finalScore: {}, tBandMix: {} },
+            byCategory: {},
+            bySubcategory: {},
+            byStageLevel: {},
+            ladderOrdinalHistogram: {},
+            byRoleFamily: {},
+            byOrgUnit: {}
+        };
+    }
+
 }
 
 const instance = new ResultsAnalytics();
