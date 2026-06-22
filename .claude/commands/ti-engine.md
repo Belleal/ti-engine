@@ -82,7 +82,7 @@ Branches: `current` is the active feature branch; `master` is the release branch
 - `TI_INSTANCE_CONFIG` — path to service config JSON
 - `TI_AUDITING_LOG_MIN_LEVEL` — log filter (0–800)
 - `TI_MEMORY_CACHE_HOST/PORT/AUTH/DB` — Redis connection
-- `MESSAGE_EXCHANGE_SECURITY_HASH_KEY` — blake2 HMAC key
+- `MESSAGE_EXCHANGE_SECURITY_HASH_KEY` — message-exchange HMAC-SHA256 key
 - `SERVICE_EXECUTION_TIMEOUT` — default 180000ms
 
 **Message flow**:
