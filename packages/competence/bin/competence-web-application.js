@@ -91,6 +91,14 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "Role Families",
             path: "fragments/frame-role-families.html"
         } );
+        this.addFragment( "insights-overview", {
+            title: "Insights",
+            path: "fragments/frame-insights-overview.html"
+        } );
+        this.addFragment( "insights-cycle", {
+            title: "Cycle Analytics",
+            path: "fragments/frame-insights-cycle.html"
+        } );
     }
 
     /* Public interface */
