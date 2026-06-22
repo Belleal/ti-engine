@@ -2,6 +2,16 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.6.0
+
+* refactor(exchange)!: replace the blake2 keyed hash with native `node:crypto` HMAC-SHA256 in the message integrity check
+* build(deps)!: remove the `blake2` native addon dependency (no longer builds on Node 26; replaced by the built-in `node:crypto`)
+* fix(exchange): use a constant-time comparison for the message security hash
+* fix(exchange): ship an empty default `securityHashKey` and warn (once) when the security hash is enabled with a missing/default key
+* test(exchange): add the first core test suite — message-hash determinism, tamper detection, and the constant-time comparison
+
+> **BREAKING (wire):** the message security hash changes from keyed-BLAKE2b (128 hex) to HMAC-SHA256 (64 hex). Old and new core versions produce mutually incompatible hashes. When upgrading across this version with `securityHashEnabled=true`, redeploy all services together — recommended order: set `securityHashEnabled=false` everywhere → deploy the new core to all services → re-enable. HMAC also accepts keys of any length (custom keys >64 bytes that previously failed under blake2b now work). The default `securityHashKey` is now empty: set `TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY` in any real deployment, otherwise tamper protection is ineffective.
+
 ## Version 1.5.1
 
 * build(deps): update `@dotenvx/dotenvx` from ^1.66.0 to ^1.73.1
