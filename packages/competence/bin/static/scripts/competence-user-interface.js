@@ -1231,6 +1231,105 @@ const configureInterviewSchedule = () => {
 };
 
 /**
+ * Returns a configuration object for the Insights → Cycle analytics screen.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureInsightsCycle = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    return {
+        isLoading: true,
+        selectedCycleID: "",
+        cycle: null,
+        cycles: [],
+        coverage: null,
+        meta: null,
+        coverageGaugeSpec: { type: "gauge", data: { value: 0, label: "", sublabel: "" }, a11yLabel: "", provisional: false },
+        coverageBarsSpec: { type: "bars", data: { rows: [] }, options: { mode: "stacked" }, a11yLabel: "", provisional: false },
+
+        init() {
+            const onInitialized = () => {
+                this.selectedCycleID = tiToolbox.getUrlParam( "cycleID" ) || "";
+                this.loadAll();
+            };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        loadAll() {
+            this.isLoading = true;
+            const q = this.selectedCycleID ? ( "?cycleID=" + encodeURIComponent( this.selectedCycleID ) ) : "";
+            Promise.all( [
+                tiApplication.sendRequest( "/app/load-insights-cycle" + q ),
+                tiApplication.sendRequest( "/app/load-report-coverage" + q )
+            ] ).then( ( [ shellResult, coverageResult ] ) => {
+                const shell = ( shellResult && shellResult.data && typeof shellResult.data === "object" ) ? shellResult.data : {};
+                const payload = ( coverageResult && coverageResult.data && typeof coverageResult.data === "object" ) ? coverageResult.data : {};
+                this.cycle = shell.cycle ? tiToolbox.structuredClone( shell.cycle ) : null;
+                this.cycles = Array.isArray( shell.cycles ) ? tiToolbox.structuredClone( shell.cycles ) : [];
+                if ( this.cycle && !this.selectedCycleID ) {
+                    this.selectedCycleID = this.cycle.id;
+                }
+                this.coverage = payload.coverage ? tiToolbox.structuredClone( payload.coverage ) : null;
+                this.meta = payload.meta ? tiToolbox.structuredClone( payload.meta ) : null;
+                this.coverageGaugeSpec = buildCoverageGaugeSpec( this.coverage, this.meta );
+                this.coverageBarsSpec = buildCoverageBarsSpec( this.coverage, this.meta );
+                this.isLoading = false;
+            } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
+                this.isLoading = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                if ( error && error.exception && ( error.exception.httpCode === 401 || error.exception.httpCode === 403 ) ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
+        },
+
+        onCycleChange( event ) {
+            this.selectedCycleID = event && event.target ? event.target.value : "";
+            this.loadAll();
+        },
+
+        hasCoverage() {
+            return !!( this.coverage && this.coverage.overall );
+        },
+
+        pendingRows() {
+            return ( this.coverage && Array.isArray( this.coverage.pending ) ) ? this.coverage.pending : [];
+        },
+
+        getCycleSubtitle() {
+            if ( !this.cycle ) return "";
+            const mode = ( this.meta && this.meta.mode === "live" )
+                ? tiApplication.getLabel( "interface.insights.cycle.mode-live", "as of now" )
+                : tiApplication.getLabel( "interface.insights.cycle.mode-snapshot", "final" );
+            return ( this.cycle.name || "" ) + " · " + mode;
+        },
+
+        getGaugeAriaLabel() {
+            return this.coverageGaugeSpec.a11yLabel;
+        },
+
+        getBarsAriaLabel() {
+            return this.coverageBarsSpec.a11yLabel;
+        }
+    };
+};
+
+/**
  * Returns a configuration object for the dashboard screen.
  *
  * @method
@@ -4254,4 +4353,6 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceArchetypeAssignment", configureArchetypeAssignment );
     Alpine.data( "competenceArchetypeEditor", configureArchetypeEditor );
     Alpine.data( "competenceRoleFamilies", configureRoleFamilies );
+    Alpine.data( "insightsOverview", () => ( {} ) );
+    Alpine.data( "insightsCycle", configureInsightsCycle );
 } );
