@@ -1283,10 +1283,8 @@ const configureInsightsCycle = () => {
                 }
                 this.coverage = payload.coverage ? tiToolbox.structuredClone( payload.coverage ) : null;
                 this.meta = payload.meta ? tiToolbox.structuredClone( payload.meta ) : null;
-                if ( typeof window !== "undefined" && window.InsightsCycleSpecs ) {
-                    this.coverageGaugeSpec = window.InsightsCycleSpecs.buildCoverageGaugeSpec( this.coverage, this.meta );
-                    this.coverageBarsSpec = window.InsightsCycleSpecs.buildCoverageBarsSpec( this.coverage, this.meta );
-                }
+                this.coverageGaugeSpec = this.buildGaugeSpec( this.coverage, this.meta );
+                this.coverageBarsSpec = this.buildBarsSpec( this.coverage, this.meta );
                 this.isLoading = false;
             } ).catch( ( error ) => {
                 if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
@@ -1303,6 +1301,62 @@ const configureInsightsCycle = () => {
         onCycleChange( event ) {
             this.selectedCycleID = event && event.target ? event.target.value : "";
             this.loadAll();
+        },
+
+        /**
+         * Builds the Coverage gauge TiChartSpec from a coverage report payload.
+         *
+         * @method
+         * @param {Object} coverage - `report.coverage` (carries `overall.{n,N,pct}`).
+         * @param {Object} meta - `report.meta` (carries `mode`, `partial`, `pctReporting`).
+         * @returns {Object} TiChartSpec of type "gauge".
+         * @public
+         */
+        buildGaugeSpec( coverage, meta ) {
+            const overall = ( coverage && coverage.overall ) ? coverage.overall : { n: 0, N: 0, pct: 0 };
+            const value = ( overall.N > 0 ) ? ( overall.n / overall.N ) : 0;
+            const partial = !!( meta && meta.partial );
+            let sublabel = String( overall.n ) + " / " + String( overall.N );
+            if ( partial && meta && typeof meta.pctReporting === "number" ) {
+                sublabel = sublabel + " · " + String( meta.pctReporting ) + "% reporting";
+            }
+            return {
+                type: "gauge",
+                data: { value: value, label: "Coverage", sublabel: sublabel },
+                a11yLabel: "Coverage gauge: " + String( overall.n ) + " of " + String( overall.N ) + " complete",
+                provisional: partial
+            };
+        },
+
+        /**
+         * Builds the per-group stacked-bars TiChartSpec from a coverage report payload.
+         *
+         * @method
+         * @param {Object} coverage - `report.coverage` (carries `byGroup[]`).
+         * @param {Object} meta - `report.meta`.
+         * @returns {Object} TiChartSpec of type "bars".
+         * @public
+         */
+        buildBarsSpec( coverage, meta ) {
+            const groups = ( coverage && Array.isArray( coverage.byGroup ) ) ? coverage.byGroup : [];
+            const rows = groups.map( function ( group ) {
+                const byStatus = group.byStatus || {};
+                const segments = [
+                    { key: "Closed", v: byStatus[ "Closed" ] || 0, tone: "grade-s" },
+                    { key: "Ready", v: byStatus[ "Ready" ] || 0, tone: "grade-r" },
+                    { key: "In Review", v: byStatus[ "In Review" ] || 0, tone: "grade-u" },
+                    { key: "Open", v: byStatus[ "Open" ] || 0, tone: "grade-n" },
+                    { key: "Not started", v: group.notStarted || 0, tone: "ink" }
+                ];
+                return { id: String( group.groupKey || group.groupLabel || "" ), label: group.groupLabel || "", segments: segments, total: group.N || 0 };
+            } );
+            return {
+                type: "bars",
+                data: { rows: rows },
+                options: { mode: "stacked" },
+                a11yLabel: "Coverage by group: " + String( rows.length ) + " groups",
+                provisional: !!( meta && meta.partial )
+            };
         },
 
         hasCoverage() {
