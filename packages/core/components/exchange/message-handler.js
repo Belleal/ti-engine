@@ -8,11 +8,14 @@
 
 const ConnectionObserver = require( "#connection-observer" );
 const _ = require( "lodash" );
-const blake2 = require( "blake2" );
+const crypto = require( "node:crypto" );
 const exceptions = require( "#exceptions" );
 const logger = require( "#logger" );
 const tools = require( "#tools" );
 const config = require( "#config" );
+
+const OLD_DEFAULT_HASH_KEY = "23e7bdc7-a793-41f9-856e-6760332f0c73";
+let keyWarningEmitted = false;
 
 /**
  * An abstract class that defines a basic message handler behavior.
@@ -120,10 +123,17 @@ class MessageHandler extends ConnectionObserver {
      * @public
      */
     createMessageHash( message ) {
+        let key = config.getSetting( config.setting.MESSAGE_EXCHANGE_SECURITY_HASH_KEY );
+        if ( keyWarningEmitted === false ) {
+            keyWarningEmitted = true;
+            if ( !key || key === OLD_DEFAULT_HASH_KEY ) {
+                logger.log( "Message-exchange security hash is enabled but no private key is set ('securityHashKey' is missing or the published default). Set TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY to a private value, otherwise tamper protection is ineffective.", logger.logSeverity.WARNING );
+            }
+        }
         let transformed = tools.decomposeJSON( tools.decycle( message ) );
-        let hash = blake2.createKeyedHash( "blake2b", Buffer.from( config.getSetting( config.setting.MESSAGE_EXCHANGE_SECURITY_HASH_KEY ) ) );
-        hash.update( Buffer.from( transformed ) );
-        return hash.digest( "hex" );
+        let hmac = crypto.createHmac( "sha256", Buffer.from( key ) );
+        hmac.update( Buffer.from( transformed ) );
+        return hmac.digest( "hex" );
     }
 
     /**

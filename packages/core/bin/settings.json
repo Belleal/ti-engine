@@ -26,7 +26,7 @@
     "messageQueuePrefix": "ti:messages:",
     "messageStore": "ti:messages:store",
     "securityHashEnabled": true,
-    "securityHashKey": "23e7bdc7-a793-41f9-856e-6760332f0c73",
+    "securityHashKey": "",
     "traceExpirationTime": 3600,
     "traceLogEnabled": false,
     "traceRepository": "ti:messages:trace"

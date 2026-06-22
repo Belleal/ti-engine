@@ -479,12 +479,12 @@ MESSAGE_EXCHANGE_MESSAGE_STORE (Advanced)
 MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED (Advanced)
 : JSON path `messageExchange.securityHashEnabled`, type `boolean`, default `true`
 : ENV variable `TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED`
-: This setting controls whether the message exchange will use a control hash mechanism to ensure there is no tampering with the messages in between service calls. In most cases you would want to keep this enabled since it ensures the integrity of your data. If you are concerned about performance (hashing with `blake2` is rapid, but it still eats some milliseconds) you might want to try and disable this to see if it makes any notable difference.
+: This setting controls whether the message exchange will use a control hash mechanism to ensure there is no tampering with the messages in between service calls. In most cases you would want to keep this enabled since it ensures the integrity of your data. If you are concerned about performance (the keyed `HMAC-SHA256` hash is rapid, but it still eats some milliseconds) you might want to try and disable this to see if it makes any notable difference.
 
 MESSAGE_EXCHANGE_SECURITY_HASH_KEY (Advanced)
-: JSON path `messageExchange.securityHashKey`, type `string`, default `random uuid`
+: JSON path `messageExchange.securityHashKey`, type `string`, default `empty (must be set)`
 : ENV variable `TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY`
-: This setting holds the encryption key used by the message exchange control hash mechanism. By default, this has a random uuid value that can be used for development only. For production environments you absolutely must provide your own encryption key via the ENV variable. Depending on your configuration and infrastructure, it might come from a secure storage, HSM, key vault, etc.
+: This setting holds the HMAC key used by the message exchange control hash mechanism. By default it is empty, which leaves tamper protection ineffective and logs a startup warning. You absolutely must provide your own private key via the ENV variable in any real deployment. Depending on your configuration and infrastructure, it might come from a secure storage, HSM, key vault, etc.
 
 MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME
 : JSON path `messageExchange.traceExpirationTime`, type `number`, default `3600`
