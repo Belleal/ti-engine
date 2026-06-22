@@ -6,6 +6,10 @@ process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY = "unit-test-key-0123456789";
 const { test } = require( "node:test" );
 const assert = require( "node:assert" );
 const tools = require( "../utils/tools.js" );
+const logger = require( "../utils/logger.js" );
+const seenWarnings = [];
+const originalLog = logger.log;
+logger.log = ( message, severity ) => { seenWarnings.push( { message, severity } ); };
 
 test( "constantTimeEquals: equal non-empty strings are equal", () => {
     assert.strictEqual( tools.constantTimeEquals( "abc123", "abc123" ), true );
@@ -70,4 +74,11 @@ test( "createMessageHash: empty object hashes to a stable value without throwing
     const h = hashOf( {} );
     assert.match( h, /^[0-9a-f]{64}$/ );
     assert.strictEqual( h, expectedHash( {}, TEST_KEY ) );
+} );
+
+test( "createMessageHash: does NOT warn when a non-default key is configured", () => {
+    hashOf( SAMPLE );
+    const keyWarnings = seenWarnings.filter( ( w ) => /security hash/i.test( w.message ) );
+    assert.strictEqual( keyWarnings.length, 0 );
+    logger.log = originalLog;
 } );
