@@ -123,7 +123,7 @@ class MessageHandler extends ConnectionObserver {
      * @public
      */
     createMessageHash( message ) {
-        let key = config.getSetting( config.setting.MESSAGE_EXCHANGE_SECURITY_HASH_KEY );
+        let key = String( config.getSetting( config.setting.MESSAGE_EXCHANGE_SECURITY_HASH_KEY ) || "" );
         if ( keyWarningEmitted === false ) {
             keyWarningEmitted = true;
             if ( !key || key === OLD_DEFAULT_HASH_KEY ) {
@@ -131,7 +131,7 @@ class MessageHandler extends ConnectionObserver {
             }
         }
         let transformed = tools.decomposeJSON( tools.decycle( message ) );
-        let hmac = crypto.createHmac( "sha256", Buffer.from( key ) );
+        let hmac = crypto.createHmac( "sha256", Buffer.from( key, "utf8" ) );
         hmac.update( Buffer.from( transformed ) );
         return hmac.digest( "hex" );
     }
