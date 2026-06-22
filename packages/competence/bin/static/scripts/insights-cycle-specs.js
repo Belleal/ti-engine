@@ -49,7 +49,7 @@ function buildCoverageBarsSpec( coverage, meta ) {
             { key: "Open", v: byStatus[ "Open" ] || 0, tone: "grade-n" },
             { key: "Not started", v: group.notStarted || 0, tone: "ink" }
         ];
-        return { id: String( group.groupKey || group.groupLabel || "" ), label: group.groupLabel || "", segments: segments };
+        return { id: String( group.groupKey || group.groupLabel || "" ), label: group.groupLabel || "", segments: segments, total: group.N || 0 };
     } );
     return {
         type: "bars",

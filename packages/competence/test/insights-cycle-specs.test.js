@@ -45,6 +45,13 @@ test( "bars spec emits one stacked row per group with five status segments incl.
     assert.equal( inReview.v, 6 );
 } );
 
+test( "bars spec sets each row's total to that group's roster size N", () => {
+    const spec = buildCoverageBarsSpec( COVERAGE, { partial: false } );
+    spec.data.rows.forEach( ( row, i ) => {
+        assert.equal( row.total, COVERAGE.byGroup[ i ].N );
+    } );
+} );
+
 test( "bars spec maps every segment's tone to the real ti-chart tone vocabulary", () => {
     const VALID_TONES = [ "grade-s", "grade-r", "grade-u", "grade-n", "ink" ];
     const spec = buildCoverageBarsSpec( COVERAGE, { partial: false } );
