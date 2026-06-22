@@ -500,6 +500,26 @@ module.exports.decomposeJSON = ( input ) => {
 };
 
 /**
+ * Constant-time string comparison. Mirrors the web-framework safe-compare idiom: coerces inputs to
+ * utf8 buffers, short-circuits on length mismatch, and never throws on hostile/non-string input.
+ *
+ * @method
+ * @param {*} a
+ * @param {*} b
+ * @returns {boolean} True only when both inputs coerce to equal-length, byte-identical strings.
+ * @public
+ */
+module.exports.constantTimeEquals = ( a, b ) => {
+    try {
+        const ba = Buffer.from( String( a || "" ), "utf8" );
+        const bb = Buffer.from( String( b || "" ), "utf8" );
+        return ( ba.length !== bb.length ) ? false : crypto.timingSafeEqual( ba, bb );
+    } catch {
+        return false;
+    }
+};
+
+/**
  * Used to create retry policy for the execution of an operation.
  *
  * @class RetryPolicy

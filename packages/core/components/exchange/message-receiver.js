@@ -10,6 +10,7 @@ const MessageHandler = require( "#message-handler" );
 const logger = require( "#logger" );
 const exceptions = require( "#exceptions" );
 const config = require( "#config" );
+const tools = require( "#tools" );
 
 /**
  * An abstract class that defines a basic message receiver behavior.
@@ -161,7 +162,7 @@ class MessageReceiver extends MessageHandler {
                 let receivedHash = message.hash;
                 delete message.hash;
                 let currentHash = this.createMessageHash( message );
-                if ( receivedHash && receivedHash === currentHash ) {
+                if ( tools.constantTimeEquals( receivedHash, currentHash ) ) {
                     resolve( message );
                 } else {
                     reject( exceptions.raise( exceptions.exceptionCode.E_SEC_MESSAGE_TAMPERING_DETECTED, {

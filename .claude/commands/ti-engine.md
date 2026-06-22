@@ -10,8 +10,8 @@ You are working on the **ti-engine** monorepo — an open-source (GPL-3.0) Node.
 ti-engine/                         npm workspace root (v1.2.4)
 ├── packages/
 │   ├── core/          v1.5.1      Framework foundation (Redis messaging, lifecycle, utils)
-│   ├── web-framework/ v1.9.1      Express HTTP server + auth + admin config-management subsystem
-│   ├── competence/    v3.2.4      HR competency appraisal application (108-competency dictionary)
+│   ├── web-framework/ v1.9.3      Express HTTP server + auth + admin config-management subsystem
+│   ├── competence/    v3.3.1      HR competency appraisal application (108-competency dictionary)
 │   └── tester/        v1.3.3      Reference/example service implementation
 ├── package.json                   Workspace root; devDeps: ESLint 10, Prettier 3
 └── eslint.config.mjs              Flat ESLint config (commonjs, browser+node globals)
@@ -82,7 +82,7 @@ Branches: `current` is the active feature branch; `master` is the release branch
 - `TI_INSTANCE_CONFIG` — path to service config JSON
 - `TI_AUDITING_LOG_MIN_LEVEL` — log filter (0–800)
 - `TI_MEMORY_CACHE_HOST/PORT/AUTH/DB` — Redis connection
-- `MESSAGE_EXCHANGE_SECURITY_HASH_KEY` — blake2 HMAC key
+- `MESSAGE_EXCHANGE_SECURITY_HASH_KEY` — message-exchange HMAC-SHA256 key
 - `SERVICE_EXECUTION_TIMEOUT` — default 180000ms
 
 **Message flow**:
@@ -103,7 +103,7 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 ---
 
-## Package: web-framework (v1.9.1)
+## Package: web-framework (v1.9.3)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs.
 
@@ -146,7 +146,7 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 ---
 
-## Package: competence (v3.2.4)
+## Package: competence (v3.3.1)
 
 **Role**: Complete HR application for competency-based performance appraisals. Models competencies in three dimensions — **Role Family × Specialization × Stage-Level** — with a first-class appraisal **Cycle** (`PLANNING → ACTIVE → CLOSED`). Evaluations snapshot their resolved competency set at creation so later configuration drift never affects in-flight evaluations. Depends on `core` + `web-framework`; uses `graphology` for the org graph.
 
@@ -156,16 +156,19 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Competency pool** (restored in 3.1.0 as `config.role-family-competencies.json`, shape `{ <family>: [codes] }`): the per-family *applicability universe* — which competencies a family may draw on. Populated families carry family-specific + the 30 shared canonical (SE 61 / BA 52 / PM 55); the six unpopulated families carry the 30 shared only. The **pool** (which competencies *can* apply to a family) is distinct from **relevancy** (how much each *matters*, which is global via archetypes). The `build-competency-relevancy.js` generator emits both from `design/competency-relevancy-model.md`. The pool backs the `pool-membership` lock rule and scopes the Cycle Setup competency picker; it is registered as a store-backed, exportable/restorable config document (read-only — no inline editor yet).
 
+**Team feedback & dashboard tasks (3.3.0)**: team members discover pending peer reviews as derived **dashboard tasks** (`application/task-resolver.js` — pure, org lookups injected); a manager — or a Supervisor via a read-only **facilitator** view — can `finalizeTeamFeedback` after a **cycle-level** team-feedback deadline (`cycle.teamFeedbackDeadline`, defaulted from `teamFeedbackWindowDays` and editable in Cycle Setup). Finalize records an evaluation-scoped audit entry; once an evaluation reaches `Ready` the employee sees the manager grade + team cumulative while individual peer grades stay anonymous.
+
 **Key files**:
 | File | Purpose |
 |------|---------|
-| `application/competence-framework.js` | Singleton (`module.exports.instance`); `getActiveCompetencySet`, `buildEvaluationSnapshot`, `validateCycleForLock`, `lockCycle`, `closeCycle`, `calculateTeamCumulativeGrades`, `calculateFinalEvaluationScores`, `buildCompetenciesTreeFromSnapshot`, `generateShortID` |
+| `application/competence-framework.js` | Singleton (`module.exports.instance`); `getActiveCompetencySet`, `buildEvaluationSnapshot`, `validateCycleForLock`, `lockCycle`, `closeCycle`, `finalizeTeamFeedback`, `calculateTeamCumulativeGrades`, `calculateFinalEvaluationScores`, `buildCompetenciesTreeFromSnapshot`, `generateShortID` |
 | `application/configuration-loader.js` | Loads config JSONs; exports frozen config objects + enums; helpers `getSpecializationCodes`, `getStageLevelCodes`, `getStageLevelLadder`, `getArchetypeStageLevels`, `getSetting`; `initialize(service)` brings the store-backed configs under admin-config control |
 | `application/config-registration.js` | Registers competence config documents + composite editors with the framework registry (`registerCompetenceConfig`) |
 | `application/config-editors.js` | Composite (entity) editors: `competency-text`, `archetype-assignment`, `relevancy-archetype`, `role-families` |
 | `application/config-validators.js` | Semantic validators (Promise-chain style; `ValidationIssue` / `ValidatorContext` typedefs) incl. floor-coverage, cap, pool-membership (`activeSetsWithinPool` / `poolReferenceIntegrity`), and referential-integrity guards |
 | `application/data-manager.js` | Singleton; CRUD for role families, cycles, active sets, employees, evaluations, audit log (Redis JSON) |
 | `application/organization-manager.js` | Singleton; directed graph (graphology) for org chart; resolves manager + role-family attributes |
+| `application/task-resolver.js` | Pure singleton; derives dashboard **tasks** (`team-feedback` / `team-finalize`) from evaluation/workflow state with injected org lookups — persistence-free and unit-tested (3.3.0; seed for the future web-framework tasks module) |
 | `application/data-objects.types.js` | Shared JSDoc typedefs for data objects |
 | `bin/competence-web-server.js` | Main entry point (extends ServiceConsumer); `onStart` initializes data-manager then `configurationLoader.initialize()` |
 | `bin/competence-web-application.js` | UI renderer (extends TiWebAppManager); registers config via `registerCompetenceConfig`; serves all fragments |
@@ -188,7 +191,7 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **UI fragments** (`bin/static/fragments/`): dashboard, employees-list, employee-management, cycles, cycle-setup, competence-evaluation, new-evaluation, manager-calendar, interview-schedule; plus admin-gated config screens: **admin-config** (landing: export + change feed/restore), **competency-text-editor**, **archetype-assignment**, **archetype-editor**, **role-families**. Admin screens live under an admin-only "Administration" sidebar section.
 
-**Design docs** (`design/`, source of truth for content): `competency-definitions-final.md`, `competency-master-index.md`, `competency-bg-translations.md`, `competency-relevancy-model.md`, plus phase-0 inventories and `role-family-pool-restoration.md`.
+**Design docs** (`design/`, source of truth for content): `competency-definitions-final.md`, `competency-master-index.md`, `competency-bg-translations.md`, `competency-relevancy-model.md`; completed records are archived under `design/completed/` (the phase-0 inventories, `role-family-pool-restoration.md`, `dashboard-team-feedback-tasks.md`), and the YouTrack backfill log is `youtrack-backfill-inventory.md`.
 
 **Enums** (`configuration-loader.js`):
 - `RoleCode`: EMPLOYEE(1), MANAGER(2), SUPERVISOR(3), TEAM_MEMBER(4)
@@ -247,6 +250,25 @@ npm run test:json    # validate JSON config schemas
 
 ---
 
+## Issue Tracking — YouTrack (project `CA`)
+
+Work is tracked in **YouTrack Cloud** — project **`CA`** (`https://belleal.youtrack.cloud`), linked to GitHub `Belleal/ti-engine`. Full conventions, field scheme, and the reconstruction history live in `packages/competence/design/youtrack-backfill-inventory.md`; the essentials:
+
+- **Structure:** capability **Epics** (`Type: Epic`) own their work. **Nest every feature/task as a `subtask of` its Epic** when one fits — delivered *and* forward/backlog; only truly standalone items stay unparented. Use `relates to` for cross-cutting/supersession links, not epic membership.
+- **Fields:** `Type` · `State` · `Stage` · `Priority` · `Version` (enum `v1.0.0`…) · `Shipped` (date). Delivered = `State: Verified` / `Stage: Done`; backlog = `State: Open` / `Stage: Backlog`.
+- **Going forward:** start new work as a `CA-###` card under its epic and put the ID in commit messages (e.g. `feat(competence): … (CA-123)`) so the GitHub integration links commit ↔ issue.
+- **Knowledge Base:** design docs are mirrored as KB articles (sections *Competency Content* and *Design Records*, plus *Package Overview* and *Project backfill log*).
+
+**Connect the MCP** (per machine; the `mcp__youtrack__*` tools attach only at startup, so **restart Claude Code after adding**):
+```
+claude mcp add --header "Authorization: Bearer <token>" --transport http youtrack https://belleal.youtrack.cloud/mcp
+```
+Token: YouTrack → Profile → Account Security → New token (scope: YouTrack).
+
+**MCP gotchas:** `Shipped` stores −1 day → send the intended date **+1**; tags must **pre-exist** (no create-tag tool); **no delete** via MCP (create/update only — verify before bulk-creating); `create_issue.parentIssue` auto-creates the `subtask of` link.
+
+---
+
 ## Key Architectural Patterns
 
 1. **Abstract base classes** — never instantiate `ServiceInstance`, `MessageExchange`, `TiWebAppManager` directly; subclass them.
@@ -270,3 +292,4 @@ npm run test:json    # validate JSON config schemas
 6. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory.
 7. **Bumping versions**: update the affected package's `package.json` + `CHANGELOG.md`.
 8. **Design-first**: for non-trivial work, start from / update the relevant `design/*.md` doc (meta header + implementation log) and land small checkpointed commits. Never commit `.run/*.run.xml` (live creds).
+9. **Tracking work**: create a `CA-###` card in YouTrack under its epic (features/tasks are `subtask of` their epic; only truly standalone items stay unparented) and reference the ID in commit messages so the GitHub integration links them. See *Issue Tracking — YouTrack* above.
