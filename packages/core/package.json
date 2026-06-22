@@ -26,6 +26,9 @@
     "./service-provider": "./components/service-provider.js",
     "./tools": "./utils/tools.js"
   },
+  "scripts": {
+    "test": "node --test"
+  },
   "imports": {
     "#auditing": "./components/auditing.js",
     "#cache": "./utils/cache.js",
