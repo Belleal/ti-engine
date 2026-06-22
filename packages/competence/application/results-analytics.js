@@ -590,3 +590,23 @@ class ResultsAnalytics {
 
 const instance = new ResultsAnalytics();
 module.exports.instance = Object.freeze( instance );
+
+/**
+ * Pure cycle selector: returns the cycle whose cycleID matches `requestedCycleID` from `cycles`,
+ * or `fallbackCycle` when the request is blank/unknown. No I/O.
+ *
+ * @param {Array<Object>} cycles - All known cycles (each carries `cycleID`).
+ * @param {string} requestedCycleID - The `?cycleID` query value (may be empty).
+ * @param {Object|null} fallbackCycle - The active-or-latest cycle.
+ * @returns {Object|null}
+ */
+function pickCycleForRequest( cycles, requestedCycleID, fallbackCycle ) {
+    const wanted = String( requestedCycleID || "" ).trim();
+    if ( wanted && Array.isArray( cycles ) ) {
+        const match = cycles.find( ( cycle ) => cycle && cycle.cycleID === wanted );
+        if ( match ) return match;
+    }
+    return fallbackCycle || null;
+}
+
+module.exports.pickCycleForRequest = pickCycleForRequest;

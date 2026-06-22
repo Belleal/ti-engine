@@ -235,6 +235,10 @@ class CompetenceWebApplication extends TiWebAppManager {
         } else if ( view === "load-employee-detail" ) {
             const employeeID = String( options?.query?.employeeID || "" ).trim();
             return this.#loadEmployeeDetail( session, employeeID );
+        } else if ( view === "load-insights-cycle" ) {
+            return this.#loadInsightsCycle( session, options );
+        } else if ( view === "load-report-coverage" ) {
+            return this.#loadReportCoverage( session, options );
         } else {
             return super.processDataRequest( session, view, options );
         }
@@ -2492,6 +2496,78 @@ class CompetenceWebApplication extends TiWebAppManager {
                             canViewAudit: isSupervisor
                         }
                     } );
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Loads the Insights → Cycle analytics screen shell: the resolved cycle (selected via `?cycleID`,
+     * falling back to the active/current cycle) plus the candidate list for the cycle selector.
+     * Supervisor-only (the leadership reports are supervisor-scoped).
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [options]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadInsightsCycle( session, options ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const requestedCycleID = String( options?.query?.cycleID || "" ).trim();
+
+            Promise.all( [
+                dataManager.instance.getAllCycles(),
+                this.#resolveCurrentCycle()
+            ] ).then( ( [ cycles, currentCycle ] ) => {
+                const cycle = resultsAnalytics.pickCycleForRequest( cycles || [], requestedCycleID, currentCycle );
+                if ( !cycle ) {
+                    return resolve( { cycle: null, cycles: [] } );
+                }
+                resolve( {
+                    cycle: { id: cycle.cycleID, name: cycle.name, status: cycle.status },
+                    cycles: ( cycles || [] ).map( ( c ) => ( { id: c.cycleID, name: c.name, status: c.status } ) )
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Returns the Coverage (R1) report payload for the requested cycle. Supervisor-only, org-wide.
+     * Injects the organization root unit id into the filter so the whole-org roster is non-empty
+     * (an empty/missing rootUnitID would yield a null org subtree → empty roster → 0/0 coverage).
+     * The analytics service branches live-vs-snapshot internally.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [options]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadReportCoverage( session, options ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const requestedCycleID = String( options?.query?.cycleID || "" ).trim();
+            const rootUnitID = organizationManager.instance.getOrganizationRootUnitID();
+
+            Promise.all( [
+                dataManager.instance.getAllCycles(),
+                this.#resolveCurrentCycle()
+            ] ).then( ( [ cycles, currentCycle ] ) => {
+                const cycle = resultsAnalytics.pickCycleForRequest( cycles || [], requestedCycleID, currentCycle );
+                if ( !cycle ) {
+                    return resolve( { coverage: null, meta: null } );
+                }
+                const filter = { groupBy: "orgUnit", allowedEmployeeIDs: null, rootUnitID: rootUnitID };
+                return resultsAnalytics.instance.resolve( cycle.cycleID, filter, "coverage" ).then( ( report ) => {
+                    resolve( report );
                 } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
