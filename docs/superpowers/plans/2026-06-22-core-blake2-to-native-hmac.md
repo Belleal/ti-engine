@@ -41,7 +41,7 @@ Expected: completes without a node-gyp/MSBuild error; `node_modules/` is created
 Run:
 ```bash
 node -e "require('lodash'); console.log('lodash ok')"
-node --test packages/core/test 2>&1 | tail -n 3
+( cd packages/core && node --test ) 2>&1 | tail -n 3
 ```
 Expected: prints `lodash ok`; the `node --test` call reports no test files yet (e.g. "tests 0") and exits cleanly. (No commit — `node_modules` is git-ignored.)
 
@@ -305,7 +305,7 @@ to:
 Run:
 ```bash
 grep -rn "receivedHash === currentHash" packages/core || echo "old comparison removed"
-node --test packages/core/test
+( cd packages/core && node --test )
 ```
 Expected: prints `old comparison removed`; all tests pass.
 
@@ -445,7 +445,7 @@ test( "createMessageHash: does NOT warn when a non-default key is configured", (
 
 Run:
 ```bash
-node --test packages/core/test
+( cd packages/core && node --test )
 ```
 Expected: PASS — all files green (`message-hash.test.js` and `security-hash-key-warning.test.js`).
 
@@ -525,7 +525,7 @@ Run:
 ```bash
 npm ls blake2 2>&1 | grep -i blake2 || echo "blake2 not in tree"
 grep -rni "blake2" packages/core --include=*.js --include=*.json || echo "no blake2 in core source/manifests"
-node --test packages/core/test
+( cd packages/core && node --test )
 ```
 Expected: `blake2 not in tree`; `no blake2 in core source/manifests`; all tests pass.
 
@@ -610,7 +610,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ## Final verification
 
-- [ ] **Full suite:** `node --test packages/core/test` → all green.
+- [ ] **Full suite:** `cd packages/core && node --test` → all green.
 - [ ] **Lint:** `npx eslint packages/core` → no errors.
 - [ ] **No blake2:** `grep -rni blake2 . --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=docs` → none.
 - [ ] **Loads on Node 26:** `node -e "require('./packages/core/components/exchange/message-receiver.js'); console.log('message exchange loads')"` → prints the message (previously impossible with the unbuildable addon).
