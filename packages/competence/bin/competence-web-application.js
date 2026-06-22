@@ -172,7 +172,9 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "competency-text-editor": "administration",
                     "archetype-assignment": "administration",
                     "archetype-editor": "administration",
-                    "role-families": "administration"
+                    "role-families": "administration",
+                    "insights-overview": "insights",
+                    "insights-cycle": "insights"
                 },
                 componentsConfig: {
                     userProfileMenu: {
