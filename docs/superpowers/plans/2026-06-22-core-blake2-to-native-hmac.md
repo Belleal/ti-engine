@@ -593,9 +593,9 @@ to:
 
 Run (from repo root):
 ```bash
-grep -rni "blake2" . --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=docs || echo "no blake2 references remain"
+grep -rni "blake2" . --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=docs --exclude-dir=.superpowers --exclude=CHANGELOG.md || echo "no blake2 references remain"
 ```
-Expected: `no blake2 references remain`. (The `docs/` specs/plans are historical design records and intentionally retain the name.)
+Expected: `no blake2 references remain`. (Excluded on purpose: `docs/` specs/plans and the `.superpowers/` scratch workspace are historical/working records, and `CHANGELOG.md` intentionally retains the name to document the removal.)
 
 - [ ] **Step 5: Commit**
 
@@ -612,6 +612,6 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 - [ ] **Full suite:** `cd packages/core && node --test` → all green.
 - [ ] **Lint:** `npx eslint packages/core` → no errors.
-- [ ] **No blake2:** `grep -rni blake2 . --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=docs` → none.
+- [ ] **No blake2:** `grep -rni blake2 . --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=docs --exclude-dir=.superpowers --exclude=CHANGELOG.md` → none (CHANGELOG keeps the name to document the removal).
 - [ ] **Loads on Node 26:** `node -e "require('./packages/core/components/exchange/message-receiver.js'); console.log('message exchange loads')"` → prints the message (previously impossible with the unbuildable addon).
 - [ ] **Manual round-trip (optional, needs Redis):** with `TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY` set and `securityHashEnabled=true`, a normal service call succeeds; a manually-mutated or hash-stripped envelope is rejected with `E_SEC_MESSAGE_TAMPERING_DETECTED`.
