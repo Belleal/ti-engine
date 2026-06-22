@@ -8,7 +8,7 @@
 
 const ConnectionObserver = require( "#connection-observer" );
 const _ = require( "lodash" );
-const blake2 = require( "blake2" );
+const crypto = require( "node:crypto" );
 const exceptions = require( "#exceptions" );
 const logger = require( "#logger" );
 const tools = require( "#tools" );
@@ -121,9 +121,9 @@ class MessageHandler extends ConnectionObserver {
      */
     createMessageHash( message ) {
         let transformed = tools.decomposeJSON( tools.decycle( message ) );
-        let hash = blake2.createKeyedHash( "blake2b", Buffer.from( config.getSetting( config.setting.MESSAGE_EXCHANGE_SECURITY_HASH_KEY ) ) );
-        hash.update( Buffer.from( transformed ) );
-        return hash.digest( "hex" );
+        let hmac = crypto.createHmac( "sha256", Buffer.from( config.getSetting( config.setting.MESSAGE_EXCHANGE_SECURITY_HASH_KEY ) ) );
+        hmac.update( Buffer.from( transformed ) );
+        return hmac.digest( "hex" );
     }
 
     /**
