@@ -60,6 +60,11 @@ function buildCoverageBarsSpec( coverage, meta ) {
     };
 }
 
+const InsightsCycleSpecs = { buildCoverageGaugeSpec: buildCoverageGaugeSpec, buildCoverageBarsSpec: buildCoverageBarsSpec };
+
 if ( typeof module !== "undefined" && module.exports ) {
-    module.exports = { buildCoverageGaugeSpec: buildCoverageGaugeSpec, buildCoverageBarsSpec: buildCoverageBarsSpec };
+    module.exports = InsightsCycleSpecs;
+}
+if ( typeof window !== "undefined" ) {
+    window.InsightsCycleSpecs = InsightsCycleSpecs;
 }

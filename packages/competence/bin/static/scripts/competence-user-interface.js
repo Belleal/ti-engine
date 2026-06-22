@@ -1283,8 +1283,10 @@ const configureInsightsCycle = () => {
                 }
                 this.coverage = payload.coverage ? tiToolbox.structuredClone( payload.coverage ) : null;
                 this.meta = payload.meta ? tiToolbox.structuredClone( payload.meta ) : null;
-                this.coverageGaugeSpec = buildCoverageGaugeSpec( this.coverage, this.meta );
-                this.coverageBarsSpec = buildCoverageBarsSpec( this.coverage, this.meta );
+                if ( typeof window !== "undefined" && window.InsightsCycleSpecs ) {
+                    this.coverageGaugeSpec = window.InsightsCycleSpecs.buildCoverageGaugeSpec( this.coverage, this.meta );
+                    this.coverageBarsSpec = window.InsightsCycleSpecs.buildCoverageBarsSpec( this.coverage, this.meta );
+                }
                 this.isLoading = false;
             } ).catch( ( error ) => {
                 if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
@@ -1325,6 +1327,13 @@ const configureInsightsCycle = () => {
 
         getBarsAriaLabel() {
             return this.coverageBarsSpec.a11yLabel;
+        },
+
+        pendingTone( status ) {
+            if ( status === "Open" ) return "info";
+            if ( status === "In Review" ) return "warn";
+            if ( status === "Ready" ) return "success";
+            return "";
         }
     };
 };

@@ -54,7 +54,7 @@
                         <div class="ti-data-grid-row">
                             <span class="ti-data-grid-cell" x-text="row.name"></span>
                             <span class="ti-data-grid-cell" x-text="row.groupLabel"></span>
-                            <span class="ti-status-pill"><span class="dot"></span><span x-text="row.status"></span></span>
+                            <span class="ti-status-pill" x-bind:class="pendingTone(row.status)"><span class="dot"></span><span x-text="row.status"></span></span>
                         </div>
                     </template>
                 </div>
