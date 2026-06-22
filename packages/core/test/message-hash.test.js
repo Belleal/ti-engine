@@ -37,6 +37,7 @@ const crypto = require( "node:crypto" );
 const MessageHandler = require( "../components/exchange/message-handler.js" );
 
 const TEST_KEY = process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY;
+// createMessageHash reads only module-level config/tools — a bare {} is a safe `this`.
 const hashOf = ( msg ) => MessageHandler.prototype.createMessageHash.call( {}, msg );
 const expectedHash = ( msg, key ) => {
     const transformed = tools.decomposeJSON( tools.decycle( msg ) );
@@ -78,7 +79,7 @@ test( "createMessageHash: empty object hashes to a stable value without throwing
 
 test( "createMessageHash: does NOT warn when a non-default key is configured", () => {
     hashOf( SAMPLE );
-    const keyWarnings = seenWarnings.filter( ( w ) => /security hash/i.test( w.message ) );
+    const keyWarnings = seenWarnings.filter( ( w ) => w.severity === logger.logSeverity.WARNING && /security hash/i.test( w.message ) );
     assert.strictEqual( keyWarnings.length, 0 );
     logger.log = originalLog;
 } );

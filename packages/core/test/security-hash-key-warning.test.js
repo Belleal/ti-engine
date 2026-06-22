@@ -13,6 +13,7 @@ const originalLog = logger.log;
 logger.log = ( message, severity ) => { warnings.push( { message, severity } ); };
 
 const MessageHandler = require( "../components/exchange/message-handler.js" );
+// createMessageHash reads only module-level config/tools — a bare {} is a safe `this`.
 const hashOf = ( msg ) => MessageHandler.prototype.createMessageHash.call( {}, msg );
 
 test( "warns exactly once when the security hash runs with an empty/default key", () => {
