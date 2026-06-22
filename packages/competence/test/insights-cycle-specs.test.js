@@ -44,3 +44,17 @@ test( "bars spec emits one stacked row per group with five status segments incl.
     const inReview = segs.find( ( s ) => s.key === "In Review" );
     assert.equal( inReview.v, 6 );
 } );
+
+test( "bars spec maps every segment's tone to the real ti-chart tone vocabulary", () => {
+    const VALID_TONES = [ "grade-s", "grade-r", "grade-u", "grade-n", "ink" ];
+    const spec = buildCoverageBarsSpec( COVERAGE, { partial: false } );
+    const segs = spec.data.rows[ 0 ].segments;
+    segs.forEach( ( seg ) => {
+        assert.ok( VALID_TONES.includes( seg.tone ), "unexpected tone: " + seg.tone );
+    } );
+    assert.equal( segs.find( ( s ) => s.key === "Closed" ).tone, "grade-s" );
+    assert.equal( segs.find( ( s ) => s.key === "Ready" ).tone, "grade-r" );
+    assert.equal( segs.find( ( s ) => s.key === "In Review" ).tone, "grade-u" );
+    assert.equal( segs.find( ( s ) => s.key === "Open" ).tone, "grade-n" );
+    assert.equal( segs.find( ( s ) => s.key === "Not started" ).tone, "ink" );
+} );

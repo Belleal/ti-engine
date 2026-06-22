@@ -43,11 +43,11 @@ function buildCoverageBarsSpec( coverage, meta ) {
     const rows = groups.map( function ( group ) {
         const byStatus = group.byStatus || {};
         const segments = [
-            { key: "Closed", v: byStatus[ "Closed" ] || 0, tone: "success" },
-            { key: "Ready", v: byStatus[ "Ready" ] || 0, tone: "success" },
-            { key: "In Review", v: byStatus[ "In Review" ] || 0, tone: "warn" },
-            { key: "Open", v: byStatus[ "Open" ] || 0, tone: "info" },
-            { key: "Not started", v: group.notStarted || 0, tone: "" }
+            { key: "Closed", v: byStatus[ "Closed" ] || 0, tone: "grade-s" },
+            { key: "Ready", v: byStatus[ "Ready" ] || 0, tone: "grade-r" },
+            { key: "In Review", v: byStatus[ "In Review" ] || 0, tone: "grade-u" },
+            { key: "Open", v: byStatus[ "Open" ] || 0, tone: "grade-n" },
+            { key: "Not started", v: group.notStarted || 0, tone: "ink" }
         ];
         return { id: String( group.groupKey || group.groupLabel || "" ), label: group.groupLabel || "", segments: segments };
     } );
