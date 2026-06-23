@@ -702,6 +702,103 @@ class ResultsAnalytics {
     }
 
     /**
+     * R3 — Alignment gap quadrant (CA-67). One point per reported evaluation that has at least one self AND one manager
+     * grade: `x` = relevancy-weighted mean MANAGER grade, `y` = mean SELF grade, `z` = mean TEAM grade (sources kept
+     * SEPARATE — unlike scoring, which blends them — and each is a TRUE mean over only the competencies that source
+     * graded, so a partially-graded source is not dragged toward zero). The quadrant splits each axis at `midpoint`
+     * (default the R=1.0 grade weight, configurable via alignmentQuadrantMidpoint): `y-x` side strings (self-high/
+     * manager-low = hidden talent, self-low/manager-high = blind spot, etc.). `gap = y − x` (signed self−manager).
+     *
+     * @method
+     * @param {Array<Object>} frame - CohortRow[]; competencies carry per-source weights + relevancy + category.
+     * @param {Object} [filter] - { midpoint:number, category:"E"|"I"|"C" }.
+     * @returns {Object} { points:[{evaluationID,employeeRef,roleFamily,organizationUnitID,x,y,z,quadrant,gap}], quadrantCounts, diagonal:true, midpoint }
+     * @public
+     */
+    computeAlignment( frame, filter ) {
+        const rows = Array.isArray( frame ) ? frame : [];
+        const midpoint = ( filter && typeof filter.midpoint === "number" ) ? filter.midpoint : GRADE_WEIGHTS.R;
+        const category = ( filter && [ "E", "I", "C" ].indexOf( filter.category ) >= 0 ) ? filter.category : null;
+        const reported = rows.filter( ( r ) => r && r.isScored && ( r.status === configurationLoader.evaluationStatus.READY || r.status === configurationLoader.evaluationStatus.CLOSED ) );
+
+        const points = [];
+        const quadrantCounts = { "high-high": 0, "high-low": 0, "low-high": 0, "low-low": 0 };
+        for ( const row of reported ) {
+            const y = this.#sourceMean( row.competencies, "self", category );
+            const x = this.#sourceMean( row.competencies, "manager", category );
+            const z = this.#sourceMean( row.competencies, "team", category );
+            if ( x === null || y === null ) { continue; }   // need both axes to place the point
+            const quadrant = ( y >= midpoint ? "high" : "low" ) + "-" + ( x >= midpoint ? "high" : "low" );   // self(y)-manager(x)
+            quadrantCounts[ quadrant ] += 1;
+            points.push( {
+                evaluationID: row.evaluationID,
+                employeeRef: row.employeeID,
+                roleFamily: row.roleFamily,
+                organizationUnitID: row.organizationUnitID,
+                x: this.#round3( x ), y: this.#round3( y ), z: ( z !== null ) ? this.#round3( z ) : null,
+                quadrant: quadrant,
+                gap: this.#round3( y - x )
+            } );
+        }
+        return { points: points, quadrantCounts: quadrantCounts, diagonal: true, midpoint: midpoint };
+    }
+
+    /**
+     * Relevancy-weighted TRUE mean of one source's grade weights over a row's competencies (only those the source
+     * actually graded — `null` weights excluded from both numerator and denominator). Optionally restricted to a
+     * category. Returns null when the source graded nothing.
+     * @method
+     * @param {Object} comps - row.competencies
+     * @param {"self"|"manager"|"team"} source
+     * @param {string|null} category
+     * @returns {number|null}
+     * @private
+     */
+    #sourceMean( comps, source, category ) {
+        const competencies = ( comps && typeof comps === "object" ) ? comps : {};
+        const weightKey = ( source === "self" ) ? "selfWeight" : ( source === "manager" ) ? "managerWeight" : "teamWeight";
+        let num = 0, rel = 0;
+        for ( const code of Object.keys( competencies ) ) {
+            const comp = competencies[ code ];
+            if ( !comp || typeof comp.relevancy !== "number" || comp.relevancy <= 0 ) { continue; }
+            if ( category && comp.category !== category ) { continue; }
+            const weight = comp[ weightKey ];
+            if ( typeof weight !== "number" ) { continue; }   // ungraded by this source → excluded (true mean)
+            num += weight * comp.relevancy;
+            rel += comp.relevancy;
+        }
+        return ( rel > 0 ) ? ( num / rel ) : null;
+    }
+
+    /**
+     * R3 drill — per-competency self/manager/team breakdown for ONE evaluation row, sorted by |self − manager| gap
+     * descending (largest divergences = blind spots / hidden strengths first). PURE: takes the already-built CohortRow;
+     * the web layer fetches the evaluation, builds the row, and re-gates `isSuperiorManagerOfEmployee` before exposing
+     * identity (analytics stays role/session-agnostic).
+     * @method
+     * @param {Object} row - a single CohortRow.
+     * @param {string} [category] - optional E/I/C restriction.
+     * @returns {Object} { evaluationID, employeeID, competencies:[{code,subcategory,category,self,manager,team,gap}] }
+     * @public
+     */
+    computeAlignmentDrill( row, category ) {
+        const comps = ( row && row.competencies && typeof row.competencies === "object" ) ? row.competencies : {};
+        const cat = ( [ "E", "I", "C" ].indexOf( category ) >= 0 ) ? category : null;
+        const out = [];
+        for ( const code of Object.keys( comps ) ) {
+            const comp = comps[ code ];
+            if ( !comp ) { continue; }
+            if ( cat && comp.category !== cat ) { continue; }
+            const self = ( typeof comp.selfWeight === "number" ) ? comp.selfWeight : null;
+            const manager = ( typeof comp.managerWeight === "number" ) ? comp.managerWeight : null;
+            const gap = ( self !== null && manager !== null ) ? this.#round3( self - manager ) : null;
+            out.push( { code: code, subcategory: comp.subcategory, category: comp.category, self: comp.self, manager: comp.manager, team: comp.team, gap: gap } );
+        }
+        out.sort( ( a, b ) => Math.abs( b.gap || 0 ) - Math.abs( a.gap || 0 ) );
+        return { evaluationID: row ? row.evaluationID : null, employeeID: row ? row.employeeID : null, competencies: out };
+    }
+
+    /**
      * Recursively flattens an org subtree node into a de-duplicated roster. The subtree's `.employees` are direct
      * members only; descendants live under `.children` (organization-manager.js:459-470), so the roster walks
      * `.children` recursively concatenating each node's `.employees`.
@@ -880,7 +977,8 @@ class ResultsAnalytics {
                 return { predictiveDrivers: this.computePredictiveDrivers( frame, filter ) };
             case "timeDistribution":   // CA-67 Task 4 — slots + today injected on the filter by the resolver
                 return { timeDistribution: this.computeTimeDistribution( frame, filter ? filter.slots : null, filter ? filter.today : null ) };
-            case "alignment":          // CA-67 Task 5
+            case "alignment":          // CA-67 Task 5 — midpoint/category injected on the filter by the web layer
+                return { alignment: this.computeAlignment( frame, filter ) };
             default:
                 return this.#emptyReport( reportKey );
         }
@@ -989,7 +1087,8 @@ class ResultsAnalytics {
                     dictionaryVersion: packageVersion,
                     meta: meta,
                     slots: slots,
-                    today: new Date().toISOString().split( "T" )[ 0 ]
+                    today: new Date().toISOString().split( "T" )[ 0 ],
+                    alignmentMidpoint: configurationLoader.getSetting( "performanceAppraisals.alignmentQuadrantMidpoint" )
                 } );
                 return dataManager.instance.saveResultsSnapshot( snapshot );
             } );
@@ -1041,6 +1140,8 @@ class ResultsAnalytics {
         const predictiveDrivers = this.computePredictiveDrivers( frame, {} );
         // R2 (CA-67): time distribution needs the calendar + the close date, supplied by persistResultsSnapshot.
         const timeDistribution = Array.isArray( input.slots ) ? this.computeTimeDistribution( frame, input.slots, input.today ) : null;
+        // R3 (CA-67): alignment quadrant at the configured midpoint (persistResultsSnapshot injects the live setting).
+        const alignment = this.computeAlignment( frame, { midpoint: ( typeof input.alignmentMidpoint === "number" ) ? input.alignmentMidpoint : GRADE_WEIGHTS.R } );
 
         return {
             cycleID: cycleID,
@@ -1063,7 +1164,7 @@ class ResultsAnalytics {
             reports: {
                 coverage: coverageReport,
                 timeDistribution: timeDistribution,      // CA-67 R2 (null when no calendar supplied)
-                alignment: null,
+                alignment: alignment,                    // CA-67 R3
                 heatmap: heatmap,                        // CA-67 R4 (canonical blended/role-family variant)
                 levelDistribution: levelDistribution,   // CA-67 R5
                 predictiveDrivers: predictiveDrivers     // CA-67 R6

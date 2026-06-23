@@ -766,3 +766,70 @@ describe( "ResultsAnalytics.computeTimeDistribution (R2)", () => {
         assert.deepEqual( m2, { managerID: "m2", planned: 0, held: 0, unscheduledReady: 1 } );
     } );
 } );
+
+/* ===================== R3 — alignment quadrant ===================== */
+
+describe( "ResultsAnalytics.computeAlignment (R3)", () => {
+    const wOf = ( g ) => ( g === "S" ? 1.3 : g === "R" ? 1.0 : g === "U" ? 0.6 : g === "N" ? 0.0 : null );
+
+    // comps: { code: { category, relevancy, self, manager, team } } (grade letters; omit for ungraded)
+    function alignRow( evaluationID, comps, over = {} ) {
+        const competencies = {};
+        for ( const code of Object.keys( comps ) ) {
+            const c = comps[ code ];
+            competencies[ code ] = {
+                category: c.category, subcategory: c.subcategory || ( c.category + "1" ), relevancy: ( c.relevancy !== undefined ) ? c.relevancy : 5,
+                self: c.self, manager: c.manager, team: c.team,
+                selfWeight: wOf( c.self ), managerWeight: wOf( c.manager ), teamWeight: wOf( c.team )
+            };
+        }
+        return { evaluationID: evaluationID, employeeID: over.employeeID || ( "emp-" + evaluationID ), roleFamily: over.roleFamily || "SE", organizationUnitID: over.organizationUnitID || "u1", status: over.status || "Ready", isScored: ( over.isScored !== undefined ) ? over.isScored : true, competencies: competencies };
+    }
+
+    it( "places a point per reported eval: x=manager mean, y=self mean, z=team mean (relevancy-weighted true means)", () => {
+        const frame = [ alignRow( "a", { "E1-1": { category: "E", self: "S", manager: "U", team: "R" }, "I1-1": { category: "I", self: "S", manager: "U", team: "R" } } ) ];
+        const report = resultsAnalyticsInstance.computeAlignment( frame, {} );
+        assert.equal( report.points.length, 1 );
+        const p = report.points[ 0 ];
+        assert.equal( p.y, 1.3 );   // self S
+        assert.equal( p.x, 0.6 );   // manager U
+        assert.equal( p.z, 1 );     // team R
+        assert.equal( p.gap, 0.7 ); // y − x
+        assert.equal( p.quadrant, "high-low" );   // self-high, manager-low (hidden talent) at midpoint 1.0
+        assert.equal( report.diagonal, true );
+    } );
+
+    it( "tallies quadrantCounts and honors a custom midpoint", () => {
+        const frame = [
+            alignRow( "a", { "E1-1": { category: "E", self: "R", manager: "R" } } ),   // 1.0/1.0 → high-high at mid 1.0
+            alignRow( "b", { "E1-1": { category: "E", self: "U", manager: "U" } } )    // 0.6/0.6 → low-low
+        ];
+        const report = resultsAnalyticsInstance.computeAlignment( frame, { midpoint: 1.0 } );
+        assert.equal( report.quadrantCounts[ "high-high" ], 1 );
+        assert.equal( report.quadrantCounts[ "low-low" ], 1 );
+        assert.equal( report.midpoint, 1.0 );
+    } );
+
+    it( "excludes an evaluation missing a self or manager grade (cannot place both axes)", () => {
+        const frame = [ alignRow( "a", { "E1-1": { category: "E", self: "S" } } ) ];   // no manager grade
+        assert.equal( resultsAnalyticsInstance.computeAlignment( frame, {} ).points.length, 0 );
+    } );
+
+    it( "restricts to a category when filter.category is set", () => {
+        const frame = [ alignRow( "a", { "E1-1": { category: "E", self: "S", manager: "S" }, "C1-1": { category: "C", self: "N", manager: "N" } } ) ];
+        const p = resultsAnalyticsInstance.computeAlignment( frame, { category: "E" } ).points[ 0 ];
+        assert.equal( p.y, 1.3 );   // only the E competency counts
+        assert.equal( p.x, 1.3 );
+    } );
+
+    it( "computeAlignmentDrill sorts competencies by |self − manager| gap descending", () => {
+        const row = alignRow( "a", {
+            "E1-1": { category: "E", self: "S", manager: "R" },   // gap 0.3
+            "E2-1": { category: "E", self: "N", manager: "S" }    // gap -1.3
+        } );
+        const drill = resultsAnalyticsInstance.computeAlignmentDrill( row );
+        assert.equal( drill.competencies[ 0 ].code, "E2-1" );   // largest |gap| first
+        assert.equal( drill.competencies[ 0 ].gap, -1.3 );
+        assert.equal( drill.competencies[ 1 ].code, "E1-1" );
+    } );
+} );

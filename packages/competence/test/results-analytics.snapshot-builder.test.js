@@ -70,9 +70,13 @@ describe( "ResultsAnalytics.buildResultsSnapshot — locked shape", () => {
         // R6 (CA-67): predictiveDrivers present; an unscored frame has too few rows → insufficientData.
         assert.deepEqual( snap.reports.predictiveDrivers, { rows: [], insufficientData: true } );
 
-        // remaining report slots present but null (locked envelope; land in later CA-67 steps)
+        // R3 (CA-67): alignment present; an unscored frame yields no points but the diagonal/quadrant envelope.
+        assert.deepEqual( snap.reports.alignment.points, [] );
+        assert.equal( snap.reports.alignment.diagonal, true );
+
+        // timeDistribution stays null here — buildResultsSnapshot only computes it when persistResultsSnapshot
+        // supplies the calendar (this builder test passes no slots).
         assert.equal( snap.reports.timeDistribution, null );
-        assert.equal( snap.reports.alignment, null );
     } );
 
     it( "computes chronoKey = year*2 + (H2?1:0)", () => {
