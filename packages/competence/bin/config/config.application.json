@@ -19,6 +19,7 @@
     "allowFinalizeTeamWithoutSubmissions": true,
     "activeCompetencySetCap": 30,
     "numberOfNextPeriodGoals": 5,
+    "alignmentQuadrantMidpoint": 1.0,
     "interviewCalendar": {
       "slotDurationMinutes": 30,
       "workingHoursStart": "09:00",
