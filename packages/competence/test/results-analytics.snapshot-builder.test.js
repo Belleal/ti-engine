@@ -67,10 +67,12 @@ describe( "ResultsAnalytics.buildResultsSnapshot — locked shape", () => {
         assert.equal( Object.keys( snap.bySubcategory ).length, 9 );
         assert.deepEqual( snap.bySubcategory.E1, { meanGrade: null, n: 0, expectedMeanGrade: null, gap: null } );
 
+        // R6 (CA-67): predictiveDrivers present; an unscored frame has too few rows → insufficientData.
+        assert.deepEqual( snap.reports.predictiveDrivers, { rows: [], insufficientData: true } );
+
         // remaining report slots present but null (locked envelope; land in later CA-67 steps)
         assert.equal( snap.reports.timeDistribution, null );
         assert.equal( snap.reports.alignment, null );
-        assert.equal( snap.reports.predictiveDrivers, null );
     } );
 
     it( "computes chronoKey = year*2 + (H2?1:0)", () => {

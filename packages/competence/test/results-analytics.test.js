@@ -654,3 +654,67 @@ describe( "ResultsAnalytics.computeCompetenceHeatmap (R4)", () => {
         assert.equal( cell.v, undefined );
     } );
 } );
+
+/* ===================== R6 — predictive drivers ===================== */
+
+describe( "ResultsAnalytics.computePredictiveDrivers (R6)", () => {
+    // A reported row; comps: { code: { subcategory, relevancy, w } } where w is the grade weight on all three sources
+    // (so the blended per-subcat value equals w for a single-competency subcategory).
+    function drvRow( evaluationID, score, comps ) {
+        const competencies = {};
+        for ( const code of Object.keys( comps ) ) {
+            const c = comps[ code ];
+            competencies[ code ] = { subcategory: c.subcategory, relevancy: c.relevancy, selfWeight: c.w, managerWeight: c.w, teamWeight: c.w };
+        }
+        return { evaluationID: evaluationID, status: "Ready", isScored: true, finalScore: { score: score }, competencies: competencies };
+    }
+    const rowById = ( report, id ) => report.rows.find( ( r ) => r.id === id );
+
+    it( "returns insufficientData with fewer than 5 reported rows", () => {
+        const frame = [ drvRow( "a", 100, { "E1-1": { subcategory: "E1", relevancy: 5, w: 1.0 } } ) ];
+        const report = resultsAnalyticsInstance.computePredictiveDrivers( frame, {} );
+        assert.equal( report.insufficientData, true );
+        assert.deepEqual( report.rows, [] );
+    } );
+
+    it( "Pearson r ≈ 1 for a subcategory that tracks the final score, null for a constant one", () => {
+        const frame = [
+            drvRow( "a", 0, { "E1-1": { subcategory: "E1", relevancy: 5, w: 0.0 }, "E2-1": { subcategory: "E2", relevancy: 5, w: 1.0 } } ),
+            drvRow( "b", 60, { "E1-1": { subcategory: "E1", relevancy: 5, w: 0.6 }, "E2-1": { subcategory: "E2", relevancy: 5, w: 1.0 } } ),
+            drvRow( "c", 100, { "E1-1": { subcategory: "E1", relevancy: 5, w: 1.0 }, "E2-1": { subcategory: "E2", relevancy: 5, w: 1.0 } } ),
+            drvRow( "d", 100, { "E1-1": { subcategory: "E1", relevancy: 5, w: 1.0 }, "E2-1": { subcategory: "E2", relevancy: 5, w: 1.0 } } ),
+            drvRow( "e", 130, { "E1-1": { subcategory: "E1", relevancy: 5, w: 1.3 }, "E2-1": { subcategory: "E2", relevancy: 5, w: 1.0 } } )
+        ];
+        const report = resultsAnalyticsInstance.computePredictiveDrivers( frame, {} );
+        assert.equal( report.insufficientData, false );
+        assert.equal( rowById( report, "E1" ).r, 1 );        // value = score/100 exactly
+        assert.equal( rowById( report, "E2" ).r, null );     // constant → no correlation
+        assert.equal( report.rows[ 0 ].id, "E1" );           // sorted by r desc → E1 first
+    } );
+
+    it( "configuredShare is the subcategory's slice of total relevancy mass (sums to 1 over present subcats)", () => {
+        const frame = [];
+        for ( let i = 0; i < 5; i++ ) {
+            frame.push( drvRow( "r" + i, 100, { "E1-1": { subcategory: "E1", relevancy: 5, w: 1.0 }, "E2-1": { subcategory: "E2", relevancy: 5, w: 1.0 } } ) );
+        }
+        const report = resultsAnalyticsInstance.computePredictiveDrivers( frame, {} );
+        assert.equal( rowById( report, "E1" ).configuredShare, 0.5 );
+        assert.equal( rowById( report, "E2" ).configuredShare, 0.5 );
+        assert.equal( rowById( report, "C3" ).configuredShare, 0 );   // no competencies
+    } );
+
+    it( "raises misweightFlag when a subcategory's empirical rank diverges from its configured rank by >= 2", () => {
+        // E3 perfectly correlates (empirical rank 1) but has the LOWEST relevancy (configured rank 3) → gap 2 → flagged.
+        // E1 (highest relevancy) and E2 are constant → no correlation.
+        const frame = [
+            drvRow( "a", 0, { "E1-1": { subcategory: "E1", relevancy: 9, w: 1.0 }, "E2-1": { subcategory: "E2", relevancy: 5, w: 1.0 }, "E3-1": { subcategory: "E3", relevancy: 1, w: 0.0 } } ),
+            drvRow( "b", 60, { "E1-1": { subcategory: "E1", relevancy: 9, w: 1.0 }, "E2-1": { subcategory: "E2", relevancy: 5, w: 1.0 }, "E3-1": { subcategory: "E3", relevancy: 1, w: 0.6 } } ),
+            drvRow( "c", 100, { "E1-1": { subcategory: "E1", relevancy: 9, w: 1.0 }, "E2-1": { subcategory: "E2", relevancy: 5, w: 1.0 }, "E3-1": { subcategory: "E3", relevancy: 1, w: 1.0 } } ),
+            drvRow( "d", 100, { "E1-1": { subcategory: "E1", relevancy: 9, w: 1.0 }, "E2-1": { subcategory: "E2", relevancy: 5, w: 1.0 }, "E3-1": { subcategory: "E3", relevancy: 1, w: 1.0 } } ),
+            drvRow( "e", 130, { "E1-1": { subcategory: "E1", relevancy: 9, w: 1.0 }, "E2-1": { subcategory: "E2", relevancy: 5, w: 1.0 }, "E3-1": { subcategory: "E3", relevancy: 1, w: 1.3 } } )
+        ];
+        const report = resultsAnalyticsInstance.computePredictiveDrivers( frame, {} );
+        assert.equal( rowById( report, "E3" ).misweightFlag, true );
+        assert.equal( rowById( report, "E3" ).r, 1 );
+    } );
+} );

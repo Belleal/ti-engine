@@ -547,6 +547,107 @@ class ResultsAnalytics {
     }
 
     /**
+     * R6 — Predictive drivers (CA-67). Over the reported subset (needs ≥ minSampleSize, default 5, else
+     * `insufficientData`), Pearson-correlates each subcategory's per-row blended score-share with `finalScore.score`
+     * (`r`); derives `empiricalShare = |r| / Σ|r|`, the `configuredShare` = that subcategory's slice of the cohort's
+     * total relevancy mass, their `divergence`, and a `misweightFlag` when the two share-ranks differ by ≥ rankDelta
+     * (default 2). Rows are sorted by `r` desc (null-`r` subcategories — constant/too-few — sort last). No precomputed
+     * correlation or category weights exist in config (verified); all derived from the frame at request time.
+     *
+     * @method
+     * @param {Array<Object>} frame - CohortRow[]; competencies carry {subcategory, relevancy, *Weight}; rows carry finalScore.score.
+     * @param {Object} [filter] - { minSampleSize, misweightRankDelta }.
+     * @returns {Object} { rows:[{id,label,r,empiricalShare,configuredShare,divergence,misweightFlag}], insufficientData:boolean }
+     * @public
+     */
+    computePredictiveDrivers( frame, filter ) {
+        const minSample = ( filter && typeof filter.minSampleSize === "number" ) ? filter.minSampleSize : 5;
+        const rankDelta = ( filter && typeof filter.misweightRankDelta === "number" ) ? filter.misweightRankDelta : 2;
+        const reported = ( Array.isArray( frame ) ? frame : [] ).filter( ( r ) => r && r.isScored && r.finalScore && typeof r.finalScore.score === "number" && ( r.status === configurationLoader.evaluationStatus.READY || r.status === configurationLoader.evaluationStatus.CLOSED ) );
+
+        if ( reported.length < minSample ) {
+            return { rows: [], insufficientData: true };
+        }
+
+        const relInSubcat = {};
+        const pairs = {};
+        for ( const code of SUBCATEGORIES ) { relInSubcat[ code ] = 0; pairs[ code ] = { x: [], y: [] }; }
+        let relTotal = 0;
+
+        for ( const row of reported ) {
+            const comps = ( row.competencies && typeof row.competencies === "object" ) ? row.competencies : {};
+            const perSubcat = {};   // subcat → { wNum, relSum }
+            for ( const code of Object.keys( comps ) ) {
+                const comp = comps[ code ];
+                if ( !comp || typeof comp.relevancy !== "number" || comp.relevancy <= 0 || SUBCATEGORIES.indexOf( comp.subcategory ) < 0 ) { continue; }
+                if ( !perSubcat[ comp.subcategory ] ) { perSubcat[ comp.subcategory ] = { wNum: 0, relSum: 0 }; }
+                perSubcat[ comp.subcategory ].wNum += this.#sourceWeight( comp, "blended" ) * comp.relevancy;
+                perSubcat[ comp.subcategory ].relSum += comp.relevancy;
+                relInSubcat[ comp.subcategory ] += comp.relevancy;
+                relTotal += comp.relevancy;
+            }
+            for ( const subcat of Object.keys( perSubcat ) ) {
+                if ( perSubcat[ subcat ].relSum > 0 ) {
+                    pairs[ subcat ].x.push( perSubcat[ subcat ].wNum / perSubcat[ subcat ].relSum );
+                    pairs[ subcat ].y.push( row.finalScore.score );
+                }
+            }
+        }
+
+        const rBy = {};
+        let absSum = 0;
+        for ( const code of SUBCATEGORIES ) {
+            const r = pearson( pairs[ code ].x, pairs[ code ].y );
+            rBy[ code ] = r;
+            if ( r !== null ) { absSum += Math.abs( r ); }
+        }
+
+        const empiricalShare = {};
+        const configuredShare = {};
+        for ( const code of SUBCATEGORIES ) {
+            empiricalShare[ code ] = ( rBy[ code ] !== null && absSum > 0 ) ? ( Math.abs( rBy[ code ] ) / absSum ) : 0;
+            configuredShare[ code ] = ( relTotal > 0 ) ? ( relInSubcat[ code ] / relTotal ) : 0;
+        }
+
+        const empRank = this.#rankDesc( SUBCATEGORIES, empiricalShare );
+        const confRank = this.#rankDesc( SUBCATEGORIES, configuredShare );
+
+        const out = SUBCATEGORIES.map( ( code ) => ( {
+            id: code, label: code,
+            r: ( rBy[ code ] !== null ) ? this.#round3( rBy[ code ] ) : null,
+            empiricalShare: this.#round3( empiricalShare[ code ] ),
+            configuredShare: this.#round3( configuredShare[ code ] ),
+            divergence: this.#round3( empiricalShare[ code ] - configuredShare[ code ] ),
+            misweightFlag: Math.abs( empRank[ code ] - confRank[ code ] ) >= rankDelta
+        } ) );
+
+        out.sort( ( a, b ) => {
+            if ( a.r === null && b.r === null ) { return 0; }
+            if ( a.r === null ) { return 1; }
+            if ( b.r === null ) { return -1; }
+            return b.r - a.r;
+        } );
+
+        return { rows: out, insufficientData: false };
+    }
+
+    /**
+     * Returns a 1-based descending rank per key by `valueByKey[key]` (highest value → rank 1). Stable on ties (key
+     * order preserved — Node's Array.sort is stable).
+     * @method
+     * @param {Array<string>} keys
+     * @param {Object<string,number>} valueByKey
+     * @returns {Object<string,number>}
+     * @private
+     */
+    #rankDesc( keys, valueByKey ) {
+        const sorted = keys.slice().sort( ( a, b ) => valueByKey[ b ] - valueByKey[ a ] );
+        const rank = {};
+        sorted.forEach( ( key, i ) => { rank[ key ] = i + 1; } );
+        return rank;
+    }
+
+    /**
      * Recursively flattens an org subtree node into a de-duplicated roster. The subtree's `.employees` are direct
      * members only; descendants live under `.children` (organization-manager.js:459-470), so the roster walks
      * `.children` recursively concatenating each node's `.employees`.
@@ -712,9 +813,10 @@ class ResultsAnalytics {
                 return { levelDistribution: this.computeLevelDistribution( frame, filter ) };
             case "heatmap":            // CA-67 Task 2
                 return { heatmap: this.computeCompetenceHeatmap( frame, filter ) };
+            case "predictiveDrivers":  // CA-67 Task 3
+                return { predictiveDrivers: this.computePredictiveDrivers( frame, filter ) };
             case "timeDistribution":   // CA-67 Task 4
             case "alignment":          // CA-67 Task 5
-            case "predictiveDrivers":  // CA-67 Task 3
             default:
                 return this.#emptyReport( reportKey );
         }
@@ -866,6 +968,8 @@ class ResultsAnalytics {
         // Alternate source/groupBy views on a CLOSED cycle recompute (a known projection-fidelity follow-up; ACTIVE is exact).
         const heatmap = this.computeCompetenceHeatmap( frame, { source: "blended", groupBy: "roleFamily" } );
         const bySubcategory = this.#computeBySubcategory( frame );
+        // R6 (CA-67): whole-cohort predictive drivers (no filter variants).
+        const predictiveDrivers = this.computePredictiveDrivers( frame, {} );
 
         return {
             cycleID: cycleID,
@@ -891,7 +995,7 @@ class ResultsAnalytics {
                 alignment: null,
                 heatmap: heatmap,                        // CA-67 R4 (canonical blended/role-family variant)
                 levelDistribution: levelDistribution,   // CA-67 R5
-                predictiveDrivers: null
+                predictiveDrivers: predictiveDrivers     // CA-67 R6
             },
 
             // Cross-cycle stable-axis substrate — locked SHAPE now, populated as reports land (never back-fillable).
