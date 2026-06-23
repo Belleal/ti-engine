@@ -2,6 +2,11 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.6.1
+
+* build(deps): update `@dotenvx/dotenvx` from ^1.73.1 to ^1.75.1
+* build(deps): remove `zeromq` as optional dependency
+
 ## Version 1.6.0
 
 * refactor(exchange)!: replace the blake2 keyed hash with native `node:crypto` HMAC-SHA256 in the message integrity check
