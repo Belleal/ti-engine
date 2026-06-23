@@ -580,3 +580,77 @@ describe( "ResultsAnalytics.computeLevelDistribution (R5)", () => {
         assert.equal( groupById( resultsAnalyticsInstance.computeLevelDistribution( frame, {} ), "S1" ).n, 3 );
     } );
 } );
+
+/* ===================== R4 — competence heatmap ===================== */
+
+describe( "ResultsAnalytics.computeCompetenceHeatmap (R4)", () => {
+    const ARCH_A = { N1: 6, J1: 7, J2: 7, J3: 8, R1: 8, R2: 8, R3: 9, S1: 9, S2: 9, S3: 9, X1: 9, T1: 9 };
+    const W = { S: 1.3, R: 1.0, U: 0.6, N: 0.0, "": null };
+
+    // A reported row with one competency per given (code, subcategory, grades). All archetype A at `stageLevel`.
+    function hmRow( evaluationID, roleFamily, stageLevel, comps ) {
+        const rel = ARCH_A[ stageLevel ];
+        const competencies = {};
+        for ( const code of Object.keys( comps ) ) {
+            const g = comps[ code ];
+            competencies[ code ] = {
+                subcategory: g.subcategory, relevancy: rel, relevancyCurve: ARCH_A,
+                selfWeight: W[ g.self !== undefined ? g.self : "R" ],
+                managerWeight: W[ g.manager !== undefined ? g.manager : "R" ],
+                teamWeight: W[ g.team !== undefined ? g.team : "R" ]
+            };
+        }
+        return { evaluationID: evaluationID, roleFamily: roleFamily, organizationUnitID: "u1", stageLevel: stageLevel, status: "Ready", isScored: true, finalScore: { score: 100 }, competencies: competencies };
+    }
+    const cellAt = ( report, subIdx, colIdx ) => report.cells.find( ( c ) => c.r === subIdx && c.c === colIdx );
+
+    it( "rows are the 9 subcategories; cols are the distinct group keys, sorted", () => {
+        const frame = [
+            hmRow( "a", "SE", "R1", { "E1-1": { subcategory: "E1" } } ),
+            hmRow( "b", "SE", "R1", { "E1-1": { subcategory: "E1" } } ),
+            hmRow( "c", "SE", "R1", { "E1-1": { subcategory: "E1" } } ),
+            hmRow( "d", "BA", "R1", { "E1-1": { subcategory: "E1" } } ),
+            hmRow( "e", "BA", "R1", { "E1-1": { subcategory: "E1" } } ),
+            hmRow( "f", "BA", "R1", { "E1-1": { subcategory: "E1" } } )
+        ];
+        const report = resultsAnalyticsInstance.computeCompetenceHeatmap( frame, { groupBy: "roleFamily", source: "blended" } );
+        assert.deepEqual( report.rows.map( ( r ) => r.id ), [ "E1", "E2", "E3", "I1", "I2", "I3", "C1", "C2", "C3" ] );
+        assert.deepEqual( report.cols.map( ( c ) => c.id ), [ "BA", "SE" ] );   // sorted
+    } );
+
+    it( "blended cell v = relevancy-weighted blended grade; expected from maturity-step; delta = v − expected", () => {
+        // 3 SE rows at R1 (archetype A → expected grade R = 1.0), all grades S (blended = 1.3).
+        const frame = [
+            hmRow( "a", "SE", "R1", { "E1-1": { subcategory: "E1", self: "S", manager: "S", team: "S" } } ),
+            hmRow( "b", "SE", "R1", { "E1-1": { subcategory: "E1", self: "S", manager: "S", team: "S" } } ),
+            hmRow( "c", "SE", "R1", { "E1-1": { subcategory: "E1", self: "S", manager: "S", team: "S" } } )
+        ];
+        const report = resultsAnalyticsInstance.computeCompetenceHeatmap( frame, { groupBy: "roleFamily", source: "blended" } );
+        const cell = cellAt( report, 0, 0 );   // E1 × SE
+        assert.equal( cell.n, 3 );
+        assert.equal( cell.v, 1.3 );
+        assert.equal( cell.expected, 1 );      // R at R1
+        assert.equal( cell.delta, 0.3 );
+    } );
+
+    it( "source='self' uses only the self grade weight", () => {
+        const frame = [
+            hmRow( "a", "SE", "R1", { "E1-1": { subcategory: "E1", self: "S", manager: "N", team: "N" } } ),
+            hmRow( "b", "SE", "R1", { "E1-1": { subcategory: "E1", self: "S", manager: "N", team: "N" } } ),
+            hmRow( "c", "SE", "R1", { "E1-1": { subcategory: "E1", self: "S", manager: "N", team: "N" } } )
+        ];
+        const cell = cellAt( resultsAnalyticsInstance.computeCompetenceHeatmap( frame, { groupBy: "roleFamily", source: "self" } ), 0, 0 );
+        assert.equal( cell.v, 1.3 );   // self = S, ignores the N manager/team
+    } );
+
+    it( "suppresses a cell with fewer than minCohortSize (3) contributing evaluations", () => {
+        const frame = [
+            hmRow( "a", "SE", "R1", { "E1-1": { subcategory: "E1" } } ),
+            hmRow( "b", "SE", "R1", { "E1-1": { subcategory: "E1" } } )
+        ];
+        const cell = cellAt( resultsAnalyticsInstance.computeCompetenceHeatmap( frame, { groupBy: "roleFamily", source: "blended" } ), 0, 0 );
+        assert.equal( cell.suppressed, true );
+        assert.equal( cell.n, 2 );
+        assert.equal( cell.v, undefined );
+    } );
+} );

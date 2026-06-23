@@ -50,7 +50,6 @@ describe( "ResultsAnalytics.buildResultsSnapshot — locked shape", () => {
         // stable-axis aggregate stubs present with the correct shape, empty for Phase 0
         assert.deepEqual( snap.overall, { finalScore: {}, tBandMix: {} } );
         assert.deepEqual( snap.byCategory, {} );
-        assert.deepEqual( snap.bySubcategory, {} );
         assert.deepEqual( snap.ladderOrdinalHistogram, {} );
         assert.deepEqual( snap.byRoleFamily, {} );
         assert.deepEqual( snap.byOrgUnit, {} );
@@ -62,10 +61,15 @@ describe( "ResultsAnalytics.buildResultsSnapshot — locked shape", () => {
         assert.equal( snap.reports.levelDistribution.groups.length, 12 );
         assert.deepEqual( snap.reports.levelDistribution.reference, [ { v: 105, label: "T3" } ] );
 
+        // R4 (CA-67): heatmap + bySubcategory present; an unscored frame yields no cells and an empty-but-keyed axis.
+        assert.equal( snap.reports.heatmap.rows.length, 9 );
+        assert.deepEqual( snap.reports.heatmap.cells, [] );
+        assert.equal( Object.keys( snap.bySubcategory ).length, 9 );
+        assert.deepEqual( snap.bySubcategory.E1, { meanGrade: null, n: 0, expectedMeanGrade: null, gap: null } );
+
         // remaining report slots present but null (locked envelope; land in later CA-67 steps)
         assert.equal( snap.reports.timeDistribution, null );
         assert.equal( snap.reports.alignment, null );
-        assert.equal( snap.reports.heatmap, null );
         assert.equal( snap.reports.predictiveDrivers, null );
     } );
 

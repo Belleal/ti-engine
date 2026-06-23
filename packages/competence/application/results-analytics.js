@@ -15,6 +15,13 @@ const packageVersion = require( "../package.json" ).version;
 // Grade-letter → numeric weight (mirrors competence-framework.js:17-22). Empty "" → null (ungraded, excluded from means).
 const GRADE_WEIGHTS = Object.freeze( { S: 1.3, R: 1.0, U: 0.6, N: 0.0 } );
 
+// Per-source blend weights (mirrors competence-framework.js:24-28 evaluationWeights defaults). Used by the "blended"
+// source view so a heatmap cell reconciles with the final score.
+const EVALUATION_WEIGHTS = Object.freeze( { self: 0.2, team: 0.3, manager: 0.5 } );
+
+// The nine subcategory codes (mirrors competence-framework.js:38) — the stable heatmap/driver row axis.
+const SUBCATEGORIES = Object.freeze( [ "E1", "E2", "E3", "I1", "I2", "I3", "C1", "C2", "C3" ] );
+
 // Synthetic roster-minus-evaluations label — NOT the NOT_STARTED enum value.
 const NOT_STARTED_LABEL = "Not started";
 
@@ -395,6 +402,151 @@ class ResultsAnalytics {
     }
 
     /**
+     * R4 — Competence heatmap (CA-67). Per (subcategory × group) cell over the reported subset: `v` = relevancy-weighted
+     * mean of the selected source's grade weight (relevancy-weighted to reconcile with scoring — ungraded count their
+     * relevancy in the denominator with a 0 numerator, exactly as `calculateFinalEvaluationScores` does); `expected` =
+     * relevancy-weighted mean of the maturity-step expected grade over the same competencies at each row's level (the
+     * SAME definition as R5); `delta = v − expected`. Cells with `n < minCohortSize` reported rows are suppressed; cells
+     * with no data are omitted (the renderer leaves a gap). Rows are the 9 fixed subcategories; columns are the distinct
+     * group keys (role-family or org-unit) present in the cohort.
+     *
+     * @method
+     * @param {Array<Object>} frame - CohortRow[]; competencies carry {subcategory, relevancy, relevancyCurve, *Weight}.
+     * @param {Object} [filter] - { source:"self"|"manager"|"team"|"blended", groupBy:"roleFamily"|"orgUnit", minCohortSize }.
+     * @returns {Object} { rows:[{id,label}], cols:[{id,label}], cells:[{r,c,v,n,expected,delta}|{r,c,n,suppressed:true}] }
+     * @public
+     */
+    computeCompetenceHeatmap( frame, filter ) {
+        const rows = Array.isArray( frame ) ? frame : [];
+        const source = ( filter && [ "self", "manager", "team", "blended" ].indexOf( filter.source ) >= 0 ) ? filter.source : "blended";
+        const groupBy = ( filter && filter.groupBy === "orgUnit" ) ? "orgUnit" : "roleFamily";
+        const minCohort = ( filter && typeof filter.minCohortSize === "number" ) ? filter.minCohortSize : MIN_COHORT_SIZE;
+
+        const reported = rows.filter( ( r ) => r && r.isScored && ( r.status === configurationLoader.evaluationStatus.READY || r.status === configurationLoader.evaluationStatus.CLOSED ) );
+        const keyOf = ( r ) => ( ( groupBy === "orgUnit" ) ? ( r.organizationUnitID || "" ) : ( r.roleFamily || "" ) );
+
+        const colKeys = [];
+        const colIndex = new Map();
+        for ( const r of reported ) {
+            const key = keyOf( r );
+            if ( !colIndex.has( key ) ) { colIndex.set( key, true ); colKeys.push( key ); }
+        }
+        colKeys.sort();
+        colKeys.forEach( ( key, i ) => colIndex.set( key, i ) );
+
+        const acc = new Map();   // "subIdx|colIdx" → { vNum, expNum, relSum, rowSet }
+        for ( const r of reported ) {
+            const c = colIndex.get( keyOf( r ) );
+            const comps = ( r.competencies && typeof r.competencies === "object" ) ? r.competencies : {};
+            for ( const code of Object.keys( comps ) ) {
+                const comp = comps[ code ];
+                if ( !comp || typeof comp.relevancy !== "number" || comp.relevancy <= 0 || !comp.subcategory ) { continue; }
+                const sIdx = SUBCATEGORIES.indexOf( comp.subcategory );
+                if ( sIdx < 0 ) { continue; }
+                const mapKey = sIdx + "|" + c;
+                if ( !acc.has( mapKey ) ) { acc.set( mapKey, { vNum: 0, expNum: 0, relSum: 0, rowSet: new Set() } ); }
+                const cell = acc.get( mapKey );
+                const expectedGrade = comp.relevancyCurve ? expectedGradeForArchetype( comp.relevancyCurve, r.stageLevel ) : "R";
+                cell.vNum += this.#sourceWeight( comp, source ) * comp.relevancy;
+                cell.expNum += ( GRADE_WEIGHTS[ expectedGrade ] || 0 ) * comp.relevancy;
+                cell.relSum += comp.relevancy;
+                cell.rowSet.add( r.evaluationID );
+            }
+        }
+
+        const cells = [];
+        for ( let s = 0; s < SUBCATEGORIES.length; s++ ) {
+            for ( let c = 0; c < colKeys.length; c++ ) {
+                const cell = acc.get( s + "|" + c );
+                if ( !cell || cell.relSum <= 0 ) { continue; }
+                const n = cell.rowSet.size;
+                if ( n < minCohort ) {
+                    cells.push( { r: s, c: c, n: n, suppressed: true } );
+                    continue;
+                }
+                const v = cell.vNum / cell.relSum;
+                const expected = cell.expNum / cell.relSum;
+                cells.push( { r: s, c: c, n: n, v: this.#round3( v ), expected: this.#round3( expected ), delta: this.#round3( v - expected ) } );
+            }
+        }
+
+        return {
+            rows: SUBCATEGORIES.map( ( code ) => ( { id: code, label: code } ) ),
+            cols: colKeys.map( ( key ) => ( { id: key, label: key } ) ),
+            cells: cells
+        };
+    }
+
+    /**
+     * The grade weight of one competency for a source view; missing/ungraded → 0 (so it dilutes the relevancy-weighted
+     * mean exactly as scoring does). "blended" applies the per-source evaluation weights.
+     * @method
+     * @param {Object} comp
+     * @param {"self"|"manager"|"team"|"blended"} source
+     * @returns {number}
+     * @private
+     */
+    #sourceWeight( comp, source ) {
+        const sw = ( typeof comp.selfWeight === "number" ) ? comp.selfWeight : 0;
+        const mw = ( typeof comp.managerWeight === "number" ) ? comp.managerWeight : 0;
+        const tw = ( typeof comp.teamWeight === "number" ) ? comp.teamWeight : 0;
+        if ( source === "self" ) { return sw; }
+        if ( source === "manager" ) { return mw; }
+        if ( source === "team" ) { return tw; }
+        return ( sw * EVALUATION_WEIGHTS.self ) + ( tw * EVALUATION_WEIGHTS.team ) + ( mw * EVALUATION_WEIGHTS.manager );
+    }
+
+    /**
+     * Org-wide per-subcategory aggregate for the cross-cycle snapshot substrate (§4 bySubcategory): blended relevancy-
+     * weighted mean grade, the maturity-step expected mean, their gap, and the contributing-evaluation count.
+     * @method
+     * @param {Array<Object>} frame
+     * @returns {Object<string,{meanGrade:number,n:number,expectedMeanGrade:number,gap:number}>}
+     * @private
+     */
+    #computeBySubcategory( frame ) {
+        const reported = ( Array.isArray( frame ) ? frame : [] ).filter( ( r ) => r && r.isScored && ( r.status === configurationLoader.evaluationStatus.READY || r.status === configurationLoader.evaluationStatus.CLOSED ) );
+        const acc = {};
+        for ( const code of SUBCATEGORIES ) { acc[ code ] = { vNum: 0, expNum: 0, relSum: 0, rowSet: new Set() }; }
+        for ( const r of reported ) {
+            const comps = ( r.competencies && typeof r.competencies === "object" ) ? r.competencies : {};
+            for ( const code of Object.keys( comps ) ) {
+                const comp = comps[ code ];
+                if ( !comp || typeof comp.relevancy !== "number" || comp.relevancy <= 0 || !acc[ comp.subcategory ] ) { continue; }
+                const cell = acc[ comp.subcategory ];
+                const expectedGrade = comp.relevancyCurve ? expectedGradeForArchetype( comp.relevancyCurve, r.stageLevel ) : "R";
+                cell.vNum += this.#sourceWeight( comp, "blended" ) * comp.relevancy;
+                cell.expNum += ( GRADE_WEIGHTS[ expectedGrade ] || 0 ) * comp.relevancy;
+                cell.relSum += comp.relevancy;
+                cell.rowSet.add( r.evaluationID );
+            }
+        }
+        const out = {};
+        for ( const code of SUBCATEGORIES ) {
+            const cell = acc[ code ];
+            if ( cell.relSum > 0 ) {
+                const mean = cell.vNum / cell.relSum;
+                const expectedMean = cell.expNum / cell.relSum;
+                out[ code ] = { meanGrade: this.#round3( mean ), n: cell.rowSet.size, expectedMeanGrade: this.#round3( expectedMean ), gap: this.#round3( mean - expectedMean ) };
+            } else {
+                out[ code ] = { meanGrade: null, n: 0, expectedMeanGrade: null, gap: null };
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Rounds to 3 decimals (grade-weight space is 0..1.3; preserves small gap precision).
+     * @method
+     * @param {number} n
+     * @returns {number}
+     * @private
+     */
+    #round3( n ) {
+        return Math.round( n * 1000 ) / 1000;
+    }
+
+    /**
      * Recursively flattens an org subtree node into a de-duplicated roster. The subtree's `.employees` are direct
      * members only; descendants live under `.children` (organization-manager.js:459-470), so the roster walks
      * `.children` recursively concatenating each node's `.employees`.
@@ -558,9 +710,10 @@ class ResultsAnalytics {
                 return { coverage: this.computeCoverage( frame, roster, filter ) };
             case "levelDistribution":  // CA-67 Task 1
                 return { levelDistribution: this.computeLevelDistribution( frame, filter ) };
+            case "heatmap":            // CA-67 Task 2
+                return { heatmap: this.computeCompetenceHeatmap( frame, filter ) };
             case "timeDistribution":   // CA-67 Task 4
             case "alignment":          // CA-67 Task 5
-            case "heatmap":            // CA-67 Task 2
             case "predictiveDrivers":  // CA-67 Task 3
             default:
                 return this.#emptyReport( reportKey );
@@ -709,6 +862,10 @@ class ResultsAnalytics {
         for ( const group of levelDistribution.groups ) {
             byStageLevel[ group.id ] = { n: group.n, finalScoreMean: ( typeof group.mean === "number" ) ? group.mean : null };
         }
+        // R4 (CA-67): canonical whole-org heatmap (blended source, role-family grouping) + the stable bySubcategory axis.
+        // Alternate source/groupBy views on a CLOSED cycle recompute (a known projection-fidelity follow-up; ACTIVE is exact).
+        const heatmap = this.computeCompetenceHeatmap( frame, { source: "blended", groupBy: "roleFamily" } );
+        const bySubcategory = this.#computeBySubcategory( frame );
 
         return {
             cycleID: cycleID,
@@ -732,7 +889,7 @@ class ResultsAnalytics {
                 coverage: coverageReport,
                 timeDistribution: null,
                 alignment: null,
-                heatmap: null,
+                heatmap: heatmap,                        // CA-67 R4 (canonical blended/role-family variant)
                 levelDistribution: levelDistribution,   // CA-67 R5
                 predictiveDrivers: null
             },
@@ -740,7 +897,7 @@ class ResultsAnalytics {
             // Cross-cycle stable-axis substrate — locked SHAPE now, populated as reports land (never back-fillable).
             overall: { finalScore: {}, tBandMix: {} },
             byCategory: {},
-            bySubcategory: {},
+            bySubcategory: bySubcategory,   // CA-67 R4 (stable E1..C3 axis)
             byStageLevel: byStageLevel,   // CA-67 R5 (stable 12-rung axis)
             ladderOrdinalHistogram: {},
             byRoleFamily: {},
