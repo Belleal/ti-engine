@@ -353,9 +353,10 @@ class ResultsAnalytics {
             const wholeOrg = !filter || filter.allowedEmployeeIDs === null;
 
             if ( status === configurationLoader.cycleStatus.CLOSED && wholeOrg ) {
-                // @todo 0C: deps.getResultsSnapshot is provided by dataManager.getResultsSnapshot (not yet present).
                 return deps.getResultsSnapshot( cycleID ).then( ( snapshot ) => {
-                    const payload = ( snapshot && snapshot.reports && snapshot.reports[ reportKey ] ) ? { coverage: snapshot.reports[ reportKey ] } : this.#emptyReport( reportKey );
+                    // Project the requested report from the snapshot keyed by its OWN reportKey (CA-67: was hardcoded
+                    // "coverage" in Phase 0 when only Coverage existed — that would mis-key R2–R6 read from a snapshot).
+                    const payload = ( snapshot && snapshot.reports && snapshot.reports[ reportKey ] ) ? { [ reportKey ]: snapshot.reports[ reportKey ] } : this.#emptyReport( reportKey );
                     return this.#withMeta( payload, cycleID, status, null, false );
                 } );
             }
@@ -413,7 +414,11 @@ class ResultsAnalytics {
     }
 
     /**
-     * Dispatches a frame+roster to the requested report computation. Phase 0 supports "coverage" only.
+     * Dispatches a frame to the requested report computation. The six leadership report keys are all listed here so a
+     * new report swaps exactly one branch from its empty stub to its real compute (avoids the shared-dispatcher merge
+     * hot-spot). Inputs beyond (frame, roster, filter) — archetype weights (R4/R5), calendar slots + today (R2),
+     * quadrant midpoint (R3) — are injected on `filter` by the caller (the `filter.resolveOrgUnit` precedent), so this
+     * signature stays stable. Reports not yet implemented return their locked empty shape via #emptyReport.
      * @method
      * @param {string} reportKey
      * @param {Array<Object>} frame
@@ -423,22 +428,44 @@ class ResultsAnalytics {
      * @private
      */
     #computeReport( reportKey, frame, roster, filter ) {
-        if ( reportKey === "coverage" ) {
-            return { coverage: this.computeCoverage( frame, roster, filter ) };
+        switch ( reportKey ) {
+            case "coverage":
+                return { coverage: this.computeCoverage( frame, roster, filter ) };
+            case "timeDistribution":   // CA-67 Task 4
+            case "alignment":          // CA-67 Task 5
+            case "heatmap":            // CA-67 Task 2
+            case "levelDistribution":  // CA-67 Task 1
+            case "predictiveDrivers":  // CA-67 Task 3
+            default:
+                return this.#emptyReport( reportKey );
         }
-        return this.#emptyReport( reportKey );
     }
 
     /**
+     * Returns the locked empty payload for a report key (used before a report is implemented, and for the no-data /
+     * not-found cycle case). Each shape matches its chart contract so the front-end renders a graceful empty state.
      * @method
      * @param {string} reportKey
      * @returns {Object}
      * @private
      */
     #emptyReport( reportKey ) {
-        return ( reportKey === "coverage" )
-            ? { coverage: { overall: this.#finalizeCoverageBucket( this.#emptyCoverageBucket() ), byGroup: [], pending: [] } }
-            : {};
+        switch ( reportKey ) {
+            case "coverage":
+                return { coverage: { overall: this.#finalizeCoverageBucket( this.#emptyCoverageBucket() ), byGroup: [], pending: [] } };
+            case "timeDistribution":
+                return { timeDistribution: { rows: [], perManager: [] } };
+            case "alignment":
+                return { alignment: { points: [], quadrantCounts: {}, diagonal: true } };
+            case "heatmap":
+                return { heatmap: { rows: [], cols: [], cells: [] } };
+            case "levelDistribution":
+                return { levelDistribution: { groups: [], reference: [] } };
+            case "predictiveDrivers":
+                return { predictiveDrivers: { rows: [], insufficientData: true } };
+            default:
+                return {};
+        }
     }
 
     /**
@@ -610,3 +637,83 @@ function pickCycleForRequest( cycles, requestedCycleID, fallbackCycle ) {
 }
 
 module.exports.pickCycleForRequest = pickCycleForRequest;
+
+/**
+ * Maturity-step expected GRADE for a competency at a stage level, from its relevancy-archetype weight curve (CA-67,
+ * owner-approved Candidate 1). With `peak = max(weights)`, `intro = 0.5·peak`, `mature = 0.9·peak`: a competency is
+ * expected `U` while still emerging (`w < intro`), `R` once it is core (`intro ≤ w < mature`), and `S` once it has
+ * matured (`w ≥ mature`). Strict `<` on both thresholds (do not flip the boundary grade). A degenerate all-zero curve
+ * (the competency is never relevant, so its grade never affects the score) returns `U`. Pure.
+ *
+ * @param {Object<string,number>} weights - Archetype weights keyed by stage-level (N1..T1).
+ * @param {string} stageLevel
+ * @returns {"U"|"R"|"S"}
+ */
+function expectedGradeForArchetype( weights, stageLevel ) {
+    if ( !weights || typeof weights !== "object" ) {
+        return "R";
+    }
+    let peak = 0;
+    for ( const lvl of Object.keys( weights ) ) {
+        const value = Number( weights[ lvl ] ) || 0;
+        if ( value > peak ) { peak = value; }
+    }
+    if ( peak <= 0 ) {
+        return "U";
+    }
+    const w = Number( weights[ stageLevel ] ) || 0;
+    if ( w < ( 0.5 * peak ) ) { return "U"; }
+    if ( w < ( 0.9 * peak ) ) { return "R"; }
+    return "S";
+}
+
+/**
+ * Pearson correlation coefficient of two equal-length numeric vectors. Returns null when undefined: mismatched/short
+ * (n<2) inputs, or a zero-variance vector (a constant series has no linear correlation). Hand-rolled — no dependency.
+ * Pure.
+ *
+ * @param {Array<number>} x
+ * @param {Array<number>} y
+ * @returns {number|null}
+ */
+function pearson( x, y ) {
+    if ( !Array.isArray( x ) || !Array.isArray( y ) || x.length !== y.length || x.length < 2 ) {
+        return null;
+    }
+    const n = x.length;
+    let sx = 0, sy = 0;
+    for ( let i = 0; i < n; i++ ) { sx += x[ i ]; sy += y[ i ]; }
+    const mx = sx / n, my = sy / n;
+    let cov = 0, vx = 0, vy = 0;
+    for ( let i = 0; i < n; i++ ) {
+        const dx = x[ i ] - mx, dy = y[ i ] - my;
+        cov += dx * dy; vx += dx * dx; vy += dy * dy;
+    }
+    if ( vx <= 0 || vy <= 0 ) {
+        return null;
+    }
+    return cov / Math.sqrt( vx * vy );
+}
+
+/**
+ * Nearest-rank percentile of an ascending-sorted numeric array (the method named in §3 R5 for the box five-number
+ * summary — no interpolation). `p` in [0,1]; p=0 → first element, p=1 → last. Returns null for an empty array. Pure.
+ *
+ * @param {Array<number>} sortedAsc - Values sorted ascending.
+ * @param {number} p - Percentile in [0,1].
+ * @returns {number|null}
+ */
+function nearestRankPercentile( sortedAsc, p ) {
+    if ( !Array.isArray( sortedAsc ) || sortedAsc.length === 0 ) {
+        return null;
+    }
+    const n = sortedAsc.length;
+    let rank = Math.ceil( p * n );
+    if ( rank < 1 ) { rank = 1; }
+    if ( rank > n ) { rank = n; }
+    return sortedAsc[ rank - 1 ];
+}
+
+module.exports.expectedGradeForArchetype = expectedGradeForArchetype;
+module.exports.pearson = pearson;
+module.exports.nearestRankPercentile = nearestRankPercentile;

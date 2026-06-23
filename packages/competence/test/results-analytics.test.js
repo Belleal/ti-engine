@@ -423,3 +423,80 @@ describe( "ResultsAnalytics.resolve — live vs snapshot switch", () => {
     } );
 
 } );
+
+/* ===================== Phase 1B — Step 0: shared scaffolding ===================== */
+
+describe( "ResultsAnalytics — #emptyReport / dispatch shapes (Step 0)", () => {
+
+    // The empty shapes are observed through the resolve() snapshot-projection path (CLOSED + whole-org + no snapshot).
+    function emptyDeps() {
+        return {
+            getCycle: ( id ) => Promise.resolve( { cycleID: id, status: "CLOSED" } ),
+            fetchEvaluations: () => Promise.resolve( [] ),
+            getResultsSnapshot: () => Promise.resolve( null ),   // null snapshot forces #emptyReport(reportKey)
+            buildSubtree: () => null,
+            resolveOrgUnit: () => ""
+        };
+    }
+
+    it( "returns the locked empty shape per report key (whole-org closed cycle, no snapshot)", async () => {
+        const filter = { groupBy: "orgUnit", allowedEmployeeIDs: null, rootUnitID: "1" };
+        const td = await resultsAnalyticsInstance._resolveWith( emptyDeps(), "2026-H2", filter, "timeDistribution" );
+        assert.deepEqual( td.timeDistribution, { rows: [], perManager: [] } );
+        const al = await resultsAnalyticsInstance._resolveWith( emptyDeps(), "2026-H2", filter, "alignment" );
+        assert.deepEqual( al.alignment, { points: [], quadrantCounts: {}, diagonal: true } );
+        const hm = await resultsAnalyticsInstance._resolveWith( emptyDeps(), "2026-H2", filter, "heatmap" );
+        assert.deepEqual( hm.heatmap, { rows: [], cols: [], cells: [] } );
+        const ld = await resultsAnalyticsInstance._resolveWith( emptyDeps(), "2026-H2", filter, "levelDistribution" );
+        assert.deepEqual( ld.levelDistribution, { groups: [], reference: [] } );
+        const pd = await resultsAnalyticsInstance._resolveWith( emptyDeps(), "2026-H2", filter, "predictiveDrivers" );
+        assert.deepEqual( pd.predictiveDrivers, { rows: [], insufficientData: true } );
+    } );
+
+} );
+
+describe( "ResultsAnalytics — expectedGradeForArchetype (maturity-step, Candidate 1)", () => {
+    // Archetype A weights (live config): peak 9 → intro 4.5, mature 8.1.
+    const A = { N1: 6, J1: 7, J2: 7, J3: 8, R1: 8, R2: 8, R3: 9, S1: 9, S2: 9, S3: 9, X1: 9, T1: 9 };
+
+    it( "maps w<0.5*peak→U, 0.5*peak<=w<0.9*peak→R, w>=0.9*peak→S (strict <)", () => {
+        assert.equal( resultsAnalytics.expectedGradeForArchetype( A, "N1" ), "R" );   // 6 ∈ [4.5,8.1)
+        assert.equal( resultsAnalytics.expectedGradeForArchetype( A, "R3" ), "S" );   // 9 ≥ 8.1
+        assert.equal( resultsAnalytics.expectedGradeForArchetype( { L: 3, M: 8 }, "L" ), "U" ); // 3 < 0.5*8 = 4
+    } );
+    it( "boundary at exactly mature → S (w >= 0.9*peak)", () => {
+        // peak 10 → mature 9.0; a level at exactly 9 is S.
+        assert.equal( resultsAnalytics.expectedGradeForArchetype( { a: 9, b: 10 }, "a" ), "S" );
+    } );
+    it( "a flat archetype (constant weight) → all S, not the all-R trap", () => {
+        assert.equal( resultsAnalytics.expectedGradeForArchetype( { a: 5, b: 5, c: 5 }, "b" ), "S" );
+    } );
+    it( "a degenerate all-zero curve → U (grade never affects the score anyway)", () => {
+        assert.equal( resultsAnalytics.expectedGradeForArchetype( { a: 0, b: 0 }, "a" ), "U" );
+    } );
+} );
+
+describe( "ResultsAnalytics — pearson", () => {
+    it( "is +1 for a perfectly increasing linear relation and -1 for decreasing", () => {
+        assert.equal( resultsAnalytics.pearson( [ 1, 2, 3 ], [ 2, 4, 6 ] ), 1 );
+        assert.equal( resultsAnalytics.pearson( [ 1, 2, 3 ], [ 6, 4, 2 ] ), -1 );
+    } );
+    it( "returns null for a constant (zero-variance) vector or n<2 or mismatched length", () => {
+        assert.equal( resultsAnalytics.pearson( [ 1, 2, 3 ], [ 5, 5, 5 ] ), null );
+        assert.equal( resultsAnalytics.pearson( [ 1 ], [ 1 ] ), null );
+        assert.equal( resultsAnalytics.pearson( [ 1, 2 ], [ 1 ] ), null );
+    } );
+} );
+
+describe( "ResultsAnalytics — nearestRankPercentile", () => {
+    it( "returns nearest-rank values (no interpolation)", () => {
+        const v = [ 10, 20, 30, 40, 50 ];
+        assert.equal( resultsAnalytics.nearestRankPercentile( v, 0 ), 10 );
+        assert.equal( resultsAnalytics.nearestRankPercentile( v, 0.25 ), 20 );
+        assert.equal( resultsAnalytics.nearestRankPercentile( v, 0.5 ), 30 );
+        assert.equal( resultsAnalytics.nearestRankPercentile( v, 1 ), 50 );
+    } );
+    it( "returns null for an empty array", () => {
+        assert.equal( resultsAnalytics.nearestRankPercentile( [], 0.5 ), null );
+    } );
+} );
