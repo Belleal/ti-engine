@@ -2,6 +2,14 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.7.0
+
+* refactor(core)!: load the `.env` file via native `process.loadEnvFile` instead of `@dotenvx/dotenvx`
+* build(deps)!: remove the `@dotenvx/dotenvx` dependency — core now has three runtime dependencies (`ioredis`, `lodash`, `node-schedule`)
+* build(core)!: raise the minimum Node.js version to `>=20.12.0` (required for `process.loadEnvFile`)
+
+> The native loader matches the prior behavior: a missing `.env` file is tolerated (ENOENT is ignored, as with the previous `quiet: true`) and existing environment variables are not overridden. The `--env` / `--env-file` / `--dotenv` / `--dotenv-path` / `-e` CLI aliases for choosing the env-file path are unchanged. Encrypted `.env` files (a dotenvx-only feature this framework never used) are not supported. Consumers on Node 20.0–20.11 must upgrade to Node ≥ 20.12.
+
 ## Version 1.6.1
 
 * build(deps): update `@dotenvx/dotenvx` from ^1.73.1 to ^1.75.1

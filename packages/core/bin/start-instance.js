@@ -29,7 +29,15 @@ const envFilePath = ( () => {
     return envPath;
 } )();
 
-require( "@dotenvx/dotenvx" ).config( { path: envFilePath, quiet: true } );
+// Load the resolved .env file using the native Node loader (Node >= 20.12). A missing file is not fatal —
+// environment variables may be supplied entirely by the OS/container. Existing process.env values are NOT overridden.
+try {
+    process.loadEnvFile( envFilePath );
+} catch ( error ) {
+    if ( error.code !== "ENOENT" ) {
+        throw error;
+    }
+}
 
 const tools = require( "#tools" );
 const logger = require( "#logger" );
