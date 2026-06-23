@@ -442,7 +442,7 @@ describe( "ResultsAnalytics — #emptyReport / dispatch shapes (Step 0)", () => 
     it( "returns the locked empty shape per report key (whole-org closed cycle, no snapshot)", async () => {
         const filter = { groupBy: "orgUnit", allowedEmployeeIDs: null, rootUnitID: "1" };
         const td = await resultsAnalyticsInstance._resolveWith( emptyDeps(), "2026-H2", filter, "timeDistribution" );
-        assert.deepEqual( td.timeDistribution, { rows: [], perManager: [] } );
+        assert.deepEqual( td.timeDistribution, { rows: [], unscheduledReady: 0, perManager: [] } );
         const al = await resultsAnalyticsInstance._resolveWith( emptyDeps(), "2026-H2", filter, "alignment" );
         assert.deepEqual( al.alignment, { points: [], quadrantCounts: {}, diagonal: true } );
         const hm = await resultsAnalyticsInstance._resolveWith( emptyDeps(), "2026-H2", filter, "heatmap" );
@@ -716,5 +716,53 @@ describe( "ResultsAnalytics.computePredictiveDrivers (R6)", () => {
         const report = resultsAnalyticsInstance.computePredictiveDrivers( frame, {} );
         assert.equal( rowById( report, "E3" ).misweightFlag, true );
         assert.equal( rowById( report, "E3" ).r, 1 );
+    } );
+} );
+
+/* ===================== R2 — time distribution ===================== */
+
+describe( "ResultsAnalytics.computeTimeDistribution (R2)", () => {
+    function evalRow( evaluationID, status, interviewDate, managerID ) {
+        return { evaluationID: evaluationID, status: status, interviewDate: ( interviewDate !== undefined ) ? interviewDate : null, managerID: managerID || "m1" };
+    }
+    function slot( date, status, managerID ) {
+        return { date: date, status: status, managerID: managerID || "m1" };
+    }
+    const monthRow = ( report, monthKey ) => report.rows.find( ( r ) => r.monthKey === monthKey );
+
+    it( "held(proxy) = Ready/Closed with interviewDate <= today, bucketed by interview month", () => {
+        const frame = [
+            evalRow( "a", "Ready", "2026-03-10" ),
+            evalRow( "b", "Closed", "2026-03-20" ),
+            evalRow( "c", "Ready", "2026-04-05" ),
+            evalRow( "d", "Ready", "2026-12-31" )   // future → not held yet
+        ];
+        const report = resultsAnalyticsInstance.computeTimeDistribution( frame, [], "2026-06-23" );
+        assert.equal( monthRow( report, "2026-03" ).held, 2 );
+        assert.equal( monthRow( report, "2026-04" ).held, 1 );
+        assert.equal( monthRow( report, "2026-12" ), undefined );   // future interview not counted
+    } );
+
+    it( "planned = booked slots bucketed by slot month; available/other slots ignored", () => {
+        const slots = [ slot( "2026-03-15", "booked" ), slot( "2026-03-18", "booked" ), slot( "2026-04-01", "available" ) ];
+        const report = resultsAnalyticsInstance.computeTimeDistribution( [], slots, "2026-06-23" );
+        assert.equal( monthRow( report, "2026-03" ).planned, 2 );
+        assert.equal( monthRow( report, "2026-04" ), undefined );   // available slot not planned
+    } );
+
+    it( "unscheduledReady = Ready with no interviewDate (actionable bucket)", () => {
+        const frame = [ evalRow( "a", "Ready", null ), evalRow( "b", "Ready", "2026-03-10" ), evalRow( "c", "Open", null ) ];
+        const report = resultsAnalyticsInstance.computeTimeDistribution( frame, [], "2026-06-23" );
+        assert.equal( report.unscheduledReady, 1 );
+    } );
+
+    it( "breaks down per manager (held + unscheduledReady from evals, planned from slots)", () => {
+        const frame = [ evalRow( "a", "Ready", "2026-03-10", "m1" ), evalRow( "b", "Ready", null, "m2" ) ];
+        const slots = [ slot( "2026-03-15", "booked", "m1" ) ];
+        const report = resultsAnalyticsInstance.computeTimeDistribution( frame, slots, "2026-06-23" );
+        const m1 = report.perManager.find( ( m ) => m.managerID === "m1" );
+        const m2 = report.perManager.find( ( m ) => m.managerID === "m2" );
+        assert.deepEqual( m1, { managerID: "m1", planned: 1, held: 1, unscheduledReady: 0 } );
+        assert.deepEqual( m2, { managerID: "m2", planned: 0, held: 0, unscheduledReady: 1 } );
     } );
 } );

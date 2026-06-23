@@ -194,7 +194,7 @@
  * @property {string} [managerID] - ID of the manager who reviews the evaluation.
  * @property {string} cycleID - Identifier of the evaluation cycle (e.g., 2026-H2).
  * @property {string} cycleDate - Manager review deadline date of the cycle (YYYY-MM-DD).
- * @property {string|null} [interviewDate] - Date when the evaluation interview took place (YYYY-MM-DD).
+ * @property {string|null} [interviewDate] - Date the evaluation interview is SCHEDULED for — set when an interview slot is booked, cleared (null) on cancellation (YYYY-MM-DD). Not an attendance/"held" signal.
  * @property {EvaluationStatusValue} status - Current status of the evaluation.
  * @property {RoleFamilyCodeValue} roleFamily - Role family at evaluation creation time.
  * @property {SpecializationCodeValue|null} [specialization] - Specialization at evaluation creation time, or null for a generalist within the family.

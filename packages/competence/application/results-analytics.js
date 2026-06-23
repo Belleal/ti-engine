@@ -648,6 +648,60 @@ class ResultsAnalytics {
     }
 
     /**
+     * R2 — Interview time distribution (CA-67). Monthly **planned** (booked calendar slots, by slot date) vs **held**
+     * (the labeled proxy: evaluations at Ready/Closed whose scheduled `interviewDate` is on or before `today`, by
+     * interview month) — "held" is a proxy for the interview having taken place, never a true attendance signal. Plus
+     * **unscheduledReady** (Ready evaluations with no `interviewDate` — the actionable bucket) and a per-manager
+     * breakdown (held/unscheduledReady from `evaluation.managerID`; planned from `slot.managerID`).
+     *
+     * @method
+     * @param {Array<Object>} frame - CohortRow[]; rows carry status, interviewDate, managerID.
+     * @param {Array<Object>} slots - Calendar slots (fetchAllCalendarSlots); booked ones carry {date, status, managerID}.
+     * @param {string} today - YYYY-MM-DD; the held proxy requires interviewDate <= today.
+     * @returns {Object} { rows:[{monthKey,planned,held}], unscheduledReady:number, perManager:[{managerID,planned,held,unscheduledReady}] }
+     * @public
+     */
+    computeTimeDistribution( frame, slots, today ) {
+        const rows = Array.isArray( frame ) ? frame : [];
+        const slotList = Array.isArray( slots ) ? slots : [];
+        const todayStr = ( typeof today === "string" && today ) ? today : "9999-12-31";
+
+        const months = new Map();
+        const ensureMonth = ( key ) => { if ( !months.has( key ) ) { months.set( key, { planned: 0, held: 0 } ); } return months.get( key ); };
+        const perManager = new Map();
+        const ensureManager = ( id ) => { if ( !perManager.has( id ) ) { perManager.set( id, { planned: 0, held: 0, unscheduledReady: 0 } ); } return perManager.get( id ); };
+        let unscheduledReady = 0;
+
+        for ( const row of rows ) {
+            if ( !row ) { continue; }
+            const ready = row.status === configurationLoader.evaluationStatus.READY;
+            const readyOrClosed = ready || row.status === configurationLoader.evaluationStatus.CLOSED;
+            if ( readyOrClosed && row.interviewDate && row.interviewDate <= todayStr ) {
+                const monthKey = String( row.interviewDate ).slice( 0, 7 );
+                ensureMonth( monthKey ).held += 1;
+                ensureManager( row.managerID || "" ).held += 1;
+            }
+            if ( ready && !row.interviewDate ) {
+                unscheduledReady += 1;
+                ensureManager( row.managerID || "" ).unscheduledReady += 1;
+            }
+        }
+
+        for ( const slot of slotList ) {
+            if ( slot && slot.status === configurationLoader.slotStatus.BOOKED && slot.date ) {
+                const monthKey = String( slot.date ).slice( 0, 7 );
+                ensureMonth( monthKey ).planned += 1;
+                ensureManager( slot.managerID || "" ).planned += 1;
+            }
+        }
+
+        const monthRows = Array.from( months.keys() ).sort().map( ( key ) => ( { monthKey: key, planned: months.get( key ).planned, held: months.get( key ).held } ) );
+        const managerRows = Array.from( perManager.keys() ).sort().map( ( id ) => Object.assign( { managerID: id }, perManager.get( id ) ) );
+
+        return { rows: monthRows, unscheduledReady: unscheduledReady, perManager: managerRows };
+    }
+
+    /**
      * Recursively flattens an org subtree node into a de-duplicated roster. The subtree's `.employees` are direct
      * members only; descendants live under `.children` (organization-manager.js:459-470), so the roster walks
      * `.children` recursively concatenating each node's `.employees`.
@@ -756,8 +810,15 @@ class ResultsAnalytics {
                     roster = roster.filter( ( member ) => allowed.has( member.employeeID ) );
                 }
 
-                const payload = this.#computeReport( reportKey, frame, roster, frameFilter );
-                return this.#withMeta( payload, cycleID, status, frame, status === configurationLoader.cycleStatus.ACTIVE );
+                const finalize = ( reportFilter ) => {
+                    const payload = this.#computeReport( reportKey, frame, roster, reportFilter );
+                    return this.#withMeta( payload, cycleID, status, frame, status === configurationLoader.cycleStatus.ACTIVE );
+                };
+                // R2 alone needs data beyond the frame — the calendar + today — so fetch slots only for it.
+                if ( reportKey === "timeDistribution" && typeof deps.fetchCalendarSlots === "function" ) {
+                    return deps.fetchCalendarSlots( cycleID ).then( ( slots ) => finalize( Object.assign( {}, frameFilter, { slots: slots, today: deps.today } ) ) );
+                }
+                return finalize( frameFilter );
             } );
         } );
     }
@@ -786,7 +847,9 @@ class ResultsAnalytics {
             fetchEvaluations: ( employeeID, filterClosed ) => dataManager.instance.fetchEvaluations( employeeID, filterClosed ),
             getResultsSnapshot: ( id ) => dataManager.instance.getResultsSnapshot( id ),
             buildSubtree: ( f ) => organizationManager.instance.getOrganizationUnitSubtree( f ? f.rootUnitID : "" ),
-            resolveOrgUnit: ( employeeID ) => organizationManager.instance.resolveOrganizationUnitIDForEmployee( employeeID )
+            resolveOrgUnit: ( employeeID ) => organizationManager.instance.resolveOrganizationUnitIDForEmployee( employeeID ),
+            fetchCalendarSlots: ( id ) => dataManager.instance.fetchAllCalendarSlots( id ),   // R2 only
+            today: new Date().toISOString().split( "T" )[ 0 ]
         };
         return this._resolveWith( deps, cycleID, filter, reportKey );
     }
@@ -815,7 +878,8 @@ class ResultsAnalytics {
                 return { heatmap: this.computeCompetenceHeatmap( frame, filter ) };
             case "predictiveDrivers":  // CA-67 Task 3
                 return { predictiveDrivers: this.computePredictiveDrivers( frame, filter ) };
-            case "timeDistribution":   // CA-67 Task 4
+            case "timeDistribution":   // CA-67 Task 4 — slots + today injected on the filter by the resolver
+                return { timeDistribution: this.computeTimeDistribution( frame, filter ? filter.slots : null, filter ? filter.today : null ) };
             case "alignment":          // CA-67 Task 5
             default:
                 return this.#emptyReport( reportKey );
@@ -835,7 +899,7 @@ class ResultsAnalytics {
             case "coverage":
                 return { coverage: { overall: this.#finalizeCoverageBucket( this.#emptyCoverageBucket() ), byGroup: [], pending: [] } };
             case "timeDistribution":
-                return { timeDistribution: { rows: [], perManager: [] } };
+                return { timeDistribution: { rows: [], unscheduledReady: 0, perManager: [] } };
             case "alignment":
                 return { alignment: { points: [], quadrantCounts: {}, diagonal: true } };
             case "heatmap":
@@ -907,7 +971,10 @@ class ResultsAnalytics {
             const filter = { groupBy: "orgUnit", allowedEmployeeIDs: null, rootUnitID: rootUnitID };
             const resolveOrgUnit = ( employeeID ) => organizationManager.instance.resolveOrganizationUnitIDForEmployee( employeeID );
             const frameFilter = Object.assign( {}, filter, { resolveOrgUnit: resolveOrgUnit } );
-            return dataManager.instance.fetchEvaluations( null, false ).then( ( evaluations ) => {
+            return Promise.all( [
+                dataManager.instance.fetchEvaluations( null, false ),
+                dataManager.instance.fetchAllCalendarSlots( cycleID )   // R2 input
+            ] ).then( ( [ evaluations, slots ] ) => {
                 const cycleEvals = evaluations.filter( ( ev ) => ev && ev.cycleID === cycleID && ev.status !== configurationLoader.evaluationStatus.DELETED );
                 const frame = this.buildCohortFrame( cycleEvals, cycleID, frameFilter );
                 const subtree = organizationManager.instance.getOrganizationUnitSubtree( rootUnitID );
@@ -920,7 +987,9 @@ class ResultsAnalytics {
                     coverageReport: coverageReport,
                     cycle: cycle,
                     dictionaryVersion: packageVersion,
-                    meta: meta
+                    meta: meta,
+                    slots: slots,
+                    today: new Date().toISOString().split( "T" )[ 0 ]
                 } );
                 return dataManager.instance.saveResultsSnapshot( snapshot );
             } );
@@ -970,6 +1039,8 @@ class ResultsAnalytics {
         const bySubcategory = this.#computeBySubcategory( frame );
         // R6 (CA-67): whole-cohort predictive drivers (no filter variants).
         const predictiveDrivers = this.computePredictiveDrivers( frame, {} );
+        // R2 (CA-67): time distribution needs the calendar + the close date, supplied by persistResultsSnapshot.
+        const timeDistribution = Array.isArray( input.slots ) ? this.computeTimeDistribution( frame, input.slots, input.today ) : null;
 
         return {
             cycleID: cycleID,
@@ -991,7 +1062,7 @@ class ResultsAnalytics {
             // Populated incrementally across CA-67; the remaining keys stay null until their report lands.
             reports: {
                 coverage: coverageReport,
-                timeDistribution: null,
+                timeDistribution: timeDistribution,      // CA-67 R2 (null when no calendar supplied)
                 alignment: null,
                 heatmap: heatmap,                        // CA-67 R4 (canonical blended/role-family variant)
                 levelDistribution: levelDistribution,   // CA-67 R5
