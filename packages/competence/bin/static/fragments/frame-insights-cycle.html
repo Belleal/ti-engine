@@ -1,0 +1,65 @@
+<div class="ti-page" x-data="insightsCycle">
+
+    <div class="ti-page-head">
+        <div>
+            <h1 class="ti-page-title" x-text-label="interface.insights.cycle.title">Cycle analytics</h1>
+            <p class="ti-page-sub" x-text="getCycleSubtitle()"></p>
+        </div>
+        <div class="ti-page-head-actions">
+            <label class="ti-field-inline">
+                <span x-text-label="interface.insights.cycle.select-label">Cycle</span>
+                <select class="ti-select" @change="onCycleChange($event)">
+                    <template x-for="c in cycles" x-bind:key="c.id">
+                        <option x-bind:value="c.id" x-bind:selected="c.id === selectedCycleID" x-text="c.name"></option>
+                    </template>
+                </select>
+            </label>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <template x-if="isLoading">
+        <div class="ti-empty-state">
+            <div class="ti-empty-state-title" x-text-label="interface.insights.cycle.loading">Loading coverage…</div>
+        </div>
+    </template>
+
+    <!-- No cycle / no data -->
+    <template x-if="!isLoading && !hasCoverage()">
+        <div class="ti-empty-state">
+            <div class="ti-empty-state-title" x-text-label="interface.insights.cycle.empty">No coverage data for this cycle.</div>
+        </div>
+    </template>
+
+    <!-- Coverage -->
+    <template x-if="!isLoading && hasCoverage()">
+        <div class="ti-insights-grid">
+
+            <section class="ti-card">
+                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.coverage-overall">Overall coverage</h2>
+                <figure class="ti-chart" x-ti-chart="coverageGaugeSpec"
+                        role="img" x-bind:aria-label="getGaugeAriaLabel()"></figure>
+            </section>
+
+            <section class="ti-card">
+                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.coverage-by-group">By group</h2>
+                <figure class="ti-chart" x-ti-chart="coverageBarsSpec"
+                        role="img" x-bind:aria-label="getBarsAriaLabel()"></figure>
+            </section>
+
+            <section class="ti-card ti-card-wide">
+                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.pending">Pending</h2>
+                <div class="ti-data-grid">
+                    <template x-for="row in pendingRows()" x-bind:key="row.employeeID">
+                        <div class="ti-data-grid-row">
+                            <span class="ti-data-grid-cell" x-text="row.name"></span>
+                            <span class="ti-data-grid-cell" x-text="row.groupLabel"></span>
+                            <span class="ti-status-pill" x-bind:class="pendingTone(row.status)"><span class="dot"></span><span x-text="row.status"></span></span>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+        </div>
+    </template>
+</div>

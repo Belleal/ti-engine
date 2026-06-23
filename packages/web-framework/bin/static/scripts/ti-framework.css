@@ -2529,3 +2529,119 @@ body {
     background-clip: padding-box;
     border: 2px solid transparent;
 }
+
+/* ------------------------------------------------------------------ *
+ *  ti-charts — themeable SVG chart primitives (Phase 0: gauge/bars/stat)
+ *  Colors route through semantic + grade tokens that flip per theme in
+ *  ti-theme-daylight.css / ti-theme-black-glass.css. No per-chart overrides.
+ * ------------------------------------------------------------------ */
+.ti-chart {
+    --c-axis: var(--border-strong);
+    --c-grid: var(--grid-line);
+    --c-ink: var(--fg-secondary);
+    --c-ink-strong: var(--fg-primary);
+    --c-series-1: var(--accent);
+    --c-series-2: var(--info);
+    --c-series-3: var(--success);
+    --c-grade-s: var(--grade-S);
+    --c-grade-r: var(--grade-R);
+    --c-grade-u: var(--grade-U);
+    --c-grade-n: var(--grade-N);
+    display: block;
+    margin: 0;
+    position: relative;
+}
+
+.ti-chart svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+/* Visually-hidden a11y mirror table (screen-reader only). */
+.ti-chart-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Provisional ("as of now / % reporting") visual language — class form;
+   renderers may instead set stroke-dasharray as a presentation attribute. */
+.ti-chart-provisional {
+    stroke-dasharray: 4 3;
+    opacity: 0.55;
+}
+
+/* --- gauge --- */
+.ti-chart-gauge-track {
+    stroke: var(--c-grid);
+    stroke-width: 8;
+    stroke-linecap: round;
+}
+.ti-chart-gauge-arc {
+    stroke: var(--c-series-1);
+    stroke-width: 8;
+    stroke-linecap: round;
+}
+.ti-chart-gauge-value {
+    fill: var(--c-ink-strong);
+    font-size: 18px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.ti-chart-gauge-label {
+    fill: var(--c-ink);
+    font-size: 7px;
+}
+.ti-chart-gauge-sublabel {
+    fill: var(--c-ink);
+    font-size: 5px;
+}
+
+/* --- bars --- */
+.ti-chart-bar-seg {
+    fill: var(--c-series-1);
+}
+.ti-chart-bar-seg.tone-grade-s { fill: var(--c-grade-s); }
+.ti-chart-bar-seg.tone-grade-r { fill: var(--c-grade-r); }
+.ti-chart-bar-seg.tone-grade-u { fill: var(--c-grade-u); }
+.ti-chart-bar-seg.tone-grade-n { fill: var(--c-grade-n); }
+.ti-chart-bar-seg.tone-ink     { fill: var(--c-grid); }
+
+/* --- stat tile --- */
+.ti-chart-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.ti-chart-stat-value {
+    color: var(--c-ink-strong);
+    font-size: 1.6rem;
+    font-weight: 600;
+    line-height: 1.1;
+}
+.ti-chart-stat-label { color: var(--c-ink-strong); font-size: 0.9rem; }
+.ti-chart-stat-sub   { color: var(--c-ink); font-size: 0.8rem; }
+.ti-chart-stat-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--c-grid);
+    overflow: hidden;
+    margin-top: 4px;
+}
+.ti-chart-stat-fill {
+    height: 100%;
+    width: var(--pct, 0%);
+    background: var(--c-series-1);
+    border-radius: inherit;
+}
+
+/* tabular-nums utility used by chart text (no such class existed before). */
+.tabular-nums { font-variant-numeric: tabular-nums; }

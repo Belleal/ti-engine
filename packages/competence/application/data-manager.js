@@ -19,6 +19,7 @@ const cacheEntryKeyCycles = "ti:competence:data:cycles";
 const cacheEntryKeyEmployees = "ti:competence:data:employees";
 const cacheEntryKeyEvaluations = "ti:competence:data:evaluations";
 const cacheEntryKeyRoleFamilies = "ti:competence:data:role-families";
+const cacheEntryKeyResultsSnapshots = "ti:competence:data:results-snapshots"; // { [cycleID]: ResultsSnapshot }
 
 const BASELINE_KEY = "baseline";
 
@@ -64,6 +65,7 @@ class DataManager {
         promises.push( cache.instance.setJSON( cacheEntryKeyEmployees, {}, "$", 1 ) );
         promises.push( cache.instance.setJSON( cacheEntryKeyEvaluations, {}, "$", 1 ) );
         promises.push( cache.instance.setJSON( cacheEntryKeyRoleFamilies, {}, "$", 1 ) );
+        promises.push( cache.instance.setJSON( cacheEntryKeyResultsSnapshots, {}, "$", 1 ) );
 
         let preloadData = ( process.env.COMPETENCE_PRELOAD_DATA !== undefined ) ? tools.toBool( process.env.COMPETENCE_PRELOAD_DATA ) : false;
 
@@ -298,6 +300,82 @@ class DataManager {
             } ).catch( ( error ) => {
                 reject( error );
             } );
+        } );
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*                        Results snapshots                            */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Persists an immutable per-cycle results snapshot, keyed by `cycleID`. Merge-write (saveEvaluation idiom): because
+     * the snapshot shape is fixed, re-saving the same cycle replaces all of that cycle's populated leaves.
+     *
+     * @method
+     * @param {Object} snapshot - A ResultsSnapshot; must carry `cycleID`.
+     * @returns {Promise<Object>}
+     * @public
+     */
+    saveResultsSnapshot( snapshot ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( !snapshot || !snapshot.cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { snapshot } ) );
+            }
+            cache.instance.editJSON( cacheEntryKeyResultsSnapshots, { [ snapshot.cycleID ]: snapshot } ).then( () => {
+                resolve( snapshot );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Returns the results snapshot for a cycle, or null when none has been persisted.
+     *
+     * @method
+     * @param {string} cycleID
+     * @returns {Promise<Object|null>}
+     * @public
+     */
+    getResultsSnapshot( cycleID ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( !cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID } ) );
+            }
+            if ( cache.instance.isOperational ) {
+                cache.instance.getJSON( cacheEntryKeyResultsSnapshots, `${ cycleID }` ).then( ( result ) => {
+                    const snapshot = _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result );
+                    resolve( snapshot || null );
+                } ).catch( reject );
+            } else {
+                resolve( null );
+            }
+        } );
+    }
+
+    /**
+     * Returns every persisted results snapshot, ordered by `chronoKey` ascending (oldest cycle first) so cross-cycle
+     * trend axes read left-to-right in chronological order.
+     *
+     * @method
+     * @returns {Promise<Array<Object>>}
+     * @public
+     */
+    getAllResultsSnapshots() {
+        return new Promise( ( resolve, reject ) => {
+            if ( cache.instance.isOperational ) {
+                cache.instance.getJSON( cacheEntryKeyResultsSnapshots, "$" ).then( ( result ) => {
+                    const source = _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result );
+                    if ( !source || typeof source !== "object" ) {
+                        return resolve( [] );
+                    }
+                    const snapshots = Object.values( source );
+                    snapshots.sort( ( a, b ) => ( a.chronoKey || 0 ) - ( b.chronoKey || 0 ) );
+                    resolve( snapshots );
+                } ).catch( reject );
+            } else {
+                resolve( [] );
+            }
         } );
     }
 

@@ -5754,6 +5754,18 @@
       "administration": {
         "en": "Administration",
         "bg": "Администрация"
+      },
+      "insights": {
+        "en": "Insights",
+        "bg": "Анализи"
+      },
+      "insights-overview": {
+        "en": "Insights",
+        "bg": "Анализи"
+      },
+      "insights-cycle": {
+        "en": "Cycle analytics",
+        "bg": "Анализи на цикъла"
       }
     },
     "topbar": {
@@ -7593,6 +7605,60 @@
         "updated": {
           "en": "Employee record updated.",
           "bg": "Записът на служителя е обновен."
+        }
+      }
+    },
+    "insights": {
+      "overview": {
+        "title": {
+          "en": "Insights",
+          "bg": "Анализи"
+        },
+        "sub": {
+          "en": "Cycle and team analytics.",
+          "bg": "Анализи на цикъла и екипа."
+        },
+        "coming-soon": {
+          "en": "Pick a report from the sidebar.",
+          "bg": "Изберете справка от страничното меню."
+        }
+      },
+      "cycle": {
+        "title": {
+          "en": "Cycle analytics",
+          "bg": "Анализи на цикъла"
+        },
+        "select-label": {
+          "en": "Cycle",
+          "bg": "Цикъл"
+        },
+        "loading": {
+          "en": "Loading coverage…",
+          "bg": "Зареждане на обхвата…"
+        },
+        "empty": {
+          "en": "No coverage data for this cycle.",
+          "bg": "Няма данни за обхват за този цикъл."
+        },
+        "coverage-overall": {
+          "en": "Overall coverage",
+          "bg": "Общ обхват"
+        },
+        "coverage-by-group": {
+          "en": "By group",
+          "bg": "По група"
+        },
+        "pending": {
+          "en": "Pending",
+          "bg": "В очакване"
+        },
+        "mode-live": {
+          "en": "as of now",
+          "bg": "към момента"
+        },
+        "mode-snapshot": {
+          "en": "final",
+          "bg": "финален"
         }
       }
     }

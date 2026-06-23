@@ -1231,6 +1231,168 @@ const configureInterviewSchedule = () => {
 };
 
 /**
+ * Returns a configuration object for the Insights → Cycle analytics screen.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureInsightsCycle = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    return {
+        isLoading: true,
+        selectedCycleID: "",
+        cycle: null,
+        cycles: [],
+        coverage: null,
+        meta: null,
+        coverageGaugeSpec: { type: "gauge", data: { value: 0, label: "", sublabel: "" }, a11yLabel: "", provisional: false },
+        coverageBarsSpec: { type: "bars", data: { rows: [] }, options: { mode: "stacked" }, a11yLabel: "", provisional: false },
+
+        init() {
+            const onInitialized = () => {
+                this.selectedCycleID = tiToolbox.getUrlParam( "cycleID" ) || "";
+                this.loadAll();
+            };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        loadAll() {
+            this.isLoading = true;
+            const q = this.selectedCycleID ? ( "?cycleID=" + encodeURIComponent( this.selectedCycleID ) ) : "";
+            Promise.all( [
+                tiApplication.sendRequest( "/app/load-insights-cycle" + q ),
+                tiApplication.sendRequest( "/app/load-report-coverage" + q )
+            ] ).then( ( [ shellResult, coverageResult ] ) => {
+                const shell = ( shellResult && shellResult.data && typeof shellResult.data === "object" ) ? shellResult.data : {};
+                const payload = ( coverageResult && coverageResult.data && typeof coverageResult.data === "object" ) ? coverageResult.data : {};
+                this.cycle = shell.cycle ? tiToolbox.structuredClone( shell.cycle ) : null;
+                this.cycles = Array.isArray( shell.cycles ) ? tiToolbox.structuredClone( shell.cycles ) : [];
+                if ( this.cycle && !this.selectedCycleID ) {
+                    this.selectedCycleID = this.cycle.id;
+                }
+                this.coverage = payload.coverage ? tiToolbox.structuredClone( payload.coverage ) : null;
+                this.meta = payload.meta ? tiToolbox.structuredClone( payload.meta ) : null;
+                this.coverageGaugeSpec = this.buildGaugeSpec( this.coverage, this.meta );
+                this.coverageBarsSpec = this.buildBarsSpec( this.coverage, this.meta );
+                this.isLoading = false;
+            } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
+                this.isLoading = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                if ( error && error.exception && ( error.exception.httpCode === 401 || error.exception.httpCode === 403 ) ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
+        },
+
+        onCycleChange( event ) {
+            this.selectedCycleID = event && event.target ? event.target.value : "";
+            this.loadAll();
+        },
+
+        /**
+         * Builds the Coverage gauge TiChartSpec from a coverage report payload.
+         *
+         * @method
+         * @param {Object} coverage - `report.coverage` (carries `overall.{n,N,pct}`).
+         * @param {Object} meta - `report.meta` (carries `mode`, `partial`, `pctReporting`).
+         * @returns {Object} TiChartSpec of type "gauge".
+         * @public
+         */
+        buildGaugeSpec( coverage, meta ) {
+            const overall = ( coverage && coverage.overall ) ? coverage.overall : { n: 0, N: 0, pct: 0 };
+            const value = ( overall.N > 0 ) ? ( overall.n / overall.N ) : 0;
+            const partial = !!( meta && meta.partial );
+            let sublabel = String( overall.n ) + " / " + String( overall.N );
+            if ( partial && meta && typeof meta.pctReporting === "number" ) {
+                sublabel = sublabel + " · " + String( meta.pctReporting ) + "% reporting";
+            }
+            return {
+                type: "gauge",
+                data: { value: value, label: "Coverage", sublabel: sublabel },
+                a11yLabel: "Coverage gauge: " + String( overall.n ) + " of " + String( overall.N ) + " complete",
+                provisional: partial
+            };
+        },
+
+        /**
+         * Builds the per-group stacked-bars TiChartSpec from a coverage report payload.
+         *
+         * @method
+         * @param {Object} coverage - `report.coverage` (carries `byGroup[]`).
+         * @param {Object} meta - `report.meta`.
+         * @returns {Object} TiChartSpec of type "bars".
+         * @public
+         */
+        buildBarsSpec( coverage, meta ) {
+            const groups = ( coverage && Array.isArray( coverage.byGroup ) ) ? coverage.byGroup : [];
+            const rows = groups.map( function ( group ) {
+                const byStatus = group.byStatus || {};
+                const segments = [
+                    { key: "Closed", v: byStatus[ "Closed" ] || 0, tone: "grade-s" },
+                    { key: "Ready", v: byStatus[ "Ready" ] || 0, tone: "grade-r" },
+                    { key: "In Review", v: byStatus[ "In Review" ] || 0, tone: "grade-u" },
+                    { key: "Open", v: byStatus[ "Open" ] || 0, tone: "grade-n" },
+                    { key: "Not started", v: group.notStarted || 0, tone: "ink" }
+                ];
+                return { id: String( group.groupKey || group.groupLabel || "" ), label: group.groupLabel || "", segments: segments, total: group.N || 0 };
+            } );
+            return {
+                type: "bars",
+                data: { rows: rows },
+                options: { mode: "stacked" },
+                a11yLabel: "Coverage by group: " + String( rows.length ) + " groups",
+                provisional: !!( meta && meta.partial )
+            };
+        },
+
+        hasCoverage() {
+            return !!( this.coverage && this.coverage.overall );
+        },
+
+        pendingRows() {
+            return ( this.coverage && Array.isArray( this.coverage.pending ) ) ? this.coverage.pending : [];
+        },
+
+        getCycleSubtitle() {
+            if ( !this.cycle ) return "";
+            const mode = ( this.meta && this.meta.mode === "live" )
+                ? tiApplication.getLabel( "interface.insights.cycle.mode-live", "as of now" )
+                : tiApplication.getLabel( "interface.insights.cycle.mode-snapshot", "final" );
+            return ( this.cycle.name || "" ) + " · " + mode;
+        },
+
+        getGaugeAriaLabel() {
+            return this.coverageGaugeSpec.a11yLabel;
+        },
+
+        getBarsAriaLabel() {
+            return this.coverageBarsSpec.a11yLabel;
+        },
+
+        pendingTone( status ) {
+            if ( status === "Open" ) return "info";
+            if ( status === "In Review" ) return "warn";
+            if ( status === "Ready" ) return "success";
+            return "";
+        }
+    };
+};
+
+/**
  * Returns a configuration object for the dashboard screen.
  *
  * @method
@@ -4254,4 +4416,6 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceArchetypeAssignment", configureArchetypeAssignment );
     Alpine.data( "competenceArchetypeEditor", configureArchetypeEditor );
     Alpine.data( "competenceRoleFamilies", configureRoleFamilies );
+    Alpine.data( "insightsOverview", () => ( {} ) );
+    Alpine.data( "insightsCycle", configureInsightsCycle );
 } );

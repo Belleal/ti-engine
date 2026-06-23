@@ -19,6 +19,7 @@
     "#data-evaluations": "./bin/data/seeders/evaluations.json",
     "#data-manager": "./application/data-manager.js",
     "#organization-manager": "./application/organization-manager.js",
+    "#results-analytics": "./application/results-analytics.js",
     "#task-resolver": "./application/task-resolver.js"
   },
   "dependencies": {

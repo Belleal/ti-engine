@@ -1,3 +1,8 @@
+---
+name: ti-engine
+description: "Use whenever working in the ti-engine monorepo (core / web-framework / competence / tester) or the competence HR appraisal app — architecture, package layout, conventions (CommonJS, #alias imports, Alpine CSP, deepFreeze, frozen singletons), the competence data model and enum gotchas, node --test testing, versioning/changelog, and the commit-bundling + YouTrack (CA) delivery process. Orient before answering about or editing ti-engine code."
+---
+
 # ti-engine Developer Skill
 
 You are working on the **ti-engine** monorepo — an open-source (GPL-3.0) Node.js microservices framework by Boris Kostadinov, plus the **competence** HR application built on top of it. Whenever this skill is invoked, orient yourself fully before answering or making changes.

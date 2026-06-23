@@ -15,6 +15,8 @@ const dataManager = require( "#data-manager" );
 const organizationManager = require( "#organization-manager" );
 const competenceFramework = require( "#competence-framework" );
 const taskResolver = require( "#task-resolver" );
+const resultsAnalytics = require( "#results-analytics" );
+const logger = require( "@ti-engine/core/logger" );
 const { registerCompetenceConfig } = require( "../application/config-registration" );
 
 /**
@@ -89,6 +91,14 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "Role Families",
             path: "fragments/frame-role-families.html"
         } );
+        this.addFragment( "insights-overview", {
+            title: "Insights",
+            path: "fragments/frame-insights-overview.html"
+        } );
+        this.addFragment( "insights-cycle", {
+            title: "Cycle Analytics",
+            path: "fragments/frame-insights-cycle.html"
+        } );
     }
 
     /* Public interface */
@@ -162,7 +172,9 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "competency-text-editor": "administration",
                     "archetype-assignment": "administration",
                     "archetype-editor": "administration",
-                    "role-families": "administration"
+                    "role-families": "administration",
+                    "insights-overview": "insights",
+                    "insights-cycle": "insights"
                 },
                 componentsConfig: {
                     userProfileMenu: {
@@ -223,6 +235,10 @@ class CompetenceWebApplication extends TiWebAppManager {
         } else if ( view === "load-employee-detail" ) {
             const employeeID = String( options?.query?.employeeID || "" ).trim();
             return this.#loadEmployeeDetail( session, employeeID );
+        } else if ( view === "load-insights-cycle" ) {
+            return this.#loadInsightsCycle( session, options );
+        } else if ( view === "load-report-coverage" ) {
+            return this.#loadReportCoverage( session, options );
         } else {
             return super.processDataRequest( session, view, options );
         }
@@ -1963,6 +1979,13 @@ class CompetenceWebApplication extends TiWebAppManager {
             }
 
             competenceFramework.instance.closeCycle( cycleID ).then( ( cycle ) => {
+                // Post-close: persist the immutable results snapshot. persistResultsSnapshot re-reads the cycle (for
+                // actualCloseDate) itself, so it does not depend on `cycle` freshness. A snapshot failure — including
+                // the getCycle not-found rejection, which cannot occur here since the cycle was just closed — is logged,
+                // not propagated: the cycle is already CLOSED and the close response must still succeed.
+                resultsAnalytics.instance.persistResultsSnapshot( cycleID ).catch( ( snapshotError ) => {
+                    logger.log( `Failed to persist results snapshot for cycle '${ cycleID }': ${ snapshotError && snapshotError.message ? snapshotError.message : snapshotError }`, logger.logSeverity.WARNING, { cycleID: cycleID } );
+                } );
                 resolve( cycle );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -2473,6 +2496,78 @@ class CompetenceWebApplication extends TiWebAppManager {
                             canViewAudit: isSupervisor
                         }
                     } );
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Loads the Insights → Cycle analytics screen shell: the resolved cycle (selected via `?cycleID`,
+     * falling back to the active/current cycle) plus the candidate list for the cycle selector.
+     * Supervisor-only (the leadership reports are supervisor-scoped).
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [options]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadInsightsCycle( session, options ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const requestedCycleID = String( options?.query?.cycleID || "" ).trim();
+
+            Promise.all( [
+                dataManager.instance.getAllCycles(),
+                this.#resolveCurrentCycle()
+            ] ).then( ( [ cycles, currentCycle ] ) => {
+                const cycle = resultsAnalytics.pickCycleForRequest( cycles || [], requestedCycleID, currentCycle );
+                if ( !cycle ) {
+                    return resolve( { cycle: null, cycles: [] } );
+                }
+                resolve( {
+                    cycle: { id: cycle.cycleID, name: cycle.name, status: cycle.status },
+                    cycles: ( cycles || [] ).map( ( c ) => ( { id: c.cycleID, name: c.name, status: c.status } ) )
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Returns the Coverage (R1) report payload for the requested cycle. Supervisor-only, org-wide.
+     * Injects the organization root unit id into the filter so the whole-org roster is non-empty
+     * (an empty/missing rootUnitID would yield a null org subtree → empty roster → 0/0 coverage).
+     * The analytics service branches live-vs-snapshot internally.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [options]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadReportCoverage( session, options ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const requestedCycleID = String( options?.query?.cycleID || "" ).trim();
+            const rootUnitID = organizationManager.instance.getOrganizationRootUnitID();
+
+            Promise.all( [
+                dataManager.instance.getAllCycles(),
+                this.#resolveCurrentCycle()
+            ] ).then( ( [ cycles, currentCycle ] ) => {
+                const cycle = resultsAnalytics.pickCycleForRequest( cycles || [], requestedCycleID, currentCycle );
+                if ( !cycle ) {
+                    return resolve( { coverage: null, meta: null } );
+                }
+                const filter = { groupBy: "orgUnit", allowedEmployeeIDs: null, rootUnitID: rootUnitID };
+                return resultsAnalytics.instance.resolve( cycle.cycleID, filter, "coverage" ).then( ( report ) => {
+                    resolve( report );
                 } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
