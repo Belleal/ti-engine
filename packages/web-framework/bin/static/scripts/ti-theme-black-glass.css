@@ -51,6 +51,14 @@
     --grade-N: rgba(225, 228, 236, 0.45);
     --grade-N-soft: rgba(255, 255, 255, 0.07);
 
+    /* Sequential chart ramp (dark → light) — heatmap value-view; mirror of the daylight ramp,
+       brightened toward the high end so cells read against the glass backdrop. */
+    --chart-seq-1: #1B3A5C;
+    --chart-seq-2: #2E5E8F;
+    --chart-seq-3: #4E86BD;
+    --chart-seq-4: #7FB0E0;
+    --chart-seq-5: #B7D5F4;
+
     /* Shadows */
     --shadow-xs: inset 0 1px 0 rgba(255, 255, 255, 0.04);
     --shadow-sm: 0 1px 1px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04);

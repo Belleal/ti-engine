@@ -122,9 +122,14 @@ describe( "ti-charts — spec envelope", () => {
         assert.equal( s.a11yLabel, "" );
     } );
     it( "marks an unknown type as unsupported and empties data", () => {
-        const s = TiCharts.normalizeSpec( { type: "heatmap", data: { rows: [] } } );
+        const s = TiCharts.normalizeSpec( { type: "sankey", data: { rows: [] } } );
         assert.equal( s.type, "unsupported" );
         assert.deepEqual( s.data, {} );
+    } );
+    it( "preserves the Phase-1 types (scatter, heatmap, box)", () => {
+        assert.equal( TiCharts.normalizeSpec( { type: "scatter", data: { points: [] } } ).type, "scatter" );
+        assert.equal( TiCharts.normalizeSpec( { type: "heatmap", data: { rows: [], cols: [], cells: [] } } ).type, "heatmap" );
+        assert.equal( TiCharts.normalizeSpec( { type: "box", data: { groups: [] } } ).type, "box" );
     } );
     it( "returns an unsupported spec for null/garbage input", () => {
         assert.equal( TiCharts.normalizeSpec( null ).type, "unsupported" );

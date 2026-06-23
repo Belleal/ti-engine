@@ -53,6 +53,14 @@
     --grade-N: #8B8478;
     --grade-N-soft: #ECE6D8;
 
+    /* Sequential chart ramp (light → dark) — for heatmap value-view; deliberately distinct
+       from the categorical grade hues so a monochromatic scale reads correctly. */
+    --chart-seq-1: #EAF0F7;
+    --chart-seq-2: #C6D8EC;
+    --chart-seq-3: #92B4DA;
+    --chart-seq-4: #5286C0;
+    --chart-seq-5: #2462A4;
+
     /* Shadows */
     --shadow-xs: 0 1px 0 rgba(20, 18, 14, 0.04);
     --shadow-sm: 0 1px 2px rgba(20, 18, 14, 0.06), 0 1px 1px rgba(20, 18, 14, 0.04);

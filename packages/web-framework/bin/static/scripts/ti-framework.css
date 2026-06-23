@@ -2547,6 +2547,11 @@ body {
     --c-grade-r: var(--grade-R);
     --c-grade-u: var(--grade-U);
     --c-grade-n: var(--grade-N);
+    --c-seq-1: var(--chart-seq-1);
+    --c-seq-2: var(--chart-seq-2);
+    --c-seq-3: var(--chart-seq-3);
+    --c-seq-4: var(--chart-seq-4);
+    --c-seq-5: var(--chart-seq-5);
     display: block;
     margin: 0;
     position: relative;
@@ -2645,3 +2650,52 @@ body {
 
 /* tabular-nums utility used by chart text (no such class existed before). */
 .tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------------ *
+ *  ti-charts — Phase 1A primitives (scatter, heatmap, box) + bar modes.
+ *  Same token discipline: colors route through --c-* (set on .ti-chart).
+ * ------------------------------------------------------------------ */
+
+/* Interactive marks (drill) — CSP-safe: tabindex/role set in JS, no inline handlers. */
+.ti-chart [role="button"] { cursor: pointer; }
+.ti-chart [role="button"]:focus-visible { outline: 1px solid var(--c-series-1); outline-offset: 1px; }
+
+/* --- scatter (R3 alignment quadrant) --- */
+.ti-chart-scatter-diag { stroke: var(--c-grid); stroke-width: 0.5; stroke-dasharray: 2 2; }
+.ti-chart-scatter-mid  { stroke: var(--c-grid); stroke-width: 0.4; }
+.ti-chart-scatter-pt   { fill: var(--c-series-1); stroke: var(--c-ink-strong); stroke-width: 0.3; }
+.ti-chart-scatter-pt.tone-grade-s { fill: var(--c-grade-s); }
+.ti-chart-scatter-pt.tone-grade-r { fill: var(--c-grade-r); }
+.ti-chart-scatter-pt.tone-grade-u { fill: var(--c-grade-u); }
+.ti-chart-scatter-pt.tone-grade-n { fill: var(--c-grade-n); }
+.ti-chart-scatter-pt.tone-info    { fill: var(--c-series-2); }
+.ti-chart-scatter-quad { fill: var(--c-series-1); opacity: 0.05; }
+.ti-chart-axis-label   { fill: var(--c-ink); font-size: 4px; }
+
+/* --- heatmap (R4) — sequential ramp + diverging grade scale --- */
+.ti-chart-heat-cell { stroke: var(--bg-elevated, #fff); stroke-width: 0.5; }
+.ti-chart-heat-cell.cell-q1 { fill: var(--c-seq-1); }
+.ti-chart-heat-cell.cell-q2 { fill: var(--c-seq-2); }
+.ti-chart-heat-cell.cell-q3 { fill: var(--c-seq-3); }
+.ti-chart-heat-cell.cell-q4 { fill: var(--c-seq-4); }
+.ti-chart-heat-cell.cell-q5 { fill: var(--c-seq-5); }
+.ti-chart-heat-cell.cell-pos  { fill: var(--c-grade-s); }   /* diverging: positive gap → S side */
+.ti-chart-heat-cell.cell-neg  { fill: var(--c-grade-n); }   /* diverging: negative gap → N side */
+.ti-chart-heat-cell.cell-zero { fill: var(--c-grid); }
+.ti-chart-heat-cell.suppressed { fill: var(--c-grid); opacity: 0.4; }
+.ti-chart-heat-label { fill: var(--c-ink); font-size: 4px; }
+
+/* --- box (R5 level correlation) --- */
+.ti-chart-box-box      { fill: var(--c-series-1); opacity: 0.22; stroke: var(--c-series-1); stroke-width: 0.6; }
+.ti-chart-box-median   { stroke: var(--c-ink-strong); stroke-width: 1; }
+.ti-chart-box-whisker  { stroke: var(--c-axis); stroke-width: 0.5; }
+.ti-chart-box-cap      { stroke: var(--c-axis); stroke-width: 0.5; }
+.ti-chart-box-mean     { fill: var(--c-ink-strong); }
+.ti-chart-box-expected { stroke: var(--c-grade-r); stroke-width: 0.8; stroke-dasharray: 2 2; }
+.ti-chart-box-ref      { stroke: var(--c-grade-u); stroke-width: 0.5; stroke-dasharray: 3 2; }
+.ti-chart-box-ref-label { fill: var(--c-grade-u); font-size: 4px; }
+.ti-chart-box-label    { fill: var(--c-ink); font-size: 4px; }
+
+/* --- bars (grouped + diverging modes) --- */
+.ti-chart-bar-axis  { stroke: var(--c-axis); stroke-width: 0.4; }
+.ti-chart-bar-label { fill: var(--c-ink); font-size: 4px; }

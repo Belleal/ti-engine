@@ -219,11 +219,11 @@ const TiCharts = ( function () {
         return out;
     }
 
-    const SUPPORTED_TYPES = [ "gauge", "bars", "stat" ]; // Phase 0 subset
+    const SUPPORTED_TYPES = [ "gauge", "bars", "stat", "scatter", "heatmap", "box" ]; // Phase 0: gauge/bars/stat; Phase 1A adds scatter/heatmap/box (radar/line still deferred)
 
     /**
      * @typedef {Object} TiChartSpec
-     * @property {"gauge"|"bars"|"stat"} type   Phase 0 supports these three only.
+     * @property {"gauge"|"bars"|"stat"|"scatter"|"heatmap"|"box"} type   Phase 0: gauge/bars/stat; Phase 1A: scatter/heatmap/box.
      * @property {Object}  data                 per-primitive payload (the aggregation output)
      * @property {Object}  [options]            domains, sizing, labels, formatting
      * @property {string}  a11yLabel            role=img label (also injected as <title>)
