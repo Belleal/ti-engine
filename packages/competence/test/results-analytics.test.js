@@ -326,7 +326,10 @@ function depsFixture( over = {} ) {
         fetchEvaluations: over.fetchEvaluations || ( () => Promise.resolve( over.evaluations || [] ) ),
         getResultsSnapshot: over.getResultsSnapshot || ( () => Promise.resolve( over.snapshot || null ) ),
         buildSubtree: over.buildSubtree || ( () => over.subtree || subtreeFixture() ),
-        resolveOrgUnit: over.resolveOrgUnit || ( ( employeeID ) => ( employeeID === "emp1" ? "unit-A" : "unit-B" ) )
+        resolveOrgUnit: over.resolveOrgUnit || ( ( employeeID ) => ( employeeID === "emp1" ? "unit-A" : "unit-B" ) ),
+        fetchCalendarSlots: over.fetchCalendarSlots || ( () => Promise.resolve( over.slots || [] ) ),
+        today: ( over.today !== undefined ) ? over.today : "2026-06-23",
+        alignmentMidpoint: ( over.alignmentMidpoint !== undefined ) ? over.alignmentMidpoint : 1.0
     };
 }
 
@@ -374,6 +377,35 @@ describe( "ResultsAnalytics.resolve — live vs snapshot switch", () => {
         assert.equal( result.meta.mode, "snapshot" );
         assert.equal( result.meta.partial, false );
         assert.equal( fetched, true, "narrow closed filter must recompute from closed evals" );
+    } );
+
+    it( "CLOSED cycle + narrow filter + R2 → recompute fetches the calendar, injects today, computes timeDistribution", async () => {
+        let slotsRequested = false;
+        const evaluations = [ evaluationFixture( { evaluationID: "a", employeeID: "emp1", status: "Closed", managerID: "mgr1", interviewDate: "2026-03-10" } ) ];
+        const deps = depsFixture( {
+            cycleStatus: "CLOSED",
+            snapshot: { reports: { timeDistribution: {} } },
+            evaluations: evaluations,
+            today: "2026-06-23",
+            fetchCalendarSlots: () => { slotsRequested = true; return Promise.resolve( [ { date: "2026-03-15", status: "booked", managerID: "mgr1" } ] ); }
+        } );
+        const result = await resultsAnalyticsInstance._resolveWith( deps, "2026-H2", filterFixture( { allowedEmployeeIDs: [ "emp1" ] } ), "timeDistribution" );
+        assert.equal( result.meta.mode, "snapshot" );
+        assert.equal( slotsRequested, true, "narrow closed R2 must fetch the calendar" );
+        const mgr1 = result.timeDistribution.perManager.find( ( m ) => m.managerID === "mgr1" );
+        assert.equal( mgr1.held, 1 );      // closed eval, interviewDate 2026-03 <= today
+        assert.equal( mgr1.planned, 1 );   // booked slot 2026-03
+    } );
+
+    it( "ACTIVE cycle + R3 injects the configured alignmentQuadrantMidpoint into the live compute", async () => {
+        const evaluations = [ evaluationFixture( { evaluationID: "a", employeeID: "emp1", status: "Ready",
+            grades: { "E1-1": { employee: "U", manager: "U", team: { cumulative: "U" } } },
+            snapshot: [ { code: "E1-1", category: "E", subcategory: "E1", relevancy: { S2: 7 } } ] } ) ];
+        // self=manager=U=0.6. With the default midpoint 1.0 → low-low; with a custom midpoint 0.5 → high-high.
+        const deps = depsFixture( { cycleStatus: "ACTIVE", evaluations, alignmentMidpoint: 0.5 } );
+        const result = await resultsAnalyticsInstance._resolveWith( deps, "2026-H2", filterFixture( { allowedEmployeeIDs: null } ), "alignment" );
+        assert.equal( result.alignment.midpoint, 0.5 );
+        assert.equal( result.alignment.quadrantCounts[ "high-high" ], 1 );   // 0.6 >= 0.5 on both axes
     } );
 
     it( "applies allowedEmployeeIDs to both the frame and the roster (privacy allow-list)", async () => {
@@ -444,9 +476,11 @@ describe( "ResultsAnalytics — #emptyReport / dispatch shapes (Step 0)", () => 
         const td = await resultsAnalyticsInstance._resolveWith( emptyDeps(), "2026-H2", filter, "timeDistribution" );
         assert.deepEqual( td.timeDistribution, { rows: [], unscheduledReady: 0, perManager: [] } );
         const al = await resultsAnalyticsInstance._resolveWith( emptyDeps(), "2026-H2", filter, "alignment" );
-        assert.deepEqual( al.alignment, { points: [], quadrantCounts: {}, diagonal: true } );
+        assert.deepEqual( al.alignment, { points: [], quadrantCounts: {}, diagonal: true, midpoint: 1.0 } );
         const hm = await resultsAnalyticsInstance._resolveWith( emptyDeps(), "2026-H2", filter, "heatmap" );
-        assert.deepEqual( hm.heatmap, { rows: [], cols: [], cells: [] } );
+        assert.equal( hm.heatmap.rows.length, 9 );   // empty heatmap still carries the 9 subcategory row headers
+        assert.deepEqual( hm.heatmap.cols, [] );
+        assert.deepEqual( hm.heatmap.cells, [] );
         const ld = await resultsAnalyticsInstance._resolveWith( emptyDeps(), "2026-H2", filter, "levelDistribution" );
         assert.deepEqual( ld.levelDistribution, { groups: [], reference: [] } );
         const pd = await resultsAnalyticsInstance._resolveWith( emptyDeps(), "2026-H2", filter, "predictiveDrivers" );
@@ -723,7 +757,7 @@ describe( "ResultsAnalytics.computePredictiveDrivers (R6)", () => {
 
 describe( "ResultsAnalytics.computeTimeDistribution (R2)", () => {
     function evalRow( evaluationID, status, interviewDate, managerID ) {
-        return { evaluationID: evaluationID, status: status, interviewDate: ( interviewDate !== undefined ) ? interviewDate : null, managerID: managerID || "m1" };
+        return { evaluationID: evaluationID, status: status, interviewDate: ( interviewDate !== undefined ) ? interviewDate : null, managerID: ( managerID !== undefined ) ? managerID : "m1" };
     }
     function slot( date, status, managerID ) {
         return { date: date, status: status, managerID: managerID || "m1" };
@@ -764,6 +798,29 @@ describe( "ResultsAnalytics.computeTimeDistribution (R2)", () => {
         const m2 = report.perManager.find( ( m ) => m.managerID === "m2" );
         assert.deepEqual( m1, { managerID: "m1", planned: 1, held: 1, unscheduledReady: 0 } );
         assert.deepEqual( m2, { managerID: "m2", planned: 0, held: 0, unscheduledReady: 1 } );
+    } );
+
+    it( "with no valid today, held is undeterminable and skipped (never far-future-defaulted)", () => {
+        const frame = [ evalRow( "a", "Ready", "2099-12-31" ), evalRow( "b", "Closed", "2026-03-10" ) ];
+        const report = resultsAnalyticsInstance.computeTimeDistribution( frame, [], null );
+        assert.deepEqual( report.rows, [] );   // no held buckets without a today reference
+    } );
+
+    it( "skips a malformed (non-ISO) interview/slot date rather than bucketing it under a corrupt key", () => {
+        const frame = [ evalRow( "a", "Closed", "2026/03/10" ) ];               // non-ISO → skipped
+        const slots = [ slot( "2026-03-15", "booked" ), slot( "03-2026", "booked" ) ];   // one valid, one malformed
+        const report = resultsAnalyticsInstance.computeTimeDistribution( frame, slots, "2026-06-23" );
+        assert.equal( report.rows.length, 1 );
+        assert.equal( report.rows[ 0 ].monthKey, "2026-03" );
+        assert.equal( report.rows[ 0 ].planned, 1 );   // only the ISO slot
+        assert.equal( report.rows[ 0 ].held, 0 );      // the non-ISO interview was skipped
+    } );
+
+    it( "does not create a phantom per-manager bucket for an evaluation with no managerID", () => {
+        const frame = [ evalRow( "a", "Ready", null, "" ) ];   // unattributed
+        const report = resultsAnalyticsInstance.computeTimeDistribution( frame, [], "2026-06-23" );
+        assert.equal( report.unscheduledReady, 1 );             // still counted org-wide
+        assert.equal( report.perManager.length, 0 );            // but not attributed to a phantom "" manager
     } );
 } );
 

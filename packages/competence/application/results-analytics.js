@@ -547,6 +547,19 @@ class ResultsAnalytics {
     }
 
     /**
+     * Extracts the YYYY-MM month key from an ISO date string, or null if the input is not the expected YYYY-MM-DD
+     * shape — so a malformed date is skipped rather than silently bucketed under a corrupt key (e.g. "2026/").
+     * @method
+     * @param {string} date
+     * @returns {string|null}
+     * @private
+     */
+    #monthKey( date ) {
+        const s = String( date );
+        return /^\d{4}-\d{2}-\d{2}/.test( s ) ? s.slice( 0, 7 ) : null;
+    }
+
+    /**
      * R6 — Predictive drivers (CA-67). Over the reported subset (needs ≥ minSampleSize, default 5, else
      * `insufficientData`), Pearson-correlates each subcategory's per-row blended score-share with `finalScore.score`
      * (`r`); derives `empiricalShare = |r| / Σ|r|`, the `configuredShare` = that subcategory's slice of the cohort's
@@ -664,7 +677,10 @@ class ResultsAnalytics {
     computeTimeDistribution( frame, slots, today ) {
         const rows = Array.isArray( frame ) ? frame : [];
         const slotList = Array.isArray( slots ) ? slots : [];
-        const todayStr = ( typeof today === "string" && today ) ? today : "9999-12-31";
+        // No valid `today` ⇒ "held" (defined relative to today) is undeterminable, so skip it rather than defaulting
+        // to a far-future date (which would mis-count every future interview as held). Planned/unscheduled don't depend
+        // on today and still compute.
+        const todayStr = ( typeof today === "string" && today ) ? today : null;
 
         const months = new Map();
         const ensureMonth = ( key ) => { if ( !months.has( key ) ) { months.set( key, { planned: 0, held: 0 } ); } return months.get( key ); };
@@ -676,22 +692,26 @@ class ResultsAnalytics {
             if ( !row ) { continue; }
             const ready = row.status === configurationLoader.evaluationStatus.READY;
             const readyOrClosed = ready || row.status === configurationLoader.evaluationStatus.CLOSED;
-            if ( readyOrClosed && row.interviewDate && row.interviewDate <= todayStr ) {
-                const monthKey = String( row.interviewDate ).slice( 0, 7 );
-                ensureMonth( monthKey ).held += 1;
-                ensureManager( row.managerID || "" ).held += 1;
+            if ( todayStr && readyOrClosed && row.interviewDate && row.interviewDate <= todayStr ) {
+                const monthKey = this.#monthKey( row.interviewDate );
+                if ( monthKey ) {
+                    ensureMonth( monthKey ).held += 1;
+                    if ( row.managerID ) { ensureManager( row.managerID ).held += 1; }   // unattributed evals stay out of the per-manager breakdown
+                }
             }
             if ( ready && !row.interviewDate ) {
                 unscheduledReady += 1;
-                ensureManager( row.managerID || "" ).unscheduledReady += 1;
+                if ( row.managerID ) { ensureManager( row.managerID ).unscheduledReady += 1; }
             }
         }
 
         for ( const slot of slotList ) {
             if ( slot && slot.status === configurationLoader.slotStatus.BOOKED && slot.date ) {
-                const monthKey = String( slot.date ).slice( 0, 7 );
-                ensureMonth( monthKey ).planned += 1;
-                ensureManager( slot.managerID || "" ).planned += 1;
+                const monthKey = this.#monthKey( slot.date );
+                if ( monthKey ) {
+                    ensureMonth( monthKey ).planned += 1;
+                    if ( slot.managerID ) { ensureManager( slot.managerID ).planned += 1; }
+                }
             }
         }
 
@@ -915,6 +935,11 @@ class ResultsAnalytics {
                 if ( reportKey === "timeDistribution" && typeof deps.fetchCalendarSlots === "function" ) {
                     return deps.fetchCalendarSlots( cycleID ).then( ( slots ) => finalize( Object.assign( {}, frameFilter, { slots: slots, today: deps.today } ) ) );
                 }
+                // R3 honors the configured quadrant midpoint live (filter.midpoint from the web layer wins; else the deps setting).
+                if ( reportKey === "alignment" ) {
+                    const midpoint = ( typeof frameFilter.midpoint === "number" ) ? frameFilter.midpoint : deps.alignmentMidpoint;
+                    return finalize( Object.assign( {}, frameFilter, { midpoint: midpoint } ) );
+                }
                 return finalize( frameFilter );
             } );
         } );
@@ -946,7 +971,8 @@ class ResultsAnalytics {
             buildSubtree: ( f ) => organizationManager.instance.getOrganizationUnitSubtree( f ? f.rootUnitID : "" ),
             resolveOrgUnit: ( employeeID ) => organizationManager.instance.resolveOrganizationUnitIDForEmployee( employeeID ),
             fetchCalendarSlots: ( id ) => dataManager.instance.fetchAllCalendarSlots( id ),   // R2 only
-            today: new Date().toISOString().split( "T" )[ 0 ]
+            today: new Date().toISOString().split( "T" )[ 0 ],
+            alignmentMidpoint: configurationLoader.getSetting( "performanceAppraisals.alignmentQuadrantMidpoint" )   // R3 only
         };
         return this._resolveWith( deps, cycleID, filter, reportKey );
     }
@@ -999,9 +1025,9 @@ class ResultsAnalytics {
             case "timeDistribution":
                 return { timeDistribution: { rows: [], unscheduledReady: 0, perManager: [] } };
             case "alignment":
-                return { alignment: { points: [], quadrantCounts: {}, diagonal: true } };
+                return { alignment: { points: [], quadrantCounts: {}, diagonal: true, midpoint: GRADE_WEIGHTS.R } };
             case "heatmap":
-                return { heatmap: { rows: [], cols: [], cells: [] } };
+                return { heatmap: { rows: SUBCATEGORIES.map( ( code ) => ( { id: code, label: code } ) ), cols: [], cells: [] } };
             case "levelDistribution":
                 return { levelDistribution: { groups: [], reference: [] } };
             case "predictiveDrivers":
