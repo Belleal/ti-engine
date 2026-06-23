@@ -25,6 +25,14 @@ describe( "ti-charts module", () => {
         assert.equal( typeof TiCharts.formatNumber, "function" );
         assert.equal( typeof TiCharts.SVG_NS, "string" );
     } );
+    it( "exports the Phase-1 layout helpers", () => {
+        assert.equal( typeof TiCharts.scatterLayout, "function" );
+        assert.equal( typeof TiCharts.quantileBucket, "function" );
+        assert.equal( typeof TiCharts.heatmapLayout, "function" );
+        assert.equal( typeof TiCharts.boxLayout, "function" );
+        assert.equal( typeof TiCharts.barsGroupedLayout, "function" );
+        assert.equal( typeof TiCharts.barsDivergingLayout, "function" );
+    } );
 } );
 
 describe( "ti-charts — number/percent formatting", () => {
@@ -191,5 +199,261 @@ describe( "ti-charts — svgEl builder (CSP attribute discipline)", () => {
         assert.equal( el.attrs.d, "M0 0" );
         assert.equal( el.attrs[ "stroke-dasharray" ], "4 3" );
         assert.equal( el.attrs.class, "ti-chart-gauge-arc" );
+    } );
+} );
+
+/* ============================ Phase 1A primitives ============================ */
+
+describe( "ti-charts — scatterLayout (R3 alignment)", () => {
+    it( "maps (xMin,yMax) to top-left and (xMax,yMin) to bottom-right (y inverted), default domain 0..1.3", () => {
+        const l = TiCharts.scatterLayout( [ { id: "a", x: 0, y: 1.3 }, { id: "b", x: 1.3, y: 0 } ], {} );
+        assert.deepEqual( { cx: l.points[ 0 ].cx, cy: l.points[ 0 ].cy }, { cx: 10, cy: 10 } );
+        assert.deepEqual( { cx: l.points[ 1 ].cx, cy: l.points[ 1 ].cy }, { cx: 90, cy: 90 } );
+    } );
+    it( "clamps out-of-domain points into the plot box", () => {
+        const l = TiCharts.scatterLayout( [ { id: "a", x: 5, y: -2 } ], {} );
+        assert.equal( l.points[ 0 ].cx, 90 );  // x clamped to 1.3
+        assert.equal( l.points[ 0 ].cy, 90 );  // y clamped to 0
+    } );
+    it( "scales bubble radius by z when options.bubble === 'z'", () => {
+        const l = TiCharts.scatterLayout( [ { id: "a", x: 0.5, y: 0.5, z: 1 } ], { bubble: "z", zMax: 2 } );
+        assert.equal( l.points[ 0 ].r, 2.7 );  // 1.4 + (1/2)*(4-1.4)
+    } );
+    it( "uses rDefault when no bubble option", () => {
+        const l = TiCharts.scatterLayout( [ { id: "a", x: 0.5, y: 0.5, z: 1 } ], {} );
+        assert.equal( l.points[ 0 ].r, 2.2 );
+    } );
+    it( "emits a diagonal only when opts.diagonal is set, and midlines from opts.midX/midY", () => {
+        const without = TiCharts.scatterLayout( [], {} );
+        assert.equal( without.diagonal, null );
+        const l = TiCharts.scatterLayout( [], { diagonal: true, midX: 1.0, midY: 1.0 } );
+        assert.deepEqual( l.diagonal, { x1: 10, y1: 90, x2: 90, y2: 10 } );
+        assert.equal( l.midX.x, 71.54 );  // 10 + (1/1.3)*80
+        assert.equal( l.midY.y, 28.46 );  // 10 + 80 - (1/1.3)*80
+    } );
+    it( "anonymize strips labels; otherwise carries id/label/tone and the original x/y/z", () => {
+        const anon = TiCharts.scatterLayout( [ { id: "a", x: 0.5, y: 0.5, label: "Ann", tone: "grade-s" } ], { anonymize: true } );
+        assert.equal( anon.points[ 0 ].label, "" );
+        const named = TiCharts.scatterLayout( [ { id: "a", x: 0.4, y: 0.6, z: 0.9, label: "Ann", tone: "grade-s" } ], {} );
+        assert.equal( named.points[ 0 ].label, "Ann" );
+        assert.equal( named.points[ 0 ].tone, "grade-s" );
+        assert.deepEqual( { x: named.points[ 0 ].x, y: named.points[ 0 ].y, z: named.points[ 0 ].z }, { x: 0.4, y: 0.6, z: 0.9 } );
+    } );
+} );
+
+describe( "ti-charts — quantileBucket (R4 sequential)", () => {
+    it( "nearest-rank buckets 1..5 across a spread", () => {
+        const v = [ 1, 2, 3, 4, 5 ];
+        assert.equal( TiCharts.quantileBucket( v, 1 ), 1 );
+        assert.equal( TiCharts.quantileBucket( v, 3 ), 3 );
+        assert.equal( TiCharts.quantileBucket( v, 5 ), 5 );
+    } );
+    it( "collapses all-equal and empty inputs to the middle bucket", () => {
+        assert.equal( TiCharts.quantileBucket( [ 2, 2, 2 ], 2 ), 3 );
+        assert.equal( TiCharts.quantileBucket( [], 7 ), 3 );
+    } );
+    it( "clamps a below-range value to bucket 1 and honours a custom bucket count", () => {
+        assert.equal( TiCharts.quantileBucket( [ 10, 20, 30 ], 5 ), 1 );
+        assert.equal( TiCharts.quantileBucket( [ 1, 2, 3, 4 ], 4, 4 ), 4 );
+    } );
+} );
+
+describe( "ti-charts — heatmapLayout (R4)", () => {
+    const rows = [ { id: "E1", label: "E1" }, { id: "E2", label: "E2" } ];
+    const cols = [ { id: "SE", label: "SE" }, { id: "BA", label: "BA" }, { id: "PM", label: "PM" } ];
+
+    it( "computes grid geometry: cellW = (width-rowLabelW)/cols, cell positions offset by labels", () => {
+        const l = TiCharts.heatmapLayout( rows, cols, [ { r: 0, c: 0, v: 1 }, { r: 1, c: 2, v: 1 } ], {} );
+        assert.equal( l.cells[ 0 ].w, 27.33 );             // (100-18)/3
+        assert.deepEqual( { x: l.cells[ 0 ].x, y: l.cells[ 0 ].y }, { x: 18, y: 8 } );
+        assert.deepEqual( { x: l.cells[ 1 ].x, y: l.cells[ 1 ].y }, { x: 72.66, y: 18 } );
+        assert.equal( l.height, 28 );                      // colLabelH 8 + 2*cellH 10
+    } );
+    it( "sequential: assigns nearest-rank quantile buckets 1..5, monotonic in v, top value at 5", () => {
+        const cells = [ { r: 0, c: 0, v: 0.2 }, { r: 0, c: 1, v: 0.6 }, { r: 0, c: 2, v: 1.3 } ];
+        const l = TiCharts.heatmapLayout( rows, cols, cells, { scale: "sequential" } );
+        assert.ok( l.cells[ 0 ].bucket >= 1 && l.cells[ 0 ].bucket <= 5 );
+        assert.ok( l.cells[ 0 ].bucket <= l.cells[ 1 ].bucket && l.cells[ 1 ].bucket <= l.cells[ 2 ].bucket );
+        assert.equal( l.cells[ 2 ].bucket, 5 );  // highest value → top bucket
+    } );
+    it( "diverging: classifies delta sign + magnitude vs cohort max-abs", () => {
+        const cells = [ { r: 0, c: 0, delta: -0.4 }, { r: 0, c: 1, delta: 0.2 }, { r: 0, c: 2, delta: 0 } ];
+        const l = TiCharts.heatmapLayout( rows, cols, cells, { scale: "diverging" } );
+        assert.equal( l.cells[ 0 ].sign, "neg" );
+        assert.equal( l.cells[ 0 ].mag, 1 );      // |−0.4| is the cohort max
+        assert.equal( l.cells[ 1 ].sign, "pos" );
+        assert.equal( l.cells[ 1 ].mag, 0.5 );    // 0.2 / 0.4
+        assert.equal( l.cells[ 2 ].sign, "zero" );
+    } );
+    it( "carries suppressed cells through without a bucket/sign", () => {
+        const l = TiCharts.heatmapLayout( rows, cols, [ { r: 0, c: 0, suppressed: true } ], { scale: "sequential" } );
+        assert.equal( l.cells[ 0 ].suppressed, true );
+        assert.equal( l.cells[ 0 ].bucket, undefined );
+    } );
+} );
+
+describe( "ti-charts — boxLayout (R5)", () => {
+    it( "maps score→y inverted (domain max at top); q3 sits above q1 in pixels", () => {
+        const l = TiCharts.boxLayout( [ { id: "S2", label: "S2", min: 60, q1: 80, median: 100, q3: 110, max: 130, n: 4 } ], {} );
+        const b = l.boxes[ 0 ];
+        assert.ok( b.yMax < b.yMin, "higher score (max) is a smaller pixel than min" );
+        assert.ok( b.yQ3 < b.yQ1, "q3 (higher score) is above q1" );
+        assert.equal( b.yMed, 25.33 );  // 60 - (100/150)*52
+    } );
+    it( "spaces boxes evenly and maps expected/mean/reference", () => {
+        const l = TiCharts.boxLayout(
+            [ { id: "J1", label: "J1", min: 50, q1: 70, median: 90, q3: 100, max: 110, mean: 92, expected: 100, n: 3 },
+              { id: "S2", label: "S2", min: 80, q1: 95, median: 105, q3: 115, max: 130, n: 5 } ],
+            { reference: [ { v: 105, label: "T3" } ] } );
+        assert.equal( l.boxes[ 0 ].cx, 32 );
+        assert.equal( l.boxes[ 1 ].cx, 72 );
+        assert.ok( typeof l.boxes[ 0 ].yExpected === "number" );
+        assert.ok( typeof l.boxes[ 0 ].yMean === "number" );
+        assert.equal( l.refs[ 0 ].label, "T3" );
+        assert.equal( l.refs[ 0 ].y, 23.6 );  // 60 - (105/150)*52
+    } );
+    it( "carries a suppressed group without box geometry", () => {
+        const l = TiCharts.boxLayout( [ { id: "X1", label: "X1", suppressed: true, n: 1 } ], {} );
+        assert.equal( l.boxes[ 0 ].suppressed, true );
+        assert.equal( l.boxes[ 0 ].yMed, undefined );
+    } );
+} );
+
+describe( "ti-charts — bars grouped + diverging layout", () => {
+    it( "grouped: sub-bars per row share one global max; widths scale to it", () => {
+        const l = TiCharts.barsGroupedLayout(
+            [ { id: "jan", label: "Jan", values: [ { key: "planned", v: 3, tone: "grade-r" }, { key: "held", v: 1, tone: "grade-s" } ] } ], {} );
+        assert.equal( l.max, 3 );
+        assert.equal( l.rows[ 0 ].bars[ 0 ].width, 100 );  // 3/3
+        assert.equal( l.rows[ 0 ].bars[ 1 ].width, 33.33 ); // 1/3
+        assert.equal( l.rows[ 0 ].bars[ 1 ].subY, 6 );      // i*(barH4+gap2)
+    } );
+    it( "grouped: zero max yields zero-width bars (no NaN)", () => {
+        const l = TiCharts.barsGroupedLayout( [ { id: "x", label: "X", values: [ { key: "a", v: 0 } ] } ], {} );
+        assert.equal( l.rows[ 0 ].bars[ 0 ].width, 0 );
+    } );
+    it( "diverging: positive extends right of centre, negative left, on shared max-abs", () => {
+        const l = TiCharts.barsDivergingLayout(
+            [ { id: "E1", label: "E1", values: [ { key: "vsSelf", v: 0.3 }, { key: "vsTeam", v: -0.1 } ] } ], {} );
+        assert.equal( l.maxAbs, 0.3 );
+        assert.equal( l.center, 50 );
+        assert.deepEqual( { x: l.rows[ 0 ].bars[ 0 ].x, w: l.rows[ 0 ].bars[ 0 ].width, dir: l.rows[ 0 ].bars[ 0 ].dir }, { x: 50, w: 50, dir: "pos" } );
+        assert.deepEqual( { x: l.rows[ 0 ].bars[ 1 ].x, w: l.rows[ 0 ].bars[ 1 ].width, dir: l.rows[ 0 ].bars[ 1 ].dir }, { x: 33.33, w: 16.67, dir: "neg" } );
+    } );
+} );
+
+/* ---- render smoke tests: exercise the renderers via an injected fake document,
+        proving they build SVG with createElementNS + setAttribute only (the style
+        Proxy throws on any element.style.* write) and emit an a11y sr-table. ---- */
+describe( "ti-charts — Phase-1 renderers (CSP discipline + structure)", () => {
+    function makeNode( tag, ns ) {
+        return {
+            tag: tag, ns: ns || null, attrs: {}, children: [], textContent: "",
+            setAttribute( k, v ) { this.attrs[ k ] = String( v ); },
+            appendChild( c ) { this.children.push( c ); return c; },
+            removeChild( c ) { const i = this.children.indexOf( c ); if ( i >= 0 ) { this.children.splice( i, 1 ); } return c; },
+            get firstChild() { return this.children.length ? this.children[ 0 ] : null; },
+            style: new Proxy( {}, { set() { throw new Error( "element.style.* is forbidden" ); } } )
+        };
+    }
+    function makeRenderDoc() {
+        return { createElement( tag ) { return makeNode( tag, null ); }, createElementNS( ns, tag ) { return makeNode( tag, ns ); } };
+    }
+    function withDocument( doc, fn ) {
+        const had = Object.prototype.hasOwnProperty.call( global, "document" );
+        const prev = global.document;
+        global.document = doc;
+        try { return fn(); } finally { if ( had ) { global.document = prev; } else { delete global.document; } }
+    }
+    function collect( node, pred, acc ) {
+        acc = acc || [];
+        const kids = node.children || [];
+        for ( let i = 0; i < kids.length; i++ ) {
+            if ( pred( kids[ i ] ) ) { acc.push( kids[ i ] ); }
+            collect( kids[ i ], pred, acc );
+        }
+        return acc;
+    }
+    const svgOf = ( figure ) => figure.children.filter( ( c ) => c.tag === "svg" );
+    const srTableOf = ( figure ) => figure.children.filter( ( c ) => c.tag === "table" && c.attrs.class === "ti-chart-sr" );
+
+    it( "scatter: svg + interactive points + diagonal + sr-table; anonymize disables drill", () => {
+        const figure = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
+            type: "scatter", a11yLabel: "Alignment",
+            data: { diagonal: true, points: [ { id: "e1", x: 1.0, y: 1.2, tone: "grade-s", label: "Ann" } ] },
+            options: { midX: 1.0, midY: 1.0 }
+        } ) );
+        const svg = svgOf( figure );
+        assert.equal( svg.length, 1 );
+        const circles = collect( svg[ 0 ], ( n ) => n.tag === "circle" );
+        assert.equal( circles.length, 1 );
+        assert.ok( circles[ 0 ].attrs.class.indexOf( "ti-chart-scatter-pt" ) >= 0 );
+        assert.equal( circles[ 0 ].attrs.tabindex, "0" );    // drillable
+        assert.equal( circles[ 0 ].attrs.role, "button" );
+        assert.equal( collect( svg[ 0 ], ( n ) => n.attrs && n.attrs.class === "ti-chart-scatter-diag" ).length, 1 );
+        assert.equal( srTableOf( figure ).length, 1 );
+
+        const anon = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( anon, {
+            type: "scatter", a11yLabel: "Alignment",
+            data: { points: [ { id: "e1", x: 1.0, y: 1.2, label: "Ann" } ] }, options: { anonymize: true }
+        } ) );
+        const anonCircle = collect( svgOf( anon )[ 0 ], ( n ) => n.tag === "circle" )[ 0 ];
+        assert.equal( anonCircle.attrs.tabindex, undefined );  // no drill when anonymized
+    } );
+
+    it( "heatmap sequential: cell-qN classes; diverging: opacity as a presentation attribute (never style)", () => {
+        const rows = [ { id: "E1", label: "E1" } ];
+        const cols = [ { id: "SE", label: "SE" }, { id: "BA", label: "BA" } ];
+        const seq = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( seq, {
+            type: "heatmap", a11yLabel: "Heatmap",
+            data: { rows: rows, cols: cols, cells: [ { r: 0, c: 0, v: 0.2 }, { r: 0, c: 1, v: 1.2 } ] }, options: { scale: "sequential" }
+        } ) );
+        const seqCells = collect( svgOf( seq )[ 0 ], ( n ) => n.tag === "rect" );
+        assert.equal( seqCells.length, 2 );
+        assert.ok( seqCells.every( ( c ) => /cell-q[1-5]/.test( c.attrs.class ) ) );
+
+        const div = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( div, {
+            type: "heatmap", a11yLabel: "Gap",
+            data: { rows: rows, cols: cols, cells: [ { r: 0, c: 0, delta: -0.4 }, { r: 0, c: 1, delta: 0.2 } ] }, options: { scale: "diverging" }
+        } ) );
+        const divCells = collect( svgOf( div )[ 0 ], ( n ) => n.tag === "rect" );
+        assert.ok( divCells.some( ( c ) => c.attrs.class.indexOf( "cell-neg" ) >= 0 ) );
+        assert.ok( divCells.some( ( c ) => c.attrs.class.indexOf( "cell-pos" ) >= 0 ) );
+        assert.ok( divCells.every( ( c ) => typeof c.attrs.opacity === "string" ) );  // opacity is a presentation attr
+    } );
+
+    it( "box: box rect + median + whisker + reference line + sr-table", () => {
+        const figure = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
+            type: "box", a11yLabel: "Level distribution",
+            data: { groups: [ { id: "S2", label: "S2", min: 60, q1: 80, median: 100, q3: 110, max: 130, mean: 98, expected: 100, n: 5 } ], reference: [ { v: 105, label: "T3" } ] }
+        } ) );
+        const svg = svgOf( figure )[ 0 ];
+        assert.equal( collect( svg, ( n ) => n.attrs && n.attrs.class === "ti-chart-box-box" ).length, 1 );
+        assert.equal( collect( svg, ( n ) => n.attrs && n.attrs.class === "ti-chart-box-median" ).length, 1 );
+        assert.equal( collect( svg, ( n ) => n.attrs && n.attrs.class === "ti-chart-box-ref" ).length, 1 );
+        assert.equal( srTableOf( figure ).length, 1 );
+    } );
+
+    it( "bars grouped + diverging modes render distinct structures", () => {
+        const grouped = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( grouped, {
+            type: "bars", a11yLabel: "Time", options: { mode: "grouped" },
+            data: { rows: [ { id: "jan", label: "Jan", values: [ { key: "planned", v: 3, tone: "grade-r" }, { key: "held", v: 1, tone: "grade-s" } ] } ] }
+        } ) );
+        assert.ok( collect( svgOf( grouped )[ 0 ], ( n ) => n.tag === "rect" ).length >= 2 );
+
+        const diverging = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( diverging, {
+            type: "bars", a11yLabel: "Drivers", options: { mode: "diverging" },
+            data: { rows: [ { id: "E1", label: "E1", values: [ { key: "vsSelf", v: 0.3 }, { key: "vsTeam", v: -0.1 } ] } ] }
+        } ) );
+        const svg = svgOf( diverging )[ 0 ];
+        assert.equal( collect( svg, ( n ) => n.attrs && n.attrs.class === "ti-chart-bar-axis" ).length, 1 );  // zero axis
+        assert.ok( collect( svg, ( n ) => n.tag === "rect" ).length >= 2 );
     } );
 } );
