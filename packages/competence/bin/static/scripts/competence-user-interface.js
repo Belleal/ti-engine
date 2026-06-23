@@ -1250,6 +1250,19 @@ const configureInsightsCycle = () => {
         meta: null,
         coverageGaugeSpec: { type: "gauge", data: { value: 0, label: "", sublabel: "" }, a11yLabel: "", provisional: false },
         coverageBarsSpec: { type: "bars", data: { rows: [] }, options: { mode: "stacked" }, a11yLabel: "", provisional: false },
+        timeDistributionSpec: { type: "bars", data: { rows: [] }, options: { mode: "grouped" }, a11yLabel: "", provisional: false },
+        alignmentSpec: { type: "scatter", data: { points: [], diagonal: true }, options: {}, a11yLabel: "", provisional: false },
+        heatmapSpec: { type: "heatmap", data: { rows: [], cols: [], cells: [] }, options: { scale: "sequential" }, a11yLabel: "", provisional: false },
+        levelDistributionSpec: { type: "box", data: { groups: [], reference: [] }, a11yLabel: "", provisional: false },
+        predictiveDriversSpec: { type: "bars", data: { rows: [] }, options: { mode: "diverging" }, a11yLabel: "", provisional: false },
+        timeDistribution: null,
+        alignment: null,
+        heatmap: null,
+        levelDistribution: null,
+        predictiveDrivers: null,
+        heatmapView: "value",
+        predictiveInsufficient: false,
+        unscheduledReady: 0,
 
         init() {
             const onInitialized = () => {
@@ -1270,21 +1283,49 @@ const configureInsightsCycle = () => {
         loadAll() {
             this.isLoading = true;
             const q = this.selectedCycleID ? ( "?cycleID=" + encodeURIComponent( this.selectedCycleID ) ) : "";
+            const heatmapQ = q ? ( q + "&groupBy=roleFamily" ) : "?groupBy=roleFamily";
             Promise.all( [
                 tiApplication.sendRequest( "/app/load-insights-cycle" + q ),
-                tiApplication.sendRequest( "/app/load-report-coverage" + q )
-            ] ).then( ( [ shellResult, coverageResult ] ) => {
-                const shell = ( shellResult && shellResult.data && typeof shellResult.data === "object" ) ? shellResult.data : {};
-                const payload = ( coverageResult && coverageResult.data && typeof coverageResult.data === "object" ) ? coverageResult.data : {};
+                tiApplication.sendRequest( "/app/load-report-coverage" + q ),
+                tiApplication.sendRequest( "/app/load-report-time-distribution" + q ),
+                tiApplication.sendRequest( "/app/load-report-alignment" + q ),
+                tiApplication.sendRequest( "/app/load-report-heatmap" + heatmapQ ),
+                tiApplication.sendRequest( "/app/load-report-level-distribution" + q ),
+                tiApplication.sendRequest( "/app/load-report-predictive-drivers" + q )
+            ] ).then( ( results ) => {
+                const dataOf = ( result ) => ( ( result && result.data && typeof result.data === "object" ) ? result.data : {} );
+                const shell = dataOf( results[ 0 ] );
+                const coveragePayload = dataOf( results[ 1 ] );
+                const tdPayload = dataOf( results[ 2 ] );
+                const alignPayload = dataOf( results[ 3 ] );
+                const heatPayload = dataOf( results[ 4 ] );
+                const levelPayload = dataOf( results[ 5 ] );
+                const driversPayload = dataOf( results[ 6 ] );
+
                 this.cycle = shell.cycle ? tiToolbox.structuredClone( shell.cycle ) : null;
                 this.cycles = Array.isArray( shell.cycles ) ? tiToolbox.structuredClone( shell.cycles ) : [];
                 if ( this.cycle && !this.selectedCycleID ) {
                     this.selectedCycleID = this.cycle.id;
                 }
-                this.coverage = payload.coverage ? tiToolbox.structuredClone( payload.coverage ) : null;
-                this.meta = payload.meta ? tiToolbox.structuredClone( payload.meta ) : null;
+                // Coverage drives the screen-level mode/partial caveat banner.
+                this.coverage = coveragePayload.coverage ? tiToolbox.structuredClone( coveragePayload.coverage ) : null;
+                this.meta = coveragePayload.meta ? tiToolbox.structuredClone( coveragePayload.meta ) : null;
                 this.coverageGaugeSpec = this.buildGaugeSpec( this.coverage, this.meta );
                 this.coverageBarsSpec = this.buildBarsSpec( this.coverage, this.meta );
+
+                this.timeDistribution = tdPayload.timeDistribution ? tiToolbox.structuredClone( tdPayload.timeDistribution ) : null;
+                this.unscheduledReady = ( this.timeDistribution && typeof this.timeDistribution.unscheduledReady === "number" ) ? this.timeDistribution.unscheduledReady : 0;
+                this.alignment = alignPayload.alignment ? tiToolbox.structuredClone( alignPayload.alignment ) : null;
+                this.heatmap = heatPayload.heatmap ? tiToolbox.structuredClone( heatPayload.heatmap ) : null;
+                this.levelDistribution = levelPayload.levelDistribution ? tiToolbox.structuredClone( levelPayload.levelDistribution ) : null;
+                this.predictiveDrivers = driversPayload.predictiveDrivers ? tiToolbox.structuredClone( driversPayload.predictiveDrivers ) : null;
+                this.predictiveInsufficient = !!( this.predictiveDrivers && this.predictiveDrivers.insufficientData );
+
+                this.timeDistributionSpec = this.buildTimeDistributionSpec( this.timeDistribution, this.meta );
+                this.alignmentSpec = this.buildAlignmentSpec( this.alignment, this.meta );
+                this.heatmapSpec = this.buildHeatmapSpec( this.heatmap, this.heatmapView, this.meta );
+                this.levelDistributionSpec = this.buildLevelDistributionSpec( this.levelDistribution, this.meta );
+                this.predictiveDriversSpec = this.buildPredictiveDriversSpec( this.predictiveDrivers, this.meta );
                 this.isLoading = false;
             } ).catch( ( error ) => {
                 if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
@@ -1375,6 +1416,23 @@ const configureInsightsCycle = () => {
             return ( this.cycle.name || "" ) + " · " + mode;
         },
 
+        isLive() {
+            return !!( this.meta && this.meta.mode === "live" );
+        },
+
+        // CA-L7 live caveat banner: on an ACTIVE cycle, surface the "as of now / % reporting" provisionality.
+        getCaveatBanner() {
+            if ( !this.meta ) return "";
+            if ( this.meta.mode === "live" ) {
+                const live = tiApplication.getLabel( "interface.insights.cycle.mode-live", "as of now" );
+                if ( this.meta.partial && typeof this.meta.pctReporting === "number" ) {
+                    return live + " · " + String( this.meta.pctReporting ) + "% " + tiApplication.getLabel( "interface.insights.cycle.reporting", "reporting" );
+                }
+                return live;
+            }
+            return tiApplication.getLabel( "interface.insights.cycle.mode-snapshot", "final" );
+        },
+
         getGaugeAriaLabel() {
             return this.coverageGaugeSpec.a11yLabel;
         },
@@ -1388,7 +1446,120 @@ const configureInsightsCycle = () => {
             if ( status === "In Review" ) return "warn";
             if ( status === "Ready" ) return "success";
             return "";
-        }
+        },
+
+        /**
+         * R2 — grouped bars (month × {planned, finalised}). Maps timeDistribution.rows to the ti-chart grouped contract.
+         * @method
+         */
+        buildTimeDistributionSpec( report, meta ) {
+            const monthRows = ( report && Array.isArray( report.rows ) ) ? report.rows : [];
+            const rows = monthRows.map( function ( m ) {
+                return { id: String( m.monthKey || "" ), label: String( m.monthKey || "" ), values: [
+                    { key: "planned", v: m.planned || 0, tone: "grade-r" },
+                    { key: "held", v: m.held || 0, tone: "grade-s" }
+                ] };
+            } );
+            return {
+                type: "bars", data: { rows: rows }, options: { mode: "grouped" },
+                a11yLabel: "Interview timing across " + String( rows.length ) + " months (planned vs finalised)",
+                provisional: !!( meta && meta.partial )
+            };
+        },
+
+        /**
+         * R3 — scatter (x=manager, y=self, z=team bubble) with the y=x diagonal + quadrant midlines.
+         * @method
+         */
+        buildAlignmentSpec( report, meta ) {
+            const points = ( report && Array.isArray( report.points ) ) ? report.points.map( function ( p ) {
+                return { id: String( p.evaluationID || "" ), x: p.x, y: p.y, z: p.z, tone: ( p.gap > 0 ) ? "grade-s" : ( p.gap < 0 ? "grade-n" : "info" ) };
+            } ) : [];
+            const midpoint = ( report && typeof report.midpoint === "number" ) ? report.midpoint : 1.0;
+            return {
+                type: "scatter",
+                data: { points: points, diagonal: true },
+                options: { bubble: "z", domain: { xMin: 0, xMax: 1.3, yMin: 0, yMax: 1.3 }, midX: midpoint, midY: midpoint },
+                a11yLabel: "Self vs manager alignment: " + String( points.length ) + " people",
+                provisional: !!( meta && meta.partial )
+            };
+        },
+
+        /**
+         * R4 — heatmap; `view` selects the sequential value scale or the diverging gap (delta) scale.
+         * @method
+         */
+        buildHeatmapSpec( report, view, meta ) {
+            const gap = ( view === "gap" );
+            const rows = ( report && Array.isArray( report.rows ) ) ? report.rows : [];
+            const cols = ( report && Array.isArray( report.cols ) ) ? report.cols : [];
+            const cells = ( report && Array.isArray( report.cells ) ) ? report.cells.map( function ( c ) {
+                return { r: c.r, c: c.c, v: gap ? c.delta : c.v, n: c.n, delta: c.delta, expected: c.expected, suppressed: c.suppressed };
+            } ) : [];
+            return {
+                type: "heatmap", data: { rows: rows, cols: cols, cells: cells },
+                options: { scale: gap ? "diverging" : "sequential" },
+                a11yLabel: "Competence heatmap (" + ( gap ? "gap vs expected" : "value" ) + "): " + String( rows.length ) + " subcategories × " + String( cols.length ) + " groups",
+                provisional: !!( meta && meta.partial )
+            };
+        },
+
+        /**
+         * R5 — box plot per stage level with the per-box expected marker + the T3 reference.
+         * @method
+         */
+        buildLevelDistributionSpec( report, meta ) {
+            const groups = ( report && Array.isArray( report.groups ) ) ? report.groups : [];
+            const reference = ( report && Array.isArray( report.reference ) ) ? report.reference : [];
+            return {
+                type: "box", data: { groups: groups, reference: reference },
+                options: { domain: { min: 0, max: 150 } },
+                a11yLabel: "Score distribution across " + String( groups.length ) + " levels with expected markers",
+                provisional: !!( meta && meta.partial )
+            };
+        },
+
+        /**
+         * R6 — diverging bars of empirical-minus-configured share per subcategory (sorted by influence). Flagged
+         * subcategories are accented; an empty/insufficient cohort yields no rows.
+         * @method
+         */
+        buildPredictiveDriversSpec( report, meta ) {
+            const driverRows = ( report && Array.isArray( report.rows ) ) ? report.rows : [];
+            const rows = driverRows.map( function ( d ) {
+                return { id: String( d.id || "" ), label: String( d.label || d.id || "" ), values: [
+                    { key: "divergence", v: d.divergence || 0, tone: d.misweightFlag ? "grade-u" : "info" }
+                ] };
+            } );
+            return {
+                type: "bars", data: { rows: rows }, options: { mode: "diverging" },
+                a11yLabel: "Performance drivers: empirical-minus-configured influence share per subcategory",
+                provisional: !!( meta && meta.partial )
+            };
+        },
+
+        setHeatmapView( view ) {
+            this.heatmapView = ( view === "gap" ) ? "gap" : "value";
+            this.heatmapSpec = this.buildHeatmapSpec( this.heatmap, this.heatmapView, this.meta );
+        },
+        onHeatmapViewChange( event ) {
+            this.setHeatmapView( event && event.target ? event.target.value : "value" );
+        },
+
+        hasTimeDistribution() { return !!( this.timeDistribution && Array.isArray( this.timeDistribution.rows ) && this.timeDistribution.rows.length ); },
+        hasAlignment() { return !!( this.alignment && Array.isArray( this.alignment.points ) && this.alignment.points.length ); },
+        hasHeatmap() { return !!( this.heatmap && Array.isArray( this.heatmap.cells ) && this.heatmap.cells.length ); },
+        hasLevelDistribution() { return !!( this.levelDistribution && Array.isArray( this.levelDistribution.groups ) && this.levelDistribution.groups.length ); },
+        hasPredictiveDrivers() { return !!( this.predictiveDrivers && Array.isArray( this.predictiveDrivers.rows ) && this.predictiveDrivers.rows.length ); },
+
+        reportLabel( key, field, fallback ) {
+            return tiApplication.getLabel( "interface.insights.cycle.reports." + key + "." + field, fallback );
+        },
+        getTimeDistributionAriaLabel() { return this.timeDistributionSpec.a11yLabel; },
+        getAlignmentAriaLabel() { return this.alignmentSpec.a11yLabel; },
+        getHeatmapAriaLabel() { return this.heatmapSpec.a11yLabel; },
+        getLevelDistributionAriaLabel() { return this.levelDistributionSpec.a11yLabel; },
+        getPredictiveDriversAriaLabel() { return this.predictiveDriversSpec.a11yLabel; }
     };
 };
 

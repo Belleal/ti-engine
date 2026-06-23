@@ -7659,6 +7659,62 @@
         "mode-snapshot": {
           "en": "final",
           "bg": "финален"
+        },
+        "reporting": {
+          "en": "reporting",
+          "bg": "докладвани"
+        },
+        "methodology-toggle": {
+          "en": "How it's calculated",
+          "bg": "Как се изчислява"
+        },
+        "heatmap-view-value": {
+          "en": "Value",
+          "bg": "Стойност"
+        },
+        "heatmap-view-gap": {
+          "en": "Gap vs expected",
+          "bg": "Разлика спрямо очакваното"
+        },
+        "unscheduled-ready": {
+          "en": "Ready, no interview booked",
+          "bg": "Готови, без запазено интервю"
+        },
+        "insufficient-data": {
+          "en": "Not enough reported evaluations yet.",
+          "bg": "Все още няма достатъчно докладвани оценки."
+        },
+        "reports": {
+          "coverage": {
+            "title": { "en": "Evaluation coverage", "bg": "Обхват на оценките" },
+            "whatItShows": { "en": "How many evaluations are complete across the cohort, grouped by org unit or role family, with the pending list.", "bg": "Колко оценки са завършени в кохортата, групирани по звено или ролево семейство, със списък на чакащите." },
+            "methodology": { "en": "An evaluation counts as complete once it reaches Ready or Closed. The percentage is complete evaluations over the in-scope roster; ‘Not started’ is a roster member with no evaluation yet. A live (ACTIVE) cycle updates as people progress and shows a ‘% reporting’ caveat; a closed cycle reads from its final snapshot.", "bg": "Оценката се счита за завършена, когато достигне статус „Готова“ или „Приключена“. Процентът е завършените оценки спрямо обхванатия състав; „Незапочната“ е член без оценка. Активен цикъл се обновява и показва уговорка „% докладвани“; приключен цикъл се чете от финалната снимка." }
+          },
+          "timeDistribution": {
+            "title": { "en": "Interview timing", "bg": "Времеви график на интервютата" },
+            "whatItShows": { "en": "Per month, how many review interviews were planned versus finalised, plus how many Ready evaluations still have no interview booked.", "bg": "По месеци – колко ревю интервюта са планирани спрямо финализирани, плюс колко готови оценки още нямат запазено интервю." },
+            "methodology": { "en": "‘Planned’ counts booked interview slots by their month. ‘Finalised (proxy for held)’ counts evaluations that reached Ready/Closed with an interview date on or before today — a proxy, because the system records the scheduled date, not actual attendance. ‘Unscheduled & ready’ flags Ready evaluations with no booking — the actionable backlog. A per-manager breakdown is available.", "bg": "„Планирани“ брои запазените слотове по техния месец. „Финализирани (косвено за проведени)“ брои оценките, достигнали „Готова/Приключена“ с дата на интервю до днес – косвен показател, тъй като системата пази насрочената дата, не присъствието. „Незапланувани и готови“ маркира готовите оценки без запазено интервю. Налична е разбивка по мениджър." }
+          },
+          "alignment": {
+            "title": { "en": "Self vs manager alignment", "bg": "Съответствие самооценка/мениджър" },
+            "whatItShows": { "en": "Each reported person plotted by their average manager grade (x) against their average self grade (y), with the team grade as the bubble size.", "bg": "Всеки докладван човек, позициониран по средна оценка от мениджъра (x) спрямо средна самооценка (y), с екипната оценка като размер на балона." },
+            "methodology": { "en": "Grades are averaged per source in weight space (S=1.3, R=1.0, U=0.6, N=0.0), weighted by each competency's relevancy and kept separate per source. The diagonal is perfect agreement; points above it self-rate higher than their manager (possible hidden strengths), points below sit in the manager-higher ‘blind spot’ region. Quadrants split at the ‘meets’ (R) midpoint. Drill into a person to see the competencies with the largest self–manager gaps.", "bg": "Оценките се осредняват по източник в тегловно пространство (S=1.3, R=1.0, U=0.6, N=0.0), претеглени по релевантност и държани поотделно. Диагоналът е пълно съвпадение; точките над него се самооценяват по-високо от мениджъра (възможни скрити силни страни), точките под него попадат в зоната „сляпо петно“. Квадрантите се разделят при прага „покрива“ (R). Влезте в детайл за човек, за да видите компетенциите с най-големи разлики." }
+          },
+          "heatmap": {
+            "title": { "en": "Competence heatmap", "bg": "Топлинна карта на компетенциите" },
+            "whatItShows": { "en": "Average grade per competency subcategory across groups (role families or org units), with an optional gap-versus-expected view.", "bg": "Средна оценка по подкатегория компетенции през групи (ролеви семейства или звена), с опционален изглед на разликата спрямо очакваното." },
+            "methodology": { "en": "Each cell is the relevancy-weighted average grade for that subcategory and group, for the chosen source (self, manager, team, or the blended score). The value view shades cells light-to-dark on a quantile scale. The gap view instead shows the difference from the level-appropriate expected grade (see the level report) — stronger shading above expectation, grey below. Cells covering fewer than three people are hidden to protect anonymity.", "bg": "Всяка клетка е претеглената по релевантност средна оценка за подкатегорията и групата, за избрания източник (самооценка, мениджър, екип или смесена). Изгледът по стойност оцветява от светло към тъмно по квантилна скала. Изгледът по разлика показва отклонението от очакваната за нивото оценка – по-наситено над очакванията, сиво под тях. Клетки с по-малко от трима души се скриват за анонимност." }
+          },
+          "levelDistribution": {
+            "title": { "en": "Score distribution by level", "bg": "Разпределение на резултатите по ниво" },
+            "whatItShows": { "en": "A box plot of final scores at each career level (N1 → T1), with a dashed expected marker per level and the T3 reference line.", "bg": "Кутийна диаграма на крайните резултати за всяко кариерно ниво (N1 → T1), с пунктирен маркер за очакваното и референтна линия T3." },
+            "methodology": { "en": "Each box shows the spread of final scores (min, quartiles, median, max) for the people at that level. The dashed marker is the score a typical performer would earn if graded at the standard expected for that level — a competency is expected at ‘meets’ once it becomes core to the role and at ‘strong’ once it has been core for a while, so the marker trends upward as expectations grow with seniority (a typical-target trend, not a strict step). Compare each box to its marker: below suggests a coaching gap, above suggests early mastery. The dotted line is the T3 ‘meets expectations’ threshold (105).", "bg": "Всяка кутия показва разсейването на крайните резултати (мин., квартили, медиана, макс.) за хората на това ниво. Пунктираният маркер е резултатът, който типичен изпълнител би получил при оценяване по стандарта, очакван за нивото – компетенция се очаква на „покрива“, щом стане ключова, и на „силно“, след като е била ключова известно време, затова маркерът се покачва с нарастване на очакванията при по-висок стаж (тенденция, не строга стъпка). Сравнете всяка кутия с маркера ѝ: под него подсказва нужда от развитие, над него – ранно овладяване. Пунктираната линия е прагът T3 „покрива очакванията“ (105)." }
+          },
+          "predictiveDrivers": {
+            "title": { "en": "Performance drivers", "bg": "Двигатели на представянето" },
+            "whatItShows": { "en": "Which competency subcategories most strongly track the final score, and whether that matches the weight the framework gives them.", "bg": "Кои подкатегории компетенции най-силно следват крайния резултат и дали това съответства на теглото, което моделът им дава." },
+            "methodology": { "en": "For each subcategory we correlate people's average grade in it with their final score (Pearson r); a higher bar means that subcategory moves more with overall performance. The paired bar shows its share of measured influence versus its configured share of relevancy. When a subcategory's influence ranks far from its configured weight it is flagged as possibly mis-weighted — worth a look when tuning the model. Needs at least five reported evaluations.", "bg": "За всяка подкатегория съотнасяме средната оценка на хората в нея с крайния им резултат (корелация на Пиърсън); по-висока лента означава, че подкатегорията се движи повече с цялостното представяне. Сдвоената лента показва дела ѝ от измереното влияние спрямо конфигурирания дял на релевантност. Когато влиянието се нарежда далеч от конфигурираното тегло, подкатегорията се маркира като възможно неправилно претеглена. Нужни са поне пет докладвани оценки." }
+          }
         }
       }
     }
