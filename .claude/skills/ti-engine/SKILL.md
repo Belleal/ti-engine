@@ -14,7 +14,7 @@ You are working on the **ti-engine** monorepo — an open-source (GPL-3.0) Node.
 ```
 ti-engine/                         npm workspace root (v1.2.4)
 ├── packages/
-│   ├── core/          v1.5.1      Framework foundation (Redis messaging, lifecycle, utils)
+│   ├── core/          v1.7.0      Framework foundation (Redis messaging, lifecycle, utils)
 │   ├── web-framework/ v1.9.3      Express HTTP server + auth + admin config-management subsystem
 │   ├── competence/    v3.3.1      HR competency appraisal application (108-competency dictionary)
 │   └── tester/        v1.3.3      Reference/example service implementation
@@ -22,7 +22,7 @@ ti-engine/                         npm workspace root (v1.2.4)
 └── eslint.config.mjs              Flat ESLint config (commonjs, browser+node globals)
 ```
 
-Dependency direction: `core` is standalone → `web-framework` depends on `core` → `competence` depends on both. Keep framework concerns in `core`/`web-framework` and application concerns in `competence`. Node `>=20`. Each package has its own independent semver version and `CHANGELOG.md`.
+Dependency direction: `core` is standalone → `web-framework` depends on `core` → `competence` depends on both. Keep framework concerns in `core`/`web-framework` and application concerns in `competence`. Node `>=20` — **core requires `>=20.12`** (native `process.loadEnvFile`). Each package has its own independent semver version and `CHANGELOG.md`.
 
 Branches: `current` is the active feature branch; `master` is the release branch (PR target).
 
@@ -39,7 +39,7 @@ Branches: `current` is the active feature branch; `master` is the release branch
 
 ---
 
-## Package: core (v1.5.1)
+## Package: core (v1.7.0)
 
 **Role**: Foundational framework. All other packages depend on it. Standalone (no intra-repo deps).
 
@@ -51,7 +51,7 @@ Branches: `current` is the active feature branch; `master` is the release branch
 **Key files**:
 | File | Purpose |
 |------|---------|
-| `bin/start-instance.js` | Process bootstrap; loads `.env` (dotenvx), instantiates service |
+| `bin/start-instance.js` | Process bootstrap; loads `.env` (native `process.loadEnvFile`), instantiates service |
 | `bin/settings.json` | Default config values |
 | `components/service-instance.js` | **Abstract** base; lifecycle hooks (start/stop/healthCheck) |
 | `components/service-consumer.js` | Extends ServiceInstance; outbound calls via ServiceCaller |
@@ -62,10 +62,11 @@ Branches: `current` is the active feature branch; `master` is the release branch
 | `components/connection-observer.js` | Tracks broker connection health |
 | `components/definitions.types.js` | Shared JSDoc typedefs (object definitions live here, not inline) |
 | `components/exchange/message-exchange.js` | **Abstract** broker interface |
+| `components/exchange/message-handler.js` | **Abstract** base for senders/receivers; `createMessageHash()` — keyed **HMAC-SHA256** integrity hash + constant-time verify |
 | `components/exchange/default/default-message-exchange.js` | Redis (ioredis) implementation |
 | `components/exchange/message-dispatcher.js` / `message-sender.js` / `message-receiver.js` | Queue plumbing |
 | `components/exchange/message-tracer.js` | chainID / chainLevel tracking across hops |
-| `utils/tools.js` | `getUUID()`, `deepFreeze()`, `enum()` factory (enum value = **first element of its seed array**, not the key — see gotcha under competence enums) |
+| `utils/tools.js` | `getUUID()`, `deepFreeze()`, `constantTimeEquals()`, `enum()` factory (enum value = **first element of its seed array**, not the key — see gotcha under competence enums) |
 | `utils/exceptions.js` | `TiException` + standardized error codes (see below) |
 | `utils/logger.js` | Severity: DEBUG/INFO/NOTICE/WARNING/ERROR/CRITICAL/ALERT |
 | `utils/config.js` | Config enum + ENV overrides; frozen after init |
@@ -86,9 +87,11 @@ Branches: `current` is the active feature branch; `master` is the release branch
 - `TI_INSTANCE_CLASS` — path to ServiceInstance subclass (required)
 - `TI_INSTANCE_CONFIG` — path to service config JSON
 - `TI_AUDITING_LOG_MIN_LEVEL` — log filter (0–800)
-- `TI_MEMORY_CACHE_HOST/PORT/AUTH/DB` — Redis connection
-- `MESSAGE_EXCHANGE_SECURITY_HASH_KEY` — message-exchange HMAC-SHA256 key
-- `SERVICE_EXECUTION_TIMEOUT` — default 180000ms
+- `TI_MEMORY_CACHE_REDIS_HOST` / `TI_MEMORY_CACHE_REDIS_PORT` / `TI_MEMORY_CACHE_AUTH_KEY` / `TI_MEMORY_CACHE_REDIS_DB` — Redis connection
+- `TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED` — toggle the message integrity hash (default `true`)
+- `TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY` — message-exchange HMAC-SHA256 key. **Empty by default**: if unset (or equal to the old published default UUID) a one-time startup WARNING logs and tamper protection is ineffective — set a private value in production.
+
+> Note: `executionTimeout` (default 180000ms) is a `serviceConfig` **setting** (service config JSON / `bin/settings.json`), not an ENV var — there is no `SERVICE_EXECUTION_TIMEOUT` env override.
 
 **Message flow**:
 ```
@@ -104,6 +107,11 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
         resolve(payload); // or reject(error)
     });
 };
+```
+
+**Test commands**:
+```bash
+npm test    # node --test — runs test/*.test.js (message-hash + security-hash-key-warning suites)
 ```
 
 ---
