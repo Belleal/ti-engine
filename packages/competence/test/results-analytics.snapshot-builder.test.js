@@ -51,16 +51,21 @@ describe( "ResultsAnalytics.buildResultsSnapshot — locked shape", () => {
         assert.deepEqual( snap.overall, { finalScore: {}, tBandMix: {} } );
         assert.deepEqual( snap.byCategory, {} );
         assert.deepEqual( snap.bySubcategory, {} );
-        assert.deepEqual( snap.byStageLevel, {} );
         assert.deepEqual( snap.ladderOrdinalHistogram, {} );
         assert.deepEqual( snap.byRoleFamily, {} );
         assert.deepEqual( snap.byOrgUnit, {} );
 
-        // other Phase-0 report slots present but null (locked envelope)
+        // R5 (CA-67): levelDistribution + byStageLevel are populated from the frame; an unscored frame yields all 12
+        // rungs suppressed (n:0) but the stable axis is present.
+        assert.equal( Object.keys( snap.byStageLevel ).length, 12 );
+        assert.deepEqual( snap.byStageLevel.N1, { n: 0, finalScoreMean: null } );
+        assert.equal( snap.reports.levelDistribution.groups.length, 12 );
+        assert.deepEqual( snap.reports.levelDistribution.reference, [ { v: 105, label: "T3" } ] );
+
+        // remaining report slots present but null (locked envelope; land in later CA-67 steps)
         assert.equal( snap.reports.timeDistribution, null );
         assert.equal( snap.reports.alignment, null );
         assert.equal( snap.reports.heatmap, null );
-        assert.equal( snap.reports.levelDistribution, null );
         assert.equal( snap.reports.predictiveDrivers, null );
     } );
 

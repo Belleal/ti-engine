@@ -18,6 +18,14 @@ const GRADE_WEIGHTS = Object.freeze( { S: 1.3, R: 1.0, U: 0.6, N: 0.0 } );
 // Synthetic roster-minus-evaluations label — NOT the NOT_STARTED enum value.
 const NOT_STARTED_LABEL = "Not started";
 
+// The 12 flattened stage-level rungs (the archetype curve keys), in ladder order. Mirrors config.stage-levels.json /
+// the archetype weight keys; kept as a constant so R5 always renders all 12 boxes (even empty levels) for the drift
+// narrative. The resolve wiring may override via filter.stageLevels, but this is the canonical order.
+const STAGE_LEVELS = Object.freeze( [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1" ] );
+
+// Small-cell suppression floor (resolved decision §7.5) — a level/cell with fewer reported rows is suppressed.
+const MIN_COHORT_SIZE = 3;
+
 /**
  * Cross-evaluation cohort analytics. Pure compute + (later) snapshot projection. Mirrors the frozen-singleton
  * pattern of the other application modules (cf. data-manager.js:1062-1063). The aggregation primitives are pure:
@@ -97,7 +105,11 @@ class ResultsAnalytics {
                     teamWeight: this.#gradeWeight( team ),
                     subcategory: snapEntry ? snapEntry.subcategory : null,
                     category: snapEntry ? snapEntry.category : null,
-                    relevancy: relevancy
+                    relevancy: relevancy,
+                    // Full frozen archetype weight curve {N1..T1} from the evaluation's own snapshot (framework.js:163).
+                    // Used by R5/R4 to derive the maturity-step expected grade (peak/intro/mature); honors snapshot
+                    // isolation — a closed cycle's expected reflects the weights AT snapshot time, not the live config.
+                    relevancyCurve: ( snapEntry && snapEntry.relevancy && typeof snapEntry.relevancy === "object" ) ? snapEntry.relevancy : null
                 };
             }
 
@@ -270,6 +282,119 @@ class ResultsAnalytics {
     }
 
     /**
+     * R5 — Level correlation box-plots + the rising maturity-step EXPECTED curve (CA-67, owner-approved Candidate 1).
+     * Buckets the reported subset (`isScored && status ∈ {Ready,Closed}`) by stageLevel across the 12 rungs (kept even
+     * when empty, for the drift x-axis). Per level: a nearest-rank five-number summary + mean of `finalScore.score`,
+     * and an `expected` reference — the mean over the level's reported evaluations of each evaluation's all-expected
+     * score (the maturity-step expected grade substituted for every source, through the exact scoring path). Levels
+     * with `n < minCohortSize` are emitted `suppressed` (no box). The expected curve rises overall but is NOT
+     * guaranteed monotone (declining archetype tails) — surfaced in the a11y label / info block.
+     *
+     * @method
+     * @param {Array<Object>} frame - CohortRow[]; rows carry finalScore.score, stageLevel, status, isScored, and
+     *   competencies[code].{category, relevancy, relevancyCurve}.
+     * @param {Object} [filter] - optional { stageLevels:[...], minCohortSize:number, t3:number }.
+     * @returns {Object} { groups:[{id,label,n,min?,q1?,median?,q3?,max?,mean?,expected?,suppressed?}], reference:[{v,label}] }
+     * @public
+     */
+    computeLevelDistribution( frame, filter ) {
+        const rows = Array.isArray( frame ) ? frame : [];
+        const levels = ( filter && Array.isArray( filter.stageLevels ) && filter.stageLevels.length ) ? filter.stageLevels : STAGE_LEVELS;
+        const minCohort = ( filter && typeof filter.minCohortSize === "number" ) ? filter.minCohortSize : MIN_COHORT_SIZE;
+        const t3 = ( filter && typeof filter.t3 === "number" ) ? filter.t3 : 105;
+
+        const byLevel = new Map();
+        for ( const level of levels ) { byLevel.set( level, [] ); }
+        for ( const row of rows ) {
+            if ( !row || !row.isScored || !row.finalScore || typeof row.finalScore.score !== "number" ) { continue; }
+            if ( row.status !== configurationLoader.evaluationStatus.READY && row.status !== configurationLoader.evaluationStatus.CLOSED ) { continue; }
+            if ( byLevel.has( row.stageLevel ) ) { byLevel.get( row.stageLevel ).push( row ); }
+        }
+
+        const groups = levels.map( ( level ) => {
+            const levelRows = byLevel.get( level );
+            const n = levelRows.length;
+            if ( n < minCohort ) {
+                return { id: level, label: level, n: n, suppressed: true };
+            }
+            const scores = levelRows.map( ( r ) => r.finalScore.score ).sort( ( a, b ) => a - b );
+            let sum = 0;
+            for ( const s of scores ) { sum += s; }
+            return {
+                id: level, label: level, n: n,
+                min: scores[ 0 ],
+                q1: nearestRankPercentile( scores, 0.25 ),
+                median: nearestRankPercentile( scores, 0.5 ),
+                q3: nearestRankPercentile( scores, 0.75 ),
+                max: scores[ scores.length - 1 ],
+                mean: Math.round( sum / n ),
+                expected: this.#expectedScoreForLevel( levelRows, level )
+            };
+        } );
+
+        return { groups: groups, reference: [ { v: t3, label: "T3" } ] };
+    }
+
+    /**
+     * Mean (rounded) of the per-evaluation expected scores for a level's reported rows — the "typical target performer"
+     * reference. Returns null when no evaluation yields a score.
+     * @method
+     * @param {Array<Object>} levelRows
+     * @param {string} stageLevel
+     * @returns {number|null}
+     * @private
+     */
+    #expectedScoreForLevel( levelRows, stageLevel ) {
+        const perEval = [];
+        for ( const row of levelRows ) {
+            const score = this.#expectedScoreForEvaluation( row, stageLevel );
+            if ( score !== null ) { perEval.push( score ); }
+        }
+        if ( perEval.length === 0 ) { return null; }
+        let sum = 0;
+        for ( const s of perEval ) { sum += s; }
+        return Math.round( sum / perEval.length );
+    }
+
+    /**
+     * The final score one evaluation WOULD earn if every source graded each competency at its maturity-step expected
+     * grade (expectedGradeForArchetype over the competency's frozen snapshot weight curve at `stageLevel`). Reuses the
+     * exact scoring path (competence-framework.js:467-504): per category `share = Σ(expectedGradeWeight·relevancy)/Σrelevancy`
+     * (all three sources identical, so the 0.2/0.3/0.5 blend collapses to `share`), `categoryScore = ceil(share·100)`,
+     * final = `ceil(mean of category scores)`. Competencies with no curve or zero relevancy are skipped (mirrors scoring).
+     * @method
+     * @param {Object} row
+     * @param {string} stageLevel
+     * @returns {number|null}
+     * @private
+     */
+    #expectedScoreForEvaluation( row, stageLevel ) {
+        const comps = ( row && row.competencies && typeof row.competencies === "object" ) ? row.competencies : {};
+        const weighted = {};
+        const relSum = {};
+        for ( const code of Object.keys( comps ) ) {
+            const competency = comps[ code ];
+            if ( !competency || typeof competency.relevancy !== "number" || competency.relevancy <= 0 || !competency.category || !competency.relevancyCurve ) {
+                continue;
+            }
+            const expectedGrade = expectedGradeForArchetype( competency.relevancyCurve, stageLevel );
+            const gradeWeight = Object.prototype.hasOwnProperty.call( GRADE_WEIGHTS, expectedGrade ) ? GRADE_WEIGHTS[ expectedGrade ] : 0;
+            weighted[ competency.category ] = ( weighted[ competency.category ] || 0 ) + ( gradeWeight * competency.relevancy );
+            relSum[ competency.category ] = ( relSum[ competency.category ] || 0 ) + competency.relevancy;
+        }
+        const categoryScores = [];
+        for ( const category of Object.keys( relSum ) ) {
+            if ( relSum[ category ] > 0 ) {
+                categoryScores.push( Math.ceil( ( weighted[ category ] / relSum[ category ] ) * 100 ) );
+            }
+        }
+        if ( categoryScores.length === 0 ) { return null; }
+        let sum = 0;
+        for ( const s of categoryScores ) { sum += s; }
+        return Math.ceil( sum / categoryScores.length );
+    }
+
+    /**
      * Recursively flattens an org subtree node into a de-duplicated roster. The subtree's `.employees` are direct
      * members only; descendants live under `.children` (organization-manager.js:459-470), so the roster walks
      * `.children` recursively concatenating each node's `.employees`.
@@ -431,10 +556,11 @@ class ResultsAnalytics {
         switch ( reportKey ) {
             case "coverage":
                 return { coverage: this.computeCoverage( frame, roster, filter ) };
+            case "levelDistribution":  // CA-67 Task 1
+                return { levelDistribution: this.computeLevelDistribution( frame, filter ) };
             case "timeDistribution":   // CA-67 Task 4
             case "alignment":          // CA-67 Task 5
             case "heatmap":            // CA-67 Task 2
-            case "levelDistribution":  // CA-67 Task 1
             case "predictiveDrivers":  // CA-67 Task 3
             default:
                 return this.#emptyReport( reportKey );
@@ -575,6 +701,15 @@ class ResultsAnalytics {
         const chronoKey = ( year * 2 ) + ( half === "H2" ? 1 : 0 );
 
         const computedAt = ( input.meta && input.meta.computedAt ) ? input.meta.computedAt : new Date().toISOString();
+
+        // R5 (CA-67): the level-distribution report is computed from the frame at close so a CLOSED cycle projects it.
+        // byStageLevel is the compact cross-cycle slice derived from the same groups (stable 12-rung axis).
+        const levelDistribution = this.computeLevelDistribution( frame, {} );
+        const byStageLevel = {};
+        for ( const group of levelDistribution.groups ) {
+            byStageLevel[ group.id ] = { n: group.n, finalScoreMean: ( typeof group.mean === "number" ) ? group.mean : null };
+        }
+
         return {
             cycleID: cycleID,
             schemaVersion: 1,
@@ -592,21 +727,21 @@ class ResultsAnalytics {
                 reportingPct: ( overall.pct != null ) ? overall.pct : 0
             },
 
-            // Phase 0: only coverage is populated; the rest of the locked report envelope is present but null.
+            // Populated incrementally across CA-67; the remaining keys stay null until their report lands.
             reports: {
                 coverage: coverageReport,
                 timeDistribution: null,
                 alignment: null,
                 heatmap: null,
-                levelDistribution: null,
+                levelDistribution: levelDistribution,   // CA-67 R5
                 predictiveDrivers: null
             },
 
-            // Cross-cycle stable-axis substrate — locked SHAPE now, populated in later phases (never back-fillable).
+            // Cross-cycle stable-axis substrate — locked SHAPE now, populated as reports land (never back-fillable).
             overall: { finalScore: {}, tBandMix: {} },
             byCategory: {},
             bySubcategory: {},
-            byStageLevel: {},
+            byStageLevel: byStageLevel,   // CA-67 R5 (stable 12-rung axis)
             ladderOrdinalHistogram: {},
             byRoleFamily: {},
             byOrgUnit: {}

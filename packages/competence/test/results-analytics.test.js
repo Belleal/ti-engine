@@ -500,3 +500,83 @@ describe( "ResultsAnalytics — nearestRankPercentile", () => {
         assert.equal( resultsAnalytics.nearestRankPercentile( [], 0.5 ), null );
     } );
 } );
+
+/* ===================== R5 — level distribution + maturity-step expected curve ===================== */
+
+describe( "ResultsAnalytics.computeLevelDistribution (R5)", () => {
+    // Live archetype A weight curve (peak 9 → intro 4.5, mature 8.1): R below S1, S from S1 up.
+    const ARCH_A = { N1: 6, J1: 7, J2: 7, J3: 8, R1: 8, R2: 8, R3: 9, S1: 9, S2: 9, S3: 9, X1: 9, T1: 9 };
+
+    // A reported CohortRow at `stageLevel` with one all-archetype-A competency per category (E/I/C).
+    function levelRow( stageLevel, score, over = {} ) {
+        const curve = over.curve || ARCH_A;
+        const rel = curve[ stageLevel ];
+        return {
+            evaluationID: over.evaluationID || ( "ev-" + stageLevel + "-" + score ),
+            stageLevel: stageLevel,
+            status: ( over.status !== undefined ) ? over.status : "Ready",
+            isScored: ( over.isScored !== undefined ) ? over.isScored : true,
+            finalScore: { score: score, interpretation: over.interpretation || "T3" },
+            competencies: {
+                "E1-1": { category: "E", relevancy: rel, relevancyCurve: curve },
+                "I1-1": { category: "I", relevancy: rel, relevancyCurve: curve },
+                "C1-1": { category: "C", relevancy: rel, relevancyCurve: curve }
+            }
+        };
+    }
+
+    const groupById = ( report, id ) => report.groups.find( ( g ) => g.id === id );
+
+    it( "produces all 12 stage-level groups in ladder order + the T3=105 reference", () => {
+        const report = resultsAnalyticsInstance.computeLevelDistribution( [], {} );
+        assert.equal( report.groups.length, 12 );
+        assert.deepEqual( report.groups.map( ( g ) => g.id ), [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1" ] );
+        assert.deepEqual( report.reference, [ { v: 105, label: "T3" } ] );
+        assert.equal( report.groups[ 0 ].suppressed, true );   // empty level
+        assert.equal( report.groups[ 0 ].n, 0 );
+    } );
+
+    it( "computes the nearest-rank five-number summary + mean for a level (n>=3)", () => {
+        const frame = [ levelRow( "S1", 120 ), levelRow( "S1", 130 ), levelRow( "S1", 128 ) ];
+        const s1 = groupById( resultsAnalyticsInstance.computeLevelDistribution( frame, {} ), "S1" );
+        assert.equal( s1.n, 3 );
+        assert.equal( s1.min, 120 );
+        assert.equal( s1.q1, 120 );    // sorted [120,128,130], nearestRank(0.25)=index0
+        assert.equal( s1.median, 128 );
+        assert.equal( s1.q3, 130 );
+        assert.equal( s1.max, 130 );
+        assert.equal( s1.mean, 126 );  // (120+128+130)/3
+        assert.equal( s1.suppressed, undefined );
+    } );
+
+    it( "all-archetype-A cohort: expected = 100 at N1 (all-R) and 130 at S1 (all-S)", () => {
+        const n1Frame = [ levelRow( "N1", 95 ), levelRow( "N1", 100 ), levelRow( "N1", 105 ) ];
+        const s1Frame = [ levelRow( "S1", 120 ), levelRow( "S1", 125 ), levelRow( "S1", 130 ) ];
+        assert.equal( groupById( resultsAnalyticsInstance.computeLevelDistribution( n1Frame, {} ), "N1" ).expected, 100 );
+        assert.equal( groupById( resultsAnalyticsInstance.computeLevelDistribution( s1Frame, {} ), "S1" ).expected, 130 );
+    } );
+
+    it( "the expected curve rises N1 -> S1 (the maturity-step intent)", () => {
+        const frame = [
+            levelRow( "N1", 95 ), levelRow( "N1", 100 ), levelRow( "N1", 105 ),
+            levelRow( "S1", 120 ), levelRow( "S1", 125 ), levelRow( "S1", 130 )
+        ];
+        const groups = resultsAnalyticsInstance.computeLevelDistribution( frame, {} ).groups;
+        assert.ok( groupById( { groups }, "S1" ).expected > groupById( { groups }, "N1" ).expected );
+    } );
+
+    it( "suppresses a level with fewer than minCohortSize (3) reported rows", () => {
+        const r1 = groupById( resultsAnalyticsInstance.computeLevelDistribution( [ levelRow( "R1", 100 ), levelRow( "R1", 110 ) ], {} ), "R1" );
+        assert.equal( r1.suppressed, true );
+        assert.equal( r1.n, 2 );
+        assert.equal( r1.median, undefined );
+    } );
+
+    it( "excludes non-reported rows (Open / not scored) from the level cohort", () => {
+        const frame = [
+            levelRow( "S1", 120 ), levelRow( "S1", 130 ), levelRow( "S1", 128 ),
+            levelRow( "S1", 60, { status: "Open", isScored: false } )   // excluded
+        ];
+        assert.equal( groupById( resultsAnalyticsInstance.computeLevelDistribution( frame, {} ), "S1" ).n, 3 );
+    } );
+} );
