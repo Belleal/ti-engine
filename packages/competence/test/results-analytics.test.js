@@ -945,4 +945,17 @@ describe( "ResultsAnalytics.computeCalibration (CA-68)", () => {
         assert.equal( report.overall.vsSelf.suppressed, true );
         assert.equal( report.overall.vsSelf.n, 2 );
     } );
+
+    it( "weights each evaluation equally — meanGap is the mean of per-evaluation mean gaps, not pooled per-pair", () => {
+        // Two evals gap 0.3 (1 comp each) + one eval with TWO comps each gap 1.3 (eval-mean 1.3).
+        // Per-evaluation mean = (0.3 + 0.3 + 1.3) / 3 = 0.633; the pooled per-pair mean would be 3.2/4 = 0.8.
+        const frame = [
+            calRow( "e1", "mgr1", { "E1-1": { category: "E", manager: "S", self: "R" } } ),
+            calRow( "e2", "mgr1", { "E1-1": { category: "E", manager: "S", self: "R" } } ),
+            calRow( "e3", "mgr1", { "E1-1": { category: "E", manager: "S", self: "N" }, "E2-1": { category: "E", manager: "S", self: "N" } } )
+        ];
+        const report = resultsAnalyticsInstance.computeCalibration( frame, { managerID: "mgr1" } );
+        assert.equal( report.overall.vsSelf.meanGap, 0.633 );   // per-evaluation mean, NOT 0.8 (per-pair)
+        assert.equal( report.overall.vsSelf.n, 3 );
+    } );
 } );

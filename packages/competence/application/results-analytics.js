@@ -840,10 +840,24 @@ class ResultsAnalytics {
         const minCohort = ( filter && typeof filter.minCohortSize === "number" ) ? filter.minCohortSize : MIN_COHORT_SIZE;
         const cohort = managerID ? rows.filter( ( r ) => r && r.managerID === managerID ) : [];
 
-        const newCell = () => ( { vsSelf: { sum: 0, pairs: 0, evals: new Set() }, vsTeam: { sum: 0, pairs: 0, evals: new Set() } } );
-        const addGap = ( side, gap, evaluationID ) => { side.sum += gap; side.pairs += 1; side.evals.add( evaluationID ); };
+        // meanGap = mean over distinct evaluations of each evaluation's OWN mean gap (so each evaluee is weighted
+        // equally — a person graded on many competencies does not dominate — and the denominator matches `n`); `n` =
+        // distinct evaluations contributing (the suppression/confidence basis). A side accumulates per evaluation.
+        const newSide = () => ( { byEval: new Map() } );   // evaluationID → { sum, count }
+        const newCell = () => ( { vsSelf: newSide(), vsTeam: newSide() } );
+        const addGap = ( side, gap, evaluationID ) => {
+            let entry = side.byEval.get( evaluationID );
+            if ( !entry ) { entry = { sum: 0, count: 0 }; side.byEval.set( evaluationID, entry ); }
+            entry.sum += gap; entry.count += 1;
+        };
         const ensure = ( map, key ) => { if ( !map[ key ] ) { map[ key ] = newCell(); } return map[ key ]; };
-        const finalizeSide = ( side ) => ( ( side.evals.size < minCohort ) ? { suppressed: true, n: side.evals.size } : { meanGap: this.#round3( side.sum / side.pairs ), n: side.evals.size } );
+        const finalizeSide = ( side ) => {
+            const n = side.byEval.size;
+            if ( n < minCohort ) { return { suppressed: true, n: n }; }
+            let total = 0;
+            for ( const entry of side.byEval.values() ) { total += ( entry.sum / entry.count ); }
+            return { meanGap: this.#round3( total / n ), n: n };
+        };
         const finalizeCell = ( cell ) => ( { vsSelf: finalizeSide( cell.vsSelf ), vsTeam: finalizeSide( cell.vsTeam ) } );
 
         const overall = newCell();
