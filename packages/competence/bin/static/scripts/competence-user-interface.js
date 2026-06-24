@@ -98,7 +98,10 @@ const configureCompetenceEvaluation = () => {
             if ( resolvedID ) params.set( "employeeID", resolvedID );
             if ( evaluationID ) params.set( "evaluationID", evaluationID );
             const paramString = params.toString();
-            const url = `/app/load-evaluation${ paramString ? `?${ paramString }` : "" }`;
+            // "My results" reuses this fragment but loads the requesting employee's own latest result (incl. CLOSED)
+            // via the self-scoped load-my-results endpoint, since load-evaluation rejects CLOSED.
+            const isMyResults = !!( window.location && window.location.pathname && window.location.pathname.indexOf( "my-results" ) >= 0 );
+            const url = isMyResults ? "/app/load-my-results" : `/app/load-evaluation${ paramString ? `?${ paramString }` : "" }`;
             tiApplication.sendRequest( url ).then( ( result ) => {
                 if ( result?.data?.noEvaluation ) {
                     this.showEvaluationForm = false;

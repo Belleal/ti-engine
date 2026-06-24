@@ -43,6 +43,11 @@ class CompetenceWebApplication extends TiWebAppManager {
             path: "fragments/frame-competence-evaluation.html",
             components: [ "component-tooltip" ]
         } );
+        this.addFragment( "my-results", {
+            title: "My Results",
+            path: "fragments/frame-competence-evaluation.html",   // reuses the evaluation fragment; the component loads via load-my-results in my-results mode
+            components: [ "component-tooltip" ]
+        } );
         this.addFragment( "employees-list", {
             title: "Employees List",
             path: "fragments/frame-employees-list.html"
@@ -171,6 +176,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "dashboard": "dashboard",
                     "employees-list": "employees",
                     "competence-evaluation": "evaluation",
+                    "my-results": "my-results",
                     "new-evaluation": "evaluation",
                     "manager-calendar": "calendar",
                     "interview-schedule": "interviews",
@@ -226,6 +232,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             const employeeID = String( options?.query?.employeeID || "" ).trim();
             const evaluationID = String( options?.query?.evaluationID || "" ).trim();
             return this.#loadEvaluation( session, employeeID, evaluationID );
+        } else if ( view === "load-my-results" ) {
+            return this.#loadMyResults( session );
         } else if ( view === "load-employee-list" ) {
             return this.#loadEmployeeList( session );
         } else if ( view === "load-new-evaluation-data" ) {
@@ -974,6 +982,79 @@ class CompetenceWebApplication extends TiWebAppManager {
                 if ( error === noEvaluationSentinel ) {
                     return resolve( { noEvaluation: true } );
                 }
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Returns the requesting employee's OWN latest results (Phase 3 CA-I2 "My results"). Self-scoped — reads the raw
+     * evaluations for `session.user.employeeID` (so CLOSED cycles, which `load-evaluation` rejects, are included; the
+     * anonymized cohort snapshot is NEVER an individual source) and picks the most recent at Ready or Closed. ALWAYS
+     * re-applies the EMPLOYEE anonymization (peer `individual[]` collapsed to `team.cumulative`) — including for CLOSED.
+     * Returns the same shape the READY `load-evaluation` payload uses, or `{noEvaluation:true}` when none is ready yet.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadMyResults( session ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireSessionUser( session );
+            let employee = null;
+            dataManager.instance.fetchEmployee( userID ).then( ( employeeData ) => {
+                if ( !employeeData ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-employee-found" }, exceptions.httpCode.C_404 );
+                }
+                employee = employeeData;
+                return dataManager.instance.fetchEvaluations( userID );   // includes CLOSED (default filterClosed=false strips only DELETED)
+            } ).then( ( evaluations ) => {
+                const reported = ( evaluations || [] ).filter( ( evaluation ) => evaluation && ( evaluation.status === configurationLoader.evaluationStatus.READY || evaluation.status === configurationLoader.evaluationStatus.CLOSED ) );
+                if ( reported.length === 0 ) {
+                    return resolve( { noEvaluation: true } );
+                }
+                const current = reported.slice().sort( ( a, b ) => new Date( b.cycleDate ) - new Date( a.cycleDate ) )[ 0 ];
+
+                // Always collapse peer grades to the cumulative for the employee view — including CLOSED history.
+                competenceFramework.instance.anonymizeEvaluationGrades( current, configurationLoader.roleCode.EMPLOYEE );
+                competenceFramework.instance.anonymizeEvaluationScores( current, configurationLoader.roleCode.EMPLOYEE );
+                delete current.workflow;
+
+                const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee );
+                resolve( {
+                    employeeID: userID,
+                    personal: {
+                        ...employee.personal,
+                        name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
+                        organizationUnitName: organizationContext.organizationUnitName,
+                        roleFamily: employee.career?.roleFamily,
+                        specialization: employee.career?.specialization ?? null,
+                        roleFamilyName: localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ employee.career?.roleFamily ]?.name || configurationLoader.roleFamilyCode.name( employee.career?.roleFamily ) || employee.career?.roleFamily || "", session?.language ),
+                        startingDate: employee.career?.startingDate || null,
+                        stageLevel: ( employee.career?.level && employee.career?.stage ) ? `${ employee.career.level }${ employee.career.stage }` : ""
+                    },
+                    manager: {
+                        managerID: organizationContext.managerID,
+                        name: organizationContext.managerName
+                    },
+                    evaluation: {
+                        ...current,
+                        roleFamilyName: localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ current.roleFamily ]?.name || configurationLoader.roleFamilyCode.name( current.roleFamily ) || current.roleFamily || "", session?.language ),
+                        specializationName: current.specialization
+                            ? localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ current.roleFamily ]?.specializations?.[ current.specialization ]?.name || current.specialization, session?.language )
+                            : null,
+                        statusName: configurationLoader.evaluationStatus.name( current.status ),
+                        statusDescription: configurationLoader.evaluationStatus.description( current.status )
+                    },
+                    userRole: configurationLoader.roleCode.EMPLOYEE,
+                    deadlineDate: null,
+                    canEdit: false,
+                    isFacilitator: false,
+                    isTeamEvaluationCollective: configurationLoader.getSetting( "performanceAppraisals.isTeamEvaluationCollective" ),
+                    competencies: competenceFramework.instance.buildCompetenciesTreeFromSnapshot( current.snapshot, session?.language )
+                } );
+            } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
         } );

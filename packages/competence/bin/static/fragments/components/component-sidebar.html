@@ -41,6 +41,15 @@
             <span class="ti-sidebar-item-label" x-text-label="interface.topbar.evaluation">My Evaluation</span>
         </button>
 
+        <button @click="navigate('my-results', 'my-results')"
+                x-bind:class="{ active: active === 'my-results' }" class="ti-sidebar-item" data-tip="My Results" aria-label="My Results"
+                type="button">
+            <span class="ti-sidebar-item-icon">
+                <span class="ti-icon bar-chart md" aria-hidden="true"></span>
+            </span>
+            <span class="ti-sidebar-item-label" x-text-label="interface.navigation.my-results">My Results</span>
+        </button>
+
         <button hx-get="/app/manager-calendar" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'calendar'"
                 x-bind:class="{ active: active === 'calendar' }" class="ti-sidebar-item" data-tip="Availability" aria-label="My Availability Calendar"
                 type="button">

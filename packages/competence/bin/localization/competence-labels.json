@@ -5746,6 +5746,10 @@
         "en": "Workspace",
         "bg": "Работно пространство"
       },
+      "my-results": {
+        "en": "My Results",
+        "bg": "Моите резултати"
+      },
       "manage": {
         "en": "Manage",
         "bg": "Управление"
