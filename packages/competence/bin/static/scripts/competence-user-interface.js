@@ -39,6 +39,15 @@ const configureCompetenceEvaluation = () => {
         noEvaluationState: null,
         warningMessage: "",
 
+        // Phase 3 — individual results (populated by buildResults() at READY/CLOSED)
+        resultsReady: false,
+        resultsHeroSpec: { type: "stat", data: { value: 0, label: "", sub: "" }, a11yLabel: "" },
+        resultsCategoryBarsSpec: { type: "bars", data: { rows: [] }, options: { mode: "stacked" }, a11yLabel: "" },
+        resultsSourceBarsSpec: { type: "bars", data: { rows: [] }, options: { mode: "grouped" }, a11yLabel: "" },
+        resultsRadarSpec: { type: "radar", data: { axes: [], series: [] }, a11yLabel: "" },
+        resultsStrengths: [],
+        resultsGaps: [],
+
         init() {
             const onInitialized = () => {
                 this.grades = tiApplication.configuration.grades;
@@ -76,6 +85,7 @@ const configureCompetenceEvaluation = () => {
 
             tiApplication.setTopbarSubtitle( this.personal.name || "" );
             this.warningMessage = this.getEvaluationWarning();
+            this.buildResults();
         },
 
         loadEmployeeEvaluation( employeeID ) {
@@ -440,7 +450,170 @@ const configureCompetenceEvaluation = () => {
         getTeamReviewersPct() {
             if ( !this.teamReviewers || !this.teamReviewers.total ) return 0;
             return Math.round( ( this.teamReviewers.submitted / this.teamReviewers.total ) * 100 );
-        }
+        },
+
+        /* ===== Phase 3 — individual results (READY/CLOSED) ===== */
+
+        hasResults() {
+            return this.resultsReady === true;
+        },
+
+        // The grade LETTER one source gave a competency, from the RAW eval grades (self key is `employee`, NOT `self`;
+        // team is the cumulative string after the READY peer-collapse, or {cumulative} if still an object).
+        gradeLetterFor( code, sourceKey ) {
+            const entry = ( this.evaluation && this.evaluation.grades ) ? this.evaluation.grades[ code ] : null;
+            if ( !entry ) return "";
+            if ( sourceKey === "employee" ) return entry.employee || "";
+            if ( sourceKey === "manager" ) return entry.manager || "";
+            const team = entry.team;
+            if ( typeof team === "string" ) return team;
+            return ( team && team.cumulative ) || "";
+        },
+
+        // T-band cascade mirroring the server EXACTLY: ascending T1→T5, first band where score <= threshold, else T5.
+        tBand( score ) {
+            const thresholds = ( tiApplication.configuration && tiApplication.configuration.performanceThresholds ) || { T1: 76, T2: 89, T3: 105, T4: 119, T5: 150 };
+            const order = [ "T1", "T2", "T3", "T4", "T5" ];
+            for ( let i = 0; i < order.length; i++ ) {
+                if ( typeof thresholds[ order[ i ] ] === "number" && score <= thresholds[ order[ i ] ] ) { return order[ i ]; }
+            }
+            return "T5";
+        },
+
+        // Maturity-step expected grade weight for a competency (mirrors results-analytics.expectedGradeForArchetype):
+        // intro=0.5·peak, mature=0.9·peak over the snapshot relevancy curve; U/R/S → weight.
+        expectedGradeWeight( relevancyCurve, stageLevel, gradeWeights ) {
+            if ( !relevancyCurve || typeof relevancyCurve !== "object" ) { return null; }
+            let peak = 0;
+            const keys = Object.keys( relevancyCurve );
+            for ( let i = 0; i < keys.length; i++ ) { const v = Number( relevancyCurve[ keys[ i ] ] ) || 0; if ( v > peak ) { peak = v; } }
+            if ( peak <= 0 ) { return ( typeof gradeWeights.U === "number" ) ? gradeWeights.U : 0.6; }
+            const w = Number( relevancyCurve[ stageLevel ] ) || 0;
+            const letter = ( w < ( 0.5 * peak ) ) ? "U" : ( ( w < ( 0.9 * peak ) ) ? "R" : "S" );
+            return ( typeof gradeWeights[ letter ] === "number" ) ? gradeWeights[ letter ] : null;
+        },
+
+        // Recomputes the per-source category/subcategory means from the raw grades + snapshot relevancy (scores[E/I/C]
+        // are pre-blended and irreversible) and builds the result chart specs + strengths/gaps. Populates reactive state.
+        buildResults() {
+            const ev = this.evaluation || {};
+            const ready = ( ev.status === "Ready" || ev.status === "Closed" ) && ev.finalScore && typeof ev.finalScore.score === "number";
+            if ( !ready ) { this.resultsReady = false; return; }
+
+            const cfg = tiApplication.configuration || {};
+            const gradeWeights = cfg.gradeWeights || { S: 1.3, R: 1.0, U: 0.6, N: 0.0 };
+            const evalWeights = cfg.evaluationWeights || { self: 0.2, team: 0.3, manager: 0.5 };
+            const maxGrade = ( typeof gradeWeights.S === "number" ) ? gradeWeights.S : 1.3;
+            const snapshot = Array.isArray( ev.snapshot ) ? ev.snapshot : [];
+            const stageLevel = ev.stageLevel || "";
+            const round2 = ( n ) => Math.round( n * 100 ) / 100;
+            const wOf = ( letter ) => ( Object.prototype.hasOwnProperty.call( gradeWeights, letter ) ? gradeWeights[ letter ] : null );
+
+            const SUBCATS = [ "E1", "E2", "E3", "I1", "I2", "I3", "C1", "C2", "C3" ];
+            const acc = { employee: {}, manager: {}, team: {}, expected: {} };
+            const bump = ( map, key, num, den ) => { map[ key ] = map[ key ] || { num: 0, den: 0 }; map[ key ].num += num; map[ key ].den += den; };
+
+            for ( let i = 0; i < snapshot.length; i++ ) {
+                const snap = snapshot[ i ];
+                const code = snap.code, cat = snap.category, subcat = snap.subcategory;
+                const rel = ( snap.relevancy && typeof snap.relevancy[ stageLevel ] === "number" ) ? snap.relevancy[ stageLevel ] : 0;
+                if ( !code || !cat || rel <= 0 ) { continue; }
+                const srcKeys = [ "employee", "manager", "team" ];
+                for ( let s = 0; s < srcKeys.length; s++ ) {
+                    const weight = wOf( this.gradeLetterFor( code, srcKeys[ s ] ) );
+                    if ( weight === null ) { continue; }
+                    bump( acc[ srcKeys[ s ] ], "cat:" + cat, weight * rel, rel );
+                    if ( subcat ) { bump( acc[ srcKeys[ s ] ], "sub:" + subcat, weight * rel, rel ); }
+                }
+                const ew = this.expectedGradeWeight( snap.relevancy, stageLevel, gradeWeights );
+                if ( ew !== null ) {
+                    bump( acc.expected, "cat:" + cat, ew * rel, rel );
+                    if ( subcat ) { bump( acc.expected, "sub:" + subcat, ew * rel, rel ); }
+                }
+            }
+            const meanOf = ( source, key ) => { const a = acc[ source ][ key ]; return ( a && a.den > 0 ) ? ( a.num / a.den ) : null; };
+
+            // category/subcategory display names from the competency tree (fallback to codes)
+            const catName = {}, subName = {};
+            const tree = Array.isArray( this.competencies ) ? this.competencies : [];
+            for ( let i = 0; i < tree.length; i++ ) {
+                const c = tree[ i ];
+                if ( c && c.id ) { catName[ c.id ] = c.name || c.id; }
+                const subs = Array.isArray( c && c.subcategories ) ? c.subcategories : [];
+                for ( let j = 0; j < subs.length; j++ ) { if ( subs[ j ] && subs[ j ].id ) { subName[ subs[ j ].id ] = subs[ j ].name || subs[ j ].id; } }
+            }
+
+            // Hero: the server's authoritative finalScore + its band.
+            const finalScore = ev.finalScore.score;
+            const bandCode = ev.finalScore.interpretation || this.tBand( finalScore );
+            const bandName = ev.finalScore.interpretationName || bandCode;
+            this.resultsHeroSpec = {
+                type: "stat",
+                data: { value: finalScore, label: tiApplication.getLabel( "interface.evaluation.results.final-score", "Final score" ), sub: bandName, pct: Math.max( 0, Math.min( 1, finalScore / 150 ) ) },
+                a11yLabel: "Final score " + String( finalScore ) + " (" + String( bandName ) + ")"
+            };
+
+            // Per-category scores (server, pre-blended) — one bar per category filling to score/150.
+            const scores = ( ev.scores && typeof ev.scores === "object" ) ? ev.scores : {};
+            const bandTone = ( score ) => { const b = this.tBand( score ); return ( b === "T1" || b === "T2" ) ? "grade-n" : ( b === "T3" ? "grade-r" : "grade-s" ); };
+            this.resultsCategoryBarsSpec = {
+                type: "bars", options: { mode: "stacked" },
+                data: { rows: Object.keys( scores ).map( ( cat ) => ( {
+                    id: cat, label: catName[ cat ] || cat, total: 150,
+                    segments: [ { key: "score", v: ( typeof scores[ cat ].score === "number" ) ? scores[ cat ].score : 0, tone: bandTone( scores[ cat ].score || 0 ) } ]
+                } ) ) },
+                a11yLabel: "Category scores"
+            };
+
+            // Source comparison: per category, grouped self/manager/team mean (weight space).
+            this.resultsSourceBarsSpec = {
+                type: "bars", options: { mode: "grouped" },
+                data: { rows: [ "E", "I", "C" ].filter( ( cat ) => acc.employee[ "cat:" + cat ] || acc.manager[ "cat:" + cat ] || acc.team[ "cat:" + cat ] ).map( ( cat ) => ( {
+                    id: cat, label: catName[ cat ] || cat, values: [
+                        { key: "self", v: round2( meanOf( "employee", "cat:" + cat ) || 0 ), tone: "grade-s" },
+                        { key: "manager", v: round2( meanOf( "manager", "cat:" + cat ) || 0 ), tone: "grade-r" },
+                        { key: "team", v: round2( meanOf( "team", "cat:" + cat ) || 0 ), tone: "info" }
+                    ]
+                } ) ) },
+                a11yLabel: "Self vs manager vs team by category"
+            };
+
+            // Radar: 9 subcategories × self/manager/team + expected.
+            const subValues = ( source ) => { const out = {}; for ( let i = 0; i < SUBCATS.length; i++ ) { const m = meanOf( source, "sub:" + SUBCATS[ i ] ); if ( m !== null ) { out[ SUBCATS[ i ] ] = round2( m ); } } return out; };
+            this.resultsRadarSpec = {
+                type: "radar",
+                data: {
+                    axes: SUBCATS.map( ( s ) => ( { id: s, label: s, max: maxGrade } ) ),
+                    series: [
+                        { key: "self", tone: "grade-s", values: subValues( "employee" ) },
+                        { key: "manager", tone: "grade-r", values: subValues( "manager" ) },
+                        { key: "team", tone: "info", values: subValues( "team" ) },
+                        { key: "expected", style: "dashed", values: subValues( "expected" ) }
+                    ]
+                },
+                a11yLabel: "Subcategory profile: self, manager, team vs expected"
+            };
+
+            // Strengths / gaps: blended subcategory mean vs the maturity-step expected.
+            const insights = [];
+            for ( let i = 0; i < SUBCATS.length; i++ ) {
+                const sc = SUBCATS[ i ];
+                const self = meanOf( "employee", "sub:" + sc ), team = meanOf( "team", "sub:" + sc ), mgr = meanOf( "manager", "sub:" + sc );
+                const expected = meanOf( "expected", "sub:" + sc );
+                if ( expected === null || ( self === null && team === null && mgr === null ) ) { continue; }
+                const blended = ( self || 0 ) * evalWeights.self + ( team || 0 ) * evalWeights.team + ( mgr || 0 ) * evalWeights.manager;
+                insights.push( { code: sc, label: subName[ sc ] || sc, value: round2( blended ), expected: round2( expected ), gap: round2( blended - expected ) } );
+            }
+            this.resultsStrengths = insights.filter( ( x ) => x.gap > 0 ).sort( ( a, b ) => b.gap - a.gap ).slice( 0, 3 );
+            this.resultsGaps = insights.filter( ( x ) => x.gap < 0 ).sort( ( a, b ) => a.gap - b.gap ).slice( 0, 3 );
+
+            this.resultsReady = true;
+        },
+
+        getResultsHeroAriaLabel() { return this.resultsHeroSpec.a11yLabel; },
+        getResultsCategoryAriaLabel() { return this.resultsCategoryBarsSpec.a11yLabel; },
+        getResultsSourceAriaLabel() { return this.resultsSourceBarsSpec.a11yLabel; },
+        getResultsRadarAriaLabel() { return this.resultsRadarSpec.a11yLabel; }
 
     };
 };
