@@ -693,12 +693,13 @@ const TiCharts = ( function () {
         const data = spec.data;
         const rows = Array.isArray( data.rows ) ? data.rows : [];
         if ( rows.length === 0 ) { figure.setAttribute( "data-ti-chart-empty", "1" ); return; }
-        const trackW = 100, rowH = 8, gap = 3, labelH = 5, padTop = 4;
+        // Landscape viewBox (width 200) so a 9-row diverging chart reads wide, not portrait; the bar math scales to trackW.
+        const trackW = 200, rowH = 8, gap = 3, labelH = 5, padTop = 4;
         const layout = barsDivergingLayout( rows, { trackW: trackW } );
         const bandH = labelH + rowH + gap;
         const height = padTop + ( layout.rows.length * bandH );
 
-        const svg = svgEl( "svg", { viewBox: "0 0 100 " + _round( height ), preserveAspectRatio: "xMidYMid meet", role: "img" } );
+        const svg = svgEl( "svg", { viewBox: "0 0 200 " + _round( height ), preserveAspectRatio: "xMidYMid meet", role: "img" } );
         _appendA11yTitle( svg, spec );
         svg.appendChild( svgEl( "line", { x1: layout.center, y1: padTop, x2: layout.center, y2: _round( height ), class: "ti-chart-bar-axis" } ) );
 
@@ -889,6 +890,7 @@ const TiCharts = ( function () {
         const spec = normalizeSpec( rawSpec );
         _clearChildren( figure );
         figure.setAttribute( "role", "img" );
+        figure.setAttribute( "data-ti-chart-type", spec.type );   // per-type sizing hook for CSS (cap + centering)
         if ( spec.a11yLabel ) { figure.setAttribute( "aria-label", spec.a11yLabel ); }
         if ( spec.type === "gauge" ) { renderGauge( figure, spec ); }
         else if ( spec.type === "bars" ) { renderBars( figure, spec ); }

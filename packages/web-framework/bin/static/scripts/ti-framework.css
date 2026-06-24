@@ -1112,9 +1112,11 @@ body {
     gap: var(--s-5);
     align-items: start;
 }
+
 .ti-card-grid > .ti-card-wide {
     grid-column: 1 / -1;
 }
+
 @media ( max-width: 720px ) {
     .ti-card-grid {
         grid-template-columns: minmax(0, 1fr);
@@ -1127,11 +1129,13 @@ body {
     font-size: var(--fs-sm);
     color: var(--fg-secondary);
 }
+
 .ti-card-note > summary {
     cursor: pointer;
     color: var(--fg-secondary);
     list-style-position: inside;
 }
+
 .ti-card-note > p {
     margin: var(--s-2) 0 0;
     line-height: 1.5;
@@ -1578,8 +1582,8 @@ body {
    dash, so the "awaiting rating" state reads clearly wherever an empty chip is shown to a permitted viewer. */
 .ti-grade-chip.empty::before {
     content: "";
-    width: 16px;
-    height: 16px;
+    width: 12px;
+    height: 12px;
     background-color: currentColor;
     -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 22h14'/%3E%3Cpath d='M5 2h14'/%3E%3Cpath d='M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22'/%3E%3Cpath d='M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2'/%3E%3C/svg%3E") center / contain no-repeat;
     mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 22h14'/%3E%3Cpath d='M5 2h14'/%3E%3Cpath d='M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22'/%3E%3Cpath d='M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2'/%3E%3C/svg%3E") center / contain no-repeat;
@@ -2596,7 +2600,18 @@ body {
     width: 100%;
     height: auto;
     overflow: visible;
+    /* Charts scale to 100% of their card; cap the height (and per-type width below) + centre so a chart on a wide card
+       does not balloon to many hundreds of px tall. preserveAspectRatio="xMidYMid meet" keeps the drawing centred. */
+    max-height: 460px;
+    margin-inline: auto;
 }
+/* Per-type size caps (the figure carries data-ti-chart-type, set by renderChart). Square KPIs stay small and centred;
+   content charts use width but never overrun the height cap. */
+.ti-chart[data-ti-chart-type="gauge"] svg   { max-width: 240px; }
+.ti-chart[data-ti-chart-type="scatter"] svg { max-width: 380px; }
+.ti-chart[data-ti-chart-type="heatmap"] svg { max-width: 480px; }
+.ti-chart[data-ti-chart-type="box"] svg     { max-width: 680px; }
+.ti-chart[data-ti-chart-type="bars"] svg    { max-width: 640px; }
 
 /* Visually-hidden a11y mirror table (screen-reader only). */
 .ti-chart-sr {
@@ -2624,21 +2639,25 @@ body {
     stroke-width: 8;
     stroke-linecap: round;
 }
+
 .ti-chart-gauge-arc {
     stroke: var(--c-series-1);
     stroke-width: 8;
     stroke-linecap: round;
 }
+
 .ti-chart-gauge-value {
     fill: var(--c-ink-strong);
     font-size: 18px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
+
 .ti-chart-gauge-label {
     fill: var(--c-ink);
     font-size: 7px;
 }
+
 .ti-chart-gauge-sublabel {
     fill: var(--c-ink);
     font-size: 5px;
@@ -2648,11 +2667,26 @@ body {
 .ti-chart-bar-seg {
     fill: var(--c-series-1);
 }
-.ti-chart-bar-seg.tone-grade-s { fill: var(--c-grade-s); }
-.ti-chart-bar-seg.tone-grade-r { fill: var(--c-grade-r); }
-.ti-chart-bar-seg.tone-grade-u { fill: var(--c-grade-u); }
-.ti-chart-bar-seg.tone-grade-n { fill: var(--c-grade-n); }
-.ti-chart-bar-seg.tone-ink     { fill: var(--c-grid); }
+
+.ti-chart-bar-seg.tone-grade-s {
+    fill: var(--c-grade-s);
+}
+
+.ti-chart-bar-seg.tone-grade-r {
+    fill: var(--c-grade-r);
+}
+
+.ti-chart-bar-seg.tone-grade-u {
+    fill: var(--c-grade-u);
+}
+
+.ti-chart-bar-seg.tone-grade-n {
+    fill: var(--c-grade-n);
+}
+
+.ti-chart-bar-seg.tone-ink {
+    fill: var(--c-grid);
+}
 
 /* --- stat tile --- */
 .ti-chart-stat {
@@ -2660,14 +2694,24 @@ body {
     flex-direction: column;
     gap: 2px;
 }
+
 .ti-chart-stat-value {
     color: var(--c-ink-strong);
     font-size: 1.6rem;
     font-weight: 600;
     line-height: 1.1;
 }
-.ti-chart-stat-label { color: var(--c-ink-strong); font-size: 0.9rem; }
-.ti-chart-stat-sub   { color: var(--c-ink); font-size: 0.8rem; }
+
+.ti-chart-stat-label {
+    color: var(--c-ink-strong);
+    font-size: 0.9rem;
+}
+
+.ti-chart-stat-sub {
+    color: var(--c-ink);
+    font-size: 0.8rem;
+}
+
 .ti-chart-stat-bar {
     height: 6px;
     border-radius: 999px;
@@ -2675,6 +2719,7 @@ body {
     overflow: hidden;
     margin-top: 4px;
 }
+
 .ti-chart-stat-fill {
     height: 100%;
     width: var(--pct, 0%);
@@ -2683,7 +2728,9 @@ body {
 }
 
 /* tabular-nums utility used by chart text (no such class existed before). */
-.tabular-nums { font-variant-numeric: tabular-nums; }
+.tabular-nums {
+    font-variant-numeric: tabular-nums;
+}
 
 /* ------------------------------------------------------------------ *
  *  ti-charts — Phase 1A primitives (scatter, heatmap, box) + bar modes.
@@ -2691,45 +2738,169 @@ body {
  * ------------------------------------------------------------------ */
 
 /* Interactive marks (drill) — CSP-safe: tabindex/role set in JS, no inline handlers. */
-.ti-chart [role="button"] { cursor: pointer; }
-.ti-chart [role="button"]:focus-visible { outline: 1px solid var(--c-series-1); outline-offset: 1px; }
+.ti-chart [role="button"] {
+    cursor: pointer;
+}
+
+.ti-chart [role="button"]:focus-visible {
+    outline: 1px solid var(--c-series-1);
+    outline-offset: 1px;
+}
 
 /* --- scatter (R3 alignment quadrant) --- */
-.ti-chart-scatter-diag { stroke: var(--c-grid); stroke-width: 0.5; stroke-dasharray: 2 2; }
-.ti-chart-scatter-mid  { stroke: var(--c-grid); stroke-width: 0.4; }
-.ti-chart-scatter-pt   { fill: var(--c-series-1); stroke: var(--c-ink-strong); stroke-width: 0.3; }
-.ti-chart-scatter-pt.tone-grade-s { fill: var(--c-grade-s); }
-.ti-chart-scatter-pt.tone-grade-r { fill: var(--c-grade-r); }
-.ti-chart-scatter-pt.tone-grade-u { fill: var(--c-grade-u); }
-.ti-chart-scatter-pt.tone-grade-n { fill: var(--c-grade-n); }
-.ti-chart-scatter-pt.tone-info    { fill: var(--c-series-2); }
-.ti-chart-scatter-quad { fill: var(--c-series-1); opacity: 0.05; }
-.ti-chart-axis-label   { fill: var(--c-ink); font-size: 4px; }
+.ti-chart-scatter-diag {
+    stroke: var(--c-grid);
+    stroke-width: 0.5;
+    stroke-dasharray: 2 2;
+}
+
+.ti-chart-scatter-mid {
+    stroke: var(--c-grid);
+    stroke-width: 0.4;
+}
+
+.ti-chart-scatter-pt {
+    fill: var(--c-series-1);
+    stroke: var(--c-ink-strong);
+    stroke-width: 0.3;
+}
+
+.ti-chart-scatter-pt.tone-grade-s {
+    fill: var(--c-grade-s);
+}
+
+.ti-chart-scatter-pt.tone-grade-r {
+    fill: var(--c-grade-r);
+}
+
+.ti-chart-scatter-pt.tone-grade-u {
+    fill: var(--c-grade-u);
+}
+
+.ti-chart-scatter-pt.tone-grade-n {
+    fill: var(--c-grade-n);
+}
+
+.ti-chart-scatter-pt.tone-info {
+    fill: var(--c-series-2);
+}
+
+.ti-chart-scatter-quad {
+    fill: var(--c-series-1);
+    opacity: 0.05;
+}
+
+.ti-chart-axis-label {
+    fill: var(--c-ink);
+    font-size: 4px;
+}
 
 /* --- heatmap (R4) — sequential ramp + diverging grade scale --- */
-.ti-chart-heat-cell { stroke: var(--bg-elevated, #fff); stroke-width: 0.5; }
-.ti-chart-heat-cell.cell-q1 { fill: var(--c-seq-1); }
-.ti-chart-heat-cell.cell-q2 { fill: var(--c-seq-2); }
-.ti-chart-heat-cell.cell-q3 { fill: var(--c-seq-3); }
-.ti-chart-heat-cell.cell-q4 { fill: var(--c-seq-4); }
-.ti-chart-heat-cell.cell-q5 { fill: var(--c-seq-5); }
-.ti-chart-heat-cell.cell-pos  { fill: var(--c-grade-s); }   /* diverging: positive gap → S side */
-.ti-chart-heat-cell.cell-neg  { fill: var(--c-grade-n); }   /* diverging: negative gap → N side */
-.ti-chart-heat-cell.cell-zero { fill: var(--c-grid); }
-.ti-chart-heat-cell.suppressed { fill: var(--c-grid); opacity: 0.4; }
-.ti-chart-heat-label { fill: var(--c-ink); font-size: 4px; }
+.ti-chart-heat-cell {
+    stroke: var(--bg-elevated, #fff);
+    stroke-width: 0.5;
+}
+
+.ti-chart-heat-cell.cell-q1 {
+    fill: var(--c-seq-1);
+}
+
+.ti-chart-heat-cell.cell-q2 {
+    fill: var(--c-seq-2);
+}
+
+.ti-chart-heat-cell.cell-q3 {
+    fill: var(--c-seq-3);
+}
+
+.ti-chart-heat-cell.cell-q4 {
+    fill: var(--c-seq-4);
+}
+
+.ti-chart-heat-cell.cell-q5 {
+    fill: var(--c-seq-5);
+}
+
+.ti-chart-heat-cell.cell-pos {
+    fill: var(--c-grade-s);
+}
+
+/* diverging: positive gap → S side */
+.ti-chart-heat-cell.cell-neg {
+    fill: var(--c-grade-n);
+}
+
+/* diverging: negative gap → N side */
+.ti-chart-heat-cell.cell-zero {
+    fill: var(--c-grid);
+}
+
+.ti-chart-heat-cell.suppressed {
+    fill: var(--c-grid);
+    opacity: 0.4;
+}
+
+.ti-chart-heat-label {
+    fill: var(--c-ink);
+    font-size: 4px;
+}
 
 /* --- box (R5 level correlation) --- */
-.ti-chart-box-box      { fill: var(--c-series-1); opacity: 0.22; stroke: var(--c-series-1); stroke-width: 0.6; }
-.ti-chart-box-median   { stroke: var(--c-ink-strong); stroke-width: 1; }
-.ti-chart-box-whisker  { stroke: var(--c-axis); stroke-width: 0.5; }
-.ti-chart-box-cap      { stroke: var(--c-axis); stroke-width: 0.5; }
-.ti-chart-box-mean     { fill: var(--c-ink-strong); }
-.ti-chart-box-expected { stroke: var(--c-grade-r); stroke-width: 0.8; stroke-dasharray: 2 2; }
-.ti-chart-box-ref      { stroke: var(--c-grade-u); stroke-width: 0.5; stroke-dasharray: 3 2; }
-.ti-chart-box-ref-label { fill: var(--c-grade-u); font-size: 4px; }
-.ti-chart-box-label    { fill: var(--c-ink); font-size: 4px; }
+.ti-chart-box-box {
+    fill: var(--c-series-1);
+    opacity: 0.22;
+    stroke: var(--c-series-1);
+    stroke-width: 0.6;
+}
+
+.ti-chart-box-median {
+    stroke: var(--c-ink-strong);
+    stroke-width: 1;
+}
+
+.ti-chart-box-whisker {
+    stroke: var(--c-axis);
+    stroke-width: 0.5;
+}
+
+.ti-chart-box-cap {
+    stroke: var(--c-axis);
+    stroke-width: 0.5;
+}
+
+.ti-chart-box-mean {
+    fill: var(--c-ink-strong);
+}
+
+.ti-chart-box-expected {
+    stroke: var(--c-grade-r);
+    stroke-width: 0.8;
+    stroke-dasharray: 2 2;
+}
+
+.ti-chart-box-ref {
+    stroke: var(--c-grade-u);
+    stroke-width: 0.5;
+    stroke-dasharray: 3 2;
+}
+
+.ti-chart-box-ref-label {
+    fill: var(--c-grade-u);
+    font-size: 4px;
+}
+
+.ti-chart-box-label {
+    fill: var(--c-ink);
+    font-size: 4px;
+}
 
 /* --- bars (grouped + diverging modes) --- */
-.ti-chart-bar-axis  { stroke: var(--c-axis); stroke-width: 0.4; }
-.ti-chart-bar-label { fill: var(--c-ink); font-size: 4px; }
+.ti-chart-bar-axis {
+    stroke: var(--c-axis);
+    stroke-width: 0.4;
+}
+
+.ti-chart-bar-label {
+    fill: var(--c-ink);
+    font-size: 4px;
+}
