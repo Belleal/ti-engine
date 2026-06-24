@@ -153,6 +153,11 @@ class CompetenceWebApplication extends TiWebAppManager {
             ] ).then( ( [ result, currentCycle ] ) => ( {
                 ...result,
                 grades: grades,
+                // Scoring constants the individual-results view (Phase 3 buildResults) needs to recompute per-source
+                // category/subcategory means + place T-bands client-side (scores[E/I/C] are pre-blended and irreversible).
+                gradeWeights: configurationLoader.getSetting( "performanceAppraisals.gradeWeights" ) || { S: 1.3, R: 1.0, U: 0.6, N: 0.0 },
+                evaluationWeights: configurationLoader.getSetting( "performanceAppraisals.evaluationWeights" ) || { self: 0.2, team: 0.3, manager: 0.5 },
+                performanceThresholds: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds" ) || { T1: 76, T2: 89, T3: 105, T4: 119, T5: 150 },
                 cycle: currentCycle ? {
                     id: currentCycle.cycleID,
                     name: currentCycle.name,
