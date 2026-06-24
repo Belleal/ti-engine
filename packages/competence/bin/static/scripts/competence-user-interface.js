@@ -1231,15 +1231,23 @@ const configureInterviewSchedule = () => {
 };
 
 /**
- * Returns a configuration object for the Insights → Cycle analytics screen.
+ * Shared factory for the Insights cycle/team analytics screens. `config.reportScope === "team"` appends `scope=team`
+ * to every report request (the web layer narrows to the requesting user's subtree); `config.shellEndpoint` selects the
+ * shell; `config.includeCalibration` adds the grader-calibration report (team only). Both screens reuse the same
+ * spec-builders, loading flow, and caveat handling.
  *
  * @method
+ * @param {Object} [config] - { shellEndpoint, reportScope:"org"|"team", includeCalibration }
  * @returns {Object}
  * @public
  */
-const configureInsightsCycle = () => {
+const configureInsightsScreen = ( config ) => {
     const tiToolbox = Alpine.store( "tiToolbox" );
     const tiApplication = Alpine.store( "tiApplication" );
+    const screen = config || {};
+    const shellEndpoint = screen.shellEndpoint || "load-insights-cycle";
+    const reportScope = ( screen.reportScope === "team" ) ? "team" : "org";
+    const includeCalibration = !!screen.includeCalibration;
 
     return {
         isLoading: true,
@@ -1263,6 +1271,9 @@ const configureInsightsCycle = () => {
         heatmapView: "value",
         predictiveInsufficient: false,
         unscheduledReady: 0,
+        calibration: null,
+        calibrationSpec: { type: "bars", data: { rows: [] }, options: { mode: "diverging" }, a11yLabel: "", provisional: false },
+        calibrationKpiSpec: { type: "stat", data: { value: "—", label: "", sub: "" }, a11yLabel: "" },
 
         init() {
             const onInitialized = () => {
@@ -1282,17 +1293,23 @@ const configureInsightsCycle = () => {
 
         loadAll() {
             this.isLoading = true;
-            const q = this.selectedCycleID ? ( "?cycleID=" + encodeURIComponent( this.selectedCycleID ) ) : "";
+            const params = [];
+            if ( this.selectedCycleID ) { params.push( "cycleID=" + encodeURIComponent( this.selectedCycleID ) ); }
+            if ( reportScope === "team" ) { params.push( "scope=team" ); }
+            const q = params.length ? ( "?" + params.join( "&" ) ) : "";
             const heatmapQ = q ? ( q + "&groupBy=roleFamily" ) : "?groupBy=roleFamily";
-            Promise.all( [
-                tiApplication.sendRequest( "/app/load-insights-cycle" + q ),
+            const shellQ = this.selectedCycleID ? ( "?cycleID=" + encodeURIComponent( this.selectedCycleID ) ) : "";
+            const requests = [
+                tiApplication.sendRequest( "/app/" + shellEndpoint + shellQ ),
                 tiApplication.sendRequest( "/app/load-report-coverage" + q ),
                 tiApplication.sendRequest( "/app/load-report-time-distribution" + q ),
                 tiApplication.sendRequest( "/app/load-report-alignment" + q ),
                 tiApplication.sendRequest( "/app/load-report-heatmap" + heatmapQ ),
                 tiApplication.sendRequest( "/app/load-report-level-distribution" + q ),
                 tiApplication.sendRequest( "/app/load-report-predictive-drivers" + q )
-            ] ).then( ( results ) => {
+            ];
+            if ( includeCalibration ) { requests.push( tiApplication.sendRequest( "/app/load-report-calibration" + q ) ); }
+            Promise.all( requests ).then( ( results ) => {
                 const dataOf = ( result ) => ( ( result && result.data && typeof result.data === "object" ) ? result.data : {} );
                 const shell = dataOf( results[ 0 ] );
                 const coveragePayload = dataOf( results[ 1 ] );
@@ -1301,6 +1318,7 @@ const configureInsightsCycle = () => {
                 const heatPayload = dataOf( results[ 4 ] );
                 const levelPayload = dataOf( results[ 5 ] );
                 const driversPayload = dataOf( results[ 6 ] );
+                const calibPayload = includeCalibration ? dataOf( results[ 7 ] ) : {};
 
                 this.cycle = shell.cycle ? tiToolbox.structuredClone( shell.cycle ) : null;
                 this.cycles = Array.isArray( shell.cycles ) ? tiToolbox.structuredClone( shell.cycles ) : [];
@@ -1326,6 +1344,9 @@ const configureInsightsCycle = () => {
                 this.heatmapSpec = this.buildHeatmapSpec( this.heatmap, this.heatmapView, this.meta );
                 this.levelDistributionSpec = this.buildLevelDistributionSpec( this.levelDistribution, this.meta );
                 this.predictiveDriversSpec = this.buildPredictiveDriversSpec( this.predictiveDrivers, this.meta );
+                this.calibration = calibPayload.calibration ? tiToolbox.structuredClone( calibPayload.calibration ) : null;
+                this.calibrationSpec = this.buildCalibrationSpec( this.calibration, this.meta );
+                this.calibrationKpiSpec = this.buildCalibrationKpiSpec( this.calibration );
                 this.isLoading = false;
             } ).catch( ( error ) => {
                 if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
@@ -1538,6 +1559,59 @@ const configureInsightsCycle = () => {
             };
         },
 
+        /**
+         * Grader calibration — diverging bars per subcategory (vs-self + vs-team signed gaps, centered on 0).
+         * @method
+         */
+        buildCalibrationSpec( calibration, meta ) {
+            const bySub = ( calibration && calibration.bySubcategory && typeof calibration.bySubcategory === "object" ) ? calibration.bySubcategory : {};
+            const order = [ "E1", "E2", "E3", "I1", "I2", "I3", "C1", "C2", "C3" ];
+            const rows = order.filter( function ( key ) { return bySub[ key ]; } ).map( function ( key ) {
+                const cell = bySub[ key ];
+                const self = ( cell.vsSelf && typeof cell.vsSelf.meanGap === "number" ) ? cell.vsSelf.meanGap : 0;
+                const team = ( cell.vsTeam && typeof cell.vsTeam.meanGap === "number" ) ? cell.vsTeam.meanGap : 0;
+                return { id: key, label: key, values: [ { key: "vsSelf", v: self, tone: "info" }, { key: "vsTeam", v: team, tone: "grade-r" } ] };
+            } );
+            return {
+                type: "bars", data: { rows: rows }, options: { mode: "diverging" },
+                a11yLabel: "Grader calibration: manager grade minus self/team per subcategory",
+                provisional: !!( meta && meta.partial )
+            };
+        },
+
+        /**
+         * Grader calibration headline KPI — the overall vs-self gap as a stat tile (signed, with vs-team in the sub).
+         * @method
+         */
+        buildCalibrationKpiSpec( calibration ) {
+            const overall = ( calibration && calibration.overall ) ? calibration.overall : {};
+            const self = ( overall.vsSelf && typeof overall.vsSelf.meanGap === "number" ) ? overall.vsSelf.meanGap : null;
+            const team = ( overall.vsTeam && typeof overall.vsTeam.meanGap === "number" ) ? overall.vsTeam.meanGap : null;
+            return {
+                type: "stat",
+                data: {
+                    value: this.formatGap( { meanGap: self } ),
+                    label: tiApplication.getLabel( "interface.insights.cycle.reports.calibration.kpi-self", "Avg gap vs self" ),
+                    sub: tiApplication.getLabel( "interface.insights.cycle.reports.calibration.kpi-team", "vs team" ) + ": " + this.formatGap( { meanGap: team } )
+                },
+                a11yLabel: "Overall grader gap vs self " + this.formatGap( { meanGap: self } ) + ", vs team " + this.formatGap( { meanGap: team } )
+            };
+        },
+
+        // Signed gap formatter for calibration cells: "+0.30" / "-0.20" / "—" (suppressed or missing).
+        formatGap( cell ) {
+            if ( !cell || cell.suppressed || typeof cell.meanGap !== "number" ) { return "—"; }
+            return ( cell.meanGap > 0 ? "+" : "" ) + cell.meanGap.toFixed( 2 );
+        },
+        hasCalibration() {
+            return !!( this.calibration && this.calibration.bySubcategory && Object.keys( this.calibration.bySubcategory ).length );
+        },
+        calibrationDrillRows() {
+            return ( this.calibration && Array.isArray( this.calibration.perCompetency ) ) ? this.calibration.perCompetency : [];
+        },
+        getCalibrationAriaLabel() { return this.calibrationSpec.a11yLabel; },
+        getCalibrationKpiAriaLabel() { return this.calibrationKpiSpec.a11yLabel; },
+
         setHeatmapView( view ) {
             this.heatmapView = ( view === "gap" ) ? "gap" : "value";
             this.heatmapSpec = this.buildHeatmapSpec( this.heatmap, this.heatmapView, this.meta );
@@ -1562,6 +1636,19 @@ const configureInsightsCycle = () => {
         getPredictiveDriversAriaLabel() { return this.predictiveDriversSpec.a11yLabel; }
     };
 };
+
+/**
+ * Insights → Cycle analytics (Supervisor, whole-org). Thin wrapper over the shared screen factory.
+ * @returns {Object}
+ */
+const configureInsightsCycle = () => configureInsightsScreen( { shellEndpoint: "load-insights-cycle", reportScope: "org", includeCalibration: false } );
+
+/**
+ * Insights → Team analytics (Manager subtree / Supervisor subtree). Same six reports scoped to the requesting user's
+ * subtree (?scope=team) plus the grader-calibration report.
+ * @returns {Object}
+ */
+const configureInsightsTeam = () => configureInsightsScreen( { shellEndpoint: "load-insights-team", reportScope: "team", includeCalibration: true } );
 
 /**
  * Returns a configuration object for the dashboard screen.
@@ -3646,8 +3733,8 @@ const configureCompetencyTextEditor = () => {
         // Map a validator path (".competency.name.E1-1" / ".competency.scope.E1-1.N") to a { code, field, message }.
         describeIssue( issue ) {
             const parts = ( ( issue && issue.path ) || "" ).split( "." ).filter( Boolean );
-            let field = "";
-            let code = "";
+            let field;
+            let code;
             if ( parts[ 1 ] === "scope" ) {
                 code = parts[ 2 ] || "";
                 field = "scope " + ( parts[ 3 ] || "" );
@@ -4589,4 +4676,5 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceRoleFamilies", configureRoleFamilies );
     Alpine.data( "insightsOverview", () => ( {} ) );
     Alpine.data( "insightsCycle", configureInsightsCycle );
+    Alpine.data( "insightsTeam", configureInsightsTeam );
 } );

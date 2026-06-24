@@ -1,0 +1,195 @@
+<div class="ti-page" x-data="insightsTeam">
+
+    <div class="ti-page-head">
+        <div>
+            <h1 class="ti-page-title" x-text-label="interface.insights.team.title">Team analytics</h1>
+            <p class="ti-page-sub" x-text="getCycleSubtitle()"></p>
+        </div>
+        <div class="ti-page-head-actions">
+            <label class="ti-field-inline">
+                <span x-text-label="interface.insights.cycle.select-label">Cycle</span>
+                <select class="ti-select" @change="onCycleChange($event)">
+                    <template x-for="c in cycles" x-bind:key="c.id">
+                        <option x-bind:value="c.id" x-bind:selected="c.id === selectedCycleID" x-text="c.name"></option>
+                    </template>
+                </select>
+            </label>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <template x-if="isLoading">
+        <div class="ti-empty-state">
+            <div class="ti-empty-state-title" x-text-label="interface.insights.cycle.loading">Loading…</div>
+        </div>
+    </template>
+
+    <!-- No cycle -->
+    <template x-if="!isLoading && !cycle">
+        <div class="ti-empty-state">
+            <div class="ti-empty-state-title" x-text-label="interface.insights.cycle.empty">No data for this cycle.</div>
+        </div>
+    </template>
+
+    <!-- Reports (scoped to the requesting user's subtree) -->
+    <template x-if="!isLoading && cycle">
+        <div class="ti-card-grid">
+
+            <div class="ti-card-wide" x-show="isLive()">
+                <span class="ti-status-pill warn"><span class="dot"></span><span x-text="getCaveatBanner()"></span></span>
+            </div>
+
+            <!-- Team coverage -->
+            <section class="ti-card">
+                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.coverage-overall">Overall coverage</h2>
+                <p class="ti-panel-body-intro" x-text-label="interface.insights.cycle.reports.coverage.whatItShows"></p>
+                <figure class="ti-chart" x-ti-chart="coverageGaugeSpec" role="img" x-bind:aria-label="getGaugeAriaLabel()"></figure>
+                <details class="ti-card-note">
+                    <summary x-text-label="interface.insights.cycle.methodology-toggle">How it's calculated</summary>
+                    <p x-text-label="interface.insights.cycle.reports.coverage.methodology"></p>
+                </details>
+            </section>
+
+            <section class="ti-card">
+                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.coverage-by-group">By group</h2>
+                <figure class="ti-chart" x-ti-chart="coverageBarsSpec" role="img" x-bind:aria-label="getBarsAriaLabel()"></figure>
+            </section>
+
+            <section class="ti-card ti-card-wide">
+                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.pending">Pending</h2>
+                <div class="ti-data-grid">
+                    <template x-for="row in pendingRows()" x-bind:key="row.employeeID">
+                        <div class="ti-data-grid-row">
+                            <span class="ti-data-grid-cell" x-text="row.name"></span>
+                            <span class="ti-data-grid-cell" x-text="row.groupLabel"></span>
+                            <span class="ti-status-pill" x-bind:class="pendingTone(row.status)"><span class="dot"></span><span x-text="row.status"></span></span>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            <!-- Grader Calibration (team-only) -->
+            <section class="ti-card ti-card-wide">
+                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.reports.calibration.title">Grader calibration</h2>
+                <p class="ti-panel-body-intro" x-text-label="interface.insights.cycle.reports.calibration.whatItShows"></p>
+                <template x-if="hasCalibration()">
+                    <div>
+                        <figure class="ti-chart" x-ti-chart="calibrationKpiSpec" role="img" x-bind:aria-label="getCalibrationKpiAriaLabel()"></figure>
+                        <figure class="ti-chart" x-ti-chart="calibrationSpec" role="img" x-bind:aria-label="getCalibrationAriaLabel()"></figure>
+                        <div class="ti-data-grid">
+                            <div class="ti-data-grid-row">
+                                <span class="ti-data-grid-cell ti-kv-label" x-text-label="interface.insights.cycle.reports.calibration.col-competency">Competency</span>
+                                <span class="ti-data-grid-cell ti-kv-label" x-text-label="interface.insights.cycle.reports.calibration.kpi-self">vs self</span>
+                                <span class="ti-data-grid-cell ti-kv-label" x-text-label="interface.insights.cycle.reports.calibration.kpi-team">vs team</span>
+                            </div>
+                            <template x-for="row in calibrationDrillRows()" x-bind:key="row.code">
+                                <div class="ti-data-grid-row">
+                                    <span class="ti-data-grid-cell" x-text="row.code"></span>
+                                    <span class="ti-data-grid-cell tabular-nums" x-text="formatGap(row.vsSelf)"></span>
+                                    <span class="ti-data-grid-cell tabular-nums" x-text="formatGap(row.vsTeam)"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+                <template x-if="!hasCalibration()">
+                    <div class="ti-empty-state"><div class="ti-empty-state-title" x-text-label="interface.insights.cycle.insufficient-data">Not enough reported evaluations yet.</div></div>
+                </template>
+                <details class="ti-card-note">
+                    <summary x-text-label="interface.insights.cycle.methodology-toggle">How it's calculated</summary>
+                    <p x-text-label="interface.insights.cycle.reports.calibration.methodology"></p>
+                </details>
+            </section>
+
+            <!-- R5 Level distribution -->
+            <section class="ti-card ti-card-wide">
+                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.reports.levelDistribution.title">Score distribution by level</h2>
+                <p class="ti-panel-body-intro" x-text-label="interface.insights.cycle.reports.levelDistribution.whatItShows"></p>
+                <template x-if="hasLevelDistribution()">
+                    <figure class="ti-chart" x-ti-chart="levelDistributionSpec" role="img" x-bind:aria-label="getLevelDistributionAriaLabel()"></figure>
+                </template>
+                <template x-if="!hasLevelDistribution()">
+                    <div class="ti-empty-state"><div class="ti-empty-state-title" x-text-label="interface.insights.cycle.empty">No data.</div></div>
+                </template>
+                <details class="ti-card-note">
+                    <summary x-text-label="interface.insights.cycle.methodology-toggle">How it's calculated</summary>
+                    <p x-text-label="interface.insights.cycle.reports.levelDistribution.methodology"></p>
+                </details>
+            </section>
+
+            <!-- R4 Competence heatmap -->
+            <section class="ti-card ti-card-wide">
+                <div class="ti-panel-head">
+                    <h2 class="ti-card-title" x-text-label="interface.insights.cycle.reports.heatmap.title">Competence heatmap</h2>
+                    <label class="ti-field-inline">
+                        <select class="ti-select" @change="onHeatmapViewChange($event)">
+                            <option value="value" x-bind:selected="heatmapView === 'value'" x-text-label="interface.insights.cycle.heatmap-view-value">Value</option>
+                            <option value="gap" x-bind:selected="heatmapView === 'gap'" x-text-label="interface.insights.cycle.heatmap-view-gap">Gap vs expected</option>
+                        </select>
+                    </label>
+                </div>
+                <p class="ti-panel-body-intro" x-text-label="interface.insights.cycle.reports.heatmap.whatItShows"></p>
+                <template x-if="hasHeatmap()">
+                    <figure class="ti-chart" x-ti-chart="heatmapSpec" role="img" x-bind:aria-label="getHeatmapAriaLabel()"></figure>
+                </template>
+                <template x-if="!hasHeatmap()">
+                    <div class="ti-empty-state"><div class="ti-empty-state-title" x-text-label="interface.insights.cycle.empty">No data.</div></div>
+                </template>
+                <details class="ti-card-note">
+                    <summary x-text-label="interface.insights.cycle.methodology-toggle">How it's calculated</summary>
+                    <p x-text-label="interface.insights.cycle.reports.heatmap.methodology"></p>
+                </details>
+            </section>
+
+            <!-- R3 Alignment quadrant -->
+            <section class="ti-card">
+                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.reports.alignment.title">Self vs manager alignment</h2>
+                <p class="ti-panel-body-intro" x-text-label="interface.insights.cycle.reports.alignment.whatItShows"></p>
+                <template x-if="hasAlignment()">
+                    <figure class="ti-chart" x-ti-chart="alignmentSpec" role="img" x-bind:aria-label="getAlignmentAriaLabel()"></figure>
+                </template>
+                <template x-if="!hasAlignment()">
+                    <div class="ti-empty-state"><div class="ti-empty-state-title" x-text-label="interface.insights.cycle.empty">No data.</div></div>
+                </template>
+                <details class="ti-card-note">
+                    <summary x-text-label="interface.insights.cycle.methodology-toggle">How it's calculated</summary>
+                    <p x-text-label="interface.insights.cycle.reports.alignment.methodology"></p>
+                </details>
+            </section>
+
+            <!-- R2 Interview timing -->
+            <section class="ti-card">
+                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.reports.timeDistribution.title">Interview timing</h2>
+                <p class="ti-panel-body-intro" x-text-label="interface.insights.cycle.reports.timeDistribution.whatItShows"></p>
+                <p class="ti-kv-value"><span x-text-label="interface.insights.cycle.unscheduled-ready">Ready, no interview booked</span>: <span class="tabular-nums" x-text="unscheduledReady"></span></p>
+                <template x-if="hasTimeDistribution()">
+                    <figure class="ti-chart" x-ti-chart="timeDistributionSpec" role="img" x-bind:aria-label="getTimeDistributionAriaLabel()"></figure>
+                </template>
+                <template x-if="!hasTimeDistribution()">
+                    <div class="ti-empty-state"><div class="ti-empty-state-title" x-text-label="interface.insights.cycle.empty">No data.</div></div>
+                </template>
+                <details class="ti-card-note">
+                    <summary x-text-label="interface.insights.cycle.methodology-toggle">How it's calculated</summary>
+                    <p x-text-label="interface.insights.cycle.reports.timeDistribution.methodology"></p>
+                </details>
+            </section>
+
+            <!-- R6 Predictive drivers -->
+            <section class="ti-card ti-card-wide">
+                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.reports.predictiveDrivers.title">Performance drivers</h2>
+                <p class="ti-panel-body-intro" x-text-label="interface.insights.cycle.reports.predictiveDrivers.whatItShows"></p>
+                <template x-if="hasPredictiveDrivers()">
+                    <figure class="ti-chart" x-ti-chart="predictiveDriversSpec" role="img" x-bind:aria-label="getPredictiveDriversAriaLabel()"></figure>
+                </template>
+                <template x-if="!hasPredictiveDrivers()">
+                    <div class="ti-empty-state"><div class="ti-empty-state-title" x-text-label="interface.insights.cycle.insufficient-data">Not enough reported evaluations yet.</div></div>
+                </template>
+                <details class="ti-card-note">
+                    <summary x-text-label="interface.insights.cycle.methodology-toggle">How it's calculated</summary>
+                    <p x-text-label="interface.insights.cycle.reports.predictiveDrivers.methodology"></p>
+                </details>
+            </section>
+
+        </div>
+    </template>
+</div>

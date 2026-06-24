@@ -7718,8 +7718,20 @@
             "title": { "en": "Performance drivers", "bg": "Двигатели на представянето" },
             "whatItShows": { "en": "Which competency subcategories most strongly track the final score, and whether that matches the weight the framework gives them.", "bg": "Кои подкатегории компетенции най-силно следват крайния резултат и дали това съответства на теглото, което моделът им дава." },
             "methodology": { "en": "For each subcategory we correlate people's average grade in it with their final score (Pearson r); a higher bar means that subcategory moves more with overall performance. The paired bar shows its share of measured influence versus its configured share of relevancy. When a subcategory's influence ranks far from its configured weight it is flagged as possibly mis-weighted — worth a look when tuning the model. Needs at least five reported evaluations.", "bg": "За всяка подкатегория съотнасяме средната оценка на хората в нея с крайния им резултат (корелация на Пиърсън); по-висока лента означава, че подкатегорията се движи повече с цялостното представяне. Сдвоената лента показва дела ѝ от измереното влияние спрямо конфигурирания дял на релевантност. Когато влиянието се нарежда далеч от конфигурираното тегло, подкатегорията се маркира като възможно неправилно претеглена. Нужни са поне пет докладвани оценки." }
+          },
+          "calibration": {
+            "title": { "en": "Grader calibration", "bg": "Калибриране на оценителя" },
+            "whatItShows": { "en": "How your own manager grades compare with self-assessments and team feedback, per competency subcategory.", "bg": "Как вашите мениджърски оценки се съпоставят със самооценките и обратната връзка от екипа, по подкатегория компетенции." },
+            "methodology": { "en": "For each competency you graded, we take the signed gap in grade-points between your manager grade and the self grade (and separately the team grade): a positive gap means you rated more generously than that source, negative means stricter. Gaps are averaged across your evaluations per subcategory and overall (a cell covering fewer than three people is hidden to protect anonymity). Use it to spot systematic leniency or severity in your own grading relative to how people rate themselves and how their team rates them.", "bg": "За всяка компетенция, която сте оценили, вземаме знаковата разлика в точки между вашата мениджърска оценка и самооценката (и поотделно екипната оценка): положителна разлика означава, че сте оценили по-щедро от този източник, отрицателна – по-строго. Разликите се осредняват по вашите оценки за подкатегория и общо (клетка с по-малко от трима души се скрива за анонимност). Използвайте го, за да забележите системна снизходителност или строгост в собственото си оценяване спрямо самооценките и оценките на екипа." },
+            "kpi-self": { "en": "Avg gap vs self", "bg": "Средна разлика спрямо самооценка" },
+            "kpi-team": { "en": "vs team", "bg": "спрямо екип" },
+            "col-competency": { "en": "Competency", "bg": "Компетенция" }
           }
         }
+      },
+      "team": {
+        "title": { "en": "Team analytics", "bg": "Анализи на екипа" },
+        "sub": { "en": "Your team's results for the selected cycle.", "bg": "Резултатите на вашия екип за избрания цикъл." }
       }
     }
   },
