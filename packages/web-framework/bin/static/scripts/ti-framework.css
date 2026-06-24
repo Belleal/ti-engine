@@ -1103,6 +1103,40 @@ body {
     overflow: hidden;
 }
 
+/* Reusable card grid — a responsive two-column layout of .ti-card blocks; any direct child marked
+   .ti-card-wide (or a non-card full-row element like a banner) spans the whole row. Collapses to one
+   column on narrow viewports. App-agnostic; first consumed by the competence Insights screens. */
+.ti-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-5);
+    align-items: start;
+}
+.ti-card-grid > .ti-card-wide {
+    grid-column: 1 / -1;
+}
+@media ( max-width: 720px ) {
+    .ti-card-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* A muted, collapsible note/disclosure within a card (e.g. a "how it's calculated" methodology block). */
+.ti-card-note {
+    margin-top: var(--s-3);
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+}
+.ti-card-note > summary {
+    cursor: pointer;
+    color: var(--fg-secondary);
+    list-style-position: inside;
+}
+.ti-card-note > p {
+    margin: var(--s-2) 0 0;
+    line-height: 1.5;
+}
+
 .ti-panel-head {
     display: flex;
     align-items: center;

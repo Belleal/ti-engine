@@ -33,10 +33,10 @@
 
     <!-- Reports -->
     <template x-if="!isLoading && cycle">
-        <div class="ti-insights-grid">
+        <div class="ti-card-grid">
 
             <!-- CA-L7 live caveat banner -->
-            <div class="ti-insights-caveat" x-show="isLive()">
+            <div class="ti-card-wide" x-show="isLive()">
                 <span class="ti-status-pill warn"><span class="dot"></span><span x-text="getCaveatBanner()"></span></span>
             </div>
 
@@ -45,7 +45,7 @@
                 <h2 class="ti-card-title" x-text-label="interface.insights.cycle.coverage-overall">Overall coverage</h2>
                 <p class="ti-panel-body-intro" x-text-label="interface.insights.cycle.reports.coverage.whatItShows"></p>
                 <figure class="ti-chart" x-ti-chart="coverageGaugeSpec" role="img" x-bind:aria-label="getGaugeAriaLabel()"></figure>
-                <details class="ti-insights-method">
+                <details class="ti-card-note">
                     <summary x-text-label="interface.insights.cycle.methodology-toggle">How it's calculated</summary>
                     <p x-text-label="interface.insights.cycle.reports.coverage.methodology"></p>
                 </details>
@@ -79,7 +79,7 @@
                 <template x-if="!hasLevelDistribution()">
                     <div class="ti-empty-state"><div class="ti-empty-state-title" x-text-label="interface.insights.cycle.empty">No data.</div></div>
                 </template>
-                <details class="ti-insights-method">
+                <details class="ti-card-note">
                     <summary x-text-label="interface.insights.cycle.methodology-toggle">How it's calculated</summary>
                     <p x-text-label="interface.insights.cycle.reports.levelDistribution.methodology"></p>
                 </details>
@@ -103,7 +103,7 @@
                 <template x-if="!hasHeatmap()">
                     <div class="ti-empty-state"><div class="ti-empty-state-title" x-text-label="interface.insights.cycle.empty">No data.</div></div>
                 </template>
-                <details class="ti-insights-method">
+                <details class="ti-card-note">
                     <summary x-text-label="interface.insights.cycle.methodology-toggle">How it's calculated</summary>
                     <p x-text-label="interface.insights.cycle.reports.heatmap.methodology"></p>
                 </details>
@@ -119,7 +119,7 @@
                 <template x-if="!hasAlignment()">
                     <div class="ti-empty-state"><div class="ti-empty-state-title" x-text-label="interface.insights.cycle.empty">No data.</div></div>
                 </template>
-                <details class="ti-insights-method">
+                <details class="ti-card-note">
                     <summary x-text-label="interface.insights.cycle.methodology-toggle">How it's calculated</summary>
                     <p x-text-label="interface.insights.cycle.reports.alignment.methodology"></p>
                 </details>
@@ -136,7 +136,7 @@
                 <template x-if="!hasTimeDistribution()">
                     <div class="ti-empty-state"><div class="ti-empty-state-title" x-text-label="interface.insights.cycle.empty">No data.</div></div>
                 </template>
-                <details class="ti-insights-method">
+                <details class="ti-card-note">
                     <summary x-text-label="interface.insights.cycle.methodology-toggle">How it's calculated</summary>
                     <p x-text-label="interface.insights.cycle.reports.timeDistribution.methodology"></p>
                 </details>
@@ -152,7 +152,7 @@
                 <template x-if="!hasPredictiveDrivers()">
                     <div class="ti-empty-state"><div class="ti-empty-state-title" x-text-label="interface.insights.cycle.insufficient-data">Not enough reported evaluations yet.</div></div>
                 </template>
-                <details class="ti-insights-method">
+                <details class="ti-card-note">
                     <summary x-text-label="interface.insights.cycle.methodology-toggle">How it's calculated</summary>
                     <p x-text-label="interface.insights.cycle.reports.predictiveDrivers.methodology"></p>
                 </details>

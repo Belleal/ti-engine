@@ -4663,43 +4663,6 @@
     flex: 0 0 auto;
 }
 
-/* ------------------------------------------------------------------ *
- *  Insights — cycle analytics report grid (CA-66/CA-67). A responsive
- *  two-column card grid; .ti-card-wide and the caveat span the full row.
- * ------------------------------------------------------------------ */
-.ti-insights-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--s-5);
-    align-items: start;
-}
-.ti-insights-grid .ti-card-wide,
-.ti-insights-caveat {
-    grid-column: 1 / -1;
-}
-.ti-insights-caveat {
-    margin: 0;
-}
-.ti-insights-method {
-    margin-top: var(--s-3);
-    font-size: var(--fs-sm);
-    color: var(--fg-secondary);
-}
-.ti-insights-method > summary {
-    cursor: pointer;
-    color: var(--fg-secondary);
-    list-style-position: inside;
-}
-.ti-insights-method > p {
-    margin: var(--s-2) 0 0;
-    line-height: 1.5;
-}
-@media ( max-width: 720px ) {
-    .ti-insights-grid {
-        grid-template-columns: minmax(0, 1fr);
-    }
-}
-
 .competence-rf-spec-field {
     display: flex;
     flex-direction: column;
