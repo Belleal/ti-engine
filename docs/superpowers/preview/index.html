@@ -2618,6 +2618,7 @@ body {
 .ti-chart[data-ti-chart-type="heatmap"] svg { max-width: 480px; }
 .ti-chart[data-ti-chart-type="box"] svg     { max-width: 680px; }
 .ti-chart[data-ti-chart-type="bars"] svg    { max-width: 640px; }
+.ti-chart[data-ti-chart-type="radar"] svg   { max-width: 360px; }
 
 /* Visually-hidden a11y mirror table (screen-reader only). */
 .ti-chart-sr {
@@ -2910,6 +2911,23 @@ body {
     fill: var(--c-ink);
     font-size: 4px;
 }
+
+/* --- radar (individual subcategory profile) --- */
+.ti-chart-radar-ring  { stroke: var(--c-grid); stroke-width: 0.4; }
+.ti-chart-radar-spoke { stroke: var(--c-grid); stroke-width: 0.3; }
+.ti-chart-radar-axis-label { fill: var(--c-ink); font-size: 3.6px; }
+.ti-chart-radar-poly  { fill: var(--c-series-1); fill-opacity: 0.12; stroke: var(--c-series-1); stroke-width: 0.8; }
+.ti-chart-radar-poly.tone-grade-s { fill: var(--c-grade-s); stroke: var(--c-grade-s); }
+.ti-chart-radar-poly.tone-grade-r { fill: var(--c-grade-r); stroke: var(--c-grade-r); }
+.ti-chart-radar-poly.tone-grade-u { fill: var(--c-grade-u); stroke: var(--c-grade-u); }
+.ti-chart-radar-poly.tone-grade-n { fill: var(--c-grade-n); stroke: var(--c-grade-n); }
+.ti-chart-radar-poly.tone-info    { fill: var(--c-series-2); stroke: var(--c-series-2); }
+.ti-chart-radar-dot   { fill: var(--c-series-1); }
+.ti-chart-radar-dot.tone-grade-s { fill: var(--c-grade-s); }
+.ti-chart-radar-dot.tone-grade-r { fill: var(--c-grade-r); }
+.ti-chart-radar-dot.tone-grade-u { fill: var(--c-grade-u); }
+.ti-chart-radar-dot.tone-grade-n { fill: var(--c-grade-n); }
+.ti-chart-radar-dot.tone-info    { fill: var(--c-series-2); }
 
 /* ============================================================
    Daylight Theme — warm light enterprise
@@ -7950,6 +7968,13 @@ body { margin: 0; background: var(--bg-app); color: var(--fg-primary); font-fami
             </section>
             
             <section class="ti-card">
+                <h2 class="ti-card-title">Subcategory profile (radar)</h2>
+                <p class="ti-panel-body-intro">Self / manager / team across the nine subcategories vs expected.</p>
+                <figure class="ti-chart" id="fig-radar" role="img"></figure>
+                <details class="ti-card-note"><summary>How it's calculated</summary><p>Each spoke is a subcategory; the dashed ring is the level-expected grade.</p></details>
+            </section>
+            
+            <section class="ti-card">
                 <h2 class="ti-card-title">Self vs manager alignment</h2>
                 <p class="ti-panel-body-intro">Manager grade (x) vs self grade (y); bubble = team.</p>
                 <figure class="ti-chart" id="fig-alignment" role="img"></figure>
@@ -8474,6 +8499,59 @@ const TiCharts = ( function () {
     }
 
     /**
+     * Lays out a radar/spider chart: N axes evenly spaced (clockwise from the top), concentric polygon rings, and one
+     * polygon per series with each vertex at radius rMax·(value/axisMax) on its axis. Pure (angle math in JS).
+     * @param {Array<{id,label,max}>} axes
+     * @param {Array<{key,values:Object,tone?,style?}>} series
+     * @param {Object} [opts] {cx=50,cy=50,rMax=36,startAngle=-90,rings=[.25,.5,.75,1],labelPad=7}
+     * @returns {{cx,cy,rMax,axes:Array,rings:Array,series:Array}}
+     */
+    function radarLayout( axes, series, opts ) {
+        const o = opts || {};
+        const cx = ( typeof o.cx === "number" ) ? o.cx : 50;
+        const cy = ( typeof o.cy === "number" ) ? o.cy : 50;
+        const rMax = ( typeof o.rMax === "number" ) ? o.rMax : 36;
+        const startAngle = ( typeof o.startAngle === "number" ) ? o.startAngle : -90;
+        const labelPad = ( typeof o.labelPad === "number" ) ? o.labelPad : 7;
+        const ringFractions = Array.isArray( o.rings ) ? o.rings : [ 0.25, 0.5, 0.75, 1 ];
+        const axisList = Array.isArray( axes ) ? axes : [];
+        const n = axisList.length;
+        const step = ( n > 0 ) ? ( 360 / n ) : 0;
+
+        const axisGeom = axisList.map( ( ax, i ) => {
+            const angle = startAngle + ( i * step );
+            const outer = _polar( cx, cy, rMax, angle );
+            const label = _polar( cx, cy, rMax + labelPad, angle );
+            return {
+                id: ax.id, label: ( ax.label !== undefined ) ? ax.label : ax.id,
+                max: ( typeof ax.max === "number" && ax.max > 0 ) ? ax.max : 1,
+                angle: angle, outerX: _round( outer.x ), outerY: _round( outer.y ),
+                labelX: _round( label.x ), labelY: _round( label.y )
+            };
+        } );
+
+        const rings = ringFractions.map( ( frac ) => ( {
+            frac: frac,
+            points: axisGeom.map( ( ag ) => { const p = _polar( cx, cy, rMax * frac, ag.angle ); return _round( p.x ) + "," + _round( p.y ); } ).join( " " )
+        } ) );
+
+        const seriesList = Array.isArray( series ) ? series : [];
+        const laidSeries = seriesList.map( ( s ) => {
+            const dots = [];
+            const points = axisGeom.map( ( ag ) => {
+                const raw = ( s.values && typeof s.values[ ag.id ] === "number" ) ? s.values[ ag.id ] : 0;
+                const ratio = _clamp( raw / ag.max, 0, 1 );
+                const p = _polar( cx, cy, rMax * ratio, ag.angle );
+                dots.push( { x: _round( p.x ), y: _round( p.y ), axisId: ag.id, value: raw } );
+                return _round( p.x ) + "," + _round( p.y );
+            } );
+            return { key: s.key, tone: s.tone || "", style: s.style || "", points: points.join( " " ), dots: dots };
+        } );
+
+        return { cx: cx, cy: cy, rMax: rMax, axes: axisGeom, rings: rings, series: laidSeries };
+    }
+
+    /**
      * Attaches CSP-safe drill interactivity to an element: tabindex/role + click & Enter/Space listeners dispatching a
      * bubbling `ti-chart:select` CustomEvent. In non-DOM environments (unit tests) it sets the a11y attributes and
      * returns without wiring listeners.
@@ -8489,11 +8567,11 @@ const TiCharts = ( function () {
         el.addEventListener( "keydown", ( e ) => { if ( e.key === "Enter" || e.key === " " ) { e.preventDefault(); fire(); } } );
     }
 
-    const SUPPORTED_TYPES = [ "gauge", "bars", "stat", "scatter", "heatmap", "box" ]; // Phase 0: gauge/bars/stat; Phase 1A adds scatter/heatmap/box (radar/line still deferred)
+    const SUPPORTED_TYPES = [ "gauge", "bars", "stat", "scatter", "heatmap", "box", "radar" ]; // P0 gauge/bars/stat; 1A scatter/heatmap/box; P3 radar (line still deferred)
 
     /**
      * @typedef {Object} TiChartSpec
-     * @property {"gauge"|"bars"|"stat"|"scatter"|"heatmap"|"box"} type   Phase 0: gauge/bars/stat; Phase 1A: scatter/heatmap/box.
+     * @property {"gauge"|"bars"|"stat"|"scatter"|"heatmap"|"box"|"radar"} type   P0: gauge/bars/stat; 1A: scatter/heatmap/box; P3: radar.
      * @property {Object}  data                 per-primitive payload (the aggregation output)
      * @property {Object}  [options]            domains, sizing, labels, formatting
      * @property {string}  a11yLabel            role=img label (also injected as <title>)
@@ -8863,6 +8941,57 @@ const TiCharts = ( function () {
     }
 
     /**
+     * Renders a radar/spider chart (the individual 9-subcategory profile): concentric polygon rings, axis spokes +
+     * labels, one filled polygon per series (self/manager/team), and an optional dashed "expected" series. All geometry
+     * via radarLayout + setAttribute; an "expected"/provisional series draws unfilled with stroke-dasharray.
+     * @param {Element} figure
+     * @param {TiChartSpec} spec
+     */
+    function renderRadar( figure, spec ) {
+        const data = spec.data;
+        const axes = Array.isArray( data.axes ) ? data.axes : [];
+        const series = Array.isArray( data.series ) ? data.series : [];
+        if ( axes.length === 0 ) { figure.setAttribute( "data-ti-chart-empty", "1" ); return; }
+        const layout = radarLayout( axes, series, spec.options || {} );
+
+        const svg = svgEl( "svg", { viewBox: "0 0 100 100", preserveAspectRatio: "xMidYMid meet", role: "img" } );
+        _appendA11yTitle( svg, spec );
+
+        for ( let i = 0; i < layout.rings.length; i++ ) {
+            svg.appendChild( svgEl( "polygon", { points: layout.rings[ i ].points, class: "ti-chart-radar-ring", fill: "none" } ) );
+        }
+        for ( let i = 0; i < layout.axes.length; i++ ) {
+            const ax = layout.axes[ i ];
+            svg.appendChild( svgEl( "line", { x1: layout.cx, y1: layout.cy, x2: ax.outerX, y2: ax.outerY, class: "ti-chart-radar-spoke" } ) );
+            const t = svgEl( "text", { x: ax.labelX, y: ax.labelY, class: "ti-chart-radar-axis-label", "text-anchor": "middle", "dominant-baseline": "central" } );
+            t.textContent = String( ax.label ); svg.appendChild( t );
+        }
+        for ( let i = 0; i < layout.series.length; i++ ) {
+            const s = layout.series[ i ];
+            let cls = "ti-chart-radar-poly"; if ( s.tone ) { cls = cls + " tone-" + s.tone; }
+            const poly = svgEl( "polygon", { points: s.points, class: cls } );
+            if ( s.style === "dashed" || spec.provisional ) { poly.setAttribute( "fill", "none" ); poly.setAttribute( "stroke-dasharray", "3 2" ); }
+            svg.appendChild( poly );
+            for ( let d = 0; d < s.dots.length; d++ ) {
+                let dotCls = "ti-chart-radar-dot"; if ( s.tone ) { dotCls = dotCls + " tone-" + s.tone; }
+                svg.appendChild( svgEl( "circle", { cx: s.dots[ d ].x, cy: s.dots[ d ].y, r: 0.9, class: dotCls } ) );
+            }
+        }
+        figure.appendChild( svg );
+
+        const headers = [ "Axis" ].concat( layout.series.map( ( s ) => s.key ) );
+        const srRows = layout.axes.map( ( ax ) => {
+            const row = [ String( ax.label ) ];
+            for ( let i = 0; i < layout.series.length; i++ ) {
+                const dot = layout.series[ i ].dots.find( ( d ) => d.axisId === ax.id );
+                row.push( dot ? formatNumber( dot.value, 2 ) : "—" );
+            }
+            return row;
+        } );
+        figure.appendChild( buildSrTable( headers, srRows ) );
+    }
+
+    /**
      * Top-level dispatcher: clears the host figure, normalizes the spec, routes to a renderer.
      * @param {Element} figure  host <figure class="ti-chart">
      * @param {*} rawSpec
@@ -8880,6 +9009,7 @@ const TiCharts = ( function () {
         else if ( spec.type === "scatter" ) { renderScatter( figure, spec ); }
         else if ( spec.type === "heatmap" ) { renderHeatmap( figure, spec ); }
         else if ( spec.type === "box" ) { renderBox( figure, spec ); }
+        else if ( spec.type === "radar" ) { renderRadar( figure, spec ); }
         else { figure.setAttribute( "data-ti-chart-empty", "1" ); }
     }
 
@@ -8896,6 +9026,7 @@ const TiCharts = ( function () {
         boxLayout,
         barsGroupedLayout,
         barsDivergingLayout,
+        radarLayout,
         svgEl,
         buildSrTable,
         renderChart,
@@ -8914,12 +9045,13 @@ if ( typeof window !== "undefined" ) {
 </script>
 <script>
 
-const S = {"coverageGauge":{"type":"gauge","data":{"value":0.62,"label":"Coverage","sublabel":"26 / 42 · 62% reporting"},"a11yLabel":"Coverage 62%","provisional":true},"coverageBars":{"type":"bars","options":{"mode":"stacked"},"a11yLabel":"Coverage by group","data":{"rows":[{"id":"SE","label":"SE","total":18,"segments":[{"key":"Closed","v":6,"tone":"grade-s"},{"key":"Ready","v":4,"tone":"grade-r"},{"key":"In Review","v":3,"tone":"grade-u"},{"key":"Open","v":2,"tone":"grade-n"},{"key":"Not started","v":3,"tone":"ink"}]},{"id":"BA","label":"BA","total":14,"segments":[{"key":"Closed","v":3,"tone":"grade-s"},{"key":"Ready","v":3,"tone":"grade-r"},{"key":"In Review","v":4,"tone":"grade-u"},{"key":"Open","v":1,"tone":"grade-n"},{"key":"Not started","v":3,"tone":"ink"}]},{"id":"PM","label":"PM","total":10,"segments":[{"key":"Closed","v":4,"tone":"grade-s"},{"key":"Ready","v":2,"tone":"grade-r"},{"key":"In Review","v":1,"tone":"grade-u"},{"key":"Open","v":1,"tone":"grade-n"},{"key":"Not started","v":2,"tone":"ink"}]}]}},"levelBox":{"type":"box","options":{"domain":{"min":0,"max":150}},"a11yLabel":"Score distribution by level","data":{"reference":[{"v":105,"label":"T3"}],"groups":[{"id":"N1","label":"N1","n":1,"suppressed":true},{"id":"J1","label":"J1","n":1,"suppressed":true},{"id":"J2","label":"J2","n":5,"min":76,"q1":90,"median":102,"q3":114,"max":130,"mean":103,"expected":100},{"id":"J3","label":"J3","n":5,"min":79,"q1":93,"median":105,"q3":117,"max":133,"mean":106,"expected":104},{"id":"R1","label":"R1","n":5,"min":82,"q1":96,"median":108,"q3":120,"max":136,"mean":109,"expected":108},{"id":"R2","label":"R2","n":5,"min":85,"q1":99,"median":111,"q3":123,"max":139,"mean":112,"expected":112},{"id":"R3","label":"R3","n":5,"min":88,"q1":102,"median":114,"q3":126,"max":142,"mean":115,"expected":116},{"id":"S1","label":"S1","n":5,"min":91,"q1":105,"median":117,"q3":129,"max":145,"mean":118,"expected":120},{"id":"S2","label":"S2","n":5,"min":94,"q1":108,"median":120,"q3":132,"max":148,"mean":121,"expected":124},{"id":"S3","label":"S3","n":5,"min":97,"q1":111,"median":123,"q3":135,"max":151,"mean":124,"expected":128},{"id":"X1","label":"X1","n":1,"suppressed":true},{"id":"T1","label":"T1","n":1,"suppressed":true}]}},"heatmap":{"type":"heatmap","options":{"scale":"sequential"},"a11yLabel":"Competence heatmap","data":{"rows":[{"id":"E1","label":"E1"},{"id":"E2","label":"E2"},{"id":"E3","label":"E3"},{"id":"I1","label":"I1"},{"id":"I2","label":"I2"},{"id":"I3","label":"I3"},{"id":"C1","label":"C1"},{"id":"C2","label":"C2"},{"id":"C3","label":"C3"}],"cols":[{"id":"SE","label":"SE"},{"id":"BA","label":"BA"},{"id":"PM","label":"PM"}],"cells":[{"r":0,"c":0,"n":5,"v":0.6,"expected":1,"delta":-0.2},{"r":0,"c":1,"n":5,"v":0.7,"expected":1,"delta":-0.1},{"r":0,"c":2,"n":5,"v":0.8,"expected":1,"delta":0},{"r":1,"c":0,"n":5,"v":0.8999999999999999,"expected":1,"delta":0.1},{"r":1,"c":1,"n":5,"v":1,"expected":1,"delta":0.2},{"r":1,"c":2,"n":5,"v":1.1,"expected":1,"delta":-0.2},{"r":2,"c":0,"n":5,"v":1.2,"expected":1,"delta":-0.1},{"r":2,"c":1,"n":5,"v":0.6,"expected":1,"delta":0},{"r":2,"c":2,"n":5,"v":0.7,"expected":1,"delta":0.1},{"r":3,"c":0,"n":5,"v":0.8,"expected":1,"delta":0.2},{"r":3,"c":1,"n":5,"v":0.8999999999999999,"expected":1,"delta":-0.2},{"r":3,"c":2,"n":5,"v":1,"expected":1,"delta":-0.1},{"r":4,"c":0,"n":5,"v":1.1,"expected":1,"delta":0},{"r":4,"c":1,"n":5,"v":1.2,"expected":1,"delta":0.1},{"r":4,"c":2,"n":5,"v":0.6,"expected":1,"delta":0.2},{"r":5,"c":0,"n":5,"v":0.7,"expected":1,"delta":-0.2},{"r":5,"c":1,"n":5,"v":0.8,"expected":1,"delta":-0.1},{"r":5,"c":2,"n":5,"v":0.8999999999999999,"expected":1,"delta":0},{"r":6,"c":0,"n":5,"v":1,"expected":1,"delta":0.1},{"r":6,"c":1,"n":5,"v":1.1,"expected":1,"delta":0.2},{"r":6,"c":2,"n":5,"v":1.2,"expected":1,"delta":-0.2},{"r":7,"c":0,"n":5,"v":0.6,"expected":1,"delta":-0.1},{"r":7,"c":1,"n":5,"v":0.7,"expected":1,"delta":0},{"r":7,"c":2,"n":5,"v":0.8,"expected":1,"delta":0.1},{"r":8,"c":0,"n":5,"v":0.8999999999999999,"expected":1,"delta":0.2},{"r":8,"c":1,"n":5,"v":1,"expected":1,"delta":-0.2},{"r":8,"c":2,"n":5,"v":1.1,"expected":1,"delta":-0.1}]}},"alignment":{"type":"scatter","options":{"bubble":"z","domain":{"xMin":0,"xMax":1.3,"yMin":0,"yMax":1.3},"midX":1,"midY":1},"a11yLabel":"Alignment","data":{"diagonal":true,"points":[{"id":"1","x":1.1,"y":1.2,"z":1,"tone":"grade-s"},{"id":"2","x":0.9,"y":0.7,"z":0.8,"tone":"grade-n"},{"id":"3","x":1,"y":1,"z":1,"tone":"info"},{"id":"4","x":0.6,"y":1.1,"z":0.9,"tone":"grade-s"},{"id":"5","x":1.2,"y":0.8,"z":1.1,"tone":"grade-n"},{"id":"6","x":0.8,"y":0.85,"z":0.7,"tone":"info"}]}},"timeBars":{"type":"bars","options":{"mode":"grouped"},"a11yLabel":"Interview timing","data":{"rows":[{"id":"2026-01","label":"2026-01","values":[{"key":"planned","v":8,"tone":"grade-r"},{"key":"held","v":6,"tone":"grade-s"}]},{"id":"2026-02","label":"2026-02","values":[{"key":"planned","v":12,"tone":"grade-r"},{"key":"held","v":9,"tone":"grade-s"}]},{"id":"2026-03","label":"2026-03","values":[{"key":"planned","v":5,"tone":"grade-r"},{"key":"held","v":2,"tone":"grade-s"}]}]}},"driversBars":{"type":"bars","options":{"mode":"diverging"},"a11yLabel":"Performance drivers","data":{"rows":[{"id":"E1","label":"E1","values":[{"key":"divergence","v":-0.2,"tone":"grade-u"}]},{"id":"E2","label":"E2","values":[{"key":"divergence","v":-0.1,"tone":"info"}]},{"id":"E3","label":"E3","values":[{"key":"divergence","v":0,"tone":"info"}]},{"id":"I1","label":"I1","values":[{"key":"divergence","v":0.1,"tone":"grade-u"}]},{"id":"I2","label":"I2","values":[{"key":"divergence","v":0.2,"tone":"info"}]},{"id":"I3","label":"I3","values":[{"key":"divergence","v":-0.2,"tone":"info"}]},{"id":"C1","label":"C1","values":[{"key":"divergence","v":-0.1,"tone":"grade-u"}]},{"id":"C2","label":"C2","values":[{"key":"divergence","v":0,"tone":"info"}]},{"id":"C3","label":"C3","values":[{"key":"divergence","v":0.1,"tone":"info"}]}]}},"calibrationBars":{"type":"bars","options":{"mode":"diverging"},"a11yLabel":"Grader calibration","data":{"rows":[{"id":"E1","label":"E1","values":[{"key":"vsSelf","v":-0.1,"tone":"info"},{"key":"vsTeam","v":-0.1,"tone":"grade-r"}]},{"id":"E2","label":"E2","values":[{"key":"vsSelf","v":0,"tone":"info"},{"key":"vsTeam","v":0,"tone":"grade-r"}]},{"id":"E3","label":"E3","values":[{"key":"vsSelf","v":0.1,"tone":"info"},{"key":"vsTeam","v":0.1,"tone":"grade-r"}]},{"id":"I1","label":"I1","values":[{"key":"vsSelf","v":0.2,"tone":"info"},{"key":"vsTeam","v":-0.1,"tone":"grade-r"}]},{"id":"I2","label":"I2","values":[{"key":"vsSelf","v":-0.1,"tone":"info"},{"key":"vsTeam","v":0,"tone":"grade-r"}]},{"id":"I3","label":"I3","values":[{"key":"vsSelf","v":0,"tone":"info"},{"key":"vsTeam","v":0.1,"tone":"grade-r"}]},{"id":"C1","label":"C1","values":[{"key":"vsSelf","v":0.1,"tone":"info"},{"key":"vsTeam","v":-0.1,"tone":"grade-r"}]},{"id":"C2","label":"C2","values":[{"key":"vsSelf","v":0.2,"tone":"info"},{"key":"vsTeam","v":0,"tone":"grade-r"}]},{"id":"C3","label":"C3","values":[{"key":"vsSelf","v":-0.1,"tone":"info"},{"key":"vsTeam","v":0.1,"tone":"grade-r"}]}]}},"calibrationKpi":{"type":"stat","data":{"value":0.18,"label":"Overall vs self","sub":"+0.18 (more lenient) · n=14"},"a11yLabel":"Overall calibration gap"}};
+const S = {"coverageGauge":{"type":"gauge","data":{"value":0.62,"label":"Coverage","sublabel":"26 / 42 · 62% reporting"},"a11yLabel":"Coverage 62%","provisional":true},"coverageBars":{"type":"bars","options":{"mode":"stacked"},"a11yLabel":"Coverage by group","data":{"rows":[{"id":"SE","label":"SE","total":18,"segments":[{"key":"Closed","v":6,"tone":"grade-s"},{"key":"Ready","v":4,"tone":"grade-r"},{"key":"In Review","v":3,"tone":"grade-u"},{"key":"Open","v":2,"tone":"grade-n"},{"key":"Not started","v":3,"tone":"ink"}]},{"id":"BA","label":"BA","total":14,"segments":[{"key":"Closed","v":3,"tone":"grade-s"},{"key":"Ready","v":3,"tone":"grade-r"},{"key":"In Review","v":4,"tone":"grade-u"},{"key":"Open","v":1,"tone":"grade-n"},{"key":"Not started","v":3,"tone":"ink"}]},{"id":"PM","label":"PM","total":10,"segments":[{"key":"Closed","v":4,"tone":"grade-s"},{"key":"Ready","v":2,"tone":"grade-r"},{"key":"In Review","v":1,"tone":"grade-u"},{"key":"Open","v":1,"tone":"grade-n"},{"key":"Not started","v":2,"tone":"ink"}]}]}},"levelBox":{"type":"box","options":{"domain":{"min":0,"max":150}},"a11yLabel":"Score distribution by level","data":{"reference":[{"v":105,"label":"T3"}],"groups":[{"id":"N1","label":"N1","n":1,"suppressed":true},{"id":"J1","label":"J1","n":1,"suppressed":true},{"id":"J2","label":"J2","n":5,"min":76,"q1":90,"median":102,"q3":114,"max":130,"mean":103,"expected":100},{"id":"J3","label":"J3","n":5,"min":79,"q1":93,"median":105,"q3":117,"max":133,"mean":106,"expected":104},{"id":"R1","label":"R1","n":5,"min":82,"q1":96,"median":108,"q3":120,"max":136,"mean":109,"expected":108},{"id":"R2","label":"R2","n":5,"min":85,"q1":99,"median":111,"q3":123,"max":139,"mean":112,"expected":112},{"id":"R3","label":"R3","n":5,"min":88,"q1":102,"median":114,"q3":126,"max":142,"mean":115,"expected":116},{"id":"S1","label":"S1","n":5,"min":91,"q1":105,"median":117,"q3":129,"max":145,"mean":118,"expected":120},{"id":"S2","label":"S2","n":5,"min":94,"q1":108,"median":120,"q3":132,"max":148,"mean":121,"expected":124},{"id":"S3","label":"S3","n":5,"min":97,"q1":111,"median":123,"q3":135,"max":151,"mean":124,"expected":128},{"id":"X1","label":"X1","n":1,"suppressed":true},{"id":"T1","label":"T1","n":1,"suppressed":true}]}},"heatmap":{"type":"heatmap","options":{"scale":"sequential"},"a11yLabel":"Competence heatmap","data":{"rows":[{"id":"E1","label":"E1"},{"id":"E2","label":"E2"},{"id":"E3","label":"E3"},{"id":"I1","label":"I1"},{"id":"I2","label":"I2"},{"id":"I3","label":"I3"},{"id":"C1","label":"C1"},{"id":"C2","label":"C2"},{"id":"C3","label":"C3"}],"cols":[{"id":"SE","label":"SE"},{"id":"BA","label":"BA"},{"id":"PM","label":"PM"}],"cells":[{"r":0,"c":0,"n":5,"v":0.6,"expected":1,"delta":-0.2},{"r":0,"c":1,"n":5,"v":0.7,"expected":1,"delta":-0.1},{"r":0,"c":2,"n":5,"v":0.8,"expected":1,"delta":0},{"r":1,"c":0,"n":5,"v":0.8999999999999999,"expected":1,"delta":0.1},{"r":1,"c":1,"n":5,"v":1,"expected":1,"delta":0.2},{"r":1,"c":2,"n":5,"v":1.1,"expected":1,"delta":-0.2},{"r":2,"c":0,"n":5,"v":1.2,"expected":1,"delta":-0.1},{"r":2,"c":1,"n":5,"v":0.6,"expected":1,"delta":0},{"r":2,"c":2,"n":5,"v":0.7,"expected":1,"delta":0.1},{"r":3,"c":0,"n":5,"v":0.8,"expected":1,"delta":0.2},{"r":3,"c":1,"n":5,"v":0.8999999999999999,"expected":1,"delta":-0.2},{"r":3,"c":2,"n":5,"v":1,"expected":1,"delta":-0.1},{"r":4,"c":0,"n":5,"v":1.1,"expected":1,"delta":0},{"r":4,"c":1,"n":5,"v":1.2,"expected":1,"delta":0.1},{"r":4,"c":2,"n":5,"v":0.6,"expected":1,"delta":0.2},{"r":5,"c":0,"n":5,"v":0.7,"expected":1,"delta":-0.2},{"r":5,"c":1,"n":5,"v":0.8,"expected":1,"delta":-0.1},{"r":5,"c":2,"n":5,"v":0.8999999999999999,"expected":1,"delta":0},{"r":6,"c":0,"n":5,"v":1,"expected":1,"delta":0.1},{"r":6,"c":1,"n":5,"v":1.1,"expected":1,"delta":0.2},{"r":6,"c":2,"n":5,"v":1.2,"expected":1,"delta":-0.2},{"r":7,"c":0,"n":5,"v":0.6,"expected":1,"delta":-0.1},{"r":7,"c":1,"n":5,"v":0.7,"expected":1,"delta":0},{"r":7,"c":2,"n":5,"v":0.8,"expected":1,"delta":0.1},{"r":8,"c":0,"n":5,"v":0.8999999999999999,"expected":1,"delta":0.2},{"r":8,"c":1,"n":5,"v":1,"expected":1,"delta":-0.2},{"r":8,"c":2,"n":5,"v":1.1,"expected":1,"delta":-0.1}]}},"alignment":{"type":"scatter","options":{"bubble":"z","domain":{"xMin":0,"xMax":1.3,"yMin":0,"yMax":1.3},"midX":1,"midY":1},"a11yLabel":"Alignment","data":{"diagonal":true,"points":[{"id":"1","x":1.1,"y":1.2,"z":1,"tone":"grade-s"},{"id":"2","x":0.9,"y":0.7,"z":0.8,"tone":"grade-n"},{"id":"3","x":1,"y":1,"z":1,"tone":"info"},{"id":"4","x":0.6,"y":1.1,"z":0.9,"tone":"grade-s"},{"id":"5","x":1.2,"y":0.8,"z":1.1,"tone":"grade-n"},{"id":"6","x":0.8,"y":0.85,"z":0.7,"tone":"info"}]}},"timeBars":{"type":"bars","options":{"mode":"grouped"},"a11yLabel":"Interview timing","data":{"rows":[{"id":"2026-01","label":"2026-01","values":[{"key":"planned","v":8,"tone":"grade-r"},{"key":"held","v":6,"tone":"grade-s"}]},{"id":"2026-02","label":"2026-02","values":[{"key":"planned","v":12,"tone":"grade-r"},{"key":"held","v":9,"tone":"grade-s"}]},{"id":"2026-03","label":"2026-03","values":[{"key":"planned","v":5,"tone":"grade-r"},{"key":"held","v":2,"tone":"grade-s"}]}]}},"driversBars":{"type":"bars","options":{"mode":"diverging"},"a11yLabel":"Performance drivers","data":{"rows":[{"id":"E1","label":"E1","values":[{"key":"divergence","v":-0.2,"tone":"grade-u"}]},{"id":"E2","label":"E2","values":[{"key":"divergence","v":-0.1,"tone":"info"}]},{"id":"E3","label":"E3","values":[{"key":"divergence","v":0,"tone":"info"}]},{"id":"I1","label":"I1","values":[{"key":"divergence","v":0.1,"tone":"grade-u"}]},{"id":"I2","label":"I2","values":[{"key":"divergence","v":0.2,"tone":"info"}]},{"id":"I3","label":"I3","values":[{"key":"divergence","v":-0.2,"tone":"info"}]},{"id":"C1","label":"C1","values":[{"key":"divergence","v":-0.1,"tone":"grade-u"}]},{"id":"C2","label":"C2","values":[{"key":"divergence","v":0,"tone":"info"}]},{"id":"C3","label":"C3","values":[{"key":"divergence","v":0.1,"tone":"info"}]}]}},"calibrationBars":{"type":"bars","options":{"mode":"diverging"},"a11yLabel":"Grader calibration","data":{"rows":[{"id":"E1","label":"E1","values":[{"key":"vsSelf","v":-0.1,"tone":"info"},{"key":"vsTeam","v":-0.1,"tone":"grade-r"}]},{"id":"E2","label":"E2","values":[{"key":"vsSelf","v":0,"tone":"info"},{"key":"vsTeam","v":0,"tone":"grade-r"}]},{"id":"E3","label":"E3","values":[{"key":"vsSelf","v":0.1,"tone":"info"},{"key":"vsTeam","v":0.1,"tone":"grade-r"}]},{"id":"I1","label":"I1","values":[{"key":"vsSelf","v":0.2,"tone":"info"},{"key":"vsTeam","v":-0.1,"tone":"grade-r"}]},{"id":"I2","label":"I2","values":[{"key":"vsSelf","v":-0.1,"tone":"info"},{"key":"vsTeam","v":0,"tone":"grade-r"}]},{"id":"I3","label":"I3","values":[{"key":"vsSelf","v":0,"tone":"info"},{"key":"vsTeam","v":0.1,"tone":"grade-r"}]},{"id":"C1","label":"C1","values":[{"key":"vsSelf","v":0.1,"tone":"info"},{"key":"vsTeam","v":-0.1,"tone":"grade-r"}]},{"id":"C2","label":"C2","values":[{"key":"vsSelf","v":0.2,"tone":"info"},{"key":"vsTeam","v":0,"tone":"grade-r"}]},{"id":"C3","label":"C3","values":[{"key":"vsSelf","v":-0.1,"tone":"info"},{"key":"vsTeam","v":0.1,"tone":"grade-r"}]}]}},"calibrationKpi":{"type":"stat","data":{"value":0.18,"label":"Overall vs self","sub":"+0.18 (more lenient) · n=14"},"a11yLabel":"Overall calibration gap"},"radar":{"type":"radar","a11yLabel":"Subcategory profile","data":{"axes":[{"id":"E1","label":"E1","max":1.3},{"id":"E2","label":"E2","max":1.3},{"id":"E3","label":"E3","max":1.3},{"id":"I1","label":"I1","max":1.3},{"id":"I2","label":"I2","max":1.3},{"id":"I3","label":"I3","max":1.3},{"id":"C1","label":"C1","max":1.3},{"id":"C2","label":"C2","max":1.3},{"id":"C3","label":"C3","max":1.3}],"series":[{"key":"self","tone":"grade-s","values":{"E1":1.3,"E2":1,"E3":1,"I1":0.6,"I2":1,"I3":1.3,"C1":1,"C2":0.6,"C3":1}},{"key":"manager","tone":"grade-r","values":{"E1":1,"E2":1,"E3":0.6,"I1":0.6,"I2":1,"I3":1,"C1":1,"C2":1,"C3":0.6}},{"key":"team","tone":"info","values":{"E1":1,"E2":0.6,"E3":1,"I1":1,"I2":0.6,"I3":1,"C1":0.6,"C2":1,"C3":1}},{"key":"expected","style":"dashed","values":{"E1":1,"E2":1,"E3":1,"I1":1,"I2":1,"I3":1,"C1":1,"C2":1,"C3":1}}]}}};
 const R = (id, spec) => { const el = document.getElementById(id); if (el && window.TiCharts) window.TiCharts.renderChart(el, spec); };
 function renderAll() {
   R("fig-coverage", S.coverageGauge); R("fig-coverage-bars", S.coverageBars); R("fig-level", S.levelBox);
   R("fig-heatmap", S.heatmap); R("fig-alignment", S.alignment); R("fig-time", S.timeBars);
   R("fig-drivers", S.driversBars); R("fig-calibration", S.calibrationBars); R("fig-calibration-kpi", S.calibrationKpi);
+  R("fig-radar", S.radar);
 }
 function setTheme(t){ document.documentElement.setAttribute("data-theme", t); document.body.style.background = getComputedStyle(document.documentElement).getPropertyValue("--bg-app"); }
 document.getElementById("theme-toggle").addEventListener("click", () => {

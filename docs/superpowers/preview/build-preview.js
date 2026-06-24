@@ -55,8 +55,17 @@ const timeBars = { type: "bars", options: { mode: "grouped" }, a11yLabel: "Inter
 const driversBars = { type: "bars", options: { mode: "diverging" }, a11yLabel: "Performance drivers", data: { rows: SUBCATS.map( ( s, i ) => ( { id: s, label: s, values: [ { key: "divergence", v: ( ( i % 5 ) - 2 ) / 10, tone: ( i % 3 === 0 ) ? "grade-u" : "info" } ] } ) ) } };
 const calibrationBars = { type: "bars", options: { mode: "diverging" }, a11yLabel: "Grader calibration", data: { rows: SUBCATS.map( ( s, i ) => ( { id: s, label: s, values: [ { key: "vsSelf", v: ( ( i % 4 ) - 1 ) / 10, tone: "info" }, { key: "vsTeam", v: ( ( i % 3 ) - 1 ) / 10, tone: "grade-r" } ] } ) ) } };
 const calibrationKpi = { type: "stat", data: { value: 0.18, label: "Overall vs self", sub: "+0.18 (more lenient) · n=14" }, a11yLabel: "Overall calibration gap" };
+const radar = { type: "radar", a11yLabel: "Subcategory profile", data: {
+    axes: SUBCATS.map( ( s ) => ( { id: s, label: s, max: 1.3 } ) ),
+    series: [
+        { key: "self", tone: "grade-s", values: { E1: 1.3, E2: 1.0, E3: 1.0, I1: 0.6, I2: 1.0, I3: 1.3, C1: 1.0, C2: 0.6, C3: 1.0 } },
+        { key: "manager", tone: "grade-r", values: { E1: 1.0, E2: 1.0, E3: 0.6, I1: 0.6, I2: 1.0, I3: 1.0, C1: 1.0, C2: 1.0, C3: 0.6 } },
+        { key: "team", tone: "info", values: { E1: 1.0, E2: 0.6, E3: 1.0, I1: 1.0, I2: 0.6, I3: 1.0, C1: 0.6, C2: 1.0, C3: 1.0 } },
+        { key: "expected", style: "dashed", values: { E1: 1.0, E2: 1.0, E3: 1.0, I1: 1.0, I2: 1.0, I3: 1.0, C1: 1.0, C2: 1.0, C3: 1.0 } }
+    ]
+} };
 
-const SPECS = { coverageGauge, coverageBars, levelBox, heatmap, alignment, timeBars, driversBars, calibrationBars, calibrationKpi };
+const SPECS = { coverageGauge, coverageBars, levelBox, heatmap, alignment, timeBars, driversBars, calibrationBars, calibrationKpi, radar };
 
 // ---- the screen markup (mirrors frame-insights-cycle.html + the team calibration card; Alpine attrs resolved static) ----
 const card = ( title, intro, figId, wide, note ) => `
@@ -111,6 +120,7 @@ const body = `
                 <figure class="ti-chart" id="fig-heatmap" role="img"></figure>
                 <details class="ti-card-note"><summary>How it's calculated</summary><p>Relevancy-weighted mean grade per subcategory × group.</p></details>
             </section>
+            ${ card( "Subcategory profile (radar)", "Self / manager / team across the nine subcategories vs expected.", "fig-radar", false, "Each spoke is a subcategory; the dashed ring is the level-expected grade." ) }
             ${ card( "Self vs manager alignment", "Manager grade (x) vs self grade (y); bubble = team.", "fig-alignment", false, "Above the diagonal = self rates higher; below = blind spot." ) }
             ${ card( "Interview timing", "Planned vs finalised interviews per month.", "fig-time", false, "Planned = booked slots; finalised = a proxy for held." ) }
             ${ card( "Performance drivers", "Influence vs configured relevancy share per subcategory.", "fig-drivers", true, "Pearson influence minus configured share; flagged = possibly mis-weighted." ) }
@@ -131,6 +141,7 @@ function renderAll() {
   R("fig-coverage", S.coverageGauge); R("fig-coverage-bars", S.coverageBars); R("fig-level", S.levelBox);
   R("fig-heatmap", S.heatmap); R("fig-alignment", S.alignment); R("fig-time", S.timeBars);
   R("fig-drivers", S.driversBars); R("fig-calibration", S.calibrationBars); R("fig-calibration-kpi", S.calibrationKpi);
+  R("fig-radar", S.radar);
 }
 function setTheme(t){ document.documentElement.setAttribute("data-theme", t); document.body.style.background = getComputedStyle(document.documentElement).getPropertyValue("--bg-app"); }
 document.getElementById("theme-toggle").addEventListener("click", () => {
