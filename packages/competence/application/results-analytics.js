@@ -819,6 +819,80 @@ class ResultsAnalytics {
     }
 
     /**
+     * Manager-only — Grader Calibration (CA-68). Over the requesting grader's own evaluations (rows where
+     * `managerID === filter.managerID`, within the already-subtree-scoped frame), the signed gaps in WEIGHT space of
+     * the manager grade vs self and vs the team cumulative (`+` ⇒ the grader is more lenient than the comparison
+     * source). Plain unweighted deltas (design §3 "signed gaps in weight space" — no relevancy weighting). Rolled to
+     * overall / category / subcategory / per-competency; a pair is counted only when BOTH sides are graded; `n` is the
+     * number of distinct evaluations contributing to a cell, and a cell with `n < minCohortSize` is suppressed (so a
+     * 1–2-person cohort cannot de-anonymize the team source). Calibration is NOT snapshotted (it is per-grader); a
+     * closed cycle recomputes it from the closed evals.
+     *
+     * @method
+     * @param {Array<Object>} frame - CohortRow[]; competencies carry self/manager/teamWeight + category + subcategory.
+     * @param {Object} filter - { managerID, minCohortSize? }.
+     * @returns {Object} calibration payload (see design §3 contract).
+     * @public
+     */
+    computeCalibration( frame, filter ) {
+        const rows = Array.isArray( frame ) ? frame : [];
+        const managerID = ( filter && filter.managerID ) || "";
+        const minCohort = ( filter && typeof filter.minCohortSize === "number" ) ? filter.minCohortSize : MIN_COHORT_SIZE;
+        const cohort = managerID ? rows.filter( ( r ) => r && r.managerID === managerID ) : [];
+
+        const newCell = () => ( { vsSelf: { sum: 0, pairs: 0, evals: new Set() }, vsTeam: { sum: 0, pairs: 0, evals: new Set() } } );
+        const addGap = ( side, gap, evaluationID ) => { side.sum += gap; side.pairs += 1; side.evals.add( evaluationID ); };
+        const ensure = ( map, key ) => { if ( !map[ key ] ) { map[ key ] = newCell(); } return map[ key ]; };
+        const finalizeSide = ( side ) => ( ( side.evals.size < minCohort ) ? { suppressed: true, n: side.evals.size } : { meanGap: this.#round3( side.sum / side.pairs ), n: side.evals.size } );
+        const finalizeCell = ( cell ) => ( { vsSelf: finalizeSide( cell.vsSelf ), vsTeam: finalizeSide( cell.vsTeam ) } );
+
+        const overall = newCell();
+        const byCategory = {};
+        const bySubcategory = {};
+        const perCompetency = new Map();
+        let selfPairs = 0, teamPairs = 0;
+
+        for ( const row of cohort ) {
+            const comps = ( row.competencies && typeof row.competencies === "object" ) ? row.competencies : {};
+            for ( const code of Object.keys( comps ) ) {
+                const comp = comps[ code ];
+                if ( !comp || typeof comp.managerWeight !== "number" ) { continue; }   // manager hasn't graded → no calibration pair
+                if ( !perCompetency.has( code ) ) { perCompetency.set( code, { subcategory: comp.subcategory, cell: newCell() } ); }
+                const compCell = perCompetency.get( code ).cell;
+                if ( typeof comp.selfWeight === "number" ) {
+                    const gap = comp.managerWeight - comp.selfWeight;
+                    addGap( overall.vsSelf, gap, row.evaluationID );
+                    if ( comp.category ) { addGap( ensure( byCategory, comp.category ).vsSelf, gap, row.evaluationID ); }
+                    if ( comp.subcategory ) { addGap( ensure( bySubcategory, comp.subcategory ).vsSelf, gap, row.evaluationID ); }
+                    addGap( compCell.vsSelf, gap, row.evaluationID );
+                    selfPairs += 1;
+                }
+                if ( typeof comp.teamWeight === "number" ) {
+                    const gap = comp.managerWeight - comp.teamWeight;
+                    addGap( overall.vsTeam, gap, row.evaluationID );
+                    if ( comp.category ) { addGap( ensure( byCategory, comp.category ).vsTeam, gap, row.evaluationID ); }
+                    if ( comp.subcategory ) { addGap( ensure( bySubcategory, comp.subcategory ).vsTeam, gap, row.evaluationID ); }
+                    addGap( compCell.vsTeam, gap, row.evaluationID );
+                    teamPairs += 1;
+                }
+            }
+        }
+
+        const mapCells = ( map ) => { const out = {}; for ( const key of Object.keys( map ) ) { out[ key ] = finalizeCell( map[ key ] ); } return out; };
+        const perComp = Array.from( perCompetency.entries() ).map( ( [ code, entry ] ) => Object.assign( { code: code, subcategory: entry.subcategory }, finalizeCell( entry.cell ) ) );
+        perComp.sort( ( a, b ) => Math.abs( ( b.vsSelf && typeof b.vsSelf.meanGap === "number" ) ? b.vsSelf.meanGap : 0 ) - Math.abs( ( a.vsSelf && typeof a.vsSelf.meanGap === "number" ) ? a.vsSelf.meanGap : 0 ) );
+
+        return {
+            cohortSize: new Set( cohort.map( ( r ) => r.evaluationID ) ).size,
+            pairsCompared: { self: selfPairs, team: teamPairs },
+            overall: finalizeCell( overall ),
+            byCategory: mapCells( byCategory ),
+            bySubcategory: mapCells( bySubcategory ),
+            perCompetency: perComp
+        };
+    }
+
+    /**
      * Recursively flattens an org subtree node into a de-duplicated roster. The subtree's `.employees` are direct
      * members only; descendants live under `.children` (organization-manager.js:459-470), so the roster walks
      * `.children` recursively concatenating each node's `.employees`.
@@ -1001,6 +1075,8 @@ class ResultsAnalytics {
                 return { heatmap: this.computeCompetenceHeatmap( frame, filter ) };
             case "predictiveDrivers":  // CA-67 Task 3
                 return { predictiveDrivers: this.computePredictiveDrivers( frame, filter ) };
+            case "calibration":        // CA-68 — manager-scoped grader calibration (filter.managerID = the grader)
+                return { calibration: this.computeCalibration( frame, filter ) };
             case "timeDistribution":   // CA-67 Task 4 — slots + today injected on the filter by the resolver
                 return { timeDistribution: this.computeTimeDistribution( frame, filter ? filter.slots : null, filter ? filter.today : null ) };
             case "alignment":          // CA-67 Task 5 — midpoint/category injected on the filter by the web layer
@@ -1032,6 +1108,8 @@ class ResultsAnalytics {
                 return { levelDistribution: { groups: [], reference: [] } };
             case "predictiveDrivers":
                 return { predictiveDrivers: { rows: [], insufficientData: true } };
+            case "calibration":
+                return { calibration: { cohortSize: 0, pairsCompared: { self: 0, team: 0 }, overall: { vsSelf: { suppressed: true, n: 0 }, vsTeam: { suppressed: true, n: 0 } }, byCategory: {}, bySubcategory: {}, perCompetency: [] } };
             default:
                 return {};
         }

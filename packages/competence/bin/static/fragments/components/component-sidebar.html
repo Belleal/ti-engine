@@ -108,6 +108,14 @@
                 </span>
                 <span class="ti-sidebar-item-label" x-text-label="interface.navigation.insights-cycle">Cycle analytics</span>
             </button>
+
+            <button hx-get="/app/insights-team" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'insights'"
+                    x-bind:class="{ active: active === 'insights' }" class="ti-sidebar-item" data-tip="Team analytics" aria-label="Team analytics" type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon user md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.navigation.insights-team">Team analytics</span>
+            </button>
         </div>
     </div>
 

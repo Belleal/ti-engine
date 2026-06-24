@@ -99,6 +99,10 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "Cycle Analytics",
             path: "fragments/frame-insights-cycle.html"
         } );
+        this.addFragment( "insights-team", {
+            title: "Team Analytics",
+            path: "fragments/frame-insights-team.html"
+        } );
     }
 
     /* Public interface */
@@ -174,7 +178,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "archetype-editor": "administration",
                     "role-families": "administration",
                     "insights-overview": "insights",
-                    "insights-cycle": "insights"
+                    "insights-cycle": "insights",
+                    "insights-team": "insights"
                 },
                 componentsConfig: {
                     userProfileMenu: {
@@ -237,8 +242,12 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#loadEmployeeDetail( session, employeeID );
         } else if ( view === "load-insights-cycle" ) {
             return this.#loadInsightsCycle( session, options );
+        } else if ( view === "load-insights-team" ) {
+            return this.#loadInsightsTeam( session, options );
         } else if ( view === "load-report-coverage" ) {
             return this.#loadReportCoverage( session, options );
+        } else if ( view === "load-report-calibration" ) {
+            return this.#loadLeadershipReport( session, options, "calibration" );
         } else if ( view === "load-report-time-distribution" ) {
             return this.#loadLeadershipReport( session, options, "timeDistribution" );
         } else if ( view === "load-report-alignment" ) {
@@ -2551,10 +2560,84 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
-     * Returns the Coverage (R1) report payload for the requested cycle. Supervisor-only, org-wide.
-     * Injects the organization root unit id into the filter so the whole-org roster is non-empty
-     * (an empty/missing rootUnitID would yield a null org subtree → empty roster → 0/0 coverage).
-     * The analytics service branches live-vs-snapshot internally.
+     * Loads the Insights → Team analytics screen shell: the resolved cycle + the cycle-selector candidates, same as the
+     * cycle screen but gated MANAGER|SUPERVISOR. The reports themselves are scoped to the requesting user's subtree by
+     * the `?scope=team` report requests (#resolveReportScope), so this shell carries no scope beyond the cycle.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [options]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadInsightsTeam( session, options ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.MANAGER, configurationLoader.roleCode.SUPERVISOR );
+
+            const requestedCycleID = String( options?.query?.cycleID || "" ).trim();
+
+            Promise.all( [
+                dataManager.instance.getAllCycles(),
+                this.#resolveCurrentCycle()
+            ] ).then( ( [ cycles, currentCycle ] ) => {
+                const cycle = resultsAnalytics.pickCycleForRequest( cycles || [], requestedCycleID, currentCycle );
+                if ( !cycle ) {
+                    return resolve( { cycle: null, cycles: [] } );
+                }
+                resolve( {
+                    cycle: { id: cycle.cycleID, name: cycle.name, status: cycle.status },
+                    cycles: ( cycles || [] ).map( ( c ) => ( { id: c.cycleID, name: c.name, status: c.status } ) )
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Resolves the cohort scope for an Insights report request. `?scope=team` gates MANAGER|SUPERVISOR and scopes to the
+     * REQUESTING user's own multi-level subtree (manager → their team; supervisor → their unit's subtree) via the org
+     * graph + resolveScopeFilter (allow-list of subtree employee IDs); otherwise (the cycle screen) gates SUPERVISOR and
+     * uses whole-org (allowedEmployeeIDs null, org-root). The subtree allow-list is the authoritative cohort predicate
+     * (isSuperiorManagerOfEmployee, materialized once via the subtree roster — never managerID equality, §7.7).
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [options]
+     * @returns {Promise<{cycle:Object|null, filter:Object|null, scope:string, userID:string}>}
+     * @private
+     */
+    #resolveReportScope( session, options ) {
+        const scope = ( options?.query?.scope === "team" ) ? "team" : "org";
+        const context = ( scope === "team" )
+            ? this.#requireRole( session, configurationLoader.roleCode.MANAGER, configurationLoader.roleCode.SUPERVISOR )
+            : this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+        const requestedCycleID = String( options?.query?.cycleID || "" ).trim();
+
+        return Promise.all( [
+            dataManager.instance.getAllCycles(),
+            this.#resolveCurrentCycle()
+        ] ).then( ( [ cycles, currentCycle ] ) => {
+            const cycle = resultsAnalytics.pickCycleForRequest( cycles || [], requestedCycleID, currentCycle );
+            if ( !cycle ) {
+                return { cycle: null, filter: null, scope: scope, userID: context.userID };
+            }
+            let filter;
+            if ( scope === "team" ) {
+                const managerUnitID = organizationManager.instance.resolveOrganizationUnitIDForEmployee( context.userID );
+                const subtree = organizationManager.instance.getOrganizationUnitSubtree( managerUnitID );
+                const subtreeEmployeeIDs = resultsAnalytics.instance.buildRoster( subtree ).map( ( member ) => member.employeeID );
+                filter = resultsAnalytics.instance.resolveScopeFilter( { isSupervisor: false, employeeID: context.userID, managerUnitID: managerUnitID, subtreeEmployeeIDs: subtreeEmployeeIDs } );
+            } else {
+                filter = { allowedEmployeeIDs: null, rootUnitID: organizationManager.instance.getOrganizationRootUnitID() };
+            }
+            return { cycle: cycle, filter: filter, scope: scope, userID: context.userID };
+        } );
+    }
+
+    /**
+     * Returns the Coverage (R1) report payload for the requested cycle + scope (whole-org for the cycle screen, or the
+     * requesting user's subtree for `?scope=team`). The analytics service branches live-vs-snapshot internally.
      *
      * @method
      * @param {TiSession} session
@@ -2564,23 +2647,13 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #loadReportCoverage( session, options ) {
         return new Promise( ( resolve, reject ) => {
-            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
-
-            const requestedCycleID = String( options?.query?.cycleID || "" ).trim();
-            const rootUnitID = organizationManager.instance.getOrganizationRootUnitID();
-
-            Promise.all( [
-                dataManager.instance.getAllCycles(),
-                this.#resolveCurrentCycle()
-            ] ).then( ( [ cycles, currentCycle ] ) => {
-                const cycle = resultsAnalytics.pickCycleForRequest( cycles || [], requestedCycleID, currentCycle );
-                if ( !cycle ) {
+            this.#resolveReportScope( session, options ).then( ( scoped ) => {
+                if ( !scoped.cycle ) {
                     return resolve( { coverage: null, meta: null } );
                 }
-                const filter = { groupBy: "orgUnit", allowedEmployeeIDs: null, rootUnitID: rootUnitID };
-                return resultsAnalytics.instance.resolve( cycle.cycleID, filter, "coverage" ).then( ( report ) => {
-                    resolve( report );
-                } );
+                const groupBy = String( options?.query?.groupBy || "" ).trim() || "orgUnit";
+                const filter = Object.assign( { groupBy: groupBy }, scoped.filter );
+                return resultsAnalytics.instance.resolve( scoped.cycle.cycleID, filter, "coverage" ).then( resolve );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
@@ -2588,43 +2661,33 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
-     * Returns one of the org-wide leadership reports (R2–R6) for the requested cycle. Supervisor-only (the six
-     * leadership reports are supervisor-scoped, resolved §7.6). Whole-org scope (allowedEmployeeIDs null, rooted at the
-     * org-root unit). Source/grouping/category come from the query and ride on the filter; the analytics service
-     * branches live-vs-snapshot and injects calendar/today (R2) and the configured midpoint (R3) internally.
+     * Returns one leadership report (R2–R6, and calibration) for the requested cycle + scope. Whole-org (cycle screen,
+     * SUPERVISOR) or the requesting user's subtree (`?scope=team`, MANAGER|SUPERVISOR) per #resolveReportScope.
+     * Source/grouping/category ride on the filter; calibration additionally carries the requesting grader's managerID.
+     * The analytics service branches live-vs-snapshot and injects calendar/today (R2) and the midpoint (R3) internally.
      *
      * @method
      * @param {TiSession} session
      * @param {Object} [options]
-     * @param {string} reportKey - one of timeDistribution|alignment|heatmap|levelDistribution|predictiveDrivers.
+     * @param {string} reportKey - timeDistribution|alignment|heatmap|levelDistribution|predictiveDrivers|calibration.
      * @returns {Promise<Object>}
      * @private
      */
     #loadLeadershipReport( session, options, reportKey ) {
         return new Promise( ( resolve, reject ) => {
-            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
-
-            const requestedCycleID = String( options?.query?.cycleID || "" ).trim();
-            const rootUnitID = organizationManager.instance.getOrganizationRootUnitID();
-
-            Promise.all( [
-                dataManager.instance.getAllCycles(),
-                this.#resolveCurrentCycle()
-            ] ).then( ( [ cycles, currentCycle ] ) => {
-                const cycle = resultsAnalytics.pickCycleForRequest( cycles || [], requestedCycleID, currentCycle );
-                if ( !cycle ) {
+            this.#resolveReportScope( session, options ).then( ( scoped ) => {
+                if ( !scoped.cycle ) {
                     return resolve( { [ reportKey ]: null, meta: null } );
                 }
-                const filter = { allowedEmployeeIDs: null, rootUnitID: rootUnitID };
+                const filter = Object.assign( {}, scoped.filter );
                 const source = String( options?.query?.source || "" ).trim();
                 const groupBy = String( options?.query?.groupBy || "" ).trim();
                 const category = String( options?.query?.category || "" ).trim();
                 if ( source ) { filter.source = source; }
                 if ( groupBy ) { filter.groupBy = groupBy; }
                 if ( category ) { filter.category = category; }
-                return resultsAnalytics.instance.resolve( cycle.cycleID, filter, reportKey ).then( ( report ) => {
-                    resolve( report );
-                } );
+                if ( reportKey === "calibration" ) { filter.managerID = scoped.userID; }   // calibration = the requesting grader's own grading
+                return resultsAnalytics.instance.resolve( scoped.cycle.cycleID, filter, reportKey ).then( resolve );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );

@@ -890,3 +890,59 @@ describe( "ResultsAnalytics.computeAlignment (R3)", () => {
         assert.equal( drill.competencies[ 1 ].code, "E1-1" );
     } );
 } );
+
+/* ===================== CA-68 — Grader Calibration (R-Calibration) ===================== */
+
+describe( "ResultsAnalytics.computeCalibration (CA-68)", () => {
+    const wOf = ( g ) => ( g === "S" ? 1.3 : g === "R" ? 1.0 : g === "U" ? 0.6 : g === "N" ? 0.0 : null );
+    function calRow( evaluationID, managerID, comps ) {
+        const competencies = {};
+        for ( const code of Object.keys( comps ) ) {
+            const c = comps[ code ];
+            competencies[ code ] = { category: c.category, subcategory: c.subcategory || ( c.category + "1" ), managerWeight: wOf( c.manager ), selfWeight: wOf( c.self ), teamWeight: wOf( c.team ) };
+        }
+        return { evaluationID: evaluationID, managerID: managerID, competencies: competencies };
+    }
+    const three = ( mgr ) => [
+        calRow( "e1", mgr, { "E1-1": { category: "E", manager: "S", self: "R", team: "R" } } ),
+        calRow( "e2", mgr, { "E1-1": { category: "E", manager: "S", self: "R", team: "R" } } ),
+        calRow( "e3", mgr, { "E1-1": { category: "E", manager: "S", self: "R", team: "R" } } )
+    ];
+
+    it( "computes signed mgr−self / mgr−team gaps rolled to overall/category/subcategory (lenient = +)", () => {
+        const report = resultsAnalyticsInstance.computeCalibration( three( "mgr1" ), { managerID: "mgr1" } );
+        assert.equal( report.cohortSize, 3 );
+        assert.equal( report.overall.vsSelf.meanGap, 0.3 );   // S(1.3) − R(1.0)
+        assert.equal( report.overall.vsSelf.n, 3 );
+        assert.equal( report.overall.vsTeam.meanGap, 0.3 );
+        assert.equal( report.byCategory.E.vsSelf.meanGap, 0.3 );
+        assert.equal( report.bySubcategory.E1.vsSelf.meanGap, 0.3 );
+        assert.equal( report.perCompetency[ 0 ].code, "E1-1" );
+        assert.equal( report.pairsCompared.self, 3 );
+    } );
+
+    it( "filters to the requesting grader's own evaluations (other managers excluded)", () => {
+        const frame = three( "mgr1" ).concat( [ calRow( "x", "mgr2", { "E1-1": { category: "E", manager: "N", self: "S", team: "S" } } ) ] );
+        const report = resultsAnalyticsInstance.computeCalibration( frame, { managerID: "mgr1" } );
+        assert.equal( report.cohortSize, 3 );                 // mgr2's eval excluded
+        assert.equal( report.overall.vsSelf.meanGap, 0.3 );   // unaffected by mgr2
+    } );
+
+    it( "excludes pairs where a side is ungraded (no self grade → no vsSelf pair)", () => {
+        const frame = [
+            calRow( "e1", "mgr1", { "E1-1": { category: "E", manager: "S", self: "", team: "R" } } ),
+            calRow( "e2", "mgr1", { "E1-1": { category: "E", manager: "S", self: "", team: "R" } } ),
+            calRow( "e3", "mgr1", { "E1-1": { category: "E", manager: "S", self: "", team: "R" } } )
+        ];
+        const report = resultsAnalyticsInstance.computeCalibration( frame, { managerID: "mgr1" } );
+        assert.equal( report.pairsCompared.self, 0 );
+        assert.equal( report.overall.vsSelf.suppressed, true );   // 0 self pairs → suppressed
+        assert.equal( report.overall.vsTeam.meanGap, 0.3 );       // team pairs still present
+    } );
+
+    it( "suppresses a cell with fewer than minCohortSize (3) distinct evaluations", () => {
+        const report = resultsAnalyticsInstance.computeCalibration( three( "mgr1" ).slice( 0, 2 ), { managerID: "mgr1" } );
+        assert.equal( report.overall.vsSelf.suppressed, true );
+        assert.equal( report.overall.vsSelf.n, 2 );
+    } );
+} );

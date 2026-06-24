@@ -5766,6 +5766,10 @@
       "insights-cycle": {
         "en": "Cycle analytics",
         "bg": "Анализи на цикъла"
+      },
+      "insights-team": {
+        "en": "Team analytics",
+        "bg": "Анализи на екипа"
       }
     },
     "topbar": {
