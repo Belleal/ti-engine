@@ -6958,8 +6958,8 @@
         "bg": "Изключено"
       },
       "header-baseline-suffix": {
-        "en": "— Baseline",
-        "bg": "— Базов набор"
+        "en": "Baseline",
+        "bg": "Базов набор"
       },
       "header-description-baseline": {
         "en": "The baseline applies to every employee in this family, regardless of specialization.",

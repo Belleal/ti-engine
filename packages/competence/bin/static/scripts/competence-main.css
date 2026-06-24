@@ -3807,7 +3807,7 @@
 
 /* Column template for the Evaluations data grid: ID / Cycle / Level / Status / Interview / Open */
 .competence-empmgmt-eval-grid {
-    --ti-grid-cols: 110px 100px 80px 130px 1fr 100px;
+    --ti-grid-cols: 110px 60px 80px 130px 1fr 100px;
 }
 
 /* Padding mirrors .competence-empmgmt-form so the audit tab content aligns with Details / Evaluations. */
