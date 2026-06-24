@@ -510,31 +510,52 @@ const configureCompetenceEvaluation = () => {
             const snapshot = Array.isArray( ev.snapshot ) ? ev.snapshot : [];
             const stageLevel = ev.stageLevel || "";
             const round2 = ( n ) => Math.round( n * 100 ) / 100;
+            // An ungraded competency contributes weight 0 to a source's NUMERATOR but its full relevancy still counts in
+            // the SHARED denominator — exactly mirroring the server (competence-framework.js calculateFinalEvaluationScores
+            // keeps ONE maxScoreByCategory per scope, the same divisor for self/team/manager). This keeps every displayed
+            // per-source mean a faithful decomposition of the authoritative score: a source's gaps lower its mean just as
+            // they lowered its share of the score.
             const wOf = ( letter ) => ( Object.prototype.hasOwnProperty.call( gradeWeights, letter ) ? gradeWeights[ letter ] : null );
 
             const SUBCATS = [ "E1", "E2", "E3", "I1", "I2", "I3", "C1", "C2", "C3" ];
-            const acc = { employee: {}, manager: {}, team: {}, expected: {} };
-            const bump = ( map, key, num, den ) => { map[ key ] = map[ key ] || { num: 0, den: 0 }; map[ key ].num += num; map[ key ].den += den; };
+            const SOURCE_KEYS = [ "employee", "manager", "team" ];
+            const den = {};                                                       // shared per-scope divisor: Σ relevancy
+            const num = { employee: {}, manager: {}, team: {}, expected: {} };    // per-series weighted sums
+            const participated = { employee: false, manager: false, team: false };
+            const addDen = ( key, v ) => { den[ key ] = ( den[ key ] || 0 ) + v; };
+            const addNum = ( series, key, v ) => { num[ series ][ key ] = ( num[ series ][ key ] || 0 ) + v; };
 
             for ( let i = 0; i < snapshot.length; i++ ) {
                 const snap = snapshot[ i ];
                 const code = snap.code, cat = snap.category, subcat = snap.subcategory;
                 const rel = ( snap.relevancy && typeof snap.relevancy[ stageLevel ] === "number" ) ? snap.relevancy[ stageLevel ] : 0;
                 if ( !code || !cat || rel <= 0 ) { continue; }
-                const srcKeys = [ "employee", "manager", "team" ];
-                for ( let s = 0; s < srcKeys.length; s++ ) {
-                    const weight = wOf( this.gradeLetterFor( code, srcKeys[ s ] ) );
-                    if ( weight === null ) { continue; }
-                    bump( acc[ srcKeys[ s ] ], "cat:" + cat, weight * rel, rel );
-                    if ( subcat ) { bump( acc[ srcKeys[ s ] ], "sub:" + subcat, weight * rel, rel ); }
+                addDen( "cat:" + cat, rel );
+                if ( subcat ) { addDen( "sub:" + subcat, rel ); }
+                for ( let s = 0; s < SOURCE_KEYS.length; s++ ) {
+                    const weight = wOf( this.gradeLetterFor( code, SOURCE_KEYS[ s ] ) );
+                    if ( weight !== null ) { participated[ SOURCE_KEYS[ s ] ] = true; }
+                    const w = ( weight === null ) ? 0 : weight;
+                    addNum( SOURCE_KEYS[ s ], "cat:" + cat, w * rel );
+                    if ( subcat ) { addNum( SOURCE_KEYS[ s ], "sub:" + subcat, w * rel ); }
                 }
                 const ew = this.expectedGradeWeight( snap.relevancy, stageLevel, gradeWeights );
                 if ( ew !== null ) {
-                    bump( acc.expected, "cat:" + cat, ew * rel, rel );
-                    if ( subcat ) { bump( acc.expected, "sub:" + subcat, ew * rel, rel ); }
+                    addNum( "expected", "cat:" + cat, ew * rel );
+                    if ( subcat ) { addNum( "expected", "sub:" + subcat, ew * rel ); }
                 }
             }
-            const meanOf = ( source, key ) => { const a = acc[ source ][ key ]; return ( a && a.den > 0 ) ? ( a.num / a.den ) : null; };
+            // Omit a source that graded nothing at all (e.g. an evaluation that ran without a team) so it never renders as a
+            // misleading flat zero; self and manager are always complete by the time results are final.
+            for ( let s = 0; s < SOURCE_KEYS.length; s++ ) { if ( !participated[ SOURCE_KEYS[ s ] ] ) { num[ SOURCE_KEYS[ s ] ] = {}; } }
+            const meanOf = ( series, key ) => { const n = num[ series ][ key ]; return ( den[ key ] > 0 && typeof n === "number" ) ? ( n / den[ key ] ) : null; };
+
+            // Sources that actually participated — self/manager always; team only if it graded anything.
+            const activeSources = [
+                { key: "self", series: "employee", tone: "grade-s" },
+                { key: "manager", series: "manager", tone: "grade-r" }
+            ];
+            if ( participated.team ) { activeSources.push( { key: "team", series: "team", tone: "info" } ); }
 
             // category/subcategory display names from the competency tree (fallback to codes)
             const catName = {}, subName = {};
@@ -571,28 +592,22 @@ const configureCompetenceEvaluation = () => {
             // Source comparison: per category, grouped self/manager/team mean (weight space).
             this.resultsSourceBarsSpec = {
                 type: "bars", options: { mode: "grouped" },
-                data: { rows: [ "E", "I", "C" ].filter( ( cat ) => acc.employee[ "cat:" + cat ] || acc.manager[ "cat:" + cat ] || acc.team[ "cat:" + cat ] ).map( ( cat ) => ( {
-                    id: cat, label: catName[ cat ] || cat, values: [
-                        { key: "self", v: round2( meanOf( "employee", "cat:" + cat ) || 0 ), tone: "grade-s" },
-                        { key: "manager", v: round2( meanOf( "manager", "cat:" + cat ) || 0 ), tone: "grade-r" },
-                        { key: "team", v: round2( meanOf( "team", "cat:" + cat ) || 0 ), tone: "info" }
-                    ]
+                data: { rows: [ "E", "I", "C" ].filter( ( cat ) => den[ "cat:" + cat ] > 0 ).map( ( cat ) => ( {
+                    id: cat, label: catName[ cat ] || cat,
+                    values: activeSources.map( ( src ) => ( { key: src.key, v: round2( meanOf( src.series, "cat:" + cat ) || 0 ), tone: src.tone } ) )
                 } ) ) },
                 a11yLabel: "Self vs manager vs team by category"
             };
 
-            // Radar: 9 subcategories × self/manager/team + expected.
-            const subValues = ( source ) => { const out = {}; for ( let i = 0; i < SUBCATS.length; i++ ) { const m = meanOf( source, "sub:" + SUBCATS[ i ] ); if ( m !== null ) { out[ SUBCATS[ i ] ] = round2( m ); } } return out; };
+            // Radar: 9 subcategories × self/manager/team (whichever participated) + the maturity-step expected curve.
+            const subValues = ( series ) => { const out = {}; for ( let i = 0; i < SUBCATS.length; i++ ) { const m = meanOf( series, "sub:" + SUBCATS[ i ] ); if ( m !== null ) { out[ SUBCATS[ i ] ] = round2( m ); } } return out; };
             this.resultsRadarSpec = {
                 type: "radar",
                 data: {
                     axes: SUBCATS.map( ( s ) => ( { id: s, label: s, max: maxGrade } ) ),
-                    series: [
-                        { key: "self", tone: "grade-s", values: subValues( "employee" ) },
-                        { key: "manager", tone: "grade-r", values: subValues( "manager" ) },
-                        { key: "team", tone: "info", values: subValues( "team" ) },
+                    series: activeSources.map( ( src ) => ( { key: src.key, tone: src.tone, values: subValues( src.series ) } ) ).concat( [
                         { key: "expected", style: "dashed", values: subValues( "expected" ) }
-                    ]
+                    ] )
                 },
                 a11yLabel: "Subcategory profile: self, manager, team vs expected"
             };
