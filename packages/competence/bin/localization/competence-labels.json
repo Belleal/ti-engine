@@ -4825,6 +4825,17 @@
           "bg": "подкатегории оценени"
         }
       },
+      "results": {
+        "title": { "en": "Your results", "bg": "Вашите резултати" },
+        "desc": { "en": "Your final score, profile, and how the sources compare.", "bg": "Вашият краен резултат, профил и сравнение между източниците." },
+        "final-score": { "en": "Final score", "bg": "Краен резултат" },
+        "by-category": { "en": "By category", "bg": "По категория" },
+        "profile": { "en": "Subcategory profile", "bg": "Профил по подкатегории" },
+        "source-comparison": { "en": "Self vs manager vs team", "bg": "Самооценка / мениджър / екип" },
+        "strengths": { "en": "Strengths", "bg": "Силни страни" },
+        "gaps": { "en": "Development areas", "bg": "Области за развитие" },
+        "none": { "en": "—", "bg": "—" }
+      },
       "instructions": {
         "title": {
           "en": "How to Grade",
