@@ -492,6 +492,59 @@ const TiCharts = ( function () {
     }
 
     /**
+     * Lays out a radar/spider chart: N axes evenly spaced (clockwise from the top), concentric polygon rings, and one
+     * polygon per series with each vertex at radius rMax·(value/axisMax) on its axis. Pure (angle math in JS).
+     * @param {Array<{id,label,max}>} axes
+     * @param {Array<{key,values:Object,tone?,style?}>} series
+     * @param {Object} [opts] {cx=50,cy=50,rMax=36,startAngle=-90,rings=[.25,.5,.75,1],labelPad=7}
+     * @returns {{cx,cy,rMax,axes:Array,rings:Array,series:Array}}
+     */
+    function radarLayout( axes, series, opts ) {
+        const o = opts || {};
+        const cx = ( typeof o.cx === "number" ) ? o.cx : 50;
+        const cy = ( typeof o.cy === "number" ) ? o.cy : 50;
+        const rMax = ( typeof o.rMax === "number" ) ? o.rMax : 36;
+        const startAngle = ( typeof o.startAngle === "number" ) ? o.startAngle : -90;
+        const labelPad = ( typeof o.labelPad === "number" ) ? o.labelPad : 7;
+        const ringFractions = Array.isArray( o.rings ) ? o.rings : [ 0.25, 0.5, 0.75, 1 ];
+        const axisList = Array.isArray( axes ) ? axes : [];
+        const n = axisList.length;
+        const step = ( n > 0 ) ? ( 360 / n ) : 0;
+
+        const axisGeom = axisList.map( ( ax, i ) => {
+            const angle = startAngle + ( i * step );
+            const outer = _polar( cx, cy, rMax, angle );
+            const label = _polar( cx, cy, rMax + labelPad, angle );
+            return {
+                id: ax.id, label: ( ax.label !== undefined ) ? ax.label : ax.id,
+                max: ( typeof ax.max === "number" && ax.max > 0 ) ? ax.max : 1,
+                angle: angle, outerX: _round( outer.x ), outerY: _round( outer.y ),
+                labelX: _round( label.x ), labelY: _round( label.y )
+            };
+        } );
+
+        const rings = ringFractions.map( ( frac ) => ( {
+            frac: frac,
+            points: axisGeom.map( ( ag ) => { const p = _polar( cx, cy, rMax * frac, ag.angle ); return _round( p.x ) + "," + _round( p.y ); } ).join( " " )
+        } ) );
+
+        const seriesList = Array.isArray( series ) ? series : [];
+        const laidSeries = seriesList.map( ( s ) => {
+            const dots = [];
+            const points = axisGeom.map( ( ag ) => {
+                const raw = ( s.values && typeof s.values[ ag.id ] === "number" ) ? s.values[ ag.id ] : 0;
+                const ratio = _clamp( raw / ag.max, 0, 1 );
+                const p = _polar( cx, cy, rMax * ratio, ag.angle );
+                dots.push( { x: _round( p.x ), y: _round( p.y ), axisId: ag.id, value: raw } );
+                return _round( p.x ) + "," + _round( p.y );
+            } );
+            return { key: s.key, tone: s.tone || "", style: s.style || "", points: points.join( " " ), dots: dots };
+        } );
+
+        return { cx: cx, cy: cy, rMax: rMax, axes: axisGeom, rings: rings, series: laidSeries };
+    }
+
+    /**
      * Attaches CSP-safe drill interactivity to an element: tabindex/role + click & Enter/Space listeners dispatching a
      * bubbling `ti-chart:select` CustomEvent. In non-DOM environments (unit tests) it sets the a11y attributes and
      * returns without wiring listeners.
@@ -507,11 +560,11 @@ const TiCharts = ( function () {
         el.addEventListener( "keydown", ( e ) => { if ( e.key === "Enter" || e.key === " " ) { e.preventDefault(); fire(); } } );
     }
 
-    const SUPPORTED_TYPES = [ "gauge", "bars", "stat", "scatter", "heatmap", "box" ]; // Phase 0: gauge/bars/stat; Phase 1A adds scatter/heatmap/box (radar/line still deferred)
+    const SUPPORTED_TYPES = [ "gauge", "bars", "stat", "scatter", "heatmap", "box", "radar" ]; // P0 gauge/bars/stat; 1A scatter/heatmap/box; P3 radar (line still deferred)
 
     /**
      * @typedef {Object} TiChartSpec
-     * @property {"gauge"|"bars"|"stat"|"scatter"|"heatmap"|"box"} type   Phase 0: gauge/bars/stat; Phase 1A: scatter/heatmap/box.
+     * @property {"gauge"|"bars"|"stat"|"scatter"|"heatmap"|"box"|"radar"} type   P0: gauge/bars/stat; 1A: scatter/heatmap/box; P3: radar.
      * @property {Object}  data                 per-primitive payload (the aggregation output)
      * @property {Object}  [options]            domains, sizing, labels, formatting
      * @property {string}  a11yLabel            role=img label (also injected as <title>)
@@ -881,6 +934,57 @@ const TiCharts = ( function () {
     }
 
     /**
+     * Renders a radar/spider chart (the individual 9-subcategory profile): concentric polygon rings, axis spokes +
+     * labels, one filled polygon per series (self/manager/team), and an optional dashed "expected" series. All geometry
+     * via radarLayout + setAttribute; an "expected"/provisional series draws unfilled with stroke-dasharray.
+     * @param {Element} figure
+     * @param {TiChartSpec} spec
+     */
+    function renderRadar( figure, spec ) {
+        const data = spec.data;
+        const axes = Array.isArray( data.axes ) ? data.axes : [];
+        const series = Array.isArray( data.series ) ? data.series : [];
+        if ( axes.length === 0 ) { figure.setAttribute( "data-ti-chart-empty", "1" ); return; }
+        const layout = radarLayout( axes, series, spec.options || {} );
+
+        const svg = svgEl( "svg", { viewBox: "0 0 100 100", preserveAspectRatio: "xMidYMid meet", role: "img" } );
+        _appendA11yTitle( svg, spec );
+
+        for ( let i = 0; i < layout.rings.length; i++ ) {
+            svg.appendChild( svgEl( "polygon", { points: layout.rings[ i ].points, class: "ti-chart-radar-ring", fill: "none" } ) );
+        }
+        for ( let i = 0; i < layout.axes.length; i++ ) {
+            const ax = layout.axes[ i ];
+            svg.appendChild( svgEl( "line", { x1: layout.cx, y1: layout.cy, x2: ax.outerX, y2: ax.outerY, class: "ti-chart-radar-spoke" } ) );
+            const t = svgEl( "text", { x: ax.labelX, y: ax.labelY, class: "ti-chart-radar-axis-label", "text-anchor": "middle", "dominant-baseline": "central" } );
+            t.textContent = String( ax.label ); svg.appendChild( t );
+        }
+        for ( let i = 0; i < layout.series.length; i++ ) {
+            const s = layout.series[ i ];
+            let cls = "ti-chart-radar-poly"; if ( s.tone ) { cls = cls + " tone-" + s.tone; }
+            const poly = svgEl( "polygon", { points: s.points, class: cls } );
+            if ( s.style === "dashed" || spec.provisional ) { poly.setAttribute( "fill", "none" ); poly.setAttribute( "stroke-dasharray", "3 2" ); }
+            svg.appendChild( poly );
+            for ( let d = 0; d < s.dots.length; d++ ) {
+                let dotCls = "ti-chart-radar-dot"; if ( s.tone ) { dotCls = dotCls + " tone-" + s.tone; }
+                svg.appendChild( svgEl( "circle", { cx: s.dots[ d ].x, cy: s.dots[ d ].y, r: 0.9, class: dotCls } ) );
+            }
+        }
+        figure.appendChild( svg );
+
+        const headers = [ "Axis" ].concat( layout.series.map( ( s ) => s.key ) );
+        const srRows = layout.axes.map( ( ax ) => {
+            const row = [ String( ax.label ) ];
+            for ( let i = 0; i < layout.series.length; i++ ) {
+                const dot = layout.series[ i ].dots.find( ( d ) => d.axisId === ax.id );
+                row.push( dot ? formatNumber( dot.value, 2 ) : "—" );
+            }
+            return row;
+        } );
+        figure.appendChild( buildSrTable( headers, srRows ) );
+    }
+
+    /**
      * Top-level dispatcher: clears the host figure, normalizes the spec, routes to a renderer.
      * @param {Element} figure  host <figure class="ti-chart">
      * @param {*} rawSpec
@@ -898,6 +1002,7 @@ const TiCharts = ( function () {
         else if ( spec.type === "scatter" ) { renderScatter( figure, spec ); }
         else if ( spec.type === "heatmap" ) { renderHeatmap( figure, spec ); }
         else if ( spec.type === "box" ) { renderBox( figure, spec ); }
+        else if ( spec.type === "radar" ) { renderRadar( figure, spec ); }
         else { figure.setAttribute( "data-ti-chart-empty", "1" ); }
     }
 
@@ -914,6 +1019,7 @@ const TiCharts = ( function () {
         boxLayout,
         barsGroupedLayout,
         barsDivergingLayout,
+        radarLayout,
         svgEl,
         buildSrTable,
         renderChart,

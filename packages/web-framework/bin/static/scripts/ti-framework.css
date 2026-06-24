@@ -2612,6 +2612,7 @@ body {
 .ti-chart[data-ti-chart-type="heatmap"] svg { max-width: 480px; }
 .ti-chart[data-ti-chart-type="box"] svg     { max-width: 680px; }
 .ti-chart[data-ti-chart-type="bars"] svg    { max-width: 640px; }
+.ti-chart[data-ti-chart-type="radar"] svg   { max-width: 360px; }
 
 /* Visually-hidden a11y mirror table (screen-reader only). */
 .ti-chart-sr {
@@ -2904,3 +2905,20 @@ body {
     fill: var(--c-ink);
     font-size: 4px;
 }
+
+/* --- radar (individual subcategory profile) --- */
+.ti-chart-radar-ring  { stroke: var(--c-grid); stroke-width: 0.4; }
+.ti-chart-radar-spoke { stroke: var(--c-grid); stroke-width: 0.3; }
+.ti-chart-radar-axis-label { fill: var(--c-ink); font-size: 3.6px; }
+.ti-chart-radar-poly  { fill: var(--c-series-1); fill-opacity: 0.12; stroke: var(--c-series-1); stroke-width: 0.8; }
+.ti-chart-radar-poly.tone-grade-s { fill: var(--c-grade-s); stroke: var(--c-grade-s); }
+.ti-chart-radar-poly.tone-grade-r { fill: var(--c-grade-r); stroke: var(--c-grade-r); }
+.ti-chart-radar-poly.tone-grade-u { fill: var(--c-grade-u); stroke: var(--c-grade-u); }
+.ti-chart-radar-poly.tone-grade-n { fill: var(--c-grade-n); stroke: var(--c-grade-n); }
+.ti-chart-radar-poly.tone-info    { fill: var(--c-series-2); stroke: var(--c-series-2); }
+.ti-chart-radar-dot   { fill: var(--c-series-1); }
+.ti-chart-radar-dot.tone-grade-s { fill: var(--c-grade-s); }
+.ti-chart-radar-dot.tone-grade-r { fill: var(--c-grade-r); }
+.ti-chart-radar-dot.tone-grade-u { fill: var(--c-grade-u); }
+.ti-chart-radar-dot.tone-grade-n { fill: var(--c-grade-n); }
+.ti-chart-radar-dot.tone-info    { fill: var(--c-series-2); }

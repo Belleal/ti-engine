@@ -32,6 +32,7 @@ describe( "ti-charts module", () => {
         assert.equal( typeof TiCharts.boxLayout, "function" );
         assert.equal( typeof TiCharts.barsGroupedLayout, "function" );
         assert.equal( typeof TiCharts.barsDivergingLayout, "function" );
+        assert.equal( typeof TiCharts.radarLayout, "function" );
     } );
 } );
 
@@ -455,5 +456,55 @@ describe( "ti-charts — Phase-1 renderers (CSP discipline + structure)", () => 
         const svg = svgOf( diverging )[ 0 ];
         assert.equal( collect( svg, ( n ) => n.attrs && n.attrs.class === "ti-chart-bar-axis" ).length, 1 );  // zero axis
         assert.ok( collect( svg, ( n ) => n.tag === "rect" ).length >= 2 );
+    } );
+
+    it( "radar: rings + axis labels + one polygon per series + sr-table; data-ti-chart-type set", () => {
+        const figure = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
+            type: "radar", a11yLabel: "Profile",
+            data: {
+                axes: [ { id: "E1", label: "E1", max: 1.3 }, { id: "I1", label: "I1", max: 1.3 }, { id: "C1", label: "C1", max: 1.3 } ],
+                series: [ { key: "self", tone: "grade-s", values: { E1: 1.3, I1: 1.0, C1: 0.6 } }, { key: "expected", style: "dashed", values: { E1: 1.0, I1: 1.0, C1: 1.0 } } ]
+            }
+        } ) );
+        assert.equal( figure.attrs[ "data-ti-chart-type" ], "radar" );
+        const svg = svgOf( figure )[ 0 ];
+        const polys = collect( svg, ( n ) => n.tag === "polygon" );
+        const rings = polys.filter( ( p ) => p.attrs.class === "ti-chart-radar-ring" );
+        const seriesPolys = polys.filter( ( p ) => p.attrs.class && p.attrs.class.indexOf( "ti-chart-radar-poly" ) >= 0 );
+        assert.equal( rings.length, 4 );                 // default 4 rings
+        assert.equal( seriesPolys.length, 2 );           // self + expected
+        assert.equal( collect( svg, ( n ) => n.attrs && n.attrs.class === "ti-chart-radar-axis-label" ).length, 3 );
+        // the dashed "expected" series is unfilled with a stroke-dasharray presentation attr (not element.style)
+        const expected = seriesPolys.find( ( p ) => p.attrs[ "stroke-dasharray" ] );
+        assert.ok( expected && expected.attrs.fill === "none" );
+        assert.equal( srTableOf( figure ).length, 1 );
+    } );
+} );
+
+describe( "ti-charts — radarLayout (P3)", () => {
+    const axes = [ { id: "E1", label: "E1", max: 1.3 }, { id: "I1", label: "I1", max: 1.3 }, { id: "C1", label: "C1", max: 1.3 }, { id: "C2", label: "C2", max: 1.3 } ];
+
+    it( "spaces N axes evenly clockwise from the top (-90°)", () => {
+        const l = TiCharts.radarLayout( axes, [], {} );
+        assert.equal( l.axes.length, 4 );
+        assert.equal( l.axes[ 0 ].angle, -90 );          // first axis at top
+        assert.equal( l.axes[ 1 ].angle, 0 );            // -90 + 360/4
+        assert.equal( l.axes[ 2 ].angle, 90 );
+    } );
+    it( "places a value at max on the rim and 0 at the centre; clamps value>max", () => {
+        const l = TiCharts.radarLayout( axes, [ { key: "s", values: { E1: 1.3, I1: 0, C1: 2.6 } } ], { cx: 50, cy: 50, rMax: 36 } );
+        const dots = l.series[ 0 ].dots;
+        const e1 = dots.find( ( d ) => d.axisId === "E1" );   // max → rim: distance 36 from centre (top → y = 50-36 = 14)
+        const i1 = dots.find( ( d ) => d.axisId === "I1" );   // 0 → centre
+        const c1 = dots.find( ( d ) => d.axisId === "C1" );   // 2.6 clamped to max → rim
+        assert.equal( Math.round( Math.hypot( e1.x - 50, e1.y - 50 ) ), 36 );
+        assert.deepEqual( { x: i1.x, y: i1.y }, { x: 50, y: 50 } );
+        assert.equal( Math.round( Math.hypot( c1.x - 50, c1.y - 50 ) ), 36 );
+    } );
+    it( "emits a points string with one vertex per axis + the default 4 rings", () => {
+        const l = TiCharts.radarLayout( axes, [ { key: "s", values: { E1: 1, I1: 1, C1: 1, C2: 1 } } ], {} );
+        assert.equal( l.series[ 0 ].points.split( " " ).length, 4 );
+        assert.equal( l.rings.length, 4 );
     } );
 } );
