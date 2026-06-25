@@ -22,6 +22,7 @@ The following features are currently implemented:
 - **[Data]** Employee data management and retrieval from Redis
 - **[Data]** Evaluation persistence in Redis with full workflow state tracking
 - **[Data]** Calendar slot persistence in Redis with `available`, `booked`, `busy`, and `deleted` (logical) states
+- **[Data]** Immutable per-cycle results snapshots in Redis — anonymized aggregates (counts / means / percentiles, with small cohorts suppressed) written on cycle close, powering closed-cycle and cross-cycle reporting at near-zero compute
 - **[UI]** Dashboard screen — personalized landing page with appraisal cycle progress, evaluation status, role-specific metrics, a contextual task list, and an activity feed
 - **[UI]** Employees List screen — hierarchical organization chart view with role-aware data and evaluation status
 - **[UI]** Evaluation Form screen — role-specific grading interface with deadline and submit-state awareness
@@ -32,6 +33,7 @@ The following features are currently implemented:
 - **[UI]** Cycle Setup screen — Supervisor-only two-pane editor for the Active Competency Sets of a cycle; tree of families and specializations, cap and floor-coverage indicators, pool-scoped competency picker, per-family include/exclude, clone-from-another-node flow
 - **[UI]** Employee Management screen — Supervisor + Manager master/detail editor with field-level permission gating, audit log, in-flight evaluation count surfaced on role-family changes
 - **[UI]** Administration screens (admin-allowlisted users) — Configuration landing (config change feed, validated restore, export-to-git bundle), Competency Text Editor (bilingual, for BG review), Archetype Assignment, Archetype Curve Editor, and Role Families editor
+- **[UI]** Insights — Statistics & Results analytics (Manager / Supervisor): Cycle and Team analytics (coverage, interview timing, self-vs-manager alignment, competence heatmap, score-by-level distribution, predictive drivers, grader calibration), individual results on the evaluation view plus a self-scoped "My results" screen, and Supervisor-only cross-cycle Trends (score trend, gap-closure, ladder movement, cohort comparison) with a per-employee history line — each chart carrying a methodology explainer, all bilingual (en/bg)
 - **[Config]** Admin configuration management — versioned, validated, restorable editing of the competency dictionary, localization, relevancy archetypes, role families, and active competency sets through the UI, with export back to the source JSON files (reusable machinery lives in `@ti-engine/web-framework`)
 
 > **Note on planned features:** Step 8 of the process (goal-setting and formal closure) is part of the full intended workflow and is described below, but is not yet implemented.
