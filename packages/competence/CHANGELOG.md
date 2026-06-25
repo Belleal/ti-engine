@@ -6,7 +6,7 @@ This document contains the list of changes made to the competence package. The f
 
 ### Statistics & Results reporting (CA-61, Phases 0–4)
 
-A complete competency-analytics reporting capability over the appraisal data — reading live for the active cycle and from immutable per-cycle snapshots for closed cycles. Design + running log: `design/statistics-and-results.md`. Requires web-framework ≥ 1.10.0 (the ti-chart primitives).
+A complete competency-analytics reporting capability over the appraisal data — reading live for the active cycle and from immutable per-cycle snapshots for closed cycles. Design + running log: `design/completed/statistics-and-results.md`. Requires web-framework ≥ 1.10.0 (the ti-chart primitives).
 
 * feat(competence): aggregation service `application/results-analytics.js` — a frozen-singleton with pure cohort-frame + report computations and a live/snapshot resolver; the eighth Redis-JSON cache key `ti:competence:data:results-snapshots` with `saveResultsSnapshot`/`getResultsSnapshot`/`getAllResultsSnapshots` accessors, written immutably on cycle close (`#closeCycle → persistResultsSnapshot`, re-reading `actualCloseDate`). (Phase 0, CA-62…65)
 * feat(competence): six leadership reports on the Insights → Cycle analytics screen — Coverage (gauge + by-group bars + pending list), Interview timing, Self-vs-manager alignment quadrant, competence heatmap, score-distribution-by-level box plots, and predictive drivers — each with a labels-sourced methodology / what-it-shows block (en/bg). (Phase 1, CA-66/67)
