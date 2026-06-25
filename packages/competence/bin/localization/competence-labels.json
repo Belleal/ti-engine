@@ -4834,7 +4834,9 @@
         "source-comparison": { "en": "Self vs manager vs team", "bg": "Самооценка / мениджър / екип" },
         "strengths": { "en": "Strengths", "bg": "Силни страни" },
         "gaps": { "en": "Development areas", "bg": "Области за развитие" },
-        "none": { "en": "—", "bg": "—" }
+        "none": { "en": "—", "bg": "—" },
+        "history-title": { "en": "Score history", "bg": "История на резултата" },
+        "history-desc": { "en": "Your final score across past appraisal cycles.", "bg": "Вашият краен резултат през миналите цикли на оценяване." }
       },
       "instructions": {
         "title": {

@@ -203,6 +203,12 @@
                             <div class="competence-eval-empty-comment" x-show="resultsGaps.length === 0" x-text-label="interface.evaluation.results.none">—</div>
                         </div>
                     </section>
+                    <!-- CA-X4 — the employee's own score history across cycles (My results only; needs ≥2 reported cycles) -->
+                    <section class="ti-card ti-card-wide" x-show="hasHistory()">
+                        <h2 class="ti-card-title" x-text-label="interface.evaluation.results.history-title">Score history</h2>
+                        <p class="ti-panel-body-intro" x-text-label="interface.evaluation.results.history-desc"></p>
+                        <figure class="ti-chart" x-ti-chart="resultsHistorySpec" role="img" x-bind:aria-label="getResultsHistoryAriaLabel()"></figure>
+                    </section>
                 </div>
             </div>
 

@@ -1382,6 +1382,35 @@ class ResultsAnalytics {
     }
 
     /**
+     * Pure per-employee historical score line (CA-X4). Over ONE employee's reported (Ready/Closed, scored) evaluations,
+     * sorted chronologically by cycleDate, shapes a single finalScore line. The web layer gates access (self / superior
+     * manager / supervisor) and passes the raw evaluations — this NEVER touches the anonymous snapshots. Returns
+     * { noHistory:true } when fewer than minCycles (default 2) reported cycles exist.
+     *
+     * @method
+     * @param {Array<Object>} evaluations - one employee's evaluations (raw).
+     * @param {Object} [options] - { minCycles?:number }
+     * @returns {{history:{x:Array,series:Array}}|{noHistory:true}}
+     * @public
+     */
+    buildEmployeeHistory( evaluations, options ) {
+        const minCycles = ( options && typeof options.minCycles === "number" ) ? options.minCycles : 2;
+        const rows = ( Array.isArray( evaluations ) ? evaluations : [] )
+            .filter( ( ev ) => ev && ( ev.status === configurationLoader.evaluationStatus.READY || ev.status === configurationLoader.evaluationStatus.CLOSED ) && ev.finalScore && typeof ev.finalScore.score === "number" )
+            .slice()
+            .sort( ( a, b ) => String( a.cycleDate || a.cycleID || "" ).localeCompare( String( b.cycleDate || b.cycleID || "" ) ) );
+        if ( rows.length < minCycles ) {
+            return { noHistory: true };
+        }
+        return {
+            history: {
+                x: rows.map( ( r ) => ( { id: r.cycleID, label: r.cycleID } ) ),
+                series: [ { key: "score", tone: "grade-s", values: rows.map( ( r ) => r.finalScore.score ) } ]
+            }
+        };
+    }
+
+    /**
      * Dispatches a frame to the requested report computation. The six leadership report keys are all listed here so a
      * new report swaps exactly one branch from its empty stub to its real compute (avoids the shared-dispatcher merge
      * hot-spot). Inputs beyond (frame, roster, filter) — archetype weights (R4/R5), calendar slots + today (R2),

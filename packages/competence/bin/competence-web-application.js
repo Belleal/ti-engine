@@ -280,6 +280,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#loadAlignmentDrill( session, options );
         } else if ( view === "load-results-trend" ) {
             return this.#loadResultsTrend( session, options );
+        } else if ( view === "load-employee-history" ) {
+            return this.#loadEmployeeHistory( session, options );
         } else {
             return super.processDataRequest( session, view, options );
         }
@@ -2812,6 +2814,39 @@ class CompetenceWebApplication extends TiWebAppManager {
             };
             resultsAnalytics.instance.computeTrend( params )
                 .then( resolve )
+                .catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Per-employee historical finalScore line (CA-X4). Access-gated server-side: the requester may see their OWN history
+     * (self), a Supervisor may see anyone, a Manager only an employee in their multi-level subtree
+     * (isSuperiorManagerOfEmployee — never managerID equality). Reads the RAW evaluations for the target (never the
+     * anonymous snapshots) and shapes a chronological line via resultsAnalytics.buildEmployeeHistory ({noHistory:true}
+     * below two reported cycles).
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [options]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadEmployeeHistory( session, options ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireSessionUser( session );
+            const requestedID = String( options?.query?.employeeID || "" ).trim();
+            const targetID = requestedID || userID;   // default to the requester's own history
+
+            const isSelf = targetID === userID;
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+            if ( !isSelf && !isSupervisor && !organizationManager.instance.isSuperiorManagerOfEmployee( userID, targetID ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "Not authorized to view this employee's history." }, exceptions.httpCode.C_403 ) );
+            }
+
+            dataManager.instance.fetchEvaluations( targetID, false )
+                .then( ( evaluations ) => {
+                    resolve( Object.assign( { employeeID: targetID }, resultsAnalytics.instance.buildEmployeeHistory( evaluations || [] ) ) );
+                } )
                 .catch( ( error ) => reject( exceptions.raise( error ) ) );
         } );
     }

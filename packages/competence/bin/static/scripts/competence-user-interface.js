@@ -47,6 +47,9 @@ const configureCompetenceEvaluation = () => {
         resultsRadarSpec: { type: "radar", data: { axes: [], series: [] }, a11yLabel: "" },
         resultsStrengths: [],
         resultsGaps: [],
+        // CA-X4 — the requester's own historical finalScore line, shown on "My results" only.
+        resultsHistoryReady: false,
+        resultsHistorySpec: { type: "line", data: { x: [], series: [] }, options: {}, a11yLabel: "" },
 
         init() {
             const onInitialized = () => {
@@ -102,6 +105,7 @@ const configureCompetenceEvaluation = () => {
             // via the self-scoped load-my-results endpoint, since load-evaluation rejects CLOSED.
             const isMyResults = !!( window.location && window.location.pathname && window.location.pathname.indexOf( "my-results" ) >= 0 );
             const url = isMyResults ? "/app/load-my-results" : `/app/load-evaluation${ paramString ? `?${ paramString }` : "" }`;
+            this.resultsHistoryReady = false;
             tiApplication.sendRequest( url ).then( ( result ) => {
                 if ( result?.data?.noEvaluation ) {
                     this.showEvaluationForm = false;
@@ -112,6 +116,7 @@ const configureCompetenceEvaluation = () => {
                 this.noEvaluationState = null;
                 this.showEvaluationForm = true;
                 this.applyData( result?.data );
+                if ( isMyResults ) { this.loadOwnHistory(); }
             } ).catch( ( error ) => {
                 if ( error?.name === "AbortError" || error?.isAborted ) {
                     return;
@@ -124,6 +129,25 @@ const configureCompetenceEvaluation = () => {
                     tiApplication.openScreen( "dashboard" );
                 }
             } );
+        },
+
+        // CA-X4 — fetches the requesting employee's own historical score line (self-scoped; the endpoint gates access)
+        // and builds the line spec. Silent on failure / too-few cycles — the card just stays hidden.
+        loadOwnHistory() {
+            tiApplication.sendRequest( "/app/load-employee-history" ).then( ( result ) => {
+                const data = ( result && result.data ) ? result.data : {};
+                if ( data.noHistory || !data.history || !Array.isArray( data.history.x ) || data.history.x.length === 0 ) {
+                    this.resultsHistoryReady = false;
+                    return;
+                }
+                this.resultsHistorySpec = {
+                    type: "line",
+                    data: { x: data.history.x, series: data.history.series },
+                    options: {},
+                    a11yLabel: tiApplication.getLabel( "interface.evaluation.results.history-title", "Score history" )
+                };
+                this.resultsHistoryReady = true;
+            } ).catch( () => { this.resultsHistoryReady = false; } );
         },
 
         reset() {
@@ -631,7 +655,10 @@ const configureCompetenceEvaluation = () => {
         getResultsHeroAriaLabel() { return this.resultsHeroSpec.a11yLabel; },
         getResultsCategoryAriaLabel() { return this.resultsCategoryBarsSpec.a11yLabel; },
         getResultsSourceAriaLabel() { return this.resultsSourceBarsSpec.a11yLabel; },
-        getResultsRadarAriaLabel() { return this.resultsRadarSpec.a11yLabel; }
+        getResultsRadarAriaLabel() { return this.resultsRadarSpec.a11yLabel; },
+
+        hasHistory() { return this.resultsHistoryReady === true; },
+        getResultsHistoryAriaLabel() { return this.resultsHistorySpec.a11yLabel; }
 
     };
 };
