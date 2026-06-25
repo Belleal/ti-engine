@@ -530,6 +530,7 @@ const configureCompetenceEvaluation = () => {
             const cfg = tiApplication.configuration || {};
             const gradeWeights = cfg.gradeWeights || { S: 1.3, R: 1.0, U: 0.6, N: 0.0 };
             const evalWeights = cfg.evaluationWeights || { self: 0.2, team: 0.3, manager: 0.5 };
+            const scoreMax = Number( cfg.performanceThresholds && cfg.performanceThresholds.T5 ) || 150;
             const maxGrade = ( typeof gradeWeights.S === "number" ) ? gradeWeights.S : 1.3;
             const snapshot = Array.isArray( ev.snapshot ) ? ev.snapshot : [];
             const stageLevel = ev.stageLevel || "";
@@ -597,7 +598,7 @@ const configureCompetenceEvaluation = () => {
             const bandName = ev.finalScore.interpretationName || bandCode;
             this.resultsHeroSpec = {
                 type: "stat",
-                data: { value: finalScore, label: tiApplication.getLabel( "interface.evaluation.results.final-score", "Final score" ), sub: bandName, pct: Math.max( 0, Math.min( 1, finalScore / 150 ) ) },
+                data: { value: finalScore, label: tiApplication.getLabel( "interface.evaluation.results.final-score", "Final score" ), sub: bandName, pct: Math.max( 0, Math.min( 1, finalScore / scoreMax ) ) },
                 a11yLabel: "Final score " + String( finalScore ) + " (" + String( bandName ) + ")"
             };
 
@@ -607,7 +608,7 @@ const configureCompetenceEvaluation = () => {
             this.resultsCategoryBarsSpec = {
                 type: "bars", options: { mode: "stacked" },
                 data: { rows: Object.keys( scores ).map( ( cat ) => ( {
-                    id: cat, label: catName[ cat ] || cat, total: 150,
+                    id: cat, label: catName[ cat ] || cat, total: scoreMax,
                     segments: [ { key: "score", v: ( typeof scores[ cat ].score === "number" ) ? scores[ cat ].score : 0, tone: bandTone( scores[ cat ].score || 0 ) } ]
                 } ) ) },
                 a11yLabel: "Category scores"
