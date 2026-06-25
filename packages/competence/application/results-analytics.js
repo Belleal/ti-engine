@@ -1280,6 +1280,108 @@ class ResultsAnalytics {
     }
 
     /**
+     * Pure cross-cycle trend shaping (CA-X2). Takes chrono-sorted ResultsSnapshots (the public computeTrend injects
+     * getAllResultsSnapshots) and shapes ONE metric into chart-ready series. Snapshots are whole-org — these trends are
+     * leadership-level (the endpoint is SUPERVISOR-gated). Tolerates legacy (schemaVersion < 2 / empty-substrate)
+     * snapshots: they contribute `null` and are listed in `legacyCycles` rather than throwing. Cohort cells suppressed
+     * for n<k contribute `null` and are listed in `suppressedCycles`. No I/O.
+     *
+     * @method
+     * @param {Object} deps - { snapshots: Array<ResultsSnapshot> } (the last may carry provisional:true — the live ACTIVE cycle).
+     * @param {Object} params - { metric:"overallScore"|"tBandMix"|"gapClosure"|"ladder"|"cohort", dimension?, key?, window? }
+     * @returns {{meta:Object, series:Array, legacyCycles:Array<string>, suppressedCycles:Array<string>}}
+     * @public
+     */
+    _computeTrendWith( deps, params ) {
+        const all = ( deps && Array.isArray( deps.snapshots ) ) ? deps.snapshots.slice() : [];
+        all.sort( ( a, b ) => ( a.chronoKey || 0 ) - ( b.chronoKey || 0 ) );
+        const windowed = ( params && typeof params.window === "number" && params.window > 0 ) ? all.slice( -params.window ) : all;
+        const metric = ( params && params.metric ) || "overallScore";
+        const legacyCycles = [];
+        const suppressedCycles = [];
+        const isLegacy = ( s ) => ( ( s.schemaVersion || 1 ) < 2 );
+        const markLegacy = ( s ) => { if ( legacyCycles.indexOf( s.cycleID ) < 0 ) { legacyCycles.push( s.cycleID ); } };
+
+        const meta = {
+            metric: metric,
+            window: ( params && params.window ) || null,
+            cycles: windowed.map( ( s ) => ( { cycleID: s.cycleID, chronoKey: s.chronoKey, provisional: Boolean( s.provisional ) } ) ),
+            partial: windowed.some( ( s ) => Boolean( s.provisional ) )
+        };
+
+        let series = [];
+        if ( metric === "overallScore" ) {
+            const values = [], band = [];
+            for ( const s of windowed ) {
+                const fs = ( s.overall && s.overall.finalScore ) ? s.overall.finalScore : {};
+                if ( isLegacy( s ) || typeof fs.mean !== "number" ) { values.push( null ); band.push( null ); markLegacy( s ); }
+                else { values.push( fs.mean ); band.push( ( typeof fs.p25 === "number" && typeof fs.p75 === "number" ) ? [ fs.p25, fs.p75 ] : null ); }
+            }
+            series = [ { key: "mean", tone: "grade-s", values: values, band: band } ];
+        } else if ( metric === "tBandMix" ) {
+            const bands = [ "T1", "T2", "T3", "T4", "T5" ];
+            series = bands.map( ( band, i ) => ( { key: band, tone: ( i <= 1 ? "grade-n" : ( i === 2 ? "grade-r" : "grade-s" ) ), values: windowed.map( ( s ) => {
+                const mix = ( s.overall && s.overall.tBandMix ) ? s.overall.tBandMix : null;
+                if ( isLegacy( s ) || !mix ) { return null; }
+                return ( typeof mix[ band ] === "number" ) ? mix[ band ] : 0;
+            } ) } ) );
+            for ( const s of windowed ) { if ( isLegacy( s ) || !( s.overall && s.overall.tBandMix ) ) { markLegacy( s ); } }
+        } else if ( metric === "gapClosure" ) {
+            series = SUBCATEGORIES.map( ( code ) => ( { key: code, tone: "info", values: windowed.map( ( s ) => {
+                const cell = ( s.bySubcategory && s.bySubcategory[ code ] ) ? s.bySubcategory[ code ] : null;
+                return ( cell && typeof cell.gap === "number" ) ? cell.gap : null;
+            } ) } ) );
+            for ( const s of windowed ) { if ( isLegacy( s ) || !s.bySubcategory || Object.keys( s.bySubcategory ).length === 0 ) { markLegacy( s ); } }
+        } else if ( metric === "ladder" ) {
+            const ordinals = [ "1", "2", "3", "4", "5" ];
+            series = ordinals.map( ( ord ) => ( { key: ord, tone: "info", values: windowed.map( ( s ) => {
+                const hist = s.ladderOrdinalHistogram || null;
+                if ( isLegacy( s ) || !hist || Object.keys( hist ).length === 0 ) { return null; }
+                return ( typeof hist[ ord ] === "number" ) ? hist[ ord ] : 0;
+            } ) } ) );
+            series.push( { key: "meanRung", tone: "grade-s", values: windowed.map( ( s ) => ( typeof s.ladderMeanRung === "number" ) ? s.ladderMeanRung : null ) } );
+            for ( const s of windowed ) { if ( isLegacy( s ) || !s.ladderOrdinalHistogram || Object.keys( s.ladderOrdinalHistogram ).length === 0 ) { markLegacy( s ); } }
+        } else if ( metric === "cohort" ) {
+            const dimension = ( params && params.dimension ) || "orgUnit";
+            const field = ( dimension === "roleFamily" ) ? "byRoleFamily" : ( ( dimension === "stageLevel" ) ? "byStageLevel" : "byOrgUnit" );
+            let keys;
+            if ( params && params.key ) {
+                keys = [ params.key ];
+            } else {
+                const seen = new Set();
+                for ( const s of windowed ) { const m = s[ field ] || {}; for ( const k of Object.keys( m ) ) { seen.add( k ); } }
+                keys = Array.from( seen );
+            }
+            series = keys.map( ( k ) => ( { key: k, tone: "info", values: windowed.map( ( s ) => {
+                const cell = ( s[ field ] && s[ field ][ k ] ) ? s[ field ][ k ] : null;
+                if ( isLegacy( s ) || !cell ) { return null; }
+                if ( cell.suppressed ) { if ( suppressedCycles.indexOf( s.cycleID ) < 0 ) { suppressedCycles.push( s.cycleID ); } return null; }
+                return ( typeof cell.finalScoreMean === "number" ) ? cell.finalScoreMean : null;
+            } ) } ) );
+            for ( const s of windowed ) { if ( isLegacy( s ) || !s[ field ] || Object.keys( s[ field ] ).length === 0 ) { markLegacy( s ); } }
+        }
+
+        return { meta: meta, series: series, legacyCycles: legacyCycles, suppressedCycles: suppressedCycles };
+    }
+
+    /**
+     * Public cross-cycle trend entrypoint (CA-X2): reads all persisted ResultsSnapshots (chrono-sorted by the data
+     * layer) and shapes the requested metric via _computeTrendWith. Snapshots-only — a provisional live ACTIVE-cycle
+     * point is a noted follow-up (it needs an active-cycle dry-build of the substrate). Whole-org; the endpoint gates
+     * SUPERVISOR.
+     *
+     * @method
+     * @param {Object} params - { metric, dimension?, key?, window? }
+     * @returns {Promise<Object>}
+     * @public
+     */
+    computeTrend( params ) {
+        return dataManager.instance.getAllResultsSnapshots().then( ( snapshots ) => {
+            return this._computeTrendWith( { snapshots: snapshots || [] }, params || {} );
+        } );
+    }
+
+    /**
      * Dispatches a frame to the requested report computation. The six leadership report keys are all listed here so a
      * new report swaps exactly one branch from its empty stub to its real compute (avoids the shared-dispatcher merge
      * hot-spot). Inputs beyond (frame, roster, filter) — archetype weights (R4/R5), calendar slots + today (R2),

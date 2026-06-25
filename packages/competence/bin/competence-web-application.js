@@ -273,6 +273,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#loadLeadershipReport( session, options, "predictiveDrivers" );
         } else if ( view === "load-alignment-drill" ) {
             return this.#loadAlignmentDrill( session, options );
+        } else if ( view === "load-results-trend" ) {
+            return this.#loadResultsTrend( session, options );
         } else {
             return super.processDataRequest( session, view, options );
         }
@@ -2777,6 +2779,35 @@ class CompetenceWebApplication extends TiWebAppManager {
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
+        } );
+    }
+
+    /**
+     * Returns a cross-cycle trend payload (CA-X2). Reads the persisted whole-org ResultsSnapshots and shapes the
+     * requested metric (overallScore | tBandMix | gapClosure | ladder | cohort) into chart-ready series. These are
+     * whole-org leadership analytics over time, so the endpoint gates SUPERVISOR (consistent with the org-scope
+     * leadership reports); manager-subtree trends (via byOrgUnit slices) are a noted follow-up. The analytics service
+     * tolerates legacy (pre-substrate) snapshots and suppresses small cohort cells.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [options]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadResultsTrend( session, options ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+            const query = ( options && options.query ) ? options.query : {};
+            const params = {
+                metric: String( query.metric || "overallScore" ).trim(),
+                dimension: String( query.dimension || "" ).trim() || undefined,
+                key: String( query.key || "" ).trim() || undefined,
+                window: query.window ? Number( query.window ) : undefined
+            };
+            resultsAnalytics.instance.computeTrend( params )
+                .then( resolve )
+                .catch( ( error ) => reject( exceptions.raise( error ) ) );
         } );
     }
 
