@@ -90,7 +90,7 @@
                 <div class="ti-panel-head">
                     <h2 class="ti-card-title" x-text-label="interface.insights.cycle.reports.heatmap.title">Competence heatmap</h2>
                     <label class="ti-field-inline">
-                        <select class="ti-select" @change="onHeatmapViewChange($event)">
+                        <select class="ti-select" x-bind:aria-label="getLabel('interface.insights.cycle.heatmap-view-label')" @change="onHeatmapViewChange($event)">
                             <option value="value" x-bind:selected="heatmapView === 'value'" x-text-label="interface.insights.cycle.heatmap-view-value">Value</option>
                             <option value="gap" x-bind:selected="heatmapView === 'gap'" x-text-label="interface.insights.cycle.heatmap-view-gap">Gap vs expected</option>
                         </select>

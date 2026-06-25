@@ -7701,6 +7701,10 @@
           "en": "Gap vs expected",
           "bg": "Разлика спрямо очакваното"
         },
+        "heatmap-view-label": {
+          "en": "Heatmap view",
+          "bg": "Изглед на топлинна карта"
+        },
         "unscheduled-ready": {
           "en": "Ready, no interview booked",
           "bg": "Готови, без запазено интервю"
@@ -7752,7 +7756,11 @@
       },
       "team": {
         "title": { "en": "Team analytics", "bg": "Анализи на екипа" },
-        "sub": { "en": "Your team's results for the selected cycle.", "bg": "Резултатите на вашия екип за избрания цикъл." }
+        "sub": { "en": "Your team's results for the selected cycle.", "bg": "Резултатите на вашия екип за избрания цикъл." },
+        "heatmap-view-label": {
+          "en": "Heatmap view",
+          "bg": "Изглед на топлинна карта"
+        }
       },
       "trends": {
         "title": { "en": "Trends", "bg": "Тенденции" },

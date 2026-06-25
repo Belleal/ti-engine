@@ -8,9 +8,9 @@
         <div class="ti-page-head-actions">
             <label class="ti-field-inline">
                 <span x-text-label="interface.insights.cycle.select-label">Cycle</span>
-                <select class="ti-select" @change="onCycleChange($event)">
+                <select class="ti-select" x-bind:value="selectedCycleID" @change="onCycleChange($event)">
                     <template x-for="c in cycles" x-bind:key="c.id">
-                        <option x-bind:value="c.id" x-bind:selected="c.id === selectedCycleID" x-text="c.name"></option>
+                        <option x-bind:value="c.id" x-text="c.name"></option>
                     </template>
                 </select>
             </label>
@@ -122,9 +122,9 @@
                 <div class="ti-panel-head">
                     <h2 class="ti-card-title" x-text-label="interface.insights.cycle.reports.heatmap.title">Competence heatmap</h2>
                     <label class="ti-field-inline">
-                        <select class="ti-select" @change="onHeatmapViewChange($event)">
-                            <option value="value" x-bind:selected="heatmapView === 'value'" x-text-label="interface.insights.cycle.heatmap-view-value">Value</option>
-                            <option value="gap" x-bind:selected="heatmapView === 'gap'" x-text-label="interface.insights.cycle.heatmap-view-gap">Gap vs expected</option>
+                        <select class="ti-select" x-bind:value="heatmapView" x-bind:aria-label="getLabel('interface.insights.team.heatmap-view-label')" @change="onHeatmapViewChange($event)">
+                            <option value="value" x-text-label="interface.insights.cycle.heatmap-view-value">Value</option>
+                            <option value="gap" x-text-label="interface.insights.cycle.heatmap-view-gap">Gap vs expected</option>
                         </select>
                     </label>
                 </div>

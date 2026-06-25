@@ -101,34 +101,34 @@
     <div x-show="$store.tiApplication.hasRole(2) || $store.tiApplication.hasRole(3)">
         <div class="ti-sidebar-section-label" x-text-label="interface.navigation.insights">Insights</div>
         <div class="ti-sidebar-nav">
-            <button hx-get="/app/insights-overview" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'insights'"
-                    x-bind:class="{ active: active === 'insights' }" class="ti-sidebar-item" data-tip="Insights" aria-label="Insights" type="button">
+            <button hx-get="/app/insights-overview" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'insights-overview'"
+                    x-bind:class="{ active: active === 'insights-overview' }" class="ti-sidebar-item" data-tip="Insights" aria-label="Insights" type="button">
                 <span class="ti-sidebar-item-icon">
                     <span class="ti-icon dashboard-grid md" aria-hidden="true"></span>
                 </span>
                 <span class="ti-sidebar-item-label" x-text-label="interface.navigation.insights-overview">Insights</span>
             </button>
 
-            <button hx-get="/app/insights-cycle" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'insights'"
+            <button hx-get="/app/insights-cycle" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'insights-cycle'"
                     x-show="$store.tiApplication.hasRole(3)"
-                    x-bind:class="{ active: active === 'insights' }" class="ti-sidebar-item" data-tip="Cycle analytics" aria-label="Cycle analytics" type="button">
+                    x-bind:class="{ active: active === 'insights-cycle' }" class="ti-sidebar-item" data-tip="Cycle analytics" aria-label="Cycle analytics" type="button">
                 <span class="ti-sidebar-item-icon">
                     <span class="ti-icon cycles-loop md" aria-hidden="true"></span>
                 </span>
                 <span class="ti-sidebar-item-label" x-text-label="interface.navigation.insights-cycle">Cycle analytics</span>
             </button>
 
-            <button hx-get="/app/insights-team" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'insights'"
-                    x-bind:class="{ active: active === 'insights' }" class="ti-sidebar-item" data-tip="Team analytics" aria-label="Team analytics" type="button">
+            <button hx-get="/app/insights-team" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'insights-team'"
+                    x-bind:class="{ active: active === 'insights-team' }" class="ti-sidebar-item" data-tip="Team analytics" aria-label="Team analytics" type="button">
                 <span class="ti-sidebar-item-icon">
                     <span class="ti-icon user md" aria-hidden="true"></span>
                 </span>
                 <span class="ti-sidebar-item-label" x-text-label="interface.navigation.insights-team">Team analytics</span>
             </button>
 
-            <button hx-get="/app/insights-trends" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'insights'"
+            <button hx-get="/app/insights-trends" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'insights-trends'"
                     x-show="$store.tiApplication.hasRole(3)"
-                    x-bind:class="{ active: active === 'insights' }" class="ti-sidebar-item" data-tip="Trends" aria-label="Trends" type="button">
+                    x-bind:class="{ active: active === 'insights-trends' }" class="ti-sidebar-item" data-tip="Trends" aria-label="Trends" type="button">
                 <span class="ti-sidebar-item-icon">
                     <span class="ti-icon bar-chart md" aria-hidden="true"></span>
                 </span>
