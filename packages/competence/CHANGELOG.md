@@ -2,6 +2,20 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.4.0
+
+### Statistics & Results reporting (CA-61, Phases 0–4)
+
+A complete competency-analytics reporting capability over the appraisal data — reading live for the active cycle and from immutable per-cycle snapshots for closed cycles. Design + running log: `design/statistics-and-results.md`. Requires web-framework ≥ 1.10.0 (the ti-chart primitives).
+
+* feat(competence): aggregation service `application/results-analytics.js` — a frozen-singleton with pure cohort-frame + report computations and a live/snapshot resolver; the eighth Redis-JSON cache key `ti:competence:data:results-snapshots` with `saveResultsSnapshot`/`getResultsSnapshot`/`getAllResultsSnapshots` accessors, written immutably on cycle close (`#closeCycle → persistResultsSnapshot`, re-reading `actualCloseDate`). (Phase 0, CA-62…65)
+* feat(competence): six leadership reports on the Insights → Cycle analytics screen — Coverage (gauge + by-group bars + pending list), Interview timing, Self-vs-manager alignment quadrant, competence heatmap, score-distribution-by-level box plots, and predictive drivers — each with a labels-sourced methodology / what-it-shows block (en/bg). (Phase 1, CA-66/67)
+* feat(competence): Insights → Team analytics — the six reports re-scoped to a manager's (or supervisor's) multi-level subtree via `isSuperiorManagerOfEmployee`, plus the Grader Calibration report. (Phase 2, CA-68)
+* feat(competence): individual results — the evaluee's READY/CLOSED results on the evaluation view (final-score hero, per-category + source-comparison bars, 9-subcategory radar vs the maturity-step expected, strengths/gaps), with the client decomposition reconciled exactly to the server score; plus a self-scoped "My results" workspace screen (closed history from the raw evaluation, always anonymized). (Phase 3, CA-69)
+* feat(competence): cross-cycle Trends screen (Supervisor) — overall score trend (line + p25–p75 band) with performance-band mix, gap-closure over time, ladder movement, and cohort comparison; plus a per-employee historical score line (access-gated self / supervisor / manager-of-subtree, from the raw evaluations — never the anonymous snapshots). (Phase 4, CA-70)
+* feat(competence): privacy by construction — snapshots carry only counts/means/percentiles (never identities or peer-individual grades), and every cohort cell with fewer than three reported people is suppressed at aggregation time, so the breakdowns can't de-anonymize a small team.
+* build(release): bump package version from `3.3.1` to `3.4.0`
+
 ## Version 3.3.1
 
 Bug fixes and polish from the first QA pass over the 3.3.0 team-feedback feature.

@@ -2,6 +2,15 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.10.0
+
+### Charting primitive library (Statistics & Results, CA-61)
+
+* feat(web-framework): new `ti-charts.js` — a CSP-safe SVG charting library backing the competence Statistics & Results reporting. Eight primitives via a single `renderChart(figure, spec)` dispatcher: `gauge`, `bars` (stacked / grouped / diverging modes), `stat`, `scatter`, `heatmap` (sequential / diverging scales), `box`, `radar`, and `line` (mean + p25–p75 band, sparkline, stacked, dashed-provisional trailing segment). The pure layout helpers (`gaugeArcPath`, `barSegments`, `scatterLayout`, `heatmapLayout`, `boxLayout`, `radarLayout`, `lineLayout`, …) are unit-tested in isolation
+* feat(web-framework): register the `x-ti-chart` Alpine CSP directive (binds a spec object to a host `<figure>`); every chart builds its SVG with `createElementNS` + `setAttribute` only (never `element.style.*` except `setProperty("--var")`) and ships a visually-hidden `.ti-chart-sr` accessibility table
+* feat(css): `.ti-chart-*` styles + per-type `figure[data-ti-chart-type]` size caps + `--chart-seq-1…5` sequential ramp tokens and grade/tone colours in both themes (daylight + black-glass)
+* build(release): bump package version from `1.9.3` to `1.10.0`
+
 ## Version 1.9.3
 
 * feat(css): an empty `.ti-grade-chip` (a competency whose rating is still awaited) now renders an hourglass glyph via `::before` instead of a literal dash, so "awaiting rating" reads as a clear visual state wherever an empty grade chip is shown to a permitted viewer
