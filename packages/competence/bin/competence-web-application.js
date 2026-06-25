@@ -192,10 +192,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "archetype-assignment": "administration",
                     "archetype-editor": "administration",
                     "role-families": "administration",
-                    "insights-overview": "insights",
-                    "insights-cycle": "insights",
-                    "insights-team": "insights",
-                    "insights-trends": "insights"
+                    "insights-overview": "insights-overview",
+                    "insights-cycle": "insights-cycle",
+                    "insights-team": "insights-team",
+                    "insights-trends": "insights-trends"
                 },
                 componentsConfig: {
                     userProfileMenu: {
@@ -2721,7 +2721,9 @@ class CompetenceWebApplication extends TiWebAppManager {
             if ( scope === "team" ) {
                 const managerUnitID = organizationManager.instance.resolveOrganizationUnitIDForEmployee( context.userID );
                 const subtree = organizationManager.instance.getOrganizationUnitSubtree( managerUnitID );
-                const subtreeEmployeeIDs = resultsAnalytics.instance.buildRoster( subtree ).map( ( member ) => member.employeeID );
+                const subtreeEmployeeIDs = resultsAnalytics.instance.buildRoster( subtree )
+                    .map( ( member ) => member.employeeID )
+                    .filter( ( employeeID ) => organizationManager.instance.isSuperiorManagerOfEmployee( context.userID, employeeID ) );
                 filter = resultsAnalytics.instance.resolveScopeFilter( { isSupervisor: false, employeeID: context.userID, managerUnitID: managerUnitID, subtreeEmployeeIDs: subtreeEmployeeIDs } );
             } else {
                 filter = { allowedEmployeeIDs: null, rootUnitID: organizationManager.instance.getOrganizationRootUnitID() };
