@@ -2,6 +2,15 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.10.2
+
+Readability and scaling fixes for the chart primitives, surfaced while polishing the Statistics & Results screens (CA-61).
+
+* fix(web-framework): stacked bar charts now caption each row (the group/cycle label plus an optional per-row value) and render an optional swatch legend driven by `spec.options.legend`, so a coverage "By group" chart reads as labelled bars instead of anonymous colour blocks; the row labels also land on the cross-cycle trend bars
+* fix(css): horizontal bar charts opt out of the global `svg` `max-height` so bar thickness and label size stay identical regardless of row count — a tall org-wide chart is no longer uniformly scaled down and rendered finer than the same chart on a smaller subtree; the per-row geometry is trimmed for a cleaner look
+* feat(css): `.ti-chart-legend` / `.ti-chart-legend-item` / `.ti-chart-legend-swatch` — a chart swatch legend whose colours route through the inherited grade/ink chart tokens
+* build(release): bump package version from `1.10.1` to `1.10.2`
+
 ## Version 1.10.1
 
 Review fixes for the ti-chart primitives (Statistics & Results, CA-61, PR #83 — CodeRabbit pass).

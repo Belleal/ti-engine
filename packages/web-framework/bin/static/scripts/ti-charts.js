@@ -749,8 +749,9 @@ const TiCharts = ( function () {
     }
 
     /**
-     * Horizontal stacked bars (Phase 0 behavior). Each row is a track of segments laid out by barSegments; a
-     * provisional "Not started" tail is dashed/dimmed via the .ti-chart-provisional class.
+     * Horizontal stacked bars. Each row is a labelled track — a caption line (row label left, optional value right)
+     * above a stack of segments laid out by barSegments; a provisional "Not started" tail is dashed/dimmed via the
+     * .ti-chart-provisional class. A swatch legend is rendered below the chart when spec.options.legend is provided.
      */
     function _renderBarsStacked( figure, spec ) {
         const data = spec.data;
@@ -759,29 +760,71 @@ const TiCharts = ( function () {
             figure.setAttribute( "data-ti-chart-empty", "1" );
             return;
         }
-        // viewBox units — not CSS pixels
-        const trackW = 100, rowH = 14, gap = 8, padTop = 4;
-        const height = padTop + ( rows.length * ( rowH + gap ) );
+        // viewBox units — not CSS pixels. Per row: a caption line (labelH) + the bar (rowH) + a gap. Bars opt out of
+        // the global svg max-height (ti-framework.css), so this scale stays identical regardless of how many rows a
+        // chart has — a short subtree chart and a tall org-wide one render at the same bar thickness.
+        const trackW = 100, rowH = 9, gap = 7, labelH = 5, padTop = 4;
+        const height = padTop + ( rows.length * ( labelH + rowH + gap ) );
 
-        const svg = svgEl( "svg", { viewBox: "0 0 100 " + height, preserveAspectRatio: "xMidYMid meet", role: "img" } );
+        const svg = svgEl( "svg", { viewBox: "0 0 100 " + _round( height ), preserveAspectRatio: "xMidYMid meet", role: "img" } );
         _appendA11yTitle( svg, spec );
 
         const srRows = [];
+        let cursorY = padTop;
         for ( let r = 0; r < rows.length; r++ ) {
-            const y = padTop + ( r * ( rowH + gap ) );
-            const segSource = rows[ r ].segments || rows[ r ].values || [];
-            const segs = barSegments( segSource, { width: trackW, total: rows[ r ].total } );
+            const row = rows[ r ];
+            // Caption: row label on the left, optional value (e.g. "% complete") right-aligned above the bar.
+            const capY = _round( cursorY + labelH - 2 );
+            const lbl = svgEl( "text", { x: 0, y: capY, class: "ti-chart-bar-label" } );
+            lbl.textContent = row.label || row.id || "";
+            svg.appendChild( lbl );
+            if ( row.valueLabel ) {
+                const val = svgEl( "text", { x: trackW, y: capY, "text-anchor": "end", class: "ti-chart-bar-label" } );
+                val.textContent = row.valueLabel;
+                svg.appendChild( val );
+            }
+            const barY = cursorY + labelH;
+            const segSource = row.segments || row.values || [];
+            const segs = barSegments( segSource, { width: trackW, total: row.total } );
             for ( let s = 0; s < segs.length; s++ ) {
                 let cls = "ti-chart-bar-seg";
                 if ( segs[ s ].tone ) { cls = cls + " tone-" + segs[ s ].tone; }
                 if ( spec.provisional && segs[ s ].key === "Not started" ) { cls = cls + " ti-chart-provisional"; }
-                const rect = svgEl( "rect", { x: segs[ s ].x, y: y, width: segs[ s ].width, height: rowH, rx: 2, class: cls } );
+                const rect = svgEl( "rect", { x: segs[ s ].x, y: barY, width: segs[ s ].width, height: rowH, rx: 2, class: cls } );
                 svg.appendChild( rect );
-                srRows.push( [ rows[ r ].label || rows[ r ].id, segs[ s ].key, String( segSource[ s ].v || 0 ) ] );
+                srRows.push( [ row.label || row.id, segs[ s ].key, String( segSource[ s ].v || 0 ) ] );
             }
+            cursorY = barY + rowH + gap;
         }
         figure.appendChild( svg );
+        if ( spec.options && Array.isArray( spec.options.legend ) && spec.options.legend.length > 0 ) {
+            figure.appendChild( _buildChartLegend( spec.options.legend ) );
+        }
         figure.appendChild( buildSrTable( [ "Row", "Segment", "Count" ], srRows ) );
+    }
+
+    /**
+     * Builds a visible HTML swatch legend appended below a chart. Each entry is { label, tone }; the swatch colour
+     * routes through the same grade/series tokens as the chart segments via a tone-* class, so it re-themes in step.
+     *
+     * @param {Array<{label:string,tone:string}>} items
+     * @returns {HTMLElement}
+     */
+    function _buildChartLegend( items ) {
+        const wrap = document.createElement( "div" );
+        wrap.className = "ti-chart-legend";
+        for ( let i = 0; i < items.length; i++ ) {
+            const item = document.createElement( "span" );
+            item.className = "ti-chart-legend-item";
+            const swatch = document.createElement( "span" );
+            swatch.className = "ti-chart-legend-swatch" + ( items[ i ].tone ? ( " tone-" + items[ i ].tone ) : "" );
+            item.appendChild( swatch );
+            const text = document.createElement( "span" );
+            text.textContent = items[ i ].label || "";
+            item.appendChild( text );
+            wrap.appendChild( item );
+        }
+        return wrap;
     }
 
     /**

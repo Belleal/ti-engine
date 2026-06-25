@@ -2611,7 +2611,10 @@ body {
 .ti-chart[data-ti-chart-type="scatter"] svg { max-width: 380px; }
 .ti-chart[data-ti-chart-type="heatmap"] svg { max-width: 480px; }
 .ti-chart[data-ti-chart-type="box"] svg     { max-width: 680px; }
-.ti-chart[data-ti-chart-type="bars"] svg    { max-width: 640px; }
+/* Horizontal bars grow with their row count, so they opt out of the global max-height: with the cap, a tall org-wide
+   chart was uniformly scaled down and ended up finer than the same chart on a smaller subtree. Without it the bar
+   thickness and label size stay identical across screens; the chart simply gets taller when there are more rows. */
+.ti-chart[data-ti-chart-type="bars"] svg    { max-width: 640px; max-height: none; }
 .ti-chart[data-ti-chart-type="radar"] svg   { max-width: 360px; }
 .ti-chart[data-ti-chart-type="line"] svg    { max-width: 640px; }
 
@@ -2906,6 +2909,38 @@ body {
     fill: var(--c-ink);
     font-size: 4px;
 }
+
+/* Chart legend — a visible swatch+label key appended below a chart (e.g. the coverage stacked bars). Inherits the
+   --c-grade-* / --c-ink tokens from the parent .ti-chart, so swatches match the segment fills and re-theme with them. */
+.ti-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--s-2) var(--s-4);
+    margin-top: var(--s-3);
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+}
+
+.ti-chart-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ti-chart-legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    background: var(--c-ink);
+    flex: 0 0 auto;
+}
+
+.ti-chart-legend-swatch.tone-grade-s { background: var(--c-grade-s); }
+.ti-chart-legend-swatch.tone-grade-r { background: var(--c-grade-r); }
+.ti-chart-legend-swatch.tone-grade-u { background: var(--c-grade-u); }
+.ti-chart-legend-swatch.tone-grade-n { background: var(--c-grade-n); }
+.ti-chart-legend-swatch.tone-ink { background: var(--c-ink); }
 
 /* --- radar (individual subcategory profile) --- */
 .ti-chart-radar-ring  { stroke: var(--c-grid); stroke-width: 0.4; }
