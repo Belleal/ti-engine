@@ -2839,7 +2839,8 @@ class CompetenceWebApplication extends TiWebAppManager {
 
             const isSelf = targetID === userID;
             const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
-            if ( !isSelf && !isSupervisor && !organizationManager.instance.isSuperiorManagerOfEmployee( userID, targetID ) ) {
+            const isManager = userRoles.includes( configurationLoader.roleCode.MANAGER );
+            if ( !isSelf && !isSupervisor && !( isManager && organizationManager.instance.isSuperiorManagerOfEmployee( userID, targetID ) ) ) {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "Not authorized to view this employee's history." }, exceptions.httpCode.C_403 ) );
             }
 

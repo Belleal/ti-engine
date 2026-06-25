@@ -469,9 +469,8 @@
                                   @ti-input="setFeedbackComment( 'team', $event.target.value )"></textarea>
                     </div>
 
-                    <!-- Team comments list (manager always; the employee once results are final — Ready or Closed — anonymous,
-                         peer individual grades are already collapsed server-side, so this is privacy-safe) -->
-                    <div x-show="userRole === 2 || ( userRole === 1 && ( evaluation.status === 'Ready' || evaluation.status === 'Closed' ) )">
+                    <!-- Team comments list (manager-only; raw peer free text is not anonymized for employee display). -->
+                    <div x-show="userRole === 2">
                         <div class="competence-eval-feedback-col-label" x-text-label="interface.evaluation.appraisal.team-comment"></div>
                         <div class="competence-eval-team-comments">
                             <template x-for="( comment, index ) in getFeedbackComment( 'team' )" x-bind:key="index">
