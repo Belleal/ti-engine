@@ -248,7 +248,8 @@ class ResultsAnalytics {
             const row = rowByEmployee.get( member.employeeID ) || null;
             const groupKey = ( groupBy === "orgUnit" ) ? ( member.organizationUnitID || "" ) : ( member.roleFamily || "" );
             if ( !groups.has( groupKey ) ) {
-                groups.set( groupKey, { groupType: groupBy, groupKey: groupKey, groupLabel: groupKey, bucket: this.#emptyCoverageBucket() } );
+                const groupLabel = ( groupBy === "orgUnit" ) ? ( member.organizationUnitName || groupKey ) : groupKey;
+                groups.set( groupKey, { groupType: groupBy, groupKey: groupKey, groupLabel: groupLabel, bucket: this.#emptyCoverageBucket() } );
             }
             const group = groups.get( groupKey );
 
@@ -1123,11 +1124,14 @@ class ResultsAnalytics {
     /**
      * Recursively flattens an org subtree node into a de-duplicated roster. The subtree's `.employees` are direct
      * members only; descendants live under `.children` (organization-manager.js:459-470), so the roster walks
-     * `.children` recursively concatenating each node's `.employees`.
+     * `.children` recursively concatenating each node's `.employees`. Each member is tagged with
+     * `organizationUnitName` from the containing subtree node's `.name` (resolved from `displayName||name` by
+     * organization-manager.js:506) so `computeCoverage` can render a human-readable group label for `orgUnit` grouping
+     * without an extra lookup.
      *
      * @method
      * @param {Object|null} subtree - Output of organizationManager.getOrganizationUnitSubtree(rootUnitID).
-     * @returns {Array<Object>} [{employeeID, name, roleFamily, organizationUnitID}]
+     * @returns {Array<Object>} [{employeeID, name, roleFamily, organizationUnitID, organizationUnitName}]
      * @public
      */
     buildRoster( subtree ) {
@@ -1137,6 +1141,7 @@ class ResultsAnalytics {
             if ( !node || typeof node !== "object" ) {
                 return;
             }
+            const unitName = ( node.name !== undefined && node.name !== null ) ? node.name : "";
             const employees = Array.isArray( node.employees ) ? node.employees : [];
             for ( const employee of employees ) {
                 if ( !employee || !employee.employeeID || seen.has( employee.employeeID ) ) {
@@ -1147,7 +1152,8 @@ class ResultsAnalytics {
                     employeeID: employee.employeeID,
                     name: ( employee.name !== undefined ) ? employee.name : null,
                     roleFamily: employee.roleFamily || "",
-                    organizationUnitID: employee.organizationUnitID || ""
+                    organizationUnitID: employee.organizationUnitID || "",
+                    organizationUnitName: unitName
                 } );
             }
             const children = Array.isArray( node.children ) ? node.children : [];
@@ -1231,7 +1237,7 @@ class ResultsAnalytics {
 
                 const finalize = ( reportFilter ) => {
                     const payload = this.#computeReport( reportKey, frame, roster, reportFilter );
-                    return this.#withMeta( payload, cycleID, status, frame, status === configurationLoader.cycleStatus.ACTIVE );
+                    return this.#withMeta( payload, cycleID, status, frame, status === configurationLoader.cycleStatus.ACTIVE, roster.length );
                 };
                 // R2 alone needs data beyond the frame — the calendar + today — so fetch slots only for it.
                 if ( reportKey === "timeDistribution" && typeof deps.fetchCalendarSlots === "function" ) {
@@ -1270,7 +1276,7 @@ class ResultsAnalytics {
             } ),
             fetchEvaluations: ( employeeID, filterClosed ) => dataManager.instance.fetchEvaluations( employeeID, filterClosed ),
             getResultsSnapshot: ( id ) => dataManager.instance.getResultsSnapshot( id ),
-            buildSubtree: ( f ) => organizationManager.instance.getOrganizationUnitSubtree( f ? f.rootUnitID : "" ),
+            buildSubtree: ( f ) => organizationManager.instance.getOrganizationUnitSubtree( f && f.rootUnitID ? f.rootUnitID : organizationManager.instance.getOrganizationRootUnitID() ),
             resolveOrgUnit: ( employeeID ) => organizationManager.instance.resolveOrganizationUnitIDForEmployee( employeeID ),
             fetchCalendarSlots: ( id ) => dataManager.instance.fetchAllCalendarSlots( id ),   // R2 only
             today: new Date().toISOString().split( "T" )[ 0 ],
@@ -1476,25 +1482,27 @@ class ResultsAnalytics {
 
     /**
      * Wraps a report payload with the shared ResultMeta envelope. `reporting` = Ready+Closed rows in the frame;
-     * `partial` is true only for ACTIVE cycles where not everyone is reporting. CLOSED / snapshot is always
-     * partial:false (no frame is passed, so total/reporting are 0).
+     * `total` = the in-scope roster size (passed as `rosterSize`) so an ACTIVE cycle where some employees have not yet
+     * started is counted correctly. Falls back to `frame.length` when `rosterSize` is omitted (e.g. snapshot
+     * projection where `frame` is null). `partial` is true only for ACTIVE cycles where not everyone is reporting.
+     * CLOSED / snapshot is always partial:false (no frame is passed, so reporting is 0).
      * @method
      * @param {Object} payload
      * @param {string} cycleID
      * @param {string} cycleStatus
      * @param {Array<Object>|null} frame - frame (live/recompute) used for reporting counts; null for projection.
      * @param {boolean} isActive
+     * @param {number} [rosterSize] - The in-scope roster size; falls back to frame.length when omitted.
      * @returns {Object}
      * @private
      */
-    #withMeta( payload, cycleID, cycleStatus, frame, isActive ) {
+    #withMeta( payload, cycleID, cycleStatus, frame, isActive, rosterSize ) {
         const mode = ( cycleStatus === configurationLoader.cycleStatus.ACTIVE ) ? "live" : "snapshot";
-        let total = 0;
         let reporting = 0;
         if ( Array.isArray( frame ) ) {
-            total = frame.length;
             reporting = frame.filter( ( row ) => row && ( row.status === configurationLoader.evaluationStatus.READY || row.status === configurationLoader.evaluationStatus.CLOSED ) ).length;
         }
+        const total = ( typeof rosterSize === "number" ) ? rosterSize : ( Array.isArray( frame ) ? frame.length : 0 );
         const pctReporting = ( total > 0 ) ? Math.round( ( reporting / total ) * 100 ) : 0;
         const meta = {
             cycleID: cycleID,
@@ -1542,7 +1550,7 @@ class ResultsAnalytics {
                 const subtree = organizationManager.instance.getOrganizationUnitSubtree( rootUnitID );
                 const roster = this.buildRoster( subtree );
                 const coverageReport = this.computeCoverage( frame, roster, frameFilter );
-                const metaPayload = this.#withMeta( {}, cycleID, cycle.status, frame, false );
+                const metaPayload = this.#withMeta( {}, cycleID, cycle.status, frame, false, roster.length );
                 const meta = metaPayload.meta;
                 const snapshot = this.buildResultsSnapshot( cycleID, {
                     frame: frame,
@@ -1551,7 +1559,7 @@ class ResultsAnalytics {
                     dictionaryVersion: packageVersion,
                     meta: meta,
                     slots: slots,
-                    today: new Date().toISOString().split( "T" )[ 0 ],
+                    today: cycle.actualCloseDate || meta.computedAt.split( "T" )[ 0 ],
                     alignmentMidpoint: configurationLoader.getSetting( "performanceAppraisals.alignmentQuadrantMidpoint" )
                 } );
                 return dataManager.instance.saveResultsSnapshot( snapshot );

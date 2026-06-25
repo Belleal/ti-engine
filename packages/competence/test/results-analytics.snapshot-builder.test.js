@@ -21,9 +21,9 @@ function cycle( over = {} ) {
 
 function coverageReport( over = {} ) {
     return {
-        overall: { n: over.n || 2, N: over.N || 3, pct: over.pct || 66.7, byStatus: over.byStatus || {}, notStarted: over.notStarted || 1 },
-        byGroup: over.byGroup || [],
-        pending: over.pending || []
+        overall: { n: over.n ?? 2, N: over.N ?? 3, pct: over.pct ?? 66.7, byStatus: over.byStatus ?? {}, notStarted: over.notStarted ?? 1 },
+        byGroup: over.byGroup ?? [],
+        pending: over.pending ?? []
     };
 }
 

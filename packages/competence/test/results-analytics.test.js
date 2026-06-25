@@ -183,21 +183,21 @@ describe( "ResultsAnalytics.computeCoverage — overall", () => {
         const roster = [
             rosterMember( { employeeID: "emp1", roleFamily: "SE" } ),
             rosterMember( { employeeID: "emp2", roleFamily: "SE" } ),
-            rosterMember( { employeeID: "emp3", roleFamily: "QA" } )
+            rosterMember( { employeeID: "emp3", roleFamily: "QE" } )
         ];
         const frame = [
             { evaluationID: "a", employeeID: "emp1", status: "Ready", roleFamily: "SE", organizationUnitID: "unit-A" }
         ];
         const coverage = resultsAnalyticsInstance.computeCoverage( frame, roster, filterFixture( { groupBy: "roleFamily" } ) );
         const se = coverage.byGroup.find( ( g ) => g.groupKey === "SE" );
-        const qa = coverage.byGroup.find( ( g ) => g.groupKey === "QA" );
+        const qe = coverage.byGroup.find( ( g ) => g.groupKey === "QE" );
         assert.equal( se.groupType, "roleFamily" );
         assert.equal( se.N, 2 );
         assert.equal( se.notStarted, 1 );    // emp2 has no eval
         assert.equal( se.pct, 50 );
-        assert.equal( qa.N, 1 );
-        assert.equal( qa.notStarted, 1 );    // emp3 has no eval
-        assert.equal( qa.pct, 0 );
+        assert.equal( qe.N, 1 );
+        assert.equal( qe.notStarted, 1 );    // emp3 has no eval
+        assert.equal( qe.pct, 0 );
     } );
 
     it( "groups by orgUnit when filter.groupBy === 'orgUnit'", () => {
@@ -279,10 +279,10 @@ describe( "ResultsAnalytics.buildRoster — recursive subtree flatten", () => {
         assert.deepEqual( ids, [ "ceo", "emp1", "emp2", "emp3", "emp4" ] );
     } );
 
-    it( "carries employeeID/name/roleFamily/organizationUnitID onto each roster member", () => {
+    it( "carries employeeID/name/roleFamily/organizationUnitID/organizationUnitName onto each roster member", () => {
         const roster = resultsAnalyticsInstance.buildRoster( subtreeFixture() );
         const emp3 = roster.find( ( m ) => m.employeeID === "emp3" );
-        assert.deepEqual( emp3, { employeeID: "emp3", name: "Emp Three", roleFamily: "QA", organizationUnitID: "unit-A1" } );
+        assert.deepEqual( emp3, { employeeID: "emp3", name: "Emp Three", roleFamily: "QA", organizationUnitID: "unit-A1", organizationUnitName: "Unit A1" } );
     } );
 
     it( "de-duplicates an employee that appears under two nodes (defensive against graph cycles)", () => {
