@@ -65,7 +65,19 @@ const radar = { type: "radar", a11yLabel: "Subcategory profile", data: {
     ]
 } };
 
-const SPECS = { coverageGauge, coverageBars, levelBox, heatmap, alignment, timeBars, driversBars, calibrationBars, calibrationKpi, radar };
+const lineTrend = { type: "line", options: { provisionalLastPoint: true }, a11yLabel: "Overall score trend", data: {
+    x: [ { id: "2025-H1", label: "25H1" }, { id: "2025-H2", label: "25H2" }, { id: "2026-H1", label: "26H1" }, { id: "2026-H2", label: "26H2" } ],
+    series: [
+        { key: "mean", tone: "grade-s", values: [ 98, 104, 109, 113 ], band: [ [ 86, 110 ], [ 92, 116 ], [ 99, 119 ], [ 104, 122 ] ] },
+        { key: "expected", style: "dashed", values: [ 105, 105, 105, 105 ] }
+    ]
+} };
+const lineSpark = { type: "line", options: { sparkline: true }, a11yLabel: "Gap sparkline", data: {
+    x: [ { id: "a", label: "a" }, { id: "b", label: "b" }, { id: "c", label: "c" }, { id: "d", label: "d" } ],
+    series: [ { key: "gap", tone: "info", values: [ 0.2, 0.14, 0.08, 0.03 ] } ]
+} };
+
+const SPECS = { coverageGauge, coverageBars, levelBox, heatmap, alignment, timeBars, driversBars, calibrationBars, calibrationKpi, radar, lineTrend, lineSpark };
 
 // ---- the screen markup (mirrors frame-insights-cycle.html + the team calibration card; Alpine attrs resolved static) ----
 const card = ( title, intro, figId, wide, note ) => `
@@ -121,6 +133,8 @@ const body = `
                 <details class="ti-card-note"><summary>How it's calculated</summary><p>Relevancy-weighted mean grade per subcategory × group.</p></details>
             </section>
             ${ card( "Subcategory profile (radar)", "Self / manager / team across the nine subcategories vs expected.", "fig-radar", false, "Each spoke is a subcategory; the dashed ring is the level-expected grade." ) }
+            ${ card( "Overall score trend (line+band)", "Mean final score per cycle with the p25–p75 band; dashed tail = the live ACTIVE cycle.", "fig-line", true, "Mean line over closed cycles; band is nearest-rank p25/p75; dashed = the expected score." ) }
+            ${ card( "Gap-closure sparkline", "Per-subcategory gap trend (compact).", "fig-spark", false, "Zero-baseline sparkline of the bySubcategory gap across cycles." ) }
             ${ card( "Self vs manager alignment", "Manager grade (x) vs self grade (y); bubble = team.", "fig-alignment", false, "Above the diagonal = self rates higher; below = blind spot." ) }
             ${ card( "Interview timing", "Planned vs finalised interviews per month.", "fig-time", false, "Planned = booked slots; finalised = a proxy for held." ) }
             ${ card( "Performance drivers", "Influence vs configured relevancy share per subcategory.", "fig-drivers", true, "Pearson influence minus configured share; flagged = possibly mis-weighted." ) }
@@ -142,6 +156,7 @@ function renderAll() {
   R("fig-heatmap", S.heatmap); R("fig-alignment", S.alignment); R("fig-time", S.timeBars);
   R("fig-drivers", S.driversBars); R("fig-calibration", S.calibrationBars); R("fig-calibration-kpi", S.calibrationKpi);
   R("fig-radar", S.radar);
+  R("fig-line", S.lineTrend); R("fig-spark", S.lineSpark);
 }
 function setTheme(t){ document.documentElement.setAttribute("data-theme", t); document.body.style.background = getComputedStyle(document.documentElement).getPropertyValue("--bg-app"); }
 document.getElementById("theme-toggle").addEventListener("click", () => {

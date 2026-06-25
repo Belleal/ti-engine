@@ -2619,6 +2619,7 @@ body {
 .ti-chart[data-ti-chart-type="box"] svg     { max-width: 680px; }
 .ti-chart[data-ti-chart-type="bars"] svg    { max-width: 640px; }
 .ti-chart[data-ti-chart-type="radar"] svg   { max-width: 360px; }
+.ti-chart[data-ti-chart-type="line"] svg    { max-width: 640px; }
 
 /* Visually-hidden a11y mirror table (screen-reader only). */
 .ti-chart-sr {
@@ -2928,6 +2929,29 @@ body {
 .ti-chart-radar-dot.tone-grade-u { fill: var(--c-grade-u); }
 .ti-chart-radar-dot.tone-grade-n { fill: var(--c-grade-n); }
 .ti-chart-radar-dot.tone-info    { fill: var(--c-series-2); }
+
+/* --- line / trend (cross-cycle, CA-X1) --- */
+.ti-chart-line-axis   { stroke: var(--c-grid); stroke-width: 0.3; }
+.ti-chart-line-xlabel { fill: var(--c-ink); font-size: 3.2px; }
+.ti-chart-line-series { stroke: var(--c-series-1); stroke-width: 1; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.ti-chart-line-series.tone-grade-s { stroke: var(--c-grade-s); }
+.ti-chart-line-series.tone-grade-r { stroke: var(--c-grade-r); }
+.ti-chart-line-series.tone-grade-u { stroke: var(--c-grade-u); }
+.ti-chart-line-series.tone-grade-n { stroke: var(--c-grade-n); }
+.ti-chart-line-series.tone-info    { stroke: var(--c-series-2); }
+.ti-chart-line-band   { fill: var(--c-series-1); fill-opacity: 0.12; stroke: none; }
+.ti-chart-line-band.tone-grade-s { fill: var(--c-grade-s); }
+.ti-chart-line-band.tone-grade-r { fill: var(--c-grade-r); }
+.ti-chart-line-band.tone-grade-u { fill: var(--c-grade-u); }
+.ti-chart-line-band.tone-grade-n { fill: var(--c-grade-n); }
+.ti-chart-line-band.tone-info    { fill: var(--c-series-2); }
+.ti-chart-line-dot    { fill: var(--c-series-1); }
+.ti-chart-line-dot.tone-grade-s { fill: var(--c-grade-s); }
+.ti-chart-line-dot.tone-grade-r { fill: var(--c-grade-r); }
+.ti-chart-line-dot.tone-grade-u { fill: var(--c-grade-u); }
+.ti-chart-line-dot.tone-grade-n { fill: var(--c-grade-n); }
+.ti-chart-line-dot.tone-info    { fill: var(--c-series-2); }
+.ti-chart-line-dot.provisional  { fill: var(--bg-app); stroke: var(--c-series-1); stroke-width: 0.6; }
 
 /* ============================================================
    Daylight Theme — warm light enterprise
@@ -7974,6 +7998,20 @@ body { margin: 0; background: var(--bg-app); color: var(--fg-primary); font-fami
                 <details class="ti-card-note"><summary>How it's calculated</summary><p>Each spoke is a subcategory; the dashed ring is the level-expected grade.</p></details>
             </section>
             
+            <section class="ti-card ti-card-wide">
+                <h2 class="ti-card-title">Overall score trend (line+band)</h2>
+                <p class="ti-panel-body-intro">Mean final score per cycle with the p25–p75 band; dashed tail = the live ACTIVE cycle.</p>
+                <figure class="ti-chart" id="fig-line" role="img"></figure>
+                <details class="ti-card-note"><summary>How it's calculated</summary><p>Mean line over closed cycles; band is nearest-rank p25/p75; dashed = the expected score.</p></details>
+            </section>
+            
+            <section class="ti-card">
+                <h2 class="ti-card-title">Gap-closure sparkline</h2>
+                <p class="ti-panel-body-intro">Per-subcategory gap trend (compact).</p>
+                <figure class="ti-chart" id="fig-spark" role="img"></figure>
+                <details class="ti-card-note"><summary>How it's calculated</summary><p>Zero-baseline sparkline of the bySubcategory gap across cycles.</p></details>
+            </section>
+            
             <section class="ti-card">
                 <h2 class="ti-card-title">Self vs manager alignment</h2>
                 <p class="ti-panel-body-intro">Manager grade (x) vs self grade (y); bubble = team.</p>
@@ -8552,6 +8590,86 @@ const TiCharts = ( function () {
     }
 
     /**
+     * Pure layout for the cross-cycle line/trend primitive (CA-X1). Maps a categorical x-axis (cycles, evenly spaced)
+     * and N series onto a viewBox. Each series may carry a {p25,p75}-style `band` (drawn as a filled area) and null
+     * gaps (the polyline breaks into separate segments — a null is NOT bridged or plotted as 0). The y-domain spans the
+     * min/max over all numeric values and band edges, unless `yMax`/`zeroBaseline` pin it.
+     *
+     * @param {Array<{key,values:Array<number|null>,band?:Array<[number,number]|null>,tone?,style?}>} series
+     * @param {Object} [opts] {width=100,height=60|28,xCount,yMax,zeroBaseline=false,sparkline=false}
+     * @returns {{W,H,padL,padR,padT,padB,innerW,innerH,n,yMin,yMax,sparkline,series:Array}}
+     */
+    function lineLayout( series, opts ) {
+        const o = opts || {};
+        const sparkline = Boolean( o.sparkline );
+        const W = ( typeof o.width === "number" ) ? o.width : 100;
+        const H = ( typeof o.height === "number" ) ? o.height : ( sparkline ? 28 : 60 );
+        const padL = sparkline ? 1 : 12;
+        const padR = sparkline ? 1 : 4;
+        const padT = sparkline ? 2 : 4;
+        const padB = sparkline ? 2 : 10;
+        const seriesList = Array.isArray( series ) ? series : [];
+        const n = ( typeof o.xCount === "number" ) ? o.xCount
+            : ( seriesList.length && Array.isArray( seriesList[ 0 ].values ) ? seriesList[ 0 ].values.length : 0 );
+        const innerW = W - padL - padR;
+        const innerH = H - padT - padB;
+
+        let yMax = ( typeof o.yMax === "number" ) ? o.yMax : Number.NEGATIVE_INFINITY;
+        let yMin = o.zeroBaseline ? 0 : Number.POSITIVE_INFINITY;
+        for ( const s of seriesList ) {
+            const vals = Array.isArray( s.values ) ? s.values : [];
+            for ( const v of vals ) { if ( typeof v === "number" ) { if ( v > yMax ) { yMax = v; } if ( !o.zeroBaseline && v < yMin ) { yMin = v; } } }
+            const band = Array.isArray( s.band ) ? s.band : [];
+            for ( const b of band ) {
+                if ( b && typeof b[ 1 ] === "number" && b[ 1 ] > yMax ) { yMax = b[ 1 ]; }
+                if ( b && !o.zeroBaseline && typeof b[ 0 ] === "number" && b[ 0 ] < yMin ) { yMin = b[ 0 ]; }
+            }
+        }
+        if ( !isFinite( yMax ) ) { yMax = o.zeroBaseline ? 1 : 0; }
+        if ( !isFinite( yMin ) ) { yMin = 0; }
+        if ( yMax <= yMin ) { yMax = yMin + 1; }
+
+        const xAt = ( i ) => ( n <= 1 ) ? ( padL + ( innerW / 2 ) ) : ( padL + ( ( innerW * i ) / ( n - 1 ) ) );
+        const yAt = ( v ) => padT + ( innerH * ( 1 - ( ( v - yMin ) / ( yMax - yMin ) ) ) );
+
+        const laidSeries = seriesList.map( ( s ) => {
+            const vals = Array.isArray( s.values ) ? s.values : [];
+            const dots = [];
+            const segments = [];
+            let current = [];
+            for ( let i = 0; i < n; i++ ) {
+                const v = vals[ i ];
+                if ( typeof v === "number" ) {
+                    const x = _round( xAt( i ) ), y = _round( yAt( v ) );
+                    current.push( x + "," + y );
+                    dots.push( { x: x, y: y, xIndex: i, value: v } );
+                } else if ( current.length ) {
+                    segments.push( current.join( " " ) );
+                    current = [];
+                }
+            }
+            if ( current.length ) { segments.push( current.join( " " ) ); }
+
+            let band = null;
+            const bandPairs = Array.isArray( s.band ) ? s.band : [];
+            if ( bandPairs.length ) {
+                const ups = [], los = [];
+                for ( let i = 0; i < n; i++ ) {
+                    const b = bandPairs[ i ];
+                    if ( b && typeof b[ 0 ] === "number" && typeof b[ 1 ] === "number" ) {
+                        ups.push( _round( xAt( i ) ) + "," + _round( yAt( b[ 1 ] ) ) );
+                        los.unshift( _round( xAt( i ) ) + "," + _round( yAt( b[ 0 ] ) ) );
+                    }
+                }
+                if ( ups.length ) { band = ups.concat( los ).join( " " ); }
+            }
+            return { key: s.key, tone: s.tone || "", style: s.style || "", segments: segments, dots: dots, band: band };
+        } );
+
+        return { W: W, H: H, padL: padL, padR: padR, padT: padT, padB: padB, innerW: innerW, innerH: innerH, n: n, yMin: yMin, yMax: yMax, sparkline: sparkline, series: laidSeries };
+    }
+
+    /**
      * Attaches CSP-safe drill interactivity to an element: tabindex/role + click & Enter/Space listeners dispatching a
      * bubbling `ti-chart:select` CustomEvent. In non-DOM environments (unit tests) it sets the a11y attributes and
      * returns without wiring listeners.
@@ -8567,7 +8685,7 @@ const TiCharts = ( function () {
         el.addEventListener( "keydown", ( e ) => { if ( e.key === "Enter" || e.key === " " ) { e.preventDefault(); fire(); } } );
     }
 
-    const SUPPORTED_TYPES = [ "gauge", "bars", "stat", "scatter", "heatmap", "box", "radar" ]; // P0 gauge/bars/stat; 1A scatter/heatmap/box; P3 radar (line still deferred)
+    const SUPPORTED_TYPES = [ "gauge", "bars", "stat", "scatter", "heatmap", "box", "radar", "line" ]; // P0 gauge/bars/stat; 1A scatter/heatmap/box; P3 radar; P4 line
 
     /**
      * @typedef {Object} TiChartSpec
@@ -8992,6 +9110,88 @@ const TiCharts = ( function () {
     }
 
     /**
+     * Renders the cross-cycle line/trend primitive (CA-X1): an optional baseline axis, one filled band area per series
+     * (p25–p75), a polyline per contiguous segment (null gaps break the line), vertex dots, x-axis cycle labels, and an
+     * sr-table. A `style:"dashed"` series (or spec.provisional) draws dashed; `options.provisionalLastPoint` dashes just
+     * the final connector of the primary series (the live ACTIVE cycle still in flight) and marks its last dot. Sparkline
+     * mode drops the axis/labels. All geometry via lineLayout + setAttribute (no element.style).
+     * @param {Element} figure
+     * @param {TiChartSpec} spec
+     */
+    function renderLine( figure, spec ) {
+        const data = spec.data;
+        const x = Array.isArray( data.x ) ? data.x : [];
+        const series = Array.isArray( data.series ) ? data.series : [];
+        if ( x.length === 0 || series.length === 0 ) { figure.setAttribute( "data-ti-chart-empty", "1" ); return; }
+        const options = spec.options || {};
+        const layout = lineLayout( series, Object.assign( {}, options, { xCount: x.length } ) );
+
+        const svg = svgEl( "svg", { viewBox: "0 0 " + _round( layout.W ) + " " + _round( layout.H ), preserveAspectRatio: "xMidYMid meet", role: "img" } );
+        _appendA11yTitle( svg, spec );
+
+        if ( !layout.sparkline ) {
+            const axisY = _round( layout.padT + layout.innerH );
+            svg.appendChild( svgEl( "line", { x1: layout.padL, y1: axisY, x2: _round( layout.W - layout.padR ), y2: axisY, class: "ti-chart-line-axis" } ) );
+        }
+
+        const provisionalLast = Boolean( options.provisionalLastPoint );
+
+        for ( let i = 0; i < layout.series.length; i++ ) {
+            const s = layout.series[ i ];
+            const tone = s.tone ? ( " tone-" + s.tone ) : "";
+            const dashed = ( s.style === "dashed" || spec.provisional );
+            if ( s.band ) {
+                svg.appendChild( svgEl( "polygon", { points: s.band, class: "ti-chart-line-band" + tone } ) );
+            }
+            for ( let g = 0; g < s.segments.length; g++ ) {
+                const pts = s.segments[ g ].split( " " );
+                if ( provisionalLast && i === 0 && g === s.segments.length - 1 && pts.length >= 2 ) {
+                    // split the final connector as a dashed "provisional" segment (active cycle still in flight)
+                    const solid = pts.slice( 0, pts.length - 1 );
+                    if ( solid.length >= 2 ) {
+                        svg.appendChild( svgEl( "polyline", { points: solid.join( " " ), class: "ti-chart-line-series" + tone, fill: "none" } ) );
+                    }
+                    const tail = svgEl( "polyline", { points: pts.slice( pts.length - 2 ).join( " " ), class: "ti-chart-line-series" + tone, fill: "none" } );
+                    tail.setAttribute( "stroke-dasharray", "3 2" );
+                    svg.appendChild( tail );
+                } else {
+                    const pl = svgEl( "polyline", { points: s.segments[ g ], class: "ti-chart-line-series" + tone, fill: "none" } );
+                    if ( dashed ) { pl.setAttribute( "stroke-dasharray", "3 2" ); }
+                    svg.appendChild( pl );
+                }
+            }
+            for ( let d = 0; d < s.dots.length; d++ ) {
+                const dot = s.dots[ d ];
+                let dotCls = "ti-chart-line-dot" + tone;
+                if ( provisionalLast && i === 0 && dot.xIndex === layout.n - 1 ) { dotCls += " provisional"; }
+                svg.appendChild( svgEl( "circle", { cx: dot.x, cy: dot.y, r: layout.sparkline ? 0.8 : 1.1, class: dotCls } ) );
+            }
+        }
+
+        if ( !layout.sparkline ) {
+            for ( let i = 0; i < x.length; i++ ) {
+                const lx = ( layout.n <= 1 ) ? _round( layout.padL + ( layout.innerW / 2 ) ) : _round( layout.padL + ( ( layout.innerW * i ) / ( layout.n - 1 ) ) );
+                const t = svgEl( "text", { x: lx, y: _round( layout.H - 2 ), class: "ti-chart-line-xlabel", "text-anchor": "middle" } );
+                t.textContent = String( ( x[ i ].label !== undefined ) ? x[ i ].label : x[ i ].id );
+                svg.appendChild( t );
+            }
+        }
+
+        figure.appendChild( svg );
+
+        const headers = [ "Cycle" ].concat( series.map( ( s ) => s.key ) );
+        const srRows = x.map( ( xi, i ) => {
+            const row = [ String( ( xi.label !== undefined ) ? xi.label : xi.id ) ];
+            for ( let j = 0; j < series.length; j++ ) {
+                const v = Array.isArray( series[ j ].values ) ? series[ j ].values[ i ] : null;
+                row.push( ( typeof v === "number" ) ? formatNumber( v, 2 ) : "—" );
+            }
+            return row;
+        } );
+        figure.appendChild( buildSrTable( headers, srRows ) );
+    }
+
+    /**
      * Top-level dispatcher: clears the host figure, normalizes the spec, routes to a renderer.
      * @param {Element} figure  host <figure class="ti-chart">
      * @param {*} rawSpec
@@ -9010,6 +9210,7 @@ const TiCharts = ( function () {
         else if ( spec.type === "heatmap" ) { renderHeatmap( figure, spec ); }
         else if ( spec.type === "box" ) { renderBox( figure, spec ); }
         else if ( spec.type === "radar" ) { renderRadar( figure, spec ); }
+        else if ( spec.type === "line" ) { renderLine( figure, spec ); }
         else { figure.setAttribute( "data-ti-chart-empty", "1" ); }
     }
 
@@ -9027,6 +9228,7 @@ const TiCharts = ( function () {
         barsGroupedLayout,
         barsDivergingLayout,
         radarLayout,
+        lineLayout,
         svgEl,
         buildSrTable,
         renderChart,
@@ -9045,13 +9247,14 @@ if ( typeof window !== "undefined" ) {
 </script>
 <script>
 
-const S = {"coverageGauge":{"type":"gauge","data":{"value":0.62,"label":"Coverage","sublabel":"26 / 42 · 62% reporting"},"a11yLabel":"Coverage 62%","provisional":true},"coverageBars":{"type":"bars","options":{"mode":"stacked"},"a11yLabel":"Coverage by group","data":{"rows":[{"id":"SE","label":"SE","total":18,"segments":[{"key":"Closed","v":6,"tone":"grade-s"},{"key":"Ready","v":4,"tone":"grade-r"},{"key":"In Review","v":3,"tone":"grade-u"},{"key":"Open","v":2,"tone":"grade-n"},{"key":"Not started","v":3,"tone":"ink"}]},{"id":"BA","label":"BA","total":14,"segments":[{"key":"Closed","v":3,"tone":"grade-s"},{"key":"Ready","v":3,"tone":"grade-r"},{"key":"In Review","v":4,"tone":"grade-u"},{"key":"Open","v":1,"tone":"grade-n"},{"key":"Not started","v":3,"tone":"ink"}]},{"id":"PM","label":"PM","total":10,"segments":[{"key":"Closed","v":4,"tone":"grade-s"},{"key":"Ready","v":2,"tone":"grade-r"},{"key":"In Review","v":1,"tone":"grade-u"},{"key":"Open","v":1,"tone":"grade-n"},{"key":"Not started","v":2,"tone":"ink"}]}]}},"levelBox":{"type":"box","options":{"domain":{"min":0,"max":150}},"a11yLabel":"Score distribution by level","data":{"reference":[{"v":105,"label":"T3"}],"groups":[{"id":"N1","label":"N1","n":1,"suppressed":true},{"id":"J1","label":"J1","n":1,"suppressed":true},{"id":"J2","label":"J2","n":5,"min":76,"q1":90,"median":102,"q3":114,"max":130,"mean":103,"expected":100},{"id":"J3","label":"J3","n":5,"min":79,"q1":93,"median":105,"q3":117,"max":133,"mean":106,"expected":104},{"id":"R1","label":"R1","n":5,"min":82,"q1":96,"median":108,"q3":120,"max":136,"mean":109,"expected":108},{"id":"R2","label":"R2","n":5,"min":85,"q1":99,"median":111,"q3":123,"max":139,"mean":112,"expected":112},{"id":"R3","label":"R3","n":5,"min":88,"q1":102,"median":114,"q3":126,"max":142,"mean":115,"expected":116},{"id":"S1","label":"S1","n":5,"min":91,"q1":105,"median":117,"q3":129,"max":145,"mean":118,"expected":120},{"id":"S2","label":"S2","n":5,"min":94,"q1":108,"median":120,"q3":132,"max":148,"mean":121,"expected":124},{"id":"S3","label":"S3","n":5,"min":97,"q1":111,"median":123,"q3":135,"max":151,"mean":124,"expected":128},{"id":"X1","label":"X1","n":1,"suppressed":true},{"id":"T1","label":"T1","n":1,"suppressed":true}]}},"heatmap":{"type":"heatmap","options":{"scale":"sequential"},"a11yLabel":"Competence heatmap","data":{"rows":[{"id":"E1","label":"E1"},{"id":"E2","label":"E2"},{"id":"E3","label":"E3"},{"id":"I1","label":"I1"},{"id":"I2","label":"I2"},{"id":"I3","label":"I3"},{"id":"C1","label":"C1"},{"id":"C2","label":"C2"},{"id":"C3","label":"C3"}],"cols":[{"id":"SE","label":"SE"},{"id":"BA","label":"BA"},{"id":"PM","label":"PM"}],"cells":[{"r":0,"c":0,"n":5,"v":0.6,"expected":1,"delta":-0.2},{"r":0,"c":1,"n":5,"v":0.7,"expected":1,"delta":-0.1},{"r":0,"c":2,"n":5,"v":0.8,"expected":1,"delta":0},{"r":1,"c":0,"n":5,"v":0.8999999999999999,"expected":1,"delta":0.1},{"r":1,"c":1,"n":5,"v":1,"expected":1,"delta":0.2},{"r":1,"c":2,"n":5,"v":1.1,"expected":1,"delta":-0.2},{"r":2,"c":0,"n":5,"v":1.2,"expected":1,"delta":-0.1},{"r":2,"c":1,"n":5,"v":0.6,"expected":1,"delta":0},{"r":2,"c":2,"n":5,"v":0.7,"expected":1,"delta":0.1},{"r":3,"c":0,"n":5,"v":0.8,"expected":1,"delta":0.2},{"r":3,"c":1,"n":5,"v":0.8999999999999999,"expected":1,"delta":-0.2},{"r":3,"c":2,"n":5,"v":1,"expected":1,"delta":-0.1},{"r":4,"c":0,"n":5,"v":1.1,"expected":1,"delta":0},{"r":4,"c":1,"n":5,"v":1.2,"expected":1,"delta":0.1},{"r":4,"c":2,"n":5,"v":0.6,"expected":1,"delta":0.2},{"r":5,"c":0,"n":5,"v":0.7,"expected":1,"delta":-0.2},{"r":5,"c":1,"n":5,"v":0.8,"expected":1,"delta":-0.1},{"r":5,"c":2,"n":5,"v":0.8999999999999999,"expected":1,"delta":0},{"r":6,"c":0,"n":5,"v":1,"expected":1,"delta":0.1},{"r":6,"c":1,"n":5,"v":1.1,"expected":1,"delta":0.2},{"r":6,"c":2,"n":5,"v":1.2,"expected":1,"delta":-0.2},{"r":7,"c":0,"n":5,"v":0.6,"expected":1,"delta":-0.1},{"r":7,"c":1,"n":5,"v":0.7,"expected":1,"delta":0},{"r":7,"c":2,"n":5,"v":0.8,"expected":1,"delta":0.1},{"r":8,"c":0,"n":5,"v":0.8999999999999999,"expected":1,"delta":0.2},{"r":8,"c":1,"n":5,"v":1,"expected":1,"delta":-0.2},{"r":8,"c":2,"n":5,"v":1.1,"expected":1,"delta":-0.1}]}},"alignment":{"type":"scatter","options":{"bubble":"z","domain":{"xMin":0,"xMax":1.3,"yMin":0,"yMax":1.3},"midX":1,"midY":1},"a11yLabel":"Alignment","data":{"diagonal":true,"points":[{"id":"1","x":1.1,"y":1.2,"z":1,"tone":"grade-s"},{"id":"2","x":0.9,"y":0.7,"z":0.8,"tone":"grade-n"},{"id":"3","x":1,"y":1,"z":1,"tone":"info"},{"id":"4","x":0.6,"y":1.1,"z":0.9,"tone":"grade-s"},{"id":"5","x":1.2,"y":0.8,"z":1.1,"tone":"grade-n"},{"id":"6","x":0.8,"y":0.85,"z":0.7,"tone":"info"}]}},"timeBars":{"type":"bars","options":{"mode":"grouped"},"a11yLabel":"Interview timing","data":{"rows":[{"id":"2026-01","label":"2026-01","values":[{"key":"planned","v":8,"tone":"grade-r"},{"key":"held","v":6,"tone":"grade-s"}]},{"id":"2026-02","label":"2026-02","values":[{"key":"planned","v":12,"tone":"grade-r"},{"key":"held","v":9,"tone":"grade-s"}]},{"id":"2026-03","label":"2026-03","values":[{"key":"planned","v":5,"tone":"grade-r"},{"key":"held","v":2,"tone":"grade-s"}]}]}},"driversBars":{"type":"bars","options":{"mode":"diverging"},"a11yLabel":"Performance drivers","data":{"rows":[{"id":"E1","label":"E1","values":[{"key":"divergence","v":-0.2,"tone":"grade-u"}]},{"id":"E2","label":"E2","values":[{"key":"divergence","v":-0.1,"tone":"info"}]},{"id":"E3","label":"E3","values":[{"key":"divergence","v":0,"tone":"info"}]},{"id":"I1","label":"I1","values":[{"key":"divergence","v":0.1,"tone":"grade-u"}]},{"id":"I2","label":"I2","values":[{"key":"divergence","v":0.2,"tone":"info"}]},{"id":"I3","label":"I3","values":[{"key":"divergence","v":-0.2,"tone":"info"}]},{"id":"C1","label":"C1","values":[{"key":"divergence","v":-0.1,"tone":"grade-u"}]},{"id":"C2","label":"C2","values":[{"key":"divergence","v":0,"tone":"info"}]},{"id":"C3","label":"C3","values":[{"key":"divergence","v":0.1,"tone":"info"}]}]}},"calibrationBars":{"type":"bars","options":{"mode":"diverging"},"a11yLabel":"Grader calibration","data":{"rows":[{"id":"E1","label":"E1","values":[{"key":"vsSelf","v":-0.1,"tone":"info"},{"key":"vsTeam","v":-0.1,"tone":"grade-r"}]},{"id":"E2","label":"E2","values":[{"key":"vsSelf","v":0,"tone":"info"},{"key":"vsTeam","v":0,"tone":"grade-r"}]},{"id":"E3","label":"E3","values":[{"key":"vsSelf","v":0.1,"tone":"info"},{"key":"vsTeam","v":0.1,"tone":"grade-r"}]},{"id":"I1","label":"I1","values":[{"key":"vsSelf","v":0.2,"tone":"info"},{"key":"vsTeam","v":-0.1,"tone":"grade-r"}]},{"id":"I2","label":"I2","values":[{"key":"vsSelf","v":-0.1,"tone":"info"},{"key":"vsTeam","v":0,"tone":"grade-r"}]},{"id":"I3","label":"I3","values":[{"key":"vsSelf","v":0,"tone":"info"},{"key":"vsTeam","v":0.1,"tone":"grade-r"}]},{"id":"C1","label":"C1","values":[{"key":"vsSelf","v":0.1,"tone":"info"},{"key":"vsTeam","v":-0.1,"tone":"grade-r"}]},{"id":"C2","label":"C2","values":[{"key":"vsSelf","v":0.2,"tone":"info"},{"key":"vsTeam","v":0,"tone":"grade-r"}]},{"id":"C3","label":"C3","values":[{"key":"vsSelf","v":-0.1,"tone":"info"},{"key":"vsTeam","v":0.1,"tone":"grade-r"}]}]}},"calibrationKpi":{"type":"stat","data":{"value":0.18,"label":"Overall vs self","sub":"+0.18 (more lenient) · n=14"},"a11yLabel":"Overall calibration gap"},"radar":{"type":"radar","a11yLabel":"Subcategory profile","data":{"axes":[{"id":"E1","label":"E1","max":1.3},{"id":"E2","label":"E2","max":1.3},{"id":"E3","label":"E3","max":1.3},{"id":"I1","label":"I1","max":1.3},{"id":"I2","label":"I2","max":1.3},{"id":"I3","label":"I3","max":1.3},{"id":"C1","label":"C1","max":1.3},{"id":"C2","label":"C2","max":1.3},{"id":"C3","label":"C3","max":1.3}],"series":[{"key":"self","tone":"grade-s","values":{"E1":1.3,"E2":1,"E3":1,"I1":0.6,"I2":1,"I3":1.3,"C1":1,"C2":0.6,"C3":1}},{"key":"manager","tone":"grade-r","values":{"E1":1,"E2":1,"E3":0.6,"I1":0.6,"I2":1,"I3":1,"C1":1,"C2":1,"C3":0.6}},{"key":"team","tone":"info","values":{"E1":1,"E2":0.6,"E3":1,"I1":1,"I2":0.6,"I3":1,"C1":0.6,"C2":1,"C3":1}},{"key":"expected","style":"dashed","values":{"E1":1,"E2":1,"E3":1,"I1":1,"I2":1,"I3":1,"C1":1,"C2":1,"C3":1}}]}}};
+const S = {"coverageGauge":{"type":"gauge","data":{"value":0.62,"label":"Coverage","sublabel":"26 / 42 · 62% reporting"},"a11yLabel":"Coverage 62%","provisional":true},"coverageBars":{"type":"bars","options":{"mode":"stacked"},"a11yLabel":"Coverage by group","data":{"rows":[{"id":"SE","label":"SE","total":18,"segments":[{"key":"Closed","v":6,"tone":"grade-s"},{"key":"Ready","v":4,"tone":"grade-r"},{"key":"In Review","v":3,"tone":"grade-u"},{"key":"Open","v":2,"tone":"grade-n"},{"key":"Not started","v":3,"tone":"ink"}]},{"id":"BA","label":"BA","total":14,"segments":[{"key":"Closed","v":3,"tone":"grade-s"},{"key":"Ready","v":3,"tone":"grade-r"},{"key":"In Review","v":4,"tone":"grade-u"},{"key":"Open","v":1,"tone":"grade-n"},{"key":"Not started","v":3,"tone":"ink"}]},{"id":"PM","label":"PM","total":10,"segments":[{"key":"Closed","v":4,"tone":"grade-s"},{"key":"Ready","v":2,"tone":"grade-r"},{"key":"In Review","v":1,"tone":"grade-u"},{"key":"Open","v":1,"tone":"grade-n"},{"key":"Not started","v":2,"tone":"ink"}]}]}},"levelBox":{"type":"box","options":{"domain":{"min":0,"max":150}},"a11yLabel":"Score distribution by level","data":{"reference":[{"v":105,"label":"T3"}],"groups":[{"id":"N1","label":"N1","n":1,"suppressed":true},{"id":"J1","label":"J1","n":1,"suppressed":true},{"id":"J2","label":"J2","n":5,"min":76,"q1":90,"median":102,"q3":114,"max":130,"mean":103,"expected":100},{"id":"J3","label":"J3","n":5,"min":79,"q1":93,"median":105,"q3":117,"max":133,"mean":106,"expected":104},{"id":"R1","label":"R1","n":5,"min":82,"q1":96,"median":108,"q3":120,"max":136,"mean":109,"expected":108},{"id":"R2","label":"R2","n":5,"min":85,"q1":99,"median":111,"q3":123,"max":139,"mean":112,"expected":112},{"id":"R3","label":"R3","n":5,"min":88,"q1":102,"median":114,"q3":126,"max":142,"mean":115,"expected":116},{"id":"S1","label":"S1","n":5,"min":91,"q1":105,"median":117,"q3":129,"max":145,"mean":118,"expected":120},{"id":"S2","label":"S2","n":5,"min":94,"q1":108,"median":120,"q3":132,"max":148,"mean":121,"expected":124},{"id":"S3","label":"S3","n":5,"min":97,"q1":111,"median":123,"q3":135,"max":151,"mean":124,"expected":128},{"id":"X1","label":"X1","n":1,"suppressed":true},{"id":"T1","label":"T1","n":1,"suppressed":true}]}},"heatmap":{"type":"heatmap","options":{"scale":"sequential"},"a11yLabel":"Competence heatmap","data":{"rows":[{"id":"E1","label":"E1"},{"id":"E2","label":"E2"},{"id":"E3","label":"E3"},{"id":"I1","label":"I1"},{"id":"I2","label":"I2"},{"id":"I3","label":"I3"},{"id":"C1","label":"C1"},{"id":"C2","label":"C2"},{"id":"C3","label":"C3"}],"cols":[{"id":"SE","label":"SE"},{"id":"BA","label":"BA"},{"id":"PM","label":"PM"}],"cells":[{"r":0,"c":0,"n":5,"v":0.6,"expected":1,"delta":-0.2},{"r":0,"c":1,"n":5,"v":0.7,"expected":1,"delta":-0.1},{"r":0,"c":2,"n":5,"v":0.8,"expected":1,"delta":0},{"r":1,"c":0,"n":5,"v":0.8999999999999999,"expected":1,"delta":0.1},{"r":1,"c":1,"n":5,"v":1,"expected":1,"delta":0.2},{"r":1,"c":2,"n":5,"v":1.1,"expected":1,"delta":-0.2},{"r":2,"c":0,"n":5,"v":1.2,"expected":1,"delta":-0.1},{"r":2,"c":1,"n":5,"v":0.6,"expected":1,"delta":0},{"r":2,"c":2,"n":5,"v":0.7,"expected":1,"delta":0.1},{"r":3,"c":0,"n":5,"v":0.8,"expected":1,"delta":0.2},{"r":3,"c":1,"n":5,"v":0.8999999999999999,"expected":1,"delta":-0.2},{"r":3,"c":2,"n":5,"v":1,"expected":1,"delta":-0.1},{"r":4,"c":0,"n":5,"v":1.1,"expected":1,"delta":0},{"r":4,"c":1,"n":5,"v":1.2,"expected":1,"delta":0.1},{"r":4,"c":2,"n":5,"v":0.6,"expected":1,"delta":0.2},{"r":5,"c":0,"n":5,"v":0.7,"expected":1,"delta":-0.2},{"r":5,"c":1,"n":5,"v":0.8,"expected":1,"delta":-0.1},{"r":5,"c":2,"n":5,"v":0.8999999999999999,"expected":1,"delta":0},{"r":6,"c":0,"n":5,"v":1,"expected":1,"delta":0.1},{"r":6,"c":1,"n":5,"v":1.1,"expected":1,"delta":0.2},{"r":6,"c":2,"n":5,"v":1.2,"expected":1,"delta":-0.2},{"r":7,"c":0,"n":5,"v":0.6,"expected":1,"delta":-0.1},{"r":7,"c":1,"n":5,"v":0.7,"expected":1,"delta":0},{"r":7,"c":2,"n":5,"v":0.8,"expected":1,"delta":0.1},{"r":8,"c":0,"n":5,"v":0.8999999999999999,"expected":1,"delta":0.2},{"r":8,"c":1,"n":5,"v":1,"expected":1,"delta":-0.2},{"r":8,"c":2,"n":5,"v":1.1,"expected":1,"delta":-0.1}]}},"alignment":{"type":"scatter","options":{"bubble":"z","domain":{"xMin":0,"xMax":1.3,"yMin":0,"yMax":1.3},"midX":1,"midY":1},"a11yLabel":"Alignment","data":{"diagonal":true,"points":[{"id":"1","x":1.1,"y":1.2,"z":1,"tone":"grade-s"},{"id":"2","x":0.9,"y":0.7,"z":0.8,"tone":"grade-n"},{"id":"3","x":1,"y":1,"z":1,"tone":"info"},{"id":"4","x":0.6,"y":1.1,"z":0.9,"tone":"grade-s"},{"id":"5","x":1.2,"y":0.8,"z":1.1,"tone":"grade-n"},{"id":"6","x":0.8,"y":0.85,"z":0.7,"tone":"info"}]}},"timeBars":{"type":"bars","options":{"mode":"grouped"},"a11yLabel":"Interview timing","data":{"rows":[{"id":"2026-01","label":"2026-01","values":[{"key":"planned","v":8,"tone":"grade-r"},{"key":"held","v":6,"tone":"grade-s"}]},{"id":"2026-02","label":"2026-02","values":[{"key":"planned","v":12,"tone":"grade-r"},{"key":"held","v":9,"tone":"grade-s"}]},{"id":"2026-03","label":"2026-03","values":[{"key":"planned","v":5,"tone":"grade-r"},{"key":"held","v":2,"tone":"grade-s"}]}]}},"driversBars":{"type":"bars","options":{"mode":"diverging"},"a11yLabel":"Performance drivers","data":{"rows":[{"id":"E1","label":"E1","values":[{"key":"divergence","v":-0.2,"tone":"grade-u"}]},{"id":"E2","label":"E2","values":[{"key":"divergence","v":-0.1,"tone":"info"}]},{"id":"E3","label":"E3","values":[{"key":"divergence","v":0,"tone":"info"}]},{"id":"I1","label":"I1","values":[{"key":"divergence","v":0.1,"tone":"grade-u"}]},{"id":"I2","label":"I2","values":[{"key":"divergence","v":0.2,"tone":"info"}]},{"id":"I3","label":"I3","values":[{"key":"divergence","v":-0.2,"tone":"info"}]},{"id":"C1","label":"C1","values":[{"key":"divergence","v":-0.1,"tone":"grade-u"}]},{"id":"C2","label":"C2","values":[{"key":"divergence","v":0,"tone":"info"}]},{"id":"C3","label":"C3","values":[{"key":"divergence","v":0.1,"tone":"info"}]}]}},"calibrationBars":{"type":"bars","options":{"mode":"diverging"},"a11yLabel":"Grader calibration","data":{"rows":[{"id":"E1","label":"E1","values":[{"key":"vsSelf","v":-0.1,"tone":"info"},{"key":"vsTeam","v":-0.1,"tone":"grade-r"}]},{"id":"E2","label":"E2","values":[{"key":"vsSelf","v":0,"tone":"info"},{"key":"vsTeam","v":0,"tone":"grade-r"}]},{"id":"E3","label":"E3","values":[{"key":"vsSelf","v":0.1,"tone":"info"},{"key":"vsTeam","v":0.1,"tone":"grade-r"}]},{"id":"I1","label":"I1","values":[{"key":"vsSelf","v":0.2,"tone":"info"},{"key":"vsTeam","v":-0.1,"tone":"grade-r"}]},{"id":"I2","label":"I2","values":[{"key":"vsSelf","v":-0.1,"tone":"info"},{"key":"vsTeam","v":0,"tone":"grade-r"}]},{"id":"I3","label":"I3","values":[{"key":"vsSelf","v":0,"tone":"info"},{"key":"vsTeam","v":0.1,"tone":"grade-r"}]},{"id":"C1","label":"C1","values":[{"key":"vsSelf","v":0.1,"tone":"info"},{"key":"vsTeam","v":-0.1,"tone":"grade-r"}]},{"id":"C2","label":"C2","values":[{"key":"vsSelf","v":0.2,"tone":"info"},{"key":"vsTeam","v":0,"tone":"grade-r"}]},{"id":"C3","label":"C3","values":[{"key":"vsSelf","v":-0.1,"tone":"info"},{"key":"vsTeam","v":0.1,"tone":"grade-r"}]}]}},"calibrationKpi":{"type":"stat","data":{"value":0.18,"label":"Overall vs self","sub":"+0.18 (more lenient) · n=14"},"a11yLabel":"Overall calibration gap"},"radar":{"type":"radar","a11yLabel":"Subcategory profile","data":{"axes":[{"id":"E1","label":"E1","max":1.3},{"id":"E2","label":"E2","max":1.3},{"id":"E3","label":"E3","max":1.3},{"id":"I1","label":"I1","max":1.3},{"id":"I2","label":"I2","max":1.3},{"id":"I3","label":"I3","max":1.3},{"id":"C1","label":"C1","max":1.3},{"id":"C2","label":"C2","max":1.3},{"id":"C3","label":"C3","max":1.3}],"series":[{"key":"self","tone":"grade-s","values":{"E1":1.3,"E2":1,"E3":1,"I1":0.6,"I2":1,"I3":1.3,"C1":1,"C2":0.6,"C3":1}},{"key":"manager","tone":"grade-r","values":{"E1":1,"E2":1,"E3":0.6,"I1":0.6,"I2":1,"I3":1,"C1":1,"C2":1,"C3":0.6}},{"key":"team","tone":"info","values":{"E1":1,"E2":0.6,"E3":1,"I1":1,"I2":0.6,"I3":1,"C1":0.6,"C2":1,"C3":1}},{"key":"expected","style":"dashed","values":{"E1":1,"E2":1,"E3":1,"I1":1,"I2":1,"I3":1,"C1":1,"C2":1,"C3":1}}]}},"lineTrend":{"type":"line","options":{"provisionalLastPoint":true},"a11yLabel":"Overall score trend","data":{"x":[{"id":"2025-H1","label":"25H1"},{"id":"2025-H2","label":"25H2"},{"id":"2026-H1","label":"26H1"},{"id":"2026-H2","label":"26H2"}],"series":[{"key":"mean","tone":"grade-s","values":[98,104,109,113],"band":[[86,110],[92,116],[99,119],[104,122]]},{"key":"expected","style":"dashed","values":[105,105,105,105]}]}},"lineSpark":{"type":"line","options":{"sparkline":true},"a11yLabel":"Gap sparkline","data":{"x":[{"id":"a","label":"a"},{"id":"b","label":"b"},{"id":"c","label":"c"},{"id":"d","label":"d"}],"series":[{"key":"gap","tone":"info","values":[0.2,0.14,0.08,0.03]}]}}};
 const R = (id, spec) => { const el = document.getElementById(id); if (el && window.TiCharts) window.TiCharts.renderChart(el, spec); };
 function renderAll() {
   R("fig-coverage", S.coverageGauge); R("fig-coverage-bars", S.coverageBars); R("fig-level", S.levelBox);
   R("fig-heatmap", S.heatmap); R("fig-alignment", S.alignment); R("fig-time", S.timeBars);
   R("fig-drivers", S.driversBars); R("fig-calibration", S.calibrationBars); R("fig-calibration-kpi", S.calibrationKpi);
   R("fig-radar", S.radar);
+  R("fig-line", S.lineTrend); R("fig-spark", S.lineSpark);
 }
 function setTheme(t){ document.documentElement.setAttribute("data-theme", t); document.body.style.background = getComputedStyle(document.documentElement).getPropertyValue("--bg-app"); }
 document.getElementById("theme-toggle").addEventListener("click", () => {
