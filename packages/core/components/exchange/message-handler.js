@@ -123,7 +123,8 @@ class MessageHandler extends ConnectionObserver {
      * @public
      */
     createMessageHash( message ) {
-        let key = String( config.getSetting( config.setting.MESSAGE_EXCHANGE_SECURITY_HASH_KEY ) || "" );
+        const rawKey = config.getSetting( config.setting.MESSAGE_EXCHANGE_SECURITY_HASH_KEY );
+        let key = rawKey == null ? "" : String( rawKey );
         if ( keyWarningEmitted === false ) {
             keyWarningEmitted = true;
             if ( !key || key === OLD_DEFAULT_HASH_KEY ) {
