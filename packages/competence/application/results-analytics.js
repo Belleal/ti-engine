@@ -33,6 +33,32 @@ const STAGE_LEVELS = Object.freeze( [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", 
 // Small-cell suppression floor (resolved decision §7.5) — a level/cell with fewer reported rows is suppressed.
 const MIN_COHORT_SIZE = 3;
 
+// Cross-cycle ladder-movement ordinals (design §3): the stage-family letter folds onto five rungs, with X and T (the two
+// top single-rung families) collapsed into one top ordinal so the histogram has a stable 1..5 axis across cycles.
+const LADDER_ORDINAL = Object.freeze( { N: 1, J: 2, R: 3, S: 4, X: 5, T: 5 } );
+
+// The T-band axis for tBandMix histograms (stable across cycles).
+const T_BANDS = Object.freeze( [ "T1", "T2", "T3", "T4", "T5" ] );
+
+/**
+ * Population standard deviation of a numeric array, rounded to 3 decimals. Returns null for an empty array. Pure.
+ *
+ * @param {Array<number>} values
+ * @returns {number|null}
+ */
+function stdev( values ) {
+    const n = values.length;
+    if ( n < 1 ) {
+        return null;
+    }
+    let sum = 0;
+    for ( const v of values ) { sum += v; }
+    const mean = sum / n;
+    let sq = 0;
+    for ( const v of values ) { sq += ( v - mean ) * ( v - mean ); }
+    return Math.round( Math.sqrt( sq / n ) * 1000 ) / 1000;
+}
+
 /**
  * Cross-evaluation cohort analytics. Pure compute + (later) snapshot projection. Mirrors the frozen-singleton
  * pattern of the other application modules (cf. data-manager.js:1062-1063). The aggregation primitives are pure:
@@ -76,6 +102,7 @@ class ResultsAnalytics {
             return [];
         }
         const resolveOrgUnit = ( filter && typeof filter.resolveOrgUnit === "function" ) ? filter.resolveOrgUnit : () => "";
+        const resolveOrgUnitName = ( filter && typeof filter.resolveOrgUnitName === "function" ) ? filter.resolveOrgUnitName : () => "";
         const rows = [];
 
         for ( const evaluation of evaluations ) {
@@ -121,6 +148,7 @@ class ResultsAnalytics {
             }
 
             const finalScore = ( evaluation.finalScore && typeof evaluation.finalScore.score === "number" ) ? evaluation.finalScore : null;
+            const organizationUnitID = resolveOrgUnit( evaluation.employeeID ) || "";
 
             rows.push( {
                 evaluationID: evaluation.evaluationID,
@@ -131,11 +159,14 @@ class ResultsAnalytics {
                 specialization: ( evaluation.specialization !== undefined ) ? evaluation.specialization : null,
                 stageLevel: stageLevel,
                 level: stageLevel ? stageLevel.charAt( 0 ) : "",            // stage-family letter (N/J/R/S/X/T)
-                organizationUnitID: resolveOrgUnit( evaluation.employeeID ) || "",
+                organizationUnitID: organizationUnitID,
+                organizationUnitName: resolveOrgUnitName( organizationUnitID ) || "",
                 interviewDate: ( evaluation.interviewDate !== undefined ) ? evaluation.interviewDate : null,
                 isScored: finalScore !== null,
                 finalScore: finalScore,
                 finalInterpretation: finalScore ? ( finalScore.interpretation || null ) : null,
+                // Per-category {score,interpretation} from calculateFinalEvaluationScores — the cross-cycle byCategory substrate.
+                scores: ( evaluation.scores && typeof evaluation.scores === "object" ) ? evaluation.scores : null,
                 competencies: competencies
             } );
         }
@@ -533,6 +564,189 @@ class ResultsAnalytics {
             }
         }
         return out;
+    }
+
+    /**
+     * The reported subset of a frame: scored evaluations at a final status (Ready/Closed). The cross-cycle substrate
+     * (overall/byCategory/ladder/byRoleFamily/byOrgUnit) is computed over this subset only.
+     * @method
+     * @param {Array<Object>} frame
+     * @returns {Array<Object>}
+     * @private
+     */
+    #reportedRows( frame ) {
+        return ( Array.isArray( frame ) ? frame : [] ).filter( ( r ) => r && r.isScored && r.finalScore && typeof r.finalScore.score === "number"
+            && ( r.status === configurationLoader.evaluationStatus.READY || r.status === configurationLoader.evaluationStatus.CLOSED ) );
+    }
+
+    /**
+     * Five-number summary (nearest-rank, no interpolation) plus mean and population stdev over a 0..150 score array.
+     * Returns an empty object for an empty array (the legacy-safe "no substrate yet" shape).
+     * @method
+     * @param {Array<number>} scores
+     * @returns {Object}
+     * @private
+     */
+    #scoreStats( scores ) {
+        if ( !scores.length ) {
+            return {};
+        }
+        const sorted = scores.slice().sort( ( a, b ) => a - b );
+        let sum = 0;
+        for ( const s of sorted ) { sum += s; }
+        return {
+            n: sorted.length,
+            mean: Math.round( sum / sorted.length ),
+            median: nearestRankPercentile( sorted, 0.5 ),
+            p25: nearestRankPercentile( sorted, 0.25 ),
+            p75: nearestRankPercentile( sorted, 0.75 ),
+            min: sorted[ 0 ],
+            max: sorted[ sorted.length - 1 ],
+            stdev: stdev( sorted )
+        };
+    }
+
+    /**
+     * Zero-filled count of `finalInterpretation` (the T-band) across rows. Used for overall.tBandMix and byCategory.tBandMix.
+     * @method
+     * @param {Array<Object>} rows
+     * @param {string} [field] - the row field carrying the band (default "finalInterpretation").
+     * @returns {Object<string,number>}
+     * @private
+     */
+    #tBandMix( rows, field ) {
+        const key = field || "finalInterpretation";
+        const mix = {};
+        for ( const band of T_BANDS ) { mix[ band ] = 0; }
+        for ( const r of rows ) {
+            const band = r[ key ];
+            if ( band && mix[ band ] !== undefined ) { mix[ band ]++; }
+        }
+        return mix;
+    }
+
+    /**
+     * overall.finalScore substrate: the five-number summary + mean/stdev over the reported rows' finalScore.score.
+     * @method
+     * @param {Array<Object>} frame
+     * @returns {Object}
+     * @private
+     */
+    #computeOverallStats( frame ) {
+        return this.#scoreStats( this.#reportedRows( frame ).map( ( r ) => r.finalScore.score ) );
+    }
+
+    /**
+     * byCategory substrate: per-category (E/I/C) five-number summary + mean/stdev + T-band mix over the reported rows'
+     * pre-blended per-category scores (CohortRow.scores[cat].{score,interpretation}).
+     * @method
+     * @param {Array<Object>} rows - the reported subset.
+     * @returns {Object<string,Object>}
+     * @private
+     */
+    #computeByCategory( rows ) {
+        const out = {};
+        for ( const cat of [ "E", "I", "C" ] ) {
+            const cells = rows.filter( ( r ) => r.scores && r.scores[ cat ] && typeof r.scores[ cat ].score === "number" )
+                .map( ( r ) => ( { score: r.scores[ cat ].score, interpretation: r.scores[ cat ].interpretation } ) );
+            out[ cat ] = Object.assign( {}, this.#scoreStats( cells.map( ( c ) => c.score ) ), { tBandMix: this.#tBandMix( cells, "interpretation" ) } );
+        }
+        return out;
+    }
+
+    /**
+     * ladderOrdinalHistogram substrate: counts of reported rows per ladder ordinal (N→1,J→2,R→3,S→4,X+T→5) plus the
+     * relevancy-free mean rung. Cohort-composition movement, not individual promotion (design §3 caveat).
+     * @method
+     * @param {Array<Object>} rows - the reported subset.
+     * @returns {{hist:Object<string,number>,meanRung:(number|null)}}
+     * @private
+     */
+    #computeLadderOrdinalHistogram( rows ) {
+        const hist = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
+        let ordinalSum = 0;
+        let counted = 0;
+        for ( const r of rows ) {
+            const ordinal = LADDER_ORDINAL[ r.level ];
+            if ( !ordinal ) { continue; }
+            hist[ String( ordinal ) ]++;
+            ordinalSum += ordinal;
+            counted++;
+        }
+        return { hist: hist, meanRung: counted ? ( Math.round( ( ordinalSum / counted ) * 100 ) / 100 ) : null };
+    }
+
+    /**
+     * byRoleFamily substrate: per role-family cohort summary, suppressed to {n,suppressed:true} below MIN_COHORT_SIZE
+     * (highest de-anonymization risk — §5.3). Each surviving family carries n, finalScoreMean, byCategory and the
+     * per-subcategory gap map.
+     * @method
+     * @param {Array<Object>} frame
+     * @returns {Object<string,Object>}
+     * @private
+     */
+    #computeByRoleFamily( frame ) {
+        const groups = new Map();
+        for ( const r of this.#reportedRows( frame ) ) {
+            const key = r.roleFamily || "";
+            if ( !groups.has( key ) ) { groups.set( key, [] ); }
+            groups.get( key ).push( r );
+        }
+        const out = {};
+        for ( const [ family, rows ] of groups ) {
+            out[ family ] = this.#cohortCell( rows, { byCategory: true, bySubcategoryGap: true } );
+        }
+        return out;
+    }
+
+    /**
+     * byOrgUnit substrate: per organization-unit cohort summary, suppressed below MIN_COHORT_SIZE (§5.3). Surviving
+     * units carry n, the resolved unitName, finalScoreMean and byCategory.
+     * @method
+     * @param {Array<Object>} frame
+     * @returns {Object<string,Object>}
+     * @private
+     */
+    #computeByOrgUnit( frame ) {
+        const groups = new Map();
+        for ( const r of this.#reportedRows( frame ) ) {
+            const key = r.organizationUnitID || "";
+            if ( !groups.has( key ) ) { groups.set( key, [] ); }
+            groups.get( key ).push( r );
+        }
+        const out = {};
+        for ( const [ unitID, rows ] of groups ) {
+            out[ unitID ] = this.#cohortCell( rows, { byCategory: true, unitName: ( rows[ 0 ] && rows[ 0 ].organizationUnitName ) || "" } );
+        }
+        return out;
+    }
+
+    /**
+     * Builds one cohort breakdown cell (a role-family or org-unit group), applying the MIN_COHORT_SIZE suppression
+     * floor. Below the floor it returns only {n,suppressed:true}; otherwise n, finalScoreMean and the requested extras.
+     * @method
+     * @param {Array<Object>} rows - already the reported subset for this group.
+     * @param {Object} extras - { byCategory?:bool, bySubcategoryGap?:bool, unitName?:string }
+     * @returns {Object}
+     * @private
+     */
+    #cohortCell( rows, extras ) {
+        const n = rows.length;
+        if ( n < MIN_COHORT_SIZE ) {
+            return { n: n, suppressed: true };
+        }
+        let sum = 0;
+        for ( const r of rows ) { sum += r.finalScore.score; }
+        const cell = { n: n, finalScoreMean: Math.round( sum / n ) };
+        if ( extras && typeof extras.unitName === "string" ) { cell.unitName = extras.unitName; }
+        if ( extras && extras.byCategory ) { cell.byCategory = this.#computeByCategory( rows ); }
+        if ( extras && extras.bySubcategoryGap ) {
+            const sub = this.#computeBySubcategory( rows );
+            const gaps = {};
+            for ( const code of Object.keys( sub ) ) { gaps[ code ] = sub[ code ].gap; }
+            cell.bySubcategoryGap = gaps;
+        }
+        return cell;
     }
 
     /**
@@ -1186,7 +1400,8 @@ class ResultsAnalytics {
             }
             const filter = { groupBy: "orgUnit", allowedEmployeeIDs: null, rootUnitID: rootUnitID };
             const resolveOrgUnit = ( employeeID ) => organizationManager.instance.resolveOrganizationUnitIDForEmployee( employeeID );
-            const frameFilter = Object.assign( {}, filter, { resolveOrgUnit: resolveOrgUnit } );
+            const resolveOrgUnitName = ( unitID ) => organizationManager.instance.resolveOrganizationUnitName( unitID );
+            const frameFilter = Object.assign( {}, filter, { resolveOrgUnit: resolveOrgUnit, resolveOrgUnitName: resolveOrgUnitName } );
             return Promise.all( [
                 dataManager.instance.fetchEvaluations( null, false ),
                 dataManager.instance.fetchAllCalendarSlots( cycleID )   // R2 input
@@ -1261,9 +1476,19 @@ class ResultsAnalytics {
         // R3 (CA-67): alignment quadrant at the configured midpoint (persistResultsSnapshot injects the live setting).
         const alignment = this.computeAlignment( frame, { midpoint: ( typeof input.alignmentMidpoint === "number" ) ? input.alignmentMidpoint : GRADE_WEIGHTS.R } );
 
+        // Phase 4 (CA-X0): the cross-cycle stable-axis substrate — computed over the reported subset, suppressing small
+        // org/role cells (§5.3). Populating these bumps schemaVersion to 2; readers tolerate legacy (v1, empty) snapshots.
+        const reported = this.#reportedRows( frame );
+        const ladder = this.#computeLadderOrdinalHistogram( reported );
+        const overallStats = this.#computeOverallStats( frame );
+        const tBandMix = this.#tBandMix( reported );
+        const byCategory = this.#computeByCategory( reported );
+        const byRoleFamily = this.#computeByRoleFamily( frame );
+        const byOrgUnit = this.#computeByOrgUnit( frame );
+
         return {
             cycleID: cycleID,
-            schemaVersion: 1,
+            schemaVersion: 2,
             dictionaryVersion: input.dictionaryVersion || null,
             competencyCodeEra: "v3.0.0",
             computedAt: computedAt,
@@ -1288,14 +1513,16 @@ class ResultsAnalytics {
                 predictiveDrivers: predictiveDrivers     // CA-67 R6
             },
 
-            // Cross-cycle stable-axis substrate — locked SHAPE now, populated as reports land (never back-fillable).
-            overall: { finalScore: {}, tBandMix: {} },
-            byCategory: {},
-            bySubcategory: bySubcategory,   // CA-67 R4 (stable E1..C3 axis)
-            byStageLevel: byStageLevel,   // CA-67 R5 (stable 12-rung axis)
-            ladderOrdinalHistogram: {},
-            byRoleFamily: {},
-            byOrgUnit: {}
+            // Cross-cycle stable-axis substrate (CA-X0) — populated over the reported subset; never back-fillable, so
+            // cycles closed before this change keep the empty v1 shape and readers must tolerate it.
+            overall: { finalScore: overallStats, tBandMix: tBandMix },
+            byCategory: byCategory,                       // CA-X0 (stable E/I/C axis)
+            bySubcategory: bySubcategory,                 // CA-67 R4 (stable E1..C3 axis)
+            byStageLevel: byStageLevel,                   // CA-67 R5 (stable 12-rung axis)
+            ladderOrdinalHistogram: ladder.hist,          // CA-X0 (N→1,J→2,R→3,S→4,X+T→5)
+            ladderMeanRung: ladder.meanRung,              // CA-X0 (relevancy-free mean ordinal)
+            byRoleFamily: byRoleFamily,                   // CA-X0 (n<k suppressed)
+            byOrgUnit: byOrgUnit                          // CA-X0 (n<k suppressed)
         };
     }
 

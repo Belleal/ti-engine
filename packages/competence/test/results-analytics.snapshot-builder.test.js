@@ -29,7 +29,7 @@ function coverageReport( over = {} ) {
 
 describe( "ResultsAnalytics.buildResultsSnapshot — locked shape", () => {
 
-    it( "produces the locked top-level keys with coverage populated and stable axes stubbed", () => {
+    it( "produces the locked top-level keys with coverage populated and the stable axes computed (empty for an unscored frame)", () => {
         const snap = resultsAnalytics.instance.buildResultsSnapshot( "2026-H2", {
             frame: [ { evaluationID: "e1" }, { evaluationID: "e2" } ],
             coverageReport: coverageReport(),
@@ -39,7 +39,7 @@ describe( "ResultsAnalytics.buildResultsSnapshot — locked shape", () => {
         } );
 
         assert.equal( snap.cycleID, "2026-H2" );
-        assert.equal( snap.schemaVersion, 1 );
+        assert.equal( snap.schemaVersion, 2 );
         assert.equal( snap.dictionaryVersion, "3.3.1" );
         assert.equal( snap.competencyCodeEra, "v3.0.0" );
         assert.equal( snap.provisional, false );
@@ -47,10 +47,13 @@ describe( "ResultsAnalytics.buildResultsSnapshot — locked shape", () => {
         assert.ok( typeof snap.computedAt === "string" && snap.computedAt.length > 0 );
         assert.deepEqual( snap.reports.coverage, coverageReport() );
 
-        // stable-axis aggregate stubs present with the correct shape, empty for Phase 0
-        assert.deepEqual( snap.overall, { finalScore: {}, tBandMix: {} } );
-        assert.deepEqual( snap.byCategory, {} );
-        assert.deepEqual( snap.ladderOrdinalHistogram, {} );
+        // CA-X0: the cross-cycle substrate is now COMPUTED (was stubbed). These frame rows are unscored, so there are
+        // no reported rows: score aggregates are empty/zero-filled and the org/role breakdowns have no groups.
+        const zeroBands = { T1: 0, T2: 0, T3: 0, T4: 0, T5: 0 };
+        assert.deepEqual( snap.overall, { finalScore: {}, tBandMix: zeroBands } );
+        assert.deepEqual( snap.byCategory, { E: { tBandMix: zeroBands }, I: { tBandMix: zeroBands }, C: { tBandMix: zeroBands } } );
+        assert.deepEqual( snap.ladderOrdinalHistogram, { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 } );
+        assert.equal( snap.ladderMeanRung, null );
         assert.deepEqual( snap.byRoleFamily, {} );
         assert.deepEqual( snap.byOrgUnit, {} );
 

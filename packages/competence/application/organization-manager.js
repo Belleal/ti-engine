@@ -313,6 +313,24 @@ class OrganizationManager {
     }
 
     /**
+     * Resolves the display name for the specified organization unit ID (preferring `displayName`, falling back to
+     * `name`). Returns an empty string for a missing/unknown unit. Used by the cross-cycle byOrgUnit substrate (CA-X0).
+     *
+     * @method
+     * @param {string} organizationUnitID
+     * @returns {string}
+     * @public
+     */
+    resolveOrganizationUnitName( organizationUnitID ) {
+        const unitNodeID = this.toUnitNodeID( organizationUnitID );
+        if ( !organizationUnitID || !this.#organizationChart || !this.#organizationChart.hasNode( unitNodeID ) ) {
+            return "";
+        }
+
+        return this.#organizationChart.getNodeAttribute( unitNodeID, "displayName" ) || this.#organizationChart.getNodeAttribute( unitNodeID, "name" ) || "";
+    }
+
+    /**
      * Resolves the career attributes for the specified employee ID. Returns the resolved level/stage codes plus the
      * role family / specialization codes and their localized display names.
      *

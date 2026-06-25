@@ -6,9 +6,10 @@
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-const { describe, it } = require( "node:test" );
+const { describe, it, before } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 
+const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
 const organizationManager = require( "#organization-manager" );
 
 describe( "OrganizationManager.getOrganizationRootUnitID", () => {
@@ -22,6 +23,25 @@ describe( "OrganizationManager.getOrganizationRootUnitID", () => {
         // When the chart is not built in a bare unit test, the accessor returns null rather than throwing.
         const rootID = organizationManager.instance.getOrganizationRootUnitID();
         assert.ok( rootID === "1" || rootID === null );
+    } );
+
+} );
+
+describe( "OrganizationManager.resolveOrganizationUnitName (CA-X0)", () => {
+
+    before( async () => {
+        installInMemoryCache();
+        await organizationManager.instance.buildOrganizationChart();
+    } );
+
+    it( "returns the display name for a known unit id", () => {
+        const name = organizationManager.instance.resolveOrganizationUnitName( "1" );
+        assert.equal( typeof name, "string" );
+        assert.ok( name.length > 0, "the seeded root unit must have a name" );
+    } );
+
+    it( "returns an empty string for an unknown unit id", () => {
+        assert.equal( organizationManager.instance.resolveOrganizationUnitName( "no-such-unit" ), "" );
     } );
 
 } );

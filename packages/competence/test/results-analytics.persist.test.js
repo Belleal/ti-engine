@@ -48,7 +48,7 @@ describe( "ResultsAnalytics.persistResultsSnapshot — re-reads cycle for actual
         const stored = await dataManager.instance.getResultsSnapshot( "2026-H2" );
         assert.ok( stored, "snapshot must be persisted" );
         assert.equal( stored.cycleClosedAt, reread.actualCloseDate );
-        assert.equal( stored.schemaVersion, 1 );
+        assert.equal( stored.schemaVersion, 2 );
         assert.equal( stored.provisional, false );
         assert.equal( stored.competencyCodeEra, "v3.0.0" );
         // coverage slot present (object when B's helpers exist, null with the Phase-0 stub) — slot must exist:
