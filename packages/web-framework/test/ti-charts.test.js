@@ -480,6 +480,28 @@ describe( "ti-charts — Phase-1 renderers (CSP discipline + structure)", () => 
         assert.ok( expected && expected.attrs.fill === "none" );
         assert.equal( srTableOf( figure ).length, 1 );
     } );
+
+    it( "line: band area + per-series polyline(s) + dots + sr-table; data-ti-chart-type set", () => {
+        const figure = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
+            type: "line", a11yLabel: "Overall trend",
+            data: {
+                x: [ { id: "2025-H2", label: "25H2" }, { id: "2026-H1", label: "26H1" }, { id: "2026-H2", label: "26H2" } ],
+                series: [
+                    { key: "mean", tone: "grade-s", values: [ 100, 108, 112 ], band: [ [ 90, 110 ], [ 98, 116 ], [ 102, 120 ] ] },
+                    { key: "expected", style: "dashed", values: [ 105, 105, 105 ] }
+                ]
+            },
+            options: { provisionalLastPoint: true }
+        } ) );
+        assert.equal( figure.attrs[ "data-ti-chart-type" ], "line" );
+        const svg = svgOf( figure )[ 0 ];
+        const polylines = collect( svg, ( n ) => n.tag === "polyline" );
+        assert.ok( polylines.length >= 2 );                                            // mean + expected (+ provisional split)
+        assert.ok( collect( svg, ( n ) => n.attrs && n.attrs.class && n.attrs.class.indexOf( "ti-chart-line-band" ) >= 0 ).length >= 1 );
+        assert.ok( polylines.some( ( p ) => p.attrs[ "stroke-dasharray" ] ) );          // dashed series via presentation attr (never element.style)
+        assert.equal( srTableOf( figure ).length, 1 );
+    } );
 } );
 
 describe( "ti-charts — radarLayout (P3)", () => {
@@ -507,4 +529,36 @@ describe( "ti-charts — radarLayout (P3)", () => {
         assert.equal( l.series[ 0 ].points.split( " " ).length, 4 );
         assert.equal( l.rings.length, 4 );
     } );
+} );
+
+describe( "ti-charts — lineLayout (CA-X1)", () => {
+
+    it( "maps the first x to padL and the last to W-padR, value@yMax to the top and @yMin to the bottom", () => {
+        const l = TiCharts.lineLayout( [ { key: "score", values: [ 10, 20, 30 ] } ], { xCount: 3, width: 100, height: 60 } );
+        assert.equal( l.yMin, 10 );
+        assert.equal( l.yMax, 30 );
+        const dots = l.series[ 0 ].dots;
+        assert.equal( dots[ 0 ].x, l.padL );                 // first point at the left padding
+        assert.equal( dots[ 2 ].x, l.W - l.padR );           // last point at the right edge
+        assert.equal( dots[ 2 ].y, l.padT );                 // yMax → top
+        assert.equal( dots[ 0 ].y, l.padT + l.innerH );      // yMin → bottom
+    } );
+
+    it( "pins the y-domain floor to 0 when zeroBaseline is set", () => {
+        const l = TiCharts.lineLayout( [ { key: "gap", values: [ 10, 20, 30 ] } ], { xCount: 3, zeroBaseline: true } );
+        assert.equal( l.yMin, 0 );
+    } );
+
+    it( "lifts yMax to cover a series band's upper edge and emits a band polygon string", () => {
+        const l = TiCharts.lineLayout( [ { key: "mean", values: [ 2, 3 ], band: [ [ 1, 9 ], [ 1, 9 ] ] } ], { xCount: 2 } );
+        assert.equal( l.yMax, 9 );
+        assert.ok( typeof l.series[ 0 ].band === "string" && l.series[ 0 ].band.length > 0 );
+    } );
+
+    it( "breaks the polyline into separate segments around a null gap (no phantom point)", () => {
+        const l = TiCharts.lineLayout( [ { key: "s", values: [ 1, null, 3 ] } ], { xCount: 3 } );
+        assert.equal( l.series[ 0 ].segments.length, 2 );
+        assert.equal( l.series[ 0 ].dots.length, 2 );
+    } );
+
 } );

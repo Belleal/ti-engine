@@ -545,6 +545,86 @@ const TiCharts = ( function () {
     }
 
     /**
+     * Pure layout for the cross-cycle line/trend primitive (CA-X1). Maps a categorical x-axis (cycles, evenly spaced)
+     * and N series onto a viewBox. Each series may carry a {p25,p75}-style `band` (drawn as a filled area) and null
+     * gaps (the polyline breaks into separate segments — a null is NOT bridged or plotted as 0). The y-domain spans the
+     * min/max over all numeric values and band edges, unless `yMax`/`zeroBaseline` pin it.
+     *
+     * @param {Array<{key,values:Array<number|null>,band?:Array<[number,number]|null>,tone?,style?}>} series
+     * @param {Object} [opts] {width=100,height=60|28,xCount,yMax,zeroBaseline=false,sparkline=false}
+     * @returns {{W,H,padL,padR,padT,padB,innerW,innerH,n,yMin,yMax,sparkline,series:Array}}
+     */
+    function lineLayout( series, opts ) {
+        const o = opts || {};
+        const sparkline = Boolean( o.sparkline );
+        const W = ( typeof o.width === "number" ) ? o.width : 100;
+        const H = ( typeof o.height === "number" ) ? o.height : ( sparkline ? 28 : 60 );
+        const padL = sparkline ? 1 : 12;
+        const padR = sparkline ? 1 : 4;
+        const padT = sparkline ? 2 : 4;
+        const padB = sparkline ? 2 : 10;
+        const seriesList = Array.isArray( series ) ? series : [];
+        const n = ( typeof o.xCount === "number" ) ? o.xCount
+            : ( seriesList.length && Array.isArray( seriesList[ 0 ].values ) ? seriesList[ 0 ].values.length : 0 );
+        const innerW = W - padL - padR;
+        const innerH = H - padT - padB;
+
+        let yMax = ( typeof o.yMax === "number" ) ? o.yMax : Number.NEGATIVE_INFINITY;
+        let yMin = o.zeroBaseline ? 0 : Number.POSITIVE_INFINITY;
+        for ( const s of seriesList ) {
+            const vals = Array.isArray( s.values ) ? s.values : [];
+            for ( const v of vals ) { if ( typeof v === "number" ) { if ( v > yMax ) { yMax = v; } if ( !o.zeroBaseline && v < yMin ) { yMin = v; } } }
+            const band = Array.isArray( s.band ) ? s.band : [];
+            for ( const b of band ) {
+                if ( b && typeof b[ 1 ] === "number" && b[ 1 ] > yMax ) { yMax = b[ 1 ]; }
+                if ( b && !o.zeroBaseline && typeof b[ 0 ] === "number" && b[ 0 ] < yMin ) { yMin = b[ 0 ]; }
+            }
+        }
+        if ( !isFinite( yMax ) ) { yMax = o.zeroBaseline ? 1 : 0; }
+        if ( !isFinite( yMin ) ) { yMin = 0; }
+        if ( yMax <= yMin ) { yMax = yMin + 1; }
+
+        const xAt = ( i ) => ( n <= 1 ) ? ( padL + ( innerW / 2 ) ) : ( padL + ( ( innerW * i ) / ( n - 1 ) ) );
+        const yAt = ( v ) => padT + ( innerH * ( 1 - ( ( v - yMin ) / ( yMax - yMin ) ) ) );
+
+        const laidSeries = seriesList.map( ( s ) => {
+            const vals = Array.isArray( s.values ) ? s.values : [];
+            const dots = [];
+            const segments = [];
+            let current = [];
+            for ( let i = 0; i < n; i++ ) {
+                const v = vals[ i ];
+                if ( typeof v === "number" ) {
+                    const x = _round( xAt( i ) ), y = _round( yAt( v ) );
+                    current.push( x + "," + y );
+                    dots.push( { x: x, y: y, xIndex: i, value: v } );
+                } else if ( current.length ) {
+                    segments.push( current.join( " " ) );
+                    current = [];
+                }
+            }
+            if ( current.length ) { segments.push( current.join( " " ) ); }
+
+            let band = null;
+            const bandPairs = Array.isArray( s.band ) ? s.band : [];
+            if ( bandPairs.length ) {
+                const ups = [], los = [];
+                for ( let i = 0; i < n; i++ ) {
+                    const b = bandPairs[ i ];
+                    if ( b && typeof b[ 0 ] === "number" && typeof b[ 1 ] === "number" ) {
+                        ups.push( _round( xAt( i ) ) + "," + _round( yAt( b[ 1 ] ) ) );
+                        los.unshift( _round( xAt( i ) ) + "," + _round( yAt( b[ 0 ] ) ) );
+                    }
+                }
+                if ( ups.length ) { band = ups.concat( los ).join( " " ); }
+            }
+            return { key: s.key, tone: s.tone || "", style: s.style || "", segments: segments, dots: dots, band: band };
+        } );
+
+        return { W: W, H: H, padL: padL, padR: padR, padT: padT, padB: padB, innerW: innerW, innerH: innerH, n: n, yMin: yMin, yMax: yMax, sparkline: sparkline, series: laidSeries };
+    }
+
+    /**
      * Attaches CSP-safe drill interactivity to an element: tabindex/role + click & Enter/Space listeners dispatching a
      * bubbling `ti-chart:select` CustomEvent. In non-DOM environments (unit tests) it sets the a11y attributes and
      * returns without wiring listeners.
@@ -560,7 +640,7 @@ const TiCharts = ( function () {
         el.addEventListener( "keydown", ( e ) => { if ( e.key === "Enter" || e.key === " " ) { e.preventDefault(); fire(); } } );
     }
 
-    const SUPPORTED_TYPES = [ "gauge", "bars", "stat", "scatter", "heatmap", "box", "radar" ]; // P0 gauge/bars/stat; 1A scatter/heatmap/box; P3 radar (line still deferred)
+    const SUPPORTED_TYPES = [ "gauge", "bars", "stat", "scatter", "heatmap", "box", "radar", "line" ]; // P0 gauge/bars/stat; 1A scatter/heatmap/box; P3 radar; P4 line
 
     /**
      * @typedef {Object} TiChartSpec
@@ -985,6 +1065,88 @@ const TiCharts = ( function () {
     }
 
     /**
+     * Renders the cross-cycle line/trend primitive (CA-X1): an optional baseline axis, one filled band area per series
+     * (p25–p75), a polyline per contiguous segment (null gaps break the line), vertex dots, x-axis cycle labels, and an
+     * sr-table. A `style:"dashed"` series (or spec.provisional) draws dashed; `options.provisionalLastPoint` dashes just
+     * the final connector of the primary series (the live ACTIVE cycle still in flight) and marks its last dot. Sparkline
+     * mode drops the axis/labels. All geometry via lineLayout + setAttribute (no element.style).
+     * @param {Element} figure
+     * @param {TiChartSpec} spec
+     */
+    function renderLine( figure, spec ) {
+        const data = spec.data;
+        const x = Array.isArray( data.x ) ? data.x : [];
+        const series = Array.isArray( data.series ) ? data.series : [];
+        if ( x.length === 0 || series.length === 0 ) { figure.setAttribute( "data-ti-chart-empty", "1" ); return; }
+        const options = spec.options || {};
+        const layout = lineLayout( series, Object.assign( {}, options, { xCount: x.length } ) );
+
+        const svg = svgEl( "svg", { viewBox: "0 0 " + _round( layout.W ) + " " + _round( layout.H ), preserveAspectRatio: "xMidYMid meet", role: "img" } );
+        _appendA11yTitle( svg, spec );
+
+        if ( !layout.sparkline ) {
+            const axisY = _round( layout.padT + layout.innerH );
+            svg.appendChild( svgEl( "line", { x1: layout.padL, y1: axisY, x2: _round( layout.W - layout.padR ), y2: axisY, class: "ti-chart-line-axis" } ) );
+        }
+
+        const provisionalLast = Boolean( options.provisionalLastPoint );
+
+        for ( let i = 0; i < layout.series.length; i++ ) {
+            const s = layout.series[ i ];
+            const tone = s.tone ? ( " tone-" + s.tone ) : "";
+            const dashed = ( s.style === "dashed" || spec.provisional );
+            if ( s.band ) {
+                svg.appendChild( svgEl( "polygon", { points: s.band, class: "ti-chart-line-band" + tone } ) );
+            }
+            for ( let g = 0; g < s.segments.length; g++ ) {
+                const pts = s.segments[ g ].split( " " );
+                if ( provisionalLast && i === 0 && g === s.segments.length - 1 && pts.length >= 2 ) {
+                    // split the final connector as a dashed "provisional" segment (active cycle still in flight)
+                    const solid = pts.slice( 0, pts.length - 1 );
+                    if ( solid.length >= 2 ) {
+                        svg.appendChild( svgEl( "polyline", { points: solid.join( " " ), class: "ti-chart-line-series" + tone, fill: "none" } ) );
+                    }
+                    const tail = svgEl( "polyline", { points: pts.slice( pts.length - 2 ).join( " " ), class: "ti-chart-line-series" + tone, fill: "none" } );
+                    tail.setAttribute( "stroke-dasharray", "3 2" );
+                    svg.appendChild( tail );
+                } else {
+                    const pl = svgEl( "polyline", { points: s.segments[ g ], class: "ti-chart-line-series" + tone, fill: "none" } );
+                    if ( dashed ) { pl.setAttribute( "stroke-dasharray", "3 2" ); }
+                    svg.appendChild( pl );
+                }
+            }
+            for ( let d = 0; d < s.dots.length; d++ ) {
+                const dot = s.dots[ d ];
+                let dotCls = "ti-chart-line-dot" + tone;
+                if ( provisionalLast && i === 0 && dot.xIndex === layout.n - 1 ) { dotCls += " provisional"; }
+                svg.appendChild( svgEl( "circle", { cx: dot.x, cy: dot.y, r: layout.sparkline ? 0.8 : 1.1, class: dotCls } ) );
+            }
+        }
+
+        if ( !layout.sparkline ) {
+            for ( let i = 0; i < x.length; i++ ) {
+                const lx = ( layout.n <= 1 ) ? _round( layout.padL + ( layout.innerW / 2 ) ) : _round( layout.padL + ( ( layout.innerW * i ) / ( layout.n - 1 ) ) );
+                const t = svgEl( "text", { x: lx, y: _round( layout.H - 2 ), class: "ti-chart-line-xlabel", "text-anchor": "middle" } );
+                t.textContent = String( ( x[ i ].label !== undefined ) ? x[ i ].label : x[ i ].id );
+                svg.appendChild( t );
+            }
+        }
+
+        figure.appendChild( svg );
+
+        const headers = [ "Cycle" ].concat( series.map( ( s ) => s.key ) );
+        const srRows = x.map( ( xi, i ) => {
+            const row = [ String( ( xi.label !== undefined ) ? xi.label : xi.id ) ];
+            for ( let j = 0; j < series.length; j++ ) {
+                const v = Array.isArray( series[ j ].values ) ? series[ j ].values[ i ] : null;
+                row.push( ( typeof v === "number" ) ? formatNumber( v, 2 ) : "—" );
+            }
+            return row;
+        } );
+        figure.appendChild( buildSrTable( headers, srRows ) );
+    }
+
+    /**
      * Top-level dispatcher: clears the host figure, normalizes the spec, routes to a renderer.
      * @param {Element} figure  host <figure class="ti-chart">
      * @param {*} rawSpec
@@ -1003,6 +1165,7 @@ const TiCharts = ( function () {
         else if ( spec.type === "heatmap" ) { renderHeatmap( figure, spec ); }
         else if ( spec.type === "box" ) { renderBox( figure, spec ); }
         else if ( spec.type === "radar" ) { renderRadar( figure, spec ); }
+        else if ( spec.type === "line" ) { renderLine( figure, spec ); }
         else { figure.setAttribute( "data-ti-chart-empty", "1" ); }
     }
 
@@ -1020,6 +1183,7 @@ const TiCharts = ( function () {
         barsGroupedLayout,
         barsDivergingLayout,
         radarLayout,
+        lineLayout,
         svgEl,
         buildSrTable,
         renderChart,

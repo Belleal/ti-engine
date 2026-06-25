@@ -2613,6 +2613,7 @@ body {
 .ti-chart[data-ti-chart-type="box"] svg     { max-width: 680px; }
 .ti-chart[data-ti-chart-type="bars"] svg    { max-width: 640px; }
 .ti-chart[data-ti-chart-type="radar"] svg   { max-width: 360px; }
+.ti-chart[data-ti-chart-type="line"] svg    { max-width: 640px; }
 
 /* Visually-hidden a11y mirror table (screen-reader only). */
 .ti-chart-sr {
@@ -2922,3 +2923,26 @@ body {
 .ti-chart-radar-dot.tone-grade-u { fill: var(--c-grade-u); }
 .ti-chart-radar-dot.tone-grade-n { fill: var(--c-grade-n); }
 .ti-chart-radar-dot.tone-info    { fill: var(--c-series-2); }
+
+/* --- line / trend (cross-cycle, CA-X1) --- */
+.ti-chart-line-axis   { stroke: var(--c-grid); stroke-width: 0.3; }
+.ti-chart-line-xlabel { fill: var(--c-ink); font-size: 3.2px; }
+.ti-chart-line-series { stroke: var(--c-series-1); stroke-width: 1; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.ti-chart-line-series.tone-grade-s { stroke: var(--c-grade-s); }
+.ti-chart-line-series.tone-grade-r { stroke: var(--c-grade-r); }
+.ti-chart-line-series.tone-grade-u { stroke: var(--c-grade-u); }
+.ti-chart-line-series.tone-grade-n { stroke: var(--c-grade-n); }
+.ti-chart-line-series.tone-info    { stroke: var(--c-series-2); }
+.ti-chart-line-band   { fill: var(--c-series-1); fill-opacity: 0.12; stroke: none; }
+.ti-chart-line-band.tone-grade-s { fill: var(--c-grade-s); }
+.ti-chart-line-band.tone-grade-r { fill: var(--c-grade-r); }
+.ti-chart-line-band.tone-grade-u { fill: var(--c-grade-u); }
+.ti-chart-line-band.tone-grade-n { fill: var(--c-grade-n); }
+.ti-chart-line-band.tone-info    { fill: var(--c-series-2); }
+.ti-chart-line-dot    { fill: var(--c-series-1); }
+.ti-chart-line-dot.tone-grade-s { fill: var(--c-grade-s); }
+.ti-chart-line-dot.tone-grade-r { fill: var(--c-grade-r); }
+.ti-chart-line-dot.tone-grade-u { fill: var(--c-grade-u); }
+.ti-chart-line-dot.tone-grade-n { fill: var(--c-grade-n); }
+.ti-chart-line-dot.tone-info    { fill: var(--c-series-2); }
+.ti-chart-line-dot.provisional  { fill: var(--bg-app); stroke: var(--c-series-1); stroke-width: 0.6; }
