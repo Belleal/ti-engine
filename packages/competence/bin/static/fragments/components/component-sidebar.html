@@ -125,6 +125,15 @@
                 </span>
                 <span class="ti-sidebar-item-label" x-text-label="interface.navigation.insights-team">Team analytics</span>
             </button>
+
+            <button hx-get="/app/insights-trends" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'insights'"
+                    x-show="$store.tiApplication.hasRole(3)"
+                    x-bind:class="{ active: active === 'insights' }" class="ti-sidebar-item" data-tip="Trends" aria-label="Trends" type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon bar-chart md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.navigation.insights-trends">Trends</span>
+            </button>
         </div>
     </div>
 

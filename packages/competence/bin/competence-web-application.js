@@ -108,6 +108,10 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "Team Analytics",
             path: "fragments/frame-insights-team.html"
         } );
+        this.addFragment( "insights-trends", {
+            title: "Trends",
+            path: "fragments/frame-insights-trends.html"
+        } );
     }
 
     /* Public interface */
@@ -190,7 +194,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "role-families": "administration",
                     "insights-overview": "insights",
                     "insights-cycle": "insights",
-                    "insights-team": "insights"
+                    "insights-team": "insights",
+                    "insights-trends": "insights"
                 },
                 componentsConfig: {
                     userProfileMenu: {

@@ -1842,6 +1842,134 @@ const configureInsightsCycle = () => configureInsightsScreen( { shellEndpoint: "
 const configureInsightsTeam = () => configureInsightsScreen( { shellEndpoint: "load-insights-team", reportScope: "team", includeCalibration: true } );
 
 /**
+ * Insights → Trends (Cross-cycle, CA-X3). SUPERVISOR-only whole-org trends over the persisted snapshots: overall score
+ * (line + p25–p75 band), T-band mix (stacked bars per cycle), gap-closure (multi-series line of bySubcategory gap),
+ * ladder movement (stacked ordinal bars + mean-rung line), and cohort comparison (per role-family score line). Reads the
+ * load-results-trend endpoint per metric; the x-axis is the snapshots' chronological cycle list (no cycle selector).
+ * @returns {Object}
+ */
+const configureTrendsScreen = () => {
+    const tiApplication = Alpine.store( "tiApplication" );
+    const BAND_TONES = { T1: "grade-n", T2: "grade-n", T3: "grade-r", T4: "grade-s", T5: "grade-s" };
+    const ORDINAL_TONES = { "1": "grade-n", "2": "grade-n", "3": "grade-r", "4": "grade-s", "5": "grade-s" };
+
+    return {
+        isLoading: true,
+        hasData: false,
+        partial: false,
+        overallSpec: { type: "line", data: { x: [], series: [] }, options: {}, a11yLabel: "" },
+        tbandSpec: { type: "bars", data: { rows: [] }, options: { mode: "stacked" }, a11yLabel: "" },
+        gapSpec: { type: "line", data: { x: [], series: [] }, options: { zeroBaseline: true }, a11yLabel: "" },
+        ladderSpec: { type: "bars", data: { rows: [] }, options: { mode: "stacked" }, a11yLabel: "" },
+        ladderRungSpec: { type: "line", data: { x: [], series: [] }, options: {}, a11yLabel: "" },
+        cohortSpec: { type: "line", data: { x: [], series: [] }, options: {}, a11yLabel: "" },
+
+        init() {
+            const onInitialized = () => { this.loadTrends(); };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => { if ( isInitialized ) { onInitialized(); } } );
+            }
+        },
+
+        loadTrends() {
+            this.isLoading = true;
+            const url = ( metric, extra ) => "/app/load-results-trend?metric=" + metric + ( extra || "" );
+            Promise.all( [
+                tiApplication.sendRequest( url( "overallScore" ) ),
+                tiApplication.sendRequest( url( "tBandMix" ) ),
+                tiApplication.sendRequest( url( "gapClosure" ) ),
+                tiApplication.sendRequest( url( "ladder" ) ),
+                tiApplication.sendRequest( url( "cohort", "&dimension=roleFamily" ) )
+            ] ).then( ( results ) => {
+                const dataOf = ( result ) => ( ( result && result.data && typeof result.data === "object" ) ? result.data : {} );
+                const overall = dataOf( results[ 0 ] );
+                const tband = dataOf( results[ 1 ] );
+                const gap = dataOf( results[ 2 ] );
+                const ladder = dataOf( results[ 3 ] );
+                const cohort = dataOf( results[ 4 ] );
+
+                const cycles = ( overall.meta && Array.isArray( overall.meta.cycles ) ) ? overall.meta.cycles : [];
+                this.hasData = cycles.length > 0;
+                this.partial = !!( overall.meta && overall.meta.partial );
+
+                this.overallSpec = this.buildLineSpec( overall, "interface.insights.trends.reports.overall.title", {} );
+                this.tbandSpec = this.buildStackedSpec( tband, BAND_TONES, "interface.insights.trends.tband-title" );
+                this.gapSpec = this.buildLineSpec( gap, "interface.insights.trends.reports.gapClosure.title", { zeroBaseline: true } );
+                this.ladderSpec = this.buildStackedSpec( this.ladderHistogramOnly( ladder ), ORDINAL_TONES, "interface.insights.trends.reports.ladder.title" );
+                this.ladderRungSpec = this.buildLineSpec( this.ladderRungOnly( ladder ), "interface.insights.trends.rung-title", {} );
+                this.cohortSpec = this.buildLineSpec( cohort, "interface.insights.trends.reports.cohort.title", {} );
+                this.isLoading = false;
+            } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) { return; }
+                this.isLoading = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                if ( error && error.exception && ( error.exception.httpCode === 401 || error.exception.httpCode === 403 ) ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
+        },
+
+        // The x-axis (cycle labels) from a trend payload's meta.cycles.
+        cycleAxis( trend ) {
+            const cycles = ( trend && trend.meta && Array.isArray( trend.meta.cycles ) ) ? trend.meta.cycles : [];
+            return cycles.map( ( c ) => ( { id: c.cycleID, label: c.cycleID } ) );
+        },
+
+        // A line spec straight from a trend payload's series (each carries values + optional band + tone).
+        buildLineSpec( trend, titleKey, extraOptions ) {
+            const series = ( trend && Array.isArray( trend.series ) ) ? trend.series.map( ( s ) => {
+                const out = { key: s.key, tone: s.tone || "info", values: Array.isArray( s.values ) ? s.values : [] };
+                if ( Array.isArray( s.band ) ) { out.band = s.band; }
+                if ( s.style ) { out.style = s.style; }
+                return out;
+            } ) : [];
+            const options = Object.assign( {}, extraOptions || {} );
+            if ( trend && trend.meta && trend.meta.partial ) { options.provisionalLastPoint = true; }
+            return { type: "line", data: { x: this.cycleAxis( trend ), series: series }, options: options, a11yLabel: tiApplication.getLabel( titleKey, "" ) };
+        },
+
+        // A stacked-bars spec (one bar per cycle) transposed from a trend payload's per-band/ordinal series.
+        buildStackedSpec( trend, toneMap, titleKey ) {
+            const axis = this.cycleAxis( trend );
+            const series = ( trend && Array.isArray( trend.series ) ) ? trend.series : [];
+            const rows = axis.map( ( cyc, i ) => {
+                let total = 0;
+                const segments = series.map( ( s ) => {
+                    const v = ( Array.isArray( s.values ) && typeof s.values[ i ] === "number" ) ? s.values[ i ] : 0;
+                    total += v;
+                    return { key: s.key, v: v, tone: toneMap[ s.key ] || "info" };
+                } );
+                return { id: cyc.id, label: cyc.label, total: total, segments: segments };
+            } );
+            return { type: "bars", data: { rows: rows }, options: { mode: "stacked" }, a11yLabel: tiApplication.getLabel( titleKey, "" ) };
+        },
+
+        // Splits the ladder trend payload into the ordinal-histogram series (drops the meanRung line) for the stacked bars.
+        ladderHistogramOnly( trend ) {
+            if ( !trend || !Array.isArray( trend.series ) ) { return trend; }
+            return Object.assign( {}, trend, { series: trend.series.filter( ( s ) => s.key !== "meanRung" ) } );
+        },
+        // Keeps only the meanRung line series for the rung overlay.
+        ladderRungOnly( trend ) {
+            if ( !trend || !Array.isArray( trend.series ) ) { return trend; }
+            return Object.assign( {}, trend, { series: trend.series.filter( ( s ) => s.key === "meanRung" ) } );
+        },
+
+        getCaveatBanner() {
+            return tiApplication.getLabel( "interface.insights.trends.provisional-caveat", "The latest cycle is still active — its point is provisional." );
+        },
+        getOverallAria() { return this.overallSpec.a11yLabel; },
+        getTbandAria() { return this.tbandSpec.a11yLabel; },
+        getGapAria() { return this.gapSpec.a11yLabel; },
+        getLadderAria() { return this.ladderSpec.a11yLabel; },
+        getLadderRungAria() { return this.ladderRungSpec.a11yLabel; },
+        getCohortAria() { return this.cohortSpec.a11yLabel; }
+    };
+};
+
+/**
  * Returns a configuration object for the dashboard screen.
  *
  * @method
@@ -4868,4 +4996,5 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "insightsOverview", () => ( {} ) );
     Alpine.data( "insightsCycle", configureInsightsCycle );
     Alpine.data( "insightsTeam", configureInsightsTeam );
+    Alpine.data( "insightsTrends", configureTrendsScreen );
 } );

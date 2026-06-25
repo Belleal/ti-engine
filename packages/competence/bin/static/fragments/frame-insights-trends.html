@@ -1,0 +1,83 @@
+<div class="ti-page" x-data="insightsTrends">
+
+    <div class="ti-page-head">
+        <div>
+            <h1 class="ti-page-title" x-text-label="interface.insights.trends.title">Trends</h1>
+            <p class="ti-page-sub" x-text-label="interface.insights.trends.sub">Cross-cycle trends across closed cycles.</p>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <template x-if="isLoading">
+        <div class="ti-empty-state">
+            <div class="ti-empty-state-title" x-text-label="interface.insights.trends.loading">Loading trends…</div>
+        </div>
+    </template>
+
+    <!-- No snapshots yet -->
+    <template x-if="!isLoading && !hasData">
+        <div class="ti-empty-state">
+            <div class="ti-empty-state-title" x-text-label="interface.insights.trends.empty">No closed cycles yet — trends appear once cycles close.</div>
+        </div>
+    </template>
+
+    <!-- Trends -->
+    <template x-if="!isLoading && hasData">
+        <div class="ti-card-grid">
+
+            <!-- Provisional caveat (the latest cycle is still ACTIVE) -->
+            <div class="ti-card-wide" x-show="partial">
+                <span class="ti-status-pill warn"><span class="dot"></span><span x-text="getCaveatBanner()"></span></span>
+            </div>
+
+            <!-- Overall score trend + T-band mix -->
+            <section class="ti-card ti-card-wide">
+                <h2 class="ti-card-title" x-text-label="interface.insights.trends.reports.overall.title">Overall score trend</h2>
+                <p class="ti-panel-body-intro" x-text-label="interface.insights.trends.reports.overall.whatItShows"></p>
+                <figure class="ti-chart" x-ti-chart="overallSpec" role="img" x-bind:aria-label="getOverallAria()"></figure>
+                <p class="ti-panel-body-intro" x-text-label="interface.insights.trends.tband-title">Performance band mix</p>
+                <figure class="ti-chart" x-ti-chart="tbandSpec" role="img" x-bind:aria-label="getTbandAria()"></figure>
+                <details class="ti-card-note">
+                    <summary x-text-label="interface.insights.trends.methodology-toggle">How it's calculated</summary>
+                    <p x-text-label="interface.insights.trends.reports.overall.methodology"></p>
+                </details>
+            </section>
+
+            <!-- Gap-closure over time -->
+            <section class="ti-card ti-card-wide">
+                <h2 class="ti-card-title" x-text-label="interface.insights.trends.reports.gapClosure.title">Gap-closure over time</h2>
+                <p class="ti-panel-body-intro" x-text-label="interface.insights.trends.reports.gapClosure.whatItShows"></p>
+                <figure class="ti-chart" x-ti-chart="gapSpec" role="img" x-bind:aria-label="getGapAria()"></figure>
+                <details class="ti-card-note">
+                    <summary x-text-label="interface.insights.trends.methodology-toggle">How it's calculated</summary>
+                    <p x-text-label="interface.insights.trends.reports.gapClosure.methodology"></p>
+                </details>
+            </section>
+
+            <!-- Ladder movement -->
+            <section class="ti-card ti-card-wide">
+                <h2 class="ti-card-title" x-text-label="interface.insights.trends.reports.ladder.title">Ladder movement</h2>
+                <p class="ti-panel-body-intro" x-text-label="interface.insights.trends.reports.ladder.whatItShows"></p>
+                <figure class="ti-chart" x-ti-chart="ladderSpec" role="img" x-bind:aria-label="getLadderAria()"></figure>
+                <p class="ti-panel-body-intro" x-text-label="interface.insights.trends.rung-title">Mean rung</p>
+                <figure class="ti-chart" x-ti-chart="ladderRungSpec" role="img" x-bind:aria-label="getLadderRungAria()"></figure>
+                <details class="ti-card-note">
+                    <summary x-text-label="interface.insights.trends.methodology-toggle">How it's calculated</summary>
+                    <p x-text-label="interface.insights.trends.reports.ladder.methodology"></p>
+                </details>
+            </section>
+
+            <!-- Cohort comparison -->
+            <section class="ti-card ti-card-wide">
+                <h2 class="ti-card-title" x-text-label="interface.insights.trends.reports.cohort.title">Cohort comparison</h2>
+                <p class="ti-panel-body-intro" x-text-label="interface.insights.trends.reports.cohort.whatItShows"></p>
+                <figure class="ti-chart" x-ti-chart="cohortSpec" role="img" x-bind:aria-label="getCohortAria()"></figure>
+                <details class="ti-card-note">
+                    <summary x-text-label="interface.insights.trends.methodology-toggle">How it's calculated</summary>
+                    <p x-text-label="interface.insights.trends.reports.cohort.methodology"></p>
+                </details>
+            </section>
+
+        </div>
+    </template>
+</div>
