@@ -96,10 +96,6 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "Role Families",
             path: "fragments/frame-role-families.html"
         } );
-        this.addFragment( "insights-overview", {
-            title: "Insights",
-            path: "fragments/frame-insights-overview.html"
-        } );
         this.addFragment( "insights-cycle", {
             title: "Cycle Analytics",
             path: "fragments/frame-insights-cycle.html"
@@ -192,7 +188,6 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "archetype-assignment": "administration",
                     "archetype-editor": "administration",
                     "role-families": "administration",
-                    "insights-overview": "insights-overview",
                     "insights-cycle": "insights-cycle",
                     "insights-team": "insights-team",
                     "insights-trends": "insights-trends"

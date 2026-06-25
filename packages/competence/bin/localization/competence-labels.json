@@ -4746,6 +4746,14 @@
           "en": "Rate your own competencies for the current performance cycle. Be honest, thorough, and constructive.",
           "bg": "Оценете собствените си компетенции за текущия цикъл. Бъдете честни, задълбочени и конструктивни."
         },
+        "my-results-title": {
+          "en": "My Results",
+          "bg": "Моите резултати"
+        },
+        "my-results-desc": {
+          "en": "Your performance results for the latest reported cycle — final score, competency breakdown, and how your cycles compare.",
+          "bg": "Вашите резултати за последния отчетен цикъл — краен резултат, разбивка по компетенции и сравнение между циклите."
+        },
         "manager-title": {
           "en": "Manager Performance Review",
           "bg": "Мениджърски Преглед на Представянето"
@@ -5776,10 +5784,6 @@
         "en": "Insights",
         "bg": "Анализи"
       },
-      "insights-overview": {
-        "en": "Insights",
-        "bg": "Анализи"
-      },
       "insights-cycle": {
         "en": "Cycle analytics",
         "bg": "Анализи на цикъла"
@@ -5813,6 +5817,10 @@
       "competence-evaluation": {
         "en": "Performance Evaluation",
         "bg": "Оценка на Представянето"
+      },
+      "my-results": {
+        "en": "My Results",
+        "bg": "Моите резултати"
       },
       "new-evaluation": {
         "en": "New Evaluation",
@@ -5877,6 +5885,18 @@
       "role-families": {
         "en": "Role Families",
         "bg": "Семейства роли"
+      },
+      "insights-cycle": {
+        "en": "Cycle Analytics",
+        "bg": "Анализи на цикъла"
+      },
+      "insights-team": {
+        "en": "Team Analytics",
+        "bg": "Анализи на екипа"
+      },
+      "insights-trends": {
+        "en": "Trends",
+        "bg": "Тенденции"
       }
     },
     "sidebar": {
@@ -7634,19 +7654,9 @@
       }
     },
     "insights": {
-      "overview": {
-        "title": {
-          "en": "Insights",
-          "bg": "Анализи"
-        },
-        "sub": {
-          "en": "Cycle and team analytics.",
-          "bg": "Анализи на цикъла и екипа."
-        },
-        "coming-soon": {
-          "en": "Pick a report from the sidebar.",
-          "bg": "Изберете справка от страничното меню."
-        }
+      "eyebrow": {
+        "en": "Insights",
+        "bg": "Анализи"
       },
       "cycle": {
         "title": {
@@ -7665,6 +7675,10 @@
           "en": "No coverage data for this cycle.",
           "bg": "Няма данни за обхват за този цикъл."
         },
+        "empty-desc": {
+          "en": "Coverage and reports appear here once evaluations are recorded for this cycle.",
+          "bg": "Обхватът и справките се появяват тук, след като се запишат оценки за този цикъл."
+        },
         "coverage-overall": {
           "en": "Overall coverage",
           "bg": "Общ обхват"
@@ -7672,6 +7686,17 @@
         "coverage-by-group": {
           "en": "By group",
           "bg": "По група"
+        },
+        "coverage-by-group-desc": {
+          "en": "Completion mix by evaluation status for each group (role family or org unit). The figure on the right is the % at Ready or Closed.",
+          "bg": "Разпределение по статус на оценките за всяка група (ролево семейство или звено). Числото вдясно е % достигнали „Готова“ или „Затворена“."
+        },
+        "coverage-legend": {
+          "closed": { "en": "Closed", "bg": "Затворена" },
+          "ready": { "en": "Ready", "bg": "Готова" },
+          "in-review": { "en": "In review", "bg": "За преглед" },
+          "open": { "en": "Open", "bg": "Отворена" },
+          "not-started": { "en": "Not started", "bg": "Незапочната" }
         },
         "pending": {
           "en": "Pending",
@@ -7767,6 +7792,7 @@
         "sub": { "en": "Cross-cycle trends across closed appraisal cycles.", "bg": "Тенденции през приключените цикли на оценяване." },
         "loading": { "en": "Loading trends…", "bg": "Зареждане на тенденциите…" },
         "empty": { "en": "No closed cycles yet — trends appear once cycles close.", "bg": "Все още няма приключени цикли – тенденциите се появяват след приключване на цикли." },
+        "empty-desc": { "en": "Snapshots are captured as appraisal cycles close; the first trends appear after that.", "bg": "Снимките се правят при приключване на циклите за оценяване; първите тенденции се появяват след това." },
         "methodology-toggle": { "en": "How it's calculated", "bg": "Как се изчислява" },
         "provisional-caveat": { "en": "The latest cycle is still active — its point is provisional and shown dashed.", "bg": "Последният цикъл още е активен – неговата точка е условна и е показана с пунктир." },
         "tband-title": { "en": "Performance band mix", "bg": "Разпределение по нива на представяне" },

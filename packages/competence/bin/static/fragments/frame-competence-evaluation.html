@@ -21,8 +21,8 @@
                 <p class="ti-page-subtitle" x-text="getLabel( getPageDesc() )"></p>
             </div>
 
-            <!-- Role info panel -->
-            <div class="competence-eval-role-info" x-bind:class="getUserRoleAsText()">
+            <!-- Role info panel (hidden on the read-only "My results" view — it frames the grading task, not results) -->
+            <div class="competence-eval-role-info" x-show="!isMyResults" x-bind:class="getUserRoleAsText()">
                 <div class="competence-eval-role-info-title" x-text="getLabel( getRolePanelTitle() )"></div>
                 <div class="competence-eval-role-info-desc" x-text="getLabel( getRolePanelDesc() )"></div>
             </div>
@@ -212,8 +212,8 @@
                 </div>
             </div>
 
-            <!-- How to grade cards -->
-            <div class="ti-panel competence-panel-body competence-panel-mb">
+            <!-- How to grade cards (hidden on the read-only "My results" view — these are grading instructions) -->
+            <div class="ti-panel competence-panel-body competence-panel-mb" x-show="!isMyResults">
                 <div class="ti-panel-head">
                     <div class="ti-panel-title" x-text-label="interface.evaluation.instructions.title"></div>
                     <span class="ti-panel-head-aside" x-text="getGradeScaleLabel()"></span>

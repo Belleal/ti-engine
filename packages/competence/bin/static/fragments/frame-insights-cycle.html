@@ -1,33 +1,38 @@
 <div class="ti-page" x-data="insightsCycle">
 
-    <div class="ti-page-head">
+    <div class="ti-page-head competence-insights-head">
         <div>
+            <div class="ti-page-eyebrow" x-text-label="interface.insights.eyebrow">Insights</div>
             <h1 class="ti-page-title" x-text-label="interface.insights.cycle.title">Cycle analytics</h1>
-            <p class="ti-page-sub" x-text="getCycleSubtitle()"></p>
+            <p class="ti-page-subtitle" x-text="getCycleSubtitle()"></p>
         </div>
-        <div class="ti-page-head-actions">
-            <label class="ti-field-inline">
-                <span x-text-label="interface.insights.cycle.select-label">Cycle</span>
-                <select class="ti-select" @change="onCycleChange($event)">
-                    <template x-for="c in cycles" x-bind:key="c.id">
-                        <option x-bind:value="c.id" x-bind:selected="c.id === selectedCycleID" x-text="c.name"></option>
-                    </template>
-                </select>
-            </label>
-        </div>
+        <label class="competence-insights-picker">
+            <span x-text-label="interface.insights.cycle.select-label">Cycle</span>
+            <select class="ti-select" @change="onCycleChange($event)">
+                <template x-for="c in cycles" x-bind:key="c.id">
+                    <option x-bind:value="c.id" x-bind:selected="c.id === selectedCycleID" x-text="c.name"></option>
+                </template>
+            </select>
+        </label>
     </div>
 
     <!-- Loading -->
     <template x-if="isLoading">
-        <div class="ti-empty-state">
-            <div class="ti-empty-state-title" x-text-label="interface.insights.cycle.loading">Loading coverage…</div>
+        <div class="ti-panel">
+            <div class="ti-empty-state">
+                <div class="ti-empty-state-title" x-text-label="interface.insights.cycle.loading">Loading coverage…</div>
+            </div>
         </div>
     </template>
 
     <!-- No cycle -->
     <template x-if="!isLoading && !cycle">
-        <div class="ti-empty-state">
-            <div class="ti-empty-state-title" x-text-label="interface.insights.cycle.empty">No coverage data for this cycle.</div>
+        <div class="ti-panel">
+            <div class="ti-empty-state">
+                <div class="ti-empty-state-icon" aria-hidden="true"><span class="ti-icon bar-chart xl"></span></div>
+                <div class="ti-empty-state-title" x-text-label="interface.insights.cycle.empty">No coverage data for this cycle.</div>
+                <div class="ti-empty-state-desc" x-text-label="interface.insights.cycle.empty-desc"></div>
+            </div>
         </div>
     </template>
 
@@ -41,8 +46,10 @@
             </div>
 
             <!-- R1 Coverage -->
-            <section class="ti-card">
-                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.coverage-overall">Overall coverage</h2>
+            <section class="ti-panel competence-panel-body">
+                <div class="ti-panel-head">
+                    <div class="ti-panel-title" x-text-label="interface.insights.cycle.coverage-overall">Overall coverage</div>
+                </div>
                 <p class="ti-panel-body-intro" x-text-label="interface.insights.cycle.reports.coverage.whatItShows"></p>
                 <figure class="ti-chart" x-ti-chart="coverageGaugeSpec" role="img" x-bind:aria-label="getGaugeAriaLabel()"></figure>
                 <details class="ti-card-note">
@@ -51,13 +58,22 @@
                 </details>
             </section>
 
-            <section class="ti-card">
-                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.coverage-by-group">By group</h2>
+            <section class="ti-panel competence-panel-body">
+                <div class="ti-panel-head">
+                    <div class="ti-panel-title" x-text-label="interface.insights.cycle.coverage-by-group">By group</div>
+                </div>
+                <p class="ti-panel-body-intro" x-text-label="interface.insights.cycle.coverage-by-group-desc"></p>
                 <figure class="ti-chart" x-ti-chart="coverageBarsSpec" role="img" x-bind:aria-label="getBarsAriaLabel()"></figure>
+                <details class="ti-card-note">
+                    <summary x-text-label="interface.insights.cycle.methodology-toggle">How it's calculated</summary>
+                    <p x-text-label="interface.insights.cycle.reports.coverage.methodology"></p>
+                </details>
             </section>
 
-            <section class="ti-card ti-card-wide">
-                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.pending">Pending</h2>
+            <section class="ti-panel competence-panel-body ti-card-wide">
+                <div class="ti-panel-head">
+                    <div class="ti-panel-title" x-text-label="interface.insights.cycle.pending">Pending</div>
+                </div>
                 <div class="ti-data-grid">
                     <template x-for="row in pendingRows()" x-bind:key="row.employeeID">
                         <div class="ti-data-grid-row">
@@ -70,8 +86,10 @@
             </section>
 
             <!-- R5 Level distribution -->
-            <section class="ti-card ti-card-wide">
-                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.reports.levelDistribution.title">Score distribution by level</h2>
+            <section class="ti-panel competence-panel-body ti-card-wide">
+                <div class="ti-panel-head">
+                    <div class="ti-panel-title" x-text-label="interface.insights.cycle.reports.levelDistribution.title">Score distribution by level</div>
+                </div>
                 <p class="ti-panel-body-intro" x-text-label="interface.insights.cycle.reports.levelDistribution.whatItShows"></p>
                 <template x-if="hasLevelDistribution()">
                     <figure class="ti-chart" x-ti-chart="levelDistributionSpec" role="img" x-bind:aria-label="getLevelDistributionAriaLabel()"></figure>
@@ -86,15 +104,15 @@
             </section>
 
             <!-- R4 Competence heatmap -->
-            <section class="ti-card ti-card-wide">
+            <section class="ti-panel competence-panel-body ti-card-wide">
                 <div class="ti-panel-head">
-                    <h2 class="ti-card-title" x-text-label="interface.insights.cycle.reports.heatmap.title">Competence heatmap</h2>
-                    <label class="ti-field-inline">
+                    <div class="ti-panel-title" x-text-label="interface.insights.cycle.reports.heatmap.title">Competence heatmap</div>
+                    <div class="ti-panel-head-actions">
                         <select class="ti-select" x-bind:aria-label="getLabel('interface.insights.cycle.heatmap-view-label')" @change="onHeatmapViewChange($event)">
                             <option value="value" x-bind:selected="heatmapView === 'value'" x-text-label="interface.insights.cycle.heatmap-view-value">Value</option>
                             <option value="gap" x-bind:selected="heatmapView === 'gap'" x-text-label="interface.insights.cycle.heatmap-view-gap">Gap vs expected</option>
                         </select>
-                    </label>
+                    </div>
                 </div>
                 <p class="ti-panel-body-intro" x-text-label="interface.insights.cycle.reports.heatmap.whatItShows"></p>
                 <template x-if="hasHeatmap()">
@@ -110,8 +128,10 @@
             </section>
 
             <!-- R3 Alignment quadrant -->
-            <section class="ti-card">
-                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.reports.alignment.title">Self vs manager alignment</h2>
+            <section class="ti-panel competence-panel-body">
+                <div class="ti-panel-head">
+                    <div class="ti-panel-title" x-text-label="interface.insights.cycle.reports.alignment.title">Self vs manager alignment</div>
+                </div>
                 <p class="ti-panel-body-intro" x-text-label="interface.insights.cycle.reports.alignment.whatItShows"></p>
                 <template x-if="hasAlignment()">
                     <figure class="ti-chart" x-ti-chart="alignmentSpec" role="img" x-bind:aria-label="getAlignmentAriaLabel()"></figure>
@@ -126,8 +146,10 @@
             </section>
 
             <!-- R2 Interview timing -->
-            <section class="ti-card">
-                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.reports.timeDistribution.title">Interview timing</h2>
+            <section class="ti-panel competence-panel-body">
+                <div class="ti-panel-head">
+                    <div class="ti-panel-title" x-text-label="interface.insights.cycle.reports.timeDistribution.title">Interview timing</div>
+                </div>
                 <p class="ti-panel-body-intro" x-text-label="interface.insights.cycle.reports.timeDistribution.whatItShows"></p>
                 <p class="ti-kv-value"><span x-text-label="interface.insights.cycle.unscheduled-ready">Ready, no interview booked</span>: <span class="tabular-nums" x-text="unscheduledReady"></span></p>
                 <template x-if="hasTimeDistribution()">
@@ -143,8 +165,10 @@
             </section>
 
             <!-- R6 Predictive drivers -->
-            <section class="ti-card ti-card-wide">
-                <h2 class="ti-card-title" x-text-label="interface.insights.cycle.reports.predictiveDrivers.title">Performance drivers</h2>
+            <section class="ti-panel competence-panel-body ti-card-wide">
+                <div class="ti-panel-head">
+                    <div class="ti-panel-title" x-text-label="interface.insights.cycle.reports.predictiveDrivers.title">Performance drivers</div>
+                </div>
                 <p class="ti-panel-body-intro" x-text-label="interface.insights.cycle.reports.predictiveDrivers.whatItShows"></p>
                 <template x-if="hasPredictiveDrivers()">
                     <figure class="ti-chart" x-ti-chart="predictiveDriversSpec" role="img" x-bind:aria-label="getPredictiveDriversAriaLabel()"></figure>

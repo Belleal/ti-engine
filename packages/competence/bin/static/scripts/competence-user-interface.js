@@ -38,6 +38,7 @@ const configureCompetenceEvaluation = () => {
         showEvaluationForm: false,
         noEvaluationState: null,
         warningMessage: "",
+        isMyResults: false,
 
         // Phase 3 — individual results (populated by buildResults() at READY/CLOSED)
         resultsReady: false,
@@ -104,6 +105,7 @@ const configureCompetenceEvaluation = () => {
             // "My results" reuses this fragment but loads the requesting employee's own latest result (incl. CLOSED)
             // via the self-scoped load-my-results endpoint, since load-evaluation rejects CLOSED.
             const isMyResults = !!( window.location && window.location.pathname && window.location.pathname.indexOf( "my-results" ) >= 0 );
+            this.isMyResults = isMyResults;
             const url = isMyResults ? "/app/load-my-results" : `/app/load-evaluation${ paramString ? `?${ paramString }` : "" }`;
             this.resultsHistoryReady = false;
             tiApplication.sendRequest( url ).then( ( result ) => {
@@ -303,6 +305,7 @@ const configureCompetenceEvaluation = () => {
         },
 
         getPageTitle() {
+            if ( this.isMyResults ) return "interface.evaluation.page.my-results-title";
             if ( this.userRole === 1 ) return "interface.evaluation.page.employee-title";
             if ( this.userRole === 2 ) return "interface.evaluation.page.manager-title";
             if ( this.userRole === 4 ) return "interface.evaluation.page.team-title";
@@ -310,6 +313,7 @@ const configureCompetenceEvaluation = () => {
         },
 
         getPageDesc() {
+            if ( this.isMyResults ) return "interface.evaluation.page.my-results-desc";
             if ( this.userRole === 1 ) return "interface.evaluation.page.employee-desc";
             if ( this.userRole === 2 ) return "interface.evaluation.page.manager-desc";
             if ( this.userRole === 4 ) return "interface.evaluation.page.team-desc";
@@ -1593,6 +1597,20 @@ const configureInsightsScreen = ( config ) => {
         },
 
         /**
+         * Localized label lookup for in-template attribute bindings (the heatmap-view picker's aria-label). Mirrors
+         * the pass-through every other screen component exposes; without it CSP-mode Alpine throws "Undefined
+         * variable: getLabel" when the picker renders.
+         *
+         * @method
+         * @param {string} label - The label key to resolve.
+         * @returns {string}
+         * @public
+         */
+        getLabel( label ) {
+            return tiApplication.getLabel( label );
+        },
+
+        /**
          * Builds the Coverage gauge TiChartSpec from a coverage report payload.
          *
          * @method
@@ -1637,15 +1655,41 @@ const configureInsightsScreen = ( config ) => {
                     { key: "Open", v: byStatus[ "Open" ] || 0, tone: "grade-n" },
                     { key: "Not started", v: group.notStarted || 0, tone: "ink" }
                 ];
-                return { id: String( group.groupKey || group.groupLabel || "" ), label: group.groupLabel || "", segments: segments, total: group.N || 0 };
+                const groupN = group.N || 0;
+                // "Complete" mirrors the gauge: an evaluation counts once it reaches Ready or Closed.
+                const complete = ( byStatus[ "Closed" ] || 0 ) + ( byStatus[ "Ready" ] || 0 );
+                const pct = ( groupN > 0 ) ? Math.round( ( complete / groupN ) * 100 ) : 0;
+                return { id: String( group.groupKey || group.groupLabel || "" ), label: group.groupLabel || "", segments: segments, total: groupN, valueLabel: String( pct ) + "%" };
             } );
             return {
                 type: "bars",
                 data: { rows: rows },
-                options: { mode: "stacked" },
+                options: { mode: "stacked", legend: this.buildCoverageLegend() },
                 a11yLabel: "Coverage by group: " + String( rows.length ) + " groups",
                 provisional: !!( meta && meta.partial )
             };
+        },
+
+        /**
+         * Status legend for the coverage stacked bars — the five segment types with their grade/ink tones and
+         * localized labels. Carried on the spec so the chart renders a swatch key below the bars, making the
+         * otherwise-unlabelled segment colours decipherable.
+         *
+         * @method
+         * @returns {Array<{label:string,tone:string}>}
+         * @public
+         */
+        buildCoverageLegend() {
+            const entries = [
+                { key: "closed", tone: "grade-s" },
+                { key: "ready", tone: "grade-r" },
+                { key: "in-review", tone: "grade-u" },
+                { key: "open", tone: "grade-n" },
+                { key: "not-started", tone: "ink" }
+            ];
+            return entries.map( function ( entry ) {
+                return { label: tiApplication.getLabel( "interface.insights.cycle.coverage-legend." + entry.key, entry.key ), tone: entry.tone };
+            } );
         },
 
         hasCoverage() {
@@ -1912,13 +1956,24 @@ const configureTrendsScreen = () => {
         loadTrends() {
             this.isLoading = true;
             const url = ( metric, extra ) => "/app/load-results-trend?metric=" + metric + ( extra || "" );
-            Promise.all( [
-                tiApplication.sendRequest( url( "overallScore" ) ),
-                tiApplication.sendRequest( url( "tBandMix" ) ),
-                tiApplication.sendRequest( url( "gapClosure" ) ),
-                tiApplication.sendRequest( url( "ladder" ) ),
-                tiApplication.sendRequest( url( "cohort", "&dimension=roleFamily" ) )
-            ] ).then( ( results ) => {
+            // The framework keys in-flight GET requests by path with the query string stripped (see ti-framework
+            // sendRequest) and aborts the previous request that shares a key. All five trend metrics target the same
+            // /app/load-results-trend path, so firing them with Promise.all made each call abort the one before it —
+            // four requests cancelled, the rejection surfaced as an AbortError, and the screen hung on "Loading…".
+            // Load them sequentially so every metric resolves against its own request.
+            const metrics = [
+                [ "overallScore", "" ],
+                [ "tBandMix", "" ],
+                [ "gapClosure", "" ],
+                [ "ladder", "" ],
+                [ "cohort", "&dimension=roleFamily" ]
+            ];
+            const results = [];
+            metrics.reduce( ( chain, metric ) => chain.then( () => {
+                return tiApplication.sendRequest( url( metric[ 0 ], metric[ 1 ] ) ).then( ( result ) => {
+                    results.push( result );
+                } );
+            } ), Promise.resolve() ).then( () => {
                 const dataOf = ( result ) => ( ( result && result.data && typeof result.data === "object" ) ? result.data : {} );
                 const overall = dataOf( results[ 0 ] );
                 const tband = dataOf( results[ 1 ] );
@@ -5029,7 +5084,6 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceArchetypeAssignment", configureArchetypeAssignment );
     Alpine.data( "competenceArchetypeEditor", configureArchetypeEditor );
     Alpine.data( "competenceRoleFamilies", configureRoleFamilies );
-    Alpine.data( "insightsOverview", () => ( {} ) );
     Alpine.data( "insightsCycle", configureInsightsCycle );
     Alpine.data( "insightsTeam", configureInsightsTeam );
     Alpine.data( "insightsTrends", configureTrendsScreen );

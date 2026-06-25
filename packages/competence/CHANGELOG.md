@@ -2,6 +2,17 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.4.2
+
+Post-merge fixes and polish over the Statistics & Results screens (CA-61). Requires web-framework ≥ 1.10.2.
+
+* fix(competence): the Insights screens (Cycle, Team, Trends) gain their topbar titles and adopt the shared design-system primitives — `.ti-page-head` (eyebrow + subtitle), `.ti-panel`/`.ti-panel-head` report cards, the standard select control, and design-compliant empty states (icon + description) — so they match the rest of the app
+* fix(competence): the cycle/team heatmap-view selects resolve their accessible name through a `getLabel` component method (it was an undefined variable that threw in the Alpine CSP scope), and the Trends screen loads its five metrics sequentially — the framework single-flights GET requests per path, so firing them in parallel aborted four of the five and hung the screen on "Loading…"
+* fix(competence): the coverage "By group" chart is legible — each group bar is labelled with its name and the percent complete (Ready/Closed), with a localized status legend (en/bg)
+* fix(competence): "My results" presents as a results view rather than the self-evaluation form — its own topbar and page title, with the grading-task role banner and the "how to grade" instructions hidden (the shared evaluation fragment is now results-aware via an `isMyResults` flag)
+* refactor(competence): remove the redundant Insights landing screen (`insights-overview`, fragment + route + Alpine component + nav entry + labels) — the sidebar group opens the report screens directly and the Dashboard stays the entry point
+* build(release): bump package version from `3.4.1` to `3.4.2`
+
 ## Version 3.4.1
 
 Review fixes for the Statistics & Results capability (CA-61, PR #83 — CodeRabbit pass).
