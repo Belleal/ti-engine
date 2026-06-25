@@ -77,7 +77,21 @@ const lineSpark = { type: "line", options: { sparkline: true }, a11yLabel: "Gap 
     series: [ { key: "gap", tone: "info", values: [ 0.2, 0.14, 0.08, 0.03 ] } ]
 } };
 
-const SPECS = { coverageGauge, coverageBars, levelBox, heatmap, alignment, timeBars, driversBars, calibrationBars, calibrationKpi, radar, lineTrend, lineSpark };
+const CYCLES4 = [ { id: "2025-H1", label: "25H1" }, { id: "2025-H2", label: "25H2" }, { id: "2026-H1", label: "26H1" }, { id: "2026-H2", label: "26H2" } ];
+const tbandStacked = { type: "bars", options: { mode: "stacked" }, a11yLabel: "Performance band mix per cycle", data: { rows: CYCLES4.map( ( c, i ) => ( {
+    id: c.id, label: c.label, total: 12,
+    segments: [ { key: "T1", v: Math.max( 0, 2 - i ), tone: "grade-n" }, { key: "T2", v: 2, tone: "grade-n" }, { key: "T3", v: 4, tone: "grade-r" }, { key: "T4", v: 3 + i, tone: "grade-s" }, { key: "T5", v: 1, tone: "grade-s" } ]
+} ) ) } };
+const cohortLines = { type: "line", a11yLabel: "Cohort comparison by role family", data: {
+    x: CYCLES4,
+    series: [
+        { key: "SE", tone: "grade-s", values: [ 104, 107, 110, 112 ] },
+        { key: "BA", tone: "grade-r", values: [ 98, 101, 99, 105 ] },
+        { key: "PM", tone: "info", values: [ 110, 108, 113, 116 ] }
+    ]
+} };
+
+const SPECS = { coverageGauge, coverageBars, levelBox, heatmap, alignment, timeBars, driversBars, calibrationBars, calibrationKpi, radar, lineTrend, lineSpark, tbandStacked, cohortLines };
 
 // ---- the screen markup (mirrors frame-insights-cycle.html + the team calibration card; Alpine attrs resolved static) ----
 const card = ( title, intro, figId, wide, note ) => `
@@ -135,6 +149,8 @@ const body = `
             ${ card( "Subcategory profile (radar)", "Self / manager / team across the nine subcategories vs expected.", "fig-radar", false, "Each spoke is a subcategory; the dashed ring is the level-expected grade." ) }
             ${ card( "Overall score trend (line+band)", "Mean final score per cycle with the p25–p75 band; dashed tail = the live ACTIVE cycle.", "fig-line", true, "Mean line over closed cycles; band is nearest-rank p25/p75; dashed = the expected score." ) }
             ${ card( "Gap-closure sparkline", "Per-subcategory gap trend (compact).", "fig-spark", false, "Zero-baseline sparkline of the bySubcategory gap across cycles." ) }
+            ${ card( "Performance band mix (stacked per cycle)", "T-band composition across cycles.", "fig-tband", true, "Stacked bars — one per cycle, segments are T1–T5 counts." ) }
+            ${ card( "Cohort comparison (multi-line)", "Mean final score per role family across cycles.", "fig-cohort", true, "One line per role family; matched on the stable dimension key." ) }
             ${ card( "Self vs manager alignment", "Manager grade (x) vs self grade (y); bubble = team.", "fig-alignment", false, "Above the diagonal = self rates higher; below = blind spot." ) }
             ${ card( "Interview timing", "Planned vs finalised interviews per month.", "fig-time", false, "Planned = booked slots; finalised = a proxy for held." ) }
             ${ card( "Performance drivers", "Influence vs configured relevancy share per subcategory.", "fig-drivers", true, "Pearson influence minus configured share; flagged = possibly mis-weighted." ) }
@@ -157,6 +173,7 @@ function renderAll() {
   R("fig-drivers", S.driversBars); R("fig-calibration", S.calibrationBars); R("fig-calibration-kpi", S.calibrationKpi);
   R("fig-radar", S.radar);
   R("fig-line", S.lineTrend); R("fig-spark", S.lineSpark);
+  R("fig-tband", S.tbandStacked); R("fig-cohort", S.cohortLines);
 }
 function setTheme(t){ document.documentElement.setAttribute("data-theme", t); document.body.style.background = getComputedStyle(document.documentElement).getPropertyValue("--bg-app"); }
 document.getElementById("theme-toggle").addEventListener("click", () => {
