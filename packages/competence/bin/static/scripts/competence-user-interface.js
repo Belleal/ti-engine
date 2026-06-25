@@ -643,7 +643,15 @@ const configureCompetenceEvaluation = () => {
                 const self = meanOf( "employee", "sub:" + sc ), team = meanOf( "team", "sub:" + sc ), mgr = meanOf( "manager", "sub:" + sc );
                 const expected = meanOf( "expected", "sub:" + sc );
                 if ( expected === null || ( self === null && team === null && mgr === null ) ) { continue; }
-                const blended = ( self || 0 ) * evalWeights.self + ( team || 0 ) * evalWeights.team + ( mgr || 0 ) * evalWeights.manager;
+                const weightedSources = [
+                    { value: self, weight: evalWeights.self },
+                    { value: team, weight: evalWeights.team },
+                    { value: mgr, weight: evalWeights.manager }
+                ].filter( ( src ) => src.value !== null && typeof src.weight === "number" && src.weight > 0 );
+                const weightTotal = weightedSources.reduce( ( sum, src ) => sum + src.weight, 0 );
+                const blended = weightTotal > 0
+                    ? weightedSources.reduce( ( sum, src ) => sum + ( src.value * src.weight ), 0 ) / weightTotal
+                    : 0;
                 insights.push( { code: sc, label: subName[ sc ] || sc, value: round2( blended ), expected: round2( expected ), gap: round2( blended - expected ) } );
             }
             this.resultsStrengths = insights.filter( ( x ) => x.gap > 0 ).sort( ( a, b ) => b.gap - a.gap ).slice( 0, 3 );
