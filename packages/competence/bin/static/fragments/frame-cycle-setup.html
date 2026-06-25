@@ -32,7 +32,7 @@
 
     <!-- Cycle-level settings: the team-feedback deadline (editable while PLANNING; read-only otherwise). -->
     <template x-if="loaded">
-        <div class="ti-panel competence-panel-mb">
+        <div class="ti-panel competence-panel-body competence-panel-mb">
             <div class="ti-panel-head">
                 <div class="ti-panel-title" x-text-label="interface.cycle-setup.settings-title"></div>
             </div>
@@ -126,12 +126,10 @@
                             <div class="competence-cycle-editor-title">
                                 <span class="ti-tag mono" x-text="selectedFamily"></span>
                                 <span x-text="getSelectedFamily().name"></span>
+                                <span class="competence-cycle-editor-title-sep">·</span>
                                 <template x-if="selectedKey === 'baseline'">
                                         <span class="competence-cycle-editor-title-suffix"
                                               x-text-label="interface.cycle-setup.header-baseline-suffix"></span>
-                                </template>
-                                <template x-if="selectedKey !== 'baseline'">
-                                    <span class="competence-cycle-editor-title-sep">·</span>
                                 </template>
                                 <template x-if="selectedKey !== 'baseline'">
                                     <span x-text="getSelectedSpec().name"></span>

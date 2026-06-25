@@ -47,6 +47,15 @@ describe( "CompetenceFramework — anonymizeEvaluationGrades: employee reveal at
         assert.equal( evaluation.grades[ "E1-1" ].team, "U" );
     } );
 
+    it( "reveals the manager grade and the team cumulative to the employee at Closed too (the 'My results' history path)", () => {
+        const evaluation = evaluationAt( configurationLoader.evaluationStatus.CLOSED );
+        competenceFramework.instance.anonymizeEvaluationGrades( evaluation, configurationLoader.roleCode.EMPLOYEE );
+        assert.equal( evaluation.grades[ "E1-1" ].employee, "S" );
+        assert.equal( evaluation.grades[ "E1-1" ].manager, "R", "manager grade stays visible once Closed" );
+        // The team field is collapsed to the cumulative string — the individual reviewer grades are not exposed.
+        assert.equal( evaluation.grades[ "E1-1" ].team, "U" );
+    } );
+
     it( "always hides the self and manager grades from a team reviewer (collective config collapses to nothing)", () => {
         const evaluation = evaluationAt( configurationLoader.evaluationStatus.READY );
         competenceFramework.instance.anonymizeEvaluationGrades( evaluation, configurationLoader.roleCode.TEAM_MEMBER );

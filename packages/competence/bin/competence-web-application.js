@@ -15,6 +15,8 @@ const dataManager = require( "#data-manager" );
 const organizationManager = require( "#organization-manager" );
 const competenceFramework = require( "#competence-framework" );
 const taskResolver = require( "#task-resolver" );
+const resultsAnalytics = require( "#results-analytics" );
+const logger = require( "@ti-engine/core/logger" );
 const { registerCompetenceConfig } = require( "../application/config-registration" );
 
 /**
@@ -39,6 +41,11 @@ class CompetenceWebApplication extends TiWebAppManager {
         this.addFragment( "competence-evaluation", {
             title: "Competence Evaluation",
             path: "fragments/frame-competence-evaluation.html",
+            components: [ "component-tooltip" ]
+        } );
+        this.addFragment( "my-results", {
+            title: "My Results",
+            path: "fragments/frame-competence-evaluation.html",   // reuses the evaluation fragment; the component loads via load-my-results in my-results mode
             components: [ "component-tooltip" ]
         } );
         this.addFragment( "employees-list", {
@@ -88,6 +95,18 @@ class CompetenceWebApplication extends TiWebAppManager {
         this.addFragment( "role-families", {
             title: "Role Families",
             path: "fragments/frame-role-families.html"
+        } );
+        this.addFragment( "insights-cycle", {
+            title: "Cycle Analytics",
+            path: "fragments/frame-insights-cycle.html"
+        } );
+        this.addFragment( "insights-team", {
+            title: "Team Analytics",
+            path: "fragments/frame-insights-team.html"
+        } );
+        this.addFragment( "insights-trends", {
+            title: "Trends",
+            path: "fragments/frame-insights-trends.html"
         } );
     }
 
@@ -139,6 +158,11 @@ class CompetenceWebApplication extends TiWebAppManager {
             ] ).then( ( [ result, currentCycle ] ) => ( {
                 ...result,
                 grades: grades,
+                // Scoring constants the individual-results view (Phase 3 buildResults) needs to recompute per-source
+                // category/subcategory means + place T-bands client-side (scores[E/I/C] are pre-blended and irreversible).
+                gradeWeights: configurationLoader.getSetting( "performanceAppraisals.gradeWeights" ) || { S: 1.3, R: 1.0, U: 0.6, N: 0.0 },
+                evaluationWeights: configurationLoader.getSetting( "performanceAppraisals.evaluationWeights" ) || { self: 0.2, team: 0.3, manager: 0.5 },
+                performanceThresholds: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds" ) || { T1: 76, T2: 89, T3: 105, T4: 119, T5: 150 },
                 cycle: currentCycle ? {
                     id: currentCycle.cycleID,
                     name: currentCycle.name,
@@ -152,6 +176,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "dashboard": "dashboard",
                     "employees-list": "employees",
                     "competence-evaluation": "evaluation",
+                    "my-results": "my-results",
                     "new-evaluation": "evaluation",
                     "manager-calendar": "calendar",
                     "interview-schedule": "interviews",
@@ -162,7 +187,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "competency-text-editor": "administration",
                     "archetype-assignment": "administration",
                     "archetype-editor": "administration",
-                    "role-families": "administration"
+                    "role-families": "administration",
+                    "insights-cycle": "insights-cycle",
+                    "insights-team": "insights-team",
+                    "insights-trends": "insights-trends"
                 },
                 componentsConfig: {
                     userProfileMenu: {
@@ -204,6 +232,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             const employeeID = String( options?.query?.employeeID || "" ).trim();
             const evaluationID = String( options?.query?.evaluationID || "" ).trim();
             return this.#loadEvaluation( session, employeeID, evaluationID );
+        } else if ( view === "load-my-results" ) {
+            return this.#loadMyResults( session );
         } else if ( view === "load-employee-list" ) {
             return this.#loadEmployeeList( session );
         } else if ( view === "load-new-evaluation-data" ) {
@@ -223,6 +253,30 @@ class CompetenceWebApplication extends TiWebAppManager {
         } else if ( view === "load-employee-detail" ) {
             const employeeID = String( options?.query?.employeeID || "" ).trim();
             return this.#loadEmployeeDetail( session, employeeID );
+        } else if ( view === "load-insights-cycle" ) {
+            return this.#loadInsightsCycle( session, options );
+        } else if ( view === "load-insights-team" ) {
+            return this.#loadInsightsTeam( session, options );
+        } else if ( view === "load-report-coverage" ) {
+            return this.#loadReportCoverage( session, options );
+        } else if ( view === "load-report-calibration" ) {
+            return this.#loadLeadershipReport( session, options, "calibration" );
+        } else if ( view === "load-report-time-distribution" ) {
+            return this.#loadLeadershipReport( session, options, "timeDistribution" );
+        } else if ( view === "load-report-alignment" ) {
+            return this.#loadLeadershipReport( session, options, "alignment" );
+        } else if ( view === "load-report-heatmap" ) {
+            return this.#loadLeadershipReport( session, options, "heatmap" );
+        } else if ( view === "load-report-level-distribution" ) {
+            return this.#loadLeadershipReport( session, options, "levelDistribution" );
+        } else if ( view === "load-report-predictive-drivers" ) {
+            return this.#loadLeadershipReport( session, options, "predictiveDrivers" );
+        } else if ( view === "load-alignment-drill" ) {
+            return this.#loadAlignmentDrill( session, options );
+        } else if ( view === "load-results-trend" ) {
+            return this.#loadResultsTrend( session, options );
+        } else if ( view === "load-employee-history" ) {
+            return this.#loadEmployeeHistory( session, options );
         } else {
             return super.processDataRequest( session, view, options );
         }
@@ -932,6 +986,79 @@ class CompetenceWebApplication extends TiWebAppManager {
                 if ( error === noEvaluationSentinel ) {
                     return resolve( { noEvaluation: true } );
                 }
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Returns the requesting employee's OWN latest results (Phase 3 CA-I2 "My results"). Self-scoped — reads the raw
+     * evaluations for `session.user.employeeID` (so CLOSED cycles, which `load-evaluation` rejects, are included; the
+     * anonymized cohort snapshot is NEVER an individual source) and picks the most recent at Ready or Closed. ALWAYS
+     * re-applies the EMPLOYEE anonymization (peer `individual[]` collapsed to `team.cumulative`) — including for CLOSED.
+     * Returns the same shape the READY `load-evaluation` payload uses, or `{noEvaluation:true}` when none is ready yet.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadMyResults( session ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireSessionUser( session );
+            let employee = null;
+            dataManager.instance.fetchEmployee( userID ).then( ( employeeData ) => {
+                if ( !employeeData ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-employee-found" }, exceptions.httpCode.C_404 );
+                }
+                employee = employeeData;
+                return dataManager.instance.fetchEvaluations( userID );   // includes CLOSED (default filterClosed=false strips only DELETED)
+            } ).then( ( evaluations ) => {
+                const reported = ( evaluations || [] ).filter( ( evaluation ) => evaluation && ( evaluation.status === configurationLoader.evaluationStatus.READY || evaluation.status === configurationLoader.evaluationStatus.CLOSED ) );
+                if ( reported.length === 0 ) {
+                    return resolve( { noEvaluation: true } );
+                }
+                const current = reported.slice().sort( ( a, b ) => new Date( b.cycleDate ) - new Date( a.cycleDate ) )[ 0 ];
+
+                // Always collapse peer grades to the cumulative for the employee view — including CLOSED history.
+                competenceFramework.instance.anonymizeEvaluationGrades( current, configurationLoader.roleCode.EMPLOYEE );
+                competenceFramework.instance.anonymizeEvaluationScores( current, configurationLoader.roleCode.EMPLOYEE );
+                delete current.workflow;
+
+                const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee );
+                resolve( {
+                    employeeID: userID,
+                    personal: {
+                        ...employee.personal,
+                        name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
+                        organizationUnitName: organizationContext.organizationUnitName,
+                        roleFamily: employee.career?.roleFamily,
+                        specialization: employee.career?.specialization ?? null,
+                        roleFamilyName: localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ employee.career?.roleFamily ]?.name || configurationLoader.roleFamilyCode.name( employee.career?.roleFamily ) || employee.career?.roleFamily || "", session?.language ),
+                        startingDate: employee.career?.startingDate || null,
+                        stageLevel: ( employee.career?.level && employee.career?.stage ) ? `${ employee.career.level }${ employee.career.stage }` : ""
+                    },
+                    manager: {
+                        managerID: organizationContext.managerID,
+                        name: organizationContext.managerName
+                    },
+                    evaluation: {
+                        ...current,
+                        roleFamilyName: localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ current.roleFamily ]?.name || configurationLoader.roleFamilyCode.name( current.roleFamily ) || current.roleFamily || "", session?.language ),
+                        specializationName: current.specialization
+                            ? localization.getLabel( ( configurationLoader.configRoleFamilies || {} )[ current.roleFamily ]?.specializations?.[ current.specialization ]?.name || current.specialization, session?.language )
+                            : null,
+                        statusName: configurationLoader.evaluationStatus.name( current.status ),
+                        statusDescription: configurationLoader.evaluationStatus.description( current.status )
+                    },
+                    userRole: configurationLoader.roleCode.EMPLOYEE,
+                    deadlineDate: null,
+                    canEdit: false,
+                    isFacilitator: false,
+                    isTeamEvaluationCollective: configurationLoader.getSetting( "performanceAppraisals.isTeamEvaluationCollective" ),
+                    competencies: competenceFramework.instance.buildCompetenciesTreeFromSnapshot( current.snapshot, session?.language )
+                } );
+            } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
         } );
@@ -1963,6 +2090,13 @@ class CompetenceWebApplication extends TiWebAppManager {
             }
 
             competenceFramework.instance.closeCycle( cycleID ).then( ( cycle ) => {
+                // Post-close: persist the immutable results snapshot. persistResultsSnapshot re-reads the cycle (for
+                // actualCloseDate) itself, so it does not depend on `cycle` freshness. A snapshot failure — including
+                // the getCycle not-found rejection, which cannot occur here since the cycle was just closed — is logged,
+                // not propagated: the cycle is already CLOSED and the close response must still succeed.
+                resultsAnalytics.instance.persistResultsSnapshot( cycleID ).catch( ( snapshotError ) => {
+                    logger.log( `Failed to persist results snapshot for cycle '${ cycleID }': ${ snapshotError && snapshotError.message ? snapshotError.message : snapshotError }`, logger.logSeverity.WARNING, { cycleID: cycleID } );
+                } );
                 resolve( cycle );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -2473,6 +2607,291 @@ class CompetenceWebApplication extends TiWebAppManager {
                             canViewAudit: isSupervisor
                         }
                     } );
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Loads the Insights → Cycle analytics screen shell: the resolved cycle (selected via `?cycleID`,
+     * falling back to the active/current cycle) plus the candidate list for the cycle selector.
+     * Supervisor-only (the leadership reports are supervisor-scoped).
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [options]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadInsightsCycle( session, options ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+
+            const requestedCycleID = String( options?.query?.cycleID || "" ).trim();
+
+            Promise.all( [
+                dataManager.instance.getAllCycles(),
+                this.#resolveCurrentCycle()
+            ] ).then( ( [ cycles, currentCycle ] ) => {
+                const cycle = resultsAnalytics.pickCycleForRequest( cycles || [], requestedCycleID, currentCycle );
+                if ( !cycle ) {
+                    return resolve( { cycle: null, cycles: [] } );
+                }
+                resolve( {
+                    cycle: { id: cycle.cycleID, name: cycle.name, status: cycle.status },
+                    cycles: ( cycles || [] ).map( ( c ) => ( { id: c.cycleID, name: c.name, status: c.status } ) )
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Loads the Insights → Team analytics screen shell: the resolved cycle + the cycle-selector candidates, same as the
+     * cycle screen but gated MANAGER|SUPERVISOR. The reports themselves are scoped to the requesting user's subtree by
+     * the `?scope=team` report requests (#resolveReportScope), so this shell carries no scope beyond the cycle.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [options]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadInsightsTeam( session, options ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.MANAGER, configurationLoader.roleCode.SUPERVISOR );
+
+            const requestedCycleID = String( options?.query?.cycleID || "" ).trim();
+
+            Promise.all( [
+                dataManager.instance.getAllCycles(),
+                this.#resolveCurrentCycle()
+            ] ).then( ( [ cycles, currentCycle ] ) => {
+                const cycle = resultsAnalytics.pickCycleForRequest( cycles || [], requestedCycleID, currentCycle );
+                if ( !cycle ) {
+                    return resolve( { cycle: null, cycles: [] } );
+                }
+                resolve( {
+                    cycle: { id: cycle.cycleID, name: cycle.name, status: cycle.status },
+                    cycles: ( cycles || [] ).map( ( c ) => ( { id: c.cycleID, name: c.name, status: c.status } ) )
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Resolves the cohort scope for an Insights report request. `?scope=team` gates MANAGER|SUPERVISOR and scopes to the
+     * REQUESTING user's own multi-level subtree (manager → their team; supervisor → their unit's subtree) via the org
+     * graph + resolveScopeFilter (allow-list of subtree employee IDs); otherwise (the cycle screen) gates SUPERVISOR and
+     * uses whole-org (allowedEmployeeIDs null, org-root). The subtree allow-list is the authoritative cohort predicate
+     * (isSuperiorManagerOfEmployee, materialized once via the subtree roster — never managerID equality, §7.7).
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [options]
+     * @returns {Promise<{cycle:Object|null, filter:Object|null, scope:string, userID:string}>}
+     * @private
+     */
+    #resolveReportScope( session, options ) {
+        const scope = ( options?.query?.scope === "team" ) ? "team" : "org";
+        const context = ( scope === "team" )
+            ? this.#requireRole( session, configurationLoader.roleCode.MANAGER, configurationLoader.roleCode.SUPERVISOR )
+            : this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+        const requestedCycleID = String( options?.query?.cycleID || "" ).trim();
+
+        return Promise.all( [
+            dataManager.instance.getAllCycles(),
+            this.#resolveCurrentCycle()
+        ] ).then( ( [ cycles, currentCycle ] ) => {
+            const cycle = resultsAnalytics.pickCycleForRequest( cycles || [], requestedCycleID, currentCycle );
+            if ( !cycle ) {
+                return { cycle: null, filter: null, scope: scope, userID: context.userID };
+            }
+            let filter;
+            if ( scope === "team" ) {
+                const managerUnitID = organizationManager.instance.resolveOrganizationUnitIDForEmployee( context.userID );
+                const subtree = organizationManager.instance.getOrganizationUnitSubtree( managerUnitID );
+                const subtreeEmployeeIDs = resultsAnalytics.instance.buildRoster( subtree )
+                    .map( ( member ) => member.employeeID )
+                    .filter( ( employeeID ) => organizationManager.instance.isSuperiorManagerOfEmployee( context.userID, employeeID ) );
+                filter = resultsAnalytics.instance.resolveScopeFilter( { isSupervisor: false, employeeID: context.userID, managerUnitID: managerUnitID, subtreeEmployeeIDs: subtreeEmployeeIDs } );
+            } else {
+                filter = { allowedEmployeeIDs: null, rootUnitID: organizationManager.instance.getOrganizationRootUnitID() };
+            }
+            return { cycle: cycle, filter: filter, scope: scope, userID: context.userID };
+        } );
+    }
+
+    /**
+     * Returns the Coverage (R1) report payload for the requested cycle + scope (whole-org for the cycle screen, or the
+     * requesting user's subtree for `?scope=team`). The analytics service branches live-vs-snapshot internally.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [options]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadReportCoverage( session, options ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#resolveReportScope( session, options ).then( ( scoped ) => {
+                if ( !scoped.cycle ) {
+                    return resolve( { coverage: null, meta: null } );
+                }
+                const groupBy = String( options?.query?.groupBy || "" ).trim() || "orgUnit";
+                const filter = Object.assign( { groupBy: groupBy }, scoped.filter );
+                return resultsAnalytics.instance.resolve( scoped.cycle.cycleID, filter, "coverage" ).then( resolve );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Returns one leadership report (R2–R6, and calibration) for the requested cycle + scope. Whole-org (cycle screen,
+     * SUPERVISOR) or the requesting user's subtree (`?scope=team`, MANAGER|SUPERVISOR) per #resolveReportScope.
+     * Source/grouping/category ride on the filter; calibration additionally carries the requesting grader's managerID.
+     * The analytics service branches live-vs-snapshot and injects calendar/today (R2) and the midpoint (R3) internally.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [options]
+     * @param {string} reportKey - timeDistribution|alignment|heatmap|levelDistribution|predictiveDrivers|calibration.
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadLeadershipReport( session, options, reportKey ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#resolveReportScope( session, options ).then( ( scoped ) => {
+                if ( !scoped.cycle ) {
+                    return resolve( { [ reportKey ]: null, meta: null } );
+                }
+                const filter = Object.assign( {}, scoped.filter );
+                const source = String( options?.query?.source || "" ).trim();
+                const groupBy = String( options?.query?.groupBy || "" ).trim();
+                const category = String( options?.query?.category || "" ).trim();
+                if ( source ) { filter.source = source; }
+                if ( groupBy ) { filter.groupBy = groupBy; }
+                if ( category ) { filter.category = category; }
+                if ( reportKey === "calibration" ) { filter.managerID = scoped.userID; }   // calibration = the requesting grader's own grading
+                return resultsAnalytics.instance.resolve( scoped.cycle.cycleID, filter, reportKey ).then( resolve );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Returns a cross-cycle trend payload (CA-X2). Reads the persisted whole-org ResultsSnapshots and shapes the
+     * requested metric (overallScore | tBandMix | gapClosure | ladder | cohort) into chart-ready series. These are
+     * whole-org leadership analytics over time, so the endpoint gates SUPERVISOR (consistent with the org-scope
+     * leadership reports); manager-subtree trends (via byOrgUnit slices) are a noted follow-up. The analytics service
+     * tolerates legacy (pre-substrate) snapshots and suppresses small cohort cells.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [options]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadResultsTrend( session, options ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+            const query = ( options && options.query ) ? options.query : {};
+            const params = {
+                metric: String( query.metric || "overallScore" ).trim(),
+                dimension: String( query.dimension || "" ).trim() || undefined,
+                key: String( query.key || "" ).trim() || undefined,
+                window: query.window ? Number( query.window ) : undefined
+            };
+            resultsAnalytics.instance.computeTrend( params )
+                .then( resolve )
+                .catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Per-employee historical finalScore line (CA-X4). Access-gated server-side: the requester may see their OWN history
+     * (self), a Supervisor may see anyone, a Manager only an employee in their multi-level subtree
+     * (isSuperiorManagerOfEmployee — never managerID equality). Reads the RAW evaluations for the target (never the
+     * anonymous snapshots) and shapes a chronological line via resultsAnalytics.buildEmployeeHistory ({noHistory:true}
+     * below two reported cycles).
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [options]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadEmployeeHistory( session, options ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireSessionUser( session );
+            const requestedID = String( options?.query?.employeeID || "" ).trim();
+            const targetID = requestedID || userID;   // default to the requester's own history
+
+            const isSelf = targetID === userID;
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+            const isManager = userRoles.includes( configurationLoader.roleCode.MANAGER );
+            if ( !isSelf && !isSupervisor && !( isManager && organizationManager.instance.isSuperiorManagerOfEmployee( userID, targetID ) ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "Not authorized to view this employee's history." }, exceptions.httpCode.C_403 ) );
+            }
+
+            dataManager.instance.fetchEvaluations( targetID, false )
+                .then( ( evaluations ) => {
+                    resolve( Object.assign( { employeeID: targetID }, resultsAnalytics.instance.buildEmployeeHistory( evaluations || [] ) ) );
+                } )
+                .catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * R3 drill — the per-competency self/manager/team breakdown for one employee's evaluation in a cycle, sorted by
+     * largest |self−manager| gap. Re-gates server-side: a Supervisor may drill anyone; a Manager only an employee in
+     * their multi-level subtree (isSuperiorManagerOfEmployee). Analytics stays pure — the gate lives here.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [options]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadAlignmentDrill( session, options ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireRole( session, configurationLoader.roleCode.MANAGER, configurationLoader.roleCode.SUPERVISOR );
+
+            const requestedCycleID = String( options?.query?.cycleID || "" ).trim();
+            const employeeID = String( options?.query?.employeeID || "" ).trim();
+            const category = String( options?.query?.category || "" ).trim();
+            if ( !employeeID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID: false }, exceptions.httpCode.C_422 ) );
+            }
+
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+            if ( !isSupervisor && !organizationManager.instance.isSuperiorManagerOfEmployee( userID, employeeID ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "Not authorized to drill into this employee." }, exceptions.httpCode.C_403 ) );
+            }
+
+            Promise.all( [
+                dataManager.instance.getAllCycles(),
+                this.#resolveCurrentCycle()
+            ] ).then( ( [ cycles, currentCycle ] ) => {
+                const cycle = resultsAnalytics.pickCycleForRequest( cycles || [], requestedCycleID, currentCycle );
+                if ( !cycle ) {
+                    return resolve( { evaluationID: null, employeeID: employeeID, competencies: [] } );
+                }
+                return dataManager.instance.fetchEvaluations( employeeID, false ).then( ( evaluations ) => {
+                    const resolveOrgUnit = ( id ) => organizationManager.instance.resolveOrganizationUnitIDForEmployee( id );
+                    const frame = resultsAnalytics.instance.buildCohortFrame( evaluations, cycle.cycleID, { resolveOrgUnit: resolveOrgUnit } );
+                    const row = frame.find( ( r ) => r.employeeID === employeeID );
+                    if ( !row ) {
+                        return resolve( { evaluationID: null, employeeID: employeeID, competencies: [] } );
+                    }
+                    resolve( resultsAnalytics.instance.computeAlignmentDrill( row, category || undefined ) );
                 } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );

@@ -1103,6 +1103,44 @@ body {
     overflow: hidden;
 }
 
+/* Reusable card grid — a responsive two-column layout of .ti-card blocks; any direct child marked
+   .ti-card-wide (or a non-card full-row element like a banner) spans the whole row. Collapses to one
+   column on narrow viewports. App-agnostic; first consumed by the competence Insights screens. */
+.ti-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-5);
+    align-items: start;
+}
+
+.ti-card-grid > .ti-card-wide {
+    grid-column: 1 / -1;
+}
+
+@media ( max-width: 720px ) {
+    .ti-card-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* A muted, collapsible note/disclosure within a card (e.g. a "how it's calculated" methodology block). */
+.ti-card-note {
+    margin-top: var(--s-3);
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+}
+
+.ti-card-note > summary {
+    cursor: pointer;
+    color: var(--fg-secondary);
+    list-style-position: inside;
+}
+
+.ti-card-note > p {
+    margin: var(--s-2) 0 0;
+    line-height: 1.5;
+}
+
 .ti-panel-head {
     display: flex;
     align-items: center;
@@ -1544,8 +1582,8 @@ body {
    dash, so the "awaiting rating" state reads clearly wherever an empty chip is shown to a permitted viewer. */
 .ti-grade-chip.empty::before {
     content: "";
-    width: 16px;
-    height: 16px;
+    width: 12px;
+    height: 12px;
     background-color: currentColor;
     -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 22h14'/%3E%3Cpath d='M5 2h14'/%3E%3Cpath d='M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22'/%3E%3Cpath d='M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2'/%3E%3C/svg%3E") center / contain no-repeat;
     mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 22h14'/%3E%3Cpath d='M5 2h14'/%3E%3Cpath d='M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22'/%3E%3Cpath d='M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2'/%3E%3C/svg%3E") center / contain no-repeat;
@@ -2529,3 +2567,422 @@ body {
     background-clip: padding-box;
     border: 2px solid transparent;
 }
+
+/* ------------------------------------------------------------------ *
+ *  ti-charts — themeable SVG chart primitives (Phase 0: gauge/bars/stat)
+ *  Colors route through semantic + grade tokens that flip per theme in
+ *  ti-theme-daylight.css / ti-theme-black-glass.css. No per-chart overrides.
+ * ------------------------------------------------------------------ */
+.ti-chart {
+    --c-axis: var(--border-strong);
+    --c-grid: var(--grid-line);
+    --c-ink: var(--fg-secondary);
+    --c-ink-strong: var(--fg-primary);
+    --c-series-1: var(--accent);
+    --c-series-2: var(--info);
+    --c-series-3: var(--success);
+    --c-grade-s: var(--grade-S);
+    --c-grade-r: var(--grade-R);
+    --c-grade-u: var(--grade-U);
+    --c-grade-n: var(--grade-N);
+    --c-seq-1: var(--chart-seq-1);
+    --c-seq-2: var(--chart-seq-2);
+    --c-seq-3: var(--chart-seq-3);
+    --c-seq-4: var(--chart-seq-4);
+    --c-seq-5: var(--chart-seq-5);
+    display: block;
+    margin: 0;
+    position: relative;
+}
+
+.ti-chart svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    /* Charts scale to 100% of their card; cap the height (and per-type width below) + centre so a chart on a wide card
+       does not balloon to many hundreds of px tall. preserveAspectRatio="xMidYMid meet" keeps the drawing centred. */
+    max-height: 460px;
+    margin-inline: auto;
+}
+/* Per-type size caps (the figure carries data-ti-chart-type, set by renderChart). Square KPIs stay small and centred;
+   content charts use width but never overrun the height cap. */
+.ti-chart[data-ti-chart-type="gauge"] svg   { max-width: 240px; }
+.ti-chart[data-ti-chart-type="scatter"] svg { max-width: 380px; }
+.ti-chart[data-ti-chart-type="heatmap"] svg { max-width: 480px; }
+.ti-chart[data-ti-chart-type="box"] svg     { max-width: 680px; }
+/* Horizontal bars grow with their row count, so they opt out of the global max-height: with the cap, a tall org-wide
+   chart was uniformly scaled down and ended up finer than the same chart on a smaller subtree. Without it the bar
+   thickness and label size stay identical across screens; the chart simply gets taller when there are more rows. */
+.ti-chart[data-ti-chart-type="bars"] svg    { max-width: 640px; max-height: none; }
+.ti-chart[data-ti-chart-type="radar"] svg   { max-width: 360px; }
+.ti-chart[data-ti-chart-type="line"] svg    { max-width: 640px; }
+
+/* Visually-hidden a11y mirror table (screen-reader only). */
+.ti-chart-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset( 50% );
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Provisional ("as of now / % reporting") visual language — class form;
+   renderers may instead set stroke-dasharray as a presentation attribute. */
+.ti-chart-provisional {
+    stroke-dasharray: 4 3;
+    opacity: 0.55;
+}
+
+/* --- gauge --- */
+.ti-chart-gauge-track {
+    stroke: var(--c-grid);
+    stroke-width: 8;
+    stroke-linecap: round;
+}
+
+.ti-chart-gauge-arc {
+    stroke: var(--c-series-1);
+    stroke-width: 8;
+    stroke-linecap: round;
+}
+
+.ti-chart-gauge-value {
+    fill: var(--c-ink-strong);
+    font-size: 18px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.ti-chart-gauge-label {
+    fill: var(--c-ink);
+    font-size: 7px;
+}
+
+.ti-chart-gauge-sublabel {
+    fill: var(--c-ink);
+    font-size: 5px;
+}
+
+/* --- bars --- */
+.ti-chart-bar-seg {
+    fill: var(--c-series-1);
+}
+
+.ti-chart-bar-seg.tone-grade-s {
+    fill: var(--c-grade-s);
+}
+
+.ti-chart-bar-seg.tone-grade-r {
+    fill: var(--c-grade-r);
+}
+
+.ti-chart-bar-seg.tone-grade-u {
+    fill: var(--c-grade-u);
+}
+
+.ti-chart-bar-seg.tone-grade-n {
+    fill: var(--c-grade-n);
+}
+
+.ti-chart-bar-seg.tone-ink {
+    fill: var(--c-grid);
+}
+
+/* --- stat tile --- */
+.ti-chart-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ti-chart-stat-value {
+    color: var(--c-ink-strong);
+    font-size: 1.6rem;
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.ti-chart-stat-label {
+    color: var(--c-ink-strong);
+    font-size: 0.9rem;
+}
+
+.ti-chart-stat-sub {
+    color: var(--c-ink);
+    font-size: 0.8rem;
+}
+
+.ti-chart-stat-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--c-grid);
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.ti-chart-stat-fill {
+    height: 100%;
+    width: var(--pct, 0%);
+    background: var(--c-series-1);
+    border-radius: inherit;
+}
+
+/* tabular-nums utility used by chart text (no such class existed before). */
+.tabular-nums {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ *
+ *  ti-charts — Phase 1A primitives (scatter, heatmap, box) + bar modes.
+ *  Same token discipline: colors route through --c-* (set on .ti-chart).
+ * ------------------------------------------------------------------ */
+
+/* Interactive marks (drill) — CSP-safe: tabindex/role set in JS, no inline handlers. */
+.ti-chart [role="button"] {
+    cursor: pointer;
+}
+
+.ti-chart [role="button"]:focus-visible {
+    outline: 1px solid var(--c-series-1);
+    outline-offset: 1px;
+}
+
+/* --- scatter (R3 alignment quadrant) --- */
+.ti-chart-scatter-diag {
+    stroke: var(--c-grid);
+    stroke-width: 0.5;
+    stroke-dasharray: 2 2;
+}
+
+.ti-chart-scatter-mid {
+    stroke: var(--c-grid);
+    stroke-width: 0.4;
+}
+
+.ti-chart-scatter-pt {
+    fill: var(--c-series-1);
+    stroke: var(--c-ink-strong);
+    stroke-width: 0.3;
+}
+
+.ti-chart-scatter-pt.tone-grade-s {
+    fill: var(--c-grade-s);
+}
+
+.ti-chart-scatter-pt.tone-grade-r {
+    fill: var(--c-grade-r);
+}
+
+.ti-chart-scatter-pt.tone-grade-u {
+    fill: var(--c-grade-u);
+}
+
+.ti-chart-scatter-pt.tone-grade-n {
+    fill: var(--c-grade-n);
+}
+
+.ti-chart-scatter-pt.tone-info {
+    fill: var(--c-series-2);
+}
+
+.ti-chart-scatter-quad {
+    fill: var(--c-series-1);
+    opacity: 0.05;
+}
+
+.ti-chart-axis-label {
+    fill: var(--c-ink);
+    font-size: 4px;
+}
+
+/* --- heatmap (R4) — sequential ramp + diverging grade scale --- */
+.ti-chart-heat-cell {
+    stroke: var(--bg-elevated, #fff);
+    stroke-width: 0.5;
+}
+
+.ti-chart-heat-cell.cell-q1 {
+    fill: var(--c-seq-1);
+}
+
+.ti-chart-heat-cell.cell-q2 {
+    fill: var(--c-seq-2);
+}
+
+.ti-chart-heat-cell.cell-q3 {
+    fill: var(--c-seq-3);
+}
+
+.ti-chart-heat-cell.cell-q4 {
+    fill: var(--c-seq-4);
+}
+
+.ti-chart-heat-cell.cell-q5 {
+    fill: var(--c-seq-5);
+}
+
+.ti-chart-heat-cell.cell-pos {
+    fill: var(--c-grade-s);
+}
+
+/* diverging: positive gap → S side */
+.ti-chart-heat-cell.cell-neg {
+    fill: var(--c-grade-n);
+}
+
+/* diverging: negative gap → N side */
+.ti-chart-heat-cell.cell-zero {
+    fill: var(--c-grid);
+}
+
+.ti-chart-heat-cell.suppressed {
+    fill: var(--c-grid);
+    opacity: 0.4;
+}
+
+.ti-chart-heat-label {
+    fill: var(--c-ink);
+    font-size: 4px;
+}
+
+/* --- box (R5 level correlation) --- */
+.ti-chart-box-box {
+    fill: var(--c-series-1);
+    opacity: 0.22;
+    stroke: var(--c-series-1);
+    stroke-width: 0.6;
+}
+
+.ti-chart-box-median {
+    stroke: var(--c-ink-strong);
+    stroke-width: 1;
+}
+
+.ti-chart-box-whisker {
+    stroke: var(--c-axis);
+    stroke-width: 0.5;
+}
+
+.ti-chart-box-cap {
+    stroke: var(--c-axis);
+    stroke-width: 0.5;
+}
+
+.ti-chart-box-mean {
+    fill: var(--c-ink-strong);
+}
+
+.ti-chart-box-expected {
+    stroke: var(--c-grade-r);
+    stroke-width: 0.8;
+    stroke-dasharray: 2 2;
+}
+
+.ti-chart-box-ref {
+    stroke: var(--c-grade-u);
+    stroke-width: 0.5;
+    stroke-dasharray: 3 2;
+}
+
+.ti-chart-box-ref-label {
+    fill: var(--c-grade-u);
+    font-size: 4px;
+}
+
+.ti-chart-box-label {
+    fill: var(--c-ink);
+    font-size: 4px;
+}
+
+/* --- bars (grouped + diverging modes) --- */
+.ti-chart-bar-axis {
+    stroke: var(--c-axis);
+    stroke-width: 0.4;
+}
+
+.ti-chart-bar-label {
+    fill: var(--c-ink);
+    font-size: 4px;
+}
+
+/* Chart legend — a visible swatch+label key appended below a chart (e.g. the coverage stacked bars). Inherits the
+   --c-grade-* / --c-ink tokens from the parent .ti-chart, so swatches match the segment fills and re-theme with them. */
+.ti-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--s-2) var(--s-4);
+    margin-top: var(--s-3);
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+}
+
+.ti-chart-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ti-chart-legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    background: var(--c-ink);
+    flex: 0 0 auto;
+}
+
+.ti-chart-legend-swatch.tone-grade-s { background: var(--c-grade-s); }
+.ti-chart-legend-swatch.tone-grade-r { background: var(--c-grade-r); }
+.ti-chart-legend-swatch.tone-grade-u { background: var(--c-grade-u); }
+.ti-chart-legend-swatch.tone-grade-n { background: var(--c-grade-n); }
+.ti-chart-legend-swatch.tone-ink { background: var(--c-ink); }
+
+/* --- radar (individual subcategory profile) --- */
+.ti-chart-radar-ring  { stroke: var(--c-grid); stroke-width: 0.4; }
+.ti-chart-radar-spoke { stroke: var(--c-grid); stroke-width: 0.3; }
+.ti-chart-radar-axis-label { fill: var(--c-ink); font-size: 3.6px; }
+.ti-chart-radar-poly  { fill: var(--c-series-1); fill-opacity: 0.12; stroke: var(--c-series-1); stroke-width: 0.8; }
+.ti-chart-radar-poly.tone-grade-s { fill: var(--c-grade-s); stroke: var(--c-grade-s); }
+.ti-chart-radar-poly.tone-grade-r { fill: var(--c-grade-r); stroke: var(--c-grade-r); }
+.ti-chart-radar-poly.tone-grade-u { fill: var(--c-grade-u); stroke: var(--c-grade-u); }
+.ti-chart-radar-poly.tone-grade-n { fill: var(--c-grade-n); stroke: var(--c-grade-n); }
+.ti-chart-radar-poly.tone-info    { fill: var(--c-series-2); stroke: var(--c-series-2); }
+.ti-chart-radar-dot   { fill: var(--c-series-1); }
+.ti-chart-radar-dot.tone-grade-s { fill: var(--c-grade-s); }
+.ti-chart-radar-dot.tone-grade-r { fill: var(--c-grade-r); }
+.ti-chart-radar-dot.tone-grade-u { fill: var(--c-grade-u); }
+.ti-chart-radar-dot.tone-grade-n { fill: var(--c-grade-n); }
+.ti-chart-radar-dot.tone-info    { fill: var(--c-series-2); }
+
+/* --- line / trend (cross-cycle, CA-X1) --- */
+.ti-chart-line-axis   { stroke: var(--c-grid); stroke-width: 0.3; }
+.ti-chart-line-xlabel { fill: var(--c-ink); font-size: 3.2px; }
+.ti-chart-line-series { stroke: var(--c-series-1); stroke-width: 1; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.ti-chart-line-series.tone-grade-s { stroke: var(--c-grade-s); }
+.ti-chart-line-series.tone-grade-r { stroke: var(--c-grade-r); }
+.ti-chart-line-series.tone-grade-u { stroke: var(--c-grade-u); }
+.ti-chart-line-series.tone-grade-n { stroke: var(--c-grade-n); }
+.ti-chart-line-series.tone-info    { stroke: var(--c-series-2); }
+.ti-chart-line-band   { fill: var(--c-series-1); fill-opacity: 0.12; stroke: none; }
+.ti-chart-line-band.tone-grade-s { fill: var(--c-grade-s); }
+.ti-chart-line-band.tone-grade-r { fill: var(--c-grade-r); }
+.ti-chart-line-band.tone-grade-u { fill: var(--c-grade-u); }
+.ti-chart-line-band.tone-grade-n { fill: var(--c-grade-n); }
+.ti-chart-line-band.tone-info    { fill: var(--c-series-2); }
+.ti-chart-line-dot    { fill: var(--c-series-1); }
+.ti-chart-line-dot.tone-grade-s { fill: var(--c-grade-s); }
+.ti-chart-line-dot.tone-grade-r { fill: var(--c-grade-r); }
+.ti-chart-line-dot.tone-grade-u { fill: var(--c-grade-u); }
+.ti-chart-line-dot.tone-grade-n { fill: var(--c-grade-n); }
+.ti-chart-line-dot.tone-info    { fill: var(--c-series-2); }
+.ti-chart-line-dot.provisional  { fill: var(--bg-app); stroke: var(--c-series-1); stroke-width: 0.6; }
+.ti-chart-line-dot.tone-grade-s.provisional { stroke: var(--c-grade-s); }
+.ti-chart-line-dot.tone-grade-r.provisional { stroke: var(--c-grade-r); }
+.ti-chart-line-dot.tone-grade-u.provisional { stroke: var(--c-grade-u); }
+.ti-chart-line-dot.tone-grade-n.provisional { stroke: var(--c-grade-n); }
+.ti-chart-line-dot.tone-info.provisional    { stroke: var(--c-series-2); }

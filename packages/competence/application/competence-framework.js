@@ -606,10 +606,10 @@ class CompetenceFramework {
         if ( evaluation.grades ) {
             Object.keys( evaluation.grades ).forEach( ( competencyCode ) => {
                 if ( userRole === configurationLoader.roleCode.EMPLOYEE ) {
-                    if ( evaluation.status === configurationLoader.evaluationStatus.READY ) {
-                        // Results are final — reveal the manager grade and the team cumulative so the employee can
-                        // review their scores ahead of the interview. Individual peer grades stay collapsed to the
-                        // cumulative (peer feedback is anonymous).
+                    if ( evaluation.status === configurationLoader.evaluationStatus.READY || evaluation.status === configurationLoader.evaluationStatus.CLOSED ) {
+                        // Results are final (Ready ahead of the interview, or Closed history via "My results") — reveal the
+                        // manager grade and the team cumulative so the employee can review their scores. Individual peer
+                        // grades stay collapsed to the cumulative (peer feedback is anonymous).
                         evaluation.grades[ competencyCode ].team = evaluation.grades[ competencyCode ].team?.cumulative || "";
                     } else {
                         delete evaluation.grades[ competencyCode ].manager;

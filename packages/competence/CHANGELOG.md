@@ -2,6 +2,43 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.4.2
+
+Post-merge fixes and polish over the Statistics & Results screens (CA-61). Requires web-framework ≥ 1.10.2.
+
+* fix(competence): the Insights screens (Cycle, Team, Trends) gain their topbar titles and adopt the shared design-system primitives — `.ti-page-head` (eyebrow + subtitle), `.ti-panel`/`.ti-panel-head` report cards, the standard select control, and design-compliant empty states (icon + description) — so they match the rest of the app
+* fix(competence): the cycle/team heatmap-view selects resolve their accessible name through a `getLabel` component method (it was an undefined variable that threw in the Alpine CSP scope), and the Trends screen loads its five metrics sequentially — the framework single-flights GET requests per path, so firing them in parallel aborted four of the five and hung the screen on "Loading…"
+* fix(competence): the coverage "By group" chart is legible — each group bar is labelled with its name and the percent complete (Ready/Closed), with a localized status legend (en/bg)
+* fix(competence): "My results" presents as a results view rather than the self-evaluation form — its own topbar and page title, with the grading-task role banner and the "how to grade" instructions hidden (the shared evaluation fragment is now results-aware via an `isMyResults` flag)
+* refactor(competence): remove the redundant Insights landing screen (`insights-overview`, fragment + route + Alpine component + nav entry + labels) — the sidebar group opens the report screens directly and the Dashboard stays the entry point
+* build(release): bump package version from `3.4.1` to `3.4.2`
+
+## Version 3.4.1
+
+Review fixes for the Statistics & Results capability (CA-61, PR #83 — CodeRabbit pass).
+
+* fix(competence): Coverage `meta.total`/`pctReporting`/`partial` derive from the in-scope roster instead of the evaluation count, so an active cycle with not-started employees no longer reads 100% complete
+* fix(competence): the per-cycle results snapshot anchors interview "held" counts to the cycle close date (not wall-clock) so re-persisting a closed cycle stays idempotent; whole-org coverage resolves the org root instead of collapsing to an empty roster; org-unit coverage groups label by display name rather than the raw unit id
+* fix(competence): privacy & access — team-feedback free-text comments are manager-only (the grade-collapsing never anonymized free text); employee-history access requires the `MANAGER` role alongside org-graph superiority; team-analytics `scope=team` filters the subtree by `isSuperiorManagerOfEmployee` (the reporting chain, §7.7) so a manager can't see unit peers or unrelated reports
+* fix(competence): individual results renormalize the blended subcategory score over only the sources present (a missing team grade no longer fabricates a development gap), and scale the results charts by the configured `performanceThresholds.T5` instead of a literal `150`
+* fix(competence): the Insights sidebar tracks a per-route active key (buttons + `sidebarNavMapping`), and the heatmap-view selects gain accessible names and bind their value on the control
+* test(competence): valid `QE` role-family fixture, a zero-preserving coverage helper, and the roster `organizationUnitName` field
+* build(release): bump package version from `3.4.0` to `3.4.1`
+
+## Version 3.4.0
+
+### Statistics & Results reporting (CA-61, Phases 0–4)
+
+A complete competency-analytics reporting capability over the appraisal data — reading live for the active cycle and from immutable per-cycle snapshots for closed cycles. Design + running log: `design/completed/statistics-and-results.md`. Requires web-framework ≥ 1.10.0 (the ti-chart primitives).
+
+* feat(competence): aggregation service `application/results-analytics.js` — a frozen-singleton with pure cohort-frame + report computations and a live/snapshot resolver; the eighth Redis-JSON cache key `ti:competence:data:results-snapshots` with `saveResultsSnapshot`/`getResultsSnapshot`/`getAllResultsSnapshots` accessors, written immutably on cycle close (`#closeCycle → persistResultsSnapshot`, re-reading `actualCloseDate`). (Phase 0, CA-62…65)
+* feat(competence): six leadership reports on the Insights → Cycle analytics screen — Coverage (gauge + by-group bars + pending list), Interview timing, Self-vs-manager alignment quadrant, competence heatmap, score-distribution-by-level box plots, and predictive drivers — each with a labels-sourced methodology / what-it-shows block (en/bg). (Phase 1, CA-66/67)
+* feat(competence): Insights → Team analytics — the six reports re-scoped to a manager's (or supervisor's) multi-level subtree via `isSuperiorManagerOfEmployee`, plus the Grader Calibration report. (Phase 2, CA-68)
+* feat(competence): individual results — the evaluee's READY/CLOSED results on the evaluation view (final-score hero, per-category + source-comparison bars, 9-subcategory radar vs the maturity-step expected, strengths/gaps), with the client decomposition reconciled exactly to the server score; plus a self-scoped "My results" workspace screen (closed history from the raw evaluation, always anonymized). (Phase 3, CA-69)
+* feat(competence): cross-cycle Trends screen (Supervisor) — overall score trend (line + p25–p75 band) with performance-band mix, gap-closure over time, ladder movement, and cohort comparison; plus a per-employee historical score line (access-gated self / supervisor / manager-of-subtree, from the raw evaluations — never the anonymous snapshots). (Phase 4, CA-70)
+* feat(competence): privacy by construction — snapshots carry only counts/means/percentiles (never identities or peer-individual grades), and every cohort cell with fewer than three reported people is suppressed at aggregation time, so the breakdowns can't de-anonymize a small team.
+* build(release): bump package version from `3.3.1` to `3.4.0`
+
 ## Version 3.3.1
 
 Bug fixes and polish from the first QA pass over the 3.3.0 team-feedback feature.

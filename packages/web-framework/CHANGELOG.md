@@ -2,6 +2,32 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.10.2
+
+Readability and scaling fixes for the chart primitives, surfaced while polishing the Statistics & Results screens (CA-61).
+
+* fix(web-framework): stacked bar charts now caption each row (the group/cycle label plus an optional per-row value) and render an optional swatch legend driven by `spec.options.legend`, so a coverage "By group" chart reads as labelled bars instead of anonymous colour blocks; the row labels also land on the cross-cycle trend bars
+* fix(css): horizontal bar charts opt out of the global `svg` `max-height` so bar thickness and label size stay identical regardless of row count — a tall org-wide chart is no longer uniformly scaled down and rendered finer than the same chart on a smaller subtree; the per-row geometry is trimmed for a cleaner look
+* feat(css): `.ti-chart-legend` / `.ti-chart-legend-item` / `.ti-chart-legend-swatch` — a chart swatch legend whose colours route through the inherited grade/ink chart tokens
+* build(release): bump package version from `1.10.1` to `1.10.2`
+
+## Version 1.10.1
+
+Review fixes for the ti-chart primitives (Statistics & Results, CA-61, PR #83 — CodeRabbit pass).
+
+* fix(web-framework): drillable heatmap/box marks get an accessible name; `renderChart` clears stale `data-ti-chart-empty`/`aria-label` on rerender; `renderStat` renders a missing value as an em dash; the provisional line-dot stroke follows its `tone-*` class
+* fix(css): `.ti-chart-sr` uses `clip-path: inset(50%)` instead of the deprecated `clip` property
+* build(release): bump package version from `1.10.0` to `1.10.1`
+
+## Version 1.10.0
+
+### Charting primitive library (Statistics & Results, CA-61)
+
+* feat(web-framework): new `ti-charts.js` — a CSP-safe SVG charting library backing the competence Statistics & Results reporting. Eight primitives via a single `renderChart(figure, spec)` dispatcher: `gauge`, `bars` (stacked / grouped / diverging modes), `stat`, `scatter`, `heatmap` (sequential / diverging scales), `box`, `radar`, and `line` (mean + p25–p75 band, sparkline, stacked, dashed-provisional trailing segment). The pure layout helpers (`gaugeArcPath`, `barSegments`, `scatterLayout`, `heatmapLayout`, `boxLayout`, `radarLayout`, `lineLayout`, …) are unit-tested in isolation
+* feat(web-framework): register the `x-ti-chart` Alpine CSP directive (binds a spec object to a host `<figure>`); every chart builds its SVG with `createElementNS` + `setAttribute` only (never `element.style.*` except `setProperty("--var")`) and ships a visually-hidden `.ti-chart-sr` accessibility table
+* feat(css): `.ti-chart-*` styles + per-type `figure[data-ti-chart-type]` size caps + `--chart-seq-1…5` sequential ramp tokens and grade/tone colours in both themes (daylight + black-glass)
+* build(release): bump package version from `1.9.3` to `1.10.0`
+
 ## Version 1.9.3
 
 * feat(css): an empty `.ti-grade-chip` (a competency whose rating is still awaited) now renders an hourglass glyph via `::before` instead of a literal dash, so "awaiting rating" reads as a clear visual state wherever an empty grade chip is shown to a permitted viewer

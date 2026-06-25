@@ -35,7 +35,7 @@ Being a messaging system, the **ti-engine** relies on a message broker for the a
 
 To run the basic **ti-engine** framework, you will need a couple of things:
 
-* A local [node.js installation](https://nodejs.org/en/download/) with a minimum version of **18.0.0**
+* A local [node.js installation](https://nodejs.org/en/download/) with a minimum version of **20.12.0** (the `core` package requires `process.loadEnvFile`)
 * A local or remote [Redis cache installation](https://redis.io/download) with a minimum version of **5.0.14**
 
 If you are working under Windows 10+ OS and you need to install Redis, take a look at this [guide](https://redis.com/blog/redis-on-windows-10/). You could also use [Redis Cloud](https://app.redislabs.com/) for development as it offers a free basic account.
@@ -140,17 +140,50 @@ See the following sections for more information on each of them.
 
 ### Tier 1 - Message exchange
 
-This is the lowest framework tier, unless we count the actual data objects processed by the framework. As you already know, the foundational **ti-engine** concept is that of a messaging system. Therefore, the first tier provides an abstraction over a chosen message broker (Redis by default). That abstraction makes it easy to switch between message brokers whenever you want to without having to change anything above tier 1. It also provides several bonuses that can speed up your work—message encryption, message tracing, message observers, and others. More details about each of these features will be covered in the section [Using the framework](#using-the-framework).
+This is the lowest framework tier, unless we count the actual data objects processed by the framework. As you already know, the foundational **ti-engine** concept is that of a messaging system. Therefore, the first tier provides an abstraction over a chosen message broker (Redis by default). That abstraction makes it easy to switch between message brokers whenever you want to without having to change anything above tier 1. It also provides several bonuses that can speed up your work—message integrity hashing, message tracing, message observers, and others. More details about each of these features will be covered in the section [Using the framework](#using-the-framework).
 
 Another important aspect for you to remember is that the message exchange is entirely _asynchronous_. This helps reduce the system load and optimizes the usage of the available resources. Even so, each node.js process can handle a limited load. Therefore, you should plan for running multiple identical senders and receives to scale your solution. But more on that later.
 
-For now, take a look at the following diagram:
+The sequence below shows a full service-call round trip through the default Redis exchange. Each message is split into a lightweight **envelope** (metadata, carrying the integrity hash) and a **payload** (the operational data): the payload is parked in a shared Redis hash while only the envelope travels through the queue.
 
-![Message Exchange](https://raw.githubusercontent.com/Belleal/ti-engine/master/packages/core/docs/diagram1.png)
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Caller as ServiceConsumer<br/>(ServiceCaller)
+    participant SOut as MessageSender<br/>(requests-out)
+    participant Redis as Redis<br/>(list queues + payload hash)
+    participant RIn as MessageReceiver<br/>(requests-in)
+    participant Exec as ServiceProvider<br/>(ServiceExecutor)
 
-It shows the standard flow of a message exchange between one sender and _n_ identical message receivers. The sender splits each message into an _envelope_ and a _payload_, then stores the payload in the shared cache and enqueues the envelope in the requests (destination) queue. Receivers can subscribe to that queue to fetch enqueued messages and process their contents. During the fetch sequence a receiver assembles the full message by getting the payload from the storage. This process is depicted by the blue flow lines.
+    rect rgb(232, 243, 255)
+    Note over Caller,Exec: Request path (blue)
+    Caller->>SOut: callService() builds the request envelope
+    SOut->>SOut: stamp HMAC-SHA256 hash over the message
+    SOut->>Redis: HSET payload into ti:messages:store (field = storeID)
+    SOut->>Redis: LPUSH envelope onto ti:messages:pending:{destination}
+    RIn->>Redis: BRPOP ti:messages:pending:{domain} (blocks until a message)
+    Redis-->>RIn: envelope (payload = storeID)
+    RIn->>Redis: HGET + HDEL storeID from ti:messages:store
+    Redis-->>RIn: payload, reassembled into the full message
+    RIn->>RIn: recompute HMAC, constant-time verify
+    RIn->>Exec: deliver the verified message
+    Exec->>Exec: resolve handler by alias + version, then run it
+    end
 
-After the processing is done, the message payload is modified, and the receiver sends the message back to the original sender using the same mechanism. It again splits the message into an envelope and a payload, stores the payload in the storage, and enqueues the envelope in the sender response (source) queue. The sender will then assemble the message back and process the contained results. This process is depicted by the red flow lines.
+    rect rgb(255, 235, 235)
+    Note over Caller,Exec: Response path (red, mirrored route)
+    Exec->>Redis: HSET result payload, LPUSH onto ti:messages:processed:{source}:{instanceID}
+    Caller->>Redis: BRPOP ti:messages:processed:{source}:{instanceID} (blocks)
+    Redis-->>Caller: response envelope, reassembled and verified
+    Caller->>Caller: resolve the awaiting Promise with the ServiceCallResult
+    end
+```
+
+If the recomputed hash does not match the one on the envelope, the receiver rejects the message with `E_SEC_MESSAGE_TAMPERING_DETECTED` instead of delivering it.
+
+The same queue can be consumed by _n_ identical receivers, which is how you scale a service domain horizontally. The sender splits each message into an _envelope_ and a _payload_, then stores the payload in the shared cache and enqueues the envelope in the requests (destination) queue. Receivers can subscribe to that queue to fetch enqueued messages and process their contents. During the fetch sequence a receiver assembles the full message by getting the payload from the storage. This is the blue (request) path in the diagram above.
+
+After the processing is done, the message payload is modified, and the receiver sends the message back to the original sender using the same mechanism. It again splits the message into an envelope and a payload, stores the payload in the storage, and enqueues the envelope in the sender response (source) queue. The sender will then assemble the message back and process the contained results. This is the red (response) path in the diagram above.
 
 In this scenario the framework uses _Redis lists_ as queues for the message envelopes and _Redis hash_ as message payload storage. The splitting between envelope and payload is done to avoid unnecessary transportation of potentially large volumes of operational data between the microservices. Other message brokers might use a slightly different approach, but they should still adhere to the same logical flow.
 
@@ -161,6 +194,22 @@ The modules associated with this tier are all located in the `components/exchang
 * Class `MessageReceiver`: a receiver is a specialized connector that is responsible for receiving messages at a predefined destination.
 * Class `MessageExchange`: the exchange is the actual message processing engine. It handles sending and receiving messages via preconfigured message senders and message receivers.
 * Class `MessageObserver`: an observer is a custom event listener that can be used to react on message `sent` and `received` events.
+
+The exchange classes form the hierarchy below. `MessageHandler` is the shared abstract base that owns the integrity hash; the concrete `Default*` classes are the Redis implementation you replace to swap brokers:
+
+```mermaid
+classDiagram
+    direction LR
+    MessageHandler <|-- MessageSender
+    MessageHandler <|-- MessageReceiver
+    MessageObserver <|-- MessageExchange
+    MessageSender <|-- DefaultMessageSender
+    MessageReceiver <|-- DefaultMessageReceiver
+    MessageExchange <|-- DefaultMessageExchange
+    class MessageHandler {
+        +createMessageHash()
+    }
+```
 
 ### Tier 2 - Service domains
 

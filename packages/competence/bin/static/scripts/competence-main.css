@@ -1722,6 +1722,27 @@
     padding: var(--s-5);
 }
 
+/* Insights screens — turn the default vertical .ti-page-head stack into a two-column row so the title block sits on
+   the left and the cycle picker hangs on the right. Wraps to a stack on narrow viewports. */
+.competence-insights-head {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--s-4);
+    flex-wrap: wrap;
+}
+
+/* Inline "label + select" control used by the insights cycle picker (page head) and the heatmap-view picker.
+   Replaces the never-defined .ti-field-inline class the screens originally referenced. */
+.competence-insights-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+    white-space: nowrap;
+}
+
 /* Org tree — empty state inside team block */
 .competence-team-block .ti-empty-state {
     padding: var(--s-6);
@@ -3807,7 +3828,7 @@
 
 /* Column template for the Evaluations data grid: ID / Cycle / Level / Status / Interview / Open */
 .competence-empmgmt-eval-grid {
-    --ti-grid-cols: 110px 100px 80px 130px 1fr 100px;
+    --ti-grid-cols: 110px 60px 80px 130px 1fr 100px;
 }
 
 /* Padding mirrors .competence-empmgmt-form so the audit tab content aligns with Details / Evaluations. */

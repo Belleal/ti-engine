@@ -313,6 +313,24 @@ class OrganizationManager {
     }
 
     /**
+     * Resolves the display name for the specified organization unit ID (preferring `displayName`, falling back to
+     * `name`). Returns an empty string for a missing/unknown unit. Used by the cross-cycle byOrgUnit substrate (CA-X0).
+     *
+     * @method
+     * @param {string} organizationUnitID
+     * @returns {string}
+     * @public
+     */
+    resolveOrganizationUnitName( organizationUnitID ) {
+        const unitNodeID = this.toUnitNodeID( organizationUnitID );
+        if ( !organizationUnitID || !this.#organizationChart || !this.#organizationChart.hasNode( unitNodeID ) ) {
+            return "";
+        }
+
+        return this.#organizationChart.getNodeAttribute( unitNodeID, "displayName" ) || this.#organizationChart.getNodeAttribute( unitNodeID, "name" ) || "";
+    }
+
+    /**
      * Resolves the career attributes for the specified employee ID. Returns the resolved level/stage codes plus the
      * role family / specialization codes and their localized display names.
      *
@@ -397,6 +415,32 @@ class OrganizationManager {
         } else {
             return this.#buildUnitTree( rootNodeID );
         }
+    }
+
+    /**
+     * Returns the organization root unit ID — the single organization-unit node whose `parent` attribute is null
+     * (verified config.organization-structure.json: id "1"). Used by the analytics layer to root a whole-org
+     * roster walk. Returns null when the chart is not yet built (bare unit-test / pre-bootstrap) so callers degrade
+     * to an empty roster rather than throwing.
+     *
+     * @method
+     * @returns {string|null}
+     * @public
+     */
+    getOrganizationRootUnitID() {
+        if ( !this.#organizationChart ) {
+            return null;
+        }
+        const unitNodeIDs = this.#organizationChart.nodes().filter( ( nodeID ) => {
+            return this.#organizationChart.getNodeAttribute( nodeID, "nodeType" ) === "organizationUnit";
+        } );
+        for ( const nodeID of unitNodeIDs ) {
+            const parent = this.#organizationChart.getNodeAttribute( nodeID, "parent" );
+            if ( parent === null || parent === undefined || parent === "" ) {
+                return this.#organizationChart.getNodeAttribute( nodeID, "id" );
+            }
+        }
+        return null;
     }
 
     /* Private interface */

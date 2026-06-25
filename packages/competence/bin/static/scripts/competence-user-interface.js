@@ -38,6 +38,19 @@ const configureCompetenceEvaluation = () => {
         showEvaluationForm: false,
         noEvaluationState: null,
         warningMessage: "",
+        isMyResults: false,
+
+        // Phase 3 — individual results (populated by buildResults() at READY/CLOSED)
+        resultsReady: false,
+        resultsHeroSpec: { type: "stat", data: { value: 0, label: "", sub: "" }, a11yLabel: "" },
+        resultsCategoryBarsSpec: { type: "bars", data: { rows: [] }, options: { mode: "stacked" }, a11yLabel: "" },
+        resultsSourceBarsSpec: { type: "bars", data: { rows: [] }, options: { mode: "grouped" }, a11yLabel: "" },
+        resultsRadarSpec: { type: "radar", data: { axes: [], series: [] }, a11yLabel: "" },
+        resultsStrengths: [],
+        resultsGaps: [],
+        // CA-X4 — the requester's own historical finalScore line, shown on "My results" only.
+        resultsHistoryReady: false,
+        resultsHistorySpec: { type: "line", data: { x: [], series: [] }, options: {}, a11yLabel: "" },
 
         init() {
             const onInitialized = () => {
@@ -76,6 +89,7 @@ const configureCompetenceEvaluation = () => {
 
             tiApplication.setTopbarSubtitle( this.personal.name || "" );
             this.warningMessage = this.getEvaluationWarning();
+            this.buildResults();
         },
 
         loadEmployeeEvaluation( employeeID ) {
@@ -88,7 +102,12 @@ const configureCompetenceEvaluation = () => {
             if ( resolvedID ) params.set( "employeeID", resolvedID );
             if ( evaluationID ) params.set( "evaluationID", evaluationID );
             const paramString = params.toString();
-            const url = `/app/load-evaluation${ paramString ? `?${ paramString }` : "" }`;
+            // "My results" reuses this fragment but loads the requesting employee's own latest result (incl. CLOSED)
+            // via the self-scoped load-my-results endpoint, since load-evaluation rejects CLOSED.
+            const isMyResults = !!( window.location && window.location.pathname && window.location.pathname.indexOf( "my-results" ) >= 0 );
+            this.isMyResults = isMyResults;
+            const url = isMyResults ? "/app/load-my-results" : `/app/load-evaluation${ paramString ? `?${ paramString }` : "" }`;
+            this.resultsHistoryReady = false;
             tiApplication.sendRequest( url ).then( ( result ) => {
                 if ( result?.data?.noEvaluation ) {
                     this.showEvaluationForm = false;
@@ -99,6 +118,7 @@ const configureCompetenceEvaluation = () => {
                 this.noEvaluationState = null;
                 this.showEvaluationForm = true;
                 this.applyData( result?.data );
+                if ( isMyResults ) { this.loadOwnHistory(); }
             } ).catch( ( error ) => {
                 if ( error?.name === "AbortError" || error?.isAborted ) {
                     return;
@@ -111,6 +131,25 @@ const configureCompetenceEvaluation = () => {
                     tiApplication.openScreen( "dashboard" );
                 }
             } );
+        },
+
+        // CA-X4 — fetches the requesting employee's own historical score line (self-scoped; the endpoint gates access)
+        // and builds the line spec. Silent on failure / too-few cycles — the card just stays hidden.
+        loadOwnHistory() {
+            tiApplication.sendRequest( "/app/load-employee-history" ).then( ( result ) => {
+                const data = ( result && result.data ) ? result.data : {};
+                if ( data.noHistory || !data.history || !Array.isArray( data.history.x ) || data.history.x.length === 0 ) {
+                    this.resultsHistoryReady = false;
+                    return;
+                }
+                this.resultsHistorySpec = {
+                    type: "line",
+                    data: { x: data.history.x, series: data.history.series },
+                    options: {},
+                    a11yLabel: tiApplication.getLabel( "interface.evaluation.results.history-title", "Score history" )
+                };
+                this.resultsHistoryReady = true;
+            } ).catch( () => { this.resultsHistoryReady = false; } );
         },
 
         reset() {
@@ -266,6 +305,7 @@ const configureCompetenceEvaluation = () => {
         },
 
         getPageTitle() {
+            if ( this.isMyResults ) return "interface.evaluation.page.my-results-title";
             if ( this.userRole === 1 ) return "interface.evaluation.page.employee-title";
             if ( this.userRole === 2 ) return "interface.evaluation.page.manager-title";
             if ( this.userRole === 4 ) return "interface.evaluation.page.team-title";
@@ -273,6 +313,7 @@ const configureCompetenceEvaluation = () => {
         },
 
         getPageDesc() {
+            if ( this.isMyResults ) return "interface.evaluation.page.my-results-desc";
             if ( this.userRole === 1 ) return "interface.evaluation.page.employee-desc";
             if ( this.userRole === 2 ) return "interface.evaluation.page.manager-desc";
             if ( this.userRole === 4 ) return "interface.evaluation.page.team-desc";
@@ -440,7 +481,197 @@ const configureCompetenceEvaluation = () => {
         getTeamReviewersPct() {
             if ( !this.teamReviewers || !this.teamReviewers.total ) return 0;
             return Math.round( ( this.teamReviewers.submitted / this.teamReviewers.total ) * 100 );
-        }
+        },
+
+        /* ===== Phase 3 — individual results (READY/CLOSED) ===== */
+
+        hasResults() {
+            return this.resultsReady === true;
+        },
+
+        // The grade LETTER one source gave a competency, from the RAW eval grades (self key is `employee`, NOT `self`;
+        // team is the cumulative string after the READY peer-collapse, or {cumulative} if still an object).
+        gradeLetterFor( code, sourceKey ) {
+            const entry = ( this.evaluation && this.evaluation.grades ) ? this.evaluation.grades[ code ] : null;
+            if ( !entry ) return "";
+            if ( sourceKey === "employee" ) return entry.employee || "";
+            if ( sourceKey === "manager" ) return entry.manager || "";
+            const team = entry.team;
+            if ( typeof team === "string" ) return team;
+            return ( team && team.cumulative ) || "";
+        },
+
+        // T-band cascade mirroring the server EXACTLY: ascending T1→T5, first band where score <= threshold, else T5.
+        tBand( score ) {
+            const thresholds = ( tiApplication.configuration && tiApplication.configuration.performanceThresholds ) || { T1: 76, T2: 89, T3: 105, T4: 119, T5: 150 };
+            const order = [ "T1", "T2", "T3", "T4", "T5" ];
+            for ( let i = 0; i < order.length; i++ ) {
+                if ( typeof thresholds[ order[ i ] ] === "number" && score <= thresholds[ order[ i ] ] ) { return order[ i ]; }
+            }
+            return "T5";
+        },
+
+        // Maturity-step expected grade weight for a competency (mirrors results-analytics.expectedGradeForArchetype):
+        // intro=0.5·peak, mature=0.9·peak over the snapshot relevancy curve; U/R/S → weight.
+        expectedGradeWeight( relevancyCurve, stageLevel, gradeWeights ) {
+            if ( !relevancyCurve || typeof relevancyCurve !== "object" ) { return null; }
+            let peak = 0;
+            const keys = Object.keys( relevancyCurve );
+            for ( let i = 0; i < keys.length; i++ ) { const v = Number( relevancyCurve[ keys[ i ] ] ) || 0; if ( v > peak ) { peak = v; } }
+            if ( peak <= 0 ) { return ( typeof gradeWeights.U === "number" ) ? gradeWeights.U : 0.6; }
+            const w = Number( relevancyCurve[ stageLevel ] ) || 0;
+            const letter = ( w < ( 0.5 * peak ) ) ? "U" : ( ( w < ( 0.9 * peak ) ) ? "R" : "S" );
+            return ( typeof gradeWeights[ letter ] === "number" ) ? gradeWeights[ letter ] : null;
+        },
+
+        // Recomputes the per-source category/subcategory means from the raw grades + snapshot relevancy (scores[E/I/C]
+        // are pre-blended and irreversible) and builds the result chart specs + strengths/gaps. Populates reactive state.
+        buildResults() {
+            const ev = this.evaluation || {};
+            const ready = ( ev.status === "Ready" || ev.status === "Closed" ) && ev.finalScore && typeof ev.finalScore.score === "number";
+            if ( !ready ) { this.resultsReady = false; return; }
+
+            const cfg = tiApplication.configuration || {};
+            const gradeWeights = cfg.gradeWeights || { S: 1.3, R: 1.0, U: 0.6, N: 0.0 };
+            const evalWeights = cfg.evaluationWeights || { self: 0.2, team: 0.3, manager: 0.5 };
+            const scoreMax = Number( cfg.performanceThresholds && cfg.performanceThresholds.T5 ) || 150;
+            const maxGrade = ( typeof gradeWeights.S === "number" ) ? gradeWeights.S : 1.3;
+            const snapshot = Array.isArray( ev.snapshot ) ? ev.snapshot : [];
+            const stageLevel = ev.stageLevel || "";
+            const round2 = ( n ) => Math.round( n * 100 ) / 100;
+            // An ungraded competency contributes weight 0 to a source's NUMERATOR but its full relevancy still counts in
+            // the SHARED denominator — exactly mirroring the server (competence-framework.js calculateFinalEvaluationScores
+            // keeps ONE maxScoreByCategory per scope, the same divisor for self/team/manager). This keeps every displayed
+            // per-source mean a faithful decomposition of the authoritative score: a source's gaps lower its mean just as
+            // they lowered its share of the score.
+            const wOf = ( letter ) => ( Object.prototype.hasOwnProperty.call( gradeWeights, letter ) ? gradeWeights[ letter ] : null );
+
+            const SUBCATS = [ "E1", "E2", "E3", "I1", "I2", "I3", "C1", "C2", "C3" ];
+            const SOURCE_KEYS = [ "employee", "manager", "team" ];
+            const den = {};                                                       // shared per-scope divisor: Σ relevancy
+            const num = { employee: {}, manager: {}, team: {}, expected: {} };    // per-series weighted sums
+            const participated = { employee: false, manager: false, team: false };
+            const addDen = ( key, v ) => { den[ key ] = ( den[ key ] || 0 ) + v; };
+            const addNum = ( series, key, v ) => { num[ series ][ key ] = ( num[ series ][ key ] || 0 ) + v; };
+
+            for ( let i = 0; i < snapshot.length; i++ ) {
+                const snap = snapshot[ i ];
+                const code = snap.code, cat = snap.category, subcat = snap.subcategory;
+                const rel = ( snap.relevancy && typeof snap.relevancy[ stageLevel ] === "number" ) ? snap.relevancy[ stageLevel ] : 0;
+                if ( !code || !cat || rel <= 0 ) { continue; }
+                addDen( "cat:" + cat, rel );
+                if ( subcat ) { addDen( "sub:" + subcat, rel ); }
+                for ( let s = 0; s < SOURCE_KEYS.length; s++ ) {
+                    const weight = wOf( this.gradeLetterFor( code, SOURCE_KEYS[ s ] ) );
+                    if ( weight !== null ) { participated[ SOURCE_KEYS[ s ] ] = true; }
+                    const w = ( weight === null ) ? 0 : weight;
+                    addNum( SOURCE_KEYS[ s ], "cat:" + cat, w * rel );
+                    if ( subcat ) { addNum( SOURCE_KEYS[ s ], "sub:" + subcat, w * rel ); }
+                }
+                const ew = this.expectedGradeWeight( snap.relevancy, stageLevel, gradeWeights );
+                if ( ew !== null ) {
+                    addNum( "expected", "cat:" + cat, ew * rel );
+                    if ( subcat ) { addNum( "expected", "sub:" + subcat, ew * rel ); }
+                }
+            }
+            // Omit a source that graded nothing at all (e.g. an evaluation that ran without a team) so it never renders as a
+            // misleading flat zero; self and manager are always complete by the time results are final.
+            for ( let s = 0; s < SOURCE_KEYS.length; s++ ) { if ( !participated[ SOURCE_KEYS[ s ] ] ) { num[ SOURCE_KEYS[ s ] ] = {}; } }
+            const meanOf = ( series, key ) => { const n = num[ series ][ key ]; return ( den[ key ] > 0 && typeof n === "number" ) ? ( n / den[ key ] ) : null; };
+
+            // Sources that actually participated — self/manager always; team only if it graded anything.
+            const activeSources = [
+                { key: "self", series: "employee", tone: "grade-s" },
+                { key: "manager", series: "manager", tone: "grade-r" }
+            ];
+            if ( participated.team ) { activeSources.push( { key: "team", series: "team", tone: "info" } ); }
+
+            // category/subcategory display names from the competency tree (fallback to codes)
+            const catName = {}, subName = {};
+            const tree = Array.isArray( this.competencies ) ? this.competencies : [];
+            for ( let i = 0; i < tree.length; i++ ) {
+                const c = tree[ i ];
+                if ( c && c.id ) { catName[ c.id ] = c.name || c.id; }
+                const subs = Array.isArray( c && c.subcategories ) ? c.subcategories : [];
+                for ( let j = 0; j < subs.length; j++ ) { if ( subs[ j ] && subs[ j ].id ) { subName[ subs[ j ].id ] = subs[ j ].name || subs[ j ].id; } }
+            }
+
+            // Hero: the server's authoritative finalScore + its band.
+            const finalScore = ev.finalScore.score;
+            const bandCode = ev.finalScore.interpretation || this.tBand( finalScore );
+            const bandName = ev.finalScore.interpretationName || bandCode;
+            this.resultsHeroSpec = {
+                type: "stat",
+                data: { value: finalScore, label: tiApplication.getLabel( "interface.evaluation.results.final-score", "Final score" ), sub: bandName, pct: Math.max( 0, Math.min( 1, finalScore / scoreMax ) ) },
+                a11yLabel: "Final score " + String( finalScore ) + " (" + String( bandName ) + ")"
+            };
+
+            // Per-category scores (server, pre-blended) — one bar per category filling to score/150.
+            const scores = ( ev.scores && typeof ev.scores === "object" ) ? ev.scores : {};
+            const bandTone = ( score ) => { const b = this.tBand( score ); return ( b === "T1" || b === "T2" ) ? "grade-n" : ( b === "T3" ? "grade-r" : "grade-s" ); };
+            this.resultsCategoryBarsSpec = {
+                type: "bars", options: { mode: "stacked" },
+                data: { rows: Object.keys( scores ).map( ( cat ) => ( {
+                    id: cat, label: catName[ cat ] || cat, total: scoreMax,
+                    segments: [ { key: "score", v: ( typeof scores[ cat ].score === "number" ) ? scores[ cat ].score : 0, tone: bandTone( scores[ cat ].score || 0 ) } ]
+                } ) ) },
+                a11yLabel: "Category scores"
+            };
+
+            // Source comparison: per category, grouped self/manager/team mean (weight space).
+            this.resultsSourceBarsSpec = {
+                type: "bars", options: { mode: "grouped" },
+                data: { rows: [ "E", "I", "C" ].filter( ( cat ) => den[ "cat:" + cat ] > 0 ).map( ( cat ) => ( {
+                    id: cat, label: catName[ cat ] || cat,
+                    values: activeSources.map( ( src ) => ( { key: src.key, v: round2( meanOf( src.series, "cat:" + cat ) || 0 ), tone: src.tone } ) )
+                } ) ) },
+                a11yLabel: "Self vs manager vs team by category"
+            };
+
+            // Radar: 9 subcategories × self/manager/team (whichever participated) + the maturity-step expected curve.
+            const subValues = ( series ) => { const out = {}; for ( let i = 0; i < SUBCATS.length; i++ ) { const m = meanOf( series, "sub:" + SUBCATS[ i ] ); if ( m !== null ) { out[ SUBCATS[ i ] ] = round2( m ); } } return out; };
+            this.resultsRadarSpec = {
+                type: "radar",
+                data: {
+                    axes: SUBCATS.map( ( s ) => ( { id: s, label: s, max: maxGrade } ) ),
+                    series: activeSources.map( ( src ) => ( { key: src.key, tone: src.tone, values: subValues( src.series ) } ) ).concat( [
+                        { key: "expected", style: "dashed", values: subValues( "expected" ) }
+                    ] )
+                },
+                a11yLabel: "Subcategory profile: self, manager, team vs expected"
+            };
+
+            // Strengths / gaps: blended subcategory mean vs the maturity-step expected.
+            const insights = [];
+            for ( let i = 0; i < SUBCATS.length; i++ ) {
+                const sc = SUBCATS[ i ];
+                const self = meanOf( "employee", "sub:" + sc ), team = meanOf( "team", "sub:" + sc ), mgr = meanOf( "manager", "sub:" + sc );
+                const expected = meanOf( "expected", "sub:" + sc );
+                if ( expected === null || ( self === null && team === null && mgr === null ) ) { continue; }
+                const weightedSources = [
+                    { value: self, weight: evalWeights.self },
+                    { value: team, weight: evalWeights.team },
+                    { value: mgr, weight: evalWeights.manager }
+                ].filter( ( src ) => src.value !== null && typeof src.weight === "number" && src.weight > 0 );
+                const weightTotal = weightedSources.reduce( ( sum, src ) => sum + src.weight, 0 );
+                const blended = weightTotal > 0
+                    ? weightedSources.reduce( ( sum, src ) => sum + ( src.value * src.weight ), 0 ) / weightTotal
+                    : 0;
+                insights.push( { code: sc, label: subName[ sc ] || sc, value: round2( blended ), expected: round2( expected ), gap: round2( blended - expected ) } );
+            }
+            this.resultsStrengths = insights.filter( ( x ) => x.gap > 0 ).sort( ( a, b ) => b.gap - a.gap ).slice( 0, 3 );
+            this.resultsGaps = insights.filter( ( x ) => x.gap < 0 ).sort( ( a, b ) => a.gap - b.gap ).slice( 0, 3 );
+
+            this.resultsReady = true;
+        },
+
+        getResultsHeroAriaLabel() { return this.resultsHeroSpec.a11yLabel; },
+        getResultsCategoryAriaLabel() { return this.resultsCategoryBarsSpec.a11yLabel; },
+        getResultsSourceAriaLabel() { return this.resultsSourceBarsSpec.a11yLabel; },
+        getResultsRadarAriaLabel() { return this.resultsRadarSpec.a11yLabel; },
+
+        hasHistory() { return this.resultsHistoryReady === true; },
+        getResultsHistoryAriaLabel() { return this.resultsHistorySpec.a11yLabel; }
 
     };
 };
@@ -1227,6 +1458,605 @@ const configureInterviewSchedule = () => {
             return tiToolbox.formatDate( value, tiApplication.getLabel( placeholder, "" ) );
         }
 
+    };
+};
+
+/**
+ * Shared factory for the Insights cycle/team analytics screens. `config.reportScope === "team"` appends `scope=team`
+ * to every report request (the web layer narrows to the requesting user's subtree); `config.shellEndpoint` selects the
+ * shell; `config.includeCalibration` adds the grader-calibration report (team only). Both screens reuse the same
+ * spec-builders, loading flow, and caveat handling.
+ *
+ * @method
+ * @param {Object} [config] - { shellEndpoint, reportScope:"org"|"team", includeCalibration }
+ * @returns {Object}
+ * @public
+ */
+const configureInsightsScreen = ( config ) => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+    const screen = config || {};
+    const shellEndpoint = screen.shellEndpoint || "load-insights-cycle";
+    const reportScope = ( screen.reportScope === "team" ) ? "team" : "org";
+    const includeCalibration = !!screen.includeCalibration;
+
+    return {
+        isLoading: true,
+        selectedCycleID: "",
+        cycle: null,
+        cycles: [],
+        coverage: null,
+        meta: null,
+        coverageGaugeSpec: { type: "gauge", data: { value: 0, label: "", sublabel: "" }, a11yLabel: "", provisional: false },
+        coverageBarsSpec: { type: "bars", data: { rows: [] }, options: { mode: "stacked" }, a11yLabel: "", provisional: false },
+        timeDistributionSpec: { type: "bars", data: { rows: [] }, options: { mode: "grouped" }, a11yLabel: "", provisional: false },
+        alignmentSpec: { type: "scatter", data: { points: [], diagonal: true }, options: {}, a11yLabel: "", provisional: false },
+        heatmapSpec: { type: "heatmap", data: { rows: [], cols: [], cells: [] }, options: { scale: "sequential" }, a11yLabel: "", provisional: false },
+        levelDistributionSpec: { type: "box", data: { groups: [], reference: [] }, a11yLabel: "", provisional: false },
+        predictiveDriversSpec: { type: "bars", data: { rows: [] }, options: { mode: "diverging" }, a11yLabel: "", provisional: false },
+        timeDistribution: null,
+        alignment: null,
+        heatmap: null,
+        levelDistribution: null,
+        predictiveDrivers: null,
+        heatmapView: "value",
+        predictiveInsufficient: false,
+        unscheduledReady: 0,
+        calibration: null,
+        calibrationSpec: { type: "bars", data: { rows: [] }, options: { mode: "diverging" }, a11yLabel: "", provisional: false },
+        calibrationKpiSpec: { type: "stat", data: { value: "—", label: "", sub: "" }, a11yLabel: "" },
+
+        init() {
+            const onInitialized = () => {
+                this.selectedCycleID = tiToolbox.getUrlParam( "cycleID" ) || "";
+                this.loadAll();
+            };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        loadAll() {
+            this.isLoading = true;
+            const params = [];
+            if ( this.selectedCycleID ) { params.push( "cycleID=" + encodeURIComponent( this.selectedCycleID ) ); }
+            if ( reportScope === "team" ) { params.push( "scope=team" ); }
+            const q = params.length ? ( "?" + params.join( "&" ) ) : "";
+            const heatmapQ = q ? ( q + "&groupBy=roleFamily" ) : "?groupBy=roleFamily";
+            const shellQ = this.selectedCycleID ? ( "?cycleID=" + encodeURIComponent( this.selectedCycleID ) ) : "";
+            const requests = [
+                tiApplication.sendRequest( "/app/" + shellEndpoint + shellQ ),
+                tiApplication.sendRequest( "/app/load-report-coverage" + q ),
+                tiApplication.sendRequest( "/app/load-report-time-distribution" + q ),
+                tiApplication.sendRequest( "/app/load-report-alignment" + q ),
+                tiApplication.sendRequest( "/app/load-report-heatmap" + heatmapQ ),
+                tiApplication.sendRequest( "/app/load-report-level-distribution" + q ),
+                tiApplication.sendRequest( "/app/load-report-predictive-drivers" + q )
+            ];
+            if ( includeCalibration ) { requests.push( tiApplication.sendRequest( "/app/load-report-calibration" + q ) ); }
+            Promise.all( requests ).then( ( results ) => {
+                const dataOf = ( result ) => ( ( result && result.data && typeof result.data === "object" ) ? result.data : {} );
+                const shell = dataOf( results[ 0 ] );
+                const coveragePayload = dataOf( results[ 1 ] );
+                const tdPayload = dataOf( results[ 2 ] );
+                const alignPayload = dataOf( results[ 3 ] );
+                const heatPayload = dataOf( results[ 4 ] );
+                const levelPayload = dataOf( results[ 5 ] );
+                const driversPayload = dataOf( results[ 6 ] );
+                const calibPayload = includeCalibration ? dataOf( results[ 7 ] ) : {};
+
+                this.cycle = shell.cycle ? tiToolbox.structuredClone( shell.cycle ) : null;
+                this.cycles = Array.isArray( shell.cycles ) ? tiToolbox.structuredClone( shell.cycles ) : [];
+                if ( this.cycle && !this.selectedCycleID ) {
+                    this.selectedCycleID = this.cycle.id;
+                }
+                // Coverage drives the screen-level mode/partial caveat banner.
+                this.coverage = coveragePayload.coverage ? tiToolbox.structuredClone( coveragePayload.coverage ) : null;
+                this.meta = coveragePayload.meta ? tiToolbox.structuredClone( coveragePayload.meta ) : null;
+                this.coverageGaugeSpec = this.buildGaugeSpec( this.coverage, this.meta );
+                this.coverageBarsSpec = this.buildBarsSpec( this.coverage, this.meta );
+
+                this.timeDistribution = tdPayload.timeDistribution ? tiToolbox.structuredClone( tdPayload.timeDistribution ) : null;
+                this.unscheduledReady = ( this.timeDistribution && typeof this.timeDistribution.unscheduledReady === "number" ) ? this.timeDistribution.unscheduledReady : 0;
+                this.alignment = alignPayload.alignment ? tiToolbox.structuredClone( alignPayload.alignment ) : null;
+                this.heatmap = heatPayload.heatmap ? tiToolbox.structuredClone( heatPayload.heatmap ) : null;
+                this.levelDistribution = levelPayload.levelDistribution ? tiToolbox.structuredClone( levelPayload.levelDistribution ) : null;
+                this.predictiveDrivers = driversPayload.predictiveDrivers ? tiToolbox.structuredClone( driversPayload.predictiveDrivers ) : null;
+                this.predictiveInsufficient = !!( this.predictiveDrivers && this.predictiveDrivers.insufficientData );
+
+                this.timeDistributionSpec = this.buildTimeDistributionSpec( this.timeDistribution, this.meta );
+                this.alignmentSpec = this.buildAlignmentSpec( this.alignment, this.meta );
+                this.heatmapSpec = this.buildHeatmapSpec( this.heatmap, this.heatmapView, this.meta );
+                this.levelDistributionSpec = this.buildLevelDistributionSpec( this.levelDistribution, this.meta );
+                this.predictiveDriversSpec = this.buildPredictiveDriversSpec( this.predictiveDrivers, this.meta );
+                this.calibration = calibPayload.calibration ? tiToolbox.structuredClone( calibPayload.calibration ) : null;
+                this.calibrationSpec = this.buildCalibrationSpec( this.calibration, this.meta );
+                this.calibrationKpiSpec = this.buildCalibrationKpiSpec( this.calibration );
+                this.isLoading = false;
+            } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
+                this.isLoading = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                if ( error && error.exception && ( error.exception.httpCode === 401 || error.exception.httpCode === 403 ) ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
+        },
+
+        onCycleChange( event ) {
+            this.selectedCycleID = event && event.target ? event.target.value : "";
+            this.loadAll();
+        },
+
+        /**
+         * Localized label lookup for in-template attribute bindings (the heatmap-view picker's aria-label). Mirrors
+         * the pass-through every other screen component exposes; without it CSP-mode Alpine throws "Undefined
+         * variable: getLabel" when the picker renders.
+         *
+         * @method
+         * @param {string} label - The label key to resolve.
+         * @returns {string}
+         * @public
+         */
+        getLabel( label ) {
+            return tiApplication.getLabel( label );
+        },
+
+        /**
+         * Builds the Coverage gauge TiChartSpec from a coverage report payload.
+         *
+         * @method
+         * @param {Object} coverage - `report.coverage` (carries `overall.{n,N,pct}`).
+         * @param {Object} meta - `report.meta` (carries `mode`, `partial`, `pctReporting`).
+         * @returns {Object} TiChartSpec of type "gauge".
+         * @public
+         */
+        buildGaugeSpec( coverage, meta ) {
+            const overall = ( coverage && coverage.overall ) ? coverage.overall : { n: 0, N: 0, pct: 0 };
+            const value = ( overall.N > 0 ) ? ( overall.n / overall.N ) : 0;
+            const partial = !!( meta && meta.partial );
+            let sublabel = String( overall.n ) + " / " + String( overall.N );
+            if ( partial && meta && typeof meta.pctReporting === "number" ) {
+                sublabel = sublabel + " · " + String( meta.pctReporting ) + "% reporting";
+            }
+            return {
+                type: "gauge",
+                data: { value: value, label: "Coverage", sublabel: sublabel },
+                a11yLabel: "Coverage gauge: " + String( overall.n ) + " of " + String( overall.N ) + " complete",
+                provisional: partial
+            };
+        },
+
+        /**
+         * Builds the per-group stacked-bars TiChartSpec from a coverage report payload.
+         *
+         * @method
+         * @param {Object} coverage - `report.coverage` (carries `byGroup[]`).
+         * @param {Object} meta - `report.meta`.
+         * @returns {Object} TiChartSpec of type "bars".
+         * @public
+         */
+        buildBarsSpec( coverage, meta ) {
+            const groups = ( coverage && Array.isArray( coverage.byGroup ) ) ? coverage.byGroup : [];
+            const rows = groups.map( function ( group ) {
+                const byStatus = group.byStatus || {};
+                const segments = [
+                    { key: "Closed", v: byStatus[ "Closed" ] || 0, tone: "grade-s" },
+                    { key: "Ready", v: byStatus[ "Ready" ] || 0, tone: "grade-r" },
+                    { key: "In Review", v: byStatus[ "In Review" ] || 0, tone: "grade-u" },
+                    { key: "Open", v: byStatus[ "Open" ] || 0, tone: "grade-n" },
+                    { key: "Not started", v: group.notStarted || 0, tone: "ink" }
+                ];
+                const groupN = group.N || 0;
+                // "Complete" mirrors the gauge: an evaluation counts once it reaches Ready or Closed.
+                const complete = ( byStatus[ "Closed" ] || 0 ) + ( byStatus[ "Ready" ] || 0 );
+                const pct = ( groupN > 0 ) ? Math.round( ( complete / groupN ) * 100 ) : 0;
+                return { id: String( group.groupKey || group.groupLabel || "" ), label: group.groupLabel || "", segments: segments, total: groupN, valueLabel: String( pct ) + "%" };
+            } );
+            return {
+                type: "bars",
+                data: { rows: rows },
+                options: { mode: "stacked", legend: this.buildCoverageLegend() },
+                a11yLabel: "Coverage by group: " + String( rows.length ) + " groups",
+                provisional: !!( meta && meta.partial )
+            };
+        },
+
+        /**
+         * Status legend for the coverage stacked bars — the five segment types with their grade/ink tones and
+         * localized labels. Carried on the spec so the chart renders a swatch key below the bars, making the
+         * otherwise-unlabelled segment colours decipherable.
+         *
+         * @method
+         * @returns {Array<{label:string,tone:string}>}
+         * @public
+         */
+        buildCoverageLegend() {
+            const entries = [
+                { key: "closed", tone: "grade-s" },
+                { key: "ready", tone: "grade-r" },
+                { key: "in-review", tone: "grade-u" },
+                { key: "open", tone: "grade-n" },
+                { key: "not-started", tone: "ink" }
+            ];
+            return entries.map( function ( entry ) {
+                return { label: tiApplication.getLabel( "interface.insights.cycle.coverage-legend." + entry.key, entry.key ), tone: entry.tone };
+            } );
+        },
+
+        hasCoverage() {
+            return !!( this.coverage && this.coverage.overall );
+        },
+
+        pendingRows() {
+            return ( this.coverage && Array.isArray( this.coverage.pending ) ) ? this.coverage.pending : [];
+        },
+
+        getCycleSubtitle() {
+            if ( !this.cycle ) return "";
+            const mode = ( this.meta && this.meta.mode === "live" )
+                ? tiApplication.getLabel( "interface.insights.cycle.mode-live", "as of now" )
+                : tiApplication.getLabel( "interface.insights.cycle.mode-snapshot", "final" );
+            return ( this.cycle.name || "" ) + " · " + mode;
+        },
+
+        isLive() {
+            return !!( this.meta && this.meta.mode === "live" );
+        },
+
+        // CA-L7 live caveat banner: on an ACTIVE cycle, surface the "as of now / % reporting" provisionality.
+        getCaveatBanner() {
+            if ( !this.meta ) return "";
+            if ( this.meta.mode === "live" ) {
+                const live = tiApplication.getLabel( "interface.insights.cycle.mode-live", "as of now" );
+                if ( this.meta.partial && typeof this.meta.pctReporting === "number" ) {
+                    return live + " · " + String( this.meta.pctReporting ) + "% " + tiApplication.getLabel( "interface.insights.cycle.reporting", "reporting" );
+                }
+                return live;
+            }
+            return tiApplication.getLabel( "interface.insights.cycle.mode-snapshot", "final" );
+        },
+
+        getGaugeAriaLabel() {
+            return this.coverageGaugeSpec.a11yLabel;
+        },
+
+        getBarsAriaLabel() {
+            return this.coverageBarsSpec.a11yLabel;
+        },
+
+        pendingTone( status ) {
+            if ( status === "Open" ) return "info";
+            if ( status === "In Review" ) return "warn";
+            if ( status === "Ready" ) return "success";
+            return "";
+        },
+
+        /**
+         * R2 — grouped bars (month × {planned, finalised}). Maps timeDistribution.rows to the ti-chart grouped contract.
+         * @method
+         */
+        buildTimeDistributionSpec( report, meta ) {
+            const monthRows = ( report && Array.isArray( report.rows ) ) ? report.rows : [];
+            const rows = monthRows.map( function ( m ) {
+                return { id: String( m.monthKey || "" ), label: String( m.monthKey || "" ), values: [
+                    { key: "planned", v: m.planned || 0, tone: "grade-r" },
+                    { key: "held", v: m.held || 0, tone: "grade-s" }
+                ] };
+            } );
+            return {
+                type: "bars", data: { rows: rows }, options: { mode: "grouped" },
+                a11yLabel: "Interview timing across " + String( rows.length ) + " months (planned vs finalised)",
+                provisional: !!( meta && meta.partial )
+            };
+        },
+
+        /**
+         * R3 — scatter (x=manager, y=self, z=team bubble) with the y=x diagonal + quadrant midlines.
+         * @method
+         */
+        buildAlignmentSpec( report, meta ) {
+            const points = ( report && Array.isArray( report.points ) ) ? report.points.map( function ( p ) {
+                return { id: String( p.evaluationID || "" ), x: p.x, y: p.y, z: p.z, tone: ( p.gap > 0 ) ? "grade-s" : ( p.gap < 0 ? "grade-n" : "info" ) };
+            } ) : [];
+            const midpoint = ( report && typeof report.midpoint === "number" ) ? report.midpoint : 1.0;
+            return {
+                type: "scatter",
+                data: { points: points, diagonal: true },
+                options: { bubble: "z", domain: { xMin: 0, xMax: 1.3, yMin: 0, yMax: 1.3 }, midX: midpoint, midY: midpoint },
+                a11yLabel: "Self vs manager alignment: " + String( points.length ) + " people",
+                provisional: !!( meta && meta.partial )
+            };
+        },
+
+        /**
+         * R4 — heatmap; `view` selects the sequential value scale or the diverging gap (delta) scale.
+         * @method
+         */
+        buildHeatmapSpec( report, view, meta ) {
+            const gap = ( view === "gap" );
+            const rows = ( report && Array.isArray( report.rows ) ) ? report.rows : [];
+            const cols = ( report && Array.isArray( report.cols ) ) ? report.cols : [];
+            const cells = ( report && Array.isArray( report.cells ) ) ? report.cells.map( function ( c ) {
+                return { r: c.r, c: c.c, v: gap ? c.delta : c.v, n: c.n, delta: c.delta, expected: c.expected, suppressed: c.suppressed };
+            } ) : [];
+            return {
+                type: "heatmap", data: { rows: rows, cols: cols, cells: cells },
+                options: { scale: gap ? "diverging" : "sequential" },
+                a11yLabel: "Competence heatmap (" + ( gap ? "gap vs expected" : "value" ) + "): " + String( rows.length ) + " subcategories × " + String( cols.length ) + " groups",
+                provisional: !!( meta && meta.partial )
+            };
+        },
+
+        /**
+         * R5 — box plot per stage level with the per-box expected marker + the T3 reference.
+         * @method
+         */
+        buildLevelDistributionSpec( report, meta ) {
+            const groups = ( report && Array.isArray( report.groups ) ) ? report.groups : [];
+            const reference = ( report && Array.isArray( report.reference ) ) ? report.reference : [];
+            return {
+                type: "box", data: { groups: groups, reference: reference },
+                options: { domain: { min: 0, max: 150 } },
+                a11yLabel: "Score distribution across " + String( groups.length ) + " levels with expected markers",
+                provisional: !!( meta && meta.partial )
+            };
+        },
+
+        /**
+         * R6 — diverging bars of empirical-minus-configured share per subcategory (sorted by influence). Flagged
+         * subcategories are accented; an empty/insufficient cohort yields no rows.
+         * @method
+         */
+        buildPredictiveDriversSpec( report, meta ) {
+            const driverRows = ( report && Array.isArray( report.rows ) ) ? report.rows : [];
+            const rows = driverRows.map( function ( d ) {
+                return { id: String( d.id || "" ), label: String( d.label || d.id || "" ), values: [
+                    { key: "divergence", v: d.divergence || 0, tone: d.misweightFlag ? "grade-u" : "info" }
+                ] };
+            } );
+            return {
+                type: "bars", data: { rows: rows }, options: { mode: "diverging" },
+                a11yLabel: "Performance drivers: empirical-minus-configured influence share per subcategory",
+                provisional: !!( meta && meta.partial )
+            };
+        },
+
+        /**
+         * Grader calibration — diverging bars per subcategory (vs-self + vs-team signed gaps, centered on 0).
+         * @method
+         */
+        buildCalibrationSpec( calibration, meta ) {
+            const bySub = ( calibration && calibration.bySubcategory && typeof calibration.bySubcategory === "object" ) ? calibration.bySubcategory : {};
+            const order = [ "E1", "E2", "E3", "I1", "I2", "I3", "C1", "C2", "C3" ];
+            const rows = order.filter( function ( key ) { return bySub[ key ]; } ).map( function ( key ) {
+                const cell = bySub[ key ];
+                const self = ( cell.vsSelf && typeof cell.vsSelf.meanGap === "number" ) ? cell.vsSelf.meanGap : 0;
+                const team = ( cell.vsTeam && typeof cell.vsTeam.meanGap === "number" ) ? cell.vsTeam.meanGap : 0;
+                return { id: key, label: key, values: [ { key: "vsSelf", v: self, tone: "info" }, { key: "vsTeam", v: team, tone: "grade-r" } ] };
+            } );
+            return {
+                type: "bars", data: { rows: rows }, options: { mode: "diverging" },
+                a11yLabel: "Grader calibration: manager grade minus self/team per subcategory",
+                provisional: !!( meta && meta.partial )
+            };
+        },
+
+        /**
+         * Grader calibration headline KPI — the overall vs-self gap as a stat tile (signed, with vs-team in the sub).
+         * @method
+         */
+        buildCalibrationKpiSpec( calibration ) {
+            const overall = ( calibration && calibration.overall ) ? calibration.overall : {};
+            const self = ( overall.vsSelf && typeof overall.vsSelf.meanGap === "number" ) ? overall.vsSelf.meanGap : null;
+            const team = ( overall.vsTeam && typeof overall.vsTeam.meanGap === "number" ) ? overall.vsTeam.meanGap : null;
+            return {
+                type: "stat",
+                data: {
+                    value: this.formatGap( { meanGap: self } ),
+                    label: tiApplication.getLabel( "interface.insights.cycle.reports.calibration.kpi-self", "Avg gap vs self" ),
+                    sub: tiApplication.getLabel( "interface.insights.cycle.reports.calibration.kpi-team", "vs team" ) + ": " + this.formatGap( { meanGap: team } )
+                },
+                a11yLabel: "Overall grader gap vs self " + this.formatGap( { meanGap: self } ) + ", vs team " + this.formatGap( { meanGap: team } )
+            };
+        },
+
+        // Signed gap formatter for calibration cells: "+0.30" / "-0.20" / "—" (suppressed or missing).
+        formatGap( cell ) {
+            if ( !cell || cell.suppressed || typeof cell.meanGap !== "number" ) { return "—"; }
+            return ( cell.meanGap > 0 ? "+" : "" ) + cell.meanGap.toFixed( 2 );
+        },
+        hasCalibration() {
+            return !!( this.calibration && this.calibration.bySubcategory && Object.keys( this.calibration.bySubcategory ).length );
+        },
+        calibrationDrillRows() {
+            return ( this.calibration && Array.isArray( this.calibration.perCompetency ) ) ? this.calibration.perCompetency : [];
+        },
+        getCalibrationAriaLabel() { return this.calibrationSpec.a11yLabel; },
+        getCalibrationKpiAriaLabel() { return this.calibrationKpiSpec.a11yLabel; },
+
+        setHeatmapView( view ) {
+            this.heatmapView = ( view === "gap" ) ? "gap" : "value";
+            this.heatmapSpec = this.buildHeatmapSpec( this.heatmap, this.heatmapView, this.meta );
+        },
+        onHeatmapViewChange( event ) {
+            this.setHeatmapView( event && event.target ? event.target.value : "value" );
+        },
+
+        hasTimeDistribution() { return !!( this.timeDistribution && Array.isArray( this.timeDistribution.rows ) && this.timeDistribution.rows.length ); },
+        hasAlignment() { return !!( this.alignment && Array.isArray( this.alignment.points ) && this.alignment.points.length ); },
+        hasHeatmap() { return !!( this.heatmap && Array.isArray( this.heatmap.cells ) && this.heatmap.cells.length ); },
+        hasLevelDistribution() { return !!( this.levelDistribution && Array.isArray( this.levelDistribution.groups ) && this.levelDistribution.groups.length ); },
+        hasPredictiveDrivers() { return !!( this.predictiveDrivers && Array.isArray( this.predictiveDrivers.rows ) && this.predictiveDrivers.rows.length ); },
+
+        reportLabel( key, field, fallback ) {
+            return tiApplication.getLabel( "interface.insights.cycle.reports." + key + "." + field, fallback );
+        },
+        getTimeDistributionAriaLabel() { return this.timeDistributionSpec.a11yLabel; },
+        getAlignmentAriaLabel() { return this.alignmentSpec.a11yLabel; },
+        getHeatmapAriaLabel() { return this.heatmapSpec.a11yLabel; },
+        getLevelDistributionAriaLabel() { return this.levelDistributionSpec.a11yLabel; },
+        getPredictiveDriversAriaLabel() { return this.predictiveDriversSpec.a11yLabel; }
+    };
+};
+
+/**
+ * Insights → Cycle analytics (Supervisor, whole-org). Thin wrapper over the shared screen factory.
+ * @returns {Object}
+ */
+const configureInsightsCycle = () => configureInsightsScreen( { shellEndpoint: "load-insights-cycle", reportScope: "org", includeCalibration: false } );
+
+/**
+ * Insights → Team analytics (Manager subtree / Supervisor subtree). Same six reports scoped to the requesting user's
+ * subtree (?scope=team) plus the grader-calibration report.
+ * @returns {Object}
+ */
+const configureInsightsTeam = () => configureInsightsScreen( { shellEndpoint: "load-insights-team", reportScope: "team", includeCalibration: true } );
+
+/**
+ * Insights → Trends (Cross-cycle, CA-X3). SUPERVISOR-only whole-org trends over the persisted snapshots: overall score
+ * (line + p25–p75 band), T-band mix (stacked bars per cycle), gap-closure (multi-series line of bySubcategory gap),
+ * ladder movement (stacked ordinal bars + mean-rung line), and cohort comparison (per role-family score line). Reads the
+ * load-results-trend endpoint per metric; the x-axis is the snapshots' chronological cycle list (no cycle selector).
+ * @returns {Object}
+ */
+const configureTrendsScreen = () => {
+    const tiApplication = Alpine.store( "tiApplication" );
+    const BAND_TONES = { T1: "grade-n", T2: "grade-n", T3: "grade-r", T4: "grade-s", T5: "grade-s" };
+    const ORDINAL_TONES = { "1": "grade-n", "2": "grade-n", "3": "grade-r", "4": "grade-s", "5": "grade-s" };
+
+    return {
+        isLoading: true,
+        hasData: false,
+        partial: false,
+        overallSpec: { type: "line", data: { x: [], series: [] }, options: {}, a11yLabel: "" },
+        tbandSpec: { type: "bars", data: { rows: [] }, options: { mode: "stacked" }, a11yLabel: "" },
+        gapSpec: { type: "line", data: { x: [], series: [] }, options: { zeroBaseline: true }, a11yLabel: "" },
+        ladderSpec: { type: "bars", data: { rows: [] }, options: { mode: "stacked" }, a11yLabel: "" },
+        ladderRungSpec: { type: "line", data: { x: [], series: [] }, options: {}, a11yLabel: "" },
+        cohortSpec: { type: "line", data: { x: [], series: [] }, options: {}, a11yLabel: "" },
+
+        init() {
+            const onInitialized = () => { this.loadTrends(); };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => { if ( isInitialized ) { onInitialized(); } } );
+            }
+        },
+
+        loadTrends() {
+            this.isLoading = true;
+            const url = ( metric, extra ) => "/app/load-results-trend?metric=" + metric + ( extra || "" );
+            // The framework keys in-flight GET requests by path with the query string stripped (see ti-framework
+            // sendRequest) and aborts the previous request that shares a key. All five trend metrics target the same
+            // /app/load-results-trend path, so firing them with Promise.all made each call abort the one before it —
+            // four requests cancelled, the rejection surfaced as an AbortError, and the screen hung on "Loading…".
+            // Load them sequentially so every metric resolves against its own request.
+            const metrics = [
+                [ "overallScore", "" ],
+                [ "tBandMix", "" ],
+                [ "gapClosure", "" ],
+                [ "ladder", "" ],
+                [ "cohort", "&dimension=roleFamily" ]
+            ];
+            const results = [];
+            metrics.reduce( ( chain, metric ) => chain.then( () => {
+                return tiApplication.sendRequest( url( metric[ 0 ], metric[ 1 ] ) ).then( ( result ) => {
+                    results.push( result );
+                } );
+            } ), Promise.resolve() ).then( () => {
+                const dataOf = ( result ) => ( ( result && result.data && typeof result.data === "object" ) ? result.data : {} );
+                const overall = dataOf( results[ 0 ] );
+                const tband = dataOf( results[ 1 ] );
+                const gap = dataOf( results[ 2 ] );
+                const ladder = dataOf( results[ 3 ] );
+                const cohort = dataOf( results[ 4 ] );
+
+                const cycles = ( overall.meta && Array.isArray( overall.meta.cycles ) ) ? overall.meta.cycles : [];
+                this.hasData = cycles.length > 0;
+                this.partial = !!( overall.meta && overall.meta.partial );
+
+                this.overallSpec = this.buildLineSpec( overall, "interface.insights.trends.reports.overall.title", {} );
+                this.tbandSpec = this.buildStackedSpec( tband, BAND_TONES, "interface.insights.trends.tband-title" );
+                this.gapSpec = this.buildLineSpec( gap, "interface.insights.trends.reports.gapClosure.title", { zeroBaseline: true } );
+                this.ladderSpec = this.buildStackedSpec( this.ladderHistogramOnly( ladder ), ORDINAL_TONES, "interface.insights.trends.reports.ladder.title" );
+                this.ladderRungSpec = this.buildLineSpec( this.ladderRungOnly( ladder ), "interface.insights.trends.rung-title", {} );
+                this.cohortSpec = this.buildLineSpec( cohort, "interface.insights.trends.reports.cohort.title", {} );
+                this.isLoading = false;
+            } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) { return; }
+                this.isLoading = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                if ( error && error.exception && ( error.exception.httpCode === 401 || error.exception.httpCode === 403 ) ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
+        },
+
+        // The x-axis (cycle labels) from a trend payload's meta.cycles.
+        cycleAxis( trend ) {
+            const cycles = ( trend && trend.meta && Array.isArray( trend.meta.cycles ) ) ? trend.meta.cycles : [];
+            return cycles.map( ( c ) => ( { id: c.cycleID, label: c.cycleID } ) );
+        },
+
+        // A line spec straight from a trend payload's series (each carries values + optional band + tone).
+        buildLineSpec( trend, titleKey, extraOptions ) {
+            const series = ( trend && Array.isArray( trend.series ) ) ? trend.series.map( ( s ) => {
+                const out = { key: s.key, tone: s.tone || "info", values: Array.isArray( s.values ) ? s.values : [] };
+                if ( Array.isArray( s.band ) ) { out.band = s.band; }
+                if ( s.style ) { out.style = s.style; }
+                return out;
+            } ) : [];
+            const options = Object.assign( {}, extraOptions || {} );
+            if ( trend && trend.meta && trend.meta.partial ) { options.provisionalLastPoint = true; }
+            return { type: "line", data: { x: this.cycleAxis( trend ), series: series }, options: options, a11yLabel: tiApplication.getLabel( titleKey, "" ) };
+        },
+
+        // A stacked-bars spec (one bar per cycle) transposed from a trend payload's per-band/ordinal series.
+        buildStackedSpec( trend, toneMap, titleKey ) {
+            const axis = this.cycleAxis( trend );
+            const series = ( trend && Array.isArray( trend.series ) ) ? trend.series : [];
+            const rows = axis.map( ( cyc, i ) => {
+                let total = 0;
+                const segments = series.map( ( s ) => {
+                    const v = ( Array.isArray( s.values ) && typeof s.values[ i ] === "number" ) ? s.values[ i ] : 0;
+                    total += v;
+                    return { key: s.key, v: v, tone: toneMap[ s.key ] || "info" };
+                } );
+                return { id: cyc.id, label: cyc.label, total: total, segments: segments };
+            } );
+            return { type: "bars", data: { rows: rows }, options: { mode: "stacked" }, a11yLabel: tiApplication.getLabel( titleKey, "" ) };
+        },
+
+        // Splits the ladder trend payload into the ordinal-histogram series (drops the meanRung line) for the stacked bars.
+        ladderHistogramOnly( trend ) {
+            if ( !trend || !Array.isArray( trend.series ) ) { return trend; }
+            return Object.assign( {}, trend, { series: trend.series.filter( ( s ) => s.key !== "meanRung" ) } );
+        },
+        // Keeps only the meanRung line series for the rung overlay.
+        ladderRungOnly( trend ) {
+            if ( !trend || !Array.isArray( trend.series ) ) { return trend; }
+            return Object.assign( {}, trend, { series: trend.series.filter( ( s ) => s.key === "meanRung" ) } );
+        },
+
+        getCaveatBanner() {
+            return tiApplication.getLabel( "interface.insights.trends.provisional-caveat", "The latest cycle is still active — its point is provisional." );
+        },
+        getOverallAria() { return this.overallSpec.a11yLabel; },
+        getTbandAria() { return this.tbandSpec.a11yLabel; },
+        getGapAria() { return this.gapSpec.a11yLabel; },
+        getLadderAria() { return this.ladderSpec.a11yLabel; },
+        getLadderRungAria() { return this.ladderRungSpec.a11yLabel; },
+        getCohortAria() { return this.cohortSpec.a11yLabel; }
     };
 };
 
@@ -3313,8 +4143,8 @@ const configureCompetencyTextEditor = () => {
         // Map a validator path (".competency.name.E1-1" / ".competency.scope.E1-1.N") to a { code, field, message }.
         describeIssue( issue ) {
             const parts = ( ( issue && issue.path ) || "" ).split( "." ).filter( Boolean );
-            let field = "";
-            let code = "";
+            let field;
+            let code;
             if ( parts[ 1 ] === "scope" ) {
                 code = parts[ 2 ] || "";
                 field = "scope " + ( parts[ 3 ] || "" );
@@ -4254,4 +5084,7 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceArchetypeAssignment", configureArchetypeAssignment );
     Alpine.data( "competenceArchetypeEditor", configureArchetypeEditor );
     Alpine.data( "competenceRoleFamilies", configureRoleFamilies );
+    Alpine.data( "insightsCycle", configureInsightsCycle );
+    Alpine.data( "insightsTeam", configureInsightsTeam );
+    Alpine.data( "insightsTrends", configureTrendsScreen );
 } );

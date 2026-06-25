@@ -21,8 +21,8 @@
                 <p class="ti-page-subtitle" x-text="getLabel( getPageDesc() )"></p>
             </div>
 
-            <!-- Role info panel -->
-            <div class="competence-eval-role-info" x-bind:class="getUserRoleAsText()">
+            <!-- Role info panel (hidden on the read-only "My results" view — it frames the grading task, not results) -->
+            <div class="competence-eval-role-info" x-show="!isMyResults" x-bind:class="getUserRoleAsText()">
                 <div class="competence-eval-role-info-title" x-text="getLabel( getRolePanelTitle() )"></div>
                 <div class="competence-eval-role-info-desc" x-text="getLabel( getRolePanelDesc() )"></div>
             </div>
@@ -156,8 +156,64 @@
 
             </div>
 
-            <!-- How to grade cards -->
-            <div class="ti-panel competence-panel-body competence-panel-mb">
+            <!-- Individual results (READY/CLOSED) — above the demoted grading tables -->
+            <div class="ti-panel competence-panel-body competence-panel-mb" x-show="hasResults()">
+                <div class="ti-panel-head">
+                    <div class="ti-panel-title" x-text-label="interface.evaluation.results.title">Your results</div>
+                    <span class="ti-panel-head-aside" x-text-label="interface.evaluation.results.desc"></span>
+                </div>
+                <div class="ti-card-grid">
+                    <section class="ti-card">
+                        <h2 class="ti-card-title" x-text-label="interface.evaluation.results.final-score">Final score</h2>
+                        <figure class="ti-chart" x-ti-chart="resultsHeroSpec" role="img" x-bind:aria-label="getResultsHeroAriaLabel()"></figure>
+                    </section>
+                    <section class="ti-card">
+                        <h2 class="ti-card-title" x-text-label="interface.evaluation.results.by-category">By category</h2>
+                        <figure class="ti-chart" x-ti-chart="resultsCategoryBarsSpec" role="img" x-bind:aria-label="getResultsCategoryAriaLabel()"></figure>
+                    </section>
+                    <section class="ti-card ti-card-wide">
+                        <h2 class="ti-card-title" x-text-label="interface.evaluation.results.profile">Subcategory profile</h2>
+                        <figure class="ti-chart" x-ti-chart="resultsRadarSpec" role="img" x-bind:aria-label="getResultsRadarAriaLabel()"></figure>
+                    </section>
+                    <section class="ti-card ti-card-wide">
+                        <h2 class="ti-card-title" x-text-label="interface.evaluation.results.source-comparison">Self vs manager vs team</h2>
+                        <figure class="ti-chart" x-ti-chart="resultsSourceBarsSpec" role="img" x-bind:aria-label="getResultsSourceAriaLabel()"></figure>
+                    </section>
+                    <section class="ti-card">
+                        <h2 class="ti-card-title" x-text-label="interface.evaluation.results.strengths">Strengths</h2>
+                        <div class="ti-data-grid">
+                            <template x-for="s in resultsStrengths" x-bind:key="s.code">
+                                <div class="ti-data-grid-row">
+                                    <span class="ti-data-grid-cell" x-text="s.label"></span>
+                                    <span class="ti-kv-value tabular-nums" x-text="s.value"></span>
+                                </div>
+                            </template>
+                            <div class="competence-eval-empty-comment" x-show="resultsStrengths.length === 0" x-text-label="interface.evaluation.results.none">—</div>
+                        </div>
+                    </section>
+                    <section class="ti-card">
+                        <h2 class="ti-card-title" x-text-label="interface.evaluation.results.gaps">Development areas</h2>
+                        <div class="ti-data-grid">
+                            <template x-for="g in resultsGaps" x-bind:key="g.code">
+                                <div class="ti-data-grid-row">
+                                    <span class="ti-data-grid-cell" x-text="g.label"></span>
+                                    <span class="ti-kv-value tabular-nums" x-text="g.gap"></span>
+                                </div>
+                            </template>
+                            <div class="competence-eval-empty-comment" x-show="resultsGaps.length === 0" x-text-label="interface.evaluation.results.none">—</div>
+                        </div>
+                    </section>
+                    <!-- CA-X4 — the employee's own score history across cycles (My results only; needs ≥2 reported cycles) -->
+                    <section class="ti-card ti-card-wide" x-show="hasHistory()">
+                        <h2 class="ti-card-title" x-text-label="interface.evaluation.results.history-title">Score history</h2>
+                        <p class="ti-panel-body-intro" x-text-label="interface.evaluation.results.history-desc"></p>
+                        <figure class="ti-chart" x-ti-chart="resultsHistorySpec" role="img" x-bind:aria-label="getResultsHistoryAriaLabel()"></figure>
+                    </section>
+                </div>
+            </div>
+
+            <!-- How to grade cards (hidden on the read-only "My results" view — these are grading instructions) -->
+            <div class="ti-panel competence-panel-body competence-panel-mb" x-show="!isMyResults">
                 <div class="ti-panel-head">
                     <div class="ti-panel-title" x-text-label="interface.evaluation.instructions.title"></div>
                     <span class="ti-panel-head-aside" x-text="getGradeScaleLabel()"></span>
@@ -413,7 +469,7 @@
                                   @ti-input="setFeedbackComment( 'team', $event.target.value )"></textarea>
                     </div>
 
-                    <!-- Team comments list (manager only) -->
+                    <!-- Team comments list (manager-only; raw peer free text is not anonymized for employee display). -->
                     <div x-show="userRole === 2">
                         <div class="competence-eval-feedback-col-label" x-text-label="interface.evaluation.appraisal.team-comment"></div>
                         <div class="competence-eval-team-comments">
