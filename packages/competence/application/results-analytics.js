@@ -1328,7 +1328,7 @@ class ResultsAnalytics {
             for ( const s of windowed ) { if ( isLegacy( s ) || !( s.overall && s.overall.tBandMix ) ) { markLegacy( s ); } }
         } else if ( metric === "gapClosure" ) {
             series = SUBCATEGORIES.map( ( code ) => ( { key: code, tone: "info", values: windowed.map( ( s ) => {
-                const cell = ( s.bySubcategory && s.bySubcategory[ code ] ) ? s.bySubcategory[ code ] : null;
+                const cell = ( !isLegacy( s ) && s.bySubcategory && s.bySubcategory[ code ] ) ? s.bySubcategory[ code ] : null;
                 return ( cell && typeof cell.gap === "number" ) ? cell.gap : null;
             } ) } ) );
             for ( const s of windowed ) { if ( isLegacy( s ) || !s.bySubcategory || Object.keys( s.bySubcategory ).length === 0 ) { markLegacy( s ); } }
@@ -1594,7 +1594,11 @@ class ResultsAnalytics {
         const levelDistribution = this.computeLevelDistribution( frame, {} );
         const byStageLevel = {};
         for ( const group of levelDistribution.groups ) {
-            byStageLevel[ group.id ] = { n: group.n, finalScoreMean: ( typeof group.mean === "number" ) ? group.mean : null };
+            // Carry the suppression marker through (parity with byRoleFamily/byOrgUnit) so a stageLevel cohort trend can
+            // flag small cells in suppressedCycles rather than emitting a silent null.
+            byStageLevel[ group.id ] = group.suppressed
+                ? { n: group.n, suppressed: true }
+                : { n: group.n, finalScoreMean: ( typeof group.mean === "number" ) ? group.mean : null };
         }
         // R4 (CA-67): canonical whole-org heatmap (blended source, role-family grouping) + the stable bySubcategory axis.
         // Alternate source/groupBy views on a CLOSED cycle recompute (a known projection-fidelity follow-up; ACTIVE is exact).

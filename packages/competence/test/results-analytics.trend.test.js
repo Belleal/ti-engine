@@ -92,3 +92,18 @@ describe( "ResultsAnalytics._computeTrendWith — gapClosure + ladder (CA-X2)", 
     } );
 
 } );
+
+describe( "ResultsAnalytics._computeTrendWith — cohort by stageLevel suppression (CA-X4 review)", () => {
+
+    it( "nulls a suppressed stage-level cell AND lists the cycle in suppressedCycles (parity with orgUnit/roleFamily)", () => {
+        const snapshots = [
+            snap( { cycleID: "2025-H2", chronoKey: 4051, byStageLevel: { R2: { n: 5, finalScoreMean: 104 } } } ),
+            snap( { cycleID: "2026-H2", chronoKey: 4053, byStageLevel: { R2: { n: 2, suppressed: true } } } )
+        ];
+        const t = resultsAnalytics.instance._computeTrendWith( { snapshots: snapshots }, { metric: "cohort", dimension: "stageLevel", key: "R2" } );
+        const series = t.series.find( ( s ) => s.key === "R2" );
+        assert.deepEqual( series.values, [ 104, null ] );
+        assert.deepEqual( t.suppressedCycles, [ "2026-H2" ] );
+    } );
+
+} );
