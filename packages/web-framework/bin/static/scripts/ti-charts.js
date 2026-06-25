@@ -631,9 +631,10 @@ const TiCharts = ( function () {
      * @param {Element} el
      * @param {Object} detail
      */
-    function _attachSelect( el, detail ) {
+    function _attachSelect( el, detail, label ) {
         el.setAttribute( "tabindex", "0" );
         el.setAttribute( "role", "button" );
+        if ( label ) { el.setAttribute( "aria-label", label ); }
         if ( typeof el.addEventListener !== "function" || typeof CustomEvent === "undefined" ) { return; }
         const fire = () => { el.dispatchEvent( new CustomEvent( "ti-chart:select", { detail: detail, bubbles: true } ) ); };
         el.addEventListener( "click", fire );
@@ -868,7 +869,8 @@ const TiCharts = ( function () {
         const doc = ( typeof document !== "undefined" ) ? document : null;
         const wrap = doc.createElement( "div" ); wrap.setAttribute( "class", "ti-chart-stat" );
         const valueEl = doc.createElement( "div" ); valueEl.setAttribute( "class", "ti-chart-stat-value tabular-nums" );
-        valueEl.textContent = ( typeof data.value === "number" ) ? formatNumber( data.value ) : String( data.value );
+        const hasValue = ( typeof data.value === "number" && Number.isFinite( data.value ) );
+        valueEl.textContent = hasValue ? formatNumber( data.value ) : "—";
         wrap.appendChild( valueEl );
         if ( data.label ) { const l = doc.createElement( "div" ); l.setAttribute( "class", "ti-chart-stat-label" ); l.textContent = data.label; wrap.appendChild( l ); }
         if ( data.sub ) { const sub = doc.createElement( "div" ); sub.setAttribute( "class", "ti-chart-stat-sub" ); sub.textContent = data.sub; wrap.appendChild( sub ); }
@@ -879,7 +881,7 @@ const TiCharts = ( function () {
             bar.appendChild( fill ); wrap.appendChild( bar );
         }
         figure.appendChild( wrap );
-        figure.appendChild( buildSrTable( [ "Metric", "Value" ], [ [ data.label || spec.a11yLabel, String( data.value ) ] ] ) );
+        figure.appendChild( buildSrTable( [ "Metric", "Value" ], [ [ data.label || spec.a11yLabel, ( hasValue ? formatNumber( data.value ) : "—" ) ] ] ) );
     }
 
     /**
@@ -937,6 +939,8 @@ const TiCharts = ( function () {
         const svg = svgEl( "svg", { viewBox: "0 0 100 " + _round( layout.height ), preserveAspectRatio: "xMidYMid meet", role: "img" } );
         _appendA11yTitle( svg, spec );
 
+        const _heatRowLabels = rows.map( ( r ) => r.label || r.id );
+        const _heatColLabels = cols.map( ( c ) => c.label || c.id );
         for ( let i = 0; i < layout.cells.length; i++ ) {
             const cell = layout.cells[ i ];
             let cls = "ti-chart-heat-cell";
@@ -945,7 +949,11 @@ const TiCharts = ( function () {
             else { cls = cls + " cell-" + cell.sign; }
             const rect = svgEl( "rect", { x: cell.x, y: cell.y, width: cell.w, height: cell.h, class: cls } );
             if ( scale === "diverging" && !cell.suppressed && cell.sign !== "zero" ) { rect.setAttribute( "opacity", String( _round( 0.25 + ( 0.75 * cell.mag ) ) ) ); }
-            if ( !cell.suppressed ) { _attachSelect( rect, { r: cell.r, c: cell.c } ); }
+            if ( !cell.suppressed ) {
+                const cellV = ( scale === "diverging" ) ? formatNumber( cell.delta, 2 ) : formatNumber( cell.v, 2 );
+                const cellLabel = String( _heatRowLabels[ cell.r ] || cell.r ) + " / " + String( _heatColLabels[ cell.c ] || cell.c ) + ": " + cellV;
+                _attachSelect( rect, { r: cell.r, c: cell.c }, cellLabel );
+            }
             svg.appendChild( rect );
         }
         for ( let i = 0; i < layout.rowLabels.length; i++ ) {
@@ -1002,7 +1010,8 @@ const TiCharts = ( function () {
             svg.appendChild( svgEl( "line", { x1: _round( box.cx - ( box.w / 3 ) ), y1: box.yMin, x2: _round( box.cx + ( box.w / 3 ) ), y2: box.yMin, class: "ti-chart-box-cap" } ) );
             // box (q1..q3) — note yQ3 (higher score) is the smaller pixel, so it is the top
             const boxRect = svgEl( "rect", { x: box.x, y: box.yQ3, width: box.w, height: _round( box.yQ1 - box.yQ3 ), class: "ti-chart-box-box" } );
-            _attachSelect( boxRect, { id: box.id } );
+            const boxLabel = String( box.label ) + ": " + formatNumber( box.q1 ) + "–" + formatNumber( box.q3 ) + " med " + formatNumber( box.median );
+            _attachSelect( boxRect, { id: box.id }, boxLabel );
             svg.appendChild( boxRect );
             svg.appendChild( svgEl( "line", { x1: box.x, y1: box.yMed, x2: _round( box.x + box.w ), y2: box.yMed, class: "ti-chart-box-median" } ) );
             if ( box.yExpected !== null ) { svg.appendChild( svgEl( "line", { x1: _round( box.cx - ( box.w / 2 ) ), y1: box.yExpected, x2: _round( box.cx + ( box.w / 2 ) ), y2: box.yExpected, class: "ti-chart-box-expected" } ) ); }
@@ -1155,6 +1164,8 @@ const TiCharts = ( function () {
         if ( !figure ) { return; }
         const spec = normalizeSpec( rawSpec );
         _clearChildren( figure );
+        figure.removeAttribute( "data-ti-chart-empty" );
+        figure.removeAttribute( "aria-label" );
         figure.setAttribute( "role", "img" );
         figure.setAttribute( "data-ti-chart-type", spec.type );   // per-type sizing hook for CSS (cap + centering)
         if ( spec.a11yLabel ) { figure.setAttribute( "aria-label", spec.a11yLabel ); }

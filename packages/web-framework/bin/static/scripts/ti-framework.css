@@ -2623,7 +2623,7 @@ body {
     padding: 0;
     margin: -1px;
     overflow: hidden;
-    clip: rect(0, 0, 0, 0);
+    clip-path: inset( 50% );
     white-space: nowrap;
     border: 0;
 }
@@ -2946,3 +2946,8 @@ body {
 .ti-chart-line-dot.tone-grade-n { fill: var(--c-grade-n); }
 .ti-chart-line-dot.tone-info    { fill: var(--c-series-2); }
 .ti-chart-line-dot.provisional  { fill: var(--bg-app); stroke: var(--c-series-1); stroke-width: 0.6; }
+.ti-chart-line-dot.tone-grade-s.provisional { stroke: var(--c-grade-s); }
+.ti-chart-line-dot.tone-grade-r.provisional { stroke: var(--c-grade-r); }
+.ti-chart-line-dot.tone-grade-u.provisional { stroke: var(--c-grade-u); }
+.ti-chart-line-dot.tone-grade-n.provisional { stroke: var(--c-grade-n); }
+.ti-chart-line-dot.tone-info.provisional    { stroke: var(--c-series-2); }

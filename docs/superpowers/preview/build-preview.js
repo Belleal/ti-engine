@@ -34,11 +34,12 @@ const levelBox = { type: "box", options: { domain: { min: 0, max: 150 } }, a11yL
         ? { id: lvl, label: lvl, n: 1, suppressed: true }
         : { id: lvl, label: lvl, n: 5, min: 70 + i * 3, q1: 84 + i * 3, median: 96 + i * 3, q3: 108 + i * 3, max: 124 + i * 3, mean: 97 + i * 3, expected: 92 + i * 4 } )
 } };
-const heatmap = { type: "heatmap", options: { scale: "sequential" }, a11yLabel: "Competence heatmap", data: {
+const heatmapValue = { type: "heatmap", options: { scale: "sequential" }, a11yLabel: "Competence heatmap", data: {
     rows: SUBCATS.map( ( s ) => ( { id: s, label: s } ) ),
     cols: [ { id: "SE", label: "SE" }, { id: "BA", label: "BA" }, { id: "PM", label: "PM" } ],
     cells: [].concat.apply( [], SUBCATS.map( ( s, r ) => [ 0, 1, 2 ].map( ( c ) => ( { r: r, c: c, n: 5, v: 0.6 + ( ( ( r * 3 + c ) % 7 ) / 10 ), expected: 1.0, delta: ( ( ( r * 3 + c ) % 5 ) - 2 ) / 10 } ) ) ) )
 } };
+const heatmapGap = { ...heatmapValue, options: { scale: "diverging" } };
 const alignment = { type: "scatter", options: { bubble: "z", domain: { xMin: 0, xMax: 1.3, yMin: 0, yMax: 1.3 }, midX: 1.0, midY: 1.0 }, a11yLabel: "Alignment", data: {
     diagonal: true,
     points: [
@@ -91,7 +92,7 @@ const cohortLines = { type: "line", a11yLabel: "Cohort comparison by role family
     ]
 } };
 
-const SPECS = { coverageGauge, coverageBars, levelBox, heatmap, alignment, timeBars, driversBars, calibrationBars, calibrationKpi, radar, lineTrend, lineSpark, tbandStacked, cohortLines };
+const SPECS = { coverageGauge, coverageBars, levelBox, heatmapValue, heatmapGap, alignment, timeBars, driversBars, calibrationBars, calibrationKpi, radar, lineTrend, lineSpark, tbandStacked, cohortLines };
 
 // ---- the screen markup (mirrors frame-insights-cycle.html + the team calibration card; Alpine attrs resolved static) ----
 const card = ( title, intro, figId, wide, note ) => `
@@ -140,7 +141,7 @@ const body = `
             <section class="ti-card ti-card-wide">
                 <div class="ti-panel-head">
                     <h2 class="ti-card-title">Competence heatmap</h2>
-                    <label class="ti-field-inline"><select class="ti-select"><option>Value</option><option>Gap vs expected</option></select></label>
+                    <label class="ti-field-inline"><select id="heatmap-view" class="ti-select"><option value="value">Value</option><option value="gap">Gap vs expected</option></select></label>
                 </div>
                 <p class="ti-panel-body-intro">Average grade per subcategory across groups.</p>
                 <figure class="ti-chart" id="fig-heatmap" role="img"></figure>
@@ -168,8 +169,10 @@ const renderScript = `
 const S = ${ JSON.stringify( SPECS ) };
 const R = (id, spec) => { const el = document.getElementById(id); if (el && window.TiCharts) window.TiCharts.renderChart(el, spec); };
 function renderAll() {
+  const heatSel = document.getElementById("heatmap-view");
+  const heatSpec = (heatSel && heatSel.value === "gap") ? S.heatmapGap : S.heatmapValue;
   R("fig-coverage", S.coverageGauge); R("fig-coverage-bars", S.coverageBars); R("fig-level", S.levelBox);
-  R("fig-heatmap", S.heatmap); R("fig-alignment", S.alignment); R("fig-time", S.timeBars);
+  R("fig-heatmap", heatSpec); R("fig-alignment", S.alignment); R("fig-time", S.timeBars);
   R("fig-drivers", S.driversBars); R("fig-calibration", S.calibrationBars); R("fig-calibration-kpi", S.calibrationKpi);
   R("fig-radar", S.radar);
   R("fig-line", S.lineTrend); R("fig-spark", S.lineSpark);
@@ -180,6 +183,7 @@ document.getElementById("theme-toggle").addEventListener("click", () => {
   const cur = document.documentElement.getAttribute("data-theme") || "daylight";
   setTheme(cur === "daylight" ? "glass" : "daylight");
 });
+document.getElementById("heatmap-view").addEventListener("change", () => { renderAll(); });
 setTheme("daylight"); renderAll();`;
 
 const html = `<!doctype html>

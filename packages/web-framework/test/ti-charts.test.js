@@ -351,6 +351,7 @@ describe( "ti-charts — Phase-1 renderers (CSP discipline + structure)", () => 
         return {
             tag: tag, ns: ns || null, attrs: {}, children: [], textContent: "",
             setAttribute( k, v ) { this.attrs[ k ] = String( v ); },
+            removeAttribute( k ) { delete this.attrs[ k ]; },
             appendChild( c ) { this.children.push( c ); return c; },
             removeChild( c ) { const i = this.children.indexOf( c ); if ( i >= 0 ) { this.children.splice( i, 1 ); } return c; },
             get firstChild() { return this.children.length ? this.children[ 0 ] : null; },
