@@ -2,6 +2,14 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.10.1
+
+Review fixes for the ti-chart primitives (Statistics & Results, CA-61, PR #83 — CodeRabbit pass).
+
+* fix(web-framework): drillable heatmap/box marks get an accessible name; `renderChart` clears stale `data-ti-chart-empty`/`aria-label` on rerender; `renderStat` renders a missing value as an em dash; the provisional line-dot stroke follows its `tone-*` class
+* fix(css): `.ti-chart-sr` uses `clip-path: inset(50%)` instead of the deprecated `clip` property
+* build(release): bump package version from `1.10.0` to `1.10.1`
+
 ## Version 1.10.0
 
 ### Charting primitive library (Statistics & Results, CA-61)

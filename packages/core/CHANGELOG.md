@@ -2,6 +2,11 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.7.1
+
+* fix(exchange): preserve a configured-but-falsy `securityHashKey` — only a truly absent (`null`/`undefined`) value falls back to the empty key, so a configured `0`/`false` is no longer silently downgraded to the insecure empty-key path (PR #83, CodeRabbit)
+* build(release): bump package version from `1.7.0` to `1.7.1`
+
 ## Version 1.7.0
 
 * refactor(core)!: load the `.env` file via native `process.loadEnvFile` instead of `@dotenvx/dotenvx`

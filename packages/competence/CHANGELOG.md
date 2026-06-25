@@ -2,6 +2,18 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.4.1
+
+Review fixes for the Statistics & Results capability (CA-61, PR #83 — CodeRabbit pass).
+
+* fix(competence): Coverage `meta.total`/`pctReporting`/`partial` derive from the in-scope roster instead of the evaluation count, so an active cycle with not-started employees no longer reads 100% complete
+* fix(competence): the per-cycle results snapshot anchors interview "held" counts to the cycle close date (not wall-clock) so re-persisting a closed cycle stays idempotent; whole-org coverage resolves the org root instead of collapsing to an empty roster; org-unit coverage groups label by display name rather than the raw unit id
+* fix(competence): privacy & access — team-feedback free-text comments are manager-only (the grade-collapsing never anonymized free text); employee-history access requires the `MANAGER` role alongside org-graph superiority; team-analytics `scope=team` filters the subtree by `isSuperiorManagerOfEmployee` (the reporting chain, §7.7) so a manager can't see unit peers or unrelated reports
+* fix(competence): individual results renormalize the blended subcategory score over only the sources present (a missing team grade no longer fabricates a development gap), and scale the results charts by the configured `performanceThresholds.T5` instead of a literal `150`
+* fix(competence): the Insights sidebar tracks a per-route active key (buttons + `sidebarNavMapping`), and the heatmap-view selects gain accessible names and bind their value on the control
+* test(competence): valid `QE` role-family fixture, a zero-preserving coverage helper, and the roster `organizationUnitName` field
+* build(release): bump package version from `3.4.0` to `3.4.1`
+
 ## Version 3.4.0
 
 ### Statistics & Results reporting (CA-61, Phases 0–4)
