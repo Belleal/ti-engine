@@ -1286,9 +1286,10 @@ document.addEventListener( "htmx:responseError", ( event ) => {
 /**
  * Returns a configuration object for the login screen test user pill panel.
  * <br/>
- * NOTE: This is a TEMPORARY testing aid that injects an employeeID and roles into the session via a cookie
- * which the server-side {@link augmentSession} reads. Remove together with the panel HTML once real identity
- * propagation is in place.
+ * NOTE: This is a TEMPORARY testing aid that injects an employeeID into the session via a cookie which the
+ * server-side {@link augmentSession} reads; roles are derived by the app unless the opt-in "override roles (dev)"
+ * toggle is on, in which case the profile's roles are written too. Remove together with the panel HTML once real
+ * identity propagation is in place.
  *
  * @method
  * @returns {Object}
@@ -1330,9 +1331,11 @@ const configureLoginTestUserPanel = () => {
             { employeeID: "9", roles: [ 1 ] }
         ],
         selected: null,
+        overrideRoles: false,
 
         init() {
             this.selected = readCookie();
+            this.overrideRoles = Boolean( this.selected && Array.isArray( this.selected.roles ) && this.selected.roles.length > 0 );
         },
 
         isSelected( profile ) {
@@ -1340,8 +1343,21 @@ const configureLoginTestUserPanel = () => {
         },
 
         select( profile ) {
-            this.selected = { employeeID: profile.employeeID, roles: profile.roles.slice() };
+            this.selected = this.overrideRoles
+                ? { employeeID: profile.employeeID, roles: profile.roles.slice() }
+                : { employeeID: profile.employeeID };
             writeCookie( this.selected );
+        },
+
+        onOverrideChanged() {
+            // `overrideRoles` is already updated by x-model; just re-write the cookie for the current selection
+            // so the new override setting takes effect immediately.
+            if ( this.selected ) {
+                const profile = this.profiles.find( ( candidate ) => candidate.employeeID === this.selected.employeeID );
+                if ( profile ) {
+                    this.select( profile );
+                }
+            }
         },
 
         clear() {

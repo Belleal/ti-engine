@@ -79,7 +79,7 @@
         <!-- TEMPORARY: Test user selector for augmentSession() experimentation. Remove once AD-driven identity is wired up. -->
         <div class="ti-login-test-panel" role="group" aria-label="Test user selector">
             <div class="ti-login-test-panel-title">Test user</div>
-            <div class="ti-login-test-panel-sub">Pick an identity to inject on login (any sign-in method).</div>
+            <div class="ti-login-test-panel-sub">Pick an identity to inject on login. Roles are derived from the org chart unless you override them.</div>
             <div class="ti-login-test-panel-pills">
                 <template x-for="profile in profiles" :key="profile.employeeID">
                     <button type="button"
@@ -96,6 +96,10 @@
                         x-show="selected"
                         x-on:click="clear()">Clear</button>
             </div>
+            <label class="ti-login-test-panel-override">
+                <input type="checkbox" x-model="overrideRoles" x-on:change="onOverrideChanged()"/>
+                <span>Override roles (dev) — inject this profile's role list instead of deriving</span>
+            </label>
         </div>
     </div>
 </div>
