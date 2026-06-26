@@ -2,6 +2,13 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.11.1
+
+Post-review fix from the CA-72 CodeRabbit review (PR #85) on the login test-user panel.
+
+* fix(web-framework): turning the "override roles (dev)" toggle OFF now always strips any persisted roles from the `ti-test-user` cookie — even when the selected employee is no longer in the panel's profile list — so a stale roles array can't keep overriding the app's org-derived roles on the next login (CA-72)
+* build(release): bump package version from `1.11.0` to `1.11.1`
+
 ## Version 1.11.0
 
 Login test-user panel defaults to identity-only injection so the app derives roles itself (CA-72).

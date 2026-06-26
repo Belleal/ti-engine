@@ -1353,6 +1353,14 @@ const configureLoginTestUserPanel = () => {
             // `overrideRoles` is already updated by x-model; just re-write the cookie for the current selection
             // so the new override setting takes effect immediately.
             if ( this.selected ) {
+                // Turning the override OFF must always strip any persisted roles from the cookie — even when the
+                // selected employee is no longer in `profiles` (cookie from an older profile list or set manually) —
+                // so a stale roles array can't keep overriding the org-derived roles on the next login.
+                if ( !this.overrideRoles ) {
+                    this.selected = { employeeID: this.selected.employeeID };
+                    writeCookie( this.selected );
+                    return;
+                }
                 const profile = this.profiles.find( ( candidate ) => candidate.employeeID === this.selected.employeeID );
                 if ( profile ) {
                     this.select( profile );

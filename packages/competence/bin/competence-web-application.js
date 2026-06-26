@@ -1391,8 +1391,18 @@ class CompetenceWebApplication extends TiWebAppManager {
                         return managerID === userID;
                     } );
 
+                    // Scope the slots the same way as the evaluations above: a Supervisor sees the whole calendar (the
+                    // only role that books interviews), while a plain manager sees only their own slots (a slot's
+                    // managerID is the manager who created it). Without this filter the available-slot projection below
+                    // leaked every other manager's availability and names to any manager who can call the endpoint.
+                    // A manager's report whose interview was booked into a different manager's slot still surfaces as
+                    // scheduled via evaluation.interviewDate; only the cross-manager bookedSlotID link is omitted.
+                    const visibleSlots = isSupervisor
+                        ? allSlots
+                        : allSlots.filter( ( slot ) => slot.managerID === userID );
+
                     const bookedSlotByEvaluationID = new Map();
-                    allSlots.forEach( ( slot ) => {
+                    visibleSlots.forEach( ( slot ) => {
                         if ( slot.status === configurationLoader.slotStatus.BOOKED && slot.booking?.evaluationID ) {
                             bookedSlotByEvaluationID.set( slot.booking.evaluationID, slot );
                         }
@@ -1419,7 +1429,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                         };
                     } );
 
-                    const slots = allSlots
+                    const slots = visibleSlots
                         .filter( ( slot ) => slot.status === configurationLoader.slotStatus.AVAILABLE )
                         .map( ( slot ) => ( {
                             ...slot,

@@ -9,6 +9,7 @@
 const cache = require( "@ti-engine/core/cache" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const tools = require( "@ti-engine/core/tools" );
+const logger = require( "@ti-engine/core/logger" );
 const _ = require( "lodash" );
 const configurationLoader = require( "#configuration-loader" );
 
@@ -37,6 +38,9 @@ class DataManager {
 
     // Synchronous in-memory mirror of the supervisor grant set, kept in sync with the role-grants store so login-time
     // role derivation (augmentSession, which is synchronous) needs no await. Populated by loadRoleGrants().
+    // NOTE: This mirror is PROCESS-LOCAL and assumes a single app instance — a grant/revoke on one node would not
+    // invalidate another node's mirror until restart. Acceptable while the app runs single-instance; cross-instance
+    // invalidation (shared pub/sub re-load) is tracked for multi-instance deployments in CA-73.
     #supervisorGrantIDs = new Set();
 
     /**
@@ -293,15 +297,21 @@ class DataManager {
             write.then( () => {
                 // Mirror is updated optimistically: in the no-cache dev path nothing is persisted, but the in-session view stays correct and reconciles on the next loadRoleGrants().
                 this.#supervisorGrantIDs.add( targetID );
-                return this.appendAuditEntry( {
+                // The grant is now committed (store + mirror). Appending the audit entry is a best-effort follow-up:
+                // a failed audit write must NOT reject an already-live authorization change — otherwise the UI reports
+                // failure for a successful grant and a retry would re-grant, risking inconsistent audit history.
+                this.appendAuditEntry( {
                     subjectType: "employee",
                     subjectID: targetID,
                     changedBy: String( grantedBy ),
                     field: "supervisorRole",
                     oldValue: null,
                     newValue: "granted"
+                } ).catch( ( auditError ) => {
+                    logger.log( `Supervisor grant for employee '${ targetID }' was committed, but the audit append failed.`, logger.logSeverity.WARNING, auditError );
                 } );
-            } ).then( () => resolve( _.cloneDeep( grant ) ) ).catch( reject );
+                resolve( _.cloneDeep( grant ) );
+            } ).catch( reject );
         } );
     }
 
@@ -327,15 +337,21 @@ class DataManager {
             write.then( () => {
                 // Mirror is updated optimistically: in the no-cache dev path nothing is persisted, but the in-session view stays correct and reconciles on the next loadRoleGrants().
                 this.#supervisorGrantIDs.delete( targetID );
-                return this.appendAuditEntry( {
+                // The revoke is now committed (store + mirror). Appending the audit entry is a best-effort follow-up:
+                // a failed audit write must NOT reject an already-applied revoke — otherwise the UI reports failure for
+                // a successful revoke and a retry would re-run against already-removed state.
+                this.appendAuditEntry( {
                     subjectType: "employee",
                     subjectID: targetID,
                     changedBy: revokedBy ? String( revokedBy ) : targetID,
                     field: "supervisorRole",
                     oldValue: "granted",
                     newValue: null
+                } ).catch( ( auditError ) => {
+                    logger.log( `Supervisor revoke for employee '${ targetID }' was committed, but the audit append failed.`, logger.logSeverity.WARNING, auditError );
                 } );
-            } ).then( () => resolve() ).catch( reject );
+                resolve();
+            } ).catch( reject );
         } );
     }
 

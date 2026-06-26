@@ -7569,6 +7569,24 @@
             "bg": "Отказ"
           }
         },
+        "revoke-modal": {
+          "title": {
+            "en": "Remove Supervisor role",
+            "bg": "Премахване на роля Надзорник"
+          },
+          "desc": {
+            "en": "This removes the assigned Supervisor role from {name}. On their next sign-in they will lose Supervisor access — viewing all employees, running leadership reports, and facilitating evaluations across the organization.",
+            "bg": "Това премахва назначената роля Надзорник на {name}. При следващото влизане те ще загубят достъпа на надзорник — преглед на всички служители, изготвяне на управленски справки и подпомагане на оценките в цялата организация."
+          },
+          "confirm-btn": {
+            "en": "Remove Supervisor",
+            "bg": "Премахни надзорник"
+          },
+          "cancel-btn": {
+            "en": "Cancel",
+            "bg": "Отказ"
+          }
+        },
         "toast-assigned": {
           "en": "Supervisor role assigned.",
           "bg": "Ролята Надзорник е назначена."

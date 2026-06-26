@@ -165,7 +165,7 @@
                                 <button type="button" class="ti-btn sm danger"
                                         x-show="detail.permissions.canRevokeSupervisor"
                                         x-bind:disabled="supervisorBusy"
-                                        @click="revokeSupervisor()">
+                                        @click="openSupervisorRevokeModal()">
                                     <span class="ti-icon close sm" aria-hidden="true"></span>
                                     <span x-text-label="interface.employee-management.supervisor.remove-btn"></span>
                                 </button>
@@ -539,6 +539,32 @@
                     <button type="button" class="ti-btn primary" @click="confirmSupervisorAssign()"
                             x-bind:disabled="supervisorBusy"
                             x-text-label="interface.employee-management.supervisor.assign-modal.confirm-btn"></button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- =============================================================
+         Supervisor revoke confirmation modal
+         ============================================================= -->
+    <template x-if="modal.kind === 'supervisor-revoke'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal danger" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.employee-management.supervisor.revoke-modal.title"></div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <span class="ti-icon close md" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <p x-text="supervisorRevokeDescription()"></p>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()"
+                            x-text-label="interface.employee-management.supervisor.revoke-modal.cancel-btn"></button>
+                    <button type="button" class="ti-btn danger" @click="confirmSupervisorRevoke()"
+                            x-bind:disabled="supervisorBusy"
+                            x-text-label="interface.employee-management.supervisor.revoke-modal.confirm-btn"></button>
                 </div>
             </div>
         </div>

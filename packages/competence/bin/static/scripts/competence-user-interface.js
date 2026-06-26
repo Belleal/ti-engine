@@ -3645,21 +3645,39 @@ const configureEmployeeManagement = () => {
                 tiApplication.notify( tiApplication.getLabel( "interface.employee-management.supervisor.toast-assigned" ) );
                 this.supervisorBusy = false;
                 this.closeModal();
-                this.loadDetail( id );
+                // Guard against a stale reload: if the user selected another employee while the request was in flight,
+                // reloading `id` would replace the now-current detail with the wrong employee (and a later save would
+                // post fields against the wrong selected ID).
+                if ( this.selectedEmployeeID === id ) {
+                    this.loadDetail( id );
+                }
             } ).catch( ( error ) => {
                 this.supervisorBusy = false;
                 tiApplication.notify( tiApplication.formatException( error ) );
             } );
         },
 
-        revokeSupervisor() {
+        openSupervisorRevokeModal() {
+            this.modal = { kind: "supervisor-revoke", payload: {}, errorMessage: "", busy: false };
+        },
+
+        supervisorRevokeDescription() {
+            const name = ( this.detail && this.detail.employee ) ? this.detail.employee.name : "";
+            return tiApplication.getLabel( "interface.employee-management.supervisor.revoke-modal.desc" ).replace( "{name}", name || "" );
+        },
+
+        confirmSupervisorRevoke() {
             if ( this.supervisorBusy || !this.selectedEmployeeID ) return;
             this.supervisorBusy = true;
             const id = this.selectedEmployeeID;
             tiApplication.sendRequest( "/app/revoke-supervisor", "POST", { employeeID: id } ).then( () => {
                 tiApplication.notify( tiApplication.getLabel( "interface.employee-management.supervisor.toast-removed" ) );
                 this.supervisorBusy = false;
-                this.loadDetail( id );
+                this.closeModal();
+                // Same stale-reload guard as the assign path above.
+                if ( this.selectedEmployeeID === id ) {
+                    this.loadDetail( id );
+                }
             } ).catch( ( error ) => {
                 this.supervisorBusy = false;
                 tiApplication.notify( tiApplication.formatException( error ) );

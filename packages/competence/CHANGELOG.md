@@ -2,6 +2,18 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.6.2
+
+Post-review fixes from the CA-72 CodeRabbit review (PR #85): test-user backdoor hardening, interview-slot privacy scoping, Supervisor-revoke confirmation, and grant/revoke robustness.
+
+* fix(competence): hard-gate the temporary `ti-test-user` cookie behind the off-by-default `COMPETENCE_TEST_USER_ENABLED` env flag — without it the cookie (which injects identity AND an optional numeric roles override) is ignored entirely, so it can no longer bypass org-derived/grant-based authorization in production (CA-72)
+* fix(competence): scope the interview-schedule available-slots projection to the calling manager's own slots — a plain manager previously received every other manager's availability and names (only `readyEvaluations` was scoped); a Supervisor still sees the whole calendar (CA-72)
+* fix(competence): require a confirmation modal before revoking a Supervisor grant, mirroring the assign flow, so a single misclick can no longer remove broad access (CA-72)
+* fix(competence): guard the grant/revoke detail reloads against a mid-flight selection change so a slow response can no longer replace the now-selected employee's detail or misdirect a later save (CA-72)
+* fix(competence): make the grant/revoke audit append best-effort — an audit-write failure is logged but no longer rejects an already-committed authorization change (CA-72)
+* docs(competence): document `COMPETENCE_TEST_USER_ENABLED` in the README; note the single-instance grant-mirror assumption in code, with cross-instance invalidation tracked as CA-73 (CA-72)
+* build(release): bump package version from `3.6.1` to `3.6.2`
+
 ## Version 3.6.1
 
 Post-review fixes from the CA-71 CodeRabbit review: evaluation-data + interview-schedule access scoping, lock-cycle specialization-source consistency, and confirmation-modal focus management.
