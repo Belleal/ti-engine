@@ -20,6 +20,7 @@ const cacheEntryKeyEmployees = "ti:competence:data:employees";
 const cacheEntryKeyEvaluations = "ti:competence:data:evaluations";
 const cacheEntryKeyRoleFamilies = "ti:competence:data:role-families";
 const cacheEntryKeyResultsSnapshots = "ti:competence:data:results-snapshots"; // { [cycleID]: ResultsSnapshot }
+const cacheEntryKeyRoleGrants = "ti:competence:data:role-grants"; // { [employeeID]: { role: 3, grantedBy, grantedAt } }
 
 const BASELINE_KEY = "baseline";
 
@@ -33,6 +34,10 @@ const BASELINE_KEY = "baseline";
 class DataManager {
 
     static #instance = null;
+
+    // Synchronous in-memory mirror of the supervisor grant set, kept in sync with the role-grants store so login-time
+    // role derivation (augmentSession, which is synchronous) needs no await. Populated by loadRoleGrants().
+    #supervisorGrantIDs = new Set();
 
     /**
      * @constructor
@@ -66,6 +71,7 @@ class DataManager {
         promises.push( cache.instance.setJSON( cacheEntryKeyEvaluations, {}, "$", 1 ) );
         promises.push( cache.instance.setJSON( cacheEntryKeyRoleFamilies, {}, "$", 1 ) );
         promises.push( cache.instance.setJSON( cacheEntryKeyResultsSnapshots, {}, "$", 1 ) );
+        promises.push( cache.instance.setJSON( cacheEntryKeyRoleGrants, {}, "$", 1 ) );
 
         let preloadData = ( process.env.COMPETENCE_PRELOAD_DATA !== undefined ) ? tools.toBool( process.env.COMPETENCE_PRELOAD_DATA ) : false;
 
@@ -190,6 +196,146 @@ class DataManager {
             } ).catch( ( error ) => {
                 reject( error );
             } );
+        } );
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*                       Supervisor role grants                       */
+
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Loads the supervisor role-grants store into the synchronous in-memory mirror. Call once at startup (after
+     * the cache + org chart are ready) and whenever the store may have changed out-of-band. Null/empty entries are
+     * ignored. Safe when the cache is non-operational (mirror is left empty).
+     *
+     * @method
+     * @returns {Promise}
+     * @public
+     */
+    loadRoleGrants() {
+        return this.fetchRoleGrants().then( ( grants ) => {
+            this.#supervisorGrantIDs = new Set( Object.keys( grants ) );
+        } );
+    }
+
+    /**
+     * Returns the raw supervisor role-grants map `{ [employeeID]: { role, grantedBy, grantedAt } }`, excluding any
+     * null/tombstoned entries. Reads the store (async); for synchronous login-time checks use hasSupervisorGrant.
+     *
+     * @method
+     * @returns {Promise<Object>}
+     * @public
+     */
+    fetchRoleGrants() {
+        return new Promise( ( resolve, reject ) => {
+            if ( !cache.instance.isOperational ) {
+                return resolve( {} );
+            }
+            cache.instance.getJSON( cacheEntryKeyRoleGrants, "$" ).then( ( result ) => {
+                const source = _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result );
+                const grants = {};
+                if ( source && typeof source === "object" ) {
+                    for ( const [ employeeID, grant ] of Object.entries( source ) ) {
+                        if ( grant && grant.role ) {
+                            grants[ employeeID ] = grant;
+                        }
+                    }
+                }
+                resolve( grants );
+            } ).catch( reject );
+        } );
+    }
+
+    /**
+     * Whether the employee currently holds a manual supervisor grant. Synchronous — reads the in-memory mirror.
+     *
+     * @method
+     * @param {string} employeeID
+     * @returns {boolean}
+     * @public
+     */
+    hasSupervisorGrant( employeeID ) {
+        return !!employeeID && this.#supervisorGrantIDs.has( String( employeeID ).trim() );
+    }
+
+    /**
+     * The employee IDs that currently hold a manual supervisor grant (from the mirror).
+     *
+     * @method
+     * @returns {Array<string>}
+     * @public
+     */
+    getSupervisorGrantIDs() {
+        return Array.from( this.#supervisorGrantIDs );
+    }
+
+    /**
+     * Grants the supervisor role to an employee: write-through to the store + mirror, and append an employee-scoped
+     * audit entry. Idempotent at the storage layer (re-granting just refreshes grantedBy/grantedAt).
+     *
+     * @method
+     * @param {string} employeeID - The grantee.
+     * @param {string} grantedBy - The acting (auto) supervisor's employee ID.
+     * @returns {Promise<Object>} The persisted grant record.
+     * @public
+     */
+    grantSupervisorRole( employeeID, grantedBy ) {
+        return new Promise( ( resolve, reject ) => {
+            const targetID = String( employeeID || "" ).trim();
+            if ( !targetID || !grantedBy ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID, grantedBy } ) );
+            }
+            const grant = { role: configurationLoader.roleCode.SUPERVISOR, grantedBy: String( grantedBy ), grantedAt: new Date().toISOString() };
+            const write = cache.instance.isOperational
+                ? cache.instance.editJSON( cacheEntryKeyRoleGrants, { [ targetID ]: grant } )
+                : Promise.resolve();
+            write.then( () => {
+                // Mirror is updated optimistically: in the no-cache dev path nothing is persisted, but the in-session view stays correct and reconciles on the next loadRoleGrants().
+                this.#supervisorGrantIDs.add( targetID );
+                return this.appendAuditEntry( {
+                    subjectType: "employee",
+                    subjectID: targetID,
+                    changedBy: String( grantedBy ),
+                    field: "supervisorRole",
+                    oldValue: null,
+                    newValue: "granted"
+                } );
+            } ).then( () => resolve( _.cloneDeep( grant ) ) ).catch( reject );
+        } );
+    }
+
+    /**
+     * Revokes a manual supervisor grant: removes it from the store (RFC 7396 merge-patch delete via a null value) and
+     * the mirror, and appends an employee-scoped audit entry. No-op-safe when no grant exists.
+     *
+     * @method
+     * @param {string} employeeID - The grantee to revoke.
+     * @param {string} revokedBy - The acting (auto) supervisor's employee ID.
+     * @returns {Promise}
+     * @public
+     */
+    revokeSupervisorRole( employeeID, revokedBy ) {
+        return new Promise( ( resolve, reject ) => {
+            const targetID = String( employeeID || "" ).trim();
+            if ( !targetID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID } ) );
+            }
+            const write = cache.instance.isOperational
+                ? cache.instance.editJSON( cacheEntryKeyRoleGrants, { [ targetID ]: null } )
+                : Promise.resolve();
+            write.then( () => {
+                // Mirror is updated optimistically: in the no-cache dev path nothing is persisted, but the in-session view stays correct and reconciles on the next loadRoleGrants().
+                this.#supervisorGrantIDs.delete( targetID );
+                return this.appendAuditEntry( {
+                    subjectType: "employee",
+                    subjectID: targetID,
+                    changedBy: revokedBy ? String( revokedBy ) : targetID,
+                    field: "supervisorRole",
+                    oldValue: "granted",
+                    newValue: null
+                } );
+            } ).then( () => resolve() ).catch( reject );
         } );
     }
 
