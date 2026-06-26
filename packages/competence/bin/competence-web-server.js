@@ -13,6 +13,7 @@ const ServiceConsumer = require( "@ti-engine/core/service-consumer" );
 const dataManager = require( "#data-manager" );
 const organizationManager = require( "#organization-manager" );
 const configurationLoader = require( "#configuration-loader" );
+const roleResolver = require( "#role-resolver" );
 
 /**
  * NOTE: This is still a work in progress.
@@ -46,6 +47,7 @@ class CompetenceWebServer extends TiWebServer {
         return super.onStart()
             .then( () => dataManager.instance.initialize() )
             .then( () => organizationManager.instance.buildOrganizationChart() )
+            .then( () => dataManager.instance.loadRoleGrants() )
             .then( () => configurationLoader.initialize() )
             .catch( ( error ) => {
                 logger.log( `Error while trying to start competence web server within instance '${ ServiceConsumer.instanceID }'!`, logger.logSeverity.ERROR, error );
@@ -86,17 +88,39 @@ class CompetenceWebServer extends TiWebServer {
      * @public
      */
     augmentSession( session, request ) {
-        // TODO: This part is for testing purposes only! Normally, the employeeID (if any) and roles should come from the AD response.
+        // NOTE: Identity (employeeID) still comes from the temporary test-user cookie until AD-driven identity is
+        // wired up. Roles are now DERIVED from the user's place in the org chart; the cookie's optional `roles`
+        // array remains a dev-only override (see the login test panel).
         if ( session.user ) {
             const testUser = this.#readTestUserSelection( request );
             session.user.employeeID = ( testUser && testUser.employeeID ) || session.user.employeeID || "20";
-            session.user.roles = ( testUser && Array.isArray( testUser.roles ) && testUser.roles.length > 0 ) ? testUser.roles : [ 1, 2, 3 ];
+
+            const overrideRoles = ( testUser && Array.isArray( testUser.roles ) && testUser.roles.length > 0 ) ? testUser.roles : null;
+            session.user.roles = overrideRoles || this.#resolveUserRoles( session.user.employeeID );
         }
 
         return session;
     }
 
     /* Private interface */
+
+    /**
+     * Derives the effective role codes for an employee from their org-chart position plus any manual supervisor grant.
+     * Synchronous by design (augmentSession runs inside a synchronous session callback): the org chart and the grant
+     * mirror are both in-memory by this point.
+     *
+     * @method
+     * @param {string} employeeID
+     * @returns {number[]}
+     * @private
+     */
+    #resolveUserRoles( employeeID ) {
+        return roleResolver.instance.resolveRoles( {
+            isUnitManager: organizationManager.instance.isUnitManager( employeeID ),
+            isAutoSupervisor: organizationManager.instance.isAutoSupervisor( employeeID ),
+            hasSupervisorGrant: dataManager.instance.hasSupervisorGrant( employeeID )
+        } );
+    }
 
     /**
      * Reads the temporary "ti-test-user" cookie set by the login screen pill panel and returns the parsed selection.
