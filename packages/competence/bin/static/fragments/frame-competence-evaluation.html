@@ -500,7 +500,7 @@
                             x-text-label="interface.evaluation.actions.reset"></button>
                     <button type="button" class="ti-btn sm" x-show="userRole !== 4" @click="saveDraft()"
                             x-text-label="interface.evaluation.actions.save-draft"></button>
-                    <button type="button" class="ti-btn primary sm" @click="openSubmitModal()"
+                    <button type="button" class="ti-btn primary sm" @click="openSubmitModal( $event )"
                             x-text-label="interface.evaluation.actions.submit"></button>
                 </div>
             </div>
@@ -513,7 +513,7 @@
                 </div>
                 <div class="ti-spacer"></div>
                 <div class="competence-eval-sticky-actions">
-                    <button type="button" class="ti-btn primary sm" @click="openFinalizeTeamModal()"
+                    <button type="button" class="ti-btn primary sm" @click="openFinalizeTeamModal( $event )"
                             x-text-label="interface.evaluation.actions.finalize-team"></button>
                 </div>
             </div>
@@ -526,7 +526,8 @@
          ============================================================= -->
     <template x-if="modal.kind === 'submit-confirm'">
         <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
-            <div class="ti-modal" role="dialog" aria-modal="true">
+            <div class="ti-modal" role="dialog" aria-modal="true" tabindex="-1"
+                 x-effect="focusModal( $el )" @keydown.tab="trapModalFocus( $event, $el )">
                 <div class="ti-modal-head">
                     <div class="ti-modal-title" x-text-label="interface.evaluation.submit-modal.title"></div>
                     <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
@@ -551,7 +552,8 @@
          ============================================================= -->
     <template x-if="modal.kind === 'finalize-team-confirm'">
         <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
-            <div class="ti-modal warn" role="dialog" aria-modal="true">
+            <div class="ti-modal warn" role="dialog" aria-modal="true" tabindex="-1"
+                 x-effect="focusModal( $el )" @keydown.tab="trapModalFocus( $event, $el )">
                 <div class="ti-modal-head">
                     <div class="ti-modal-title" x-text-label="interface.evaluation.finalize-team-modal.title"></div>
                     <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">

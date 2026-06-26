@@ -1219,7 +1219,8 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #loadNewEvaluationData( session, employeeID ) {
         return new Promise( ( resolve, reject ) => {
-            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR, configurationLoader.roleCode.MANAGER );
+            const { userID, userRoles } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR, configurationLoader.roleCode.MANAGER );
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
 
             let employee;
             let cycle;
@@ -1228,6 +1229,14 @@ class CompetenceWebApplication extends TiWebAppManager {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-employee-found" }, exceptions.httpCode.C_404 );
                 }
                 employee = employeeData;
+                // Scope to the evaluatee's reporting chain, mirroring #startEvaluation: a Supervisor may preview anyone,
+                // but a plain manager may only load the preview + eligible-reviewer roster for an employee they manage
+                // (direct or skip-level). Without this any manager could read another team's preview and reviewer list.
+                return this.#canManagerPerformEvaluation( userID, employee.employeeID );
+            } ).then( ( isManager ) => {
+                if ( !isSupervisor && !isManager ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
+                }
                 return Promise.all( [
                     dataManager.instance.fetchEmployees(),
                     // Mirrors #startEvaluation: the new-evaluation preview only makes sense against a strictly ACTIVE
@@ -1352,7 +1361,8 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #loadInterviewSchedule( session ) {
         return new Promise( ( resolve, reject ) => {
-            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR, configurationLoader.roleCode.MANAGER );
+            const { userID, userRoles } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR, configurationLoader.roleCode.MANAGER );
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
 
             const calendarConfig = this.#getCalendarConfig();
 
@@ -1365,7 +1375,21 @@ class CompetenceWebApplication extends TiWebAppManager {
                     dataManager.instance.fetchAllCalendarSlots( cycle.cycleID )
                 ] ).then( ( [ allEvaluations, allSlots ] ) => {
                     const readyStatus = configurationLoader.evaluationStatus.READY;
-                    const readyEvaluations = allEvaluations.filter( ( evaluation ) => evaluation.status === readyStatus );
+                    // A Supervisor schedules every READY interview (the only role that can book a slot); a plain manager
+                    // gets a read-only view scoped to their own reports, mirroring the dashboard's team scoping. Without
+                    // this filter the endpoint leaked org-wide evaluatee names, manager names, and final scores to any
+                    // manager. The reviewing manager is resolved live from the org graph, falling back to the optional,
+                    // possibly stale stored managerID only when the evaluatee is no longer resolvable in the chart.
+                    const readyEvaluations = allEvaluations.filter( ( evaluation ) => {
+                        if ( evaluation.status !== readyStatus ) {
+                            return false;
+                        }
+                        if ( isSupervisor ) {
+                            return true;
+                        }
+                        const managerID = organizationManager.instance.resolveClosestManagerIDForEmployee( evaluation.employeeID ) || evaluation.managerID || "";
+                        return managerID === userID;
+                    } );
 
                     const bookedSlotByEvaluationID = new Map();
                     allSlots.forEach( ( slot ) => {

@@ -141,6 +141,27 @@ describe( "CompetenceFramework — lockCycle normalizes empty specializations", 
         assert.deepEqual( Object.keys( afterQE ), [], "excluded family specializations stay absent (never auto-marked)" );
     } );
 
+    it( "normalizes specializations from the stored role-family source, even when it diverges from static config", async () => {
+        // validateCycleForLock and lockCycle both resolve the family source as "seeded copy if present, else config".
+        // Simulate an admin edit that added a specialization to the seeded (DB-backed) copy that static config does not
+        // know about: lock normalization must enumerate from that same source, so the stored-only specialization is
+        // marked intentionally-empty. Before the fix, normalization read getSpecializationCodes (static config) and the
+        // stored-only specialization was silently skipped after validation had already approved against the stored copy.
+        const cache = require( "@ti-engine/core/cache" );
+        assert.ok( !configurationLoader.getSpecializationCodes( "BA" ).includes( "CUSTOM_SPEC" ), "guard: CUSTOM_SPEC must be absent from static config" );
+        await cache.instance.editJSON( "ti:competence:data:role-families", {
+            BA: { specializations: { CUSTOM_SPEC: { name: "role-family.BA.specialization.name.CUSTOM_SPEC", description: "", eCFMapping: [] } } }
+        } );
+        const storedBA = await dataManager.instance.getRoleFamilies();
+        assert.ok( Object.prototype.hasOwnProperty.call( storedBA.BA.specializations, "CUSTOM_SPEC" ), "guard: the stored BA copy must carry CUSTOM_SPEC" );
+
+        await competenceFramework.instance.lockCycle( "2026-H2", "20" );
+
+        const afterBA = await dataManager.instance.getActiveCompetencySetsForFamily( "BA", "2026-H2" );
+        assert.ok( Object.prototype.hasOwnProperty.call( afterBA, "CUSTOM_SPEC" ), "the stored-only specialization must be normalized from the same source validation used" );
+        assert.deepEqual( afterBA[ "CUSTOM_SPEC" ], [], "the stored-only specialization must be marked as an explicit empty set" );
+    } );
+
     it( "normalizes nothing when the lock fails validation (status stays PLANNING)", async () => {
         await dataManager.instance.setActiveCompetencySet( "SE", "baseline", "2026-H2", [ "E1-1" ] ); // breaks floor coverage
         await assert.rejects( () => competenceFramework.instance.lockCycle( "2026-H2", "20" ) );

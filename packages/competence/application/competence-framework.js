@@ -293,12 +293,16 @@ class CompetenceFramework {
         return dataManager.instance.getRoleFamilies().then( ( storedFamilies ) => {
             // Mirror validateCycleForLock's family-source resolution: prefer the seeded copy, fall back to config.
             const familySource = ( storedFamilies && Object.keys( storedFamilies ).length > 0 ) ? storedFamilies : roleFamilies;
-            return Promise.all( Object.keys( familySource ).map( ( family ) => {
+            return Promise.all( Object.entries( familySource ).map( ( [ family, familyConfig ] ) => {
                 if ( excludedFamilies.has( family ) ) {
                     return Promise.resolve();
                 }
                 return dataManager.instance.getActiveCompetencySetsForFamily( family, cycleID ).then( ( existingSets ) => {
-                    const absentSpecializations = configurationLoader.getSpecializationCodes( family )
+                    // Enumerate specializations from the SAME family source validation used (familySource), not the static
+                    // config via getSpecializationCodes — the seeded copy can diverge from config after an admin edit, and
+                    // normalization must mark exactly the specializations validateCycleForLock approved (it checks valid
+                    // specialization keys against `familyConfig.specializations`, not the static config).
+                    const absentSpecializations = Object.keys( familyConfig?.specializations || {} )
                         .filter( ( specialization ) => !Object.prototype.hasOwnProperty.call( existingSets, specialization ) );
                     return Promise.all( absentSpecializations.map(
                         ( specialization ) => dataManager.instance.setActiveCompetencySet( family, specialization, cycleID, [] )
