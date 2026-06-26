@@ -16,6 +16,7 @@
 const configureCompetenceEvaluation = () => {
     const tiToolbox = Alpine.store( "tiToolbox" );
     const tiApplication = Alpine.store( "tiApplication" );
+    const emptyModal = () => ( { kind: null, payload: {}, busy: false } );
 
     return {
         employeeID: null,
@@ -39,6 +40,7 @@ const configureCompetenceEvaluation = () => {
         noEvaluationState: null,
         warningMessage: "",
         isMyResults: false,
+        modal: emptyModal(),
 
         // Phase 3 — individual results (populated by buildResults() at READY/CLOSED)
         resultsReady: false,
@@ -170,30 +172,48 @@ const configureCompetenceEvaluation = () => {
             } );
         },
 
-        submitEvaluation() {
-            if ( confirm( tiApplication.getLabel( "interface.evaluation.messages.confirm-submit", "Are you sure you want to submit the evaluation?" ) ) ) {
-                tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: this.evaluation } ).then( () => {
-                    tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.submitted" ) );
-                    tiApplication.openScreen( "dashboard" );
-                } ).catch( ( error ) => {
-                    tiApplication.notify( tiApplication.formatException( error ) );
-                } );
-            }
+        openSubmitModal() {
+            this.modal = { kind: "submit-confirm", payload: {}, busy: false };
         },
 
-        finalizeTeamFeedback() {
+        submitEvaluation() {
+            this.modal.busy = true;
+            tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: this.evaluation } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.submitted" ) );
+                this.closeModal();
+                tiApplication.openScreen( "dashboard" );
+            } ).catch( ( error ) => {
+                this.closeModal();
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        openFinalizeTeamModal() {
             const evaluationID = this.evaluation && this.evaluation.evaluationID;
             if ( !evaluationID ) {
                 return;
             }
-            if ( confirm( tiApplication.getLabel( "interface.evaluation.messages.confirm-finalize-team", "Proceed to manager review? Any pending reviewers will be dropped and the team feedback finalized." ) ) ) {
-                tiApplication.sendRequest( "/app/finalize-team-feedback", "POST", { evaluationID: evaluationID } ).then( () => {
-                    tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.team-finalized", "Team feedback finalized." ) );
-                    tiApplication.openScreen( "dashboard" );
-                } ).catch( ( error ) => {
-                    tiApplication.notify( tiApplication.formatException( error ) );
-                } );
+            this.modal = { kind: "finalize-team-confirm", payload: { evaluationID: evaluationID }, busy: false };
+        },
+
+        finalizeTeamFeedback() {
+            const evaluationID = this.modal.payload.evaluationID;
+            if ( !evaluationID ) {
+                return;
             }
+            this.modal.busy = true;
+            tiApplication.sendRequest( "/app/finalize-team-feedback", "POST", { evaluationID: evaluationID } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.team-finalized", "Team feedback finalized." ) );
+                this.closeModal();
+                tiApplication.openScreen( "dashboard" );
+            } ).catch( ( error ) => {
+                this.closeModal();
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        closeModal() {
+            this.modal = emptyModal();
         },
 
         getUserRoleAsText() {

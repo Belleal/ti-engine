@@ -2933,6 +2933,7 @@
    banner's muted, left-accented treatment. */
 .competence-cycle-exclude-row {
     display: flex;
+    margin-top: var(--s-4);
     margin-bottom: var(--s-4);
 }
 

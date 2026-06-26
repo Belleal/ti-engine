@@ -244,7 +244,14 @@ class CompetenceFramework {
                         errors: validation.errors
                     }, exceptions.httpCode.C_422 );
                 }
-                return dataManager.instance.updateCycleStatus( cycleID, configurationLoader.cycleStatus.ACTIVE, actorID );
+                // Normalize before flipping to ACTIVE: every empty specialization of an included family becomes an
+                // explicit "intentionally empty" set, so the now-immutable cycle records that intent rather than leaving
+                // the specialization merely unconfigured. An absent spec already resolves to baseline-only, so this never
+                // changes a resolved competency set — it only makes the lock self-documenting and keeps the Cycle Setup
+                // "No extra competencies" marker consistent.
+                return this.#markEmptySpecializationsForCycle( cycleID, cycle ).then( () => {
+                    return dataManager.instance.updateCycleStatus( cycleID, configurationLoader.cycleStatus.ACTIVE, actorID );
+                } );
             } );
         } );
     }
@@ -263,6 +270,41 @@ class CompetenceFramework {
                 throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: `Cycle '${ cycleID }' cannot transition from '${ cycle.status }' to CLOSED.` }, exceptions.httpCode.C_422 );
             }
             return dataManager.instance.updateCycleStatus( cycleID, configurationLoader.cycleStatus.CLOSED );
+        } );
+    }
+
+    /**
+     * Persists an explicit "intentionally empty" set (`[]`) for every specialization of every included family that has
+     * no set yet for the cycle. Called by {@link CompetenceFramework#lockCycle} once validation passes, so a locked
+     * cycle records each specialization's intent explicitly. Excluded families and already-configured specializations
+     * (codes or an existing explicit empty) are left untouched. Pure normalization — never alters a resolved set, since
+     * an absent specialization already merges to baseline-only.
+     *
+     * @method
+     * @param {string} cycleID
+     * @param {Cycle} cycle - The cycle being locked (read for `excludedFamilies`).
+     * @returns {Promise}
+     * @private
+     */
+    #markEmptySpecializationsForCycle( cycleID, cycle ) {
+        const roleFamilies = configurationLoader.configRoleFamilies || {};
+        const excludedFamilies = new Set( ( cycle && Array.isArray( cycle.excludedFamilies ) ) ? cycle.excludedFamilies : [] );
+
+        return dataManager.instance.getRoleFamilies().then( ( storedFamilies ) => {
+            // Mirror validateCycleForLock's family-source resolution: prefer the seeded copy, fall back to config.
+            const familySource = ( storedFamilies && Object.keys( storedFamilies ).length > 0 ) ? storedFamilies : roleFamilies;
+            return Promise.all( Object.keys( familySource ).map( ( family ) => {
+                if ( excludedFamilies.has( family ) ) {
+                    return Promise.resolve();
+                }
+                return dataManager.instance.getActiveCompetencySetsForFamily( family, cycleID ).then( ( existingSets ) => {
+                    const absentSpecializations = configurationLoader.getSpecializationCodes( family )
+                        .filter( ( specialization ) => !Object.prototype.hasOwnProperty.call( existingSets, specialization ) );
+                    return Promise.all( absentSpecializations.map(
+                        ( specialization ) => dataManager.instance.setActiveCompetencySet( family, specialization, cycleID, [] )
+                    ) );
+                } );
+            } ) );
         } );
     }
 

@@ -105,6 +105,54 @@ describe( "CompetenceFramework — cycle lifecycle state machine", () => {
 
 } );
 
+describe( "CompetenceFramework — lockCycle normalizes empty specializations", () => {
+
+    // Seeded 2026-H2: SE/BA/PM carry a baseline only (every specialization absent); QE/XD/DA/IO/MC/PD are excluded.
+    it( "marks every empty specialization of an included family as intentionally empty ([])", async () => {
+        const beforeBA = await dataManager.instance.getActiveCompetencySetsForFamily( "BA", "2026-H2" );
+        assert.deepEqual( Object.keys( beforeBA ).sort(), [ "baseline" ], "BA specializations start absent (baseline only)" );
+
+        await competenceFramework.instance.lockCycle( "2026-H2", "20" );
+
+        for ( const family of [ "SE", "BA", "PM" ] ) {
+            const after = await dataManager.instance.getActiveCompetencySetsForFamily( family, "2026-H2" );
+            for ( const spec of configurationLoader.getSpecializationCodes( family ) ) {
+                assert.ok( Object.prototype.hasOwnProperty.call( after, spec ), `${ family }/${ spec } must be persisted after lock` );
+                assert.deepEqual( after[ spec ], [], `${ family }/${ spec } must be an explicit empty set` );
+            }
+        }
+    } );
+
+    it( "leaves a populated specialization untouched while marking its empty siblings", async () => {
+        const baseline = await dataManager.instance.getBaselineSet( "BA", "2026-H2" );
+        const code = baseline[ 0 ]; // a real BA-pool code (already in the baseline) keeps validation happy
+        await dataManager.instance.setActiveCompetencySet( "BA", "REQUIREMENTS", "2026-H2", [ code ] );
+
+        await competenceFramework.instance.lockCycle( "2026-H2", "20" );
+
+        const afterBA = await dataManager.instance.getActiveCompetencySetsForFamily( "BA", "2026-H2" );
+        assert.deepEqual( afterBA[ "REQUIREMENTS" ], [ code ], "a configured specialization keeps its codes" );
+        assert.deepEqual( afterBA[ "PROCESS" ], [], "an empty sibling specialization is still marked empty" );
+    } );
+
+    it( "does not touch excluded families' specializations", async () => {
+        await competenceFramework.instance.lockCycle( "2026-H2", "20" );
+        const afterQE = await dataManager.instance.getActiveCompetencySetsForFamily( "QE", "2026-H2" );
+        assert.deepEqual( Object.keys( afterQE ), [], "excluded family specializations stay absent (never auto-marked)" );
+    } );
+
+    it( "normalizes nothing when the lock fails validation (status stays PLANNING)", async () => {
+        await dataManager.instance.setActiveCompetencySet( "SE", "baseline", "2026-H2", [ "E1-1" ] ); // breaks floor coverage
+        await assert.rejects( () => competenceFramework.instance.lockCycle( "2026-H2", "20" ) );
+
+        const afterBA = await dataManager.instance.getActiveCompetencySetsForFamily( "BA", "2026-H2" );
+        assert.deepEqual( Object.keys( afterBA ).sort(), [ "baseline" ], "no specializations marked when the lock is rejected" );
+        const cycle = await dataManager.instance.getCycle( "2026-H2" );
+        assert.equal( cycle.status, configurationLoader.cycleStatus.PLANNING );
+    } );
+
+} );
+
 describe( "DataManager — team-feedback deadline derivation", () => {
 
     it( "the seeded cycle gets cycleStart + window, clamped to cycleDate", async () => {

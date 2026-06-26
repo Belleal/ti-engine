@@ -5142,6 +5142,42 @@
           "bg": "Моля, добавете поне {min} екипни оценители."
         }
       },
+      "submit-modal": {
+        "title": {
+          "en": "Submit evaluation?",
+          "bg": "Завършване на оценката?"
+        },
+        "desc": {
+          "en": "Once submitted, your grades and comments are final and cannot be changed.",
+          "bg": "След завършване Вашите оценки и коментари са окончателни и не могат да бъдат променяни."
+        },
+        "cancel-btn": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        },
+        "confirm-btn": {
+          "en": "Submit",
+          "bg": "Завърши"
+        }
+      },
+      "finalize-team-modal": {
+        "title": {
+          "en": "Finalize team feedback?",
+          "bg": "Финализиране на екипната обратна връзка?"
+        },
+        "desc": {
+          "en": "Proceed to manager review? Any pending reviewers will be dropped and the team feedback finalized.",
+          "bg": "Към преглед от мениджър? Всички чакащи оценители ще бъдат премахнати и екипната обратна връзка ще бъде финализирана."
+        },
+        "cancel-btn": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        },
+        "confirm-btn": {
+          "en": "Proceed to manager review",
+          "bg": "Към преглед от мениджър"
+        }
+      },
       "messages": {
         "draft-saved": {
           "en": "The Evaluation draft was saved successfully.",
@@ -5150,10 +5186,6 @@
         "submitted": {
           "en": "The Evaluation was submitted successfully.",
           "bg": "Оценката беше изпратена успешно."
-        },
-        "confirm-finalize-team": {
-          "en": "Proceed to manager review? Any pending reviewers will be dropped and the team feedback finalized.",
-          "bg": "Към преглед от мениджър? Всички чакащи оценители ще бъдат премахнати и екипната обратна връзка ще бъде финализирана."
         },
         "team-finalized": {
           "en": "Team feedback finalized.",
