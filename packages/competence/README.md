@@ -19,10 +19,12 @@ The following features are currently implemented:
 - **[Process]** Automatic performance score calculation upon manager submission, across all competency categories and as a combined final score
 - **[Process]** Manager availability calendar — Managers define interview availability by toggling time slots as `available` or `busy` on a configurable weekly grid
 - **[Process]** Interview scheduling — Supervisors book available slots for `READY` evaluations; booking sets `evaluation.interviewDate` and links the slot to the evaluation; cancellation reverses both
+- **[Process]** Automatic role assignment — on login each user's `Employee` / `Manager` / `Supervisor` roles are derived from their place in the organization chart (`Manager` = manages a unit; `Supervisor` = the top manager plus any direct report heading a sub-organization that is at least two management levels deep). A structural Supervisor can additionally grant the Supervisor role to other users from the Employee Management screen
 - **[Data]** Employee data management and retrieval from Redis
 - **[Data]** Evaluation persistence in Redis with full workflow state tracking
 - **[Data]** Calendar slot persistence in Redis with `available`, `booked`, `busy`, and `deleted` (logical) states
 - **[Data]** Immutable per-cycle results snapshots in Redis — anonymized aggregates (counts / means / percentiles, with small cohorts suppressed) written on cycle close, powering closed-cycle and cross-cycle reporting at near-zero compute
+- **[Data]** Supervisor role grants persisted in Redis (audited), with a synchronous in-memory mirror consulted during login-time role derivation
 - **[UI]** Dashboard screen — personalized landing page with appraisal cycle progress, evaluation status, role-specific metrics, a contextual task list, and an activity feed
 - **[UI]** Employees List screen — hierarchical organization chart view with role-aware data and evaluation status
 - **[UI]** Evaluation Form screen — role-specific grading interface with deadline and submit-state awareness
@@ -31,7 +33,7 @@ The following features are currently implemented:
 - **[UI]** Interview Schedule screen — evaluation list with schedule/cancel actions and a 4-column weekly slot picker
 - **[UI]** Cycle Management screen — Supervisor-only table of cycles with create, lock (with validation-errors modal), and close actions
 - **[UI]** Cycle Setup screen — Supervisor-only two-pane editor for the Active Competency Sets of a cycle; tree of families and specializations, cap and floor-coverage indicators, pool-scoped competency picker, per-family include/exclude, clone-from-another-node flow
-- **[UI]** Employee Management screen — Supervisor + Manager master/detail editor with field-level permission gating, audit log, in-flight evaluation count surfaced on role-family changes
+- **[UI]** Employee Management screen — Supervisor + Manager master/detail editor with field-level permission gating, audit log, in-flight evaluation count surfaced on role-family changes, and Supervisor-role assignment (structural Supervisors assign/revoke the role for others, with a warning; structural Supervisors are immutable)
 - **[UI]** Administration screens (admin-allowlisted users) — Configuration landing (config change feed, validated restore, export-to-git bundle), Competency Text Editor (bilingual, for BG review), Archetype Assignment, Archetype Curve Editor, and Role Families editor
 - **[UI]** Insights — Statistics & Results analytics (Manager / Supervisor): Cycle and Team analytics (coverage, interview timing, self-vs-manager alignment, competence heatmap, score-by-level distribution, predictive drivers, grader calibration), individual results on the evaluation view plus a self-scoped "My results" screen, and Supervisor-only cross-cycle Trends (score trend, gap-closure, ladder movement, cohort comparison) with a per-employee history line — each chart carrying a methodology explainer, all bilingual (en/bg)
 - **[Config]** Admin configuration management — versioned, validated, restorable editing of the competency dictionary, localization, relevancy archetypes, role families, and active competency sets through the UI, with export back to the source JSON files (reusable machinery lives in `@ti-engine/web-framework`)
@@ -50,10 +52,12 @@ The system defines four roles that govern what actions a user can take and what 
 |-------------|------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Employee    | `1`  | The subject of the evaluation. Submits self-assessment grades and a written comment.                                                                        |
 | Manager     | `2`  | Responsible for managing employees in their organizational hierarchy. Can start, draft, and submit manager-grade evaluations.                               |
-| Supervisor  | `3`  | Process owner (typically the HR department head). Can start evaluations for any employee. Schedules interviews and formally closes evaluations *(planned)*. |
+| Supervisor  | `3`  | Process owner (typically the HR department head). Can start evaluations for any employee. Can assign/revoke the Supervisor role for other users. Schedules interviews and formally closes evaluations *(planned)*. |
 | Team Member | `4`  | A peer who provides feedback on behalf of the team for a specific evaluation.                                                                               |
 
 A user can hold multiple roles. The active role for a given operation is resolved from context: being the employee of record, appearing in the `workflow.team` list, or being the resolved manager in the organization hierarchy.
+
+**Role assignment.** The `Employee` / `Manager` / `Supervisor` roles are assigned automatically at login from the user's position in the organization chart: everyone is an `Employee`; anyone who is the manager of an organizational unit is a `Manager`; the organization's top manager — plus any direct report whose own sub-organization is at least two management levels deep — is a `Supervisor`. A *structural* Supervisor (one derived this way) may additionally **grant** the Supervisor role to other users from the Employee Management screen; such a grant is auditable and persisted, and takes effect on the grantee's next login. A structurally-derived Supervisor role is **immutable** (cannot be revoked), and a merely-granted Supervisor cannot manage other users' roles. `Team Member` is not org-derived — it is conferred per evaluation by membership in `workflow.team`.
 
 ### Role Families and Specializations
 
@@ -491,7 +495,7 @@ Supervisor-only two-pane editor for a cycle's Active Competency Sets, editable w
 
 ### Employee Management
 
-Supervisor + Manager master/detail editor (the "People" screen). Lists employees with a detail form whose fields are permission-gated per role. Changing an employee's role family or specialization surfaces the count of in-flight evaluations affected, and an audit log records every change.
+Supervisor + Manager master/detail editor (the "People" screen). Lists employees with a detail form whose fields are permission-gated per role. Changing an employee's role family or specialization surfaces the count of in-flight evaluations affected, and an audit log records every change. A badge marks employees who hold the Supervisor role, distinguishing org-derived *structural* supervisors from *assigned* ones; a structural Supervisor can assign the role to another employee (behind a warning) or remove a previously-assigned one — structural supervisors are immutable, and granted supervisors cannot manage roles.
 
 ### Administration
 
