@@ -601,9 +601,13 @@
     gap: var(--s-2);
 }
 
-.competence-org-employee-name .competence-you-tag {
+/* Reusable "You" chip — flags the active user's own row/profile. Used by the Org Chart roster and the
+   Employee Management detail header (supervisors viewing their own profile). vertical-align keeps it centred
+   next to larger title text; in the flex Org Chart name it's ignored in favour of align-items. */
+.competence-you-tag {
     display: inline-flex;
     align-items: center;
+    vertical-align: middle;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.05em;
@@ -1912,14 +1916,152 @@
     margin-bottom: var(--s-4);
 }
 
-.competence-new-eval-select-row .ti-select {
-    flex: 1;
-}
-
 .competence-new-eval-chip-empty {
     font-size: var(--fs-sm);
     color: var(--fg-tertiary);
     padding: var(--s-2);
+}
+
+/* The team-reviewers panel hosts the reviewer dropdown, an absolutely-positioned popover that opens downward
+   past the panel's bottom edge. .ti-panel defaults to `overflow: hidden` (rounded-corner clipping), which would
+   crop the open dropdown — so this panel opts out. Compound selector to beat .ti-panel regardless of load order. */
+.ti-panel.competence-eval-team-panel {
+    overflow: visible;
+}
+
+/* Custom reviewer picker — a styled popover replacing the native <select> so each colleague row can show a
+   colour-coded stage-level pip, name, monospace ID, and family·specialization (native <option>s can't be styled). */
+.competence-reviewer-picker {
+    position: relative;
+    flex: 1;
+}
+
+.competence-reviewer-trigger {
+    width: 100%;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
+    font-size: var(--fs-base);
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-2);
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.competence-reviewer-trigger:hover {
+    border-color: var(--border-strong);
+}
+
+.competence-reviewer-trigger.open {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-focus);
+}
+
+.competence-reviewer-trigger-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.competence-reviewer-trigger-text.placeholder {
+    color: var(--fg-tertiary);
+}
+
+.competence-reviewer-chevron {
+    flex-shrink: 0;
+    transform: rotate( 90deg );
+    transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.competence-reviewer-trigger.open .competence-reviewer-chevron {
+    transform: rotate( -90deg );
+}
+
+.competence-reviewer-options {
+    position: absolute;
+    top: calc( 100% + 4px );
+    left: 0;
+    right: 0;
+    /* Above the sticky action bar (z-index 40) so the open dropdown overlays it rather than slipping behind;
+       still well under the framework modal (1000+) and toast (1300) layers. */
+    z-index: 50;
+    max-height: 288px;
+    overflow-y: auto;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+    padding: 4px;
+}
+
+/* Flip the popover above the trigger when there isn't room below (toggleTeamDropdown sets .drop-up). */
+.competence-reviewer-options.drop-up {
+    top: auto;
+    bottom: calc( 100% + 4px );
+}
+
+.competence-reviewer-option {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-2) var(--s-3);
+    background: transparent;
+    border: 0;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    text-align: left;
+}
+
+.competence-reviewer-option:hover {
+    background: var(--bg-sunken);
+}
+
+.competence-reviewer-option.is-selected {
+    background: var(--accent-soft);
+}
+
+.competence-reviewer-option-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.competence-reviewer-option-name {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.competence-reviewer-option-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+}
+
+.competence-reviewer-option-id {
+    font-family: "JetBrains Mono", monospace;
+}
+
+.competence-reviewer-option-sep {
+    color: var(--fg-tertiary);
+}
+
+.competence-reviewer-options-empty {
+    font-size: var(--fs-sm);
+    color: var(--fg-tertiary);
+    padding: var(--s-3);
+    text-align: center;
 }
 
 .competence-new-eval-sticky {
@@ -2933,6 +3075,7 @@
    banner's muted, left-accented treatment. */
 .competence-cycle-exclude-row {
     display: flex;
+    margin-top: var(--s-4);
     margin-bottom: var(--s-4);
 }
 

@@ -162,7 +162,13 @@ class CompetenceWebApplication extends TiWebAppManager {
                 // category/subcategory means + place T-bands client-side (scores[E/I/C] are pre-blended and irreversible).
                 gradeWeights: configurationLoader.getSetting( "performanceAppraisals.gradeWeights" ) || { S: 1.3, R: 1.0, U: 0.6, N: 0.0 },
                 evaluationWeights: configurationLoader.getSetting( "performanceAppraisals.evaluationWeights" ) || { self: 0.2, team: 0.3, manager: 0.5 },
-                performanceThresholds: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds" ) || { T1: 76, T2: 89, T3: 105, T4: 119, T5: 150 },
+                performanceThresholds: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds" ) || {
+                    T1: 76,
+                    T2: 89,
+                    T3: 105,
+                    T4: 119,
+                    T5: 150
+                },
                 cycle: currentCycle ? {
                     id: currentCycle.cycleID,
                     name: currentCycle.name,
@@ -1127,8 +1133,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                     newEvaluation.managerID = resolvedManagerID;
                 }
 
+                // Defense-in-depth: drop the evaluatee and any of their managers (direct OR higher) from the submitted
+                // team, mirroring the picker's roster filter. The reviewer dropdown already hides them, so this only
+                // catches a tampered/stale payload — silently, consistent with how self was always dropped here.
                 const uniqueTeam = Array.isArray( team )
-                    ? [ ...new Set( team.map( String ) ) ].filter( ( id ) => id !== employee.employeeID && id !== resolvedManagerID )
+                    ? [ ...new Set( team.map( String ) ) ].filter( ( id ) => organizationManager.instance.isEligibleTeamReviewer( id, employee.employeeID ) )
                     : [];
 
                 const invalidIDs = uniqueTeam.filter( ( id ) => !organizationManager.instance.resolveEmployeeName( id ) );
@@ -1230,13 +1239,19 @@ class CompetenceWebApplication extends TiWebAppManager {
                 const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee );
                 const availableTeamMembers = [];
                 allEmployees.forEach( ( currentEmployee ) => {
-                    if ( currentEmployee.employeeID !== employeeID && currentEmployee.employeeID !== organizationContext.managerID ) {
+                    // Only eligible peers: never the evaluatee, and never one of their managers — direct OR higher (a
+                    // manager grading as an anonymous "peer" would distort the team grade). Keeping the ineligible out
+                    // here means they never reach the picker.
+                    if ( organizationManager.instance.isEligibleTeamReviewer( currentEmployee.employeeID, employeeID ) ) {
                         const firstName = currentEmployee.personal.firstName || "";
                         const lastName = currentEmployee.personal.lastName || "";
+                        const level = currentEmployee.career?.level || "";
+                        const stage = currentEmployee.career?.stage ?? "";
                         availableTeamMembers.push( {
                             employeeID: currentEmployee.employeeID,
                             name: `${ firstName } ${ lastName }`.trim(),
-                            roleFamilyName: this.#formatRoleFamilyLabel( currentEmployee.career?.roleFamily, currentEmployee.career?.specialization, session?.language )
+                            roleFamilyName: this.#formatRoleFamilyLabel( currentEmployee.career?.roleFamily, currentEmployee.career?.specialization, session?.language ),
+                            stageLevel: ( level && stage ) ? `${ level }${ stage }` : ""
                         } );
                     }
                 } );
@@ -1357,13 +1372,16 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                     const evaluations = readyEvaluations.map( ( evaluation ) => {
                         const bookedSlot = bookedSlotByEvaluationID.get( evaluation.evaluationID ) || null;
+                        // Resolve the reviewing manager live from the org graph (consistent with the dashboard scoping);
+                        // the persisted evaluation.managerID is optional and never refreshed, so it can be unset or stale.
+                        const managerID = organizationManager.instance.resolveClosestManagerIDForEmployee( evaluation.employeeID ) || evaluation.managerID || "";
                         return {
                             evaluationID: evaluation.evaluationID,
                             shortID: evaluation.shortID,
                             employeeID: evaluation.employeeID,
                             employeeName: organizationManager.instance.resolveEmployeeName( evaluation.employeeID ) || evaluation.employeeID,
-                            managerID: evaluation.managerID,
-                            managerName: organizationManager.instance.resolveEmployeeName( evaluation.managerID ) || evaluation.managerID,
+                            managerID: managerID,
+                            managerName: organizationManager.instance.resolveEmployeeName( managerID ) || managerID,
                             roleFamilyName: this.#formatRoleFamilyLabel( evaluation.roleFamily, evaluation.specialization, session?.language ),
                             stageLevel: evaluation.stageLevel || "",
                             finalScore: evaluation.finalScore?.score ?? null,
@@ -1673,11 +1691,18 @@ class CompetenceWebApplication extends TiWebAppManager {
                 // Team evaluations for managers
                 const teamEvaluations = isManager
                     ? allEvaluations
-                        .filter( ( e ) =>
-                            e.managerID === userID &&
-                            e.status !== configurationLoader.evaluationStatus.CLOSED &&
-                            e.status !== configurationLoader.evaluationStatus.DELETED
-                        )
+                        .filter( ( e ) => {
+                            if ( e.status === configurationLoader.evaluationStatus.CLOSED || e.status === configurationLoader.evaluationStatus.DELETED ) {
+                                return false;
+                            }
+                            // Scope to the evaluatee's CLOSEST manager resolved live from the org graph — not the
+                            // persisted evaluation.managerID, which is optional at creation and never refreshed. A
+                            // missing/stale stored value used to hide an IN_REVIEW evaluation from the very manager who
+                            // must rate it (every other path already authorizes via the org graph). Fall back to the
+                            // stored managerID only when the employee is no longer resolvable in the chart.
+                            const closestManagerID = organizationManager.instance.resolveClosestManagerIDForEmployee( e.employeeID ) || e.managerID || "";
+                            return closestManagerID === userID;
+                        } )
                         .map( ( e ) => ( {
                             evaluationID: e.evaluationID,
                             employeeID: e.employeeID,
@@ -2200,7 +2225,7 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
-     * Used to clear a specialization's active set for the cycle, reverting it from "intentionally empty" back to "not
+     * Used to clear a specialization's active set for the cycle, reverting it from "intentionally empty" to "not
      * configured" (entry removed). Supervisor-only. The inverse of {@link #markActiveSetEmpty}; baseline sets cannot be
      * cleared this way.
      *
@@ -2719,7 +2744,12 @@ class CompetenceWebApplication extends TiWebAppManager {
                 const subtreeEmployeeIDs = resultsAnalytics.instance.buildRoster( subtree )
                     .map( ( member ) => member.employeeID )
                     .filter( ( employeeID ) => organizationManager.instance.isSuperiorManagerOfEmployee( context.userID, employeeID ) );
-                filter = resultsAnalytics.instance.resolveScopeFilter( { isSupervisor: false, employeeID: context.userID, managerUnitID: managerUnitID, subtreeEmployeeIDs: subtreeEmployeeIDs } );
+                filter = resultsAnalytics.instance.resolveScopeFilter( {
+                    isSupervisor: false,
+                    employeeID: context.userID,
+                    managerUnitID: managerUnitID,
+                    subtreeEmployeeIDs: subtreeEmployeeIDs
+                } );
             } else {
                 filter = { allowedEmployeeIDs: null, rootUnitID: organizationManager.instance.getOrganizationRootUnitID() };
             }
@@ -2775,10 +2805,18 @@ class CompetenceWebApplication extends TiWebAppManager {
                 const source = String( options?.query?.source || "" ).trim();
                 const groupBy = String( options?.query?.groupBy || "" ).trim();
                 const category = String( options?.query?.category || "" ).trim();
-                if ( source ) { filter.source = source; }
-                if ( groupBy ) { filter.groupBy = groupBy; }
-                if ( category ) { filter.category = category; }
-                if ( reportKey === "calibration" ) { filter.managerID = scoped.userID; }   // calibration = the requesting grader's own grading
+                if ( source ) {
+                    filter.source = source;
+                }
+                if ( groupBy ) {
+                    filter.groupBy = groupBy;
+                }
+                if ( category ) {
+                    filter.category = category;
+                }
+                if ( reportKey === "calibration" ) {
+                    filter.managerID = scoped.userID;
+                }   // calibration = the requesting grader's own grading
                 return resultsAnalytics.instance.resolve( scoped.cycle.cycleID, filter, reportKey ).then( resolve );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );

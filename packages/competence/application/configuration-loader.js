@@ -248,7 +248,9 @@ const STORE_BACKED = {
     "stage-levels": "configStageLevels"
 };
 const fileDefaults = {};
-Object.entries( STORE_BACKED ).forEach( ( [ configKey, property ] ) => { fileDefaults[ configKey ] = module.exports[ property ]; } );
+Object.entries( STORE_BACKED ).forEach( ( [ configKey, property ] ) => {
+    fileDefaults[ configKey ] = module.exports[ property ];
+} );
 
 /**
  * @method
@@ -278,12 +280,16 @@ module.exports.initialize = ( service ) => {
     return Promise.all( Object.keys( STORE_BACKED ).map( ( configKey ) => {
         return configService.seedDefault( configKey, fileDefaults[ configKey ] )
             .then( () => configService.getCurrent( configKey ) )
-            .then( ( current ) => { if ( current ) applyStoreValue( configKey, current.value ); } );
+            .then( ( current ) => {
+                if ( current ) applyStoreValue( configKey, current.value );
+            } );
     } ) ).then( () => {
         configService.onConfigChanged( ( event ) => {
             const keys = ( event && event.configKeys ) || [];
             return Promise.all( keys.filter( ( key ) => STORE_BACKED[ key ] ).map( ( key ) => {
-                return configService.getCurrent( key ).then( ( current ) => { if ( current ) applyStoreValue( key, current.value ); } );
+                return configService.getCurrent( key ).then( ( current ) => {
+                    if ( current ) applyStoreValue( key, current.value );
+                } );
             } ) );
         } );
     } );

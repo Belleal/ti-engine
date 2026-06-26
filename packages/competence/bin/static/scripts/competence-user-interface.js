@@ -16,6 +16,7 @@
 const configureCompetenceEvaluation = () => {
     const tiToolbox = Alpine.store( "tiToolbox" );
     const tiApplication = Alpine.store( "tiApplication" );
+    const emptyModal = () => ( { kind: null, payload: {}, busy: false } );
 
     return {
         employeeID: null,
@@ -39,6 +40,7 @@ const configureCompetenceEvaluation = () => {
         noEvaluationState: null,
         warningMessage: "",
         isMyResults: false,
+        modal: emptyModal(),
 
         // Phase 3 — individual results (populated by buildResults() at READY/CLOSED)
         resultsReady: false,
@@ -170,30 +172,48 @@ const configureCompetenceEvaluation = () => {
             } );
         },
 
-        submitEvaluation() {
-            if ( confirm( tiApplication.getLabel( "interface.evaluation.messages.confirm-submit", "Are you sure you want to submit the evaluation?" ) ) ) {
-                tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: this.evaluation } ).then( () => {
-                    tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.submitted" ) );
-                    tiApplication.openScreen( "dashboard" );
-                } ).catch( ( error ) => {
-                    tiApplication.notify( tiApplication.formatException( error ) );
-                } );
-            }
+        openSubmitModal() {
+            this.modal = { kind: "submit-confirm", payload: {}, busy: false };
         },
 
-        finalizeTeamFeedback() {
+        submitEvaluation() {
+            this.modal.busy = true;
+            tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: this.evaluation } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.submitted" ) );
+                this.closeModal();
+                tiApplication.openScreen( "dashboard" );
+            } ).catch( ( error ) => {
+                this.closeModal();
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        openFinalizeTeamModal() {
             const evaluationID = this.evaluation && this.evaluation.evaluationID;
             if ( !evaluationID ) {
                 return;
             }
-            if ( confirm( tiApplication.getLabel( "interface.evaluation.messages.confirm-finalize-team", "Proceed to manager review? Any pending reviewers will be dropped and the team feedback finalized." ) ) ) {
-                tiApplication.sendRequest( "/app/finalize-team-feedback", "POST", { evaluationID: evaluationID } ).then( () => {
-                    tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.team-finalized", "Team feedback finalized." ) );
-                    tiApplication.openScreen( "dashboard" );
-                } ).catch( ( error ) => {
-                    tiApplication.notify( tiApplication.formatException( error ) );
-                } );
+            this.modal = { kind: "finalize-team-confirm", payload: { evaluationID: evaluationID }, busy: false };
+        },
+
+        finalizeTeamFeedback() {
+            const evaluationID = this.modal.payload.evaluationID;
+            if ( !evaluationID ) {
+                return;
             }
+            this.modal.busy = true;
+            tiApplication.sendRequest( "/app/finalize-team-feedback", "POST", { evaluationID: evaluationID } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.team-finalized", "Team feedback finalized." ) );
+                this.closeModal();
+                tiApplication.openScreen( "dashboard" );
+            } ).catch( ( error ) => {
+                this.closeModal();
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        closeModal() {
+            this.modal = emptyModal();
         },
 
         getUserRoleAsText() {
@@ -835,6 +855,9 @@ const configureNewEvaluation = () => {
         availableTeamMembers: [],
         team: [],
         selectedTeamMemberID: "",
+        teamDropdownOpen: false,
+        // When room below the trigger is tight, the reviewer popover flips above it (computed in toggleTeamDropdown).
+        teamDropdownUp: false,
         competencyCount: 0,
         categoryCount: 0,
         minTeamMembers: 1,
@@ -900,6 +923,7 @@ const configureNewEvaluation = () => {
             this.maxTeamMembers = typeof fresh.maxTeamMembers === "number" ? fresh.maxTeamMembers : null;
             this.team = [];
             this.selectedTeamMemberID = "";
+            this.teamDropdownOpen = false;
             this.noActiveCycle = false;
         },
 
@@ -961,6 +985,71 @@ const configureNewEvaluation = () => {
 
         removeTeamMember( employeeID ) {
             this.team = this.team.filter( m => m.employeeID !== employeeID );
+        },
+
+        // The picker hides colleagues already added to the team so each can only be chosen once. (The server roster
+        // already excludes the evaluatee and their managers — direct or higher — so those never appear at all.)
+        getSelectableTeamMembers() {
+            return this.availableTeamMembers.filter( ( member ) => !this.team.find( ( t ) => t.employeeID === member.employeeID ) );
+        },
+
+        toggleTeamDropdown() {
+            // Decide the open direction before showing so the menu never flashes downward first. Only relevant
+            // when opening; on close the value is left as-is and recomputed on the next open.
+            if ( !this.teamDropdownOpen ) {
+                this.teamDropdownUp = this.shouldReviewerDropUp();
+            }
+            this.teamDropdownOpen = !this.teamDropdownOpen;
+        },
+
+        // Flip the reviewer popover above the trigger only when it would not fit below AND there is more room
+        // above. The menu is display:none until shown, so its height can't be measured first — estimate it from
+        // the option count, capped at the CSS max-height (288px). Errs slightly tall so we never clip at the bottom.
+        shouldReviewerDropUp() {
+            const trigger = this.$refs.reviewerTrigger;
+            if ( !trigger ) {
+                return false;
+            }
+            const GAP = 4;                  // the 4px offset baked into .competence-reviewer-options
+            const MAX_HEIGHT = 288;         // the max-height of .competence-reviewer-options
+            const ROW_HEIGHT = 50;          // approx height of one option row (or the empty-state row)
+            const CONTAINER_PADDING = 8;    // 4px top + 4px bottom padding of the options container
+            const rowCount = Math.max( this.getSelectableTeamMembers().length, 1 );   // empty state still renders one row
+            const estimatedHeight = Math.min( rowCount * ROW_HEIGHT + CONTAINER_PADDING, MAX_HEIGHT );
+            const rect = trigger.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceAbove = rect.top;
+            return spaceBelow < estimatedHeight + GAP && spaceAbove > spaceBelow;
+        },
+
+        closeTeamDropdown() {
+            this.teamDropdownOpen = false;
+        },
+
+        // Close and return focus to the trigger — used by the keyboard (Escape) path and after a selection so keyboard
+        // users aren't stranded on the now-hidden option buttons. (A mouse click-away uses closeTeamDropdown() instead,
+        // so focus follows the click rather than snapping back to the trigger.)
+        closeTeamDropdownAndRefocus() {
+            const wasOpen = this.teamDropdownOpen;
+            this.teamDropdownOpen = false;
+            if ( wasOpen && this.$refs.reviewerTrigger ) {
+                this.$refs.reviewerTrigger.focus();
+            }
+        },
+
+        selectTeamMember( member ) {
+            this.selectedTeamMemberID = member.employeeID;
+            this.closeTeamDropdownAndRefocus();
+        },
+
+        getReviewerTriggerText() {
+            if ( this.selectedTeamMemberID ) {
+                const member = this.availableTeamMembers.find( ( m ) => m.employeeID === this.selectedTeamMemberID );
+                if ( member ) {
+                    return member.name;
+                }
+            }
+            return tiApplication.getLabel( "interface.evaluation.new-eval.choose-colleague", "Choose a colleague…" );
         },
 
         submitNewEvaluation() {

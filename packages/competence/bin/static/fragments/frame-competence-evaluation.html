@@ -500,7 +500,7 @@
                             x-text-label="interface.evaluation.actions.reset"></button>
                     <button type="button" class="ti-btn sm" x-show="userRole !== 4" @click="saveDraft()"
                             x-text-label="interface.evaluation.actions.save-draft"></button>
-                    <button type="button" class="ti-btn primary sm" @click="submitEvaluation()"
+                    <button type="button" class="ti-btn primary sm" @click="openSubmitModal()"
                             x-text-label="interface.evaluation.actions.submit"></button>
                 </div>
             </div>
@@ -513,11 +513,61 @@
                 </div>
                 <div class="ti-spacer"></div>
                 <div class="competence-eval-sticky-actions">
-                    <button type="button" class="ti-btn primary sm" @click="finalizeTeamFeedback()"
+                    <button type="button" class="ti-btn primary sm" @click="openFinalizeTeamModal()"
                             x-text-label="interface.evaluation.actions.finalize-team"></button>
                 </div>
             </div>
 
+        </div>
+    </template>
+
+    <!-- =============================================================
+         Submit evaluation confirmation modal
+         ============================================================= -->
+    <template x-if="modal.kind === 'submit-confirm'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.evaluation.submit-modal.title"></div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <span class="ti-icon close md" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <p x-text-label="interface.evaluation.submit-modal.desc"></p>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.evaluation.submit-modal.cancel-btn"></button>
+                    <button type="button" class="ti-btn primary" @click="submitEvaluation()"
+                            x-bind:disabled="modal.busy"
+                            x-text-label="interface.evaluation.submit-modal.confirm-btn"></button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- =============================================================
+         Finalize team feedback confirmation modal
+         ============================================================= -->
+    <template x-if="modal.kind === 'finalize-team-confirm'">
+        <div class="ti-modal-backdrop" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="ti-modal warn" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.evaluation.finalize-team-modal.title"></div>
+                    <button type="button" class="ti-modal-close" @click="closeModal()" aria-label="Close">
+                        <span class="ti-icon close md" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <p x-text-label="interface.evaluation.finalize-team-modal.desc"></p>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.evaluation.finalize-team-modal.cancel-btn"></button>
+                    <button type="button" class="ti-btn primary" @click="finalizeTeamFeedback()"
+                            x-bind:disabled="modal.busy"
+                            x-text-label="interface.evaluation.finalize-team-modal.confirm-btn"></button>
+                </div>
+            </div>
         </div>
     </template>
 </div>

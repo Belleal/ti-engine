@@ -2,6 +2,30 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.5.0
+
+Team peer-reviewer picker & eligibility for the New Evaluation flow, plus Org Chart / Employee Management review fixes (CA-71).
+
+* feat(competence): the New Evaluation "Team Reviewers" control is a custom popover picker replacing the native `<select>` — each colleague row shows a colour-coded stage-level pip, name, monospace ID, and role-family · specialization; keyboard-accessible (Esc / click-away close, focus return to the trigger) with an empty state when no eligible colleagues remain
+* feat(competence): peer-reviewer eligibility — `OrganizationManager.isEligibleTeamReviewer` excludes the evaluatee and any manager in their reporting chain (direct or skip-level); the candidate roster filters on it so ineligible people never reach the picker, and `#startEvaluation` re-applies it to the submitted team as defense-in-depth (replacing the prior self + direct-manager filter); candidates now carry a `stageLevel` for the row pip
+* feat(competence): the reviewer popover flips above the trigger when space below is tight, opts its panel out of `.ti-panel` `overflow: hidden` so the open list isn't clipped, and stacks above the sticky action bar
+* feat(competence): Employee Management shows the Org Chart "You" chip when a Supervisor opens their own profile (the `.competence-you-tag` style is now reusable)
+* fix(competence): the Org Chart hides the "Manage" action on your own row unless you're a Supervisor — a plain manager managing themselves hit a 403 (`#loadEmployeeDetail` forbids non-supervisor self-management); the button gate now mirrors that backend rule
+* test(competence): unit coverage for `isEligibleTeamReviewer` (in/out-of-unit peers, direct & skip-level managers, self, missing input)
+* style(competence): minor formatting normalization in `configuration-loader.js`
+* build(release): bump package version from `3.4.3` to `3.5.0`
+
+## Version 3.4.3
+
+Appraisal-flow and Cycle Setup fixes on top of the 3.4.x Statistics & Results work.
+
+* fix(competence): the Competence Evaluation submit and "finalize team feedback" confirmations use the app's custom `.ti-modal` dialog instead of the native browser `confirm()` — themed, with a busy-disabled confirm button and Esc/backdrop dismissal (these were the last native dialogs in the app)
+* fix(competence): the dashboard "review pending" task and the team open/in-review/ready stats scope to an evaluatee's *closest* manager resolved live from the org graph (`OrganizationManager.resolveClosestManagerIDForEmployee`) instead of the persisted, optional `evaluation.managerID`; an `IN_REVIEW` evaluation is no longer hidden from the manager who must rate it when the stored manager id is unset or stale, and the interview-schedule view resolves the reviewing manager the same way
+* fix(competence): locking a cycle records every empty specialization of an included family as an explicit "intentionally empty" set, so a locked cycle is self-documenting — functionally identical to leaving it unconfigured (an absent specialization already resolves to baseline-only) and applied only after lock validation passes
+* fix(competence): Cycle Setup — the family-exclusion row gains top spacing so it no longer crowds the baseline editor above it
+* style(competence): minor formatting normalization in the dashboard / results-scope handler
+* build(release): bump package version from `3.4.2` to `3.4.3`
+
 ## Version 3.4.2
 
 Post-merge fixes and polish over the Statistics & Results screens (CA-61). Requires web-framework ≥ 1.10.2.

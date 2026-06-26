@@ -201,6 +201,31 @@ class OrganizationManager {
     }
 
     /**
+     * Resolves the closest (nearest-above) manager for an employee directly from the live organization chart — the
+     * employee's own unit manager, or the first ancestor-unit manager that is not the employee themselves. Unlike the
+     * persisted, optional `evaluation.managerID` (set once at creation and never refreshed), this always reflects the
+     * current org structure, so it is robust to an unset or stale stored manager. Returns "" when the employee is the
+     * org root, is unknown, or has no resolvable unit.
+     *
+     * @method
+     * @param {string} employeeID
+     * @returns {string}
+     * @public
+     */
+    resolveClosestManagerIDForEmployee( employeeID ) {
+        if ( !employeeID ) {
+            return "";
+        }
+
+        const organizationUnitID = this.resolveOrganizationUnitIDForEmployee( employeeID );
+        if ( !organizationUnitID ) {
+            return "";
+        }
+
+        return this.resolveManagerIDForEmployee( employeeID, organizationUnitID );
+    }
+
+    /**
      * Checks if a user is a superior manager of a given employee.
      * This includes the direct manager and any manager higher up in the organizational hierarchy.
      *
@@ -239,6 +264,26 @@ class OrganizationManager {
         }
 
         return false;
+    }
+
+    /**
+     * Decides whether a candidate may act as a team (peer) reviewer for an evaluatee. A reviewer must be someone other
+     * than the evaluatee, and must not be one of the evaluatee's managers — direct OR any higher level in the reporting
+     * chain (a manager who also rates as a "peer" would distort the anonymous team grade). Reused by both the
+     * candidate-roster builder (to keep ineligible people out of the picker) and the start-evaluation guard.
+     *
+     * @method
+     * @param {string} candidateID - The potential reviewer.
+     * @param {string} employeeID - The evaluatee.
+     * @returns {boolean}
+     * @public
+     */
+    isEligibleTeamReviewer( candidateID, employeeID ) {
+        if ( !candidateID || !employeeID || candidateID === employeeID ) {
+            return false;
+        }
+
+        return !this.isSuperiorManagerOfEmployee( candidateID, employeeID );
     }
 
     /**
@@ -420,7 +465,7 @@ class OrganizationManager {
     /**
      * Returns the organization root unit ID — the single organization-unit node whose `parent` attribute is null
      * (verified config.organization-structure.json: id "1"). Used by the analytics layer to root a whole-org
-     * roster walk. Returns null when the chart is not yet built (bare unit-test / pre-bootstrap) so callers degrade
+     * roster walk. Returns null when the chart is not yet built (bare unit-test / pre-bootstrap), so callers degrade
      * to an empty roster rather than throwing.
      *
      * @method
