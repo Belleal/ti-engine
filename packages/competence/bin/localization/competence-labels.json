@@ -3788,6 +3788,32 @@
     }
   },
   "error": {
+    "supervisor-grant": {
+      "not-auto-supervisor": {
+        "en": "Only structural supervisors can manage the Supervisor role.",
+        "bg": "Само структурните надзорници могат да управляват ролята Надзорник."
+      },
+      "self": {
+        "en": "You cannot assign the Supervisor role to yourself.",
+        "bg": "Не можете да назначите ролята Надзорник на себе си."
+      },
+      "already-auto": {
+        "en": "This employee is already a structural supervisor.",
+        "bg": "Този служител вече е структурен надзорник."
+      },
+      "already-granted": {
+        "en": "This employee already has the Supervisor role.",
+        "bg": "Този служител вече има ролята Надзорник."
+      },
+      "cannot-revoke-auto": {
+        "en": "A structural supervisor's role cannot be removed.",
+        "bg": "Ролята на структурен надзорник не може да бъде премахната."
+      },
+      "not-granted": {
+        "en": "This employee does not have an assigned Supervisor role.",
+        "bg": "Този служител няма назначена роля Надзорник."
+      }
+    },
     "application": {
       "init-failed": {
         "en": "Failed to initialize the application: ",

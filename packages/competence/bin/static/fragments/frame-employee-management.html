@@ -151,7 +151,8 @@
                                 <span class="ti-tag mono" x-text="detail.employee.employeeID"></span>
                                 <span class="ti-status-pill"
                                       x-show="detail.supervisor.isSupervisor"
-                                      x-bind:class="detail.supervisor.source === 'auto' ? 'info' : 'success'">
+                                      x-bind:class="detail.supervisor.source === 'auto' ? 'info' : 'success'"
+                                      x-bind:title="detail.supervisor.source === 'auto' ? getLabel('interface.employee-management.supervisor.auto-lock-hint') : ''">
                                     <span class="dot"></span>
                                     <span x-text="detail.supervisor.source === 'auto' ? getLabel('interface.employee-management.supervisor.badge-auto') : getLabel('interface.employee-management.supervisor.badge-granted')"></span>
                                 </span>
