@@ -2,7 +2,7 @@
 
 ## Meta
 
-- **Status:** Approved (2026-06-26) — design accepted; implementation pending
+- **Status:** Implemented (2026-06-26)
 - **Date:** 2026-06-26 (brainstormed & approved)
 - **Package:** `competence` (primary) + `web-framework` (minor: test-user panel + `augmentSession` contract note)
 - **Scope:** Replace manual role injection with **org-chart-derived roles** (`EMPLOYEE` / `MANAGER` / `SUPERVISOR`) computed at login, plus a **manual Supervisor grant** capability (assign/remove) on the Employee Management screen, restricted to *auto* (structural) supervisors.
@@ -180,4 +180,11 @@ This stays a temporary dev aid (removable once real AD identity propagation land
 
 ## Implementation log
 
-_(to be appended as phases land)_
+- **Task 1 — pure `role-resolver`** (`application/role-resolver.js`, `0a9b976`): `subManagerDepth`, `isAutoSupervisor`, `resolveRoles`; unit-tested.
+- **Task 2 — `OrganizationManager` role helpers** (`00e188b`): `getTopManagerID`, `isUnitManager`, `isAutoSupervisor` (delegates the depth rule to role-resolver); tested against the seeded org.
+- **Task 3 — `DataManager` role-grants store** (`0312cde`): `ti:competence:data:role-grants` + synchronous in-memory mirror; `grant/revoke/load/fetch/has/getIDs` + employee-scoped audit; non-destructive NX init.
+- **Task 4 — login derivation** (`53d6b8f`): `competence-web-server.js#augmentSession` composes roles via role-resolver; grant mirror loaded in `onStart`; test-user cookie roles are an optional override.
+- **Task 5 — endpoints** (`1303ab8`): auto-supervisor-gated `grant-supervisor` / `revoke-supervisor` services + `supervisor` status & viewer capability flags on the employee-detail payload.
+- **Task 6 — UI** (`4e3ebae`): Employee Management detail-pane Supervisor badge (structural vs assigned), assign (warning modal) / remove actions, en/bg labels.
+- **Task 7 — web-framework test panel** (`01e382a`): identity-only injection by default + opt-in "override roles (dev)" toggle; `augmentSession` contract note.
+- **Versioning**: competence 3.6.0, web-framework 1.11.0.

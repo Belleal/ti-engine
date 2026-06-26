@@ -2,6 +2,15 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.6.0
+
+Org-derived roles & Supervisor grant management (CA-72). Requires web-framework ≥ 1.11.0.
+
+* feat(competence): derive EMPLOYEE/MANAGER/SUPERVISOR roles from org-chart position at login, replacing manual role injection (CA-72)
+* feat(competence): auto-supervisors can assign/remove the Supervisor role from Employee Management; structural (auto) supervisors are immutable (CA-72)
+* feat(competence): audited role-grants store (ti:competence:data:role-grants) with a synchronous in-memory mirror for login-time derivation (CA-72)
+* build(release): bump package version from `3.5.0` to `3.6.0`
+
 ## Version 3.5.0
 
 Team peer-reviewer picker & eligibility for the New Evaluation flow, plus Org Chart / Employee Management review fixes (CA-71).

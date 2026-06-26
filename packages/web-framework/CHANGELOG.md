@@ -2,6 +2,14 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.11.0
+
+Login test-user panel defaults to identity-only injection so the app derives roles itself (CA-72).
+
+* feat(web-framework): login test-user panel injects identity only by default (roles derived by the app); role injection becomes an opt-in dev override (CA-72)
+* docs(web-framework): clarify the augmentSession contract (derive vs. override) (CA-72)
+* build(release): bump package version from `1.10.4` to `1.11.0`
+
 ## Version 1.10.4
 
 Login test-user fixture follow-up (CA-71).
