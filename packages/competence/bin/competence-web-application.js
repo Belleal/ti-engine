@@ -334,6 +334,10 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#createEmployee( session, params );
         } else if ( service === "update-employee" ) {
             return this.#updateEmployee( session, params );
+        } else if ( service === "grant-supervisor" ) {
+            return this.#grantSupervisor( session, params );
+        } else if ( service === "revoke-supervisor" ) {
+            return this.#revokeSupervisor( session, params );
         } else {
             return super.processServiceRequest( session, service, params );
         }
@@ -2605,9 +2609,22 @@ class CompetenceWebApplication extends TiWebAppManager {
                     const isSelf = employeeID === userID;
                     const isDirectManager = !isSupervisor && organizationManager.instance.isSuperiorManagerOfEmployee( userID, employeeID );
 
+                    // Supervisor status of the *target* employee + what the *viewer* may do about it.
+                    const targetIsAutoSupervisor = organizationManager.instance.isAutoSupervisor( employeeID );
+                    const targetHasGrant = dataManager.instance.hasSupervisorGrant( employeeID );
+                    const targetIsSupervisor = targetIsAutoSupervisor || targetHasGrant;
+                    const supervisorSource = targetIsAutoSupervisor ? "auto" : ( targetHasGrant ? "granted" : null );
+                    const viewerCanManageGrants = organizationManager.instance.isAutoSupervisor( userID );
+                    const canAssignSupervisor = viewerCanManageGrants && !targetIsSupervisor && employeeID !== userID;
+                    const canRevokeSupervisor = viewerCanManageGrants && targetHasGrant && !targetIsAutoSupervisor;
+
                     resolve( {
                         employee: this.#projectEmployeeDetail( employee, session ),
                         manager: organizationContext,
+                        supervisor: {
+                            isSupervisor: targetIsSupervisor,
+                            source: supervisorSource
+                        },
                         inFlightEvaluations: {
                             count: inFlightList.length,
                             entries: inFlightList.map( ( evaluation ) => ( {
@@ -2629,7 +2646,9 @@ class CompetenceWebApplication extends TiWebAppManager {
                             isSelf,
                             canEditAllFields: isSupervisor,
                             canEditSpecialization: isSupervisor || isDirectManager,
-                            canViewAudit: isSupervisor
+                            canViewAudit: isSupervisor,
+                            canAssignSupervisor,
+                            canRevokeSupervisor
                         }
                     } );
                 } );
@@ -3075,6 +3094,78 @@ class CompetenceWebApplication extends TiWebAppManager {
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
+        } );
+    }
+
+    /**
+     * Grants the supervisor role to an employee. Authority: the actor must be a *structural* (auto) supervisor — a
+     * merely-granted supervisor cannot manage roles. Rejects granting to someone who is already an auto-supervisor
+     * (structural — nothing to grant) or already granted. The grantee gains the role on their next login.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.employeeID - The grantee.
+     * @returns {Promise<Object>} The refreshed employee detail.
+     * @private
+     */
+    #grantSupervisor( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+            if ( !organizationManager.instance.isAutoSupervisor( userID ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "error.supervisor-grant.not-auto-supervisor" }, exceptions.httpCode.C_403 ) );
+            }
+            const targetID = String( params?.employeeID || "" ).trim();
+            if ( !targetID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID: targetID } ) );
+            }
+            if ( targetID === userID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.supervisor-grant.self" }, exceptions.httpCode.C_422 ) );
+            }
+            if ( organizationManager.instance.isAutoSupervisor( targetID ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.supervisor-grant.already-auto" }, exceptions.httpCode.C_422 ) );
+            }
+            if ( dataManager.instance.hasSupervisorGrant( targetID ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_ALREADY_EXISTS, { details: "error.supervisor-grant.already-granted" }, exceptions.httpCode.C_409 ) );
+            }
+            dataManager.instance.fetchEmployee( targetID ).then( () => {
+                return dataManager.instance.grantSupervisorRole( targetID, userID );
+            } ).then( () => {
+                return this.#loadEmployeeDetail( session, targetID );
+            } ).then( ( detail ) => resolve( detail ) ).catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Revokes a manual supervisor grant. Authority: the actor must be a structural (auto) supervisor. An auto
+     * supervisor's role is immutable and cannot be revoked; only an existing manual grant can be removed.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.employeeID - The grantee to revoke.
+     * @returns {Promise<Object>} The refreshed employee detail.
+     * @private
+     */
+    #revokeSupervisor( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+            if ( !organizationManager.instance.isAutoSupervisor( userID ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "error.supervisor-grant.not-auto-supervisor" }, exceptions.httpCode.C_403 ) );
+            }
+            const targetID = String( params?.employeeID || "" ).trim();
+            if ( !targetID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID: targetID } ) );
+            }
+            if ( organizationManager.instance.isAutoSupervisor( targetID ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.supervisor-grant.cannot-revoke-auto" }, exceptions.httpCode.C_422 ) );
+            }
+            if ( !dataManager.instance.hasSupervisorGrant( targetID ) ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.supervisor-grant.not-granted" }, exceptions.httpCode.C_404 ) );
+            }
+            dataManager.instance.revokeSupervisorRole( targetID, userID ).then( () => {
+                return this.#loadEmployeeDetail( session, targetID );
+            } ).then( ( detail ) => resolve( detail ) ).catch( ( error ) => reject( exceptions.raise( error ) ) );
         } );
     }
 
