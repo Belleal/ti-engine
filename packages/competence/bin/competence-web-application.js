@@ -1133,8 +1133,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                     newEvaluation.managerID = resolvedManagerID;
                 }
 
+                // Defense-in-depth: drop the evaluatee and any of their managers (direct OR higher) from the submitted
+                // team, mirroring the picker's roster filter. The reviewer dropdown already hides them, so this only
+                // catches a tampered/stale payload — silently, consistent with how self was always dropped here.
                 const uniqueTeam = Array.isArray( team )
-                    ? [ ...new Set( team.map( String ) ) ].filter( ( id ) => id !== employee.employeeID && id !== resolvedManagerID )
+                    ? [ ...new Set( team.map( String ) ) ].filter( ( id ) => organizationManager.instance.isEligibleTeamReviewer( id, employee.employeeID ) )
                     : [];
 
                 const invalidIDs = uniqueTeam.filter( ( id ) => !organizationManager.instance.resolveEmployeeName( id ) );
@@ -1236,13 +1239,19 @@ class CompetenceWebApplication extends TiWebAppManager {
                 const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee );
                 const availableTeamMembers = [];
                 allEmployees.forEach( ( currentEmployee ) => {
-                    if ( currentEmployee.employeeID !== employeeID && currentEmployee.employeeID !== organizationContext.managerID ) {
+                    // Only eligible peers: never the evaluatee, and never one of their managers — direct OR higher (a
+                    // manager grading as an anonymous "peer" would distort the team grade). Keeping the ineligible out
+                    // here means they never reach the picker.
+                    if ( organizationManager.instance.isEligibleTeamReviewer( currentEmployee.employeeID, employeeID ) ) {
                         const firstName = currentEmployee.personal.firstName || "";
                         const lastName = currentEmployee.personal.lastName || "";
+                        const level = currentEmployee.career?.level || "";
+                        const stage = currentEmployee.career?.stage ?? "";
                         availableTeamMembers.push( {
                             employeeID: currentEmployee.employeeID,
                             name: `${ firstName } ${ lastName }`.trim(),
-                            roleFamilyName: this.#formatRoleFamilyLabel( currentEmployee.career?.roleFamily, currentEmployee.career?.specialization, session?.language )
+                            roleFamilyName: this.#formatRoleFamilyLabel( currentEmployee.career?.roleFamily, currentEmployee.career?.specialization, session?.language ),
+                            stageLevel: ( level && stage ) ? `${ level }${ stage }` : ""
                         } );
                     }
                 } );

@@ -267,6 +267,26 @@ class OrganizationManager {
     }
 
     /**
+     * Decides whether a candidate may act as a team (peer) reviewer for an evaluatee. A reviewer must be someone other
+     * than the evaluatee, and must not be one of the evaluatee's managers — direct OR any higher level in the reporting
+     * chain (a manager who also rates as a "peer" would distort the anonymous team grade). Reused by both the
+     * candidate-roster builder (to keep ineligible people out of the picker) and the start-evaluation guard.
+     *
+     * @method
+     * @param {string} candidateID - The potential reviewer.
+     * @param {string} employeeID - The evaluatee.
+     * @returns {boolean}
+     * @public
+     */
+    isEligibleTeamReviewer( candidateID, employeeID ) {
+        if ( !candidateID || !employeeID || candidateID === employeeID ) {
+            return false;
+        }
+
+        return !this.isSuperiorManagerOfEmployee( candidateID, employeeID );
+    }
+
+    /**
      * Resolves organization-unit and manager display data for an employee.
      *
      * @method

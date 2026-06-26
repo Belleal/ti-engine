@@ -204,8 +204,11 @@
                                                     @click="startNewEvaluation(employee.id)">
                                                 <span x-text-label="interface.employees.action.start">Start Evaluation</span>
                                             </button>
+                                            <!-- Manage opens employee-management, which the backend (#loadEmployeeDetail) forbids for your own
+                                                 record unless you're a Supervisor — a plain manager managing themselves gets a 403. Mirror that
+                                                 rule here: hide Manage on your own row unless you're a Supervisor, rather than offer a click that 403s. -->
                                             <button type="button" class="ti-btn sm"
-                                                    x-show="$store.tiApplication.hasRole(2) || $store.tiApplication.hasRole(3)"
+                                                    x-show="($store.tiApplication.hasRole(2) || $store.tiApplication.hasRole(3)) && (!employee.isCurrentUser || $store.tiApplication.hasRole(3))"
                                                     @click="openEmployeeManagement(employee.id)">
                                                 <span x-text-label="interface.employees.action.manage">Manage</span>
                                             </button>

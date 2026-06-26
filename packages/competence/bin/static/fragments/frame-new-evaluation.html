@@ -95,7 +95,9 @@
             </div>
 
             <!-- #5/#6/#7 Team reviewers panel -->
-            <div class="ti-panel competence-panel-body competence-panel-mb">
+            <!-- competence-eval-team-panel lifts the inherited .ti-panel `overflow: hidden` so the reviewer
+                 dropdown popover can extend past the panel's bottom edge instead of being clipped by it. -->
+            <div class="ti-panel competence-panel-body competence-panel-mb competence-eval-team-panel">
                 <div class="ti-panel-head">
                     <div class="ti-panel-title">
                         <span x-text-label="interface.evaluation.new-eval.team-title"></span>
@@ -105,14 +107,40 @@
                 </div>
                 <div class="ti-panel-body-intro" x-text="getTeamPanelDesc()"></div>
                 <div class="competence-new-eval-select-row">
-                    <select class="ti-select" x-bind:value="selectedTeamMemberID" @change="selectedTeamMemberID = $event.target.value">
-                        <option value="" x-text-label="interface.evaluation.new-eval.choose-colleague"></option>
-                        <template x-for="member in availableTeamMembers" x-bind:key="member.employeeID">
-                            <option x-bind:value="member.employeeID" x-text="member.name + ' — ' + member.roleFamilyName"></option>
-                        </template>
-                    </select>
+                    <div class="competence-reviewer-picker" @keydown.escape.window="closeTeamDropdownAndRefocus()" @click.outside="closeTeamDropdown()">
+                        <button type="button" class="competence-reviewer-trigger" x-ref="reviewerTrigger" x-bind:class="teamDropdownOpen ? 'open' : ''"
+                                @click="toggleTeamDropdown()" aria-haspopup="true" aria-controls="competence-reviewer-options"
+                                x-bind:aria-expanded="teamDropdownOpen ? 'true' : 'false'">
+                            <span class="competence-reviewer-trigger-text" x-bind:class="selectedTeamMemberID ? '' : 'placeholder'"
+                                  x-text="getReviewerTriggerText()"></span>
+                            <span class="ti-icon chevron-right sm competence-reviewer-chevron" aria-hidden="true"></span>
+                        </button>
+                        <div class="competence-reviewer-options" id="competence-reviewer-options" x-show="teamDropdownOpen"
+                             x-bind:class="teamDropdownUp ? 'drop-up' : ''">
+                            <template x-for="member in getSelectableTeamMembers()" x-bind:key="member.employeeID">
+                                <button type="button" class="competence-reviewer-option"
+                                        x-bind:class="selectedTeamMemberID === member.employeeID ? 'is-selected' : ''"
+                                        x-bind:aria-pressed="selectedTeamMemberID === member.employeeID ? 'true' : 'false'"
+                                        @click="selectTeamMember( member )">
+                                    <span class="competence-level-pip" x-show="member.stageLevel"
+                                          x-bind:class="member.stageLevel ? member.stageLevel.charAt( 0 ) : ''"
+                                          x-text="member.stageLevel"></span>
+                                    <span class="competence-reviewer-option-info">
+                                        <span class="competence-reviewer-option-name" x-text="member.name"></span>
+                                        <span class="competence-reviewer-option-meta">
+                                            <span class="competence-reviewer-option-id" x-text="'#' + member.employeeID"></span>
+                                            <span class="competence-reviewer-option-sep">·</span>
+                                            <span x-text="member.roleFamilyName"></span>
+                                        </span>
+                                    </span>
+                                </button>
+                            </template>
+                            <div class="competence-reviewer-options-empty" x-show="getSelectableTeamMembers().length === 0"
+                                 x-text-label="interface.evaluation.new-eval.no-more-colleagues"></div>
+                        </div>
+                    </div>
                     <button type="button" class="ti-btn primary" @click="addTeamMember()"
-                            x-bind:disabled="maxTeamMembers !== null && team.length >= maxTeamMembers"
+                            x-bind:disabled="!selectedTeamMemberID || ( maxTeamMembers !== null && team.length >= maxTeamMembers )"
                             x-text-label="interface.evaluation.new-eval.add-reviewer"></button>
                 </div>
 

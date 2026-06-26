@@ -125,7 +125,12 @@
                                 <span x-text="(detail.employee.name || '?').charAt(0).toUpperCase()"></span>
                             </div>
                             <div class="competence-empmgmt-detail-head-meta">
-                                <div class="competence-empmgmt-detail-name" x-text="detail.employee.name"></div>
+                                <div class="competence-empmgmt-detail-name">
+                                    <span x-text="detail.employee.name"></span>
+                                    <!-- Supervisors may open their own profile here (manager-self is 403'd upstream); flag it like the Org Chart. -->
+                                    <span class="competence-you-tag" x-show="detail.permissions.isSelf"
+                                          x-text-label="interface.employees.you-tag">You</span>
+                                </div>
                                 <div class="competence-empmgmt-detail-sub">
                                     <span x-text="detail.employee.roleFamilyName"></span>
                                     <span x-show="detail.employee.specializationName" class="competence-empmgmt-detail-sub-sep">·</span>

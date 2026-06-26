@@ -5117,6 +5117,10 @@
           "en": "Choose a colleague…",
           "bg": "Изберете колега…"
         },
+        "no-more-colleagues": {
+          "en": "No more eligible colleagues to add",
+          "bg": "Няма повече подходящи колеги за добавяне"
+        },
         "add-reviewer": {
           "en": "Add Reviewer",
           "bg": "Добави оценител"
