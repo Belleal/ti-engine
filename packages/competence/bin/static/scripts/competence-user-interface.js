@@ -3307,7 +3307,8 @@ const configureEmployeeManagement = () => {
         manager: { managerID: null, managerName: null, organizationUnitName: "" },
         inFlightEvaluations: { count: 0, entries: [] },
         audit: [],
-        permissions: { isSupervisor: false, isDirectManager: false, isSelf: false, canEditAllFields: false, canEditSpecialization: false, canViewAudit: false }
+        supervisor: { isSupervisor: false, source: null },
+        permissions: { isSupervisor: false, isDirectManager: false, isSelf: false, canEditAllFields: false, canEditSpecialization: false, canViewAudit: false, canAssignSupervisor: false, canRevokeSupervisor: false }
     } );
 
     return {
@@ -3322,6 +3323,7 @@ const configureEmployeeManagement = () => {
         activeTab: "details",
         modal: emptyModal(),
         saving: false,
+        supervisorBusy: false,
         pendingRoleFamilyChange: null,
         pendingSpecializationChange: null,
 
@@ -3567,6 +3569,46 @@ const configureEmployeeManagement = () => {
             }
             this.pendingRoleFamilyChange = null;
             this.modal = emptyModal();
+        },
+
+        /* ------------------------- Supervisor grant / revoke --------------- */
+
+        openSupervisorAssignModal() {
+            this.modal = { kind: "supervisor-grant", payload: {}, errorMessage: "", busy: false };
+        },
+
+        supervisorAssignDescription() {
+            const name = ( this.detail && this.detail.employee ) ? this.detail.employee.name : "";
+            return tiApplication.getLabel( "interface.employee-management.supervisor.assign-modal.desc" ).replace( "{name}", name || "" );
+        },
+
+        confirmSupervisorAssign() {
+            if ( this.supervisorBusy || !this.selectedEmployeeID ) return;
+            this.supervisorBusy = true;
+            const id = this.selectedEmployeeID;
+            tiApplication.sendRequest( "/app/grant-supervisor", "POST", { employeeID: id } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.employee-management.supervisor.toast-assigned" ) );
+                this.supervisorBusy = false;
+                this.closeModal();
+                this.loadDetail( id );
+            } ).catch( ( error ) => {
+                this.supervisorBusy = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        revokeSupervisor() {
+            if ( this.supervisorBusy || !this.selectedEmployeeID ) return;
+            this.supervisorBusy = true;
+            const id = this.selectedEmployeeID;
+            tiApplication.sendRequest( "/app/revoke-supervisor", "POST", { employeeID: id } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.employee-management.supervisor.toast-removed" ) );
+                this.supervisorBusy = false;
+                this.loadDetail( id );
+            } ).catch( ( error ) => {
+                this.supervisorBusy = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
         },
 
         onSpecializationChange( newValueRaw ) {
