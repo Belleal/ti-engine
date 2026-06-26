@@ -2,6 +2,14 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.10.3
+
+Developer-tooling and formatting touch-ups on the shared frontend bundle.
+
+* chore(web-framework): the login test-user panel offers more seeded employees (3, 8, 9 alongside 22/20/1/4) so manager / direct-report / skip-level scenarios can be exercised without re-seeding
+* style(web-framework): minor formatting of `formatException`'s return object
+* build(release): bump package version from `1.10.2` to `1.10.3`
+
 ## Version 1.10.2
 
 Readability and scaling fixes for the chart primitives, surfaced while polishing the Statistics & Results screens (CA-61).

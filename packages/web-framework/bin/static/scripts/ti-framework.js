@@ -1041,7 +1041,11 @@ const configureApplication = () => {
             // Resolve the details as a label when it is a known label key; otherwise show the raw text (using it as its
             // own fallback so dynamic, non-localized messages pass through unchanged).
             const details = rawDetails ? this.getLabel( rawDetails, rawDetails ) : "";
-            return { message: message, details: details, toString() { return this.message; } };
+            return {
+                message: message, details: details, toString() {
+                    return this.message;
+                }
+            };
         },
 
         /**
@@ -1320,7 +1324,10 @@ const configureLoginTestUserPanel = () => {
             { employeeID: "22", roles: [ 1, 2, 3 ] },
             { employeeID: "20", roles: [ 1, 2 ] },
             { employeeID: "1", roles: [ 1 ] },
-            { employeeID: "4", roles: [ 1 ] }
+            { employeeID: "3", roles: [ 1 ] },
+            { employeeID: "4", roles: [ 1 ] },
+            { employeeID: "8", roles: [ 1 ] },
+            { employeeID: "9", roles: [ 1 ] }
         ],
         selected: null,
 
