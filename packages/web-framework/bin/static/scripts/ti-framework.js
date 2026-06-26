@@ -1326,7 +1326,7 @@ const configureLoginTestUserPanel = () => {
             { employeeID: "1", roles: [ 1 ] },
             { employeeID: "3", roles: [ 1 ] },
             { employeeID: "4", roles: [ 1 ] },
-            { employeeID: "8", roles: [ 1 ] },
+            { employeeID: "8", roles: [ 1, 2 ] },
             { employeeID: "9", roles: [ 1 ] }
         ],
         selected: null,
