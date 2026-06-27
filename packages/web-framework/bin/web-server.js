@@ -370,9 +370,9 @@ class TiWebServer extends ServiceConsumer {
     }
 
     /**
-     * Used to augment the session with additional data.
-     * <br/>
-     * NOTE: The base method simply returns the same session object. Override this in custom Web Servers to define behavior.
+     * Hook for the application to augment the freshly-authenticated session (e.g. derive domain roles from an
+     * identity store or the org chart). Runs synchronously, once per login, before the framework's additive `admin`
+     * role is applied. The default is a no-op. Any test-user role injection is an override of whatever the app derives.
      *
      * @method
      * @virtual

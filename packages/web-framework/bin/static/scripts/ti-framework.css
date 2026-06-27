@@ -2534,6 +2534,16 @@ body {
     background: var(--bg-tint);
 }
 
+.ti-login-test-panel-override {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: var(--s-3);
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+    cursor: pointer;
+}
+
 /* ============================================================
    Utility
    ============================================================ */

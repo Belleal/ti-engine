@@ -2,6 +2,38 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.6.2
+
+Post-review fixes from the CA-72 CodeRabbit review (PR #85): test-user backdoor hardening, interview-slot privacy scoping, Supervisor-revoke confirmation, and grant/revoke robustness.
+
+* fix(competence): hard-gate the temporary `ti-test-user` cookie behind the off-by-default `COMPETENCE_TEST_USER_ENABLED` env flag — without it the cookie (which injects identity AND an optional numeric roles override) is ignored entirely, so it can no longer bypass org-derived/grant-based authorization in production (CA-72)
+* fix(competence): scope the interview-schedule available-slots projection to the calling manager's own slots — a plain manager previously received every other manager's availability and names (only `readyEvaluations` was scoped); a Supervisor still sees the whole calendar (CA-72)
+* fix(competence): require a confirmation modal before revoking a Supervisor grant, mirroring the assign flow, so a single misclick can no longer remove broad access (CA-72)
+* fix(competence): guard the grant/revoke detail reloads against a mid-flight selection change so a slow response can no longer replace the now-selected employee's detail or misdirect a later save (CA-72)
+* fix(competence): make the grant/revoke audit append best-effort — an audit-write failure is logged but no longer rejects an already-committed authorization change (CA-72)
+* docs(competence): document `COMPETENCE_TEST_USER_ENABLED` in the README; note the single-instance grant-mirror assumption in code, with cross-instance invalidation tracked as CA-73 (CA-72)
+* build(release): bump package version from `3.6.1` to `3.6.2`
+
+## Version 3.6.1
+
+Post-review fixes from the CA-71 CodeRabbit review: evaluation-data + interview-schedule access scoping, lock-cycle specialization-source consistency, and confirmation-modal focus management.
+
+* fix(competence): scope the new-evaluation data endpoint to the evaluatee's manager (direct or skip-level) or a Supervisor, mirroring `start-evaluation` — a plain manager could previously load any employee's preview and eligible-reviewer roster (CA-71)
+* fix(competence): scope the interview-schedule view — a Supervisor still sees every READY interview (the only role that books), but a plain manager now sees only their own reports instead of org-wide evaluatee names, manager names, and final scores (CA-71)
+* fix(competence): `lockCycle` normalizes empty specializations from the same role-family source `validateCycleForLock` uses (the seeded copy, falling back to config) rather than static config via `getSpecializationCodes`, so a stored/config divergence can no longer persist unvalidated specializations or skip stored-only ones (CA-71)
+* fix(competence): the submit and finalize-team confirmation modals now move keyboard focus into the dialog on open, trap Tab/Shift+Tab within it, and return focus to the triggering control on close (CA-71)
+* test(competence): cover `lockCycle` normalization when the stored role-family source diverges from static config (CA-71)
+* build(release): bump package version from `3.6.0` to `3.6.1`
+
+## Version 3.6.0
+
+Org-derived roles & Supervisor grant management (CA-72). Requires web-framework ≥ 1.11.0.
+
+* feat(competence): derive EMPLOYEE/MANAGER/SUPERVISOR roles from org-chart position at login, replacing manual role injection (CA-72)
+* feat(competence): auto-supervisors can assign/remove the Supervisor role from Employee Management; structural (auto) supervisors are immutable (CA-72)
+* feat(competence): audited role-grants store (ti:competence:data:role-grants) with a synchronous in-memory mirror for login-time derivation (CA-72)
+* build(release): bump package version from `3.5.0` to `3.6.0`
+
 ## Version 3.5.0
 
 Team peer-reviewer picker & eligibility for the New Evaluation flow, plus Org Chart / Employee Management review fixes (CA-71).

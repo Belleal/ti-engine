@@ -3788,6 +3788,32 @@
     }
   },
   "error": {
+    "supervisor-grant": {
+      "not-auto-supervisor": {
+        "en": "Only structural supervisors can manage the Supervisor role.",
+        "bg": "Само структурните надзорници могат да управляват ролята Надзорник."
+      },
+      "self": {
+        "en": "You cannot assign the Supervisor role to yourself.",
+        "bg": "Не можете да назначите ролята Надзорник на себе си."
+      },
+      "already-auto": {
+        "en": "This employee is already a structural supervisor.",
+        "bg": "Този служител вече е структурен надзорник."
+      },
+      "already-granted": {
+        "en": "This employee already has the Supervisor role.",
+        "bg": "Този служител вече има ролята Надзорник."
+      },
+      "cannot-revoke-auto": {
+        "en": "A structural supervisor's role cannot be removed.",
+        "bg": "Ролята на структурен надзорник не може да бъде премахната."
+      },
+      "not-granted": {
+        "en": "This employee does not have an assigned Supervisor role.",
+        "bg": "Този служител няма назначена роля Надзорник."
+      }
+    },
     "application": {
       "init-failed": {
         "en": "Failed to initialize the application: ",
@@ -7504,6 +7530,72 @@
           "bg": "Дистанционно"
         }
       },
+      "supervisor": {
+        "badge-auto": {
+          "en": "Supervisor · structural",
+          "bg": "Надзорник · структурен"
+        },
+        "badge-granted": {
+          "en": "Supervisor · assigned",
+          "bg": "Надзорник · назначен"
+        },
+        "assign-btn": {
+          "en": "Assign Supervisor",
+          "bg": "Назначи надзорник"
+        },
+        "remove-btn": {
+          "en": "Remove Supervisor",
+          "bg": "Премахни надзорник"
+        },
+        "auto-lock-hint": {
+          "en": "Structural supervisors are derived from the org chart and cannot be removed.",
+          "bg": "Структурните надзорници се определят от организационната схема и не могат да бъдат премахнати."
+        },
+        "assign-modal": {
+          "title": {
+            "en": "Assign Supervisor role",
+            "bg": "Назначаване на роля Надзорник"
+          },
+          "desc": {
+            "en": "This grants the Supervisor role to {name}. Supervisors can view all employees, run leadership reports, and facilitate evaluations across the organization. The role takes effect on their next sign-in. They will NOT be able to assign or remove the Supervisor role for others.",
+            "bg": "Това предоставя ролята Надзорник на {name}. Надзорниците виждат всички служители, изготвят управленски справки и подпомагат оценките в цялата организация. Ролята влиза в сила при следващото влизане. Те НЯМА да могат да назначават или премахват ролята Надзорник на други."
+          },
+          "confirm-btn": {
+            "en": "Assign Supervisor",
+            "bg": "Назначи надзорник"
+          },
+          "cancel-btn": {
+            "en": "Cancel",
+            "bg": "Отказ"
+          }
+        },
+        "revoke-modal": {
+          "title": {
+            "en": "Remove Supervisor role",
+            "bg": "Премахване на роля Надзорник"
+          },
+          "desc": {
+            "en": "This removes the assigned Supervisor role from {name}. On their next sign-in they will lose Supervisor access — viewing all employees, running leadership reports, and facilitating evaluations across the organization.",
+            "bg": "Това премахва назначената роля Надзорник на {name}. При следващото влизане те ще загубят достъпа на надзорник — преглед на всички служители, изготвяне на управленски справки и подпомагане на оценките в цялата организация."
+          },
+          "confirm-btn": {
+            "en": "Remove Supervisor",
+            "bg": "Премахни надзорник"
+          },
+          "cancel-btn": {
+            "en": "Cancel",
+            "bg": "Отказ"
+          }
+        },
+        "toast-assigned": {
+          "en": "Supervisor role assigned.",
+          "bg": "Ролята Надзорник е назначена."
+        },
+        "toast-removed": {
+          "en": "Supervisor role removed.",
+          "bg": "Ролята Надзорник е премахната."
+        }
+      },
       "role-family-change": {
         "title": {
           "en": "Confirm role family change",
@@ -7675,6 +7767,10 @@
           "career.organizationUnitID": {
             "en": "Organization unit",
             "bg": "Организационна единица"
+          },
+          "supervisorRole": {
+            "en": "Supervisor role",
+            "bg": "Роля Надзорник"
           }
         }
       },

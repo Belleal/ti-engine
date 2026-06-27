@@ -10,6 +10,7 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const localization = require( "@ti-engine/core/localization" );
 const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
+const roleResolver = require( "#role-resolver" );
 const { DirectedGraph } = require( "graphology" );
 
 /**
@@ -488,7 +489,88 @@ class OrganizationManager {
         return null;
     }
 
+    /**
+     * Returns the employee ID of the organization's top manager — the `managerID` of the root unit. Returns "" when
+     * the chart is not built or the root unit carries no manager.
+     *
+     * @method
+     * @returns {string}
+     * @public
+     */
+    getTopManagerID() {
+        const rootUnitID = this.getOrganizationRootUnitID();
+        if ( !rootUnitID || !this.#organizationChart ) {
+            return "";
+        }
+        const rootNodeID = this.toUnitNodeID( rootUnitID );
+        if ( !this.#organizationChart.hasNode( rootNodeID ) ) {
+            return "";
+        }
+        return this.#organizationChart.getNodeAttribute( rootNodeID, "managerID" ) || "";
+    }
+
+    /**
+     * Whether the employee is the `managerID` of at least one organization unit.
+     *
+     * @method
+     * @param {string} employeeID
+     * @returns {boolean}
+     * @public
+     */
+    isUnitManager( employeeID ) {
+        if ( !employeeID || !this.#organizationChart ) {
+            return false;
+        }
+        return this.#managedUnitIDs( employeeID ).length > 0;
+    }
+
+    /**
+     * Whether the employee is a structural (auto) supervisor: the top manager, or a direct report of the top manager
+     * whose managed subtree is deep enough (see {@link RoleResolver#isAutoSupervisor}). Combines live graph facts with
+     * the pure eligibility rule. The manual-grant term is OR-ed in separately at role-composition time.
+     *
+     * @method
+     * @param {string} employeeID
+     * @returns {boolean}
+     * @public
+     */
+    isAutoSupervisor( employeeID ) {
+        if ( !employeeID || !this.#organizationChart ) {
+            return false;
+        }
+        const topManagerID = this.getTopManagerID();
+        if ( topManagerID && employeeID === topManagerID ) {
+            return true;
+        }
+        const managedSubtrees = this.#managedUnitIDs( employeeID )
+            .map( ( unitID ) => this.getOrganizationUnitSubtree( unitID ) )
+            .filter( Boolean );
+        return roleResolver.instance.isAutoSupervisor( {
+            isTopManager: false,
+            reportsToTopManager: !!topManagerID && ( this.resolveClosestManagerIDForEmployee( employeeID ) === topManagerID ),
+            managedSubtrees: managedSubtrees
+        } );
+    }
+
     /* Private interface */
+
+    /**
+     * Returns the IDs of every organization unit the employee directly manages (`managerID === employeeID`).
+     *
+     * @method
+     * @param {string} employeeID
+     * @returns {Array<string>}
+     * @private
+     */
+    #managedUnitIDs( employeeID ) {
+        if ( !employeeID || !this.#organizationChart ) {
+            return [];
+        }
+        return this.#organizationChart.nodes().filter( ( nodeID ) => {
+            return this.#organizationChart.getNodeAttribute( nodeID, "nodeType" ) === "organizationUnit"
+                && this.#organizationChart.getNodeAttribute( nodeID, "managerID" ) === employeeID;
+        } ).map( ( nodeID ) => this.#organizationChart.getNodeAttribute( nodeID, "id" ) );
+    }
 
     /**
      * Used to build the organization chart subtree for the provided unit node ID.

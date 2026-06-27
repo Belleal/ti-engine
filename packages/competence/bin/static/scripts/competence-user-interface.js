@@ -18,6 +18,16 @@ const configureCompetenceEvaluation = () => {
     const tiApplication = Alpine.store( "tiApplication" );
     const emptyModal = () => ( { kind: null, payload: {}, busy: false } );
 
+    // Confirmation-modal focus management. No Alpine focus plugin is bundled, so this is hand-rolled: the element that
+    // opened the modal is captured (in plain closure state, never reactive — a Proxy-wrapped DOM node breaks .focus())
+    // so focus can return to it on close, and the focusable query is used to move focus into the dialog on open and to
+    // trap Tab within it while it stays open.
+    let modalReturnFocus = null;
+    const MODAL_FOCUSABLE_SELECTOR = "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])";
+    const modalFocusables = ( dialog ) => dialog
+        ? Array.from( dialog.querySelectorAll( MODAL_FOCUSABLE_SELECTOR ) ).filter( ( el ) => el.offsetParent !== null )
+        : [];
+
     return {
         employeeID: null,
         userRole: null,
@@ -172,7 +182,8 @@ const configureCompetenceEvaluation = () => {
             } );
         },
 
-        openSubmitModal() {
+        openSubmitModal( event ) {
+            modalReturnFocus = ( event && event.currentTarget ) || null;
             this.modal = { kind: "submit-confirm", payload: {}, busy: false };
         },
 
@@ -188,11 +199,12 @@ const configureCompetenceEvaluation = () => {
             } );
         },
 
-        openFinalizeTeamModal() {
+        openFinalizeTeamModal( event ) {
             const evaluationID = this.evaluation && this.evaluation.evaluationID;
             if ( !evaluationID ) {
                 return;
             }
+            modalReturnFocus = ( event && event.currentTarget ) || null;
             this.modal = { kind: "finalize-team-confirm", payload: { evaluationID: evaluationID }, busy: false };
         },
 
@@ -214,6 +226,49 @@ const configureCompetenceEvaluation = () => {
 
         closeModal() {
             this.modal = emptyModal();
+            // Return focus to the control that opened the modal so keyboard users aren't dropped at the top of the page.
+            const returnTo = modalReturnFocus;
+            modalReturnFocus = null;
+            if ( returnTo && typeof returnTo.focus === "function" ) {
+                this.$nextTick( () => returnTo.focus() );
+            }
+        },
+
+        // Move focus into the confirmation dialog when it opens — wired via x-effect on the dialog element, which runs
+        // once on mount (it reads no reactive state). $nextTick lets the dialog's children render before we focus.
+        focusModal( dialog ) {
+            this.$nextTick( () => {
+                const focusables = modalFocusables( dialog );
+                const target = focusables[ 0 ] || dialog;
+                if ( target && typeof target.focus === "function" ) {
+                    target.focus();
+                }
+            } );
+        },
+
+        // Trap Tab / Shift+Tab within the open dialog so focus can't slip to the page behind the overlay.
+        trapModalFocus( event, dialog ) {
+            if ( event.key !== "Tab" || !dialog ) {
+                return;
+            }
+            const focusables = modalFocusables( dialog );
+            if ( focusables.length === 0 ) {
+                event.preventDefault();
+                dialog.focus();
+                return;
+            }
+            const first = focusables[ 0 ];
+            const last = focusables[ focusables.length - 1 ];
+            const active = document.activeElement;
+            if ( event.shiftKey ) {
+                if ( active === first || !dialog.contains( active ) ) {
+                    event.preventDefault();
+                    last.focus();
+                }
+            } else if ( active === last || !dialog.contains( active ) ) {
+                event.preventDefault();
+                first.focus();
+            }
         },
 
         getUserRoleAsText() {
@@ -3307,7 +3362,8 @@ const configureEmployeeManagement = () => {
         manager: { managerID: null, managerName: null, organizationUnitName: "" },
         inFlightEvaluations: { count: 0, entries: [] },
         audit: [],
-        permissions: { isSupervisor: false, isDirectManager: false, isSelf: false, canEditAllFields: false, canEditSpecialization: false, canViewAudit: false }
+        supervisor: { isSupervisor: false, source: null },
+        permissions: { isSupervisor: false, isDirectManager: false, isSelf: false, canEditAllFields: false, canEditSpecialization: false, canViewAudit: false, canAssignSupervisor: false, canRevokeSupervisor: false }
     } );
 
     return {
@@ -3322,6 +3378,7 @@ const configureEmployeeManagement = () => {
         activeTab: "details",
         modal: emptyModal(),
         saving: false,
+        supervisorBusy: false,
         pendingRoleFamilyChange: null,
         pendingSpecializationChange: null,
 
@@ -3567,6 +3624,64 @@ const configureEmployeeManagement = () => {
             }
             this.pendingRoleFamilyChange = null;
             this.modal = emptyModal();
+        },
+
+        /* ------------------------- Supervisor grant / revoke --------------- */
+
+        openSupervisorAssignModal() {
+            this.modal = { kind: "supervisor-grant", payload: {}, errorMessage: "", busy: false };
+        },
+
+        supervisorAssignDescription() {
+            const name = ( this.detail && this.detail.employee ) ? this.detail.employee.name : "";
+            return tiApplication.getLabel( "interface.employee-management.supervisor.assign-modal.desc" ).replace( "{name}", name || "" );
+        },
+
+        confirmSupervisorAssign() {
+            if ( this.supervisorBusy || !this.selectedEmployeeID ) return;
+            this.supervisorBusy = true;
+            const id = this.selectedEmployeeID;
+            tiApplication.sendRequest( "/app/grant-supervisor", "POST", { employeeID: id } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.employee-management.supervisor.toast-assigned" ) );
+                this.supervisorBusy = false;
+                this.closeModal();
+                // Guard against a stale reload: if the user selected another employee while the request was in flight,
+                // reloading `id` would replace the now-current detail with the wrong employee (and a later save would
+                // post fields against the wrong selected ID).
+                if ( this.selectedEmployeeID === id ) {
+                    this.loadDetail( id );
+                }
+            } ).catch( ( error ) => {
+                this.supervisorBusy = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        openSupervisorRevokeModal() {
+            this.modal = { kind: "supervisor-revoke", payload: {}, errorMessage: "", busy: false };
+        },
+
+        supervisorRevokeDescription() {
+            const name = ( this.detail && this.detail.employee ) ? this.detail.employee.name : "";
+            return tiApplication.getLabel( "interface.employee-management.supervisor.revoke-modal.desc" ).replace( "{name}", name || "" );
+        },
+
+        confirmSupervisorRevoke() {
+            if ( this.supervisorBusy || !this.selectedEmployeeID ) return;
+            this.supervisorBusy = true;
+            const id = this.selectedEmployeeID;
+            tiApplication.sendRequest( "/app/revoke-supervisor", "POST", { employeeID: id } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.employee-management.supervisor.toast-removed" ) );
+                this.supervisorBusy = false;
+                this.closeModal();
+                // Same stale-reload guard as the assign path above.
+                if ( this.selectedEmployeeID === id ) {
+                    this.loadDetail( id );
+                }
+            } ).catch( ( error ) => {
+                this.supervisorBusy = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
         },
 
         onSpecializationChange( newValueRaw ) {
