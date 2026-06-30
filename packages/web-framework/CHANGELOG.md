@@ -2,6 +2,16 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.12.0
+
+Chart primitives gain legends + value labels for grouped bars and a legend for radar (backs the leaner competence evaluation results view) (CA-61).
+
+* feat(web-framework): `ti-charts` grouped bars now render an optional swatch legend (`options.legend`) and per-bar value captions (`options.valueLabels`); radar charts render an optional legend, with a dashed swatch variant (`{ dashed: true }`) for dashed series such as an "expected" curve (CA-61)
+* feat(web-framework): add `.ti-chart-bar-seg.tone-info`, `.ti-chart-legend-swatch.tone-info`, and `.ti-chart-legend-swatch.is-dashed` so grouped/radar source series and their legends share one colour scale across both themes (CA-61)
+* feat(web-framework): `ti-charts` radar accepts an optional per-axis `tone`, applied as a `tone-*` class on the axis label so consumers can colour axis labels (e.g. by category) — threaded through `radarLayout` (CA-61)
+* feat(web-framework): `ti-charts` grouped bars accept optional `options.barThickness` (bar height) and `options.valueFontSize` (value-caption font); value captions carry a dedicated `ti-chart-bar-value` class that intentionally sets no CSS `font-size`, so the renderer's `font-size` presentation attribute (default 4) actually governs — previously the caption also carried `ti-chart-bar-label`, whose CSS `font-size: 4px` overrode the attribute and made `valueFontSize` a no-op (CA-61)
+* build(release): bump package version from `1.11.1` to `1.12.0`
+
 ## Version 1.11.1
 
 Post-review fix from the CA-72 CodeRabbit review (PR #85) on the login test-user panel.
