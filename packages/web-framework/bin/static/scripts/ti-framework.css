@@ -2615,18 +2615,40 @@ body {
     max-height: 460px;
     margin-inline: auto;
 }
+
 /* Per-type size caps (the figure carries data-ti-chart-type, set by renderChart). Square KPIs stay small and centred;
    content charts use width but never overrun the height cap. */
-.ti-chart[data-ti-chart-type="gauge"] svg   { max-width: 240px; }
-.ti-chart[data-ti-chart-type="scatter"] svg { max-width: 380px; }
-.ti-chart[data-ti-chart-type="heatmap"] svg { max-width: 480px; }
-.ti-chart[data-ti-chart-type="box"] svg     { max-width: 680px; }
+.ti-chart[data-ti-chart-type="gauge"] svg {
+    max-width: 240px;
+}
+
+.ti-chart[data-ti-chart-type="scatter"] svg {
+    max-width: 380px;
+}
+
+.ti-chart[data-ti-chart-type="heatmap"] svg {
+    max-width: 480px;
+}
+
+.ti-chart[data-ti-chart-type="box"] svg {
+    max-width: 680px;
+}
+
 /* Horizontal bars grow with their row count, so they opt out of the global max-height: with the cap, a tall org-wide
    chart was uniformly scaled down and ended up finer than the same chart on a smaller subtree. Without it the bar
    thickness and label size stay identical across screens; the chart simply gets taller when there are more rows. */
-.ti-chart[data-ti-chart-type="bars"] svg    { max-width: 640px; max-height: none; }
-.ti-chart[data-ti-chart-type="radar"] svg   { max-width: 360px; }
-.ti-chart[data-ti-chart-type="line"] svg    { max-width: 640px; }
+.ti-chart[data-ti-chart-type="bars"] svg {
+    max-width: 640px;
+    max-height: none;
+}
+
+.ti-chart[data-ti-chart-type="radar"] svg {
+    max-width: 360px;
+}
+
+.ti-chart[data-ti-chart-type="line"] svg {
+    max-width: 640px;
+}
 
 /* Visually-hidden a11y mirror table (screen-reader only). */
 .ti-chart-sr {
@@ -2636,7 +2658,7 @@ body {
     padding: 0;
     margin: -1px;
     overflow: hidden;
-    clip-path: inset( 50% );
+    clip-path: inset(50%);
     white-space: nowrap;
     border: 0;
 }
@@ -2701,6 +2723,10 @@ body {
 
 .ti-chart-bar-seg.tone-ink {
     fill: var(--c-grid);
+}
+
+.ti-chart-bar-seg.tone-info {
+    fill: var(--c-series-2);
 }
 
 /* --- stat tile --- */
@@ -2920,6 +2946,12 @@ body {
     font-size: 4px;
 }
 
+/* Grouped-bar value caption. Deliberately sets NO font-size so the renderer's font-size presentation attribute
+   (default 4, or spec.options.valueFontSize) is honoured — a CSS font-size here would override that attribute. */
+.ti-chart-bar-value {
+    fill: var(--c-ink);
+}
+
 /* Chart legend — a visible swatch+label key appended below a chart (e.g. the coverage stacked bars). Inherits the
    --c-grade-* / --c-ink tokens from the parent .ti-chart, so swatches match the segment fills and re-theme with them. */
 .ti-chart-legend {
@@ -2946,53 +2978,218 @@ body {
     flex: 0 0 auto;
 }
 
-.ti-chart-legend-swatch.tone-grade-s { background: var(--c-grade-s); }
-.ti-chart-legend-swatch.tone-grade-r { background: var(--c-grade-r); }
-.ti-chart-legend-swatch.tone-grade-u { background: var(--c-grade-u); }
-.ti-chart-legend-swatch.tone-grade-n { background: var(--c-grade-n); }
-.ti-chart-legend-swatch.tone-ink { background: var(--c-ink); }
+.ti-chart-legend-swatch.tone-grade-s {
+    background: var(--c-grade-s);
+}
+
+.ti-chart-legend-swatch.tone-grade-r {
+    background: var(--c-grade-r);
+}
+
+.ti-chart-legend-swatch.tone-grade-u {
+    background: var(--c-grade-u);
+}
+
+.ti-chart-legend-swatch.tone-grade-n {
+    background: var(--c-grade-n);
+}
+
+.ti-chart-legend-swatch.tone-ink {
+    background: var(--c-ink);
+}
+
+.ti-chart-legend-swatch.tone-info {
+    background: var(--c-series-2);
+}
+
+.ti-chart-legend-swatch.is-dashed {
+    background: transparent;
+    border: 1px dashed var(--c-ink);
+}
 
 /* --- radar (individual subcategory profile) --- */
-.ti-chart-radar-ring  { stroke: var(--c-grid); stroke-width: 0.4; }
-.ti-chart-radar-spoke { stroke: var(--c-grid); stroke-width: 0.3; }
-.ti-chart-radar-axis-label { fill: var(--c-ink); font-size: 3.6px; }
-.ti-chart-radar-poly  { fill: var(--c-series-1); fill-opacity: 0.12; stroke: var(--c-series-1); stroke-width: 0.8; }
-.ti-chart-radar-poly.tone-grade-s { fill: var(--c-grade-s); stroke: var(--c-grade-s); }
-.ti-chart-radar-poly.tone-grade-r { fill: var(--c-grade-r); stroke: var(--c-grade-r); }
-.ti-chart-radar-poly.tone-grade-u { fill: var(--c-grade-u); stroke: var(--c-grade-u); }
-.ti-chart-radar-poly.tone-grade-n { fill: var(--c-grade-n); stroke: var(--c-grade-n); }
-.ti-chart-radar-poly.tone-info    { fill: var(--c-series-2); stroke: var(--c-series-2); }
-.ti-chart-radar-dot   { fill: var(--c-series-1); }
-.ti-chart-radar-dot.tone-grade-s { fill: var(--c-grade-s); }
-.ti-chart-radar-dot.tone-grade-r { fill: var(--c-grade-r); }
-.ti-chart-radar-dot.tone-grade-u { fill: var(--c-grade-u); }
-.ti-chart-radar-dot.tone-grade-n { fill: var(--c-grade-n); }
-.ti-chart-radar-dot.tone-info    { fill: var(--c-series-2); }
+.ti-chart-radar-ring {
+    stroke: var(--c-grid);
+    stroke-width: 0.4;
+}
+
+.ti-chart-radar-spoke {
+    stroke: var(--c-grid);
+    stroke-width: 0.3;
+}
+
+.ti-chart-radar-axis-label {
+    fill: var(--c-ink);
+    font-size: 3.6px;
+}
+
+.ti-chart-radar-poly {
+    fill: var(--c-series-1);
+    fill-opacity: 0.12;
+    stroke: var(--c-series-1);
+    stroke-width: 0.8;
+}
+
+.ti-chart-radar-poly.tone-grade-s {
+    fill: var(--c-grade-s);
+    stroke: var(--c-grade-s);
+}
+
+.ti-chart-radar-poly.tone-grade-r {
+    fill: var(--c-grade-r);
+    stroke: var(--c-grade-r);
+}
+
+.ti-chart-radar-poly.tone-grade-u {
+    fill: var(--c-grade-u);
+    stroke: var(--c-grade-u);
+}
+
+.ti-chart-radar-poly.tone-grade-n {
+    fill: var(--c-grade-n);
+    stroke: var(--c-grade-n);
+}
+
+.ti-chart-radar-poly.tone-info {
+    fill: var(--c-series-2);
+    stroke: var(--c-series-2);
+}
+
+.ti-chart-radar-dot {
+    fill: var(--c-series-1);
+}
+
+.ti-chart-radar-dot.tone-grade-s {
+    fill: var(--c-grade-s);
+}
+
+.ti-chart-radar-dot.tone-grade-r {
+    fill: var(--c-grade-r);
+}
+
+.ti-chart-radar-dot.tone-grade-u {
+    fill: var(--c-grade-u);
+}
+
+.ti-chart-radar-dot.tone-grade-n {
+    fill: var(--c-grade-n);
+}
+
+.ti-chart-radar-dot.tone-info {
+    fill: var(--c-series-2);
+}
 
 /* --- line / trend (cross-cycle, CA-X1) --- */
-.ti-chart-line-axis   { stroke: var(--c-grid); stroke-width: 0.3; }
-.ti-chart-line-xlabel { fill: var(--c-ink); font-size: 3.2px; }
-.ti-chart-line-series { stroke: var(--c-series-1); stroke-width: 1; fill: none; stroke-linejoin: round; stroke-linecap: round; }
-.ti-chart-line-series.tone-grade-s { stroke: var(--c-grade-s); }
-.ti-chart-line-series.tone-grade-r { stroke: var(--c-grade-r); }
-.ti-chart-line-series.tone-grade-u { stroke: var(--c-grade-u); }
-.ti-chart-line-series.tone-grade-n { stroke: var(--c-grade-n); }
-.ti-chart-line-series.tone-info    { stroke: var(--c-series-2); }
-.ti-chart-line-band   { fill: var(--c-series-1); fill-opacity: 0.12; stroke: none; }
-.ti-chart-line-band.tone-grade-s { fill: var(--c-grade-s); }
-.ti-chart-line-band.tone-grade-r { fill: var(--c-grade-r); }
-.ti-chart-line-band.tone-grade-u { fill: var(--c-grade-u); }
-.ti-chart-line-band.tone-grade-n { fill: var(--c-grade-n); }
-.ti-chart-line-band.tone-info    { fill: var(--c-series-2); }
-.ti-chart-line-dot    { fill: var(--c-series-1); }
-.ti-chart-line-dot.tone-grade-s { fill: var(--c-grade-s); }
-.ti-chart-line-dot.tone-grade-r { fill: var(--c-grade-r); }
-.ti-chart-line-dot.tone-grade-u { fill: var(--c-grade-u); }
-.ti-chart-line-dot.tone-grade-n { fill: var(--c-grade-n); }
-.ti-chart-line-dot.tone-info    { fill: var(--c-series-2); }
-.ti-chart-line-dot.provisional  { fill: var(--bg-app); stroke: var(--c-series-1); stroke-width: 0.6; }
-.ti-chart-line-dot.tone-grade-s.provisional { stroke: var(--c-grade-s); }
-.ti-chart-line-dot.tone-grade-r.provisional { stroke: var(--c-grade-r); }
-.ti-chart-line-dot.tone-grade-u.provisional { stroke: var(--c-grade-u); }
-.ti-chart-line-dot.tone-grade-n.provisional { stroke: var(--c-grade-n); }
-.ti-chart-line-dot.tone-info.provisional    { stroke: var(--c-series-2); }
+.ti-chart-line-axis {
+    stroke: var(--c-grid);
+    stroke-width: 0.3;
+}
+
+.ti-chart-line-xlabel {
+    fill: var(--c-ink);
+    font-size: 3.2px;
+}
+
+.ti-chart-line-series {
+    stroke: var(--c-series-1);
+    stroke-width: 1;
+    fill: none;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.ti-chart-line-series.tone-grade-s {
+    stroke: var(--c-grade-s);
+}
+
+.ti-chart-line-series.tone-grade-r {
+    stroke: var(--c-grade-r);
+}
+
+.ti-chart-line-series.tone-grade-u {
+    stroke: var(--c-grade-u);
+}
+
+.ti-chart-line-series.tone-grade-n {
+    stroke: var(--c-grade-n);
+}
+
+.ti-chart-line-series.tone-info {
+    stroke: var(--c-series-2);
+}
+
+.ti-chart-line-band {
+    fill: var(--c-series-1);
+    fill-opacity: 0.12;
+    stroke: none;
+}
+
+.ti-chart-line-band.tone-grade-s {
+    fill: var(--c-grade-s);
+}
+
+.ti-chart-line-band.tone-grade-r {
+    fill: var(--c-grade-r);
+}
+
+.ti-chart-line-band.tone-grade-u {
+    fill: var(--c-grade-u);
+}
+
+.ti-chart-line-band.tone-grade-n {
+    fill: var(--c-grade-n);
+}
+
+.ti-chart-line-band.tone-info {
+    fill: var(--c-series-2);
+}
+
+.ti-chart-line-dot {
+    fill: var(--c-series-1);
+}
+
+.ti-chart-line-dot.tone-grade-s {
+    fill: var(--c-grade-s);
+}
+
+.ti-chart-line-dot.tone-grade-r {
+    fill: var(--c-grade-r);
+}
+
+.ti-chart-line-dot.tone-grade-u {
+    fill: var(--c-grade-u);
+}
+
+.ti-chart-line-dot.tone-grade-n {
+    fill: var(--c-grade-n);
+}
+
+.ti-chart-line-dot.tone-info {
+    fill: var(--c-series-2);
+}
+
+.ti-chart-line-dot.provisional {
+    fill: var(--bg-app);
+    stroke: var(--c-series-1);
+    stroke-width: 0.6;
+}
+
+.ti-chart-line-dot.tone-grade-s.provisional {
+    stroke: var(--c-grade-s);
+}
+
+.ti-chart-line-dot.tone-grade-r.provisional {
+    stroke: var(--c-grade-r);
+}
+
+.ti-chart-line-dot.tone-grade-u.provisional {
+    stroke: var(--c-grade-u);
+}
+
+.ti-chart-line-dot.tone-grade-n.provisional {
+    stroke: var(--c-grade-n);
+}
+
+.ti-chart-line-dot.tone-info.provisional {
+    stroke: var(--c-series-2);
+}
