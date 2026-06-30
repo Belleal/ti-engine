@@ -50,6 +50,7 @@ const configureCompetenceEvaluation = () => {
         noEvaluationState: null,
         warningMessage: "",
         isMyResults: false,
+        isOwnResults: false,
         modal: emptyModal(),
 
         // Phase 3 — individual results (populated by buildResults() at READY/CLOSED)
@@ -93,6 +94,9 @@ const configureCompetenceEvaluation = () => {
             this.canEdit = fresh.canEdit;
             this.canFinalizeTeam = ( fresh.canFinalizeTeam === true );
             this.isFacilitator = ( fresh.isFacilitator === true );
+            if ( typeof fresh.isOwnResults === "boolean" ) {
+                this.isOwnResults = fresh.isOwnResults;
+            }
             this.evaluation = fresh.evaluation ? tiToolbox.structuredClone( fresh.evaluation ) : {
                 scores: {},
                 finalScore: {}
@@ -114,11 +118,18 @@ const configureCompetenceEvaluation = () => {
             if ( resolvedID ) params.set( "employeeID", resolvedID );
             if ( evaluationID ) params.set( "evaluationID", evaluationID );
             const paramString = params.toString();
-            // "My results" reuses this fragment but loads the requesting employee's own latest result (incl. CLOSED)
-            // via the self-scoped load-my-results endpoint, since load-evaluation rejects CLOSED.
+            // "My results" reuses this fragment but loads the latest reported result (incl. CLOSED) via load-my-results,
+            // since load-evaluation rejects CLOSED. The same screen serves a manager/supervisor viewing a SPECIFIC
+            // employee's scores: the employeeID is forwarded and the endpoint authorizes it. isOwnResults drives the
+            // self-vs-other labels (and the topbar title override so a manager's view never reads "My ...").
             const isMyResults = !!( window.location && window.location.pathname && window.location.pathname.indexOf( "my-results" ) >= 0 );
             this.isMyResults = isMyResults;
-            const url = isMyResults ? "/app/load-my-results" : `/app/load-evaluation${ paramString ? `?${ paramString }` : "" }`;
+            const ownID = ( tiApplication.user && tiApplication.user.employeeID ) ? String( tiApplication.user.employeeID ) : "";
+            this.isOwnResults = isMyResults && ( !resolvedID || resolvedID === ownID );
+            tiApplication.setScreenTitle( ( isMyResults && !this.isOwnResults ) ? tiApplication.getLabel( "interface.topbar.results-other", "Performance Scores" ) : "" );
+            const url = isMyResults
+                ? `/app/load-my-results${ resolvedID ? `?employeeID=${ encodeURIComponent( resolvedID ) }` : "" }`
+                : `/app/load-evaluation${ paramString ? `?${ paramString }` : "" }`;
             this.resultsHistoryReady = false;
             tiApplication.sendRequest( url ).then( ( result ) => {
                 if ( result?.data?.noEvaluation ) {
@@ -153,7 +164,9 @@ const configureCompetenceEvaluation = () => {
         // employeeID when a manager/supervisor is looking at a report (the endpoint gates access; "My results" and the
         // employee's own view omit it and default to the requester). Silent on failure / too-few cycles — card stays hidden.
         loadHistory() {
-            const q = ( !this.isMyResults && this.employeeID ) ? ( "?employeeID=" + encodeURIComponent( this.employeeID ) ) : "";
+            // Pass the viewed employeeID whenever present (manager/supervisor viewing a report — on either the
+            // evaluation screen or the results screen); "My results" omits it and the endpoint defaults to self.
+            const q = this.employeeID ? ( "?employeeID=" + encodeURIComponent( this.employeeID ) ) : "";
             tiApplication.sendRequest( "/app/load-employee-history" + q ).then( ( result ) => {
                 const data = ( result && result.data ) ? result.data : {};
                 if ( data.noHistory || !data.history || !Array.isArray( data.history.x ) || data.history.x.length === 0 ) {
@@ -388,7 +401,7 @@ const configureCompetenceEvaluation = () => {
         },
 
         getPageTitle() {
-            if ( this.isMyResults ) return "interface.evaluation.page.my-results-title";
+            if ( this.isMyResults ) return this.isOwnResults ? "interface.evaluation.page.my-results-title" : "interface.evaluation.page.results-other-title";
             if ( this.userRole === 1 ) return "interface.evaluation.page.employee-title";
             if ( this.userRole === 2 ) return "interface.evaluation.page.manager-title";
             if ( this.userRole === 4 ) return "interface.evaluation.page.team-title";
@@ -396,7 +409,7 @@ const configureCompetenceEvaluation = () => {
         },
 
         getPageDesc() {
-            if ( this.isMyResults ) return "interface.evaluation.page.my-results-desc";
+            if ( this.isMyResults ) return this.isOwnResults ? "interface.evaluation.page.my-results-desc" : "interface.evaluation.page.results-other-desc";
             if ( this.userRole === 1 ) return "interface.evaluation.page.employee-desc";
             if ( this.userRole === 2 ) return "interface.evaluation.page.manager-desc";
             if ( this.userRole === 4 ) return "interface.evaluation.page.team-desc";
@@ -417,16 +430,50 @@ const configureCompetenceEvaluation = () => {
             return "";
         },
 
-        // Results panel header is context-aware: second-person for the evaluee / "My results", neutral for a
-        // manager or team reviewer viewing someone else (the old fixed "Your results" read wrong for them).
+        // Results (Scores) panel header is context-aware: second-person for the evaluee viewing their OWN scores,
+        // neutral ("Scores" + "...for {name}") for a manager/supervisor viewing another employee's scores.
         getResultsTitle() {
-            if ( this.isMyResults || this.userRole === 1 ) return "interface.evaluation.results.title";
-            return "interface.evaluation.results.title-other";
+            return this.isOwnResults ? "interface.evaluation.results.title" : "interface.evaluation.results.title-other";
         },
 
         getResultsDesc() {
-            if ( this.isMyResults || this.userRole === 1 ) return tiApplication.getLabel( "interface.evaluation.results.desc" );
-            return ( tiApplication.getLabel( "interface.evaluation.results.desc-other" ) || "" ).replace( "{name}", this.personal.name || "" );
+            return this.isOwnResults
+                ? tiApplication.getLabel( "interface.evaluation.results.desc" )
+                : ( tiApplication.getLabel( "interface.evaluation.results.desc-other" ) || "" ).replace( "{name}", this.personal.name || "" );
+        },
+
+        // Compact final-score panel (evaluation screen): the numeric score, guarded — finalScore is OPTIONAL on the
+        // evaluation record (absent until Ready), so it must never be dereferenced unguarded in the template.
+        getFinalScoreValue() {
+            const fs = this.evaluation && this.evaluation.finalScore;
+            return ( fs && typeof fs.score === "number" ) ? fs.score : "";
+        },
+
+        // Compact final-score panel (evaluation screen): the band display name once results are final.
+        getFinalScoreBandName() {
+            const fs = this.evaluation && this.evaluation.finalScore;
+            if ( !fs || typeof fs.score !== "number" ) return "";
+            return fs.interpretationName ? tiApplication.getLabel( fs.interpretationName, fs.interpretationName ) : ( fs.interpretation || "" );
+        },
+
+        // "Results are ready" info bar (evaluation screen) — second-person for the evaluee, neutral for a manager.
+        getResultsReadyTitle() {
+            if ( this.userRole === 1 ) return tiApplication.getLabel( "interface.evaluation.results-ready.title" );
+            return ( tiApplication.getLabel( "interface.evaluation.results-ready.title-other" ) || "" ).replace( "{name}", this.personal.name || "" );
+        },
+
+        getResultsReadyAction() {
+            return this.userRole === 1 ? "interface.evaluation.results-ready.action" : "interface.evaluation.results-ready.action-other";
+        },
+
+        // Opens the read-only results (scores) screen: the evaluee sees their own ("My Scores"); a manager/supervisor
+        // opens the viewed employee's scores (load-my-results forwards + authorizes the employeeID).
+        openResults() {
+            if ( this.userRole === 1 || !this.employeeID ) {
+                tiApplication.openScreen( "my-results" );
+            } else {
+                tiApplication.openScreen( "my-results?employeeID=" + encodeURIComponent( this.employeeID ) );
+            }
         },
 
         getContextualDeadline() {
@@ -1556,6 +1603,7 @@ const configureInterviewSchedule = () => {
         selectedEvaluationID: null,
         slotViewStart: null,
         config: {},
+        canSchedule: false,
 
         init() {
             const onInitialized = () => {
@@ -1580,6 +1628,7 @@ const configureInterviewSchedule = () => {
                 this.evaluations = Array.isArray( data.evaluations ) ? tiToolbox.structuredClone( data.evaluations ) : [];
                 this.slots = Array.isArray( data.slots ) ? tiToolbox.structuredClone( data.slots ) : [];
                 this.config = data.config || {};
+                this.canSchedule = ( data.canSchedule === true );   // only a Supervisor books; managers see this read-only
                 this.selectedEvaluationID = null;
 
                 const todayMonday = tiToolbox.getMonday( new Date() );
@@ -1664,10 +1713,13 @@ const configureInterviewSchedule = () => {
             if ( !this.canGoPrevSlotWeeks() ) {
                 return;
             }
-            const todayMonday = tiToolbox.getMonday( new Date() );
+            // Step back a full 4-week window. canGoPrevSlotWeeks() only returns true when an available slot exists
+            // before the current window start, and the schedule projection carries only future (schedulable) slots, so
+            // paging back always lands on/before a window that contains slots and terminates at the earliest slot's
+            // window — symmetric with canGoNextSlotWeeks(); no today-clamp needed.
             const d = new Date( this.slotViewStart );
             d.setDate( d.getDate() - 28 );
-            this.slotViewStart = d < todayMonday ? todayMonday : d;
+            this.slotViewStart = d;
         },
 
         nextSlotWeeks() {
@@ -1683,7 +1735,11 @@ const configureInterviewSchedule = () => {
             if ( !this.slotViewStart ) {
                 return false;
             }
-            return tiToolbox.toDateString( this.slotViewStart ) > tiToolbox.toDateString( tiToolbox.getMonday( new Date() ) );
+            // There is an earlier window worth showing only if an available slot falls BEFORE the current window start —
+            // symmetric with canGoNextSlotWeeks(). (Previously this compared against today's Monday, which left "Earlier"
+            // enabled so the user could page back into the empty weeks between today and the first available slot.)
+            const windowStartStr = tiToolbox.toDateString( this.slotViewStart );
+            return this.slots.some( ( s ) => s.status === "available" && s.date < windowStartStr );
         },
 
         canGoNextSlotWeeks() {
