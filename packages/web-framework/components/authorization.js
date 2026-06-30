@@ -79,6 +79,25 @@ function hasAnyRole( session, roles ) {
 }
 
 /**
+ * Pure access decision for a resource (e.g. an HTML fragment) that declares a set of required roles. A resource with
+ * no required roles (`null` / `undefined` / empty) is public — any (authenticated) user may access it; otherwise the
+ * user must hold at least one of the required roles. Roles are treated opaquely, so this works equally for numeric
+ * application role codes and the string `admin` role — there is no implicit hierarchy (an `admin`-gated resource is
+ * reachable only by holders of the `admin` role, never by a high numeric role). Backs {@link TiWebAppManager#verifyAccess}.
+ *
+ * @param {Array<string|number>} [requiredRoles] The roles permitted to access the resource; empty/absent = public.
+ * @param {Array<string|number>} [userRoles] The roles held by the current session user.
+ * @returns {boolean}
+ */
+function isAccessAllowed( requiredRoles, userRoles ) {
+    if ( !Array.isArray( requiredRoles ) || requiredRoles.length === 0 ) {
+        return true;
+    }
+    const roles = Array.isArray( userRoles ) ? userRoles : [];
+    return requiredRoles.some( ( role ) => roles.includes( role ) );
+}
+
+/**
  * Express middleware factory that admits a request only if its session user holds at least one of the given roles.
  * Responds `401` when unauthenticated (no session user) and `403` when authenticated but lacking the role.
  *
@@ -107,4 +126,4 @@ function requireRole( ...roles ) {
  */
 const requireAdmin = requireRole( ADMIN_ROLE );
 
-module.exports = { ADMIN_ROLE, isAdminIdentity, applyAdminRole, hasAnyRole, requireRole, requireAdmin };
+module.exports = { ADMIN_ROLE, isAdminIdentity, applyAdminRole, hasAnyRole, isAccessAllowed, requireRole, requireAdmin };

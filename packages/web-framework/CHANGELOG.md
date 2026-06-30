@@ -2,6 +2,15 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.13.0
+
+A reusable role-based screen gate and a per-screen title override (back the competence screen-access work and the evaluation/scores screen split).
+
+* feat(web-framework): the default `TiWebAppManager.verifyAccess` now enforces a fragment's declared `roles` — a fragment registered (via `addFragment`) with a `roles` array is served only to sessions holding at least one of them (otherwise rejected `E_SEC_UNAUTHORIZED_ACCESS` 403), while a fragment with no `roles` stays public. This makes role-restricted screens unreachable by direct URL, not merely hidden in the UI; apps just declare `roles` on `addFragment` — no `verifyAccess` override needed. Backward compatible: all existing role-less fragments remain public
+* feat(web-framework): add `authorization.isAccessAllowed( requiredRoles, userRoles )` — a pure, unit-tested access decision (empty/absent roles = public; otherwise ≥1 overlap; no implicit hierarchy, so an `admin` gate is never satisfied by a numeric role) that backs the default `verifyAccess`
+* feat(web-framework): add `tiApplication.setScreenTitle( title )` — a per-screen topbar/document-title override (cleared automatically on navigation) so a screen can correct its own title at runtime (e.g. a manager viewing another user's scores must not read "My …")
+* build(release): bump package version from `1.12.0` to `1.13.0`
+
 ## Version 1.12.0
 
 Chart primitives gain legends + value labels for grouped bars and a legend for radar (backs the leaner competence evaluation results view) (CA-61).
