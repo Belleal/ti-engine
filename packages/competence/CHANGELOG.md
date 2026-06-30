@@ -2,6 +2,23 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.7.0
+
+Leaner, more descriptive individual-results view on the evaluation screen, plus context-correctness fixes (CA-61). Requires web-framework ≥ 1.12.0 for the chart legend/value-label support.
+
+* feat(competence): condense the evaluation results section into three lean bands — a full-width hero merging the final score with per-category score chips, the subcategory radar and source-comparison charts side by side, and strengths / development areas — replacing the seven stacked, unstyled cards (the `ti-card-title` headings had no CSS rule and rendered as oversized default `<h2>`s)
+* feat(competence): make the results charts self-explanatory — legends + value labels on the source comparison, a legend (incl. the dashed expected curve) on the radar, a "what it shows" intro and a "How it's calculated" methodology disclosure per chart (en + bg)
+* fix(competence): the final-score band name now resolves through `getLabel` instead of rendering the raw threshold label key (e.g. `framework.performance.threshold.name.T3`)
+* fix(competence): the results panel header is now role-aware — a manager/team viewer sees "Results" / "…for {employee}" instead of the second-person "Your results"
+* fix(competence): strengths and development areas now show the same signed deviation-vs-expected quantity (e.g. `+0.30` / `-0.43`) with semantic colour, instead of mixing absolute mean with gap
+* fix(competence): the score bars now fill against the form's **true** ceiling — `ceil(S × Σ participating-source-weights × 100)` = 130 at full participation — instead of the arbitrary T5 band value (150); the maximum is derived from config and, because the score is a relevancy-normalised weighted average, is independent of family/competencies
+* feat(competence): the results charts now use the same identity colours as the grading form — per-category score chips match the E/I/C letter-box colours, and the source charts (bars + radar) use the SELF/MANAGER/TEAM column colours (self=info, manager=accent, team=success); the radar's "expected" curve is a distinct dashed grey
+* feat(competence): the subcategory-profile and source-comparison cards now stretch to equal height and centre their charts, removing the empty gap below the shorter card; each chart's legend now sits beneath the chart (not beside it) so it no longer steals horizontal space or clips
+* feat(competence): the radar axis labels (E1…C3) are now coloured by category to match the letter boxes / score chips, and the radar strokes are thinned (≈half) for the denser nine-axis profile
+* feat(competence): the self/manager/team comparison bars are thinned to ≈⅓ height with a smaller value caption, for a more compact three-source read
+* feat(competence): the cross-cycle score-history trend now also appears for an authorized manager/supervisor viewing a finalized report (the endpoint already gates access), not only on "My results"
+* build(release): bump package version from `3.6.2` to `3.7.0`
+
 ## Version 3.6.2
 
 Post-review fixes from the CA-72 CodeRabbit review (PR #85): test-user backdoor hardening, interview-slot privacy scoping, Supervisor-revoke confirmation, and grant/revoke robustness.
