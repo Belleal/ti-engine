@@ -2,6 +2,18 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.10.0
+
+Dashboard interview tasks made role-correct, plus booking notifications. Fixes a plain employee being shown a "Schedule your interview" task that routed to the Supervisor-only Interviews screen (403) with a mislabeled subtext, and the absence of any task once a Supervisor booked an interview. All interview tasks are now server-derived in `task-resolver.js`. See `design/dashboard-interview-tasks.md`.
+
+* fix(competence): remove the mis-targeted **"Schedule your interview"** dashboard task an employee saw when their own evaluation reached Ready — it opened the `[MANAGER, SUPERVISOR]`-gated Interviews screen (booking is supervisor-only) and 403'd, and its title/subtext reused the Interviews screen's own labels (`interface.schedule.title` → "Ready Evaluations", `interface.schedule.no-evaluations` → the screen's empty-state copy), so the subtext was a constant that never reflected any evaluation/interview state
+* feat(competence): a **Supervisor** now gets a single aggregate **"Interviews awaiting scheduling (N)"** task — N = READY evaluations org-wide with no booked slot — opening the schedule screen (the only role that can book)
+* feat(competence): once a Supervisor books a slot, the **evaluatee** sees "Your interview is scheduled · \<date\>" (opens their evaluation) and the **manager conducting the interview** sees "\<name\>'s interview is scheduled · \<date\>" (opens the read-only Team Interviews view) — both derived from the READY evaluation's `interviewDate`. The manager notification targets the **owner of the booked calendar slot** (the actual interviewer), resolved in `#loadDashboard` from the active cycle's booked slots — not the org reporting line — so a stand-in who covers for an absent manager is notified, while non-participant managers up the chain are not
+* feat(competence): the Team Interviews screen now shows a manager, in addition to their direct reports, any interview **booked into their own calendar** — so a stand-in conducting a covering interview both receives the notification and sees the interview on the screen it links to (`#loadInterviewSchedule` reordered to scope slots first, then include booked-into-my-slot evaluations)
+* feat(competence): `task-resolver.js` now derives interview tasks from READY evaluations alongside the existing OPEN-evaluation team tasks (`interview-schedule` aggregate + `interview-scheduled` self/manager); `test/task-resolver.test.js` extended with interview-task coverage
+* feat(competence): add dashboard labels `interface.dashboard.task-interview-schedule` / `-pending` / `-scheduled-self` / `-scheduled-team` / `task-interview-on` (en + bg, bg pending native review); the `interface.schedule.*` labels stay owned by the Interviews screen
+* build(release): bump package version from `3.9.1` to `3.10.0`
+
 ## Version 3.9.1
 
 Interview-scheduling fixes found while testing the screen-access work (CA-74) against the scheduling flow.

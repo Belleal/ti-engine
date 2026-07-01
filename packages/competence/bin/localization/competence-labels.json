@@ -5065,8 +5065,8 @@
           "bg": "Няма зададена"
         },
         "submission-deadline": {
-          "en": "Submission Deadline:",
-          "bg": "Крайна Дата за Подаване:"
+          "en": "Submission Deadline",
+          "bg": "Крайна Дата за Подаване"
         },
         "submission-deadline-not-set": {
           "en": "Not Set",
@@ -5930,6 +5930,26 @@
       "task-self-eval-sub": {
         "en": "Your evaluation is open — complete your self-assessment.",
         "bg": "Вашата оценка е отворена — попълнете самооценката си."
+      },
+      "task-interview-schedule": {
+        "en": "Interviews awaiting scheduling",
+        "bg": "Интервюта, чакащи насрочване"
+      },
+      "task-interview-pending": {
+        "en": "Ready evaluations need an interview slot.",
+        "bg": "Готови оценки очакват насрочване на интервю."
+      },
+      "task-interview-scheduled-self": {
+        "en": "Your interview is scheduled",
+        "bg": "Вашето интервю е насрочено"
+      },
+      "task-interview-scheduled-team": {
+        "en": "Team interview scheduled",
+        "bg": "Насрочено интервю на екипа"
+      },
+      "task-interview-on": {
+        "en": "Scheduled for",
+        "bg": "Насрочено за"
       }
     },
     "navigation": {
