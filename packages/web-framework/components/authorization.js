@@ -90,7 +90,13 @@ function hasAnyRole( session, roles ) {
  * @returns {boolean}
  */
 function isAccessAllowed( requiredRoles, userRoles ) {
-    if ( !Array.isArray( requiredRoles ) || requiredRoles.length === 0 ) {
+    if ( requiredRoles === null || requiredRoles === undefined ) {
+        return true;
+    }
+    if ( !Array.isArray( requiredRoles ) ) {
+        return false;
+    }
+    if ( requiredRoles.length === 0 ) {
         return true;
     }
     const roles = Array.isArray( userRoles ) ? userRoles : [];
