@@ -2,6 +2,34 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.9.1
+
+Interview-scheduling fixes found while testing the screen-access work (CA-74) against the scheduling flow.
+
+* fix(competence): the Interview Schedule screen is now **read-only for line managers** — booking/cancel are supervisor-only by design (CA-8), so the manager-facing Schedule/Cancel controls + slot picker are hidden (no more 403 when a manager tried to book) and the screen is re-framed as "Team Interviews"; `#loadInterviewSchedule` returns a `canSchedule` flag. The per-screen role gate, the supervisor-only book/cancel handlers, and the manager view's privacy-scoping to their own reports/slots are unchanged
+* fix(competence): the slot-week paginator no longer pages into empty weeks — "Earlier" is enabled only when an available slot precedes the current 4-week window (it previously compared against today's week), and the schedule projection now **excludes past-dated availability** (a stale, never-booked slot is not schedulable) — so no slot is stranded behind a dead button and a past interview can't be booked
+* fix(competence): localize the per-week "No slots available" placeholder (was hardcoded English; added `interface.schedule.no-slots-week`, en + bg)
+* build(release): bump package version from `3.9.0` to `3.9.1`
+
+## Version 3.9.0
+
+Separated the **Competence Evaluation** (grading) screen from the **My Scores** (results) screen — the two shared one fragment and had converged once an evaluation reached Ready. Requires web-framework ≥ 1.13.0 (topbar `setScreenTitle`). See `design/evaluation-scores-split.md`.
+
+* feat(competence): the grading screen no longer renders the full results statistics — it shows a compact **final-score panel** (states "Not yet available" until the evaluation is Ready) and a **"results are ready" info bar** whose button opens the read-only scores screen; the right-column panels are evenly distributed to match the employee card's height
+* feat(competence): the results screen is now **Scores** — "My Scores" for the evaluee, "{name}'s Scores" / "Performance Scores" for a manager/supervisor; it shows only the results summary and drops the right column (the employee card spans full width), the workflow status track / status pill / warnings (reusing the lightweight New-Evaluation employee card), and the per-competency grading tables / grade guide / feedback section / sticky bars (those live on the grading screen); `#loadResults` no longer ships the now-unused `feedback` (the result charts still need `competencies` + `grades`, which remain)
+* feat(competence): a manager/supervisor can open a specific employee's scores from the grading screen — `load-my-results` was generalized to an authorized `#loadResults( session, employeeID )` (org-superior or supervisor; employee-level anonymization for every viewer) that reuses the same screen via `my-results?employeeID=…`
+* fix(competence): rename the Results labels to Scores across the sidebar, topbar, page heading, and results-section header (role-aware; en + bg, bg pending native review)
+* build(release): bump package version from `3.8.0` to `3.9.0`
+
+## Version 3.8.0
+
+Role-based screen access: users now see and can reach only the screens their role permits. Closes the gap where employees saw (and could open the chrome of) the Availability and Interviews screens, and where any screen's HTML could be fetched by direct URL. The reusable gate lives in web-framework ≥ 1.13.0; competence declares each screen's required `roles`. See `design/screen-access-control.md`.
+
+* fix(competence): hide the **Availability** and **Interviews** sidebar entries from users who cannot use them — Availability now requires MANAGER (`hasRole(2)`) and Interviews MANAGER or SUPERVISOR (`hasRole(2) || hasRole(3)`), mirroring their backend `#requireRole(...)`; every other sidebar entry already matched its backend
+* feat(competence): gate each role-restricted screen on the server by declaring a `roles` requirement on its registered fragment — the web-framework default `verifyAccess` enforces it, so a screen's chrome can no longer be fetched by direct URL by a role that cannot use it (rejected `E_SEC_UNAUTHORIZED_ACCESS` 403); the admin editor screens are gated to the `admin` role, and the per-screen `#requireRole` data gates remain the source of truth for the data behind each screen
+* fix(competence): remove the user-profile menu's "Settings" entry, which pointed at the generic framework `/app/administration` placeholder and implied an admin destination for every user — the real, admin-gated configuration UI is the Administration sidebar section (`/app/admin-config`)
+* build(release): bump package version from `3.7.0` to `3.8.0`
+
 ## Version 3.7.0
 
 Leaner, more descriptive individual-results view on the evaluation screen, plus context-correctness fixes (CA-61). Requires web-framework ≥ 1.12.0 for the chart legend/value-label support.

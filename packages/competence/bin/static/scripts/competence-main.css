@@ -2291,7 +2291,51 @@
     flex-direction: column;
     gap: var(--s-3);
     flex: 0 0 220px;
-    align-self: start;
+    align-self: stretch;
+}
+
+/* The right-column cards split the column height evenly and stretch to match the (taller) employee card. */
+.competence-eval-top-right-col > .competence-deadline-card,
+.competence-eval-top-right-col > .competence-team-reviewers-card {
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+/* "Final results ready" info bar (grading screen) — a success-toned strip linking to the read-only Scores screen. */
+.competence-results-ready-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin-bottom: var(--s-4);
+    padding: var(--s-3) var(--s-4);
+    background: color-mix(in oklab, var(--success-soft) 60%, var(--bg-surface));
+    border: 1px solid var(--border-soft);
+    border-left: 3px solid var(--success);
+    border-radius: var(--r-md);
+    font-size: var(--fs-sm);
+}
+
+.competence-results-ready-bar > .ti-icon {
+    flex-shrink: 0;
+    color: var(--success);
+}
+
+.competence-results-ready-bar-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.competence-results-ready-bar-title {
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.competence-results-ready-bar-desc {
+    color: var(--fg-tertiary);
+}
+
+.competence-results-ready-bar > .ti-btn {
+    flex-shrink: 0;
 }
 
 .competence-eval-emp-top-row {

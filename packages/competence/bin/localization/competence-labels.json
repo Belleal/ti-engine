@@ -4773,12 +4773,20 @@
           "bg": "Оценете собствените си компетенции за текущия цикъл. Бъдете честни, задълбочени и конструктивни."
         },
         "my-results-title": {
-          "en": "My Results",
-          "bg": "Моите резултати"
+          "en": "My Scores",
+          "bg": "Моите оценки"
         },
         "my-results-desc": {
-          "en": "Your performance results for the latest reported cycle — final score, competency breakdown, and how your cycles compare.",
-          "bg": "Вашите резултати за последния отчетен цикъл — краен резултат, разбивка по компетенции и сравнение между циклите."
+          "en": "Your performance scores for the latest reported cycle — final score, competency breakdown, and how your cycles compare.",
+          "bg": "Вашите оценки за последния отчетен цикъл — краен резултат, разбивка по компетенции и сравнение между циклите."
+        },
+        "results-other-title": {
+          "en": "Performance Scores",
+          "bg": "Оценки за представянето"
+        },
+        "results-other-desc": {
+          "en": "Final score, profile, and how the sources compare.",
+          "bg": "Краен резултат, профил и сравнение между източниците."
         },
         "manager-title": {
           "en": "Manager Performance Review",
@@ -4861,12 +4869,12 @@
       },
       "results": {
         "title": {
-          "en": "Your results",
-          "bg": "Вашите резултати"
+          "en": "Your Scores",
+          "bg": "Вашите оценки"
         },
         "title-other": {
-          "en": "Results",
-          "bg": "Резултати"
+          "en": "Scores",
+          "bg": "Оценки"
         },
         "desc": {
           "en": "Your final score, profile, and how the sources compare.",
@@ -4879,6 +4887,10 @@
         "final-score": {
           "en": "Final score",
           "bg": "Краен резултат"
+        },
+        "final-score-pending": {
+          "en": "Not yet available",
+          "bg": "Все още не е налично"
         },
         "by-category": {
           "en": "Score by category",
@@ -4955,6 +4967,28 @@
         "history-method": {
           "en": "Each point is the final score for a completed cycle. Only cycles with reported results are shown.",
           "bg": "Всяка точка е крайният резултат за завършен цикъл. Показват се само цикли с отчетени резултати."
+        }
+      },
+      "results-ready": {
+        "title": {
+          "en": "Your final results are ready.",
+          "bg": "Вашите крайни резултати са готови."
+        },
+        "title-other": {
+          "en": "{name}'s final results are ready.",
+          "bg": "Крайните резултати на {name} са готови."
+        },
+        "desc": {
+          "en": "Open the results screen for the full score breakdown.",
+          "bg": "Отворете екрана с резултати за пълната разбивка на оценката."
+        },
+        "action": {
+          "en": "View my scores",
+          "bg": "Виж моите оценки"
+        },
+        "action-other": {
+          "en": "View scores",
+          "bg": "Виж оценките"
         }
       },
       "instructions": {
@@ -5904,8 +5938,8 @@
         "bg": "Работно пространство"
       },
       "my-results": {
-        "en": "My Results",
-        "bg": "Моите резултати"
+        "en": "My Scores",
+        "bg": "Моите оценки"
       },
       "manage": {
         "en": "Manage",
@@ -5966,8 +6000,12 @@
         "bg": "Оценка на Представянето"
       },
       "my-results": {
-        "en": "My Results",
-        "bg": "Моите резултати"
+        "en": "My Scores",
+        "bg": "Моите оценки"
+      },
+      "results-other": {
+        "en": "Performance Scores",
+        "bg": "Оценки за представянето"
       },
       "new-evaluation": {
         "en": "New Evaluation",
@@ -6691,9 +6729,17 @@
         "en": "Interviews Ready to Schedule",
         "bg": "Интервюта готови за насрочване"
       },
+      "page-title-manager": {
+        "en": "Team Interviews",
+        "bg": "Интервюта на екипа"
+      },
       "page-desc": {
         "en": "These evaluations are in status Ready. Pick one, then choose a slot from any manager's calendar.",
         "bg": "Тези оценки са в статус Готово. Изберете една, след което изберете слот от календара на мениджър."
+      },
+      "page-desc-manager": {
+        "en": "Your team members whose evaluation is ready for the performance interview, and when each one is scheduled.",
+        "bg": "Членовете на вашия екип, чиято оценка е готова за интервю по представянето, и кога е насрочено всяко от тях."
       },
       "title": {
         "en": "Ready Evaluations",
@@ -6742,6 +6788,10 @@
       "no-slots": {
         "en": "No managers have marked availability for the selected period. Ask them to configure their calendar.",
         "bg": "Нито един мениджър не е отбелязал наличност за избрания период. Помолете ги да конфигурират своя календар."
+      },
+      "no-slots-week": {
+        "en": "No slots available",
+        "bg": "Няма свободни слотове"
       },
       "actions": {
         "schedule": {

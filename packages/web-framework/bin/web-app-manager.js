@@ -13,6 +13,7 @@ const path = require( "node:path" );
 const fs = require( "node:fs" );
 const configRegistry = require( "#config-registry" );
 const configService = require( "#config-service" );
+const authorization = require( "#authorization" );
 
 const RE_NONCE_ATTR = /\{ti-nonce-placeholder}/g;
 const RE_CSRF_ATTR = /\{ti-csrf-placeholder}/g;
@@ -105,7 +106,9 @@ class TiWebAppManager {
      *
      * @method
      * @param {string} identifier
-     * @param {Object} fragment
+     * @param {Object} fragment The fragment descriptor (`{ title, path, components }`). May also carry an optional
+     * `roles` array (`Array<string|number>`): when present, the default {@link TiWebAppManager#verifyAccess} serves
+     * the fragment only to sessions holding at least one of those roles; omit it (or leave empty) for a public screen.
      * @throws {TiException.E_GEN_UNALLOWED_OVERRIDE} If a fragment with the same identifier already exists.
      * @public
      */
@@ -322,19 +325,29 @@ class TiWebAppManager {
     }
 
     /**
-     * Used to verify whether the current user has access to the requested resource.
-     * <br/>
-     * NOTE: Override in subclasses to implement the desired behavior.
+     * Used to verify whether the current user has access to the requested resource. The default implementation gates
+     * HTML fragments by their declared `roles`: a fragment registered via {@link TiWebAppManager#addFragment} with a
+     * `roles` array is served only to sessions holding at least one of those roles (see {@link addFragment}); a
+     * fragment with no `roles` is public to any authenticated user. This makes role-restricted screens unreachable by
+     * direct URL, not merely hidden in the UI. Override in subclasses only to implement additional/alternative checks.
      *
      * @method
      * @virtual
      * @param {TiSession} session
-     * @param {*} resource
+     * @param {Object} resource The fragment descriptor; its optional `resource.roles` lists the roles permitted to load it.
      * @returns {Promise}
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} (403) When the session holds none of the fragment's required roles.
      * @public
      */
     verifyAccess( session, resource ) {
-        return Promise.resolve();
+        return new Promise( ( resolve, reject ) => {
+            const requiredRoles = ( resource && resource.roles ) ? resource.roles : null;
+            const userRoles = ( session && session.user && session.user.roles ) || [];
+            if ( authorization.isAccessAllowed( requiredRoles, userRoles ) ) {
+                return resolve();
+            }
+            reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 ) );
+        } );
     }
 
     /* Private interface */

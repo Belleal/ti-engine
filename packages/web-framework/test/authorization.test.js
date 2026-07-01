@@ -37,6 +37,38 @@ describe( "authorization — admin allowlist", () => {
 
 } );
 
+describe( "authorization — isAccessAllowed", () => {
+
+    it( "treats a fragment with no required roles as public (null/undefined/empty)", () => {
+        assert.equal( auth.isAccessAllowed( undefined, [] ), true );
+        assert.equal( auth.isAccessAllowed( null, [] ), true );
+        assert.equal( auth.isAccessAllowed( [], undefined ), true );
+        assert.equal( auth.isAccessAllowed( [], [ 1 ] ), true );
+    } );
+
+    it( "allows when the user holds at least one required role (numeric or 'admin')", () => {
+        assert.equal( auth.isAccessAllowed( [ 3 ], [ 1, 2, 3 ] ), true );
+        assert.equal( auth.isAccessAllowed( [ 2, 3 ], [ 1, 2 ] ), true );
+        assert.equal( auth.isAccessAllowed( [ "admin" ], [ 1, "admin" ] ), true );
+    } );
+
+    it( "denies when the user holds none of the required roles", () => {
+        assert.equal( auth.isAccessAllowed( [ 3 ], [ 1, 2 ] ), false );
+        assert.equal( auth.isAccessAllowed( [ 2, 3 ], [ 1 ] ), false );
+    } );
+
+    it( "applies no implicit hierarchy — high numeric roles do not satisfy an 'admin' gate", () => {
+        assert.equal( auth.isAccessAllowed( [ "admin" ], [ 1, 2, 3 ] ), false );
+    } );
+
+    it( "denies a gated fragment when the user roles is missing/empty", () => {
+        assert.equal( auth.isAccessAllowed( [ 3 ], undefined ), false );
+        assert.equal( auth.isAccessAllowed( [ 3 ], null ), false );
+        assert.equal( auth.isAccessAllowed( [ 3 ], [] ), false );
+    } );
+
+} );
+
 describe( "authorization — guards", () => {
 
     function mockRes() {

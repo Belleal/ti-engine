@@ -38,6 +38,13 @@ class CompetenceWebApplication extends TiWebAppManager {
         // Register competence's editable configuration documents with the framework admin config registry/service.
         registerCompetenceConfig( this );
 
+        // Per-screen role gates, enforced server-side by verifyAccess() — the companion to the sidebar's x-show
+        // gating. A fragment WITHOUT a `roles` entry is public to any authenticated user; otherwise the session
+        // must hold at least one listed role. Values mirror each screen's data-load #requireRole(...) check;
+        // "admin" is the framework allowlist role (auth.admins).
+        const MANAGER = configurationLoader.roleCode.MANAGER;
+        const SUPERVISOR = configurationLoader.roleCode.SUPERVISOR;
+
         this.addFragment( "competence-evaluation", {
             title: "Competence Evaluation",
             path: "fragments/frame-competence-evaluation.html",
@@ -54,59 +61,73 @@ class CompetenceWebApplication extends TiWebAppManager {
         } );
         this.addFragment( "new-evaluation", {
             title: "New Competence Evaluation",
-            path: "fragments/frame-new-evaluation.html"
+            path: "fragments/frame-new-evaluation.html",
+            roles: [ MANAGER, SUPERVISOR ]
         } );
         this.addFragment( "manager-calendar", {
             title: "My Availability Calendar",
-            path: "fragments/frame-manager-calendar.html"
+            path: "fragments/frame-manager-calendar.html",
+            roles: [ MANAGER ]
         } );
         this.addFragment( "interview-schedule", {
             title: "Interview Schedule",
-            path: "fragments/frame-interview-schedule.html"
+            path: "fragments/frame-interview-schedule.html",
+            roles: [ MANAGER, SUPERVISOR ]
         } );
         this.addFragment( "cycles", {
             title: "Appraisal Cycles",
-            path: "fragments/frame-cycles.html"
+            path: "fragments/frame-cycles.html",
+            roles: [ SUPERVISOR ]
         } );
         this.addFragment( "cycle-setup", {
             title: "Cycle Setup",
-            path: "fragments/frame-cycle-setup.html"
+            path: "fragments/frame-cycle-setup.html",
+            roles: [ SUPERVISOR ]
         } );
         this.addFragment( "employee-management", {
             title: "Employee Management",
-            path: "fragments/frame-employee-management.html"
+            path: "fragments/frame-employee-management.html",
+            roles: [ MANAGER, SUPERVISOR ]
         } );
         this.addFragment( "admin-config", {
             title: "Configuration",
-            path: "fragments/frame-admin-config.html"
+            path: "fragments/frame-admin-config.html",
+            roles: [ "admin" ]
         } );
         this.addFragment( "competency-text-editor", {
             title: "Competency Texts",
-            path: "fragments/frame-competency-text-editor.html"
+            path: "fragments/frame-competency-text-editor.html",
+            roles: [ "admin" ]
         } );
         this.addFragment( "archetype-assignment", {
             title: "Archetype Assignment",
-            path: "fragments/frame-archetype-assignment.html"
+            path: "fragments/frame-archetype-assignment.html",
+            roles: [ "admin" ]
         } );
         this.addFragment( "archetype-editor", {
             title: "Relevancy Archetypes",
-            path: "fragments/frame-archetype-editor.html"
+            path: "fragments/frame-archetype-editor.html",
+            roles: [ "admin" ]
         } );
         this.addFragment( "role-families", {
             title: "Role Families",
-            path: "fragments/frame-role-families.html"
+            path: "fragments/frame-role-families.html",
+            roles: [ "admin" ]
         } );
         this.addFragment( "insights-cycle", {
             title: "Cycle Analytics",
-            path: "fragments/frame-insights-cycle.html"
+            path: "fragments/frame-insights-cycle.html",
+            roles: [ SUPERVISOR ]
         } );
         this.addFragment( "insights-team", {
             title: "Team Analytics",
-            path: "fragments/frame-insights-team.html"
+            path: "fragments/frame-insights-team.html",
+            roles: [ MANAGER, SUPERVISOR ]
         } );
         this.addFragment( "insights-trends", {
             title: "Trends",
-            path: "fragments/frame-insights-trends.html"
+            path: "fragments/frame-insights-trends.html",
+            roles: [ SUPERVISOR ]
         } );
     }
 
@@ -203,19 +224,14 @@ class CompetenceWebApplication extends TiWebAppManager {
                         menuTitle: localization.getLabel( "interface.topbar.user-profile", session?.language ),
                         placement: "right-end",
                         offset: 0,
+                        // NOTE: A "Settings" entry pointing at the generic framework /app/administration placeholder
+                        // was removed — it implied an admin destination for every user, while the real, admin-gated
+                        // configuration UI lives in the Administration sidebar section (/app/admin-config).
                         buttonConfigs: [ {
                             title: localization.getLabel( "interface.user-menu.profile", session?.language ),
                             icon: "user-profile",
                             action: {
                                 href: "/app/profile",
-                                target: "#ti-content",
-                                swap: "innerHTML"
-                            }
-                        }, {
-                            title: localization.getLabel( "interface.user-menu.settings", session?.language ),
-                            icon: "settings",
-                            action: {
-                                href: "/app/administration",
                                 target: "#ti-content",
                                 swap: "innerHTML"
                             }
@@ -239,7 +255,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             const evaluationID = String( options?.query?.evaluationID || "" ).trim();
             return this.#loadEvaluation( session, employeeID, evaluationID );
         } else if ( view === "load-my-results" ) {
-            return this.#loadMyResults( session );
+            const employeeID = String( options?.query?.employeeID || "" ).trim();
+            return this.#loadResults( session, employeeID );
         } else if ( view === "load-employee-list" ) {
             return this.#loadEmployeeList( session );
         } else if ( view === "load-new-evaluation-data" ) {
@@ -343,19 +360,9 @@ class CompetenceWebApplication extends TiWebAppManager {
         }
     }
 
-    /**
-     * Used to verify whether the current user has access to the requested resource.
-     *
-     * @method
-     * @override
-     * @param {TiSession} session
-     * @param {*} resource
-     * @returns {Promise}
-     * @public
-     */
-    verifyAccess( session, resource ) {
-        return Promise.resolve();
-    }
+    // verifyAccess is inherited from TiWebAppManager: it enforces each fragment's declared `roles` (see the addFragment
+    // registrations above). A fragment with no `roles` is public; the per-screen #requireRole data loaders remain the
+    // source of truth for the data behind each screen.
 
     /* Private interface */
 
@@ -1002,27 +1009,47 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
-     * Returns the requesting employee's OWN latest results (Phase 3 CA-I2 "My results"). Self-scoped — reads the raw
-     * evaluations for `session.user.employeeID` (so CLOSED cycles, which `load-evaluation` rejects, are included; the
-     * anonymized cohort snapshot is NEVER an individual source) and picks the most recent at Ready or Closed. ALWAYS
-     * re-applies the EMPLOYEE anonymization (peer `individual[]` collapsed to `team.cumulative`) — including for CLOSED.
-     * Returns the same shape the READY `load-evaluation` payload uses, or `{noEvaluation:true}` when none is ready yet.
+     * Returns an employee's latest results for the read-only results view ("My results", and the manager/supervisor
+     * "view results" affordance). With no `employeeID` (or one equal to the caller) it is self-scoped; with another
+     * employee's `employeeID` the caller must be that employee's manager (org-chart superior) or a supervisor, else
+     * E_SEC_UNAUTHORIZED_ACCESS (403). Reads the raw evaluations for the target (so CLOSED cycles, which
+     * `load-evaluation` rejects, are included; the anonymized cohort snapshot is NEVER an individual source) and picks
+     * the most recent at Ready or Closed. ALWAYS re-applies the EMPLOYEE anonymization (peer `individual[]` collapsed
+     * to `team.cumulative`) — for every viewer, including a manager/supervisor and including CLOSED history; the
+     * results view never needs peer-individual grades. Returns the same shape the READY `load-evaluation` payload uses
+     * (plus `isOwnResults`), or `{noEvaluation:true}` when none is ready yet.
      *
      * @method
      * @param {TiSession} session
+     * @param {string|null} [employeeID] Optional target employee; defaults to the caller (self "My results").
      * @returns {Promise<Object>}
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} (403) When targeting another employee without manager/supervisor authority.
      * @private
      */
-    #loadMyResults( session ) {
+    #loadResults( session, employeeID = null ) {
         return new Promise( ( resolve, reject ) => {
-            const { userID } = this.#requireSessionUser( session );
+            const { userID, userRoles } = this.#requireSessionUser( session );
+            const targetID = String( employeeID || "" ).trim() || userID;
+            const isOwnResults = ( targetID === userID );
+
+            // Viewing another employee's results requires supervisor authority, or being their org-chart manager —
+            // the same predicate #loadEmployeeHistory uses (the MANAGER role AND org superiority over the target).
+            if ( !isOwnResults ) {
+                const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+                const isManager = userRoles.includes( configurationLoader.roleCode.MANAGER );
+                const isSuperior = organizationManager.instance.isSuperiorManagerOfEmployee( userID, targetID );
+                if ( !isSupervisor && !( isManager && isSuperior ) ) {
+                    return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 ) );
+                }
+            }
+
             let employee = null;
-            dataManager.instance.fetchEmployee( userID ).then( ( employeeData ) => {
+            dataManager.instance.fetchEmployee( targetID ).then( ( employeeData ) => {
                 if ( !employeeData ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-employee-found" }, exceptions.httpCode.C_404 );
                 }
                 employee = employeeData;
-                return dataManager.instance.fetchEvaluations( userID );   // includes CLOSED (default filterClosed=false strips only DELETED)
+                return dataManager.instance.fetchEvaluations( targetID );   // includes CLOSED (default filterClosed=false strips only DELETED)
             } ).then( ( evaluations ) => {
                 const reported = ( evaluations || [] ).filter( ( evaluation ) => evaluation && ( evaluation.status === configurationLoader.evaluationStatus.READY || evaluation.status === configurationLoader.evaluationStatus.CLOSED ) );
                 if ( reported.length === 0 ) {
@@ -1030,14 +1057,18 @@ class CompetenceWebApplication extends TiWebAppManager {
                 }
                 const current = reported.slice().sort( ( a, b ) => new Date( b.cycleDate ) - new Date( a.cycleDate ) )[ 0 ];
 
-                // Always collapse peer grades to the cumulative for the employee view — including CLOSED history.
+                // Always collapse peer grades to the cumulative for the results view — for every viewer, including CLOSED history.
                 competenceFramework.instance.anonymizeEvaluationGrades( current, configurationLoader.roleCode.EMPLOYEE );
                 competenceFramework.instance.anonymizeEvaluationScores( current, configurationLoader.roleCode.EMPLOYEE );
                 delete current.workflow;
+                // The Scores screen renders only the results summary (no grading tables, no feedback section), so the
+                // written feedback is unused here — it stays available on the evaluation screen. Don't ship it.
+                delete current.feedback;
 
-                const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee );
+                const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee ) || {};
                 resolve( {
-                    employeeID: userID,
+                    employeeID: targetID,
+                    isOwnResults: isOwnResults,
                     personal: {
                         ...employee.personal,
                         name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
@@ -1368,7 +1399,7 @@ class CompetenceWebApplication extends TiWebAppManager {
 
             this.#resolveCurrentCycle().then( ( cycle ) => {
                 if ( !cycle ) {
-                    return resolve( { cycleID: null, evaluations: [], slots: [], config: calendarConfig } );
+                    return resolve( { cycleID: null, evaluations: [], slots: [], config: calendarConfig, canSchedule: isSupervisor } );
                 }
                 return Promise.all( [
                     dataManager.instance.fetchEvaluations( null, false ),
@@ -1429,8 +1460,13 @@ class CompetenceWebApplication extends TiWebAppManager {
                         };
                     } );
 
+                    // Only FUTURE availability is schedulable — a manager's stale, never-booked slot can still be
+                    // 'available' with a past date by the time evaluations reach READY. Excluding past slots keeps a
+                    // supervisor from booking an interview in the past and keeps the week-paginator bounded to real,
+                    // reachable slots (no stranded past-dated slots behind a dead "Earlier" button).
+                    const today = new Date().toISOString().split( "T" )[ 0 ];
                     const slots = visibleSlots
-                        .filter( ( slot ) => slot.status === configurationLoader.slotStatus.AVAILABLE )
+                        .filter( ( slot ) => slot.status === configurationLoader.slotStatus.AVAILABLE && slot.date >= today )
                         .map( ( slot ) => ( {
                             ...slot,
                             managerName: organizationManager.instance.resolveEmployeeName( slot.managerID ) || slot.managerID
@@ -1440,7 +1476,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                         cycleID: cycle.cycleID,
                         evaluations: evaluations,
                         slots: slots,
-                        config: calendarConfig
+                        config: calendarConfig,
+                        canSchedule: isSupervisor   // only a Supervisor can book/cancel; a manager gets a read-only view
                     } );
                 } );
             } ).catch( ( error ) => {

@@ -75,15 +75,15 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="competence-eval-emp-status-pill">
+                        <div class="competence-eval-emp-status-pill" x-show="!isMyResults">
                             <span class="ti-status-pill" x-bind:class="getStatusPillTone()">
                                 <span class="dot"></span>
                                 <span x-text="getLabel(evaluation.statusName)"></span>
                             </span>
                         </div>
                     </div>
-                    <!-- Status milestone track -->
-                    <div class="state-track">
+                    <!-- Status milestone track (hidden on the read-only Scores view — it reuses the lightweight card) -->
+                    <div class="state-track" x-show="!isMyResults">
                         <div class="state-step" x-bind:class="getStepClass(0)">
                             <span class="marker"></span>
                             <span x-text="getEvalStatusSteps()[0]"></span>
@@ -105,19 +105,21 @@
                         </div>
                     </div>
                     <!-- Warning -->
-                    <div class="competence-eval-emp-warn" x-show="warningMessage">
+                    <div class="competence-eval-emp-warn" x-show="!isMyResults && warningMessage">
                         <span class="ti-icon warning-triangle sm" aria-hidden="true"></span>
                         <span x-text="getLabel(warningMessage)"></span>
                     </div>
                     <!-- Supervisor facilitator notice (read-only; see design 3.8) -->
-                    <div class="competence-eval-emp-warn" x-show="isFacilitator">
+                    <div class="competence-eval-emp-warn" x-show="!isMyResults && isFacilitator">
                         <span class="ti-icon eye sm" aria-hidden="true"></span>
                         <span x-text-label="interface.evaluation.facilitator-notice"></span>
                     </div>
                 </div>
 
-                <!-- Right column: deadline card + team reviewers stacked vertically -->
-                <div class="competence-eval-top-right-col">
+                <!-- Right column: deadline/interview + team reviewers + final score, stacked and stretched to the
+                     employee card's height. Evaluation screen only — hidden on the read-only Scores view, which then
+                     lets the employee card span full width. -->
+                <div class="competence-eval-top-right-col" x-show="!isMyResults">
 
                     <!-- Contextual deadline / interview date card -->
                     <div class="competence-deadline-card">
@@ -152,14 +154,43 @@
                         </div>
                     </div>
 
+                    <!-- Final score card (results-bearing roles only). Always present on the evaluation screen —
+                         states "not yet available" until the evaluation reaches Ready. -->
+                    <div class="competence-deadline-card" x-show="userRole === 1 || userRole === 2">
+                        <div class="competence-deadline-card-icon" x-bind:class="hasResults() ? 'info' : ''">
+                            <span class="ti-icon bar-chart md" aria-hidden="true"></span>
+                        </div>
+                        <div>
+                            <div class="competence-deadline-card-label" x-text-label="interface.evaluation.results.final-score"></div>
+                            <div class="competence-deadline-card-value" x-show="hasResults()">
+                                <span class="tabular-nums" x-text="getFinalScoreValue()"></span>
+                            </div>
+                            <div class="competence-deadline-card-sub" x-show="hasResults()" x-text="getFinalScoreBandName()"></div>
+                            <div class="competence-deadline-card-sub" x-show="!hasResults()"
+                                 x-text-label="interface.evaluation.results.final-score-pending"></div>
+                        </div>
+                    </div>
+
                 </div>
 
             </div>
 
-            <!-- Individual results (READY/CLOSED) — above the demoted grading tables.
+            <!-- Final results ready (evaluation/grading screen): point the evaluee / manager to the read-only Scores
+                 screen — the detailed result statistics live there now, not on this grading screen. -->
+            <div class="competence-results-ready-bar" x-show="!isMyResults && hasResults() && ( userRole === 1 || userRole === 2 )">
+                <span class="ti-icon check-circle md" aria-hidden="true"></span>
+                <div class="competence-results-ready-bar-text">
+                    <div class="competence-results-ready-bar-title" x-text="getResultsReadyTitle()"></div>
+                    <div class="competence-results-ready-bar-desc" x-text-label="interface.evaluation.results-ready.desc"></div>
+                </div>
+                <button type="button" class="ti-btn primary" @click="openResults()" x-text="getLabel( getResultsReadyAction() )"></button>
+            </div>
+
+            <!-- Individual results (READY/CLOSED) — shown only on the read-only Scores screen; the grading screen links
+                 to it via the info bar above.
                  Lean 3-band layout: (1) full-width hero = final score + per-category scores; (2) two charts side-by-side;
                  (3) strengths | development areas; score history spans the full row when ≥2 reported cycles exist. -->
-            <div class="competence-results competence-panel-mb" x-show="hasResults()">
+            <div class="competence-results competence-panel-mb" x-show="hasResults() && isMyResults">
                 <div class="ti-card-grid">
 
                     <!-- BAND 1 — hero: authoritative final score + per-category breakdown -->
@@ -296,9 +327,10 @@
                 </div>
             </div>
 
-            <!-- Competency categories -->
+            <!-- Competency categories + per-source grades — hidden on the read-only Scores view (they live on the
+                 grading screen; the Scores screen shows only the results summary above). -->
             <template x-for="category in competencies" x-bind:key="category.id">
-                <div class="competence-cat-card" x-bind:class="category.id ? category.id.charAt(0) : ''">
+                <div class="competence-cat-card" x-show="!isMyResults" x-bind:class="category.id ? category.id.charAt(0) : ''">
                     <div class="competence-cat-card-head">
                         <div class="competence-cat-letter" x-text="category.id ? category.id.charAt(0) : '?'"></div>
                         <div>
@@ -483,8 +515,9 @@
                 </div>
             </template>
 
-            <!-- Feedback section -->
-            <div class="ti-panel competence-panel-body competence-panel-mt" x-show="userRole === 1 || userRole === 2 || ( userRole === 4 && canEdit )">
+            <!-- Feedback section (hidden on the read-only Scores view — feedback lives on the grading screen) -->
+            <div class="ti-panel competence-panel-body competence-panel-mt"
+                 x-show="!isMyResults && ( userRole === 1 || userRole === 2 || ( userRole === 4 && canEdit ) )">
                 <div class="ti-panel-head">
                     <div class="ti-panel-title" x-text-label="interface.evaluation.appraisal.feedback-title"></div>
                     <span class="ti-panel-head-aside" x-text-label="interface.evaluation.appraisal.feedback-desc"></span>
@@ -549,7 +582,7 @@
             </div>
 
             <!-- Sticky action bar -->
-            <div class="competence-eval-sticky-bar" x-show="( userRole === 1 || userRole === 2 || userRole === 4 ) && canEdit">
+            <div class="competence-eval-sticky-bar" x-show="!isMyResults && ( userRole === 1 || userRole === 2 || userRole === 4 ) && canEdit">
                 <div class="competence-eval-sticky-label">
                     <strong x-text="getGradedCount()"></strong>
                     <span x-text="getStickyProgressText()"></span>
@@ -569,7 +602,7 @@
             </div>
 
             <!-- Finalize team feedback: manager / supervisor, after the team-feedback deadline (design 3.4 / 3.8) -->
-            <div class="competence-eval-sticky-bar" x-show="canFinalizeTeam">
+            <div class="competence-eval-sticky-bar" x-show="!isMyResults && canFinalizeTeam">
                 <div class="competence-eval-sticky-label">
                     <strong x-text-label="interface.evaluation.finalize-team-title"></strong>
                     <span x-text-label="interface.evaluation.finalize-team-hint"></span>

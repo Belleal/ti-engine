@@ -4,13 +4,13 @@
     <template x-if="evaluations.length > 0">
         <div class="ti-page-head">
             <div class="ti-page-eyebrow" x-text-label="interface.schedule.page-eyebrow"></div>
-            <h1 class="ti-page-title" x-text-label="interface.schedule.page-title"></h1>
-            <p class="ti-page-subtitle" x-text-label="interface.schedule.page-desc"></p>
+            <h1 class="ti-page-title" x-text="getLabel( canSchedule ? 'interface.schedule.page-title' : 'interface.schedule.page-title-manager' )"></h1>
+            <p class="ti-page-subtitle" x-text="getLabel( canSchedule ? 'interface.schedule.page-desc' : 'interface.schedule.page-desc-manager' )"></p>
         </div>
     </template>
 
     <!-- Interview list panel -->
-    <div class="ti-panel competence-panel-mb">
+    <div class="ti-panel competence-panel-body competence-panel-mb">
         <div class="ti-panel-head" x-show="evaluations.length > 0">
             <div class="ti-panel-title" x-text-label="interface.schedule.title"></div>
             <div class="competence-schedule-badge" x-show="pendingCount() > 0">
@@ -53,14 +53,14 @@
                                  x-text="evaluation.interviewDate ? formatDate( evaluation.interviewDate ) : getLabel( 'interface.schedule.not-scheduled' )"></div>
                         </div>
                         <div class="competence-interview-actions">
-                            <button type="button" x-show="!evaluation.interviewDate"
+                            <button type="button" x-show="canSchedule && !evaluation.interviewDate"
                                     class="ti-btn sm primary"
                                     @click="selectEvaluation( evaluation.evaluationID )">
                                 <span x-show="selectedEvaluationID !== evaluation.evaluationID" x-text-label="interface.schedule.actions.schedule"></span>
                                 <span x-show="selectedEvaluationID === evaluation.evaluationID"
                                       x-text-label="interface.schedule.actions.cancel-selection"></span>
                             </button>
-                            <button type="button" class="ti-btn sm ghost" x-show="!!evaluation.interviewDate && !!evaluation.bookedSlotID"
+                            <button type="button" class="ti-btn sm ghost" x-show="canSchedule && !!evaluation.interviewDate && !!evaluation.bookedSlotID"
                                     @click="cancelBooking(evaluation.bookedSlotID)">
                                 <span aria-hidden="true">×</span>
                                 <span x-text-label="interface.schedule.actions.cancel-booking"></span>
@@ -72,8 +72,8 @@
         </template>
     </div>
 
-    <!-- Slot picker panel -->
-    <div class="ti-panel" x-show="!!selectedEvaluationID">
+    <!-- Slot picker panel (booking is supervisor-only; a manager never reaches a selection, so this stays hidden for them) -->
+    <div class="ti-panel competence-panel-body" x-show="canSchedule && !!selectedEvaluationID">
         <div class="ti-panel-head">
             <div class="ti-panel-title" x-text-label="interface.schedule.pick-slot-title"></div>
             <div class="ti-panel-head-actions">
@@ -106,7 +106,7 @@
                             <div class="competence-slot-week-head" x-text="week.weekLabel"></div>
                             <div class="competence-slot-week-body">
                                 <template x-if="week.slots.length === 0">
-                                    <div class="competence-slot-empty-week">No slots available</div>
+                                    <div class="competence-slot-empty-week" x-text-label="interface.schedule.no-slots-week"></div>
                                 </template>
                                 <template x-for="slot in week.slots" x-bind:key="slot.slotID">
                                     <button type="button" class="competence-slot-btn" @click="bookSlot(slot.slotID)">
