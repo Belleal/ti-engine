@@ -262,7 +262,7 @@ sequenceDiagram
 
     Note over Sup, Sys: Step 1 — Appraisal Cycle Setup
     Sup ->> Sys: Create cycle (status: PLANNING)
-    Sup ->> Sys: Configure Active Competency Sets per family (from each family's pool); exclude families not in scope
+    Sup ->> Sys: Configure Active Competency Sets per family (from each family's pool), excluding families not in scope
     Sys -->> Sys: Validate (floor coverage · cap · references · pool membership · inclusion)
     Sup ->> Sys: Lock cycle to ACTIVE
 
