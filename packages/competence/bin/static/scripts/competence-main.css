@@ -1965,29 +1965,81 @@
 /* Source identity colours for the results charts (bars + radar + legends) — match the SELF / MANAGER / TEAM grading-form
    column headers (self=info, manager=accent, team=success); the maturity "expected" curve is a neutral dashed grey so it
    reads as a benchmark distinct from the three rating sources. App-specific, layered over the generic ti-charts tones. */
-.ti-chart-bar-seg.tone-self { fill: var(--info); }
-.ti-chart-bar-seg.tone-manager { fill: var(--accent); }
-.ti-chart-bar-seg.tone-team { fill: var(--success); }
+.ti-chart-bar-seg.tone-self {
+    fill: var(--info);
+}
 
-.ti-chart-radar-poly.tone-self { fill: var(--info); stroke: var(--info); }
-.ti-chart-radar-poly.tone-manager { fill: var(--accent); stroke: var(--accent); }
-.ti-chart-radar-poly.tone-team { fill: var(--success); stroke: var(--success); }
-.ti-chart-radar-poly.tone-expected { stroke: var(--fg-secondary); }
+.ti-chart-bar-seg.tone-manager {
+    fill: var(--accent);
+}
 
-.ti-chart-radar-dot.tone-self { fill: var(--info); }
-.ti-chart-radar-dot.tone-manager { fill: var(--accent); }
-.ti-chart-radar-dot.tone-team { fill: var(--success); }
-.ti-chart-radar-dot.tone-expected { fill: var(--fg-secondary); }
+.ti-chart-bar-seg.tone-team {
+    fill: var(--success);
+}
+
+.ti-chart-radar-poly.tone-self {
+    fill: var(--info);
+    stroke: var(--info);
+}
+
+.ti-chart-radar-poly.tone-manager {
+    fill: var(--accent);
+    stroke: var(--accent);
+}
+
+.ti-chart-radar-poly.tone-team {
+    fill: var(--success);
+    stroke: var(--success);
+}
+
+.ti-chart-radar-poly.tone-expected {
+    stroke: var(--fg-secondary);
+}
+
+.ti-chart-radar-dot.tone-self {
+    fill: var(--info);
+}
+
+.ti-chart-radar-dot.tone-manager {
+    fill: var(--accent);
+}
+
+.ti-chart-radar-dot.tone-team {
+    fill: var(--success);
+}
+
+.ti-chart-radar-dot.tone-expected {
+    fill: var(--fg-secondary);
+}
 
 /* Radar axis labels (E1…C3) coloured by their category, matching the E / I / C letter boxes + score chips. */
-.ti-chart-radar-axis-label.tone-cat-e { fill: var(--competence-cat-e); }
-.ti-chart-radar-axis-label.tone-cat-i { fill: var(--competence-cat-i); }
-.ti-chart-radar-axis-label.tone-cat-c { fill: var(--competence-cat-c); }
+.ti-chart-radar-axis-label.tone-cat-e {
+    fill: var(--competence-cat-e);
+}
 
-.ti-chart-legend-swatch.tone-self { background: var(--info); }
-.ti-chart-legend-swatch.tone-manager { background: var(--accent); }
-.ti-chart-legend-swatch.tone-team { background: var(--success); }
-.ti-chart-legend-swatch.tone-expected.is-dashed { border-color: var(--fg-secondary); }
+.ti-chart-radar-axis-label.tone-cat-i {
+    fill: var(--competence-cat-i);
+}
+
+.ti-chart-radar-axis-label.tone-cat-c {
+    fill: var(--competence-cat-c);
+}
+
+.ti-chart-legend-swatch.tone-self {
+    background: var(--info);
+}
+
+.ti-chart-legend-swatch.tone-manager {
+    background: var(--accent);
+}
+
+.ti-chart-legend-swatch.tone-team {
+    background: var(--success);
+}
+
+.ti-chart-legend-swatch.tone-expected.is-dashed {
+    border-color: var(--fg-secondary);
+}
 
 /* Make the two band-2 cards equal height and centre the chart vertically so the shorter card fills its space.
    The figure is a COLUMN flex container (not row) so the appended legend + sr-table stay BELOW the chart and the
@@ -2290,7 +2342,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--s-3);
-    flex: 0 0 220px;
+    flex: 0 0 280px;
     align-self: stretch;
 }
 

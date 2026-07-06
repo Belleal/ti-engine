@@ -1406,28 +1406,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                     dataManager.instance.fetchAllCalendarSlots( cycle.cycleID )
                 ] ).then( ( [ allEvaluations, allSlots ] ) => {
                     const readyStatus = configurationLoader.evaluationStatus.READY;
-                    // A Supervisor schedules every READY interview (the only role that can book a slot); a plain manager
-                    // gets a read-only view scoped to their own reports, mirroring the dashboard's team scoping. Without
-                    // this filter the endpoint leaked org-wide evaluatee names, manager names, and final scores to any
-                    // manager. The reviewing manager is resolved live from the org graph, falling back to the optional,
-                    // possibly stale stored managerID only when the evaluatee is no longer resolvable in the chart.
-                    const readyEvaluations = allEvaluations.filter( ( evaluation ) => {
-                        if ( evaluation.status !== readyStatus ) {
-                            return false;
-                        }
-                        if ( isSupervisor ) {
-                            return true;
-                        }
-                        const managerID = organizationManager.instance.resolveClosestManagerIDForEmployee( evaluation.employeeID ) || evaluation.managerID || "";
-                        return managerID === userID;
-                    } );
 
-                    // Scope the slots the same way as the evaluations above: a Supervisor sees the whole calendar (the
-                    // only role that books interviews), while a plain manager sees only their own slots (a slot's
-                    // managerID is the manager who created it). Without this filter the available-slot projection below
-                    // leaked every other manager's availability and names to any manager who can call the endpoint.
-                    // A manager's report whose interview was booked into a different manager's slot still surfaces as
-                    // scheduled via evaluation.interviewDate; only the cross-manager bookedSlotID link is omitted.
+                    // Scope the slots first (the evaluation filter below depends on them): a Supervisor sees the whole
+                    // calendar (the only role that books interviews), while a plain manager sees only their own slots (a
+                    // slot's managerID is the manager who created it). Without this filter the available-slot projection
+                    // below leaked every other manager's availability and names to any manager who can call the endpoint.
                     const visibleSlots = isSupervisor
                         ? allSlots
                         : allSlots.filter( ( slot ) => slot.managerID === userID );
@@ -1437,6 +1420,25 @@ class CompetenceWebApplication extends TiWebAppManager {
                         if ( slot.status === configurationLoader.slotStatus.BOOKED && slot.booking?.evaluationID ) {
                             bookedSlotByEvaluationID.set( slot.booking.evaluationID, slot );
                         }
+                    } );
+
+                    // A Supervisor schedules every READY interview (the only role that can book a slot). A plain manager
+                    // gets a read-only view of the interviews they own: their direct reports (dashboard team scoping)
+                    // PLUS any interview booked into their own calendar — i.e. one they are conducting, e.g. covering for
+                    // an absent colleague — so the "your interview is scheduled" dashboard notification always has a
+                    // matching row here. Without this filter the endpoint leaked org-wide evaluatee names, manager names,
+                    // and final scores to any manager. The reviewing manager is resolved live from the org graph, falling
+                    // back to the optional, possibly stale stored managerID only when the evaluatee is no longer
+                    // resolvable in the chart.
+                    const readyEvaluations = allEvaluations.filter( ( evaluation ) => {
+                        if ( evaluation.status !== readyStatus ) {
+                            return false;
+                        }
+                        if ( isSupervisor ) {
+                            return true;
+                        }
+                        const managerID = organizationManager.instance.resolveClosestManagerIDForEmployee( evaluation.employeeID ) || evaluation.managerID || "";
+                        return managerID === userID || bookedSlotByEvaluationID.has( evaluation.evaluationID );
                     } );
 
                     const evaluations = readyEvaluations.map( ( evaluation ) => {
@@ -1698,8 +1700,28 @@ class CompetenceWebApplication extends TiWebAppManager {
             Promise.all( [
                 dataManager.instance.fetchEvaluations( userID ),
                 dataManager.instance.fetchEvaluations( null, false ),
-                this.#resolveCurrentCycle()
-            ] ).then( ( [ myEvaluations, allEvaluations, currentCycle ] ) => {
+                // Resolve the active cycle together with that cycle's calendar slots — the booked ones identify which
+                // manager is conducting each scheduled interview (the slot owner), which drives the interview
+                // notification's recipient (not the reporting line). Only a MANAGER/SUPERVISOR can ever own a slot, so
+                // the whole-cycle slots fetch is skipped for individual contributors — their interviewManagerByEvaluationID
+                // could never match. The cycle itself is still resolved for everyone (the dashboard cycle card needs it).
+                this.#resolveCurrentCycle().then( ( cycle ) => {
+                    return ( ( isManager && cycle )
+                        ? dataManager.instance.fetchAllCalendarSlots( cycle.cycleID )
+                        : Promise.resolve( [] )
+                    ).then( ( slots ) => ( { cycle: cycle, slots: slots } ) );
+                } )
+            ] ).then( ( [ myEvaluations, allEvaluations, cycleData ] ) => {
+                const currentCycle = cycleData.cycle;
+
+                // Map each booked interview to the manager conducting it (the slot's owner), keyed by evaluationID.
+                const interviewManagerByEvaluationID = new Map();
+                cycleData.slots.forEach( ( slot ) => {
+                    if ( slot.status === configurationLoader.slotStatus.BOOKED && slot.booking && slot.booking.evaluationID ) {
+                        interviewManagerByEvaluationID.set( slot.booking.evaluationID, slot.managerID );
+                    }
+                } );
+
                 const myLatestEvaluation = myEvaluations.length > 0
                     ? myEvaluations.slice().sort( ( a, b ) => new Date( b.cycleDate ) - new Date( a.cycleDate ) )[ 0 ]
                     : null;
@@ -1730,7 +1752,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                 const today = new Date().toISOString().split( "T" )[ 0 ];
                 const tasks = taskResolver.instance.resolveTasks( userID, {
                     isSupervisor: userRoles.includes( configurationLoader.roleCode.SUPERVISOR ),
+                    // canManage = anywhere up the reporting chain (drives team-finalize). isInterviewManager keys off the
+                    // booked slot, so the interview notification follows the actual interviewer (the slot owner), not the
+                    // reporting line — a covering manager IS notified, and non-participant managers above are NOT.
                     canManage: ( evaluatedID ) => organizationManager.instance.isSuperiorManagerOfEmployee( userID, evaluatedID ),
+                    isInterviewManager: ( evaluationID ) => interviewManagerByEvaluationID.get( evaluationID ) === userID,
                     today: today,
                     resolveName: ( id ) => organizationManager.instance.resolveEmployeeName( id ) || id
                 }, allEvaluations );

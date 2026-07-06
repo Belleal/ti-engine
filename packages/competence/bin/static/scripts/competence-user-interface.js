@@ -110,9 +110,7 @@ const configureCompetenceEvaluation = () => {
 
         loadEmployeeEvaluation( employeeID ) {
             const resolvedID = String( employeeID || "" ).trim();
-            if ( resolvedID ) {
-                this.employeeID = resolvedID;
-            }
+            this.employeeID = resolvedID || null;
             const evaluationID = tiToolbox.getUrlParam( "evaluationID" );
             const params = new URLSearchParams();
             if ( resolvedID ) params.set( "employeeID", resolvedID );
@@ -2590,15 +2588,8 @@ const configureDashboard = () => {
                         action: "evaluation"
                     } );
                 }
-                if ( s === "Ready" ) {
-                    tasks.push( {
-                        id: "interview",
-                        tone: "success",
-                        title: tiApplication.getLabel( "interface.schedule.title", "Schedule your interview" ),
-                        sub: tiApplication.getLabel( "interface.schedule.no-evaluations", "Your evaluation is ready for interview scheduling" ),
-                        action: "schedule"
-                    } );
-                }
+                // The interview tasks (schedule / scheduled) are server-derived below — interview scheduling is a
+                // Supervisor action, so an employee is never prompted to open the Supervisor-only schedule screen.
             }
             if ( this.isManager ) {
                 const pendingReview = this.teamEvaluations.filter( ( e ) => e.status === "In Review" ).length;
@@ -2637,6 +2628,37 @@ const configureDashboard = () => {
                         employeeID: serverTask.employeeID,
                         evaluationID: serverTask.evaluationID
                     } );
+                } else if ( serverTask.type === "interview-schedule" ) {
+                    // Supervisor-only aggregate: N READY evaluations awaiting a booked slot. Opens the schedule screen.
+                    tasks.push( {
+                        id: "interview-schedule",
+                        tone: "info",
+                        title: tiApplication.getLabel( "interface.dashboard.task-interview-schedule", "Interviews awaiting scheduling" ) + " (" + serverTask.count + ")",
+                        sub: tiApplication.getLabel( "interface.dashboard.task-interview-pending", "Ready evaluations need an interview slot." ),
+                        action: "schedule"
+                    } );
+                } else if ( serverTask.type === "interview-scheduled" ) {
+                    const on = tiApplication.getLabel( "interface.dashboard.task-interview-on", "Scheduled for" );
+                    const when = tiToolbox.formatDate( serverTask.interviewDate, "" );
+                    if ( serverTask.audience === "manager" ) {
+                        // The evaluatee's manager: informational; opens the read-only Team Interviews view.
+                        tasks.push( {
+                            id: "interview-scheduled-" + serverTask.employeeID,
+                            tone: "success",
+                            title: tiApplication.getLabel( "interface.dashboard.task-interview-scheduled-team", "Team interview scheduled" ),
+                            sub: name + " · " + on + " " + when,
+                            action: "schedule"
+                        } );
+                    } else {
+                        // The evaluatee themselves: opens their own evaluation, which shows the interview date.
+                        tasks.push( {
+                            id: "interview-scheduled-self",
+                            tone: "success",
+                            title: tiApplication.getLabel( "interface.dashboard.task-interview-scheduled-self", "Your interview is scheduled" ),
+                            sub: on + " " + when,
+                            evaluationID: serverTask.evaluationID
+                        } );
+                    }
                 }
             }
             return tasks;
