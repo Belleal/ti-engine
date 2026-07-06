@@ -35,7 +35,7 @@ The following features are currently implemented:
 - **[UI]** Cycle Setup screen — Supervisor-only two-pane editor for the Active Competency Sets of a cycle; tree of families and specializations, cap and floor-coverage indicators, pool-scoped competency picker, per-family include/exclude, clone-from-another-node flow
 - **[UI]** Employee Management screen — Supervisor + Manager master/detail editor with field-level permission gating, audit log, in-flight evaluation count surfaced on role-family changes, and Supervisor-role assignment (structural Supervisors assign/revoke the role for others, with a warning; structural Supervisors are immutable)
 - **[UI]** Administration screens (admin-allowlisted users) — Configuration landing (config change feed, validated restore, export-to-git bundle), Competency Text Editor (bilingual, for BG review), Archetype Assignment, Archetype Curve Editor, and Role Families editor
-- **[UI]** Insights — Statistics & Results analytics (Manager / Supervisor): Cycle and Team analytics (coverage, interview timing, self-vs-manager alignment, competence heatmap, score-by-level distribution, predictive drivers, grader calibration), individual results on the evaluation view plus a self-scoped "My results" screen, and Supervisor-only cross-cycle Trends (score trend, gap-closure, ladder movement, cohort comparison) with a per-employee history line — each chart carrying a methodology explainer, all bilingual (en/bg)
+- **[UI]** Insights — Statistics & Results analytics (Manager / Supervisor): Cycle and Team analytics (coverage, interview timing, self-vs-manager alignment, competence heatmap, score-by-level distribution, predictive drivers, grader calibration), individual **Scores** on a dedicated read-only screen ("My Scores" for the evaluee; "{name}'s Scores" / "Performance Scores" for an authorized manager/supervisor), reached from the grading screen's *results-are-ready* bar, and Supervisor-only cross-cycle Trends (score trend, gap-closure, ladder movement, cohort comparison) with a per-employee history line — each chart carrying a methodology explainer, all bilingual (en/bg)
 - **[Config]** Admin configuration management — versioned, validated, restorable editing of the competency dictionary, localization, relevancy archetypes, role families, and active competency sets through the UI, with export back to the source JSON files (reusable machinery lives in `@ti-engine/web-framework`)
 
 > **Note on planned features:** Step 8 of the process (goal-setting and formal closure) is part of the full intended workflow and is described below, but is not yet implemented.
@@ -429,7 +429,7 @@ The default landing screen after login. Presents a personalized summary of the c
 - **Stat cards** adapt to the active role:
   - **Manager/Supervisor view**: four cards showing total team evaluations and the count in each active status (open, in-review, ready), each with a proportional fill bar
   - **Employee view**: four cards showing peer feedback submitted vs. requested, self-grades completed vs. total, days until the manager review deadline, and team coverage (how many teammates have started their evaluations)
-- A **Tasks** panel lists the user's most relevant pending actions (e.g. "Complete self-evaluation", "Schedule your interview", "Review pending evaluations") with click-through navigation to the relevant screen.
+- A **Tasks** panel lists the user's most relevant pending actions, each with click-through navigation to the relevant screen — e.g. "Complete self-evaluation" and "Review pending evaluations", plus interview tasks derived server-side (in `task-resolver.js`) from evaluation and booking state: a Supervisor's aggregate "Interviews awaiting scheduling", the evaluatee's "Your interview is scheduled" once a slot is booked, and — for the manager conducting a booked interview (the calendar-slot owner, not necessarily the reporting-line manager) — a "Team interview scheduled" notice.
 - An **Activity feed** panel lists recent evaluation lifecycle events.
 
 ### Employees List
@@ -446,7 +446,18 @@ The primary grading interface. Displays the employee's personal and career infor
 - A **role banner** at the top indicates the active role (Employee / Manager / Team)
 - Grade inputs are disabled once the role has already submitted or if the deadline has passed
 - Save Draft and Submit buttons are only active when editing is permitted for the current role and status
-- Scores and performance interpretation are displayed once available (status: Ready), with threshold labels
+- Once the evaluation is `Ready`, a compact **final-score panel** shows the final score and threshold label (it reads "Not yet available" until then); a *results-are-ready* info bar links to the separate **Scores** screen, where the full breakdown and charts live — the grading screen itself no longer renders them (3.9.0 split)
+
+### Scores
+
+A dedicated, read-only results view (the `my-results` route, which reuses the evaluation fragment in a results-only mode). Reached from the grading screen's *results-are-ready* bar, or from the sidebar, once an evaluation is `Ready`. It is titled **"My Scores"** for the evaluee and **"{name}'s Scores"** / **"Performance Scores"** for an authorized manager or supervisor — an org-superior or a Supervisor may open a specific employee's scores, and every viewer sees employee-level anonymization.
+
+- A **final-score hero** merges the final score with per-category score chips
+- The **subcategory radar** and the self/manager/team **source-comparison** charts sit side by side, each with a legend, value labels, and a "how it's calculated" methodology disclosure
+- **Strengths** and **development areas** derived from the signed deviation vs. the expected curve
+- For a finalized report, the cross-cycle **score-history trend** line
+
+The per-competency grading tables, grade guide, and feedback section stay on the [Evaluation Form](#evaluation-form) screen; Scores shows only the results summary.
 
 ### New Evaluation
 
@@ -528,19 +539,25 @@ sequenceDiagram
         note over User, DB: Load Dashboard Flow
         User ->> Client: Open dashboard
         Client ->> Server: POST /app/load-dashboard
-        Server -->> Server: Resolve userID and isManager flag
+        Server -->> Server: Resolve userID, userRoles, and isManager flag
         Server ->> DataMgr: fetchEvaluations(userID)
         DataMgr ->> DB: GET evaluations for current user
         DB -->> DataMgr: Employee's own evaluations
         DataMgr -->> Server: Own evaluations (most recent selected)
-        opt isManager
-            Server ->> DataMgr: fetchEvaluations(null)
-            DataMgr ->> DB: GET all evaluations
-            DB -->> DataMgr: All active evaluations
-            DataMgr -->> Server: Team evaluations filtered to managerID = userID
+        Server ->> DataMgr: fetchEvaluations(null) — all evaluations (for tasks + team stats)
+        DataMgr ->> DB: GET all evaluations
+        DB -->> DataMgr: All active evaluations
+        DataMgr -->> Server: All evaluations
+        Server -->> Server: Resolve current cycle
+        opt isManager (MANAGER / SUPERVISOR)
+            Server ->> DataMgr: fetchAllCalendarSlots(cycleID)
+            DataMgr ->> DB: GET all slots for cycle
+            DataMgr -->> Server: Booked slots → map evaluationID to its conducting (slot-owner) manager
             Server -->> Server: Calculate team stats (total / open / inReview / ready)
         end
-        Server -->> Client: {isManager, cycle, myEvaluation, teamEvaluations, stats, employeeMetrics, activity}
+        Server ->> Server: taskResolver.resolveTasks(userID, {isSupervisor, canManage, isInterviewManager, …}, allEvaluations)
+        Server -->> Server: Derive tasks (team-feedback / team-finalize / interview-schedule / interview-scheduled)
+        Server -->> Client: {isManager, cycle, myEvaluation, teamEvaluations, stats, employeeMetrics, tasks, activity}
         Client -->> User: Display greeting, cycle progress bar, stat cards, and tasks
     end
 ```
