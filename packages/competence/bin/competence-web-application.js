@@ -1702,9 +1702,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                 dataManager.instance.fetchEvaluations( null, false ),
                 // Resolve the active cycle together with that cycle's calendar slots — the booked ones identify which
                 // manager is conducting each scheduled interview (the slot owner), which drives the interview
-                // notification's recipient (not the reporting line).
+                // notification's recipient (not the reporting line). Only a MANAGER/SUPERVISOR can ever own a slot, so
+                // the whole-cycle slots fetch is skipped for individual contributors — their interviewManagerByEvaluationID
+                // could never match. The cycle itself is still resolved for everyone (the dashboard cycle card needs it).
                 this.#resolveCurrentCycle().then( ( cycle ) => {
-                    return ( cycle
+                    return ( ( isManager && cycle )
                         ? dataManager.instance.fetchAllCalendarSlots( cycle.cycleID )
                         : Promise.resolve( [] )
                     ).then( ( slots ) => ( { cycle: cycle, slots: slots } ) );

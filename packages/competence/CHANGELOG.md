@@ -12,6 +12,7 @@ Dashboard interview tasks made role-correct, plus booking notifications. Fixes a
 * feat(competence): the Team Interviews screen now shows a manager, in addition to their direct reports, any interview **booked into their own calendar** — so a stand-in conducting a covering interview both receives the notification and sees the interview on the screen it links to (`#loadInterviewSchedule` reordered to scope slots first, then include booked-into-my-slot evaluations)
 * feat(competence): `task-resolver.js` now derives interview tasks from READY evaluations alongside the existing OPEN-evaluation team tasks (`interview-schedule` aggregate + `interview-scheduled` self/manager); `test/task-resolver.test.js` extended with interview-task coverage
 * feat(competence): add dashboard labels `interface.dashboard.task-interview-schedule` / `-pending` / `-scheduled-self` / `-scheduled-team` / `task-interview-on` (en + bg, bg pending native review); the `interface.schedule.*` labels stay owned by the Interviews screen
+* perf(competence): skip the dashboard's whole-cycle calendar-slots fetch for non-managers — only a MANAGER/SUPERVISOR can own a booked slot, so the interview-manager lookup could never match for an individual contributor; the active cycle itself is still resolved for everyone (the cycle card needs it)
 * build(release): bump package version from `3.9.1` to `3.10.0`
 
 ## Version 3.9.1

@@ -61,7 +61,7 @@ Two defects, both rooted in the client-side interview task:
 Extend `test/task-resolver.test.js`:
 - aggregate: supervisor + N `Ready`-unscheduled ⇒ one task, `count === N`; excludes already-scheduled; **no** aggregate for a non-supervisor; none when count is 0.
 - self: viewer's own `Ready` + `interviewDate` ⇒ self notification; not when `interviewDate` empty.
-- manager: `canManage` + `Ready` + `interviewDate` (not own) ⇒ manager notification; not for a plain user.
+- manager: `isInterviewManager(evaluationID)` + `Ready` + `interviewDate` (not own) ⇒ manager notification; not for a plain user or an uninvolved superior.
 - negatives: no interview tasks for `OPEN` / `Closed` evaluations.
 
 ## 6. Versioning & tracking
