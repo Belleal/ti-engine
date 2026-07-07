@@ -2,6 +2,9 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.11.0
+* feat(competence): Step 8 — interview meeting outcome & formal evaluation closure (Ready → Closed). Records written feedback, up to `numberOfNextPeriodGoals` next-period goals, and an optional Performance Improvement Plan on the interviews hub; the Supervisor formally closes once the interview has been held and an outcome recorded. Closure artifacts become visible to the employee on the Scores screen; grades/scores stay revealed at Ready. New dashboard tasks: Supervisor "interviews awaiting closure" and the evaluee "evaluation closed" notice; the cycle-close modal warns about not-yet-closed evaluations. See `design/interview-closure.md` (CA-78).
+
 ## Version 3.10.0
 
 Dashboard interview tasks made role-correct, plus booking notifications. Fixes a plain employee being shown a "Schedule your interview" task that routed to the Supervisor-only Interviews screen (403) with a mislabeled subtext, and the absence of any task once a Supervisor booked an interview. All interview tasks are now server-derived in `task-resolver.js`. See `design/dashboard-interview-tasks.md`.

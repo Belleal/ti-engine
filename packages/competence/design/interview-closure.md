@@ -2,7 +2,7 @@
 
 ## Meta
 
-- **Status:** Approved (2026-07-06) — not started
+- **Status:** Implemented (2026-07-07)
 - **Date:** 2026-07-06
 - **Package:** `competence`
 - **Scope:** Implements the final step of the appraisal process: recording the interview meeting outcome (written feedback, next-period goals, optional Performance Improvement Plan) on a `Ready` evaluation, and the Supervisor's formal closure of the evaluation (`Ready → Closed`, irreversible). Extends the Interview Schedule screen into the interviews hub (schedule → record outcome → close), reveals the closure artifacts to the employee on the Scores screen once closed, adds the two missing dashboard tasks, and makes cycle close warn about not-yet-closed evaluations. No analytics changes.
@@ -194,4 +194,24 @@ BG strings drafted alongside EN (native review pass remains a standing follow-up
 
 ## Implementation log
 
-*(to be filled during implementation — dated entries per checkpoint, with commit SHAs and verification evidence)*
+### 2026-07-07 — Implemented (CA-78, competence 3.11.0)
+
+All nine tasks landed on branch `current`, commits `5c52323..7a5a905` (Tasks 1-8) plus the docs/version commit that follows this entry (Task 9):
+
+1. **Data model** (`5c52323`) — `closure` nested object (`feedback`, `goals`, `pip`, `closedAt`, `closedBy`) added to `evaluation.schema.json` (optional, `additionalProperties: false` throughout) and to `application/data-objects.types.js`; `createNewEvaluation` initializes the default shape.
+2. **Framework** (`eecd10f`) — `recordInterviewOutcome( evaluation, outcome )` and `closeEvaluation( evaluationID, actorID )` added to `application/competence-framework.js`, with the full precondition/validation set from §4 and an audit entry on close.
+3. **Task resolver** (`04b006b`) — `interview-close` (Supervisor aggregate) and `evaluation-closed` (evaluee, 14-day window) added to `application/task-resolver.js`; `interview-scheduled` suppressed once the interview date has passed.
+4. **Services & authorization** (`c119adb`) — `save-interview-outcome` and `close-evaluation` services added to `bin/competence-web-application.js`, gated by the conducting-manager ∪ org-superior ∪ Supervisor union (outcome) and Supervisor-only (close).
+5. **Load extensions** (`ba572cb`) — `#loadInterviewSchedule` (closure, `interviewHeld`, `canRecordOutcome`, `canClose`), `#loadResults` (closure revealed only at `Closed`), `#loadCycleList` (per-status evaluation counts) extended.
+6. **Labels & error keys** (`6a4e331`) — `interface.schedule.outcome-*`, `interface.evaluation.results.closure-*`, `interface.dashboard.task-interview-close*` / `task-evaluation-closed*`, `interface.cycles.close-modal-pending`, and the eight `error.evaluation.*` closure/outcome keys added (en + bg).
+7. **UI — interviews hub** (`c7f2085`) — status chip, record-outcome panel (feedback, goals editor with cap counter, PIP), and close-evaluation confirm modal added to the Interview Schedule screen.
+8. **UI — Scores / dashboard / cycles** (`7a5a905`) — Scores closure section, `Closed` status-pill tone, the two new dashboard tasks rendered client-side, and the cycle-close modal's not-yet-closed warning.
+9. **Docs & version** (this commit) — `package.json` bumped `3.10.0 → 3.11.0`; `CHANGELOG.md` `## Version 3.11.0` entry added; `README.md` updated (Step 8 section, status-lifecycle footnote, sequence diagram, data-visibility table, Current Status bullets, Interview Schedule / Scores / Cycle Management screen descriptions, settings table, Roles table) to describe the shipped behavior instead of the plan; this log entry.
+
+**Verification** (run from `packages/competence`, 2026-07-07):
+
+- `npm test` — **305 pass**, 0 fail, 0 skipped (73 suites; includes the new `test/competence-framework.closure.test.js` and the extended `test/task-resolver.test.js` describes for `interview-close` / `evaluation-closed`).
+- `npm run test:json` — **19 pass**, 0 fail (6 suites); `evaluation.schema.json` additions validate, seeds unaffected.
+- `npx eslint .` — **0 errors**; 1 pre-existing warning (`test/results-analytics.test.js:438`, unused `id`, unrelated to this feature and not touched by it).
+
+No open concerns; the design's §12 out-of-scope list (goal carry-forward, `closedAt`-based analytics proxy, PIP attachments, reopen/undo, audit-trail UI, `workflow.currentStep`, deadline-driven auto-advance) stands as documented follow-up.

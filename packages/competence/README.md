@@ -19,13 +19,14 @@ The following features are currently implemented:
 - **[Process]** Automatic performance score calculation upon manager submission, across all competency categories and as a combined final score
 - **[Process]** Manager availability calendar — Managers define interview availability by toggling time slots as `available` or `busy` on a configurable weekly grid
 - **[Process]** Interview scheduling — Supervisors book available slots for `READY` evaluations; booking sets `evaluation.interviewDate` and links the slot to the evaluation; cancellation reverses both
+- **[Process]** Interview meeting outcome & formal closure — the conducting manager (the booked slot's owner), an org-line superior, or the Supervisor records written interview feedback, up to `numberOfNextPeriodGoals` next-period goals, and an optional Performance Improvement Plan on a `READY` evaluation; the Supervisor then formally closes it (`READY` → `CLOSED`, irreversible) once the interview date has passed and an outcome has been recorded. Grades stay immutable; the closure artifacts become visible to the employee on the Scores screen
 - **[Process]** Automatic role assignment — on login each user's `Employee` / `Manager` / `Supervisor` roles are derived from their place in the organization chart (`Manager` = manages a unit; `Supervisor` = the top manager plus any direct report heading a sub-organization that is at least two management levels deep). A structural Supervisor can additionally grant the Supervisor role to other users from the Employee Management screen
 - **[Data]** Employee data management and retrieval from Redis
 - **[Data]** Evaluation persistence in Redis with full workflow state tracking
 - **[Data]** Calendar slot persistence in Redis with `available`, `booked`, `busy`, and `deleted` (logical) states
 - **[Data]** Immutable per-cycle results snapshots in Redis — anonymized aggregates (counts / means / percentiles, with small cohorts suppressed) written on cycle close, powering closed-cycle and cross-cycle reporting at near-zero compute
 - **[Data]** Supervisor role grants persisted in Redis (audited), with a synchronous in-memory mirror consulted during login-time role derivation
-- **[UI]** Dashboard screen — personalized landing page with appraisal cycle progress, evaluation status, role-specific metrics, a contextual task list, and an activity feed
+- **[UI]** Dashboard screen — personalized landing page with appraisal cycle progress, evaluation status, role-specific metrics, a contextual task list (including a Supervisor's aggregate "interviews awaiting closure" task and an evaluee's time-boxed "evaluation closed" notice), and an activity feed
 - **[UI]** Employees List screen — hierarchical organization chart view with role-aware data and evaluation status
 - **[UI]** Evaluation Form screen — role-specific grading interface with deadline and submit-state awareness
 - **[UI]** New Evaluation screen — form for starting a new evaluation with optional team member selection
@@ -37,8 +38,6 @@ The following features are currently implemented:
 - **[UI]** Administration screens (admin-allowlisted users) — Configuration landing (config change feed, validated restore, export-to-git bundle), Competency Text Editor (bilingual, for BG review), Archetype Assignment, Archetype Curve Editor, and Role Families editor
 - **[UI]** Insights — Statistics & Results analytics (Manager / Supervisor): Cycle and Team analytics (coverage, interview timing, self-vs-manager alignment, competence heatmap, score-by-level distribution, predictive drivers, grader calibration), individual **Scores** on a dedicated read-only screen ("My Scores" for the evaluee; "{name}'s Scores" / "Performance Scores" for an authorized manager/supervisor), reached from the grading screen's *results-are-ready* bar, and Supervisor-only cross-cycle Trends (score trend, gap-closure, ladder movement, cohort comparison) with a per-employee history line — each chart carrying a methodology explainer, all bilingual (en/bg)
 - **[Config]** Admin configuration management — versioned, validated, restorable editing of the competency dictionary, localization, relevancy archetypes, role families, and active competency sets through the UI, with export back to the source JSON files (reusable machinery lives in `@ti-engine/web-framework`)
-
-> **Note on planned features:** Step 8 of the process (goal-setting and formal closure) is part of the full intended workflow and is described below, but is not yet implemented.
 
 ---
 
@@ -52,7 +51,7 @@ The system defines four roles that govern what actions a user can take and what 
 |-------------|------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Employee    | `1`  | The subject of the evaluation. Submits self-assessment grades and a written comment.                                                                        |
 | Manager     | `2`  | Responsible for managing employees in their organizational hierarchy. Can start, draft, and submit manager-grade evaluations.                               |
-| Supervisor  | `3`  | Process owner (typically the HR department head). Can start evaluations for any employee. Can assign/revoke the Supervisor role for other users. Schedules interviews and formally closes evaluations *(planned)*. |
+| Supervisor  | `3`  | Process owner (typically the HR department head). Can start evaluations for any employee. Can assign/revoke the Supervisor role for other users. Schedules interviews and formally closes evaluations. |
 | Team Member | `4`  | A peer who provides feedback on behalf of the team for a specific evaluation.                                                                               |
 
 A user can hold multiple roles. The active role for a given operation is resolved from context: being the employee of record, appearing in the `workflow.team` list, or being the resolved manager in the organization hierarchy.
@@ -164,12 +163,10 @@ Thresholds are configurable in `bin/config/config.application.json`.
 Evaluations move through a defined sequence of statuses driven by submission events:
 
 ```text
-NOT_STARTED ──► OPEN ──► IN_REVIEW ──► READY ──► CLOSED*
+NOT_STARTED ──► OPEN ──► IN_REVIEW ──► READY ──► CLOSED
                   │
                   └──► DELETED  (available from any active status)
 ```
-
-> `*` CLOSED status transitions are planned; currently the maximum implemented status is `READY`.
 
 Status transitions are triggered by specific actions (submissions), not by deadlines. Automatic deadline-based transitions are planned for a future release.
 
@@ -243,11 +240,11 @@ Once manager calendars are populated, the `Supervisor` opens the **Interview Sch
 
 The `Supervisor` may cancel a booking at any time, which restores `slot.status = "available"`, clears the `booking` record, and removes `evaluation.interviewDate`.
 
-#### Step 8 — Interview Meeting and Closure *(planned)*
+#### Step 8 — Interview Meeting and Closure
 
-During the meeting, the `Supervisor` and/or `Manager` may add written feedback to the evaluation. They set concrete goals (up to the configured maximum, default 5) for the employee for the next appraisal period. A formal **Performance Improvement Plan** may also be attached if needed. Previously submitted grades cannot be changed.
+During the interview meeting, the **conducting manager** (the owner of the booked calendar slot), an **org-line superior manager**, or the `Supervisor` may record the meeting's outcome on the `Ready` evaluation: written feedback, concrete goals for the employee's next appraisal period (up to `numberOfNextPeriodGoals`, default 5), and an optional formal **Performance Improvement Plan**. Previously submitted grades cannot be changed.
 
-Once the meeting is concluded, the `Supervisor` formally closes the evaluation. Status changes to `Closed` and no further modifications are possible.
+Once the interview date has passed and an outcome has been recorded (feedback and/or at least one goal), the `Supervisor` may formally close the evaluation — an irreversible `Ready → Closed` transition; no further modifications are possible afterward. Grades and scores are already visible to the employee at `Ready` (see [Data Visibility](#data-visibility-by-role)); the interview feedback, goals, and PIP become visible to the employee only once the evaluation is `Closed`, on the [Scores](#scores) screen.
 
 ### Process Sequence Diagram
 
@@ -321,13 +318,13 @@ Sys -->> Sys: slot.status = booked, evaluation.interviewDate set
 Sys ->> Emp: Notify interview date
 Sys ->> Mgr: Notify interview date
 
-rect rgba(180, 180, 180, 0.2)
-Note over Sup, Sys: Step 8 — Planned (not yet implemented)
 Note over Sup, Emp: Step 8 — Interview Meeting and Closure
-Sup ->> Sys: Add written feedback + set goals / PIP
+Mgr ->> Sys: Record interview outcome — feedback + goals + PIP (conducting manager, org-line superior, or Supervisor)
+Sys -->> Sys: Save closure.feedback / closure.goals / closure.pip
+Sys ->> Sup: "Interviews awaiting closure" task, once interview date has passed
 Sup ->> Sys: Close Evaluation
-Sys -->> Sys: Set status: Closed
-end
+Sys -->> Sys: Verify interview held + outcome recorded; set status: Closed
+Sys ->> Emp: "Evaluation closed" notice
 ```
 
 ---
@@ -403,12 +400,13 @@ When an evaluation is returned — whether on load or after a save/submit — it
 | Field                     | Employee        | Manager         | Team Member | Notes                                                         |
 |---------------------------|-----------------|-----------------|-------------|---------------------------------------------------------------|
 | `grades[c].employee`      | Visible (own)   | Visible         | Hidden      | Self-grade submitted by the employee                          |
-| `grades[c].manager`       | Hidden          | Visible (own)   | Hidden      | Manager-grade; hidden from employee until closure *(planned)* |
+| `grades[c].manager`       | Visible         | Visible (own)   | Hidden      | Manager-grade; revealed to the employee once the evaluation reaches `Ready` |
 | `grades[c].team`          | Hidden          | Cumulative only | See below   | Individual team submissions are never exposed                 |
 | `comment`                 | Visible (own)   | Visible         | Hidden      | Employee's written self-evaluation comment                    |
 | `feedback.managerComment` | Visible         | Visible (own)   | Hidden      | Manager's written feedback                                    |
 | `feedback.teamComments`   | Visible         | Visible         | Hidden      | Array of anonymous team comments                              |
 | `scores` / `finalScore`   | Visible + label | Visible + label | Hidden      | Only populated after manager submission (status: Ready)       |
+| `closure` (feedback / goals / PIP) | Hidden until `Closed` | Hidden until `Closed` | Hidden | Step 8 interview outcome; revealed to every Scores-screen viewer (employee, org superior, Supervisor) only once the evaluation is `Closed` |
 | `workflow`                | Hidden          | Hidden          | Hidden      | Always stripped from all API responses                        |
 
 **Team Member visibility** depends on `isTeamEvaluationCollective`:
@@ -456,6 +454,7 @@ A dedicated, read-only results view (the `my-results` route, which reuses the ev
 - The **subcategory radar** and the self/manager/team **source-comparison** charts sit side by side, each with a legend, value labels, and a "how it's calculated" methodology disclosure
 - **Strengths** and **development areas** derived from the signed deviation vs. the expected curve
 - For a finalized report, the cross-cycle **score-history trend** line
+- Once the evaluation is `Closed`, a **closure section** — the Step 8 interview feedback, next-period goals, and PIP notice (if any) — appears after the strengths/development-areas band
 
 The per-competency grading tables, grade guide, and feedback section stay on the [Evaluation Form](#evaluation-form) screen; Scores shows only the results summary.
 
@@ -476,10 +475,12 @@ Slot interaction:
 
 ### Interview Schedule
 
-Shown to `Supervisor` and `Manager` users. The upper panel lists all `Ready` evaluations with their employee name, current interview date (or "Not Scheduled"), and action buttons:
+Shown to `Supervisor` and `Manager` users — the interviews hub covering scheduling, recording the meeting outcome, and formal closure. The upper panel lists all `Ready` evaluations with their employee name, current interview date (or "Not Scheduled"), a status chip ("Awaiting interview" / "Interview held — outcome pending" / "Ready to close"), and action buttons:
 
 - **Schedule** — visible when no interview date is set; selecting it reveals the slot picker for that evaluation
 - **Cancel Interview** — visible when an interview date is set; cancels the booking and clears the date
+- **Record outcome** — visible to the conducting manager (the booked slot's owner), an org-line superior, or the Supervisor; opens an inline panel to enter written feedback, up to `numberOfNextPeriodGoals` next-period goals (text + optional target date), and an optional Performance Improvement Plan, then save
+- **Close evaluation** — visible to the `Supervisor` only, enabled once the interview date has passed and an outcome has been recorded; opens a confirmation modal (employee, final score/threshold, goal count, PIP flag) before formally closing the evaluation (`Ready → Closed`, irreversible); the row then leaves the hub
 
 The slot picker shows all `available` slots from all managers, organized into a 4-column weekly grid. Each slot button shows the day and time on the first line and the manager's name below. Navigation shifts the visible window by 4 weeks at a time. Clicking a slot books it immediately and refreshes the screen.
 
@@ -490,7 +491,7 @@ Supervisor-only. A table of all appraisal cycles with their status (`PLANNING` /
 - **Create** — modal to define a new cycle (ID, name, dates); the cycle starts in `PLANNING`
 - **Configure** — opens Cycle Setup for a `PLANNING` cycle
 - **Lock** — promotes a `PLANNING` cycle to `ACTIVE` after validation; a modal surfaces any validation errors (floor coverage, cap, reference integrity, pool membership, and any included-but-unconfigured family) grouped by family
-- **Close** — transitions an `ACTIVE` cycle to `CLOSED`
+- **Close** — transitions an `ACTIVE` cycle to `CLOSED`; the confirmation modal warns how many of the cycle's evaluations are not yet `Closed` (broken down by `Open` / `In Review` / `Ready`) but does not block the action
 
 Only one cycle may be `ACTIVE` at a time.
 
@@ -981,7 +982,7 @@ All application settings are in `bin/config/config.application.json` and are val
 | `performanceAppraisals.minTeamEvaluationMembers`              | `3`           | Minimum number of team members required to start a peer evaluation (enforced)       |
 | `performanceAppraisals.maxTeamEvaluationMembers`              | `5`           | Maximum number of team members allowed per evaluation (enforced; `null` = no limit) |
 | `performanceAppraisals.activeCompetencySetCap`               | `30`          | Maximum competencies in a resolved active set (baseline ∪ specialization); a ceiling enforced at cycle lock. There is no minimum count (see [Active Competency Set](#role-families-and-specializations)) |
-| `performanceAppraisals.numberOfNextPeriodGoals`               | `5`           | Maximum number of goals for the next period *(planned feature)*                     |
+| `performanceAppraisals.numberOfNextPeriodGoals`               | `5`           | Maximum number of next-period goals recordable on the interview outcome (Step 8)    |
 | `performanceAppraisals.performanceThresholds.T1`              | `76`          | Score ceiling for T1 (Weak)                                                         |
 | `performanceAppraisals.performanceThresholds.T2`              | `89`          | Score ceiling for T2 (Insufficient)                                                 |
 | `performanceAppraisals.performanceThresholds.T3`              | `105`         | Score ceiling for T3 (Expected)                                                     |
