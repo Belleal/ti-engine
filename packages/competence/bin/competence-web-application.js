@@ -331,6 +331,10 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#bookInterviewSlot( session, params );
         } else if ( service === "cancel-interview-booking" ) {
             return this.#cancelInterviewBooking( session, params );
+        } else if ( service === "save-interview-outcome" ) {
+            return this.#saveInterviewOutcome( session, params );
+        } else if ( service === "close-evaluation" ) {
+            return this.#closeEvaluation( session, params );
         } else if ( service === "create-cycle" ) {
             return this.#createCycle( session, params );
         } else if ( service === "lock-cycle" ) {
@@ -1670,6 +1674,91 @@ class CompetenceWebApplication extends TiWebAppManager {
                 return Promise.all( [ saveSlotPromise, clearDatePromise ] );
             } ).then( () => {
                 resolve( { slotID: slotID } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Records the Step-8 interview outcome (feedback, goals, pip) on a READY evaluation. Authorized to the conducting
+     * manager, an org-line superior, or a Supervisor. Writes a compact evaluation-scoped audit summary.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.evaluationID
+     * @param {string} [params.feedback]
+     * @param {Array<{ text: string, targetDate?: string|null }>} [params.goals]
+     * @param {{ required?: boolean, plan?: string }} [params.pip]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #saveInterviewOutcome( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireRole( session, configurationLoader.roleCode.MANAGER, configurationLoader.roleCode.SUPERVISOR );
+            const evaluationID = String( params?.evaluationID || "" ).trim();
+            if ( !evaluationID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { params } ) );
+            }
+
+            let targetEvaluation;
+            dataManager.instance.fetchEvaluation( evaluationID ).then( ( evaluation ) => {
+                targetEvaluation = evaluation;
+                return this.#canAuthorInterviewOutcome( userID, userRoles, evaluation );
+            } ).then( ( authorized ) => {
+                if ( !authorized ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "error.evaluation.outcome-not-authorized" }, exceptions.httpCode.C_403 );
+                }
+                competenceFramework.instance.recordInterviewOutcome( targetEvaluation, {
+                    feedback: params?.feedback,
+                    goals: params?.goals,
+                    pip: params?.pip
+                } );
+                return dataManager.instance.saveEvaluation( targetEvaluation );
+            } ).then( ( saved ) => {
+                return dataManager.instance.appendAuditEntry( {
+                    subjectType: "evaluation",
+                    subjectID: evaluationID,
+                    changedBy: userID,
+                    field: "closure.outcome",
+                    oldValue: null,
+                    newValue: {
+                        goalsCount: ( saved.closure && Array.isArray( saved.closure.goals ) ) ? saved.closure.goals.length : 0,
+                        pipRequired: !!( saved.closure && saved.closure.pip && saved.closure.pip.required ),
+                        feedbackLength: ( saved.closure && typeof saved.closure.feedback === "string" ) ? saved.closure.feedback.length : 0
+                    }
+                } ).then( () => resolve( { evaluationID: evaluationID, closure: saved.closure } ) );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Formally closes a READY evaluation (Supervisor-only). Delegates the preconditions + transition + audit to the
+     * framework.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.evaluationID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #closeEvaluation( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+            const evaluationID = String( params?.evaluationID || "" ).trim();
+            if ( !evaluationID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { params } ) );
+            }
+            competenceFramework.instance.closeEvaluation( evaluationID, userID ).then( ( saved ) => {
+                resolve( {
+                    evaluationID: evaluationID,
+                    status: saved.status,
+                    closedAt: ( saved.closure && saved.closure.closedAt ) ? saved.closure.closedAt : null
+                } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
@@ -3592,6 +3681,35 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #canManagerPerformEvaluation( managerID, employeeID ) {
         return Promise.resolve( organizationManager.instance.isSuperiorManagerOfEmployee( managerID, employeeID ) );
+    }
+
+    /**
+     * Determines whether the user may author the Step-8 interview outcome for an evaluation: a Supervisor, an org-line
+     * superior manager, or the conducting manager (owner of the evaluation's booked interview slot — which may be a
+     * stand-in, not the reporting-line manager, mirroring the dashboard's conducting-manager rule).
+     *
+     * @method
+     * @param {string} userID
+     * @param {string[]} userRoles
+     * @param {Evaluation} evaluation
+     * @returns {Promise<boolean>}
+     * @private
+     */
+    #canAuthorInterviewOutcome( userID, userRoles, evaluation ) {
+        if ( userRoles.includes( configurationLoader.roleCode.SUPERVISOR ) ) {
+            return Promise.resolve( true );
+        }
+        if ( organizationManager.instance.isSuperiorManagerOfEmployee( userID, evaluation.employeeID ) ) {
+            return Promise.resolve( true );
+        }
+        return dataManager.instance.fetchAllCalendarSlots( evaluation.cycleID ).then( ( slots ) => {
+            return slots.some( ( slot ) =>
+                slot.status === configurationLoader.slotStatus.BOOKED &&
+                slot.booking &&
+                slot.booking.evaluationID === evaluation.evaluationID &&
+                slot.managerID === userID
+            );
+        } );
     }
 
     /**
