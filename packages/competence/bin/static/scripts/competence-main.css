@@ -2450,6 +2450,38 @@
     flex-shrink: 0;
 }
 
+/* Scores-screen closure card (Step 8, CA-78) — interview feedback, goals, and PIP, shown only once CLOSED. */
+.competence-results-closure {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+}
+
+.competence-closure-block {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+}
+
+.competence-closure-goals {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.competence-closure-goal-date {
+    margin-left: var(--s-2);
+    font-size: 0.85em;
+    opacity: 0.75;
+}
+
+/* Generic de-emphasised text modifier — pairs with .ti-kv-value for empty/secondary closure lines. */
+.muted {
+    color: var(--fg-secondary);
+}
+
 .competence-eval-emp-top-row {
     display: flex;
     align-items: flex-start;
@@ -3889,6 +3921,18 @@
     color: var(--warn);
     border-radius: var(--r-sm);
     font-size: var(--fs-sm);
+}
+
+/* Close-confirm modal pending-count warning (Step 8, CA-78) — same warning-box treatment as the clone warning above. */
+.competence-cycle-close-warning {
+    margin-top: var(--s-3);
+    padding: var(--s-2) var(--s-3);
+    background: var(--warn-soft);
+    border: 1px solid color-mix(in oklab, var(--warn) 40%, transparent);
+    color: var(--warn);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-sm);
+    font-weight: 600;
 }
 
 /* Responsive collapse for two-pane on narrow viewports. The page releases its full-height flex layout and scrolls

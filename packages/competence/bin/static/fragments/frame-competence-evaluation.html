@@ -290,6 +290,39 @@
                         </div>
                     </section>
 
+                    <!-- Step 8 (CA-78) — closure card: interview feedback, goals, and PIP, shown only once the evaluation is Closed -->
+                    <template x-if="hasClosure()">
+                        <div class="ti-card competence-results-closure">
+                            <div class="ti-panel-title" x-text-label="interface.evaluation.results.closure.section-title"></div>
+                            <p class="ti-kv-value muted" x-show="closureClosedOn() !== ''" x-text="closureClosedOn()"></p>
+
+                            <div class="competence-closure-block">
+                                <div class="ti-kv-label" x-text-label="interface.evaluation.results.closure.feedback-title"></div>
+                                <p class="ti-kv-value" x-show="closureFeedback() !== ''" x-text="closureFeedback()"></p>
+                                <p class="ti-kv-value muted" x-show="closureFeedback() === ''" x-text-label="interface.evaluation.results.closure.feedback-empty"></p>
+                            </div>
+
+                            <div class="competence-closure-block">
+                                <div class="ti-kv-label" x-text-label="interface.evaluation.results.closure.goals-title"></div>
+                                <p class="ti-kv-value muted" x-show="closureGoals().length === 0" x-text-label="interface.evaluation.results.closure.goals-empty"></p>
+                                <ul class="competence-closure-goals" x-show="closureGoals().length > 0">
+                                    <template x-for="(goal, index) in closureGoals()" x-bind:key="index">
+                                        <li>
+                                            <span x-text="goal.text"></span>
+                                            <span class="competence-closure-goal-date" x-show="!!goal.targetDate"
+                                                  x-text="getLabel( 'interface.evaluation.results.closure.goal-target' ) + ': ' + formatDate( goal.targetDate )"></span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+
+                            <div class="competence-closure-block" x-show="closurePipVisible()">
+                                <div class="ti-kv-label" x-text-label="interface.evaluation.results.closure.pip-title"></div>
+                                <p class="ti-kv-value" x-text="closurePipPlan()"></p>
+                            </div>
+                        </div>
+                    </template>
+
                     <!-- CA-X4 — score history across cycles (the evaluee's own view + authorized managers; needs ≥2 reported cycles) -->
                     <section class="ti-panel competence-panel-body ti-card-wide" x-show="hasHistory()">
                         <div class="ti-panel-head">

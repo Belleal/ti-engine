@@ -507,7 +507,44 @@ const configureCompetenceEvaluation = () => {
             if ( status === "Open" ) return "info";
             if ( status === "In Review" ) return "warn";
             if ( status === "Ready" ) return "success";
+            if ( status === "Closed" ) return "muted";
             return "";
+        },
+
+        hasClosure() {
+            const c = this.evaluation && this.evaluation.closure;
+            if ( !c ) return false;
+            const hasFeedback = ( typeof c.feedback === "string" && c.feedback.trim() !== "" );
+            const hasGoals = ( Array.isArray( c.goals ) && c.goals.length > 0 );
+            const hasPip = ( c.pip && c.pip.required );
+            return hasFeedback || hasGoals || hasPip;
+        },
+
+        closureFeedback() {
+            const c = this.evaluation && this.evaluation.closure;
+            return ( c && typeof c.feedback === "string" ) ? c.feedback : "";
+        },
+
+        closureGoals() {
+            const c = this.evaluation && this.evaluation.closure;
+            return ( c && Array.isArray( c.goals ) ) ? c.goals : [];
+        },
+
+        closurePipVisible() {
+            const c = this.evaluation && this.evaluation.closure;
+            return !!( c && c.pip && c.pip.required );
+        },
+
+        closurePipPlan() {
+            const c = this.evaluation && this.evaluation.closure;
+            return ( c && c.pip && typeof c.pip.plan === "string" ) ? c.pip.plan : "";
+        },
+
+        closureClosedOn() {
+            const c = this.evaluation && this.evaluation.closure;
+            const closedAt = ( c && c.closedAt ) ? c.closedAt : null;
+            if ( !closedAt ) return "";
+            return this.getLabel( "interface.evaluation.results.closure.closed-on" ).replace( "{date}", this.formatDate( closedAt ) );
         },
 
         getEvalStatusSteps() {
@@ -2779,6 +2816,24 @@ const configureDashboard = () => {
                             evaluationID: serverTask.evaluationID
                         } );
                     }
+                } else if ( serverTask.type === "interview-close" ) {
+                    // Supervisor-only aggregate: N held interviews awaiting closure. Opens the schedule screen.
+                    tasks.push( {
+                        id: "interview-close",
+                        tone: "warn",
+                        title: tiApplication.getLabel( "interface.dashboard.task-interview-close", "Interviews awaiting closure" ) + " (" + serverTask.count + ")",
+                        sub: tiApplication.getLabel( "interface.dashboard.task-interview-close-sub", "Held interviews are ready to be closed." ),
+                        action: "schedule"
+                    } );
+                } else if ( serverTask.type === "evaluation-closed" ) {
+                    // The evaluatee: their evaluation was closed recently; opens the read-only Scores screen.
+                    tasks.push( {
+                        id: "evaluation-closed",
+                        tone: "success",
+                        title: tiApplication.getLabel( "interface.dashboard.task-evaluation-closed", "Your evaluation is closed" ),
+                        sub: tiApplication.getLabel( "interface.dashboard.task-evaluation-closed-sub", "View your results, feedback, and goals." ),
+                        action: "results"
+                    } );
                 }
             }
             return tasks;
@@ -2794,7 +2849,8 @@ const configureDashboard = () => {
             }
             if ( task.action ) {
                 tiApplication.openScreen( task.action === "evaluation" ? "competence-evaluation" :
-                    task.action === "schedule" ? "interview-schedule" : "employees-list" );
+                    task.action === "schedule" ? "interview-schedule" :
+                    task.action === "results" ? "my-results" : "employees-list" );
             }
         },
 
@@ -2915,7 +2971,7 @@ const configureCycleManagement = () => {
         openCloseModal( cycle ) {
             this.modal = {
                 kind: "close-confirm",
-                payload: { cycleID: cycle.cycleID, name: cycle.name },
+                payload: { cycleID: cycle.cycleID, name: cycle.name, counts: cycle.counts },
                 errorMessage: "",
                 errorField: "",
                 busy: false
@@ -3072,6 +3128,18 @@ const configureCycleManagement = () => {
                 this.closeModal();
                 tiApplication.notify( tiApplication.formatException( error ) );
             } );
+        },
+
+        closePendingWarning() {
+            const counts = ( this.modal && this.modal.payload && this.modal.payload.counts ) ? this.modal.payload.counts : null;
+            if ( !counts ) return "";
+            const notClosed = ( counts.open || 0 ) + ( counts.inReview || 0 ) + ( counts.ready || 0 );
+            if ( notClosed === 0 ) return "";
+            return tiApplication.getLabel( "interface.cycles.close-modal-pending" )
+                .replace( "{n}", String( notClosed ) )
+                .replace( "{open}", String( counts.open || 0 ) )
+                .replace( "{inReview}", String( counts.inReview || 0 ) )
+                .replace( "{ready}", String( counts.ready || 0 ) );
         },
 
         groupLockErrors( errors ) {
