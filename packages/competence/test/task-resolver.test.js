@@ -325,4 +325,13 @@ describe( "TaskResolver — evaluation-closed (evaluee notice)", () => {
         assert.equal( tasks.some( ( t ) => t.type === "evaluation-closed" ), false );
     } );
 
+    it( "emits at exactly the 14-day boundary but not at 15 days", () => {
+        const at14 = taskResolver.instance.resolveTasks( "emp1", ctx( { today: "2026-07-20" } ),
+            [ evaluation( { status: "Closed", employeeID: "emp1", closure: { closedAt: "2026-07-06T09:00:00.000Z" } } ) ] );
+        assert.ok( at14.find( ( t ) => t.type === "evaluation-closed" ), "day 14 still emits" );
+        const at15 = taskResolver.instance.resolveTasks( "emp1", ctx( { today: "2026-07-21" } ),
+            [ evaluation( { status: "Closed", employeeID: "emp1", closure: { closedAt: "2026-07-06T09:00:00.000Z" } } ) ] );
+        assert.equal( at15.some( ( t ) => t.type === "evaluation-closed" ), false, "day 15 does not emit" );
+    } );
+
 } );

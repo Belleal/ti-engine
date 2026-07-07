@@ -964,6 +964,7 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 // NOTE: Make sure to delete the workflow system information:
                 delete currentEvaluation.workflow;
+                delete currentEvaluation.closure;
 
                 const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee );
                 resolve( {

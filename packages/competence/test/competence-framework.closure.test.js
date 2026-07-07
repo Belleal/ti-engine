@@ -79,6 +79,8 @@ describe( "CompetenceFramework — recordInterviewOutcome", () => {
         assert.deepEqual( result.closure.goals[ 1 ], { text: "Mentor a junior", targetDate: null } );
         assert.deepEqual( result.closure.pip, { required: false, plan: "" } );
         assert.equal( result.status, configurationLoader.evaluationStatus.READY, "status is untouched" );
+        assert.equal( result.closure.closedAt, null, "recordInterviewOutcome must not set closedAt" );
+        assert.equal( result.closure.closedBy, null, "recordInterviewOutcome must not set closedBy" );
     } );
 
     it( "rejects when the evaluation is not READY", () => {
@@ -116,6 +118,10 @@ describe( "CompetenceFramework — closeEvaluation", () => {
 
         const audit = await dataManager.instance.getAuditEntriesForEvaluation( "eval-1" );
         assert.ok( audit.some( ( e ) => e.field === "status" && e.newValue === configurationLoader.evaluationStatus.CLOSED ), "an audit entry records the close" );
+
+        const statusEntries = audit.filter( ( e ) => e.field === "status" && e.newValue === configurationLoader.evaluationStatus.CLOSED );
+        assert.equal( statusEntries.length, 1, "exactly one close audit entry" );
+        assert.equal( statusEntries[ 0 ].oldValue, configurationLoader.evaluationStatus.READY, "audit oldValue must be Ready" );
     } );
 
     it( "rejects closing when status is not READY", async () => {

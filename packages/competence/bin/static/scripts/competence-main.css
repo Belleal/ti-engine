@@ -2477,8 +2477,8 @@
     opacity: 0.75;
 }
 
-/* Generic de-emphasised text modifier — pairs with .ti-kv-value for empty/secondary closure lines. */
-.muted {
+/* De-emphasised text modifier for the Scores closure card — pairs with .ti-kv-value for empty/secondary closure lines. */
+.competence-results-closure .muted {
     color: var(--fg-secondary);
 }
 
