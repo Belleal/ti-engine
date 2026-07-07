@@ -1602,6 +1602,10 @@ const configureInterviewSchedule = () => {
         slotViewStart: null,
         config: {},
         canSchedule: false,
+        maxGoals: 5,
+        outcomeForID: null,
+        outcomeDraft: { feedback: "", goals: [], pip: { required: false, plan: "" } },
+        closeModal: { open: false, evaluationID: null, employeeName: "", busy: false },
 
         init() {
             const onInitialized = () => {
@@ -1627,6 +1631,8 @@ const configureInterviewSchedule = () => {
                 this.slots = Array.isArray( data.slots ) ? tiToolbox.structuredClone( data.slots ) : [];
                 this.config = data.config || {};
                 this.canSchedule = ( data.canSchedule === true );   // only a Supervisor books; managers see this read-only
+                this.maxGoals = ( typeof data.maxGoals === "number" ) ? data.maxGoals : 5;
+                this.outcomeForID = null;
                 this.selectedEvaluationID = null;
 
                 const todayMonday = tiToolbox.getMonday( new Date() );
@@ -1756,6 +1762,120 @@ const configureInterviewSchedule = () => {
             }
             const d = new Date( slot.date + "T00:00:00" );
             return `${ DAY_NAMES_SHORT[ d.getDay() ] || "" } ${ String( d.getDate() ).padStart( 2, "0" ) } ${ slot.startTime }`;
+        },
+
+        canRecordOutcome( evaluation ) {
+            return evaluation.canRecordOutcome === true;
+        },
+
+        toggleOutcome( evaluation ) {
+            if ( this.outcomeForID === evaluation.evaluationID ) {
+                this.outcomeForID = null;
+                return;
+            }
+            const closure = evaluation.closure || { feedback: "", goals: [], pip: { required: false, plan: "" } };
+            this.outcomeDraft = {
+                feedback: closure.feedback || "",
+                goals: Array.isArray( closure.goals ) ? closure.goals.map( ( g ) => ( { text: g.text || "", targetDate: g.targetDate || "" } ) ) : [],
+                pip: { required: !!( closure.pip && closure.pip.required ), plan: ( closure.pip && closure.pip.plan ) ? closure.pip.plan : "" }
+            };
+            this.outcomeForID = evaluation.evaluationID;
+        },
+
+        setOutcomeFeedback( value ) {
+            this.outcomeDraft.feedback = value;
+        },
+
+        addGoal() {
+            if ( this.outcomeDraft.goals.length >= this.maxGoals ) {
+                return;
+            }
+            this.outcomeDraft.goals.push( { text: "", targetDate: "" } );
+        },
+
+        removeGoal( index ) {
+            this.outcomeDraft.goals.splice( index, 1 );
+        },
+
+        setGoalText( index, value ) {
+            if ( this.outcomeDraft.goals[ index ] ) {
+                this.outcomeDraft.goals[ index ].text = value;
+            }
+        },
+
+        setGoalDate( index, value ) {
+            if ( this.outcomeDraft.goals[ index ] ) {
+                this.outcomeDraft.goals[ index ].targetDate = value;
+            }
+        },
+
+        togglePipRequired() {
+            this.outcomeDraft.pip.required = !this.outcomeDraft.pip.required;
+        },
+
+        setPipPlan( value ) {
+            this.outcomeDraft.pip.plan = value;
+        },
+
+        goalCapLabel() {
+            return this.getLabel( "interface.schedule.outcome.goal-cap" )
+                .replace( "{n}", String( this.outcomeDraft.goals.length ) )
+                .replace( "{max}", String( this.maxGoals ) );
+        },
+
+        canAddGoal() {
+            return this.outcomeDraft.goals.length < this.maxGoals;
+        },
+
+        saveOutcome( evaluationID ) {
+            const goals = this.outcomeDraft.goals
+                .map( ( g ) => ( { text: ( g.text || "" ).trim(), targetDate: ( g.targetDate || "" ).trim() || null } ) )
+                .filter( ( g ) => g.text !== "" );
+            tiApplication.sendRequest( "/app/save-interview-outcome", "POST", {
+                evaluationID: evaluationID,
+                feedback: this.outcomeDraft.feedback,
+                goals: goals,
+                pip: { required: this.outcomeDraft.pip.required, plan: this.outcomeDraft.pip.plan }
+            } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.schedule.outcome.saved-toast" ) );
+                this.loadSchedule();
+            } ).catch( ( error ) => {
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        openCloseModal( evaluation ) {
+            this.closeModal = { open: true, evaluationID: evaluation.evaluationID, employeeName: evaluation.employeeName || "", busy: false };
+        },
+
+        dismissCloseModal() {
+            this.closeModal = { open: false, evaluationID: null, employeeName: "", busy: false };
+        },
+
+        confirmClose() {
+            if ( !this.closeModal.evaluationID ) {
+                return;
+            }
+            this.closeModal.busy = true;
+            tiApplication.sendRequest( "/app/close-evaluation", "POST", { evaluationID: this.closeModal.evaluationID } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.schedule.outcome.closed-toast" ) );
+                this.dismissCloseModal();
+                this.loadSchedule();
+            } ).catch( ( error ) => {
+                this.dismissCloseModal();
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        rowStatusLabel( evaluation ) {
+            if ( !evaluation.interviewHeld ) {
+                return this.getLabel( "interface.schedule.outcome.status-awaiting" );
+            }
+            const closure = evaluation.closure || { feedback: "", goals: [] };
+            const recorded = ( closure.feedback && closure.feedback.trim() !== "" ) || ( Array.isArray( closure.goals ) && closure.goals.length > 0 );
+            return recorded
+                ? this.getLabel( "interface.schedule.outcome.status-ready-to-close" )
+                : this.getLabel( "interface.schedule.outcome.status-pending" );
         },
 
         pendingCount() {

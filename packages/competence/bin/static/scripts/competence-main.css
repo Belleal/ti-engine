@@ -1525,6 +1525,66 @@
     white-space: nowrap;
 }
 
+.competence-outcome-panel {
+    padding: var(--s-3) var(--s-4) var(--s-4);
+    margin-top: calc(-1 * var(--s-2));
+    background: var(--bg-sunken);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.competence-outcome-status {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.competence-outcome-goals-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.competence-outcome-goal-cap {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+}
+
+.competence-outcome-goal-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: var(--s-2);
+    align-items: center;
+}
+
+.competence-outcome-goal-date {
+    max-width: 170px;
+}
+
+.competence-outcome-pip-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.competence-outcome-pip-hint {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+}
+
+.competence-outcome-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.competence-outcome-close-emp {
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
 .competence-slot-picker-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
