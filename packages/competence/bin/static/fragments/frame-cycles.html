@@ -265,6 +265,7 @@
                         <span class="ti-tag mono" x-text="modal.payload.cycleID"></span>
                         <span x-text="modal.payload.name"></span>
                     </p>
+                    <p class="competence-cycle-close-warning" x-show="closePendingWarning() !== ''" x-text="closePendingWarning()"></p>
                 </div>
                 <div class="ti-modal-foot">
                     <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.cycles.close-modal.cancel-btn"></button>

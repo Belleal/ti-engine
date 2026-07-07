@@ -2,6 +2,67 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.11.0
+* feat(competence): Step 8 — interview meeting outcome & formal evaluation closure (Ready → Closed). Records written feedback, up to `numberOfNextPeriodGoals` next-period goals, and an optional Performance Improvement Plan on the interviews hub; the Supervisor formally closes once the interview has been held and an outcome recorded. Closure artifacts become visible to the employee on the Scores screen; grades/scores stay revealed at Ready. New dashboard tasks: Supervisor "interviews awaiting closure" and the evaluee "evaluation closed" notice; the cycle-close modal warns about not-yet-closed evaluations. See `design/interview-closure.md` (CA-78).
+
+## Version 3.10.0
+
+Dashboard interview tasks made role-correct, plus booking notifications. Fixes a plain employee being shown a "Schedule your interview" task that routed to the Supervisor-only Interviews screen (403) with a mislabeled subtext, and the absence of any task once a Supervisor booked an interview. All interview tasks are now server-derived in `task-resolver.js`. See `design/dashboard-interview-tasks.md`.
+
+* fix(competence): remove the mis-targeted **"Schedule your interview"** dashboard task an employee saw when their own evaluation reached Ready — it opened the `[MANAGER, SUPERVISOR]`-gated Interviews screen (booking is supervisor-only) and 403'd, and its title/subtext reused the Interviews screen's own labels (`interface.schedule.title` → "Ready Evaluations", `interface.schedule.no-evaluations` → the screen's empty-state copy), so the subtext was a constant that never reflected any evaluation/interview state
+* feat(competence): a **Supervisor** now gets a single aggregate **"Interviews awaiting scheduling (N)"** task — N = READY evaluations org-wide with no booked slot — opening the schedule screen (the only role that can book)
+* feat(competence): once a Supervisor books a slot, the **evaluatee** sees "Your interview is scheduled · \<date\>" (opens their evaluation) and the **manager conducting the interview** sees "\<name\>'s interview is scheduled · \<date\>" (opens the read-only Team Interviews view) — both derived from the READY evaluation's `interviewDate`. The manager notification targets the **owner of the booked calendar slot** (the actual interviewer), resolved in `#loadDashboard` from the active cycle's booked slots — not the org reporting line — so a stand-in who covers for an absent manager is notified, while non-participant managers up the chain are not
+* feat(competence): the Team Interviews screen now shows a manager, in addition to their direct reports, any interview **booked into their own calendar** — so a stand-in conducting a covering interview both receives the notification and sees the interview on the screen it links to (`#loadInterviewSchedule` reordered to scope slots first, then include booked-into-my-slot evaluations)
+* feat(competence): `task-resolver.js` now derives interview tasks from READY evaluations alongside the existing OPEN-evaluation team tasks (`interview-schedule` aggregate + `interview-scheduled` self/manager); `test/task-resolver.test.js` extended with interview-task coverage
+* feat(competence): add dashboard labels `interface.dashboard.task-interview-schedule` / `-pending` / `-scheduled-self` / `-scheduled-team` / `task-interview-on` (en + bg, bg pending native review); the `interface.schedule.*` labels stay owned by the Interviews screen
+* perf(competence): skip the dashboard's whole-cycle calendar-slots fetch for non-managers — only a MANAGER/SUPERVISOR can own a booked slot, so the interview-manager lookup could never match for an individual contributor; the active cycle itself is still resolved for everyone (the cycle card needs it)
+* build(release): bump package version from `3.9.1` to `3.10.0`
+
+## Version 3.9.1
+
+Interview-scheduling fixes found while testing the screen-access work (CA-74) against the scheduling flow.
+
+* fix(competence): the Interview Schedule screen is now **read-only for line managers** — booking/cancel are supervisor-only by design (CA-8), so the manager-facing Schedule/Cancel controls + slot picker are hidden (no more 403 when a manager tried to book) and the screen is re-framed as "Team Interviews"; `#loadInterviewSchedule` returns a `canSchedule` flag. The per-screen role gate, the supervisor-only book/cancel handlers, and the manager view's privacy-scoping to their own reports/slots are unchanged
+* fix(competence): the slot-week paginator no longer pages into empty weeks — "Earlier" is enabled only when an available slot precedes the current 4-week window (it previously compared against today's week), and the schedule projection now **excludes past-dated availability** (a stale, never-booked slot is not schedulable) — so no slot is stranded behind a dead button and a past interview can't be booked
+* fix(competence): localize the per-week "No slots available" placeholder (was hardcoded English; added `interface.schedule.no-slots-week`, en + bg)
+* build(release): bump package version from `3.9.0` to `3.9.1`
+
+## Version 3.9.0
+
+Separated the **Competence Evaluation** (grading) screen from the **My Scores** (results) screen — the two shared one fragment and had converged once an evaluation reached Ready. Requires web-framework ≥ 1.13.0 (topbar `setScreenTitle`). See `design/evaluation-scores-split.md`.
+
+* feat(competence): the grading screen no longer renders the full results statistics — it shows a compact **final-score panel** (states "Not yet available" until the evaluation is Ready) and a **"results are ready" info bar** whose button opens the read-only scores screen; the right-column panels are evenly distributed to match the employee card's height
+* feat(competence): the results screen is now **Scores** — "My Scores" for the evaluee, "{name}'s Scores" / "Performance Scores" for a manager/supervisor; it shows only the results summary and drops the right column (the employee card spans full width), the workflow status track / status pill / warnings (reusing the lightweight New-Evaluation employee card), and the per-competency grading tables / grade guide / feedback section / sticky bars (those live on the grading screen); `#loadResults` no longer ships the now-unused `feedback` (the result charts still need `competencies` + `grades`, which remain)
+* feat(competence): a manager/supervisor can open a specific employee's scores from the grading screen — `load-my-results` was generalized to an authorized `#loadResults( session, employeeID )` (org-superior or supervisor; employee-level anonymization for every viewer) that reuses the same screen via `my-results?employeeID=…`
+* fix(competence): rename the Results labels to Scores across the sidebar, topbar, page heading, and results-section header (role-aware; en + bg, bg pending native review)
+* build(release): bump package version from `3.8.0` to `3.9.0`
+
+## Version 3.8.0
+
+Role-based screen access: users now see and can reach only the screens their role permits. Closes the gap where employees saw (and could open the chrome of) the Availability and Interviews screens, and where any screen's HTML could be fetched by direct URL. The reusable gate lives in web-framework ≥ 1.13.0; competence declares each screen's required `roles`. See `design/screen-access-control.md`.
+
+* fix(competence): hide the **Availability** and **Interviews** sidebar entries from users who cannot use them — Availability now requires MANAGER (`hasRole(2)`) and Interviews MANAGER or SUPERVISOR (`hasRole(2) || hasRole(3)`), mirroring their backend `#requireRole(...)`; every other sidebar entry already matched its backend
+* feat(competence): gate each role-restricted screen on the server by declaring a `roles` requirement on its registered fragment — the web-framework default `verifyAccess` enforces it, so a screen's chrome can no longer be fetched by direct URL by a role that cannot use it (rejected `E_SEC_UNAUTHORIZED_ACCESS` 403); the admin editor screens are gated to the `admin` role, and the per-screen `#requireRole` data gates remain the source of truth for the data behind each screen
+* fix(competence): remove the user-profile menu's "Settings" entry, which pointed at the generic framework `/app/administration` placeholder and implied an admin destination for every user — the real, admin-gated configuration UI is the Administration sidebar section (`/app/admin-config`)
+* build(release): bump package version from `3.7.0` to `3.8.0`
+
+## Version 3.7.0
+
+Leaner, more descriptive individual-results view on the evaluation screen, plus context-correctness fixes (CA-61). Requires web-framework ≥ 1.12.0 for the chart legend/value-label support.
+
+* feat(competence): condense the evaluation results section into three lean bands — a full-width hero merging the final score with per-category score chips, the subcategory radar and source-comparison charts side by side, and strengths / development areas — replacing the seven stacked, unstyled cards (the `ti-card-title` headings had no CSS rule and rendered as oversized default `<h2>`s)
+* feat(competence): make the results charts self-explanatory — legends + value labels on the source comparison, a legend (incl. the dashed expected curve) on the radar, a "what it shows" intro and a "How it's calculated" methodology disclosure per chart (en + bg)
+* fix(competence): the final-score band name now resolves through `getLabel` instead of rendering the raw threshold label key (e.g. `framework.performance.threshold.name.T3`)
+* fix(competence): the results panel header is now role-aware — a manager/team viewer sees "Results" / "…for {employee}" instead of the second-person "Your results"
+* fix(competence): strengths and development areas now show the same signed deviation-vs-expected quantity (e.g. `+0.30` / `-0.43`) with semantic colour, instead of mixing absolute mean with gap
+* fix(competence): the score bars now fill against the form's **true** ceiling — `ceil(S × Σ participating-source-weights × 100)` = 130 at full participation — instead of the arbitrary T5 band value (150); the maximum is derived from config and, because the score is a relevancy-normalised weighted average, is independent of family/competencies
+* feat(competence): the results charts now use the same identity colours as the grading form — per-category score chips match the E/I/C letter-box colours, and the source charts (bars + radar) use the SELF/MANAGER/TEAM column colours (self=info, manager=accent, team=success); the radar's "expected" curve is a distinct dashed grey
+* feat(competence): the subcategory-profile and source-comparison cards now stretch to equal height and centre their charts, removing the empty gap below the shorter card; each chart's legend now sits beneath the chart (not beside it) so it no longer steals horizontal space or clips
+* feat(competence): the radar axis labels (E1…C3) are now coloured by category to match the letter boxes / score chips, and the radar strokes are thinned (≈half) for the denser nine-axis profile
+* feat(competence): the self/manager/team comparison bars are thinned to ≈⅓ height with a smaller value caption, for a more compact three-source read
+* feat(competence): the cross-cycle score-history trend now also appears for an authorized manager/supervisor viewing a finalized report (the endpoint already gates access), not only on "My results"
+* build(release): bump package version from `3.6.2` to `3.7.0`
+
 ## Version 3.6.2
 
 Post-review fixes from the CA-72 CodeRabbit review (PR #85): test-user backdoor hardening, interview-slot privacy scoping, Supervisor-revoke confirmation, and grant/revoke robustness.

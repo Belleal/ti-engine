@@ -13,7 +13,10 @@
         </div>
     </div>
 
-    <!-- Workspace: items every user works inside (their own evaluation, their own team's org chart, their slots). -->
+    <!-- Workspace: items every user works inside (their own evaluation, My Results, their team's org chart).
+         Availability (managers only) and Interviews (managers + supervisors) are role-gated here to match their
+         backend #requireRole(...) — without it employees saw screens they cannot use. x-show (not x-if) keeps htmx
+         able to wire the hx-* buttons at page load even before the role store has resolved. -->
     <div class="ti-sidebar-section-label" x-text-label="interface.navigation.workspace">Workspace</div>
     <div class="ti-sidebar-nav">
         <button hx-get="/app/dashboard" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'dashboard'"
@@ -42,7 +45,8 @@
         </button>
 
         <button @click="navigate('my-results', 'my-results')"
-                x-bind:class="{ active: active === 'my-results' }" class="ti-sidebar-item" data-tip="My Results" aria-label="My Results"
+                x-bind:class="{ active: active === 'my-results' }" class="ti-sidebar-item"
+                x-text-label:data-tip="interface.navigation.my-results" x-text-label:aria-label="interface.navigation.my-results"
                 type="button">
             <span class="ti-sidebar-item-icon">
                 <span class="ti-icon bar-chart md" aria-hidden="true"></span>
@@ -51,6 +55,7 @@
         </button>
 
         <button hx-get="/app/manager-calendar" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'calendar'"
+                x-show="$store.tiApplication.hasRole(2)"
                 x-bind:class="{ active: active === 'calendar' }" class="ti-sidebar-item" data-tip="Availability" aria-label="My Availability Calendar"
                 type="button">
             <span class="ti-sidebar-item-icon">
@@ -60,6 +65,7 @@
         </button>
 
         <button hx-get="/app/interview-schedule" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'interviews'"
+                x-show="$store.tiApplication.hasRole(2) || $store.tiApplication.hasRole(3)"
                 x-bind:class="{ active: active === 'interviews' }" class="ti-sidebar-item" data-tip="Interviews" aria-label="Interview Schedule"
                 type="button">
             <span class="ti-sidebar-item-icon">

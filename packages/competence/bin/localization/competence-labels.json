@@ -3932,6 +3932,38 @@
       "finalize-no-submissions": {
         "en": "Team feedback cannot be finalized without at least one submission.",
         "bg": "Екипната обратна връзка не може да бъде финализирана без поне едно подадено мнение."
+      },
+      "outcome-not-ready": {
+        "en": "The interview outcome can only be recorded while the evaluation is Ready.",
+        "bg": "Резултатът от интервюто може да се записва само докато оценката е в статус „Готова“."
+      },
+      "outcome-not-authorized": {
+        "en": "You are not authorized to record the interview outcome for this evaluation.",
+        "bg": "Нямате права да записвате резултата от интервюто за тази оценка."
+      },
+      "too-many-goals": {
+        "en": "Too many goals were provided for the next period.",
+        "bg": "Зададени са твърде много цели за следващия период."
+      },
+      "invalid-goal": {
+        "en": "Each goal must have a non-empty description.",
+        "bg": "Всяка цел трябва да има непразно описание."
+      },
+      "close-not-ready": {
+        "en": "Only a Ready evaluation can be closed.",
+        "bg": "Само оценка в статус „Готова“ може да бъде затворена."
+      },
+      "close-no-interview": {
+        "en": "The evaluation cannot be closed before an interview has been scheduled.",
+        "bg": "Оценката не може да бъде затворена преди да е насрочено интервю."
+      },
+      "close-interview-not-held": {
+        "en": "The evaluation cannot be closed before the interview date.",
+        "bg": "Оценката не може да бъде затворена преди датата на интервюто."
+      },
+      "close-no-outcome": {
+        "en": "Record interview feedback or at least one goal before closing the evaluation.",
+        "bg": "Запишете обратна връзка от интервюто или поне една цел, преди да затворите оценката."
       }
     },
     "cycle": {
@@ -4773,12 +4805,20 @@
           "bg": "Оценете собствените си компетенции за текущия цикъл. Бъдете честни, задълбочени и конструктивни."
         },
         "my-results-title": {
-          "en": "My Results",
-          "bg": "Моите резултати"
+          "en": "My Scores",
+          "bg": "Моите оценки"
         },
         "my-results-desc": {
-          "en": "Your performance results for the latest reported cycle — final score, competency breakdown, and how your cycles compare.",
-          "bg": "Вашите резултати за последния отчетен цикъл — краен резултат, разбивка по компетенции и сравнение между циклите."
+          "en": "Your performance scores for the latest reported cycle — final score, competency breakdown, and how your cycles compare.",
+          "bg": "Вашите оценки за последния отчетен цикъл — краен резултат, разбивка по компетенции и сравнение между циклите."
+        },
+        "results-other-title": {
+          "en": "Performance Scores",
+          "bg": "Оценки за представянето"
+        },
+        "results-other-desc": {
+          "en": "Final score, profile, and how the sources compare.",
+          "bg": "Краен резултат, профил и сравнение между източниците."
         },
         "manager-title": {
           "en": "Manager Performance Review",
@@ -4860,17 +4900,162 @@
         }
       },
       "results": {
-        "title": { "en": "Your results", "bg": "Вашите резултати" },
-        "desc": { "en": "Your final score, profile, and how the sources compare.", "bg": "Вашият краен резултат, профил и сравнение между източниците." },
-        "final-score": { "en": "Final score", "bg": "Краен резултат" },
-        "by-category": { "en": "By category", "bg": "По категория" },
-        "profile": { "en": "Subcategory profile", "bg": "Профил по подкатегории" },
-        "source-comparison": { "en": "Self vs manager vs team", "bg": "Самооценка / мениджър / екип" },
-        "strengths": { "en": "Strengths", "bg": "Силни страни" },
-        "gaps": { "en": "Development areas", "bg": "Области за развитие" },
-        "none": { "en": "—", "bg": "—" },
-        "history-title": { "en": "Score history", "bg": "История на резултата" },
-        "history-desc": { "en": "Your final score across past appraisal cycles.", "bg": "Вашият краен резултат през миналите цикли на оценяване." }
+        "title": {
+          "en": "Your Scores",
+          "bg": "Вашите оценки"
+        },
+        "title-other": {
+          "en": "Scores",
+          "bg": "Оценки"
+        },
+        "desc": {
+          "en": "Your final score, profile, and how the sources compare.",
+          "bg": "Вашият краен резултат, профил и сравнение между източниците."
+        },
+        "desc-other": {
+          "en": "Final score, profile, and how the sources compare for {name}.",
+          "bg": "Краен резултат, профил и сравнение между източниците за {name}."
+        },
+        "final-score": {
+          "en": "Final score",
+          "bg": "Краен резултат"
+        },
+        "final-score-pending": {
+          "en": "Not yet available",
+          "bg": "Все още не е налично"
+        },
+        "by-category": {
+          "en": "Score by category",
+          "bg": "Резултат по категория"
+        },
+        "profile": {
+          "en": "Subcategory Profile",
+          "bg": "Профил по подкатегории"
+        },
+        "profile-intro": {
+          "en": "Average grade weight per subcategory (0–1.3: U=0.6, R=1.0, S=1.3) versus the expected curve.",
+          "bg": "Средно тегло на оценката по подкатегория (0–1.3: U=0.6, R=1.0, S=1.3) спрямо очакваната крива."
+        },
+        "source-comparison": {
+          "en": "Self vs Manager vs Team",
+          "bg": "Самооценка / мениджър / екип"
+        },
+        "source-intro": {
+          "en": "Average grade weight per category (0–1.3) for each rating source.",
+          "bg": "Средно тегло на оценката по категория (0–1.3) за всеки източник на оценяване."
+        },
+        "expected": {
+          "en": "Expected",
+          "bg": "Очаквано"
+        },
+        "vs-expected": {
+          "en": "vs expected",
+          "bg": "спрямо очакваното"
+        },
+        "methodology-toggle": {
+          "en": "How it's calculated",
+          "bg": "Как се изчислява"
+        },
+        "by-category-method": {
+          "en": "Each category score is the relevancy-weighted average of its competency grades, blended across self (20%), team (30%) and manager (50%), then scaled to 0–150 and mapped to a performance band.",
+          "bg": "Резултатът за всяка категория е претеглената по релевантност средна оценка на компетенциите, комбинирана от самооценка (20%), екип (30%) и мениджър (50%), мащабирана до 0–150 и съотнесена към ниво на представяне."
+        },
+        "profile-method": {
+          "en": "Per subcategory, each source's relevancy-weighted mean grade weight is plotted on a 0–1.3 axis. The dashed line is the expected level for this stage-level, derived from the relevancy curve.",
+          "bg": "За всяка подкатегория се нанася претеглената по релевантност средна оценка на всеки източник по ос 0–1.3. Пунктираната линия е очакваното ниво за съответния етап, изведено от кривата на релевантност."
+        },
+        "source-method": {
+          "en": "Per category, the relevancy-weighted mean grade weight from each source. Ungraded competencies count as zero in the shared denominator, mirroring the final score.",
+          "bg": "За всяка категория — претеглената по релевантност средна оценка от всеки източник. Неоценените компетенции се броят като нула в общия знаменател, както при крайния резултат."
+        },
+        "strengths": {
+          "en": "Strengths",
+          "bg": "Силни страни"
+        },
+        "gaps": {
+          "en": "Development Areas",
+          "bg": "Области за развитие"
+        },
+        "no-strengths": {
+          "en": "No notable strengths identified for this cycle.",
+          "bg": "Няма откроени силни страни за този цикъл."
+        },
+        "no-gaps": {
+          "en": "No development areas flagged for this cycle.",
+          "bg": "Няма посочени области за развитие за този цикъл."
+        },
+        "none": {
+          "en": "—",
+          "bg": "—"
+        },
+        "history-title": {
+          "en": "Score history",
+          "bg": "История на резултата"
+        },
+        "history-desc": {
+          "en": "Final score across past appraisal cycles.",
+          "bg": "Краен резултат през миналите цикли на оценяване."
+        },
+        "history-method": {
+          "en": "Each point is the final score for a completed cycle. Only cycles with reported results are shown.",
+          "bg": "Всяка точка е крайният резултат за завършен цикъл. Показват се само цикли с отчетени резултати."
+        },
+        "closure": {
+          "section-title": {
+            "en": "Interview outcome",
+            "bg": "Резултат от интервюто"
+          },
+          "feedback-title": {
+            "en": "Interview feedback",
+            "bg": "Обратна връзка от интервюто"
+          },
+          "feedback-empty": {
+            "en": "No written feedback was recorded.",
+            "bg": "Няма записана писмена обратна връзка."
+          },
+          "goals-title": {
+            "en": "Goals for the next period",
+            "bg": "Цели за следващия период"
+          },
+          "goals-empty": {
+            "en": "No goals were set.",
+            "bg": "Няма зададени цели."
+          },
+          "goal-target": {
+            "en": "Target",
+            "bg": "Срок"
+          },
+          "pip-title": {
+            "en": "Performance Improvement Plan",
+            "bg": "План за подобряване на представянето"
+          },
+          "closed-on": {
+            "en": "Closed on {date}",
+            "bg": "Затворена на {date}"
+          }
+        }
+      },
+      "results-ready": {
+        "title": {
+          "en": "Your final results are ready.",
+          "bg": "Вашите крайни резултати са готови."
+        },
+        "title-other": {
+          "en": "{name}'s final results are ready.",
+          "bg": "Крайните резултати на {name} са готови."
+        },
+        "desc": {
+          "en": "Open the results screen for the full score breakdown.",
+          "bg": "Отворете екрана с резултати за пълната разбивка на оценката."
+        },
+        "action": {
+          "en": "View my scores",
+          "bg": "Виж моите оценки"
+        },
+        "action-other": {
+          "en": "View scores",
+          "bg": "Виж оценките"
+        }
       },
       "instructions": {
         "title": {
@@ -4946,8 +5131,8 @@
           "bg": "Няма зададена"
         },
         "submission-deadline": {
-          "en": "Submission Deadline:",
-          "bg": "Крайна Дата за Подаване:"
+          "en": "Submission Deadline",
+          "bg": "Крайна Дата за Подаване"
         },
         "submission-deadline-not-set": {
           "en": "Not Set",
@@ -5811,6 +5996,42 @@
       "task-self-eval-sub": {
         "en": "Your evaluation is open — complete your self-assessment.",
         "bg": "Вашата оценка е отворена — попълнете самооценката си."
+      },
+      "task-interview-schedule": {
+        "en": "Interviews awaiting scheduling",
+        "bg": "Интервюта, чакащи насрочване"
+      },
+      "task-interview-pending": {
+        "en": "Ready evaluations need an interview slot.",
+        "bg": "Готови оценки очакват насрочване на интервю."
+      },
+      "task-interview-scheduled-self": {
+        "en": "Your interview is scheduled",
+        "bg": "Вашето интервю е насрочено"
+      },
+      "task-interview-scheduled-team": {
+        "en": "Team interview scheduled",
+        "bg": "Насрочено интервю на екипа"
+      },
+      "task-interview-on": {
+        "en": "Scheduled for",
+        "bg": "Насрочено за"
+      },
+      "task-interview-close": {
+        "en": "Interviews awaiting closure",
+        "bg": "Интервюта, очакващи затваряне"
+      },
+      "task-interview-close-sub": {
+        "en": "Held interviews are ready to be closed.",
+        "bg": "Проведените интервюта са готови за затваряне."
+      },
+      "task-evaluation-closed": {
+        "en": "Your evaluation is closed",
+        "bg": "Вашата оценка е затворена"
+      },
+      "task-evaluation-closed-sub": {
+        "en": "View your results, feedback, and goals.",
+        "bg": "Вижте резултатите, обратната връзка и целите си."
       }
     },
     "navigation": {
@@ -5819,8 +6040,8 @@
         "bg": "Работно пространство"
       },
       "my-results": {
-        "en": "My Results",
-        "bg": "Моите резултати"
+        "en": "My Scores",
+        "bg": "Моите оценки"
       },
       "manage": {
         "en": "Manage",
@@ -5881,8 +6102,12 @@
         "bg": "Оценка на Представянето"
       },
       "my-results": {
-        "en": "My Results",
-        "bg": "Моите резултати"
+        "en": "My Scores",
+        "bg": "Моите оценки"
+      },
+      "results-other": {
+        "en": "Performance Scores",
+        "bg": "Оценки за представянето"
       },
       "new-evaluation": {
         "en": "New Evaluation",
@@ -6606,9 +6831,17 @@
         "en": "Interviews Ready to Schedule",
         "bg": "Интервюта готови за насрочване"
       },
+      "page-title-manager": {
+        "en": "Team Interviews",
+        "bg": "Интервюта на екипа"
+      },
       "page-desc": {
         "en": "These evaluations are in status Ready. Pick one, then choose a slot from any manager's calendar.",
         "bg": "Тези оценки са в статус Готово. Изберете една, след което изберете слот от календара на мениджър."
+      },
+      "page-desc-manager": {
+        "en": "Your team members whose evaluation is ready for the performance interview, and when each one is scheduled.",
+        "bg": "Членовете на вашия екип, чиято оценка е готова за интервю по представянето, и кога е насрочено всяко от тях."
       },
       "title": {
         "en": "Ready Evaluations",
@@ -6658,6 +6891,10 @@
         "en": "No managers have marked availability for the selected period. Ask them to configure their calendar.",
         "bg": "Нито един мениджър не е отбелязал наличност за избрания период. Помолете ги да конфигурират своя календар."
       },
+      "no-slots-week": {
+        "en": "No slots available",
+        "bg": "Няма свободни слотове"
+      },
       "actions": {
         "schedule": {
           "en": "Schedule",
@@ -6684,6 +6921,100 @@
         "actions": {
           "en": "Actions",
           "bg": "Действия"
+        }
+      },
+      "outcome": {
+        "panel-title": {
+          "en": "Interview outcome",
+          "bg": "Резултат от интервюто"
+        },
+        "status-awaiting": {
+          "en": "Awaiting interview",
+          "bg": "Очаква интервю"
+        },
+        "status-pending": {
+          "en": "Interview held — outcome pending",
+          "bg": "Интервюто е проведено — очаква резултат"
+        },
+        "status-ready-to-close": {
+          "en": "Ready to close",
+          "bg": "Готова за затваряне"
+        },
+        "record-btn": {
+          "en": "Record outcome",
+          "bg": "Запиши резултат"
+        },
+        "feedback-label": {
+          "en": "Interview feedback",
+          "bg": "Обратна връзка от интервюто"
+        },
+        "goals-label": {
+          "en": "Next-period goals",
+          "bg": "Цели за следващия период"
+        },
+        "goal-text-placeholder": {
+          "en": "Goal description",
+          "bg": "Описание на целта"
+        },
+        "goal-date-label": {
+          "en": "Target date",
+          "bg": "Целева дата"
+        },
+        "goal-add": {
+          "en": "Add goal",
+          "bg": "Добави цел"
+        },
+        "goal-remove": {
+          "en": "Remove",
+          "bg": "Премахни"
+        },
+        "goal-cap": {
+          "en": "{n} / {max} goals",
+          "bg": "{n} / {max} цели"
+        },
+        "pip-label": {
+          "en": "Performance Improvement Plan",
+          "bg": "План за подобряване на представянето"
+        },
+        "pip-hint": {
+          "en": "This score suggests a formal improvement plan is warranted.",
+          "bg": "Този резултат предполага нужда от официален план за подобрение."
+        },
+        "pip-plan-placeholder": {
+          "en": "Improvement plan details",
+          "bg": "Детайли по плана за подобрение"
+        },
+        "save-btn": {
+          "en": "Save outcome",
+          "bg": "Запази резултата"
+        },
+        "saved-toast": {
+          "en": "Interview outcome saved.",
+          "bg": "Резултатът от интервюто е записан."
+        },
+        "close-btn": {
+          "en": "Close evaluation",
+          "bg": "Затвори оценката"
+        },
+        "close-modal-title": {
+          "en": "Close evaluation",
+          "bg": "Затваряне на оценката"
+        },
+        "close-modal-body": {
+          "en": "This permanently closes the evaluation and reveals the outcome to the employee. It cannot be undone.",
+          "bg": "Това затваря оценката за постоянно и разкрива резултата на служителя. Действието е необратимо."
+        },
+        "close-modal-confirm": {
+          "en": "Close evaluation",
+          "bg": "Затвори оценката"
+        },
+        "close-modal-cancel": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        },
+        "closed-toast": {
+          "en": "Evaluation closed.",
+          "bg": "Оценката е затворена."
         }
       }
     },
@@ -6971,6 +7302,10 @@
           "en": "Cycle closed.",
           "bg": "Цикълът е затворен."
         }
+      },
+      "close-modal-pending": {
+        "en": "{n} evaluation(s) are not yet closed ({open} open, {inReview} in review, {ready} ready).",
+        "bg": "{n} оценка(и) все още не са затворени ({open} отворени, {inReview} в преглед, {ready} готови)."
       }
     },
     "cycle-setup": {
@@ -7824,11 +8159,26 @@
           "bg": "Разпределение по статус на оценките за всяка група (ролево семейство или звено). Числото вдясно е % достигнали „Готова“ или „Затворена“."
         },
         "coverage-legend": {
-          "closed": { "en": "Closed", "bg": "Затворена" },
-          "ready": { "en": "Ready", "bg": "Готова" },
-          "in-review": { "en": "In review", "bg": "За преглед" },
-          "open": { "en": "Open", "bg": "Отворена" },
-          "not-started": { "en": "Not started", "bg": "Незапочната" }
+          "closed": {
+            "en": "Closed",
+            "bg": "Затворена"
+          },
+          "ready": {
+            "en": "Ready",
+            "bg": "Готова"
+          },
+          "in-review": {
+            "en": "In review",
+            "bg": "За преглед"
+          },
+          "open": {
+            "en": "Open",
+            "bg": "Отворена"
+          },
+          "not-started": {
+            "en": "Not started",
+            "bg": "Незапочната"
+          }
         },
         "pending": {
           "en": "Pending",
@@ -7872,83 +8222,224 @@
         },
         "reports": {
           "coverage": {
-            "title": { "en": "Evaluation coverage", "bg": "Обхват на оценките" },
-            "whatItShows": { "en": "How many evaluations are complete across the cohort, grouped by org unit or role family, with the pending list.", "bg": "Колко оценки са завършени в кохортата, групирани по звено или ролево семейство, със списък на чакащите." },
-            "methodology": { "en": "An evaluation counts as complete once it reaches Ready or Closed. The percentage is complete evaluations over the in-scope roster; ‘Not started’ is a roster member with no evaluation yet. A live (ACTIVE) cycle updates as people progress and shows a ‘% reporting’ caveat; a closed cycle reads from its final snapshot.", "bg": "Оценката се счита за завършена, когато достигне статус „Готова“ или „Приключена“. Процентът е завършените оценки спрямо обхванатия състав; „Незапочната“ е член без оценка. Активен цикъл се обновява и показва уговорка „% докладвани“; приключен цикъл се чете от финалната снимка." }
+            "title": {
+              "en": "Evaluation coverage",
+              "bg": "Обхват на оценките"
+            },
+            "whatItShows": {
+              "en": "How many evaluations are complete across the cohort, grouped by org unit or role family, with the pending list.",
+              "bg": "Колко оценки са завършени в кохортата, групирани по звено или ролево семейство, със списък на чакащите."
+            },
+            "methodology": {
+              "en": "An evaluation counts as complete once it reaches Ready or Closed. The percentage is complete evaluations over the in-scope roster; ‘Not started’ is a roster member with no evaluation yet. A live (ACTIVE) cycle updates as people progress and shows a ‘% reporting’ caveat; a closed cycle reads from its final snapshot.",
+              "bg": "Оценката се счита за завършена, когато достигне статус „Готова“ или „Приключена“. Процентът е завършените оценки спрямо обхванатия състав; „Незапочната“ е член без оценка. Активен цикъл се обновява и показва уговорка „% докладвани“; приключен цикъл се чете от финалната снимка."
+            }
           },
           "timeDistribution": {
-            "title": { "en": "Interview timing", "bg": "Времеви график на интервютата" },
-            "whatItShows": { "en": "Per month, how many review interviews were planned versus finalised, plus how many Ready evaluations still have no interview booked.", "bg": "По месеци – колко ревю интервюта са планирани спрямо финализирани, плюс колко готови оценки още нямат запазено интервю." },
-            "methodology": { "en": "‘Planned’ counts booked interview slots by their month. ‘Finalised (proxy for held)’ counts evaluations that reached Ready/Closed with an interview date on or before today — a proxy, because the system records the scheduled date, not actual attendance. ‘Unscheduled & ready’ flags Ready evaluations with no booking — the actionable backlog. A per-manager breakdown is available.", "bg": "„Планирани“ брои запазените слотове по техния месец. „Финализирани (косвено за проведени)“ брои оценките, достигнали „Готова/Приключена“ с дата на интервю до днес – косвен показател, тъй като системата пази насрочената дата, не присъствието. „Незапланувани и готови“ маркира готовите оценки без запазено интервю. Налична е разбивка по мениджър." }
+            "title": {
+              "en": "Interview timing",
+              "bg": "Времеви график на интервютата"
+            },
+            "whatItShows": {
+              "en": "Per month, how many review interviews were planned versus finalised, plus how many Ready evaluations still have no interview booked.",
+              "bg": "По месеци – колко ревю интервюта са планирани спрямо финализирани, плюс колко готови оценки още нямат запазено интервю."
+            },
+            "methodology": {
+              "en": "‘Planned’ counts booked interview slots by their month. ‘Finalised (proxy for held)’ counts evaluations that reached Ready/Closed with an interview date on or before today — a proxy, because the system records the scheduled date, not actual attendance. ‘Unscheduled & ready’ flags Ready evaluations with no booking — the actionable backlog. A per-manager breakdown is available.",
+              "bg": "„Планирани“ брои запазените слотове по техния месец. „Финализирани (косвено за проведени)“ брои оценките, достигнали „Готова/Приключена“ с дата на интервю до днес – косвен показател, тъй като системата пази насрочената дата, не присъствието. „Незапланувани и готови“ маркира готовите оценки без запазено интервю. Налична е разбивка по мениджър."
+            }
           },
           "alignment": {
-            "title": { "en": "Self vs manager alignment", "bg": "Съответствие самооценка/мениджър" },
-            "whatItShows": { "en": "Each reported person plotted by their average manager grade (x) against their average self grade (y), with the team grade as the bubble size.", "bg": "Всеки докладван човек, позициониран по средна оценка от мениджъра (x) спрямо средна самооценка (y), с екипната оценка като размер на балона." },
-            "methodology": { "en": "Grades are averaged per source in weight space (S=1.3, R=1.0, U=0.6, N=0.0), weighted by each competency's relevancy and kept separate per source. The diagonal is perfect agreement; points above it self-rate higher than their manager (possible hidden strengths), points below sit in the manager-higher ‘blind spot’ region. Quadrants split at the ‘meets’ (R) midpoint. Drill into a person to see the competencies with the largest self–manager gaps.", "bg": "Оценките се осредняват по източник в тегловно пространство (S=1.3, R=1.0, U=0.6, N=0.0), претеглени по релевантност и държани поотделно. Диагоналът е пълно съвпадение; точките над него се самооценяват по-високо от мениджъра (възможни скрити силни страни), точките под него попадат в зоната „сляпо петно“. Квадрантите се разделят при прага „покрива“ (R). Влезте в детайл за човек, за да видите компетенциите с най-големи разлики." }
+            "title": {
+              "en": "Self vs manager alignment",
+              "bg": "Съответствие самооценка/мениджър"
+            },
+            "whatItShows": {
+              "en": "Each reported person plotted by their average manager grade (x) against their average self grade (y), with the team grade as the bubble size.",
+              "bg": "Всеки докладван човек, позициониран по средна оценка от мениджъра (x) спрямо средна самооценка (y), с екипната оценка като размер на балона."
+            },
+            "methodology": {
+              "en": "Grades are averaged per source in weight space (S=1.3, R=1.0, U=0.6, N=0.0), weighted by each competency's relevancy and kept separate per source. The diagonal is perfect agreement; points above it self-rate higher than their manager (possible hidden strengths), points below sit in the manager-higher ‘blind spot’ region. Quadrants split at the ‘meets’ (R) midpoint. Drill into a person to see the competencies with the largest self–manager gaps.",
+              "bg": "Оценките се осредняват по източник в тегловно пространство (S=1.3, R=1.0, U=0.6, N=0.0), претеглени по релевантност и държани поотделно. Диагоналът е пълно съвпадение; точките над него се самооценяват по-високо от мениджъра (възможни скрити силни страни), точките под него попадат в зоната „сляпо петно“. Квадрантите се разделят при прага „покрива“ (R). Влезте в детайл за човек, за да видите компетенциите с най-големи разлики."
+            }
           },
           "heatmap": {
-            "title": { "en": "Competence heatmap", "bg": "Топлинна карта на компетенциите" },
-            "whatItShows": { "en": "Average grade per competency subcategory across groups (role families or org units), with an optional gap-versus-expected view.", "bg": "Средна оценка по подкатегория компетенции през групи (ролеви семейства или звена), с опционален изглед на разликата спрямо очакваното." },
-            "methodology": { "en": "Each cell is the relevancy-weighted average grade for that subcategory and group, for the chosen source (self, manager, team, or the blended score). The value view shades cells light-to-dark on a quantile scale. The gap view instead shows the difference from the level-appropriate expected grade (see the level report) — stronger shading above expectation, grey below. Cells covering fewer than three people are hidden to protect anonymity.", "bg": "Всяка клетка е претеглената по релевантност средна оценка за подкатегорията и групата, за избрания източник (самооценка, мениджър, екип или смесена). Изгледът по стойност оцветява от светло към тъмно по квантилна скала. Изгледът по разлика показва отклонението от очакваната за нивото оценка – по-наситено над очакванията, сиво под тях. Клетки с по-малко от трима души се скриват за анонимност." }
+            "title": {
+              "en": "Competence heatmap",
+              "bg": "Топлинна карта на компетенциите"
+            },
+            "whatItShows": {
+              "en": "Average grade per competency subcategory across groups (role families or org units), with an optional gap-versus-expected view.",
+              "bg": "Средна оценка по подкатегория компетенции през групи (ролеви семейства или звена), с опционален изглед на разликата спрямо очакваното."
+            },
+            "methodology": {
+              "en": "Each cell is the relevancy-weighted average grade for that subcategory and group, for the chosen source (self, manager, team, or the blended score). The value view shades cells light-to-dark on a quantile scale. The gap view instead shows the difference from the level-appropriate expected grade (see the level report) — stronger shading above expectation, grey below. Cells covering fewer than three people are hidden to protect anonymity.",
+              "bg": "Всяка клетка е претеглената по релевантност средна оценка за подкатегорията и групата, за избрания източник (самооценка, мениджър, екип или смесена). Изгледът по стойност оцветява от светло към тъмно по квантилна скала. Изгледът по разлика показва отклонението от очакваната за нивото оценка – по-наситено над очакванията, сиво под тях. Клетки с по-малко от трима души се скриват за анонимност."
+            }
           },
           "levelDistribution": {
-            "title": { "en": "Score distribution by level", "bg": "Разпределение на резултатите по ниво" },
-            "whatItShows": { "en": "A box plot of final scores at each career level (N1 → T1), with a dashed expected marker per level and the T3 reference line.", "bg": "Кутийна диаграма на крайните резултати за всяко кариерно ниво (N1 → T1), с пунктирен маркер за очакваното и референтна линия T3." },
-            "methodology": { "en": "Each box shows the spread of final scores (min, quartiles, median, max) for the people at that level. The dashed marker is the score a typical performer would earn if graded at the standard expected for that level — a competency is expected at ‘meets’ once it becomes core to the role and at ‘strong’ once it has been core for a while, so the marker trends upward as expectations grow with seniority (a typical-target trend, not a strict step). Compare each box to its marker: below suggests a coaching gap, above suggests early mastery. The dotted line is the T3 ‘meets expectations’ threshold (105).", "bg": "Всяка кутия показва разсейването на крайните резултати (мин., квартили, медиана, макс.) за хората на това ниво. Пунктираният маркер е резултатът, който типичен изпълнител би получил при оценяване по стандарта, очакван за нивото – компетенция се очаква на „покрива“, щом стане ключова, и на „силно“, след като е била ключова известно време, затова маркерът се покачва с нарастване на очакванията при по-висок стаж (тенденция, не строга стъпка). Сравнете всяка кутия с маркера ѝ: под него подсказва нужда от развитие, над него – ранно овладяване. Пунктираната линия е прагът T3 „покрива очакванията“ (105)." }
+            "title": {
+              "en": "Score distribution by level",
+              "bg": "Разпределение на резултатите по ниво"
+            },
+            "whatItShows": {
+              "en": "A box plot of final scores at each career level (N1 → T1), with a dashed expected marker per level and the T3 reference line.",
+              "bg": "Кутийна диаграма на крайните резултати за всяко кариерно ниво (N1 → T1), с пунктирен маркер за очакваното и референтна линия T3."
+            },
+            "methodology": {
+              "en": "Each box shows the spread of final scores (min, quartiles, median, max) for the people at that level. The dashed marker is the score a typical performer would earn if graded at the standard expected for that level — a competency is expected at ‘meets’ once it becomes core to the role and at ‘strong’ once it has been core for a while, so the marker trends upward as expectations grow with seniority (a typical-target trend, not a strict step). Compare each box to its marker: below suggests a coaching gap, above suggests early mastery. The dotted line is the T3 ‘meets expectations’ threshold (105).",
+              "bg": "Всяка кутия показва разсейването на крайните резултати (мин., квартили, медиана, макс.) за хората на това ниво. Пунктираният маркер е резултатът, който типичен изпълнител би получил при оценяване по стандарта, очакван за нивото – компетенция се очаква на „покрива“, щом стане ключова, и на „силно“, след като е била ключова известно време, затова маркерът се покачва с нарастване на очакванията при по-висок стаж (тенденция, не строга стъпка). Сравнете всяка кутия с маркера ѝ: под него подсказва нужда от развитие, над него – ранно овладяване. Пунктираната линия е прагът T3 „покрива очакванията“ (105)."
+            }
           },
           "predictiveDrivers": {
-            "title": { "en": "Performance drivers", "bg": "Двигатели на представянето" },
-            "whatItShows": { "en": "Which competency subcategories most strongly track the final score, and whether that matches the weight the framework gives them.", "bg": "Кои подкатегории компетенции най-силно следват крайния резултат и дали това съответства на теглото, което моделът им дава." },
-            "methodology": { "en": "For each subcategory we correlate people's average grade in it with their final score (Pearson r); a higher bar means that subcategory moves more with overall performance. The paired bar shows its share of measured influence versus its configured share of relevancy. When a subcategory's influence ranks far from its configured weight it is flagged as possibly mis-weighted — worth a look when tuning the model. Needs at least five reported evaluations.", "bg": "За всяка подкатегория съотнасяме средната оценка на хората в нея с крайния им резултат (корелация на Пиърсън); по-висока лента означава, че подкатегорията се движи повече с цялостното представяне. Сдвоената лента показва дела ѝ от измереното влияние спрямо конфигурирания дял на релевантност. Когато влиянието се нарежда далеч от конфигурираното тегло, подкатегорията се маркира като възможно неправилно претеглена. Нужни са поне пет докладвани оценки." }
+            "title": {
+              "en": "Performance drivers",
+              "bg": "Двигатели на представянето"
+            },
+            "whatItShows": {
+              "en": "Which competency subcategories most strongly track the final score, and whether that matches the weight the framework gives them.",
+              "bg": "Кои подкатегории компетенции най-силно следват крайния резултат и дали това съответства на теглото, което моделът им дава."
+            },
+            "methodology": {
+              "en": "For each subcategory we correlate people's average grade in it with their final score (Pearson r); a higher bar means that subcategory moves more with overall performance. The paired bar shows its share of measured influence versus its configured share of relevancy. When a subcategory's influence ranks far from its configured weight it is flagged as possibly mis-weighted — worth a look when tuning the model. Needs at least five reported evaluations.",
+              "bg": "За всяка подкатегория съотнасяме средната оценка на хората в нея с крайния им резултат (корелация на Пиърсън); по-висока лента означава, че подкатегорията се движи повече с цялостното представяне. Сдвоената лента показва дела ѝ от измереното влияние спрямо конфигурирания дял на релевантност. Когато влиянието се нарежда далеч от конфигурираното тегло, подкатегорията се маркира като възможно неправилно претеглена. Нужни са поне пет докладвани оценки."
+            }
           },
           "calibration": {
-            "title": { "en": "Grader calibration", "bg": "Калибриране на оценителя" },
-            "whatItShows": { "en": "How your own manager grades compare with self-assessments and team feedback, per competency subcategory.", "bg": "Как вашите мениджърски оценки се съпоставят със самооценките и обратната връзка от екипа, по подкатегория компетенции." },
-            "methodology": { "en": "For each competency you graded, we take the signed gap in grade-points between your manager grade and the self grade (and separately the team grade): a positive gap means you rated more generously than that source, negative means stricter. Gaps are averaged across your evaluations per subcategory and overall (a cell covering fewer than three people is hidden to protect anonymity). Use it to spot systematic leniency or severity in your own grading relative to how people rate themselves and how their team rates them.", "bg": "За всяка компетенция, която сте оценили, вземаме знаковата разлика в точки между вашата мениджърска оценка и самооценката (и поотделно екипната оценка): положителна разлика означава, че сте оценили по-щедро от този източник, отрицателна – по-строго. Разликите се осредняват по вашите оценки за подкатегория и общо (клетка с по-малко от трима души се скрива за анонимност). Използвайте го, за да забележите системна снизходителност или строгост в собственото си оценяване спрямо самооценките и оценките на екипа." },
-            "kpi-self": { "en": "Avg gap vs self", "bg": "Средна разлика спрямо самооценка" },
-            "kpi-team": { "en": "vs team", "bg": "спрямо екип" },
-            "col-competency": { "en": "Competency", "bg": "Компетенция" }
+            "title": {
+              "en": "Grader calibration",
+              "bg": "Калибриране на оценителя"
+            },
+            "whatItShows": {
+              "en": "How your own manager grades compare with self-assessments and team feedback, per competency subcategory.",
+              "bg": "Как вашите мениджърски оценки се съпоставят със самооценките и обратната връзка от екипа, по подкатегория компетенции."
+            },
+            "methodology": {
+              "en": "For each competency you graded, we take the signed gap in grade-points between your manager grade and the self grade (and separately the team grade): a positive gap means you rated more generously than that source, negative means stricter. Gaps are averaged across your evaluations per subcategory and overall (a cell covering fewer than three people is hidden to protect anonymity). Use it to spot systematic leniency or severity in your own grading relative to how people rate themselves and how their team rates them.",
+              "bg": "За всяка компетенция, която сте оценили, вземаме знаковата разлика в точки между вашата мениджърска оценка и самооценката (и поотделно екипната оценка): положителна разлика означава, че сте оценили по-щедро от този източник, отрицателна – по-строго. Разликите се осредняват по вашите оценки за подкатегория и общо (клетка с по-малко от трима души се скрива за анонимност). Използвайте го, за да забележите системна снизходителност или строгост в собственото си оценяване спрямо самооценките и оценките на екипа."
+            },
+            "kpi-self": {
+              "en": "Avg gap vs self",
+              "bg": "Средна разлика спрямо самооценка"
+            },
+            "kpi-team": {
+              "en": "vs team",
+              "bg": "спрямо екип"
+            },
+            "col-competency": {
+              "en": "Competency",
+              "bg": "Компетенция"
+            }
           }
         }
       },
       "team": {
-        "title": { "en": "Team analytics", "bg": "Анализи на екипа" },
-        "sub": { "en": "Your team's results for the selected cycle.", "bg": "Резултатите на вашия екип за избрания цикъл." },
+        "title": {
+          "en": "Team analytics",
+          "bg": "Анализи на екипа"
+        },
+        "sub": {
+          "en": "Your team's results for the selected cycle.",
+          "bg": "Резултатите на вашия екип за избрания цикъл."
+        },
         "heatmap-view-label": {
           "en": "Heatmap view",
           "bg": "Изглед на топлинна карта"
         }
       },
       "trends": {
-        "title": { "en": "Trends", "bg": "Тенденции" },
-        "sub": { "en": "Cross-cycle trends across closed appraisal cycles.", "bg": "Тенденции през приключените цикли на оценяване." },
-        "loading": { "en": "Loading trends…", "bg": "Зареждане на тенденциите…" },
-        "empty": { "en": "No closed cycles yet — trends appear once cycles close.", "bg": "Все още няма приключени цикли – тенденциите се появяват след приключване на цикли." },
-        "empty-desc": { "en": "Snapshots are captured as appraisal cycles close; the first trends appear after that.", "bg": "Снимките се правят при приключване на циклите за оценяване; първите тенденции се появяват след това." },
-        "methodology-toggle": { "en": "How it's calculated", "bg": "Как се изчислява" },
-        "provisional-caveat": { "en": "The latest cycle is still active — its point is provisional and shown dashed.", "bg": "Последният цикъл още е активен – неговата точка е условна и е показана с пунктир." },
-        "tband-title": { "en": "Performance band mix", "bg": "Разпределение по нива на представяне" },
-        "rung-title": { "en": "Mean ladder rung", "bg": "Средно стъпало в стълбицата" },
+        "title": {
+          "en": "Trends",
+          "bg": "Тенденции"
+        },
+        "sub": {
+          "en": "Cross-cycle trends across closed appraisal cycles.",
+          "bg": "Тенденции през приключените цикли на оценяване."
+        },
+        "loading": {
+          "en": "Loading trends…",
+          "bg": "Зареждане на тенденциите…"
+        },
+        "empty": {
+          "en": "No closed cycles yet — trends appear once cycles close.",
+          "bg": "Все още няма приключени цикли – тенденциите се появяват след приключване на цикли."
+        },
+        "empty-desc": {
+          "en": "Snapshots are captured as appraisal cycles close; the first trends appear after that.",
+          "bg": "Снимките се правят при приключване на циклите за оценяване; първите тенденции се появяват след това."
+        },
+        "methodology-toggle": {
+          "en": "How it's calculated",
+          "bg": "Как се изчислява"
+        },
+        "provisional-caveat": {
+          "en": "The latest cycle is still active — its point is provisional and shown dashed.",
+          "bg": "Последният цикъл още е активен – неговата точка е условна и е показана с пунктир."
+        },
+        "tband-title": {
+          "en": "Performance band mix",
+          "bg": "Разпределение по нива на представяне"
+        },
+        "rung-title": {
+          "en": "Mean ladder rung",
+          "bg": "Средно стъпало в стълбицата"
+        },
         "reports": {
           "overall": {
-            "title": { "en": "Overall score trend", "bg": "Тенденция на общия резултат" },
-            "whatItShows": { "en": "The mean final score per cycle with its spread band, plus how the cohort's performance-band mix shifts over time.", "bg": "Средният краен резултат за всеки цикъл с лента на разсейване, плюс как се променя разпределението по нива на представяне във времето." },
-            "methodology": { "en": "Each closed cycle contributes its persisted snapshot: the line is the mean final score, the band is the p25–p75 spread (nearest-rank percentiles). The stacked bars show the count of evaluations in each T-band (T1–T5) per cycle. A still-active cycle, if shown, is provisional and drawn dashed. Trends only cover cycles closed after this report was introduced — snapshots are not back-filled.", "bg": "Всеки приключен цикъл допринася със своята снимка: линията е средният краен резултат, лентата е разсейването p25–p75 (перцентили по най-близък ранг). Натрупаните стълбове показват броя оценки във всяко ниво (T1–T5) за цикъл. Все още активен цикъл, ако се показва, е условен и е с пунктир. Тенденциите обхващат само цикли, приключили след въвеждането на справката – снимките не се попълват със задна дата." }
+            "title": {
+              "en": "Overall score trend",
+              "bg": "Тенденция на общия резултат"
+            },
+            "whatItShows": {
+              "en": "The mean final score per cycle with its spread band, plus how the cohort's performance-band mix shifts over time.",
+              "bg": "Средният краен резултат за всеки цикъл с лента на разсейване, плюс как се променя разпределението по нива на представяне във времето."
+            },
+            "methodology": {
+              "en": "Each closed cycle contributes its persisted snapshot: the line is the mean final score, the band is the p25–p75 spread (nearest-rank percentiles). The stacked bars show the count of evaluations in each T-band (T1–T5) per cycle. A still-active cycle, if shown, is provisional and drawn dashed. Trends only cover cycles closed after this report was introduced — snapshots are not back-filled.",
+              "bg": "Всеки приключен цикъл допринася със своята снимка: линията е средният краен резултат, лентата е разсейването p25–p75 (перцентили по най-близък ранг). Натрупаните стълбове показват броя оценки във всяко ниво (T1–T5) за цикъл. Все още активен цикъл, ако се показва, е условен и е с пунктир. Тенденциите обхващат само цикли, приключили след въвеждането на справката – снимките не се попълват със задна дата."
+            }
           },
           "gapClosure": {
-            "title": { "en": "Gap-closure over time", "bg": "Затваряне на разликите във времето" },
-            "whatItShows": { "en": "How the gap between the cohort's average grade and the expected grade moves per competency subcategory across cycles.", "bg": "Как се променя разликата между средната оценка на кохортата и очакваната оценка по подкатегория компетенции през циклите." },
-            "methodology": { "en": "For each subcategory and cycle, the gap is the relevancy-weighted average grade minus the level-appropriate expected grade (the same figure as the heatmap gap view). A line per subcategory, on a zero baseline: rising toward zero from below means a closing development gap; values above zero mean the cohort exceeds expectation.", "bg": "За всяка подкатегория и цикъл разликата е претеглената по релевантност средна оценка минус очакваната за нивото оценка (същата стойност като изгледа по разлика в топлинната карта). По една линия за подкатегория, при нулева базова линия: покачване към нулата отдолу означава затваряща се разлика в развитието; стойности над нулата означават, че кохортата надвишава очакванията." }
+            "title": {
+              "en": "Gap-closure over time",
+              "bg": "Затваряне на разликите във времето"
+            },
+            "whatItShows": {
+              "en": "How the gap between the cohort's average grade and the expected grade moves per competency subcategory across cycles.",
+              "bg": "Как се променя разликата между средната оценка на кохортата и очакваната оценка по подкатегория компетенции през циклите."
+            },
+            "methodology": {
+              "en": "For each subcategory and cycle, the gap is the relevancy-weighted average grade minus the level-appropriate expected grade (the same figure as the heatmap gap view). A line per subcategory, on a zero baseline: rising toward zero from below means a closing development gap; values above zero mean the cohort exceeds expectation.",
+              "bg": "За всяка подкатегория и цикъл разликата е претеглената по релевантност средна оценка минус очакваната за нивото оценка (същата стойност като изгледа по разлика в топлинната карта). По една линия за подкатегория, при нулева базова линия: покачване към нулата отдолу означава затваряща се разлика в развитието; стойности над нулата означават, че кохортата надвишава очакванията."
+            }
           },
           "ladder": {
-            "title": { "en": "Ladder movement", "bg": "Движение по стълбицата" },
-            "whatItShows": { "en": "How the cohort's distribution across the five seniority rungs shifts over time, with the mean rung.", "bg": "Как се променя разпределението на кохортата по петте стъпала за стаж във времето, със средното стъпало." },
-            "methodology": { "en": "The twelve stage-levels fold onto five rungs by family (N→1, J→2, R→3, S→4, X and T→5). Stacked bars show the count of reported people at each rung per cycle; the line is the mean rung. This reflects cohort composition movement (who is in the cohort each cycle), NOT individual promotions.", "bg": "Дванадесетте нива се групират в пет стъпала по семейство (N→1, J→2, R→3, S→4, X и T→5). Натрупаните стълбове показват броя докладвани хора на всяко стъпало за цикъл; линията е средното стъпало. Това отразява движение в състава на кохортата (кой е в кохортата всеки цикъл), а НЕ индивидуални повишения." }
+            "title": {
+              "en": "Ladder movement",
+              "bg": "Движение по стълбицата"
+            },
+            "whatItShows": {
+              "en": "How the cohort's distribution across the five seniority rungs shifts over time, with the mean rung.",
+              "bg": "Как се променя разпределението на кохортата по петте стъпала за стаж във времето, със средното стъпало."
+            },
+            "methodology": {
+              "en": "The twelve stage-levels fold onto five rungs by family (N→1, J→2, R→3, S→4, X and T→5). Stacked bars show the count of reported people at each rung per cycle; the line is the mean rung. This reflects cohort composition movement (who is in the cohort each cycle), NOT individual promotions.",
+              "bg": "Дванадесетте нива се групират в пет стъпала по семейство (N→1, J→2, R→3, S→4, X и T→5). Натрупаните стълбове показват броя докладвани хора на всяко стъпало за цикъл; линията е средното стъпало. Това отразява движение в състава на кохортата (кой е в кохортата всеки цикъл), а НЕ индивидуални повишения."
+            }
           },
           "cohort": {
-            "title": { "en": "Cohort comparison", "bg": "Сравнение на кохорти" },
-            "whatItShows": { "en": "The mean final score per role family across cycles, so cohorts can be compared over time on a stable dimension.", "bg": "Средният краен резултат по ролево семейство през циклите, за да могат кохортите да се сравняват във времето по стабилно измерение." },
-            "methodology": { "en": "One line per role family, each point the mean final score of that family's reported evaluations in that cycle. Matching is on the stable dimension key (role family), never on individuals. A family with fewer than three reported people in a cycle is suppressed for that cycle (shown as a gap) to protect anonymity.", "bg": "По една линия за ролево семейство, всяка точка е средният краен резултат на докладваните оценки за това семейство в цикъла. Съпоставянето е по стабилния ключ на измерението (ролево семейство), никога по индивиди. Семейство с по-малко от трима докладвани души в цикъл се скрива за този цикъл (показва се като прекъсване) за защита на анонимността." }
+            "title": {
+              "en": "Cohort comparison",
+              "bg": "Сравнение на кохорти"
+            },
+            "whatItShows": {
+              "en": "The mean final score per role family across cycles, so cohorts can be compared over time on a stable dimension.",
+              "bg": "Средният краен резултат по ролево семейство през циклите, за да могат кохортите да се сравняват във времето по стабилно измерение."
+            },
+            "methodology": {
+              "en": "One line per role family, each point the mean final score of that family's reported evaluations in that cycle. Matching is on the stable dimension key (role family), never on individuals. A family with fewer than three reported people in a cycle is suppressed for that cycle (shown as a gap) to protect anonymity.",
+              "bg": "По една линия за ролево семейство, всяка точка е средният краен резултат на докладваните оценки за това семейство в цикъла. Съпоставянето е по стабилния ключ на измерението (ролево семейство), никога по индивиди. Семейство с по-малко от трима докладвани души в цикъл се скрива за този цикъл (показва се като прекъсване) за защита на анонимността."
+            }
           }
         }
       }

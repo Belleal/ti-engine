@@ -863,16 +863,23 @@
     flex: 0 0 auto;
 }
 
+/* Category identity colours (E / I / C) — shared by the grading-form letter boxes and the results hero score chips. */
+:root {
+    --competence-cat-e: #6F4D87;
+    --competence-cat-i: #2C7C8E;
+    --competence-cat-c: #B05B30;
+}
+
 .competence-cat-card.E .competence-cat-letter {
-    background: #6F4D87;
+    background: var(--competence-cat-e);
 }
 
 .competence-cat-card.I .competence-cat-letter {
-    background: #2C7C8E;
+    background: var(--competence-cat-i);
 }
 
 .competence-cat-card.C .competence-cat-letter {
-    background: #B05B30;
+    background: var(--competence-cat-c);
 }
 
 .competence-cat-card-name {
@@ -1518,6 +1525,66 @@
     white-space: nowrap;
 }
 
+.competence-outcome-panel {
+    padding: var(--s-3) var(--s-4) var(--s-4);
+    margin-top: calc(-1 * var(--s-2));
+    background: var(--bg-sunken);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.competence-outcome-status {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.competence-outcome-goals-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.competence-outcome-goal-cap {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+}
+
+.competence-outcome-goal-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: var(--s-2);
+    align-items: center;
+}
+
+.competence-outcome-goal-date {
+    max-width: 170px;
+}
+
+.competence-outcome-pip-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.competence-outcome-pip-hint {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+}
+
+.competence-outcome-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.competence-outcome-close-emp {
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
 .competence-slot-picker-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -1867,6 +1934,198 @@
     border-radius: var(--r-md);
 }
 
+/* Results — lean statistics layout. The hero merges the final-score stat tile with the per-category
+   breakdown on one full-width row; the signed strength/gap deltas pick up semantic colour. */
+.competence-results-hero {
+    display: grid;
+    grid-template-columns: minmax(180px, 340px) 1fr;
+    gap: var(--s-5);
+    align-items: center;
+}
+
+.competence-results-hero-cats {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    min-width: 0;
+}
+
+@media ( max-width: 720px ) {
+    .competence-results-hero {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* Per-category score chips inside the hero — name + score on one line, a thin tone-coloured fill bar beneath. */
+.competence-results-cat-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+}
+
+.competence-results-cat {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: baseline;
+    gap: var(--s-1) var(--s-3);
+}
+
+.competence-results-cat-name {
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+}
+
+.competence-results-cat-score {
+    font-weight: 700;
+    font-size: var(--fs-md);
+    color: var(--fg-primary);
+}
+
+.competence-results-cat-max {
+    font-weight: 500;
+    font-size: var(--fs-sm);
+    color: var(--fg-tertiary);
+}
+
+.competence-results-cat-bar {
+    grid-column: 1 / -1;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--bg-sunken);
+    overflow: hidden;
+}
+
+.competence-results-cat-fill {
+    height: 100%;
+    width: var(--pct, 0%);
+    border-radius: 999px;
+    background: var(--accent);
+}
+
+.competence-results-cat.cat-E .competence-results-cat-fill {
+    background: var(--competence-cat-e);
+}
+
+.competence-results-cat.cat-I .competence-results-cat-fill {
+    background: var(--competence-cat-i);
+}
+
+.competence-results-cat.cat-C .competence-results-cat-fill {
+    background: var(--competence-cat-c);
+}
+
+.competence-results-delta.pos {
+    color: var(--success);
+}
+
+.competence-results-delta.neg {
+    color: var(--danger);
+}
+
+/* Source identity colours for the results charts (bars + radar + legends) — match the SELF / MANAGER / TEAM grading-form
+   column headers (self=info, manager=accent, team=success); the maturity "expected" curve is a neutral dashed grey so it
+   reads as a benchmark distinct from the three rating sources. App-specific, layered over the generic ti-charts tones. */
+.ti-chart-bar-seg.tone-self {
+    fill: var(--info);
+}
+
+.ti-chart-bar-seg.tone-manager {
+    fill: var(--accent);
+}
+
+.ti-chart-bar-seg.tone-team {
+    fill: var(--success);
+}
+
+.ti-chart-radar-poly.tone-self {
+    fill: var(--info);
+    stroke: var(--info);
+}
+
+.ti-chart-radar-poly.tone-manager {
+    fill: var(--accent);
+    stroke: var(--accent);
+}
+
+.ti-chart-radar-poly.tone-team {
+    fill: var(--success);
+    stroke: var(--success);
+}
+
+.ti-chart-radar-poly.tone-expected {
+    stroke: var(--fg-secondary);
+}
+
+.ti-chart-radar-dot.tone-self {
+    fill: var(--info);
+}
+
+.ti-chart-radar-dot.tone-manager {
+    fill: var(--accent);
+}
+
+.ti-chart-radar-dot.tone-team {
+    fill: var(--success);
+}
+
+.ti-chart-radar-dot.tone-expected {
+    fill: var(--fg-secondary);
+}
+
+/* Radar axis labels (E1…C3) coloured by their category, matching the E / I / C letter boxes + score chips. */
+.ti-chart-radar-axis-label.tone-cat-e {
+    fill: var(--competence-cat-e);
+}
+
+.ti-chart-radar-axis-label.tone-cat-i {
+    fill: var(--competence-cat-i);
+}
+
+.ti-chart-radar-axis-label.tone-cat-c {
+    fill: var(--competence-cat-c);
+}
+
+.ti-chart-legend-swatch.tone-self {
+    background: var(--info);
+}
+
+.ti-chart-legend-swatch.tone-manager {
+    background: var(--accent);
+}
+
+.ti-chart-legend-swatch.tone-team {
+    background: var(--success);
+}
+
+.ti-chart-legend-swatch.tone-expected.is-dashed {
+    border-color: var(--fg-secondary);
+}
+
+/* Make the two band-2 cards equal height and centre the chart vertically so the shorter card fills its space.
+   The figure is a COLUMN flex container (not row) so the appended legend + sr-table stay BELOW the chart and the
+   chart keeps its full width — a row layout would push the legend beside the chart and collapse the bars. */
+.competence-results-card-fill {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+}
+
+.competence-results-card-fill > figure.ti-chart {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* Thinner radar strokes (≈half the primitive default) for the denser individual-results profile. */
+.competence-results-card-fill .ti-chart-radar-poly {
+    stroke-width: 0.4;
+}
+
+.competence-results-card-fill .ti-chart-radar-poly.tone-expected {
+    stroke-width: 0.5;
+}
+
 /* Deadline ti-card icon variant */
 .competence-deadline-card-icon.info {
     background: var(--info-soft);
@@ -1976,17 +2235,17 @@
 
 .competence-reviewer-chevron {
     flex-shrink: 0;
-    transform: rotate( 90deg );
+    transform: rotate(90deg);
     transition: transform var(--dur-fast) var(--ease-out);
 }
 
 .competence-reviewer-trigger.open .competence-reviewer-chevron {
-    transform: rotate( -90deg );
+    transform: rotate(-90deg);
 }
 
 .competence-reviewer-options {
     position: absolute;
-    top: calc( 100% + 4px );
+    top: calc(100% + 4px);
     left: 0;
     right: 0;
     /* Above the sticky action bar (z-index 40) so the open dropdown overlays it rather than slipping behind;
@@ -2004,7 +2263,7 @@
 /* Flip the popover above the trigger when there isn't room below (toggleTeamDropdown sets .drop-up). */
 .competence-reviewer-options.drop-up {
     top: auto;
-    bottom: calc( 100% + 4px );
+    bottom: calc(100% + 4px);
 }
 
 .competence-reviewer-option {
@@ -2143,8 +2402,84 @@
     display: flex;
     flex-direction: column;
     gap: var(--s-3);
-    flex: 0 0 220px;
-    align-self: start;
+    flex: 0 0 280px;
+    align-self: stretch;
+}
+
+/* The right-column cards split the column height evenly and stretch to match the (taller) employee card. */
+.competence-eval-top-right-col > .competence-deadline-card,
+.competence-eval-top-right-col > .competence-team-reviewers-card {
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+/* "Final results ready" info bar (grading screen) — a success-toned strip linking to the read-only Scores screen. */
+.competence-results-ready-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin-bottom: var(--s-4);
+    padding: var(--s-3) var(--s-4);
+    background: color-mix(in oklab, var(--success-soft) 60%, var(--bg-surface));
+    border: 1px solid var(--border-soft);
+    border-left: 3px solid var(--success);
+    border-radius: var(--r-md);
+    font-size: var(--fs-sm);
+}
+
+.competence-results-ready-bar > .ti-icon {
+    flex-shrink: 0;
+    color: var(--success);
+}
+
+.competence-results-ready-bar-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.competence-results-ready-bar-title {
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.competence-results-ready-bar-desc {
+    color: var(--fg-tertiary);
+}
+
+.competence-results-ready-bar > .ti-btn {
+    flex-shrink: 0;
+}
+
+/* Scores-screen closure card (Step 8, CA-78) — interview feedback, goals, and PIP, shown only once CLOSED. */
+.competence-results-closure {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+}
+
+.competence-closure-block {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+}
+
+.competence-closure-goals {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.competence-closure-goal-date {
+    margin-left: var(--s-2);
+    font-size: 0.85em;
+    opacity: 0.75;
+}
+
+/* De-emphasised text modifier for the Scores closure card — pairs with .ti-kv-value for empty/secondary closure lines. */
+.competence-results-closure .muted {
+    color: var(--fg-secondary);
 }
 
 .competence-eval-emp-top-row {
@@ -3586,6 +3921,18 @@
     color: var(--warn);
     border-radius: var(--r-sm);
     font-size: var(--fs-sm);
+}
+
+/* Close-confirm modal pending-count warning (Step 8, CA-78) — same warning-box treatment as the clone warning above. */
+.competence-cycle-close-warning {
+    margin-top: var(--s-3);
+    padding: var(--s-2) var(--s-3);
+    background: var(--warn-soft);
+    border: 1px solid color-mix(in oklab, var(--warn) 40%, transparent);
+    color: var(--warn);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-sm);
+    font-weight: 600;
 }
 
 /* Responsive collapse for two-pane on narrow viewports. The page releases its full-height flex layout and scrolls

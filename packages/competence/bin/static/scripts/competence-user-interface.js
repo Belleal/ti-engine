@@ -50,12 +50,13 @@ const configureCompetenceEvaluation = () => {
         noEvaluationState: null,
         warningMessage: "",
         isMyResults: false,
+        isOwnResults: false,
         modal: emptyModal(),
 
         // Phase 3 — individual results (populated by buildResults() at READY/CLOSED)
         resultsReady: false,
         resultsHeroSpec: { type: "stat", data: { value: 0, label: "", sub: "" }, a11yLabel: "" },
-        resultsCategoryBarsSpec: { type: "bars", data: { rows: [] }, options: { mode: "stacked" }, a11yLabel: "" },
+        resultsCategories: [],
         resultsSourceBarsSpec: { type: "bars", data: { rows: [] }, options: { mode: "grouped" }, a11yLabel: "" },
         resultsRadarSpec: { type: "radar", data: { axes: [], series: [] }, a11yLabel: "" },
         resultsStrengths: [],
@@ -93,6 +94,9 @@ const configureCompetenceEvaluation = () => {
             this.canEdit = fresh.canEdit;
             this.canFinalizeTeam = ( fresh.canFinalizeTeam === true );
             this.isFacilitator = ( fresh.isFacilitator === true );
+            if ( typeof fresh.isOwnResults === "boolean" ) {
+                this.isOwnResults = fresh.isOwnResults;
+            }
             this.evaluation = fresh.evaluation ? tiToolbox.structuredClone( fresh.evaluation ) : {
                 scores: {},
                 finalScore: {}
@@ -106,19 +110,24 @@ const configureCompetenceEvaluation = () => {
 
         loadEmployeeEvaluation( employeeID ) {
             const resolvedID = String( employeeID || "" ).trim();
-            if ( resolvedID ) {
-                this.employeeID = resolvedID;
-            }
+            this.employeeID = resolvedID || null;
             const evaluationID = tiToolbox.getUrlParam( "evaluationID" );
             const params = new URLSearchParams();
             if ( resolvedID ) params.set( "employeeID", resolvedID );
             if ( evaluationID ) params.set( "evaluationID", evaluationID );
             const paramString = params.toString();
-            // "My results" reuses this fragment but loads the requesting employee's own latest result (incl. CLOSED)
-            // via the self-scoped load-my-results endpoint, since load-evaluation rejects CLOSED.
+            // "My results" reuses this fragment but loads the latest reported result (incl. CLOSED) via load-my-results,
+            // since load-evaluation rejects CLOSED. The same screen serves a manager/supervisor viewing a SPECIFIC
+            // employee's scores: the employeeID is forwarded and the endpoint authorizes it. isOwnResults drives the
+            // self-vs-other labels (and the topbar title override so a manager's view never reads "My ...").
             const isMyResults = !!( window.location && window.location.pathname && window.location.pathname.indexOf( "my-results" ) >= 0 );
             this.isMyResults = isMyResults;
-            const url = isMyResults ? "/app/load-my-results" : `/app/load-evaluation${ paramString ? `?${ paramString }` : "" }`;
+            const ownID = ( tiApplication.user && tiApplication.user.employeeID ) ? String( tiApplication.user.employeeID ) : "";
+            this.isOwnResults = isMyResults && ( !resolvedID || resolvedID === ownID );
+            tiApplication.setScreenTitle( ( isMyResults && !this.isOwnResults ) ? tiApplication.getLabel( "interface.topbar.results-other", "Performance Scores" ) : "" );
+            const url = isMyResults
+                ? `/app/load-my-results${ resolvedID ? `?employeeID=${ encodeURIComponent( resolvedID ) }` : "" }`
+                : `/app/load-evaluation${ paramString ? `?${ paramString }` : "" }`;
             this.resultsHistoryReady = false;
             tiApplication.sendRequest( url ).then( ( result ) => {
                 if ( result?.data?.noEvaluation ) {
@@ -130,7 +139,11 @@ const configureCompetenceEvaluation = () => {
                 this.noEvaluationState = null;
                 this.showEvaluationForm = true;
                 this.applyData( result?.data );
-                if ( isMyResults ) { this.loadOwnHistory(); }
+                // Load the score-history trend whenever results are final — for the evaluee's own view AND for a
+                // manager/supervisor viewing a report (the endpoint gates access; an unauthorized viewer just gets no card).
+                if ( this.resultsReady ) {
+                    this.loadHistory();
+                }
             } ).catch( ( error ) => {
                 if ( error?.name === "AbortError" || error?.isAborted ) {
                     return;
@@ -145,10 +158,14 @@ const configureCompetenceEvaluation = () => {
             } );
         },
 
-        // CA-X4 — fetches the requesting employee's own historical score line (self-scoped; the endpoint gates access)
-        // and builds the line spec. Silent on failure / too-few cycles — the card just stays hidden.
-        loadOwnHistory() {
-            tiApplication.sendRequest( "/app/load-employee-history" ).then( ( result ) => {
+        // CA-X4 — fetches the viewed employee's historical score line and builds the line spec. Passes the viewed
+        // employeeID when a manager/supervisor is looking at a report (the endpoint gates access; "My results" and the
+        // employee's own view omit it and default to the requester). Silent on failure / too-few cycles — card stays hidden.
+        loadHistory() {
+            // Pass the viewed employeeID whenever present (manager/supervisor viewing a report — on either the
+            // evaluation screen or the results screen); "My results" omits it and the endpoint defaults to self.
+            const q = this.employeeID ? ( "?employeeID=" + encodeURIComponent( this.employeeID ) ) : "";
+            tiApplication.sendRequest( "/app/load-employee-history" + q ).then( ( result ) => {
                 const data = ( result && result.data ) ? result.data : {};
                 if ( data.noHistory || !data.history || !Array.isArray( data.history.x ) || data.history.x.length === 0 ) {
                     this.resultsHistoryReady = false;
@@ -161,7 +178,9 @@ const configureCompetenceEvaluation = () => {
                     a11yLabel: tiApplication.getLabel( "interface.evaluation.results.history-title", "Score history" )
                 };
                 this.resultsHistoryReady = true;
-            } ).catch( () => { this.resultsHistoryReady = false; } );
+            } ).catch( () => {
+                this.resultsHistoryReady = false;
+            } );
         },
 
         reset() {
@@ -380,7 +399,7 @@ const configureCompetenceEvaluation = () => {
         },
 
         getPageTitle() {
-            if ( this.isMyResults ) return "interface.evaluation.page.my-results-title";
+            if ( this.isMyResults ) return this.isOwnResults ? "interface.evaluation.page.my-results-title" : "interface.evaluation.page.results-other-title";
             if ( this.userRole === 1 ) return "interface.evaluation.page.employee-title";
             if ( this.userRole === 2 ) return "interface.evaluation.page.manager-title";
             if ( this.userRole === 4 ) return "interface.evaluation.page.team-title";
@@ -388,7 +407,7 @@ const configureCompetenceEvaluation = () => {
         },
 
         getPageDesc() {
-            if ( this.isMyResults ) return "interface.evaluation.page.my-results-desc";
+            if ( this.isMyResults ) return this.isOwnResults ? "interface.evaluation.page.my-results-desc" : "interface.evaluation.page.results-other-desc";
             if ( this.userRole === 1 ) return "interface.evaluation.page.employee-desc";
             if ( this.userRole === 2 ) return "interface.evaluation.page.manager-desc";
             if ( this.userRole === 4 ) return "interface.evaluation.page.team-desc";
@@ -407,6 +426,52 @@ const configureCompetenceEvaluation = () => {
             if ( this.userRole === 2 ) return "interface.evaluation.banners.manager-desc";
             if ( this.userRole === 4 ) return "interface.evaluation.banners.team-desc";
             return "";
+        },
+
+        // Results (Scores) panel header is context-aware: second-person for the evaluee viewing their OWN scores,
+        // neutral ("Scores" + "...for {name}") for a manager/supervisor viewing another employee's scores.
+        getResultsTitle() {
+            return this.isOwnResults ? "interface.evaluation.results.title" : "interface.evaluation.results.title-other";
+        },
+
+        getResultsDesc() {
+            return this.isOwnResults
+                ? tiApplication.getLabel( "interface.evaluation.results.desc" )
+                : ( tiApplication.getLabel( "interface.evaluation.results.desc-other" ) || "" ).replace( "{name}", this.personal.name || "" );
+        },
+
+        // Compact final-score panel (evaluation screen): the numeric score, guarded — finalScore is OPTIONAL on the
+        // evaluation record (absent until Ready), so it must never be dereferenced unguarded in the template.
+        getFinalScoreValue() {
+            const fs = this.evaluation && this.evaluation.finalScore;
+            return ( fs && typeof fs.score === "number" ) ? fs.score : "";
+        },
+
+        // Compact final-score panel (evaluation screen): the band display name once results are final.
+        getFinalScoreBandName() {
+            const fs = this.evaluation && this.evaluation.finalScore;
+            if ( !fs || typeof fs.score !== "number" ) return "";
+            return fs.interpretationName ? tiApplication.getLabel( fs.interpretationName, fs.interpretationName ) : ( fs.interpretation || "" );
+        },
+
+        // "Results are ready" info bar (evaluation screen) — second-person for the evaluee, neutral for a manager.
+        getResultsReadyTitle() {
+            if ( this.userRole === 1 ) return tiApplication.getLabel( "interface.evaluation.results-ready.title" );
+            return ( tiApplication.getLabel( "interface.evaluation.results-ready.title-other" ) || "" ).replace( "{name}", this.personal.name || "" );
+        },
+
+        getResultsReadyAction() {
+            return this.userRole === 1 ? "interface.evaluation.results-ready.action" : "interface.evaluation.results-ready.action-other";
+        },
+
+        // Opens the read-only results (scores) screen: the evaluee sees their own ("My Scores"); a manager/supervisor
+        // opens the viewed employee's scores (load-my-results forwards + authorizes the employeeID).
+        openResults() {
+            if ( this.userRole === 1 || !this.employeeID ) {
+                tiApplication.openScreen( "my-results" );
+            } else {
+                tiApplication.openScreen( "my-results?employeeID=" + encodeURIComponent( this.employeeID ) );
+            }
         },
 
         getContextualDeadline() {
@@ -442,7 +507,44 @@ const configureCompetenceEvaluation = () => {
             if ( status === "Open" ) return "info";
             if ( status === "In Review" ) return "warn";
             if ( status === "Ready" ) return "success";
+            if ( status === "Closed" ) return "muted";
             return "";
+        },
+
+        hasClosure() {
+            const c = this.evaluation && this.evaluation.closure;
+            if ( !c ) return false;
+            const hasFeedback = ( typeof c.feedback === "string" && c.feedback.trim() !== "" );
+            const hasGoals = ( Array.isArray( c.goals ) && c.goals.length > 0 );
+            const hasPip = ( c.pip && c.pip.required );
+            return hasFeedback || hasGoals || hasPip;
+        },
+
+        closureFeedback() {
+            const c = this.evaluation && this.evaluation.closure;
+            return ( c && typeof c.feedback === "string" ) ? c.feedback : "";
+        },
+
+        closureGoals() {
+            const c = this.evaluation && this.evaluation.closure;
+            return ( c && Array.isArray( c.goals ) ) ? c.goals : [];
+        },
+
+        closurePipVisible() {
+            const c = this.evaluation && this.evaluation.closure;
+            return !!( c && c.pip && c.pip.required );
+        },
+
+        closurePipPlan() {
+            const c = this.evaluation && this.evaluation.closure;
+            return ( c && c.pip && typeof c.pip.plan === "string" ) ? c.pip.plan : "";
+        },
+
+        closureClosedOn() {
+            const c = this.evaluation && this.evaluation.closure;
+            const closedAt = ( c && c.closedAt ) ? c.closedAt : null;
+            if ( !closedAt ) return "";
+            return this.getLabel( "interface.evaluation.results.closure.closed-on" ).replace( "{date}", this.formatDate( closedAt ) );
         },
 
         getEvalStatusSteps() {
@@ -578,10 +680,18 @@ const configureCompetenceEvaluation = () => {
 
         // T-band cascade mirroring the server EXACTLY: ascending T1→T5, first band where score <= threshold, else T5.
         tBand( score ) {
-            const thresholds = ( tiApplication.configuration && tiApplication.configuration.performanceThresholds ) || { T1: 76, T2: 89, T3: 105, T4: 119, T5: 150 };
+            const thresholds = ( tiApplication.configuration && tiApplication.configuration.performanceThresholds ) || {
+                T1: 76,
+                T2: 89,
+                T3: 105,
+                T4: 119,
+                T5: 150
+            };
             const order = [ "T1", "T2", "T3", "T4", "T5" ];
             for ( let i = 0; i < order.length; i++ ) {
-                if ( typeof thresholds[ order[ i ] ] === "number" && score <= thresholds[ order[ i ] ] ) { return order[ i ]; }
+                if ( typeof thresholds[ order[ i ] ] === "number" && score <= thresholds[ order[ i ] ] ) {
+                    return order[ i ];
+                }
             }
             return "T5";
         },
@@ -589,11 +699,20 @@ const configureCompetenceEvaluation = () => {
         // Maturity-step expected grade weight for a competency (mirrors results-analytics.expectedGradeForArchetype):
         // intro=0.5·peak, mature=0.9·peak over the snapshot relevancy curve; U/R/S → weight.
         expectedGradeWeight( relevancyCurve, stageLevel, gradeWeights ) {
-            if ( !relevancyCurve || typeof relevancyCurve !== "object" ) { return null; }
+            if ( !relevancyCurve || typeof relevancyCurve !== "object" ) {
+                return null;
+            }
             let peak = 0;
             const keys = Object.keys( relevancyCurve );
-            for ( let i = 0; i < keys.length; i++ ) { const v = Number( relevancyCurve[ keys[ i ] ] ) || 0; if ( v > peak ) { peak = v; } }
-            if ( peak <= 0 ) { return ( typeof gradeWeights.U === "number" ) ? gradeWeights.U : 0.6; }
+            for ( let i = 0; i < keys.length; i++ ) {
+                const v = Number( relevancyCurve[ keys[ i ] ] ) || 0;
+                if ( v > peak ) {
+                    peak = v;
+                }
+            }
+            if ( peak <= 0 ) {
+                return ( typeof gradeWeights.U === "number" ) ? gradeWeights.U : 0.6;
+            }
             const w = Number( relevancyCurve[ stageLevel ] ) || 0;
             const letter = ( w < ( 0.5 * peak ) ) ? "U" : ( ( w < ( 0.9 * peak ) ) ? "R" : "S" );
             return ( typeof gradeWeights[ letter ] === "number" ) ? gradeWeights[ letter ] : null;
@@ -604,7 +723,10 @@ const configureCompetenceEvaluation = () => {
         buildResults() {
             const ev = this.evaluation || {};
             const ready = ( ev.status === "Ready" || ev.status === "Closed" ) && ev.finalScore && typeof ev.finalScore.score === "number";
-            if ( !ready ) { this.resultsReady = false; return; }
+            if ( !ready ) {
+                this.resultsReady = false;
+                return;
+            }
 
             const cfg = tiApplication.configuration || {};
             const gradeWeights = cfg.gradeWeights || { S: 1.3, R: 1.0, U: 0.6, N: 0.0 };
@@ -626,94 +748,160 @@ const configureCompetenceEvaluation = () => {
             const den = {};                                                       // shared per-scope divisor: Σ relevancy
             const num = { employee: {}, manager: {}, team: {}, expected: {} };    // per-series weighted sums
             const participated = { employee: false, manager: false, team: false };
-            const addDen = ( key, v ) => { den[ key ] = ( den[ key ] || 0 ) + v; };
-            const addNum = ( series, key, v ) => { num[ series ][ key ] = ( num[ series ][ key ] || 0 ) + v; };
+            const addDen = ( key, v ) => {
+                den[ key ] = ( den[ key ] || 0 ) + v;
+            };
+            const addNum = ( series, key, v ) => {
+                num[ series ][ key ] = ( num[ series ][ key ] || 0 ) + v;
+            };
 
             for ( let i = 0; i < snapshot.length; i++ ) {
                 const snap = snapshot[ i ];
                 const code = snap.code, cat = snap.category, subcat = snap.subcategory;
                 const rel = ( snap.relevancy && typeof snap.relevancy[ stageLevel ] === "number" ) ? snap.relevancy[ stageLevel ] : 0;
-                if ( !code || !cat || rel <= 0 ) { continue; }
+                if ( !code || !cat || rel <= 0 ) {
+                    continue;
+                }
                 addDen( "cat:" + cat, rel );
-                if ( subcat ) { addDen( "sub:" + subcat, rel ); }
+                if ( subcat ) {
+                    addDen( "sub:" + subcat, rel );
+                }
                 for ( let s = 0; s < SOURCE_KEYS.length; s++ ) {
                     const weight = wOf( this.gradeLetterFor( code, SOURCE_KEYS[ s ] ) );
-                    if ( weight !== null ) { participated[ SOURCE_KEYS[ s ] ] = true; }
+                    if ( weight !== null ) {
+                        participated[ SOURCE_KEYS[ s ] ] = true;
+                    }
                     const w = ( weight === null ) ? 0 : weight;
                     addNum( SOURCE_KEYS[ s ], "cat:" + cat, w * rel );
-                    if ( subcat ) { addNum( SOURCE_KEYS[ s ], "sub:" + subcat, w * rel ); }
+                    if ( subcat ) {
+                        addNum( SOURCE_KEYS[ s ], "sub:" + subcat, w * rel );
+                    }
                 }
                 const ew = this.expectedGradeWeight( snap.relevancy, stageLevel, gradeWeights );
                 if ( ew !== null ) {
                     addNum( "expected", "cat:" + cat, ew * rel );
-                    if ( subcat ) { addNum( "expected", "sub:" + subcat, ew * rel ); }
+                    if ( subcat ) {
+                        addNum( "expected", "sub:" + subcat, ew * rel );
+                    }
                 }
             }
             // Omit a source that graded nothing at all (e.g. an evaluation that ran without a team) so it never renders as a
             // misleading flat zero; self and manager are always complete by the time results are final.
-            for ( let s = 0; s < SOURCE_KEYS.length; s++ ) { if ( !participated[ SOURCE_KEYS[ s ] ] ) { num[ SOURCE_KEYS[ s ] ] = {}; } }
-            const meanOf = ( series, key ) => { const n = num[ series ][ key ]; return ( den[ key ] > 0 && typeof n === "number" ) ? ( n / den[ key ] ) : null; };
+            for ( let s = 0; s < SOURCE_KEYS.length; s++ ) {
+                if ( !participated[ SOURCE_KEYS[ s ] ] ) {
+                    num[ SOURCE_KEYS[ s ] ] = {};
+                }
+            }
+            const meanOf = ( series, key ) => {
+                const n = num[ series ][ key ];
+                return ( den[ key ] > 0 && typeof n === "number" ) ? ( n / den[ key ] ) : null;
+            };
 
-            // Sources that actually participated — self/manager always; team only if it graded anything.
+            // Sources that actually participated — self/manager always; team only if it graded anything. Tones match the
+            // SELF / MANAGER / TEAM grading-form column colours (.competence-h-*: self=info, manager=accent, team=success).
             const activeSources = [
-                { key: "self", series: "employee", tone: "grade-s" },
-                { key: "manager", series: "manager", tone: "grade-r" }
+                { key: "self", series: "employee", tone: "self" },
+                { key: "manager", series: "manager", tone: "manager" }
             ];
-            if ( participated.team ) { activeSources.push( { key: "team", series: "team", tone: "info" } ); }
+            if ( participated.team ) {
+                activeSources.push( { key: "team", series: "team", tone: "team" } );
+            }
+            // Shared chart legend describing which colour is which source (reuses the grading column labels).
+            const sourceLabel = ( key ) => tiApplication.getLabel( "interface.evaluation.competencies." + key, key );
+            const sourceLegend = activeSources.map( ( src ) => ( { label: sourceLabel( src.key ), tone: src.tone } ) );
+
+            // True score ceiling for THIS form. The server score is a relevancy-NORMALISED weighted average of grade
+            // weights (Σ(weight·rel)/Σrel per source, blended by source weight, ×100 — see calculateFinalEvaluationScores),
+            // so the maximum is ceil( S · Σ participating-source-weights · 100 ). The relevancy divisor cancels, so it is
+            // independent of family/competencies: full participation ⇒ ceil(1.3·1·100)=130; a source that never graded drops
+            // its weight from the ceiling. (The old 150 was the T5 interpretation band, not an achievable maximum.)
+            const participatingWeight = ( participated.employee ? ( evalWeights.self || 0 ) : 0 )
+                + ( participated.manager ? ( evalWeights.manager || 0 ) : 0 )
+                + ( participated.team ? ( evalWeights.team || 0 ) : 0 );
+            const maxScore = ( participatingWeight > 0 ) ? Math.ceil( maxGrade * participatingWeight * 100 ) : scoreMax;
 
             // category/subcategory display names from the competency tree (fallback to codes)
             const catName = {}, subName = {};
             const tree = Array.isArray( this.competencies ) ? this.competencies : [];
             for ( let i = 0; i < tree.length; i++ ) {
                 const c = tree[ i ];
-                if ( c && c.id ) { catName[ c.id ] = c.name || c.id; }
+                if ( c && c.id ) {
+                    catName[ c.id ] = c.name || c.id;
+                }
                 const subs = Array.isArray( c && c.subcategories ) ? c.subcategories : [];
-                for ( let j = 0; j < subs.length; j++ ) { if ( subs[ j ] && subs[ j ].id ) { subName[ subs[ j ].id ] = subs[ j ].name || subs[ j ].id; } }
+                for ( let j = 0; j < subs.length; j++ ) {
+                    if ( subs[ j ] && subs[ j ].id ) {
+                        subName[ subs[ j ].id ] = subs[ j ].name || subs[ j ].id;
+                    }
+                }
             }
 
-            // Hero: the server's authoritative finalScore + its band.
+            // Hero: the server's authoritative finalScore + its band. interpretationName is a label KEY
+            // (e.g. "framework.performance.threshold.name.T3") — resolve it through getLabel, never render it raw.
             const finalScore = ev.finalScore.score;
             const bandCode = ev.finalScore.interpretation || this.tBand( finalScore );
-            const bandName = ev.finalScore.interpretationName || bandCode;
+            const finalScoreLabel = tiApplication.getLabel( "interface.evaluation.results.final-score", "Final score" );
+            const bandName = ev.finalScore.interpretationName ? tiApplication.getLabel( ev.finalScore.interpretationName, ev.finalScore.interpretationName ) : bandCode;
             this.resultsHeroSpec = {
                 type: "stat",
-                data: { value: finalScore, label: tiApplication.getLabel( "interface.evaluation.results.final-score", "Final score" ), sub: bandName, pct: Math.max( 0, Math.min( 1, finalScore / scoreMax ) ) },
-                a11yLabel: "Final score " + String( finalScore ) + " (" + String( bandName ) + ")"
+                data: { value: finalScore, label: finalScoreLabel, sub: bandName, pct: Math.max( 0, Math.min( 1, finalScore / maxScore ) ) },
+                a11yLabel: finalScoreLabel + " " + String( finalScore ) + " (" + String( bandName ) + ")"
             };
 
-            // Per-category scores (server, pre-blended) — one bar per category filling to score/150.
+            // Per-category breakdown for the hero — compact score chips coloured by category identity (matching the
+            // E / I / C letter boxes in the grading form), filled against the form's true score ceiling (maxScore).
             const scores = ( ev.scores && typeof ev.scores === "object" ) ? ev.scores : {};
-            const bandTone = ( score ) => { const b = this.tBand( score ); return ( b === "T1" || b === "T2" ) ? "grade-n" : ( b === "T3" ? "grade-r" : "grade-s" ); };
-            this.resultsCategoryBarsSpec = {
-                type: "bars", options: { mode: "stacked" },
-                data: { rows: Object.keys( scores ).map( ( cat ) => ( {
-                    id: cat, label: catName[ cat ] || cat, total: scoreMax,
-                    segments: [ { key: "score", v: ( typeof scores[ cat ].score === "number" ) ? scores[ cat ].score : 0, tone: bandTone( scores[ cat ].score || 0 ) } ]
-                } ) ) },
-                a11yLabel: "Category scores"
-            };
+            this.resultsCategories = Object.keys( scores ).map( ( cat ) => {
+                const v = ( typeof scores[ cat ].score === "number" ) ? scores[ cat ].score : 0;
+                return {
+                    id: cat,
+                    label: catName[ cat ] || cat,
+                    score: v,
+                    max: maxScore,
+                    tone: cat,
+                    pct: Math.max( 0, Math.min( 100, Math.round( ( v / maxScore ) * 100 ) ) )
+                };
+            } );
 
-            // Source comparison: per category, grouped self/manager/team mean (weight space).
+            // Source comparison: per category, grouped self/manager/team mean (weight space). Thin bars (≈⅓ the
+            // default height) with a smaller value caption keep the three-source comparison compact and legible.
             this.resultsSourceBarsSpec = {
-                type: "bars", options: { mode: "grouped" },
-                data: { rows: [ "E", "I", "C" ].filter( ( cat ) => den[ "cat:" + cat ] > 0 ).map( ( cat ) => ( {
-                    id: cat, label: catName[ cat ] || cat,
-                    values: activeSources.map( ( src ) => ( { key: src.key, v: round2( meanOf( src.series, "cat:" + cat ) || 0 ), tone: src.tone } ) )
-                } ) ) },
-                a11yLabel: "Self vs manager vs team by category"
+                type: "bars", options: { mode: "grouped", valueLabels: true, barThickness: 1.5, valueFontSize: 2.6, legend: sourceLegend },
+                data: {
+                    rows: [ "E", "I", "C" ].filter( ( cat ) => den[ "cat:" + cat ] > 0 ).map( ( cat ) => ( {
+                        id: cat, label: catName[ cat ] || cat,
+                        values: activeSources.map( ( src ) => ( { key: src.key, v: round2( meanOf( src.series, "cat:" + cat ) || 0 ), tone: src.tone } ) )
+                    } ) )
+                },
+                a11yLabel: tiApplication.getLabel( "interface.evaluation.results.source-comparison", "Self vs manager vs team" )
             };
 
             // Radar: 9 subcategories × self/manager/team (whichever participated) + the maturity-step expected curve.
-            const subValues = ( series ) => { const out = {}; for ( let i = 0; i < SUBCATS.length; i++ ) { const m = meanOf( series, "sub:" + SUBCATS[ i ] ); if ( m !== null ) { out[ SUBCATS[ i ] ] = round2( m ); } } return out; };
+            const subValues = ( series ) => {
+                const out = {};
+                for ( let i = 0; i < SUBCATS.length; i++ ) {
+                    const m = meanOf( series, "sub:" + SUBCATS[ i ] );
+                    if ( m !== null ) {
+                        out[ SUBCATS[ i ] ] = round2( m );
+                    }
+                }
+                return out;
+            };
             this.resultsRadarSpec = {
                 type: "radar",
+                options: {
+                    legend: sourceLegend.concat( [ {
+                        label: tiApplication.getLabel( "interface.evaluation.results.expected", "Expected" ),
+                        tone: "expected", dashed: true
+                    } ] )
+                },
                 data: {
-                    axes: SUBCATS.map( ( s ) => ( { id: s, label: s, max: maxGrade } ) ),
+                    axes: SUBCATS.map( ( s ) => ( { id: s, label: s, max: maxGrade, tone: "cat-" + s.charAt( 0 ).toLowerCase() } ) ),
                     series: activeSources.map( ( src ) => ( { key: src.key, tone: src.tone, values: subValues( src.series ) } ) ).concat( [
-                        { key: "expected", style: "dashed", values: subValues( "expected" ) }
+                        { key: "expected", tone: "expected", style: "dashed", values: subValues( "expected" ) }
                     ] )
                 },
-                a11yLabel: "Subcategory profile: self, manager, team vs expected"
+                a11yLabel: tiApplication.getLabel( "interface.evaluation.results.profile", "Subcategory profile" )
             };
 
             // Strengths / gaps: blended subcategory mean vs the maturity-step expected.
@@ -722,7 +910,9 @@ const configureCompetenceEvaluation = () => {
                 const sc = SUBCATS[ i ];
                 const self = meanOf( "employee", "sub:" + sc ), team = meanOf( "team", "sub:" + sc ), mgr = meanOf( "manager", "sub:" + sc );
                 const expected = meanOf( "expected", "sub:" + sc );
-                if ( expected === null || ( self === null && team === null && mgr === null ) ) { continue; }
+                if ( expected === null || ( self === null && team === null && mgr === null ) ) {
+                    continue;
+                }
                 const weightedSources = [
                     { value: self, weight: evalWeights.self },
                     { value: team, weight: evalWeights.team },
@@ -732,7 +922,17 @@ const configureCompetenceEvaluation = () => {
                 const blended = weightTotal > 0
                     ? weightedSources.reduce( ( sum, src ) => sum + ( src.value * src.weight ), 0 ) / weightTotal
                     : 0;
-                insights.push( { code: sc, label: subName[ sc ] || sc, value: round2( blended ), expected: round2( expected ), gap: round2( blended - expected ) } );
+                const gapVal = round2( blended - expected );
+                // `display` is the signed deviation vs the maturity-step expected ("+0.30" / "-0.43") — the SAME quantity
+                // for strengths and gaps, so the two lists read consistently (strengths previously showed the raw mean).
+                insights.push( {
+                    code: sc,
+                    label: subName[ sc ] || sc,
+                    value: round2( blended ),
+                    expected: round2( expected ),
+                    gap: gapVal,
+                    display: ( gapVal > 0 ? "+" : "" ) + gapVal.toFixed( 2 )
+                } );
             }
             this.resultsStrengths = insights.filter( ( x ) => x.gap > 0 ).sort( ( a, b ) => b.gap - a.gap ).slice( 0, 3 );
             this.resultsGaps = insights.filter( ( x ) => x.gap < 0 ).sort( ( a, b ) => a.gap - b.gap ).slice( 0, 3 );
@@ -740,13 +940,22 @@ const configureCompetenceEvaluation = () => {
             this.resultsReady = true;
         },
 
-        getResultsHeroAriaLabel() { return this.resultsHeroSpec.a11yLabel; },
-        getResultsCategoryAriaLabel() { return this.resultsCategoryBarsSpec.a11yLabel; },
-        getResultsSourceAriaLabel() { return this.resultsSourceBarsSpec.a11yLabel; },
-        getResultsRadarAriaLabel() { return this.resultsRadarSpec.a11yLabel; },
+        getResultsHeroAriaLabel() {
+            return this.resultsHeroSpec.a11yLabel;
+        },
+        getResultsSourceAriaLabel() {
+            return this.resultsSourceBarsSpec.a11yLabel;
+        },
+        getResultsRadarAriaLabel() {
+            return this.resultsRadarSpec.a11yLabel;
+        },
 
-        hasHistory() { return this.resultsHistoryReady === true; },
-        getResultsHistoryAriaLabel() { return this.resultsHistorySpec.a11yLabel; }
+        hasHistory() {
+            return this.resultsHistoryReady === true;
+        },
+        getResultsHistoryAriaLabel() {
+            return this.resultsHistorySpec.a11yLabel;
+        }
 
     };
 };
@@ -1429,6 +1638,11 @@ const configureInterviewSchedule = () => {
         selectedEvaluationID: null,
         slotViewStart: null,
         config: {},
+        canSchedule: false,
+        maxGoals: 5,
+        outcomeForID: null,
+        outcomeDraft: { feedback: "", goals: [], pip: { required: false, plan: "" } },
+        closeModal: { open: false, evaluationID: null, employeeName: "", busy: false },
 
         init() {
             const onInitialized = () => {
@@ -1453,6 +1667,9 @@ const configureInterviewSchedule = () => {
                 this.evaluations = Array.isArray( data.evaluations ) ? tiToolbox.structuredClone( data.evaluations ) : [];
                 this.slots = Array.isArray( data.slots ) ? tiToolbox.structuredClone( data.slots ) : [];
                 this.config = data.config || {};
+                this.canSchedule = ( data.canSchedule === true );   // only a Supervisor books; managers see this read-only
+                this.maxGoals = ( typeof data.maxGoals === "number" ) ? data.maxGoals : 5;
+                this.outcomeForID = null;
                 this.selectedEvaluationID = null;
 
                 const todayMonday = tiToolbox.getMonday( new Date() );
@@ -1537,10 +1754,13 @@ const configureInterviewSchedule = () => {
             if ( !this.canGoPrevSlotWeeks() ) {
                 return;
             }
-            const todayMonday = tiToolbox.getMonday( new Date() );
+            // Step back a full 4-week window. canGoPrevSlotWeeks() only returns true when an available slot exists
+            // before the current window start, and the schedule projection carries only future (schedulable) slots, so
+            // paging back always lands on/before a window that contains slots and terminates at the earliest slot's
+            // window — symmetric with canGoNextSlotWeeks(); no today-clamp needed.
             const d = new Date( this.slotViewStart );
             d.setDate( d.getDate() - 28 );
-            this.slotViewStart = d < todayMonday ? todayMonday : d;
+            this.slotViewStart = d;
         },
 
         nextSlotWeeks() {
@@ -1556,7 +1776,11 @@ const configureInterviewSchedule = () => {
             if ( !this.slotViewStart ) {
                 return false;
             }
-            return tiToolbox.toDateString( this.slotViewStart ) > tiToolbox.toDateString( tiToolbox.getMonday( new Date() ) );
+            // There is an earlier window worth showing only if an available slot falls BEFORE the current window start —
+            // symmetric with canGoNextSlotWeeks(). (Previously this compared against today's Monday, which left "Earlier"
+            // enabled so the user could page back into the empty weeks between today and the first available slot.)
+            const windowStartStr = tiToolbox.toDateString( this.slotViewStart );
+            return this.slots.some( ( s ) => s.status === "available" && s.date < windowStartStr );
         },
 
         canGoNextSlotWeeks() {
@@ -1575,6 +1799,120 @@ const configureInterviewSchedule = () => {
             }
             const d = new Date( slot.date + "T00:00:00" );
             return `${ DAY_NAMES_SHORT[ d.getDay() ] || "" } ${ String( d.getDate() ).padStart( 2, "0" ) } ${ slot.startTime }`;
+        },
+
+        canRecordOutcome( evaluation ) {
+            return evaluation.canRecordOutcome === true;
+        },
+
+        toggleOutcome( evaluation ) {
+            if ( this.outcomeForID === evaluation.evaluationID ) {
+                this.outcomeForID = null;
+                return;
+            }
+            const closure = evaluation.closure || { feedback: "", goals: [], pip: { required: false, plan: "" } };
+            this.outcomeDraft = {
+                feedback: closure.feedback || "",
+                goals: Array.isArray( closure.goals ) ? closure.goals.map( ( g ) => ( { text: g.text || "", targetDate: g.targetDate || "" } ) ) : [],
+                pip: { required: !!( closure.pip && closure.pip.required ), plan: ( closure.pip && closure.pip.plan ) ? closure.pip.plan : "" }
+            };
+            this.outcomeForID = evaluation.evaluationID;
+        },
+
+        setOutcomeFeedback( value ) {
+            this.outcomeDraft.feedback = value;
+        },
+
+        addGoal() {
+            if ( this.outcomeDraft.goals.length >= this.maxGoals ) {
+                return;
+            }
+            this.outcomeDraft.goals.push( { text: "", targetDate: "" } );
+        },
+
+        removeGoal( index ) {
+            this.outcomeDraft.goals.splice( index, 1 );
+        },
+
+        setGoalText( index, value ) {
+            if ( this.outcomeDraft.goals[ index ] ) {
+                this.outcomeDraft.goals[ index ].text = value;
+            }
+        },
+
+        setGoalDate( index, value ) {
+            if ( this.outcomeDraft.goals[ index ] ) {
+                this.outcomeDraft.goals[ index ].targetDate = value;
+            }
+        },
+
+        togglePipRequired() {
+            this.outcomeDraft.pip.required = !this.outcomeDraft.pip.required;
+        },
+
+        setPipPlan( value ) {
+            this.outcomeDraft.pip.plan = value;
+        },
+
+        goalCapLabel() {
+            return this.getLabel( "interface.schedule.outcome.goal-cap" )
+                .replace( "{n}", String( this.outcomeDraft.goals.length ) )
+                .replace( "{max}", String( this.maxGoals ) );
+        },
+
+        canAddGoal() {
+            return this.outcomeDraft.goals.length < this.maxGoals;
+        },
+
+        saveOutcome( evaluationID ) {
+            const goals = this.outcomeDraft.goals
+                .map( ( g ) => ( { text: ( g.text || "" ).trim(), targetDate: ( g.targetDate || "" ).trim() || null } ) )
+                .filter( ( g ) => g.text !== "" );
+            tiApplication.sendRequest( "/app/save-interview-outcome", "POST", {
+                evaluationID: evaluationID,
+                feedback: this.outcomeDraft.feedback,
+                goals: goals,
+                pip: { required: this.outcomeDraft.pip.required, plan: this.outcomeDraft.pip.plan }
+            } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.schedule.outcome.saved-toast" ) );
+                this.loadSchedule();
+            } ).catch( ( error ) => {
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        openCloseModal( evaluation ) {
+            this.closeModal = { open: true, evaluationID: evaluation.evaluationID, employeeName: evaluation.employeeName || "", busy: false };
+        },
+
+        dismissCloseModal() {
+            this.closeModal = { open: false, evaluationID: null, employeeName: "", busy: false };
+        },
+
+        confirmClose() {
+            if ( !this.closeModal.evaluationID ) {
+                return;
+            }
+            this.closeModal.busy = true;
+            tiApplication.sendRequest( "/app/close-evaluation", "POST", { evaluationID: this.closeModal.evaluationID } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.schedule.outcome.closed-toast" ) );
+                this.dismissCloseModal();
+                this.loadSchedule();
+            } ).catch( ( error ) => {
+                this.dismissCloseModal();
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        rowStatusLabel( evaluation ) {
+            if ( !evaluation.interviewHeld ) {
+                return this.getLabel( "interface.schedule.outcome.status-awaiting" );
+            }
+            const closure = evaluation.closure || { feedback: "", goals: [] };
+            const recorded = ( closure.feedback && closure.feedback.trim() !== "" ) || ( Array.isArray( closure.goals ) && closure.goals.length > 0 );
+            return recorded
+                ? this.getLabel( "interface.schedule.outcome.status-ready-to-close" )
+                : this.getLabel( "interface.schedule.outcome.status-pending" );
         },
 
         pendingCount() {
@@ -1669,8 +2007,12 @@ const configureInsightsScreen = ( config ) => {
         loadAll() {
             this.isLoading = true;
             const params = [];
-            if ( this.selectedCycleID ) { params.push( "cycleID=" + encodeURIComponent( this.selectedCycleID ) ); }
-            if ( reportScope === "team" ) { params.push( "scope=team" ); }
+            if ( this.selectedCycleID ) {
+                params.push( "cycleID=" + encodeURIComponent( this.selectedCycleID ) );
+            }
+            if ( reportScope === "team" ) {
+                params.push( "scope=team" );
+            }
             const q = params.length ? ( "?" + params.join( "&" ) ) : "";
             const heatmapQ = q ? ( q + "&groupBy=roleFamily" ) : "?groupBy=roleFamily";
             const shellQ = this.selectedCycleID ? ( "?cycleID=" + encodeURIComponent( this.selectedCycleID ) ) : "";
@@ -1683,7 +2025,9 @@ const configureInsightsScreen = ( config ) => {
                 tiApplication.sendRequest( "/app/load-report-level-distribution" + q ),
                 tiApplication.sendRequest( "/app/load-report-predictive-drivers" + q )
             ];
-            if ( includeCalibration ) { requests.push( tiApplication.sendRequest( "/app/load-report-calibration" + q ) ); }
+            if ( includeCalibration ) {
+                requests.push( tiApplication.sendRequest( "/app/load-report-calibration" + q ) );
+            }
             Promise.all( requests ).then( ( results ) => {
                 const dataOf = ( result ) => ( ( result && result.data && typeof result.data === "object" ) ? result.data : {} );
                 const shell = dataOf( results[ 0 ] );
@@ -1803,7 +2147,13 @@ const configureInsightsScreen = ( config ) => {
                 // "Complete" mirrors the gauge: an evaluation counts once it reaches Ready or Closed.
                 const complete = ( byStatus[ "Closed" ] || 0 ) + ( byStatus[ "Ready" ] || 0 );
                 const pct = ( groupN > 0 ) ? Math.round( ( complete / groupN ) * 100 ) : 0;
-                return { id: String( group.groupKey || group.groupLabel || "" ), label: group.groupLabel || "", segments: segments, total: groupN, valueLabel: String( pct ) + "%" };
+                return {
+                    id: String( group.groupKey || group.groupLabel || "" ),
+                    label: group.groupLabel || "",
+                    segments: segments,
+                    total: groupN,
+                    valueLabel: String( pct ) + "%"
+                };
             } );
             return {
                 type: "bars",
@@ -1891,10 +2241,12 @@ const configureInsightsScreen = ( config ) => {
         buildTimeDistributionSpec( report, meta ) {
             const monthRows = ( report && Array.isArray( report.rows ) ) ? report.rows : [];
             const rows = monthRows.map( function ( m ) {
-                return { id: String( m.monthKey || "" ), label: String( m.monthKey || "" ), values: [
-                    { key: "planned", v: m.planned || 0, tone: "grade-r" },
-                    { key: "held", v: m.held || 0, tone: "grade-s" }
-                ] };
+                return {
+                    id: String( m.monthKey || "" ), label: String( m.monthKey || "" ), values: [
+                        { key: "planned", v: m.planned || 0, tone: "grade-r" },
+                        { key: "held", v: m.held || 0, tone: "grade-s" }
+                    ]
+                };
             } );
             return {
                 type: "bars", data: { rows: rows }, options: { mode: "grouped" },
@@ -1963,9 +2315,11 @@ const configureInsightsScreen = ( config ) => {
         buildPredictiveDriversSpec( report, meta ) {
             const driverRows = ( report && Array.isArray( report.rows ) ) ? report.rows : [];
             const rows = driverRows.map( function ( d ) {
-                return { id: String( d.id || "" ), label: String( d.label || d.id || "" ), values: [
-                    { key: "divergence", v: d.divergence || 0, tone: d.misweightFlag ? "grade-u" : "info" }
-                ] };
+                return {
+                    id: String( d.id || "" ), label: String( d.label || d.id || "" ), values: [
+                        { key: "divergence", v: d.divergence || 0, tone: d.misweightFlag ? "grade-u" : "info" }
+                    ]
+                };
             } );
             return {
                 type: "bars", data: { rows: rows }, options: { mode: "diverging" },
@@ -1981,7 +2335,9 @@ const configureInsightsScreen = ( config ) => {
         buildCalibrationSpec( calibration, meta ) {
             const bySub = ( calibration && calibration.bySubcategory && typeof calibration.bySubcategory === "object" ) ? calibration.bySubcategory : {};
             const order = [ "E1", "E2", "E3", "I1", "I2", "I3", "C1", "C2", "C3" ];
-            const rows = order.filter( function ( key ) { return bySub[ key ]; } ).map( function ( key ) {
+            const rows = order.filter( function ( key ) {
+                return bySub[ key ];
+            } ).map( function ( key ) {
                 const cell = bySub[ key ];
                 const self = ( cell.vsSelf && typeof cell.vsSelf.meanGap === "number" ) ? cell.vsSelf.meanGap : 0;
                 const team = ( cell.vsTeam && typeof cell.vsTeam.meanGap === "number" ) ? cell.vsTeam.meanGap : 0;
@@ -2015,7 +2371,9 @@ const configureInsightsScreen = ( config ) => {
 
         // Signed gap formatter for calibration cells: "+0.30" / "-0.20" / "—" (suppressed or missing).
         formatGap( cell ) {
-            if ( !cell || cell.suppressed || typeof cell.meanGap !== "number" ) { return "—"; }
+            if ( !cell || cell.suppressed || typeof cell.meanGap !== "number" ) {
+                return "—";
+            }
             return ( cell.meanGap > 0 ? "+" : "" ) + cell.meanGap.toFixed( 2 );
         },
         hasCalibration() {
@@ -2024,8 +2382,12 @@ const configureInsightsScreen = ( config ) => {
         calibrationDrillRows() {
             return ( this.calibration && Array.isArray( this.calibration.perCompetency ) ) ? this.calibration.perCompetency : [];
         },
-        getCalibrationAriaLabel() { return this.calibrationSpec.a11yLabel; },
-        getCalibrationKpiAriaLabel() { return this.calibrationKpiSpec.a11yLabel; },
+        getCalibrationAriaLabel() {
+            return this.calibrationSpec.a11yLabel;
+        },
+        getCalibrationKpiAriaLabel() {
+            return this.calibrationKpiSpec.a11yLabel;
+        },
 
         setHeatmapView( view ) {
             this.heatmapView = ( view === "gap" ) ? "gap" : "value";
@@ -2035,20 +2397,40 @@ const configureInsightsScreen = ( config ) => {
             this.setHeatmapView( event && event.target ? event.target.value : "value" );
         },
 
-        hasTimeDistribution() { return !!( this.timeDistribution && Array.isArray( this.timeDistribution.rows ) && this.timeDistribution.rows.length ); },
-        hasAlignment() { return !!( this.alignment && Array.isArray( this.alignment.points ) && this.alignment.points.length ); },
-        hasHeatmap() { return !!( this.heatmap && Array.isArray( this.heatmap.cells ) && this.heatmap.cells.length ); },
-        hasLevelDistribution() { return !!( this.levelDistribution && Array.isArray( this.levelDistribution.groups ) && this.levelDistribution.groups.length ); },
-        hasPredictiveDrivers() { return !!( this.predictiveDrivers && Array.isArray( this.predictiveDrivers.rows ) && this.predictiveDrivers.rows.length ); },
+        hasTimeDistribution() {
+            return !!( this.timeDistribution && Array.isArray( this.timeDistribution.rows ) && this.timeDistribution.rows.length );
+        },
+        hasAlignment() {
+            return !!( this.alignment && Array.isArray( this.alignment.points ) && this.alignment.points.length );
+        },
+        hasHeatmap() {
+            return !!( this.heatmap && Array.isArray( this.heatmap.cells ) && this.heatmap.cells.length );
+        },
+        hasLevelDistribution() {
+            return !!( this.levelDistribution && Array.isArray( this.levelDistribution.groups ) && this.levelDistribution.groups.length );
+        },
+        hasPredictiveDrivers() {
+            return !!( this.predictiveDrivers && Array.isArray( this.predictiveDrivers.rows ) && this.predictiveDrivers.rows.length );
+        },
 
         reportLabel( key, field, fallback ) {
             return tiApplication.getLabel( "interface.insights.cycle.reports." + key + "." + field, fallback );
         },
-        getTimeDistributionAriaLabel() { return this.timeDistributionSpec.a11yLabel; },
-        getAlignmentAriaLabel() { return this.alignmentSpec.a11yLabel; },
-        getHeatmapAriaLabel() { return this.heatmapSpec.a11yLabel; },
-        getLevelDistributionAriaLabel() { return this.levelDistributionSpec.a11yLabel; },
-        getPredictiveDriversAriaLabel() { return this.predictiveDriversSpec.a11yLabel; }
+        getTimeDistributionAriaLabel() {
+            return this.timeDistributionSpec.a11yLabel;
+        },
+        getAlignmentAriaLabel() {
+            return this.alignmentSpec.a11yLabel;
+        },
+        getHeatmapAriaLabel() {
+            return this.heatmapSpec.a11yLabel;
+        },
+        getLevelDistributionAriaLabel() {
+            return this.levelDistributionSpec.a11yLabel;
+        },
+        getPredictiveDriversAriaLabel() {
+            return this.predictiveDriversSpec.a11yLabel;
+        }
     };
 };
 
@@ -2089,11 +2471,17 @@ const configureTrendsScreen = () => {
         cohortSpec: { type: "line", data: { x: [], series: [] }, options: {}, a11yLabel: "" },
 
         init() {
-            const onInitialized = () => { this.loadTrends(); };
+            const onInitialized = () => {
+                this.loadTrends();
+            };
             if ( tiApplication.isInitialized ) {
                 onInitialized();
             } else {
-                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => { if ( isInitialized ) { onInitialized(); } } );
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
             }
         },
 
@@ -2137,7 +2525,9 @@ const configureTrendsScreen = () => {
                 this.cohortSpec = this.buildLineSpec( cohort, "interface.insights.trends.reports.cohort.title", {} );
                 this.isLoading = false;
             } ).catch( ( error ) => {
-                if ( error && ( error.name === "AbortError" || error.isAborted ) ) { return; }
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
                 this.isLoading = false;
                 tiApplication.notify( tiApplication.formatException( error ) );
                 if ( error && error.exception && ( error.exception.httpCode === 401 || error.exception.httpCode === 403 ) ) {
@@ -2156,12 +2546,18 @@ const configureTrendsScreen = () => {
         buildLineSpec( trend, titleKey, extraOptions ) {
             const series = ( trend && Array.isArray( trend.series ) ) ? trend.series.map( ( s ) => {
                 const out = { key: s.key, tone: s.tone || "info", values: Array.isArray( s.values ) ? s.values : [] };
-                if ( Array.isArray( s.band ) ) { out.band = s.band; }
-                if ( s.style ) { out.style = s.style; }
+                if ( Array.isArray( s.band ) ) {
+                    out.band = s.band;
+                }
+                if ( s.style ) {
+                    out.style = s.style;
+                }
                 return out;
             } ) : [];
             const options = Object.assign( {}, extraOptions || {} );
-            if ( trend && trend.meta && trend.meta.partial ) { options.provisionalLastPoint = true; }
+            if ( trend && trend.meta && trend.meta.partial ) {
+                options.provisionalLastPoint = true;
+            }
             return { type: "line", data: { x: this.cycleAxis( trend ), series: series }, options: options, a11yLabel: tiApplication.getLabel( titleKey, "" ) };
         },
 
@@ -2183,24 +2579,40 @@ const configureTrendsScreen = () => {
 
         // Splits the ladder trend payload into the ordinal-histogram series (drops the meanRung line) for the stacked bars.
         ladderHistogramOnly( trend ) {
-            if ( !trend || !Array.isArray( trend.series ) ) { return trend; }
+            if ( !trend || !Array.isArray( trend.series ) ) {
+                return trend;
+            }
             return Object.assign( {}, trend, { series: trend.series.filter( ( s ) => s.key !== "meanRung" ) } );
         },
         // Keeps only the meanRung line series for the rung overlay.
         ladderRungOnly( trend ) {
-            if ( !trend || !Array.isArray( trend.series ) ) { return trend; }
+            if ( !trend || !Array.isArray( trend.series ) ) {
+                return trend;
+            }
             return Object.assign( {}, trend, { series: trend.series.filter( ( s ) => s.key === "meanRung" ) } );
         },
 
         getCaveatBanner() {
             return tiApplication.getLabel( "interface.insights.trends.provisional-caveat", "The latest cycle is still active — its point is provisional." );
         },
-        getOverallAria() { return this.overallSpec.a11yLabel; },
-        getTbandAria() { return this.tbandSpec.a11yLabel; },
-        getGapAria() { return this.gapSpec.a11yLabel; },
-        getLadderAria() { return this.ladderSpec.a11yLabel; },
-        getLadderRungAria() { return this.ladderRungSpec.a11yLabel; },
-        getCohortAria() { return this.cohortSpec.a11yLabel; }
+        getOverallAria() {
+            return this.overallSpec.a11yLabel;
+        },
+        getTbandAria() {
+            return this.tbandSpec.a11yLabel;
+        },
+        getGapAria() {
+            return this.gapSpec.a11yLabel;
+        },
+        getLadderAria() {
+            return this.ladderSpec.a11yLabel;
+        },
+        getLadderRungAria() {
+            return this.ladderRungSpec.a11yLabel;
+        },
+        getCohortAria() {
+            return this.cohortSpec.a11yLabel;
+        }
     };
 };
 
@@ -2333,15 +2745,8 @@ const configureDashboard = () => {
                         action: "evaluation"
                     } );
                 }
-                if ( s === "Ready" ) {
-                    tasks.push( {
-                        id: "interview",
-                        tone: "success",
-                        title: tiApplication.getLabel( "interface.schedule.title", "Schedule your interview" ),
-                        sub: tiApplication.getLabel( "interface.schedule.no-evaluations", "Your evaluation is ready for interview scheduling" ),
-                        action: "schedule"
-                    } );
-                }
+                // The interview tasks (schedule / scheduled) are server-derived below — interview scheduling is a
+                // Supervisor action, so an employee is never prompted to open the Supervisor-only schedule screen.
             }
             if ( this.isManager ) {
                 const pendingReview = this.teamEvaluations.filter( ( e ) => e.status === "In Review" ).length;
@@ -2380,6 +2785,55 @@ const configureDashboard = () => {
                         employeeID: serverTask.employeeID,
                         evaluationID: serverTask.evaluationID
                     } );
+                } else if ( serverTask.type === "interview-schedule" ) {
+                    // Supervisor-only aggregate: N READY evaluations awaiting a booked slot. Opens the schedule screen.
+                    tasks.push( {
+                        id: "interview-schedule",
+                        tone: "info",
+                        title: tiApplication.getLabel( "interface.dashboard.task-interview-schedule", "Interviews awaiting scheduling" ) + " (" + serverTask.count + ")",
+                        sub: tiApplication.getLabel( "interface.dashboard.task-interview-pending", "Ready evaluations need an interview slot." ),
+                        action: "schedule"
+                    } );
+                } else if ( serverTask.type === "interview-scheduled" ) {
+                    const on = tiApplication.getLabel( "interface.dashboard.task-interview-on", "Scheduled for" );
+                    const when = tiToolbox.formatDate( serverTask.interviewDate, "" );
+                    if ( serverTask.audience === "manager" ) {
+                        // The evaluatee's manager: informational; opens the read-only Team Interviews view.
+                        tasks.push( {
+                            id: "interview-scheduled-" + serverTask.employeeID,
+                            tone: "success",
+                            title: tiApplication.getLabel( "interface.dashboard.task-interview-scheduled-team", "Team interview scheduled" ),
+                            sub: name + " · " + on + " " + when,
+                            action: "schedule"
+                        } );
+                    } else {
+                        // The evaluatee themselves: opens their own evaluation, which shows the interview date.
+                        tasks.push( {
+                            id: "interview-scheduled-self",
+                            tone: "success",
+                            title: tiApplication.getLabel( "interface.dashboard.task-interview-scheduled-self", "Your interview is scheduled" ),
+                            sub: on + " " + when,
+                            evaluationID: serverTask.evaluationID
+                        } );
+                    }
+                } else if ( serverTask.type === "interview-close" ) {
+                    // Supervisor-only aggregate: N held interviews awaiting closure. Opens the schedule screen.
+                    tasks.push( {
+                        id: "interview-close",
+                        tone: "warn",
+                        title: tiApplication.getLabel( "interface.dashboard.task-interview-close", "Interviews awaiting closure" ) + " (" + serverTask.count + ")",
+                        sub: tiApplication.getLabel( "interface.dashboard.task-interview-close-sub", "Held interviews are ready to be closed." ),
+                        action: "schedule"
+                    } );
+                } else if ( serverTask.type === "evaluation-closed" ) {
+                    // The evaluatee: their evaluation was closed recently; opens the read-only Scores screen.
+                    tasks.push( {
+                        id: "evaluation-closed",
+                        tone: "success",
+                        title: tiApplication.getLabel( "interface.dashboard.task-evaluation-closed", "Your evaluation is closed" ),
+                        sub: tiApplication.getLabel( "interface.dashboard.task-evaluation-closed-sub", "View your results, feedback, and goals." ),
+                        action: "results"
+                    } );
                 }
             }
             return tasks;
@@ -2395,7 +2849,8 @@ const configureDashboard = () => {
             }
             if ( task.action ) {
                 tiApplication.openScreen( task.action === "evaluation" ? "competence-evaluation" :
-                    task.action === "schedule" ? "interview-schedule" : "employees-list" );
+                    task.action === "schedule" ? "interview-schedule" :
+                    task.action === "results" ? "my-results" : "employees-list" );
             }
         },
 
@@ -2516,7 +2971,7 @@ const configureCycleManagement = () => {
         openCloseModal( cycle ) {
             this.modal = {
                 kind: "close-confirm",
-                payload: { cycleID: cycle.cycleID, name: cycle.name },
+                payload: { cycleID: cycle.cycleID, name: cycle.name, counts: cycle.counts },
                 errorMessage: "",
                 errorField: "",
                 busy: false
@@ -2675,6 +3130,18 @@ const configureCycleManagement = () => {
             } );
         },
 
+        closePendingWarning() {
+            const counts = ( this.modal && this.modal.payload && this.modal.payload.counts ) ? this.modal.payload.counts : null;
+            if ( !counts ) return "";
+            const notClosed = ( counts.open || 0 ) + ( counts.inReview || 0 ) + ( counts.ready || 0 );
+            if ( notClosed === 0 ) return "";
+            return tiApplication.getLabel( "interface.cycles.close-modal-pending" )
+                .replace( "{n}", String( notClosed ) )
+                .replace( "{open}", String( counts.open || 0 ) )
+                .replace( "{inReview}", String( counts.inReview || 0 ) )
+                .replace( "{ready}", String( counts.ready || 0 ) );
+        },
+
         groupLockErrors( errors ) {
             const map = new Map();
             errors.forEach( ( error ) => {
@@ -2825,7 +3292,10 @@ const configureCycleSetup = () => {
                 return;
             }
             const value = ( this.cycle && this.cycle.teamFeedbackDeadline ) ? this.cycle.teamFeedbackDeadline : "";
-            tiApplication.sendRequest( "/app/set-cycle-team-feedback-deadline", "POST", { cycleID: this.cycleID, teamFeedbackDeadline: value } ).then( ( result ) => {
+            tiApplication.sendRequest( "/app/set-cycle-team-feedback-deadline", "POST", {
+                cycleID: this.cycleID,
+                teamFeedbackDeadline: value
+            } ).then( ( result ) => {
                 if ( result && result.data && result.data.teamFeedbackDeadline ) {
                     this.cycle.teamFeedbackDeadline = result.data.teamFeedbackDeadline;
                 }
@@ -3363,7 +3833,16 @@ const configureEmployeeManagement = () => {
         inFlightEvaluations: { count: 0, entries: [] },
         audit: [],
         supervisor: { isSupervisor: false, source: null },
-        permissions: { isSupervisor: false, isDirectManager: false, isSelf: false, canEditAllFields: false, canEditSpecialization: false, canViewAudit: false, canAssignSupervisor: false, canRevokeSupervisor: false }
+        permissions: {
+            isSupervisor: false,
+            isDirectManager: false,
+            isSelf: false,
+            canEditAllFields: false,
+            canEditSpecialization: false,
+            canViewAudit: false,
+            canAssignSupervisor: false,
+            canRevokeSupervisor: false
+        }
     } );
 
     return {
@@ -4446,7 +4925,9 @@ const configureArchetypeAssignment = () => {
                 this.archetypes = Array.isArray( view.archetypes ) ? tiToolbox.structuredClone( view.archetypes ) : [];
                 this.versions = data.versions ? tiToolbox.structuredClone( data.versions ) : {};
                 this.archetypesById = {};
-                this.archetypes.forEach( ( archetype ) => { this.archetypesById[ archetype.id ] = archetype; } );
+                this.archetypes.forEach( ( archetype ) => {
+                    this.archetypesById[ archetype.id ] = archetype;
+                } );
                 this.dirtyCodes = {};
                 this.saveErrors = [];
                 this.indexRows();
@@ -4888,7 +5369,9 @@ const configureArchetypeEditor = () => {
                 return;
             }
             const weights = {};
-            this.stageLevels.forEach( ( level ) => { weights[ level ] = 5; } );
+            this.stageLevels.forEach( ( level ) => {
+                weights[ level ] = 5;
+            } );
             this.rows.push( { id: id, name: { en: "", bg: "" }, description: { en: "", bg: "" }, weights: weights, assignedCount: 0 } );
             this.selectedId = id;
             this.dirty = true;

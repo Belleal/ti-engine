@@ -603,7 +603,8 @@ const configureComponentTopbar = () => {
 
             const updateTitle = () => {
                 const screen = ( tiApplication && tiApplication.currentScreen ) || "";
-                const title = screen ? tiApplication.getLabel( `interface.topbar.${ screen }`, "" ) : "";
+                const override = ( tiApplication && tiApplication.screenTitleOverride ) || "";
+                const title = override || ( screen ? tiApplication.getLabel( `interface.topbar.${ screen }`, "" ) : "" );
                 this.screenTitle = title;
                 if ( title ) {
                     document.title = title;
@@ -621,6 +622,7 @@ const configureComponentTopbar = () => {
 
             updateTitle();
             this.$watch( () => tiApplication.currentScreen, updateTitle );
+            this.$watch( () => tiApplication.screenTitleOverride, updateTitle );
             this.$watch( () => tiApplication.isInitialized, updateTitle );
         }
 
@@ -821,6 +823,7 @@ const configureApplication = () => {
         configuration: {},
         currentScreen: "",
         topbarSubtitle: "",
+        screenTitleOverride: "",
         topbarPrimaryCta: null,
         notificationIDCounter: 1,
         requestControllers: new Map(),
@@ -956,6 +959,7 @@ const configureApplication = () => {
                 // Push the URL before the HTMX swap so that any Alpine component initialized
                 // during the swap (via MutationObserver microtask) already sees the correct URL.
                 window.history.pushState( null, "", screenUrl );
+                this.screenTitleOverride = "";
                 this.currentScreen = basePath;
                 window.htmx.ajax( "get", screenUrl, { target: "#ti-content", swap: "innerHTML" } ).catch( () => {
                     window.location.href = "/";
@@ -974,8 +978,22 @@ const configureApplication = () => {
             if ( screen ) {
                 this.currentScreen = screen;
                 this.topbarSubtitle = "";
+                this.screenTitleOverride = "";
                 this.topbarPrimaryCta = null;
             }
+        },
+
+        /**
+         * Used to override the topbar/document title for the current screen, replacing the default
+         * `interface.topbar.<screen>` label. Pass an empty string to clear it and fall back to the label.
+         * Automatically cleared on screen navigation.
+         *
+         * @method
+         * @param {string} title
+         * @public
+         */
+        setScreenTitle( title ) {
+            this.screenTitleOverride = String( title || "" ).trim();
         },
 
         /**
@@ -1324,6 +1342,7 @@ const configureLoginTestUserPanel = () => {
         profiles: [
             { employeeID: "22", roles: [ 1, 2, 3 ] },
             { employeeID: "20", roles: [ 1, 2 ] },
+            { employeeID: "11", roles: [ 1, 2 ] },
             { employeeID: "1", roles: [ 1 ] },
             { employeeID: "3", roles: [ 1 ] },
             { employeeID: "4", roles: [ 1 ] },

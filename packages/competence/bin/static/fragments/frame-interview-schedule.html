@@ -4,13 +4,13 @@
     <template x-if="evaluations.length > 0">
         <div class="ti-page-head">
             <div class="ti-page-eyebrow" x-text-label="interface.schedule.page-eyebrow"></div>
-            <h1 class="ti-page-title" x-text-label="interface.schedule.page-title"></h1>
-            <p class="ti-page-subtitle" x-text-label="interface.schedule.page-desc"></p>
+            <h1 class="ti-page-title" x-text="getLabel( canSchedule ? 'interface.schedule.page-title' : 'interface.schedule.page-title-manager' )"></h1>
+            <p class="ti-page-subtitle" x-text="getLabel( canSchedule ? 'interface.schedule.page-desc' : 'interface.schedule.page-desc-manager' )"></p>
         </div>
     </template>
 
     <!-- Interview list panel -->
-    <div class="ti-panel competence-panel-mb">
+    <div class="ti-panel competence-panel-body competence-panel-mb">
         <div class="ti-panel-head" x-show="evaluations.length > 0">
             <div class="ti-panel-title" x-text-label="interface.schedule.title"></div>
             <div class="competence-schedule-badge" x-show="pendingCount() > 0">
@@ -53,27 +53,82 @@
                                  x-text="evaluation.interviewDate ? formatDate( evaluation.interviewDate ) : getLabel( 'interface.schedule.not-scheduled' )"></div>
                         </div>
                         <div class="competence-interview-actions">
-                            <button type="button" x-show="!evaluation.interviewDate"
+                            <button type="button" x-show="canSchedule && !evaluation.interviewDate"
                                     class="ti-btn sm primary"
                                     @click="selectEvaluation( evaluation.evaluationID )">
                                 <span x-show="selectedEvaluationID !== evaluation.evaluationID" x-text-label="interface.schedule.actions.schedule"></span>
                                 <span x-show="selectedEvaluationID === evaluation.evaluationID"
                                       x-text-label="interface.schedule.actions.cancel-selection"></span>
                             </button>
-                            <button type="button" class="ti-btn sm ghost" x-show="!!evaluation.interviewDate && !!evaluation.bookedSlotID"
+                            <button type="button" class="ti-btn sm ghost" x-show="canSchedule && !!evaluation.interviewDate && !!evaluation.bookedSlotID"
                                     @click="cancelBooking(evaluation.bookedSlotID)">
                                 <span aria-hidden="true">×</span>
                                 <span x-text-label="interface.schedule.actions.cancel-booking"></span>
                             </button>
+                            <button type="button" class="ti-btn sm ghost" x-show="canRecordOutcome( evaluation )"
+                                    @click="toggleOutcome( evaluation )">
+                                <span x-text-label="interface.schedule.outcome.record-btn"></span>
+                            </button>
+                            <button type="button" class="ti-btn sm primary" x-show="evaluation.canClose"
+                                    @click="openCloseModal( evaluation )">
+                                <span x-text-label="interface.schedule.outcome.close-btn"></span>
+                            </button>
                         </div>
                     </div>
+                    <template x-if="outcomeForID === evaluation.evaluationID">
+                        <div class="competence-outcome-panel">
+                            <div class="competence-outcome-status" x-text="rowStatusLabel( evaluation )"></div>
+
+                            <label class="ti-form-label" x-text-label="interface.schedule.outcome.feedback-label"></label>
+                            <textarea class="ti-form-input" rows="3"
+                                      x-bind:value="outcomeDraft.feedback"
+                                      @ti-input="setOutcomeFeedback( $event.detail.value )"></textarea>
+
+                            <div class="competence-outcome-goals-head">
+                                <label class="ti-form-label" x-text-label="interface.schedule.outcome.goals-label"></label>
+                                <span class="competence-outcome-goal-cap" x-text="goalCapLabel()"></span>
+                            </div>
+                            <template x-for="(goal, index) in outcomeDraft.goals" x-bind:key="index">
+                                <div class="competence-outcome-goal-row">
+                                    <input type="text" class="ti-form-input" x-bind:value="goal.text"
+                                           x-bind:placeholder="getLabel( 'interface.schedule.outcome.goal-text-placeholder' )"
+                                           @ti-input="setGoalText( index, $event.detail.value )">
+                                    <input type="date" class="ti-form-input competence-outcome-goal-date" x-bind:value="goal.targetDate"
+                                           x-bind:aria-label="getLabel( 'interface.schedule.outcome.goal-date-label' )"
+                                           @ti-input="setGoalDate( index, $event.detail.value )">
+                                    <button type="button" class="ti-btn sm ghost" @click="removeGoal( index )"
+                                            x-text-label="interface.schedule.outcome.goal-remove"></button>
+                                </div>
+                            </template>
+                            <button type="button" class="ti-btn sm ghost" x-show="canAddGoal()" @click="addGoal()"
+                                    x-text-label="interface.schedule.outcome.goal-add"></button>
+
+                            <label class="competence-outcome-pip-toggle">
+                                <input type="checkbox" x-bind:checked="outcomeDraft.pip.required" @change="togglePipRequired()">
+                                <span x-text-label="interface.schedule.outcome.pip-label"></span>
+                            </label>
+                            <div class="competence-outcome-pip-hint" x-show="evaluation.finalScoreGrade === 'framework.performance.threshold.name.T1'"
+                                 x-text-label="interface.schedule.outcome.pip-hint"></div>
+                            <template x-if="outcomeDraft.pip.required">
+                                <textarea class="ti-form-input" rows="3"
+                                          x-bind:value="outcomeDraft.pip.plan"
+                                          x-bind:placeholder="getLabel( 'interface.schedule.outcome.pip-plan-placeholder' )"
+                                          @ti-input="setPipPlan( $event.detail.value )"></textarea>
+                            </template>
+
+                            <div class="competence-outcome-actions">
+                                <button type="button" class="ti-btn sm primary" @click="saveOutcome( evaluation.evaluationID )"
+                                        x-text-label="interface.schedule.outcome.save-btn"></button>
+                            </div>
+                        </div>
+                    </template>
                 </template>
             </div>
         </template>
     </div>
 
-    <!-- Slot picker panel -->
-    <div class="ti-panel" x-show="!!selectedEvaluationID">
+    <!-- Slot picker panel (booking is supervisor-only; a manager never reaches a selection, so this stays hidden for them) -->
+    <div class="ti-panel competence-panel-body" x-show="canSchedule && !!selectedEvaluationID">
         <div class="ti-panel-head">
             <div class="ti-panel-title" x-text-label="interface.schedule.pick-slot-title"></div>
             <div class="ti-panel-head-actions">
@@ -106,7 +161,7 @@
                             <div class="competence-slot-week-head" x-text="week.weekLabel"></div>
                             <div class="competence-slot-week-body">
                                 <template x-if="week.slots.length === 0">
-                                    <div class="competence-slot-empty-week">No slots available</div>
+                                    <div class="competence-slot-empty-week" x-text-label="interface.schedule.no-slots-week"></div>
                                 </template>
                                 <template x-for="slot in week.slots" x-bind:key="slot.slotID">
                                     <button type="button" class="competence-slot-btn" @click="bookSlot(slot.slotID)">
@@ -121,4 +176,28 @@
             </div>
         </template>
     </div>
+
+    <!-- Close-evaluation confirmation modal -->
+    <template x-if="closeModal.open">
+        <div class="ti-modal-backdrop" @click.self="dismissCloseModal()" @keydown.escape.window="dismissCloseModal()">
+            <div class="ti-modal danger" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.schedule.outcome.close-modal-title"></div>
+                    <button type="button" class="ti-modal-close" @click="dismissCloseModal()" aria-label="Close">
+                        <span class="ti-icon close md" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <p x-text-label="interface.schedule.outcome.close-modal-body"></p>
+                    <p class="competence-outcome-close-emp" x-text="closeModal.employeeName"></p>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="dismissCloseModal()" x-bind:disabled="closeModal.busy"
+                            x-text-label="interface.schedule.outcome.close-modal-cancel"></button>
+                    <button type="button" class="ti-btn primary" @click="confirmClose()" x-bind:disabled="closeModal.busy"
+                            x-text-label="interface.schedule.outcome.close-modal-confirm"></button>
+                </div>
+            </div>
+        </div>
+    </template>
 </div>

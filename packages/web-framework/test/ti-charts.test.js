@@ -459,6 +459,66 @@ describe( "ti-charts — Phase-1 renderers (CSP discipline + structure)", () => 
         assert.ok( collect( svg, ( n ) => n.tag === "rect" ).length >= 2 );
     } );
 
+    it( "bars grouped: spec.options.legend renders a swatch legend; valueLabels adds one value text per bar", () => {
+        const figure = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
+            type: "bars", a11yLabel: "Source comparison",
+            options: {
+                mode: "grouped", valueLabels: true,
+                legend: [ { label: "Self", tone: "grade-s" }, { label: "Manager", tone: "grade-r" }, { label: "Team", tone: "info" } ]
+            },
+            data: { rows: [ { id: "E", label: "Expertise", values: [ { key: "self", v: 1.1, tone: "grade-s" }, { key: "manager", v: 0.9, tone: "grade-r" }, { key: "team", v: 1.0, tone: "info" } ] } ] }
+        } ) );
+        const legend = figure.children.find( ( c ) => c.tag === "div" && c.className === "ti-chart-legend" );
+        assert.ok( legend, "a legend div is appended below the grouped chart" );
+        const swatches = collect( legend, ( n ) => n.tag === "span" && ( n.className || "" ).indexOf( "ti-chart-legend-swatch" ) >= 0 );
+        assert.equal( swatches.length, 3 );
+        assert.ok( swatches.some( ( s ) => ( s.className || "" ).indexOf( "tone-info" ) >= 0 ) );   // team swatch carries its tone
+        // one row label (.ti-chart-bar-label) + one value caption (.ti-chart-bar-value) per bar (3). The value caption
+        // does NOT carry .ti-chart-bar-label, so its font-size presentation attribute is not overridden by that CSS rule.
+        const rowLabels = collect( svgOf( figure )[ 0 ], ( n ) => n.tag === "text" && n.attrs && n.attrs.class === "ti-chart-bar-label" );
+        assert.equal( rowLabels.length, 1 );
+        const valueCaptions = collect( svgOf( figure )[ 0 ], ( n ) => n.tag === "text" && n.attrs && ( n.attrs.class || "" ).indexOf( "ti-chart-bar-value" ) >= 0 );
+        assert.equal( valueCaptions.length, 3 );
+        assert.ok( valueCaptions.every( ( t ) => ( t.attrs.class || "" ).indexOf( "ti-chart-bar-label" ) < 0 ) );
+    } );
+
+    it( "bars grouped: no legend element when spec.options.legend is absent", () => {
+        const figure = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
+            type: "bars", a11yLabel: "Source comparison", options: { mode: "grouped" },
+            data: { rows: [ { id: "E", label: "Expertise", values: [ { key: "self", v: 1.1 } ] } ] }
+        } ) );
+        assert.equal( figure.children.filter( ( c ) => c.tag === "div" && c.className === "ti-chart-legend" ).length, 0 );
+    } );
+
+    it( "bars grouped: barThickness sets the bar height and valueFontSize sizes the value caption", () => {
+        const figure = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
+            type: "bars", a11yLabel: "Source comparison",
+            options: { mode: "grouped", valueLabels: true, barThickness: 1.5, valueFontSize: 2.2 },
+            data: { rows: [ { id: "E", label: "Expertise", values: [ { key: "self", v: 1.1 }, { key: "manager", v: 0.9 } ] } ] }
+        } ) );
+        const rects = collect( svgOf( figure )[ 0 ], ( n ) => n.tag === "rect" );
+        assert.equal( rects.length, 2 );
+        assert.ok( rects.every( ( r ) => r.attrs.height === "1.5" ) );                 // bar height honours barThickness
+        const valueTexts = collect( svgOf( figure )[ 0 ], ( n ) => n.tag === "text" && n.attrs && ( n.attrs.class || "" ).indexOf( "ti-chart-bar-value" ) >= 0 );
+        assert.equal( valueTexts.length, 2 );
+        assert.ok( valueTexts.every( ( t ) => t.attrs[ "font-size" ] === "2.2" ) );    // value caption honours valueFontSize
+    } );
+
+    it( "bars grouped: default bar height stays 4 and the value caption font-size defaults to 4 (via attribute, not CSS)", () => {
+        const figure = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
+            type: "bars", a11yLabel: "Source comparison", options: { mode: "grouped", valueLabels: true },
+            data: { rows: [ { id: "E", label: "Expertise", values: [ { key: "self", v: 1.1 } ] } ] }
+        } ) );
+        const rects = collect( svgOf( figure )[ 0 ], ( n ) => n.tag === "rect" );
+        assert.ok( rects.every( ( r ) => r.attrs.height === "4" ) );
+        const valueText = collect( svgOf( figure )[ 0 ], ( n ) => n.tag === "text" && n.attrs && ( n.attrs.class || "" ).indexOf( "ti-chart-bar-value" ) >= 0 )[ 0 ];
+        assert.equal( valueText.attrs[ "font-size" ], "4" );
+    } );
+
     it( "radar: rings + axis labels + one polygon per series + sr-table; data-ti-chart-type set", () => {
         const figure = makeNode( "figure" );
         withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
@@ -480,6 +540,38 @@ describe( "ti-charts — Phase-1 renderers (CSP discipline + structure)", () => 
         const expected = seriesPolys.find( ( p ) => p.attrs[ "stroke-dasharray" ] );
         assert.ok( expected && expected.attrs.fill === "none" );
         assert.equal( srTableOf( figure ).length, 1 );
+    } );
+
+    it( "radar: spec.options.legend renders a swatch legend including a dashed (expected) entry", () => {
+        const figure = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
+            type: "radar", a11yLabel: "Profile",
+            options: { legend: [ { label: "Self", tone: "grade-s" }, { label: "Expected", dashed: true } ] },
+            data: {
+                axes: [ { id: "E1", label: "E1", max: 1.3 }, { id: "I1", label: "I1", max: 1.3 }, { id: "C1", label: "C1", max: 1.3 } ],
+                series: [ { key: "self", tone: "grade-s", values: { E1: 1.3, I1: 1.0, C1: 0.6 } }, { key: "expected", style: "dashed", values: { E1: 1.0, I1: 1.0, C1: 1.0 } } ]
+            }
+        } ) );
+        const legend = figure.children.find( ( c ) => c.tag === "div" && c.className === "ti-chart-legend" );
+        assert.ok( legend, "a legend div is appended below the radar" );
+        const swatches = collect( legend, ( n ) => n.tag === "span" && ( n.className || "" ).indexOf( "ti-chart-legend-swatch" ) >= 0 );
+        assert.equal( swatches.length, 2 );
+        assert.ok( swatches.some( ( s ) => ( s.className || "" ).indexOf( "is-dashed" ) >= 0 ) );   // dashed swatch for the expected curve
+    } );
+
+    it( "radar: a per-axis tone applies a tone- class to that axis label (for category-coloured axes)", () => {
+        const figure = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
+            type: "radar", a11yLabel: "Profile",
+            data: {
+                axes: [ { id: "E1", label: "E1", max: 1.3, tone: "cat-e" }, { id: "I1", label: "I1", max: 1.3, tone: "cat-i" }, { id: "C1", label: "C1", max: 1.3, tone: "cat-c" } ],
+                series: [ { key: "self", tone: "self", values: { E1: 1.0, I1: 1.0, C1: 1.0 } } ]
+            }
+        } ) );
+        const labels = collect( svgOf( figure )[ 0 ], ( n ) => n.attrs && n.attrs.class && n.attrs.class.indexOf( "ti-chart-radar-axis-label" ) >= 0 );
+        assert.equal( labels.length, 3 );
+        assert.ok( labels.some( ( l ) => l.attrs.class.indexOf( "tone-cat-e" ) >= 0 ) );
+        assert.ok( labels.every( ( l ) => /tone-cat-[eic]/.test( l.attrs.class ) ) );
     } );
 
     it( "line: band area + per-series polyline(s) + dots + sr-table; data-ti-chart-type set", () => {

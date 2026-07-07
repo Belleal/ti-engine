@@ -14,9 +14,9 @@ You are working on the **ti-engine** monorepo — an open-source (GPL-3.0) Node.
 ```
 ti-engine/                         npm workspace root (v1.2.4)
 ├── packages/
-│   ├── core/          v1.7.0      Framework foundation (Redis messaging, lifecycle, utils)
-│   ├── web-framework/ v1.10.0     Express HTTP server + auth + admin config-management + ti-chart primitives
-│   ├── competence/    v3.4.0      HR competency appraisal application (108-competency dictionary)
+│   ├── core/          v1.7.1      Framework foundation (Redis messaging, lifecycle, utils)
+│   ├── web-framework/ v1.13.0     Express HTTP server + auth + admin config-management + ti-charts + role-based screen gate
+│   ├── competence/    v3.10.0     HR competency appraisal application (108-competency dictionary)
 │   └── tester/        v1.3.3      Reference/example service implementation
 ├── package.json                   Workspace root; devDeps: ESLint 10, Prettier 3
 └── eslint.config.mjs              Flat ESLint config (commonjs, browser+node globals)
@@ -39,7 +39,7 @@ Branches: `current` is the active feature branch; `master` is the release branch
 
 ---
 
-## Package: core (v1.7.0)
+## Package: core (v1.7.1)
 
 **Role**: Foundational framework. All other packages depend on it. Standalone (no intra-repo deps).
 
@@ -116,7 +116,7 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 ---
 
-## Package: web-framework (v1.10.0)
+## Package: web-framework (v1.13.0)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs + a CSP-safe **charting primitive library** (`ti-charts.js`).
 
@@ -124,11 +124,11 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 | File | Purpose |
 |------|---------|
 | `bin/web-server.js` | `TiWebServer` (extends ServiceConsumer); Express app, middleware stack |
-| `bin/web-app-manager.js` | `TiWebAppManager` **abstract**; HTML fragment rendering, nonces, CSRF, and the `registerConfigDocument` / `registerConfigEditor` API |
+| `bin/web-app-manager.js` | `TiWebAppManager` **abstract**; HTML fragment rendering, nonces, CSRF, the `registerConfigDocument` / `registerConfigEditor` API, and the default `verifyAccess` that enforces a fragment's declared `roles` (1.13.0) |
 | `bin/web-server.json` | Server config (host, port, TLS, auth methods, `auth.admins` identity list) |
 | `bin/build/post-install.js` | `postinstall` step (refreshes bundled static libs) |
 | `components/auth-manager.js` | OpenID Connect (Azure/Google) + local auth; session token generation |
-| `components/authorization.js` | Role checks/guards — `requireRole`, `hasRole`; backs admin gating |
+| `components/authorization.js` | Role checks/guards — `requireRole`, `hasRole`, and the pure `isAccessAllowed(requiredRoles, userRoles)` (1.13.0) backing the fragment gate; backs admin gating |
 | `components/session-store.js` | Express session storage |
 | `components/web-handlers.js` | Middleware: CSP headers, CSRF validation, auth verification, error formatting (`resolveHttpCode` derives 4xx from the exception family when no explicit `httpCode`: `E_WEB_*`/`E_APP_*`→422, `E_SEC_*`→403, not-found→404, already-exists→409, method/content→405/415; only internal/comm/unknown stay 500) |
 | `components/user.js` | User object model |
@@ -151,12 +151,14 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 - `config-management.instance.onConfigChanged(...)` lets consumers hot-reload their in-memory config when an admin edit lands.
 - Admin gating: an identity must appear in `auth.admins` in `web-server.json`; gating is `hasRole('admin')`. Default is `[]` (no admins) — add one to test the admin UI.
 
+**Role-based screen gate (1.13.0)**: `authorization.isAccessAllowed(requiredRoles, userRoles)` is a pure, unit-tested access decision (empty/absent `requiredRoles` = public; otherwise ≥1 role overlap; **no implicit hierarchy**, so an `admin` gate is never satisfied by a numeric role). The default `TiWebAppManager.verifyAccess` uses it to enforce a fragment's declared `roles` (set on `addFragment`) — a role-restricted screen becomes unreachable by direct URL, not merely hidden — while role-less fragments stay public (backward compatible). `tiApplication.setScreenTitle(title)` adds a per-screen topbar/document-title override (cleared on navigation) so, e.g., a manager viewing another user's scores isn't shown "My …".
+
 **Security stack**: Helmet, CSP nonces, CSRF (timing-safe), express-session, OpenID Connect OAuth2.
 
-**Frontend**: HTMX + Alpine.js (CSP build) for fragment-driven UIs. Reusable CSS primitives in `ti-framework.css` — `.ti-page-head`, `.ti-data-grid*`, `.ti-form*`, `.ti-panel-head*`, `.ti-panel-body-intro` (the canonical intro/description line under a panel head — don't hand-style per screen), `.ti-kv-label` / `.ti-kv-value` (key/value rhythm), `.ti-modal-*`, and the mask-based `.ti-icon` system (size modifiers `.xs`–`.xl`, ~40 variants); themes `ti-theme-daylight.css` / `ti-theme-black-glass.css`. `ti-framework.js` exposes the `tiApplication` Alpine store (incl. `hasRole`, topbar CTA slots, and `notify`/`formatException` which support a `{ message, details }` payload — the details line shows the specifics under the generic message; toasts render above open modals). Prefer these primitives over screen-specific CSS. **Remember the Alpine CSP constraints** (no inline styles, no `?.`).
+**Frontend**: HTMX + Alpine.js (CSP build) for fragment-driven UIs. Reusable CSS primitives in `ti-framework.css` — `.ti-page-head`, `.ti-data-grid*`, `.ti-form*`, `.ti-panel-head*`, `.ti-panel-body-intro` (the canonical intro/description line under a panel head — don't hand-style per screen), `.ti-kv-label` / `.ti-kv-value` (key/value rhythm), `.ti-modal-*`, and the mask-based `.ti-icon` system (size modifiers `.xs`–`.xl`, ~40 variants); themes `ti-theme-daylight.css` / `ti-theme-black-glass.css`. `ti-framework.js` exposes the `tiApplication` Alpine store (incl. `hasRole`, `setScreenTitle`, topbar CTA slots, and `notify`/`formatException` which support a `{ message, details }` payload — the details line shows the specifics under the generic message; toasts render above open modals). Prefer these primitives over screen-specific CSS. **Remember the Alpine CSP constraints** (no inline styles, no `?.`).
 
 **Charting primitives** (`bin/static/scripts/ti-charts.js`, added 1.10.0 — backs the competence Statistics & Results reporting):
-- A single `renderChart(figure, spec)` dispatcher over a `{ type, data, options, a11yLabel, provisional }` spec; eight `type`s: `gauge`, `bars` (modes `stacked`/`grouped`/`diverging`), `stat`, `scatter`, `heatmap` (scales `sequential`/`diverging`), `box`, `radar`, `line` (mean + p25–p75 band, `sparkline`, stacked, `provisionalLastPoint` dashed trailing segment).
+- A single `renderChart(figure, spec)` dispatcher over a `{ type, data, options, a11yLabel, provisional }` spec; eight `type`s: `gauge`, `bars` (modes `stacked`/`grouped`/`diverging`), `stat`, `scatter`, `heatmap` (scales `sequential`/`diverging`), `box`, `radar`, `line` (mean + p25–p75 band, `sparkline`, stacked, `provisionalLastPoint` dashed trailing segment). Grouped `bars` and `radar` take optional legends + value labels, and `radar` optional per-axis tones (1.12.0).
 - **Pure layout helpers are unit-tested in isolation** (`gaugeArcPath`, `barSegments`, `scatterLayout`, `heatmapLayout`, `boxLayout`, `radarLayout`, `lineLayout`, …) — add a new primitive by adding its layout + render + a `SUPPORTED_TYPES` entry + a dispatch case, mirroring an existing pair.
 - **CSP discipline (enforced by tests):** build SVG with `createElementNS` + `setAttribute` only — **never** `element.style.*` except `setProperty("--var", …)`; every chart ships a visually-hidden `.ti-chart-sr` table; interactivity via `addEventListener` (the `ti-chart:select` CustomEvent).
 - Bind from Alpine with the `x-ti-chart="someSpec"` directive on a `<figure class="ti-chart">`; per-type size caps come from `figure[data-ti-chart-type]` CSS (set by `renderChart`). Tones use `--chart-seq-1…5` + grade colours in both themes.
@@ -166,7 +168,7 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 ---
 
-## Package: competence (v3.4.0)
+## Package: competence (v3.10.0)
 
 **Role**: Complete HR application for competency-based performance appraisals. Models competencies in three dimensions — **Role Family × Specialization × Stage-Level** — with a first-class appraisal **Cycle** (`PLANNING → ACTIVE → CLOSED`). Evaluations snapshot their resolved competency set at creation so later configuration drift never affects in-flight evaluations. Depends on `core` + `web-framework`; uses `graphology` for the org graph.
 
@@ -178,7 +180,15 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 **Team feedback & dashboard tasks (3.3.0)**: team members discover pending peer reviews as derived **dashboard tasks** (`application/task-resolver.js` — pure, org lookups injected); a manager — or a Supervisor via a read-only **facilitator** view — can `finalizeTeamFeedback` after a **cycle-level** team-feedback deadline (`cycle.teamFeedbackDeadline`, defaulted from `teamFeedbackWindowDays` and editable in Cycle Setup). Finalize records an evaluation-scoped audit entry; once an evaluation reaches `Ready` the employee sees the manager grade + team cumulative while individual peer grades stay anonymous.
 
-**Statistics & Results reporting (3.4.0, CA-61 — design `design/completed/statistics-and-results.md`)**: a competency-analytics layer over the appraisal data. `application/results-analytics.js` is a pure frozen-singleton — it builds a `CohortRow[]` frame from evaluations, computes the reports, and resolves **live (active cycle) vs snapshot (closed cycle)** via `resolve()`/`_resolveWith()`. On cycle close, `#closeCycle → persistResultsSnapshot` writes an **immutable, anonymized per-cycle `ResultsSnapshot`** (the **eighth** `data-manager` cache key `ti:competence:data:results-snapshots`; accessors `saveResultsSnapshot`/`getResultsSnapshot`/`getAllResultsSnapshots`) carrying only counts/means/percentiles + a stable cross-cycle substrate — **never identities or peer-individual grades, and never back-fillable** (`schemaVersion` 2). **Privacy invariant: every cohort cell with `n < MIN_COHORT_SIZE` (3) is suppressed at aggregation time.** The Insights screens (Manager/Supervisor): **Cycle** + **Team** analytics (six reports — coverage, time, alignment, heatmap, level, drivers — Team re-scoped to a subtree via `isSuperiorManagerOfEmployee` + grader calibration), **individual results** (the evaluee's READY/CLOSED view + self-scoped "My results"; the client decomposition reconciles exactly to the server score), and **cross-cycle Trends** (Supervisor: overall/gap-closure/ladder/cohort over `getAllResultsSnapshots()`, legacy-tolerant) + a per-employee history line (access-gated, raw evals). Charts use the web-framework `ti-charts.js` primitives; each report carries a labels-sourced methodology block (en/bg).
+**Statistics & Results reporting (3.4.0, CA-61 — design `design/completed/statistics-and-results.md`)**: a competency-analytics layer over the appraisal data. `application/results-analytics.js` is a pure frozen-singleton — it builds a `CohortRow[]` frame from evaluations, computes the reports, and resolves **live (active cycle) vs snapshot (closed cycle)** via `resolve()`/`_resolveWith()`. On cycle close, `#closeCycle → persistResultsSnapshot` writes an **immutable, anonymized per-cycle `ResultsSnapshot`** (the **eighth** `data-manager` cache key `ti:competence:data:results-snapshots`; accessors `saveResultsSnapshot`/`getResultsSnapshot`/`getAllResultsSnapshots`) carrying only counts/means/percentiles + a stable cross-cycle substrate — **never identities or peer-individual grades, and never back-fillable** (`schemaVersion` 2). **Privacy invariant: every cohort cell with `n < MIN_COHORT_SIZE` (3) is suppressed at aggregation time.** The Insights screens (Manager/Supervisor): **Cycle** + **Team** analytics (six reports — coverage, time, alignment, heatmap, level, drivers — Team re-scoped to a subtree via `isSuperiorManagerOfEmployee` + grader calibration), **individual results** (the evaluee's READY/CLOSED view + self-scoped "My Scores"; the client decomposition reconciles exactly to the server score), and **cross-cycle Trends** (Supervisor: overall/gap-closure/ladder/cohort over `getAllResultsSnapshots()`, legacy-tolerant) + a per-employee history line (access-gated, raw evals). Charts use the web-framework `ti-charts.js` primitives; each report carries a labels-sourced methodology block (en/bg).
+
+**Org-derived roles & Supervisor grants (3.6.0, CA-72)**: a user's `EMPLOYEE`/`MANAGER`/`SUPERVISOR` roles are **derived from org-chart position at login** (everyone is EMPLOYEE; a unit's manager is MANAGER; the top manager plus any direct report heading a ≥2-level sub-org is a *structural* SUPERVISOR) instead of being manually injected. A structural Supervisor can additionally **grant** the Supervisor role to others from Employee Management — an audited, Redis-persisted grant (`ti:competence:data:role-grants`) with a synchronous in-memory mirror consulted at login; structural roles are immutable and merely-granted Supervisors cannot manage roles. Peer-reviewer eligibility (`OrganizationManager.isEligibleTeamReviewer`, 3.5.0/CA-71) excludes the evaluatee and their whole management chain and scopes the New-Evaluation team picker.
+
+**Role-based screen access (3.8.0, CA-74/75)**: every role-restricted screen declares a `roles` requirement on its registered fragment; the web-framework default `verifyAccess` (≥1.13.0) enforces it, so a screen's chrome can no longer be fetched by direct URL by a role that cannot use it (rejected `E_SEC_UNAUTHORIZED_ACCESS` 403). Sidebar entries are hidden to match, and admin editor screens gate on the `admin` role. The per-screen `#requireRole(...)` **data** gates remain the source of truth for the data behind each screen.
+
+**Evaluation / Scores screen split (3.9.0, CA-76)**: the grading screen (`competence-evaluation`) no longer renders full results — it shows a compact final-score panel plus a *results-are-ready* bar linking to the read-only **Scores** screen. Scores is the `my-results` route (it reuses the evaluation fragment in results-only mode): *My Scores* for the evaluee, *{name}'s Scores* / *Performance Scores* for an authorized manager/supervisor (`#loadResults(session, employeeID)` — org-superior or supervisor; employee-level anonymization for every viewer). Uses web-framework `setScreenTitle` (≥1.13.0) so a manager's view isn't titled *My …*.
+
+**Dashboard interview tasks (3.10.0, CA-77)**: `task-resolver.js` also derives interview tasks from `READY` evaluations — a Supervisor's aggregate `interview-schedule` (count of READY evals with no booked slot) and `interview-scheduled` self/manager notifications once a slot is booked. The manager notification targets the **owner of the booked calendar slot** (the actual interviewer, resolved from the active cycle's booked slots in `#loadDashboard`), **not** the reporting line — so a stand-in covering an absent manager is notified while non-participant superiors are not. `#loadDashboard` fetches the whole-cycle slots only for MANAGER/SUPERVISOR.
 
 **Key files**:
 | File | Purpose |
@@ -188,9 +198,9 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 | `application/config-registration.js` | Registers competence config documents + composite editors with the framework registry (`registerCompetenceConfig`) |
 | `application/config-editors.js` | Composite (entity) editors: `competency-text`, `archetype-assignment`, `relevancy-archetype`, `role-families` |
 | `application/config-validators.js` | Semantic validators (Promise-chain style; `ValidationIssue` / `ValidatorContext` typedefs) incl. floor-coverage, cap, pool-membership (`activeSetsWithinPool` / `poolReferenceIntegrity`), and referential-integrity guards |
-| `application/data-manager.js` | Singleton; CRUD for role families, cycles, active sets, employees, evaluations, audit log, **results-snapshots** (Redis JSON) |
-| `application/organization-manager.js` | Singleton; directed graph (graphology) for org chart; resolves manager + role-family attributes, `resolveOrganizationUnitName`, `getOrganizationUnitSubtree`, `isSuperiorManagerOfEmployee` |
-| `application/task-resolver.js` | Pure singleton; derives dashboard **tasks** (`team-feedback` / `team-finalize`) from evaluation/workflow state with injected org lookups — persistence-free and unit-tested (3.3.0; seed for the future web-framework tasks module) |
+| `application/data-manager.js` | Singleton; CRUD for role families, cycles, active sets, employees, evaluations, audit log, **results-snapshots**, **role grants** (Redis JSON) |
+| `application/organization-manager.js` | Singleton; directed graph (graphology) for org chart; resolves manager + role-family attributes, `resolveOrganizationUnitName`, `getOrganizationUnitSubtree`, `isSuperiorManagerOfEmployee`, `isEligibleTeamReviewer`, and the org-derived role helpers (unit-manager / auto-supervisor — CA-72) |
+| `application/task-resolver.js` | Pure singleton; derives dashboard **tasks** (`team-feedback` / `team-finalize`; `interview-schedule` / `interview-scheduled` self/manager — 3.10.0) from evaluation/workflow state with injected org lookups — persistence-free and unit-tested (3.3.0; seed for the future web-framework tasks module) |
 | `application/results-analytics.js` | Pure frozen-singleton (3.4.0); cohort-frame + report computes, the live/snapshot `resolve()`, `buildResultsSnapshot`/`persistResultsSnapshot`, `computeTrend` (cross-cycle), `buildEmployeeHistory`. See *Statistics & Results reporting* above |
 | `application/data-objects.types.js` | Shared JSDoc typedefs for data objects |
 | `bin/competence-web-server.js` | Main entry point (extends ServiceConsumer); `onStart` initializes data-manager then `configurationLoader.initialize()` |
@@ -212,7 +222,7 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 | `design/` | Source-of-truth content docs — see below |
 | `test/*.test.js` | `node --test` — JSON validation, content integrity, config-management/editors/live, framework resolution/validation/lifecycle/snapshot, results-analytics (coverage/reports/snapshot-builder/substrate/persist/trend/history) |
 
-**UI fragments** (`bin/static/fragments/`): dashboard, employees-list, employee-management, cycles, cycle-setup, competence-evaluation (also serves **my-results** — the self-scoped individual results view), new-evaluation, manager-calendar, interview-schedule; the **Insights** group (Manager/Supervisor): `frame-insights-overview`, `frame-insights-cycle`, `frame-insights-team`, `frame-insights-trends` (SUPERVISOR-only); plus admin-gated config screens: **admin-config** (landing: export + change feed/restore), **competency-text-editor**, **archetype-assignment**, **archetype-editor**, **role-families**. Admin screens live under an admin-only "Administration" sidebar section.
+**UI fragments** (`bin/static/fragments/`): dashboard, employees-list, employee-management, cycles, cycle-setup, competence-evaluation (the grading screen; its **my-results** route reuses the fragment in results-only mode as the read-only **Scores** screen), new-evaluation, manager-calendar, interview-schedule; the **Insights** group (Manager/Supervisor): `frame-insights-cycle`, `frame-insights-team`, `frame-insights-trends` (SUPERVISOR-only); plus admin-gated config screens: **admin-config** (landing: export + change feed/restore), **competency-text-editor**, **archetype-assignment**, **archetype-editor**, **role-families**. Role-restricted screens declare a `roles` requirement enforced by the web-framework fragment gate (see *Role-based screen gate*, 1.13.0); admin screens live under an admin-only "Administration" sidebar section.
 
 **Design docs** (`design/`, source of truth for content): `competency-definitions-final.md`, `competency-master-index.md`, `competency-bg-translations.md`, `competency-relevancy-model.md`; completed records are archived under `design/completed/` (the phase-0 inventories, `role-family-pool-restoration.md`, `dashboard-team-feedback-tasks.md`, and `statistics-and-results.md` — the reporting capability's meta + Phases 0–4 implementation log), and the YouTrack backfill log is `youtrack-backfill-inventory.md`. Plans for the capability live under `docs/superpowers/plans/`.
 

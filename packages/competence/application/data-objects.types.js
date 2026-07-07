@@ -181,6 +181,21 @@
  */
 
 /**
+ * @typedef {Object} EvaluationGoal
+ * @property {string} text - The goal statement.
+ * @property {string|null} [targetDate] - Optional target date (YYYY-MM-DD).
+ */
+
+/**
+ * @typedef {Object} EvaluationClosure
+ * @property {string} [feedback] - Written interview feedback recorded at the Step-8 meeting.
+ * @property {EvaluationGoal[]} [goals] - Next-period goals set at the interview.
+ * @property {{ required: boolean, plan: string }} [pip] - Optional Performance Improvement Plan.
+ * @property {string|null} [closedAt] - ISO-8601 timestamp of formal closure; null until closed.
+ * @property {string|null} [closedBy] - Employee ID of the Supervisor who closed the evaluation.
+ */
+
+/**
  * @typedef {Object} EvaluationScore
  * @property {number} score - Numeric score calculated by the framework.
  * @property {PerformanceThreshold|null} [interpretation] - Interpretation of the score determined by the framework.
@@ -205,6 +220,7 @@
  * @property {EvaluationScore} [finalScore] - The final score of the evaluation itself.
  * @property {string} [comment] - Comment submitted by the employee.
  * @property {EvaluationFeedback} [feedback] - Feedback attached to the evaluation.
+ * @property {EvaluationClosure} [closure] - Step 8 interview outcome and closure metadata.
  * @property {EvaluationWorkflow} [workflow] - System workflow state for the evaluation.
  */
 

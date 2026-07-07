@@ -75,15 +75,15 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="competence-eval-emp-status-pill">
+                        <div class="competence-eval-emp-status-pill" x-show="!isMyResults">
                             <span class="ti-status-pill" x-bind:class="getStatusPillTone()">
                                 <span class="dot"></span>
                                 <span x-text="getLabel(evaluation.statusName)"></span>
                             </span>
                         </div>
                     </div>
-                    <!-- Status milestone track -->
-                    <div class="state-track">
+                    <!-- Status milestone track (hidden on the read-only Scores view — it reuses the lightweight card) -->
+                    <div class="state-track" x-show="!isMyResults">
                         <div class="state-step" x-bind:class="getStepClass(0)">
                             <span class="marker"></span>
                             <span x-text="getEvalStatusSteps()[0]"></span>
@@ -105,19 +105,21 @@
                         </div>
                     </div>
                     <!-- Warning -->
-                    <div class="competence-eval-emp-warn" x-show="warningMessage">
+                    <div class="competence-eval-emp-warn" x-show="!isMyResults && warningMessage">
                         <span class="ti-icon warning-triangle sm" aria-hidden="true"></span>
                         <span x-text="getLabel(warningMessage)"></span>
                     </div>
                     <!-- Supervisor facilitator notice (read-only; see design 3.8) -->
-                    <div class="competence-eval-emp-warn" x-show="isFacilitator">
+                    <div class="competence-eval-emp-warn" x-show="!isMyResults && isFacilitator">
                         <span class="ti-icon eye sm" aria-hidden="true"></span>
                         <span x-text-label="interface.evaluation.facilitator-notice"></span>
                     </div>
                 </div>
 
-                <!-- Right column: deadline card + team reviewers stacked vertically -->
-                <div class="competence-eval-top-right-col">
+                <!-- Right column: deadline/interview + team reviewers + final score, stacked and stretched to the
+                     employee card's height. Evaluation screen only — hidden on the read-only Scores view, which then
+                     lets the employee card span full width. -->
+                <div class="competence-eval-top-right-col" x-show="!isMyResults">
 
                     <!-- Contextual deadline / interview date card -->
                     <div class="competence-deadline-card">
@@ -152,63 +154,188 @@
                         </div>
                     </div>
 
+                    <!-- Final score card (results-bearing roles only). Always present on the evaluation screen —
+                         states "not yet available" until the evaluation reaches Ready. -->
+                    <div class="competence-deadline-card" x-show="userRole === 1 || userRole === 2">
+                        <div class="competence-deadline-card-icon" x-bind:class="hasResults() ? 'info' : ''">
+                            <span class="ti-icon bar-chart md" aria-hidden="true"></span>
+                        </div>
+                        <div>
+                            <div class="competence-deadline-card-label" x-text-label="interface.evaluation.results.final-score"></div>
+                            <div class="competence-deadline-card-value" x-show="hasResults()">
+                                <span class="tabular-nums" x-text="getFinalScoreValue()"></span>
+                            </div>
+                            <div class="competence-deadline-card-sub" x-show="hasResults()" x-text="getFinalScoreBandName()"></div>
+                            <div class="competence-deadline-card-sub" x-show="!hasResults()"
+                                 x-text-label="interface.evaluation.results.final-score-pending"></div>
+                        </div>
+                    </div>
+
                 </div>
 
             </div>
 
-            <!-- Individual results (READY/CLOSED) — above the demoted grading tables -->
-            <div class="ti-panel competence-panel-body competence-panel-mb" x-show="hasResults()">
-                <div class="ti-panel-head">
-                    <div class="ti-panel-title" x-text-label="interface.evaluation.results.title">Your results</div>
-                    <span class="ti-panel-head-aside" x-text-label="interface.evaluation.results.desc"></span>
+            <!-- Final results ready (evaluation/grading screen): point the evaluee / manager to the read-only Scores
+                 screen — the detailed result statistics live there now, not on this grading screen. -->
+            <div class="competence-results-ready-bar" x-show="!isMyResults && hasResults() && ( userRole === 1 || userRole === 2 )">
+                <span class="ti-icon check-circle md" aria-hidden="true"></span>
+                <div class="competence-results-ready-bar-text">
+                    <div class="competence-results-ready-bar-title" x-text="getResultsReadyTitle()"></div>
+                    <div class="competence-results-ready-bar-desc" x-text-label="interface.evaluation.results-ready.desc"></div>
                 </div>
+                <button type="button" class="ti-btn primary" @click="openResults()" x-text="getLabel( getResultsReadyAction() )"></button>
+            </div>
+
+            <!-- Individual results (READY/CLOSED) — shown only on the read-only Scores screen; the grading screen links
+                 to it via the info bar above.
+                 Lean 3-band layout: (1) full-width hero = final score + per-category scores; (2) two charts side-by-side;
+                 (3) strengths | development areas; score history spans the full row when ≥2 reported cycles exist. -->
+            <div class="competence-results competence-panel-mb" x-show="hasResults() && isMyResults">
                 <div class="ti-card-grid">
-                    <section class="ti-card">
-                        <h2 class="ti-card-title" x-text-label="interface.evaluation.results.final-score">Final score</h2>
-                        <figure class="ti-chart" x-ti-chart="resultsHeroSpec" role="img" x-bind:aria-label="getResultsHeroAriaLabel()"></figure>
+
+                    <!-- BAND 1 — hero: authoritative final score + per-category breakdown -->
+                    <section class="ti-panel competence-panel-body ti-card-wide">
+                        <div class="ti-panel-head">
+                            <div class="ti-panel-head-text">
+                                <div class="ti-panel-title" x-text="getLabel( getResultsTitle() )">Results</div>
+                                <div class="ti-panel-subtitle" x-text="getResultsDesc()"></div>
+                            </div>
+                        </div>
+                        <div class="competence-results-hero">
+                            <div class="competence-results-hero-score">
+                                <figure class="ti-chart" x-ti-chart="resultsHeroSpec" role="img" x-bind:aria-label="getResultsHeroAriaLabel()"></figure>
+                            </div>
+                            <div class="competence-results-hero-cats">
+                                <div class="ti-panel-title" x-text-label="interface.evaluation.results.by-category">Score by category</div>
+                                <div class="competence-results-cat-list">
+                                    <template x-for="c in resultsCategories" x-bind:key="c.id">
+                                        <div class="competence-results-cat" x-bind:class="'cat-' + c.tone">
+                                            <span class="competence-results-cat-name" x-text="c.label"></span>
+                                            <span class="competence-results-cat-score tabular-nums">
+                                            <span x-text="c.score"></span><span class="competence-results-cat-max" x-text="' / ' + c.max"></span>
+                                        </span>
+                                            <div class="competence-results-cat-bar">
+                                                <div class="competence-results-cat-fill" x-bind:style="{ '--pct': c.pct + '%' }"></div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                        <details class="ti-card-note">
+                            <summary x-text-label="interface.evaluation.results.methodology-toggle">How it's calculated</summary>
+                            <p x-text-label="interface.evaluation.results.by-category-method"></p>
+                        </details>
                     </section>
-                    <section class="ti-card">
-                        <h2 class="ti-card-title" x-text-label="interface.evaluation.results.by-category">By category</h2>
-                        <figure class="ti-chart" x-ti-chart="resultsCategoryBarsSpec" role="img" x-bind:aria-label="getResultsCategoryAriaLabel()"></figure>
-                    </section>
-                    <section class="ti-card ti-card-wide">
-                        <h2 class="ti-card-title" x-text-label="interface.evaluation.results.profile">Subcategory profile</h2>
+
+                    <!-- BAND 2 — charts side-by-side: subcategory radar + source comparison.
+                         The radar card stretches to match the (taller) source-comparison card and centres its chart. -->
+                    <section class="ti-panel competence-panel-body competence-results-card-fill">
+                        <div class="ti-panel-head">
+                            <div class="ti-panel-title" x-text-label="interface.evaluation.results.profile">Subcategory profile</div>
+                        </div>
+                        <p class="ti-panel-body-intro" x-text-label="interface.evaluation.results.profile-intro"></p>
                         <figure class="ti-chart" x-ti-chart="resultsRadarSpec" role="img" x-bind:aria-label="getResultsRadarAriaLabel()"></figure>
+                        <details class="ti-card-note">
+                            <summary x-text-label="interface.evaluation.results.methodology-toggle">How it's calculated</summary>
+                            <p x-text-label="interface.evaluation.results.profile-method"></p>
+                        </details>
                     </section>
-                    <section class="ti-card ti-card-wide">
-                        <h2 class="ti-card-title" x-text-label="interface.evaluation.results.source-comparison">Self vs manager vs team</h2>
+
+                    <section class="ti-panel competence-panel-body competence-results-card-fill">
+                        <div class="ti-panel-head">
+                            <div class="ti-panel-title" x-text-label="interface.evaluation.results.source-comparison">Self vs manager vs team</div>
+                        </div>
+                        <p class="ti-panel-body-intro" x-text-label="interface.evaluation.results.source-intro"></p>
                         <figure class="ti-chart" x-ti-chart="resultsSourceBarsSpec" role="img" x-bind:aria-label="getResultsSourceAriaLabel()"></figure>
+                        <details class="ti-card-note">
+                            <summary x-text-label="interface.evaluation.results.methodology-toggle">How it's calculated</summary>
+                            <p x-text-label="interface.evaluation.results.source-method"></p>
+                        </details>
                     </section>
-                    <section class="ti-card">
-                        <h2 class="ti-card-title" x-text-label="interface.evaluation.results.strengths">Strengths</h2>
+
+                    <!-- BAND 3 — strengths | development areas (both as signed deviation vs the expected curve) -->
+                    <section class="ti-panel competence-panel-body">
+                        <div class="ti-panel-head">
+                            <div class="ti-panel-title" x-text-label="interface.evaluation.results.strengths">Strengths</div>
+                            <span class="ti-panel-head-aside" x-text-label="interface.evaluation.results.vs-expected"></span>
+                        </div>
                         <div class="ti-data-grid">
                             <template x-for="s in resultsStrengths" x-bind:key="s.code">
                                 <div class="ti-data-grid-row">
                                     <span class="ti-data-grid-cell" x-text="s.label"></span>
-                                    <span class="ti-kv-value tabular-nums" x-text="s.value"></span>
+                                    <span class="ti-kv-value tabular-nums competence-results-delta pos" x-text="s.display"></span>
                                 </div>
                             </template>
-                            <div class="competence-eval-empty-comment" x-show="resultsStrengths.length === 0" x-text-label="interface.evaluation.results.none">—</div>
+                            <div class="competence-eval-empty-comment" x-show="resultsStrengths.length === 0"
+                                 x-text-label="interface.evaluation.results.no-strengths">—
+                            </div>
                         </div>
                     </section>
-                    <section class="ti-card">
-                        <h2 class="ti-card-title" x-text-label="interface.evaluation.results.gaps">Development areas</h2>
+
+                    <section class="ti-panel competence-panel-body">
+                        <div class="ti-panel-head">
+                            <div class="ti-panel-title" x-text-label="interface.evaluation.results.gaps">Development areas</div>
+                            <span class="ti-panel-head-aside" x-text-label="interface.evaluation.results.vs-expected"></span>
+                        </div>
                         <div class="ti-data-grid">
                             <template x-for="g in resultsGaps" x-bind:key="g.code">
                                 <div class="ti-data-grid-row">
                                     <span class="ti-data-grid-cell" x-text="g.label"></span>
-                                    <span class="ti-kv-value tabular-nums" x-text="g.gap"></span>
+                                    <span class="ti-kv-value tabular-nums competence-results-delta neg" x-text="g.display"></span>
                                 </div>
                             </template>
-                            <div class="competence-eval-empty-comment" x-show="resultsGaps.length === 0" x-text-label="interface.evaluation.results.none">—</div>
+                            <div class="competence-eval-empty-comment" x-show="resultsGaps.length === 0" x-text-label="interface.evaluation.results.no-gaps">—
+                            </div>
                         </div>
                     </section>
-                    <!-- CA-X4 — the employee's own score history across cycles (My results only; needs ≥2 reported cycles) -->
-                    <section class="ti-card ti-card-wide" x-show="hasHistory()">
-                        <h2 class="ti-card-title" x-text-label="interface.evaluation.results.history-title">Score history</h2>
+
+                    <!-- Step 8 (CA-78) — closure card: interview feedback, goals, and PIP, shown only once the evaluation is Closed -->
+                    <template x-if="hasClosure()">
+                        <div class="ti-card competence-results-closure">
+                            <div class="ti-panel-title" x-text-label="interface.evaluation.results.closure.section-title"></div>
+                            <p class="ti-kv-value muted" x-show="closureClosedOn() !== ''" x-text="closureClosedOn()"></p>
+
+                            <div class="competence-closure-block">
+                                <div class="ti-kv-label" x-text-label="interface.evaluation.results.closure.feedback-title"></div>
+                                <p class="ti-kv-value" x-show="closureFeedback() !== ''" x-text="closureFeedback()"></p>
+                                <p class="ti-kv-value muted" x-show="closureFeedback() === ''" x-text-label="interface.evaluation.results.closure.feedback-empty"></p>
+                            </div>
+
+                            <div class="competence-closure-block">
+                                <div class="ti-kv-label" x-text-label="interface.evaluation.results.closure.goals-title"></div>
+                                <p class="ti-kv-value muted" x-show="closureGoals().length === 0" x-text-label="interface.evaluation.results.closure.goals-empty"></p>
+                                <ul class="competence-closure-goals" x-show="closureGoals().length > 0">
+                                    <template x-for="(goal, index) in closureGoals()" x-bind:key="index">
+                                        <li>
+                                            <span x-text="goal.text"></span>
+                                            <span class="competence-closure-goal-date" x-show="!!goal.targetDate"
+                                                  x-text="getLabel( 'interface.evaluation.results.closure.goal-target' ) + ': ' + formatDate( goal.targetDate )"></span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+
+                            <div class="competence-closure-block" x-show="closurePipVisible()">
+                                <div class="ti-kv-label" x-text-label="interface.evaluation.results.closure.pip-title"></div>
+                                <p class="ti-kv-value" x-text="closurePipPlan()"></p>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- CA-X4 — score history across cycles (the evaluee's own view + authorized managers; needs ≥2 reported cycles) -->
+                    <section class="ti-panel competence-panel-body ti-card-wide" x-show="hasHistory()">
+                        <div class="ti-panel-head">
+                            <div class="ti-panel-title" x-text-label="interface.evaluation.results.history-title">Score history</div>
+                        </div>
                         <p class="ti-panel-body-intro" x-text-label="interface.evaluation.results.history-desc"></p>
                         <figure class="ti-chart" x-ti-chart="resultsHistorySpec" role="img" x-bind:aria-label="getResultsHistoryAriaLabel()"></figure>
+                        <details class="ti-card-note">
+                            <summary x-text-label="interface.evaluation.results.methodology-toggle">How it's calculated</summary>
+                            <p x-text-label="interface.evaluation.results.history-method"></p>
+                        </details>
                     </section>
+
                 </div>
             </div>
 
@@ -233,9 +360,10 @@
                 </div>
             </div>
 
-            <!-- Competency categories -->
+            <!-- Competency categories + per-source grades — hidden on the read-only Scores view (they live on the
+                 grading screen; the Scores screen shows only the results summary above). -->
             <template x-for="category in competencies" x-bind:key="category.id">
-                <div class="competence-cat-card" x-bind:class="category.id ? category.id.charAt(0) : ''">
+                <div class="competence-cat-card" x-show="!isMyResults" x-bind:class="category.id ? category.id.charAt(0) : ''">
                     <div class="competence-cat-card-head">
                         <div class="competence-cat-letter" x-text="category.id ? category.id.charAt(0) : '?'"></div>
                         <div>
@@ -420,8 +548,9 @@
                 </div>
             </template>
 
-            <!-- Feedback section -->
-            <div class="ti-panel competence-panel-body competence-panel-mt" x-show="userRole === 1 || userRole === 2 || ( userRole === 4 && canEdit )">
+            <!-- Feedback section (hidden on the read-only Scores view — feedback lives on the grading screen) -->
+            <div class="ti-panel competence-panel-body competence-panel-mt"
+                 x-show="!isMyResults && ( userRole === 1 || userRole === 2 || ( userRole === 4 && canEdit ) )">
                 <div class="ti-panel-head">
                     <div class="ti-panel-title" x-text-label="interface.evaluation.appraisal.feedback-title"></div>
                     <span class="ti-panel-head-aside" x-text-label="interface.evaluation.appraisal.feedback-desc"></span>
@@ -486,7 +615,7 @@
             </div>
 
             <!-- Sticky action bar -->
-            <div class="competence-eval-sticky-bar" x-show="( userRole === 1 || userRole === 2 || userRole === 4 ) && canEdit">
+            <div class="competence-eval-sticky-bar" x-show="!isMyResults && ( userRole === 1 || userRole === 2 || userRole === 4 ) && canEdit">
                 <div class="competence-eval-sticky-label">
                     <strong x-text="getGradedCount()"></strong>
                     <span x-text="getStickyProgressText()"></span>
@@ -506,7 +635,7 @@
             </div>
 
             <!-- Finalize team feedback: manager / supervisor, after the team-feedback deadline (design 3.4 / 3.8) -->
-            <div class="competence-eval-sticky-bar" x-show="canFinalizeTeam">
+            <div class="competence-eval-sticky-bar" x-show="!isMyResults && canFinalizeTeam">
                 <div class="competence-eval-sticky-label">
                     <strong x-text-label="interface.evaluation.finalize-team-title"></strong>
                     <span x-text-label="interface.evaluation.finalize-team-hint"></span>
@@ -564,7 +693,8 @@
                     <p x-text-label="interface.evaluation.finalize-team-modal.desc"></p>
                 </div>
                 <div class="ti-modal-foot">
-                    <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.evaluation.finalize-team-modal.cancel-btn"></button>
+                    <button type="button" class="ti-btn ghost" @click="closeModal()"
+                            x-text-label="interface.evaluation.finalize-team-modal.cancel-btn"></button>
                     <button type="button" class="ti-btn primary" @click="finalizeTeamFeedback()"
                             x-bind:disabled="modal.busy"
                             x-text-label="interface.evaluation.finalize-team-modal.confirm-btn"></button>
