@@ -1069,6 +1069,12 @@ class CompetenceWebApplication extends TiWebAppManager {
                 // written feedback is unused here — it stays available on the evaluation screen. Don't ship it.
                 delete current.feedback;
 
+                // Step-8 artifacts (interview feedback, goals, PIP) are the employee's to see only once the evaluation is
+                // formally CLOSED; during READY they are authored on the interviews hub, not shown here.
+                if ( current.status !== configurationLoader.evaluationStatus.CLOSED ) {
+                    delete current.closure;
+                }
+
                 const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee ) || {};
                 resolve( {
                     employeeID: targetID,
@@ -1403,13 +1409,14 @@ class CompetenceWebApplication extends TiWebAppManager {
 
             this.#resolveCurrentCycle().then( ( cycle ) => {
                 if ( !cycle ) {
-                    return resolve( { cycleID: null, evaluations: [], slots: [], config: calendarConfig, canSchedule: isSupervisor } );
+                    return resolve( { cycleID: null, evaluations: [], slots: [], config: calendarConfig, canSchedule: isSupervisor, maxGoals: configurationLoader.getSetting( "performanceAppraisals.numberOfNextPeriodGoals", 5 ) } );
                 }
                 return Promise.all( [
                     dataManager.instance.fetchEvaluations( null, false ),
                     dataManager.instance.fetchAllCalendarSlots( cycle.cycleID )
                 ] ).then( ( [ allEvaluations, allSlots ] ) => {
                     const readyStatus = configurationLoader.evaluationStatus.READY;
+                    const today = new Date().toISOString().split( "T" )[ 0 ];
 
                     // Scope the slots first (the evaluation filter below depends on them): a Supervisor sees the whole
                     // calendar (the only role that books interviews), while a plain manager sees only their own slots (a
@@ -1447,9 +1454,14 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                     const evaluations = readyEvaluations.map( ( evaluation ) => {
                         const bookedSlot = bookedSlotByEvaluationID.get( evaluation.evaluationID ) || null;
-                        // Resolve the reviewing manager live from the org graph (consistent with the dashboard scoping);
-                        // the persisted evaluation.managerID is optional and never refreshed, so it can be unset or stale.
                         const managerID = organizationManager.instance.resolveClosestManagerIDForEmployee( evaluation.employeeID ) || evaluation.managerID || "";
+                        const closure = ( evaluation.closure && typeof evaluation.closure === "object" )
+                            ? evaluation.closure
+                            : { feedback: "", goals: [], pip: { required: false, plan: "" }, closedAt: null, closedBy: null };
+                        const interviewHeld = !!evaluation.interviewDate && evaluation.interviewDate <= today;
+                        const outcomeRecorded = ( typeof closure.feedback === "string" && closure.feedback.trim() !== "" ) || ( Array.isArray( closure.goals ) && closure.goals.length > 0 );
+                        const isConductingManager = !!bookedSlot && bookedSlot.managerID === userID;
+                        const canRecordOutcome = isSupervisor || isConductingManager || organizationManager.instance.isSuperiorManagerOfEmployee( userID, evaluation.employeeID );
                         return {
                             evaluationID: evaluation.evaluationID,
                             shortID: evaluation.shortID,
@@ -1462,7 +1474,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                             finalScore: evaluation.finalScore?.score ?? null,
                             finalScoreGrade: configurationLoader.performanceThreshold.name( evaluation.finalScore?.interpretation ) || "",
                             interviewDate: evaluation.interviewDate || null,
-                            bookedSlotID: bookedSlot ? bookedSlot.slotID : null
+                            bookedSlotID: bookedSlot ? bookedSlot.slotID : null,
+                            closure: { feedback: closure.feedback || "", goals: Array.isArray( closure.goals ) ? closure.goals : [], pip: ( closure.pip && typeof closure.pip === "object" ) ? closure.pip : { required: false, plan: "" } },
+                            interviewHeld: interviewHeld,
+                            canRecordOutcome: canRecordOutcome,
+                            canClose: isSupervisor && interviewHeld && outcomeRecorded
                         };
                     } );
 
@@ -1470,7 +1486,6 @@ class CompetenceWebApplication extends TiWebAppManager {
                     // 'available' with a past date by the time evaluations reach READY. Excluding past slots keeps a
                     // supervisor from booking an interview in the past and keeps the week-paginator bounded to real,
                     // reachable slots (no stranded past-dated slots behind a dead "Earlier" button).
-                    const today = new Date().toISOString().split( "T" )[ 0 ];
                     const slots = visibleSlots
                         .filter( ( slot ) => slot.status === configurationLoader.slotStatus.AVAILABLE && slot.date >= today )
                         .map( ( slot ) => ( {
@@ -1483,7 +1498,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                         evaluations: evaluations,
                         slots: slots,
                         config: calendarConfig,
-                        canSchedule: isSupervisor   // only a Supervisor can book/cancel; a manager gets a read-only view
+                        canSchedule: isSupervisor,
+                        maxGoals: configurationLoader.getSetting( "performanceAppraisals.numberOfNextPeriodGoals", 5 )
                     } );
                 } );
             } ).catch( ( error ) => {
@@ -2013,7 +2029,14 @@ class CompetenceWebApplication extends TiWebAppManager {
                 evaluations.forEach( ( evaluation ) => {
                     const cycleID = evaluation?.cycleID;
                     if ( !cycleID ) return;
-                    const bucket = countsByCycle.get( cycleID ) || { inProgress: 0, completed: 0 };
+                    const bucket = countsByCycle.get( cycleID ) || { inProgress: 0, completed: 0, open: 0, inReview: 0, ready: 0 };
+                    if ( evaluation.status === configurationLoader.evaluationStatus.OPEN ) {
+                        bucket.open++;
+                    } else if ( evaluation.status === configurationLoader.evaluationStatus.IN_REVIEW ) {
+                        bucket.inReview++;
+                    } else if ( evaluation.status === configurationLoader.evaluationStatus.READY ) {
+                        bucket.ready++;
+                    }
                     if ( activeStatuses.includes( evaluation.status ) ) {
                         bucket.inProgress++;
                     } else if ( evaluation.status === configurationLoader.evaluationStatus.CLOSED ) {
@@ -2023,7 +2046,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 } );
 
                 const projected = cycles.map( ( cycle ) => {
-                    const counts = countsByCycle.get( cycle.cycleID ) || { inProgress: 0, completed: 0 };
+                    const counts = countsByCycle.get( cycle.cycleID ) || { inProgress: 0, completed: 0, open: 0, inReview: 0, ready: 0 };
                     return {
                         cycleID: cycle.cycleID,
                         name: cycle.name,
