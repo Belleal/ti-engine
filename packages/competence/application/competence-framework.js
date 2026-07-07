@@ -421,6 +421,13 @@ class CompetenceFramework {
                 managerComment: "",
                 teamComments: []
             },
+            closure: {
+                feedback: "",
+                goals: [],
+                pip: { required: false, plan: "" },
+                closedAt: null,
+                closedBy: null
+            },
             workflow: {
                 currentStep: 1,
                 selfEvaluationCompleted: false,
