@@ -32,6 +32,7 @@
         <template x-if="evaluations.length > 0">
             <div class="competence-interview-list">
                 <template x-for="evaluation in evaluations" x-bind:key="evaluation.evaluationID">
+                    <div class="competence-interview-row-group">
                     <div class="competence-interview-row" x-bind:class="{ selected: selectedEvaluationID === evaluation.evaluationID }">
                         <div class="ti-avatar sm" x-bind:style="$store.tiToolbox.generateAvatarStyle( evaluation.employeeID, evaluation.employeeName )"
                              x-bind:aria-label="evaluation.employeeName">
@@ -122,6 +123,7 @@
                             </div>
                         </div>
                     </template>
+                    </div>
                 </template>
             </div>
         </template>

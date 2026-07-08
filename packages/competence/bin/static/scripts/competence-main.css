@@ -1459,6 +1459,15 @@
     gap: var(--s-2);
 }
 
+/* Groups a Ready evaluation's row with its (conditionally rendered) outcome panel so the x-for template has a single
+   root element (Alpine CSP requires exactly one). The group is the flex item of the list; the panel stacks flush
+   under its own row. */
+.competence-interview-row-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
 .competence-interview-row {
     display: grid;
     grid-template-columns: 40px auto 160px 180px 140px;
