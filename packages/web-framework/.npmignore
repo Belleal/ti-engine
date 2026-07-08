@@ -1,3 +1,4 @@
 .run/
 node_modules/
+design/
 package-lock.json
