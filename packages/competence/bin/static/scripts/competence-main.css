@@ -1573,10 +1573,13 @@
     max-width: 170px;
 }
 
-.competence-outcome-pip-toggle {
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
+/* Compact "add" affordance matching the Cycle Setup add button; kept off the full flex-column stretch. */
+.competence-outcome-add-goal {
+    align-self: flex-start;
+}
+
+.competence-outcome-goal-remove {
+    color: var(--fg-tertiary);
 }
 
 .competence-outcome-pip-hint {
@@ -3664,7 +3667,8 @@
     border-top: 1px dashed var(--border-soft);
 }
 
-.competence-cycle-no-extras-label {
+.competence-cycle-no-extras-label,
+.competence-outcome-pip-toggle {
     display: flex;
     align-items: center;
     gap: var(--s-2);
@@ -3673,7 +3677,8 @@
     cursor: pointer;
 }
 
-.competence-cycle-no-extras-label input[type="checkbox"] {
+.competence-cycle-no-extras-label input[type="checkbox"],
+.competence-outcome-pip-toggle input[type="checkbox"] {
     width: 16px;
     height: 16px;
     accent-color: var(--accent);
