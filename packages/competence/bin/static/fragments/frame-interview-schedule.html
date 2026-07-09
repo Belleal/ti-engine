@@ -67,6 +67,8 @@
                                 <span x-text-label="interface.schedule.actions.cancel-booking"></span>
                             </button>
                             <button type="button" class="ti-btn sm ghost" x-show="canRecordOutcome( evaluation )"
+                                    x-bind:disabled="!evaluation.interviewHeld"
+                                    x-bind:title="evaluation.interviewHeld ? '' : getLabel( 'interface.schedule.outcome.record-locked' )"
                                     @click="toggleOutcome( evaluation )">
                                 <span x-text-label="interface.schedule.outcome.record-btn"></span>
                             </button>
@@ -83,7 +85,7 @@
                             <label class="competence-eval-feedback-col-label" x-text-label="interface.schedule.outcome.feedback-label"></label>
                             <textarea class="ti-textarea" rows="3"
                                       x-bind:value="outcomeDraft.feedback"
-                                      @ti-input="setOutcomeFeedback( $event.detail.value )"></textarea>
+                                      @input="setOutcomeFeedback( $event.target.value )"></textarea>
 
                             <div class="competence-outcome-goals-head">
                                 <label class="competence-eval-feedback-col-label" x-text-label="interface.schedule.outcome.goals-label"></label>
@@ -93,10 +95,10 @@
                                 <div class="competence-outcome-goal-row">
                                     <input type="text" class="ti-input" x-bind:value="goal.text"
                                            x-bind:placeholder="getLabel( 'interface.schedule.outcome.goal-text-placeholder' )"
-                                           @ti-input="setGoalText( index, $event.detail.value )">
+                                           @input="setGoalText( index, $event.target.value )">
                                     <input type="date" class="ti-input competence-outcome-goal-date" x-bind:value="goal.targetDate"
                                            x-bind:aria-label="getLabel( 'interface.schedule.outcome.goal-date-label' )"
-                                           @ti-input="setGoalDate( index, $event.detail.value )">
+                                           @change="setGoalDate( index, $event.target.value )">
                                     <button type="button" class="ti-btn sm ghost competence-outcome-goal-remove" @click="removeGoal( index )"
                                             x-text-label="interface.schedule.outcome.goal-remove"></button>
                                 </div>
@@ -116,7 +118,7 @@
                                 <textarea class="ti-textarea" rows="3"
                                           x-bind:value="outcomeDraft.pip.plan"
                                           x-bind:placeholder="getLabel( 'interface.schedule.outcome.pip-plan-placeholder' )"
-                                          @ti-input="setPipPlan( $event.detail.value )"></textarea>
+                                          @input="setPipPlan( $event.target.value )"></textarea>
                             </template>
 
                             <div class="competence-outcome-actions">

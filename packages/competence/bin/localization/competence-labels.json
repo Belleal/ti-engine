@@ -3941,6 +3941,10 @@
         "en": "You are not authorized to record the interview outcome for this evaluation.",
         "bg": "Нямате права да записвате резултата от интервюто за тази оценка."
       },
+      "outcome-interview-not-held": {
+        "en": "The interview outcome can only be recorded once the interview has taken place.",
+        "bg": "Резултатът от интервюто може да се запише само след като интервюто се е състояло."
+      },
       "too-many-goals": {
         "en": "Too many goals were provided for the next period.",
         "bg": "Зададени са твърде много цели за следващия период."
@@ -6941,8 +6945,12 @@
           "bg": "Готова за затваряне"
         },
         "record-btn": {
-          "en": "Record outcome",
+          "en": "Record Outcome",
           "bg": "Запиши резултат"
+        },
+        "record-locked": {
+          "en": "Available after the interview date",
+          "bg": "Достъпно след датата на интервюто"
         },
         "feedback-label": {
           "en": "Interview feedback",
@@ -6961,7 +6969,7 @@
           "bg": "Целева дата"
         },
         "goal-add": {
-          "en": "Add goal",
+          "en": "Add Goal",
           "bg": "Добави цел"
         },
         "goal-remove": {
@@ -6985,7 +6993,7 @@
           "bg": "Детайли по плана за подобрение"
         },
         "save-btn": {
-          "en": "Save outcome",
+          "en": "Save Outcome",
           "bg": "Запази резултата"
         },
         "saved-toast": {
