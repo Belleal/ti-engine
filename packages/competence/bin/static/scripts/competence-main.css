@@ -1473,7 +1473,7 @@
 
 .competence-interview-row {
     display: grid;
-    grid-template-columns: 40px auto 160px 180px 140px;
+    grid-template-columns: 40px minmax(0, 1fr) auto auto auto;
     gap: var(--s-4);
     align-items: center;
     padding: var(--s-3) var(--s-4);
@@ -1524,6 +1524,11 @@
     display: flex;
     gap: var(--s-2);
     justify-content: flex-end;
+    flex-wrap: nowrap;
+}
+
+.competence-interview-actions .ti-btn {
+    white-space: nowrap;
 }
 
 .competence-schedule-badge {

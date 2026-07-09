@@ -61,7 +61,7 @@
                                 <span x-show="selectedEvaluationID === evaluation.evaluationID"
                                       x-text-label="interface.schedule.actions.cancel-selection"></span>
                             </button>
-                            <button type="button" class="ti-btn sm ghost" x-show="canSchedule && !!evaluation.interviewDate && !!evaluation.bookedSlotID"
+                            <button type="button" class="ti-btn sm ghost" x-show="canSchedule && !!evaluation.interviewDate && !!evaluation.bookedSlotID && !evaluation.outcomeRecorded"
                                     @click="cancelBooking(evaluation.bookedSlotID)">
                                 <span aria-hidden="true">×</span>
                                 <span x-text-label="interface.schedule.actions.cancel-booking"></span>

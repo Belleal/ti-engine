@@ -3945,6 +3945,10 @@
         "en": "The interview outcome can only be recorded once the interview has taken place.",
         "bg": "Резултатът от интервюто може да се запише само след като интервюто се е състояло."
       },
+      "cancel-outcome-recorded": {
+        "en": "The interview cannot be cancelled after its outcome has been recorded.",
+        "bg": "Интервюто не може да бъде отменено, след като резултатът му е записан."
+      },
       "too-many-goals": {
         "en": "Too many goals were provided for the next period.",
         "bg": "Зададени са твърде много цели за следващия период."
