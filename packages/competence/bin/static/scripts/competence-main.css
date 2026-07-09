@@ -1466,6 +1466,9 @@
     display: flex;
     flex-direction: column;
     gap: var(--s-2);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    overflow: hidden;
 }
 
 .competence-interview-row {
@@ -1475,8 +1478,6 @@
     align-items: center;
     padding: var(--s-3) var(--s-4);
     background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--r-md);
     transition: border-color var(--dur-fast), background var(--dur-fast);
 }
 
@@ -1538,8 +1539,6 @@
     padding: var(--s-3) var(--s-4) var(--s-4);
     margin-top: calc(-1 * var(--s-2));
     background: var(--bg-sunken);
-    border: 1px solid var(--border-soft);
-    border-radius: var(--r-md);
     display: flex;
     flex-direction: column;
     gap: var(--s-2);
