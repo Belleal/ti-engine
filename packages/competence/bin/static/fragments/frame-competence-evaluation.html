@@ -564,8 +564,8 @@
                         <div class="competence-eval-feedback-col">
                             <div class="competence-eval-feedback-col-label" x-text-label="interface.evaluation.appraisal.employee-comment"></div>
                             <textarea id="employeeFeedbackText" name="employeeFeedbackText" class="ti-textarea" rows="4"
-                                      x-bind:value="getFeedbackComment( 'employee' )"
-                                      @ti-input="setFeedbackComment( 'employee', $event.target.value )"
+                                      x-bind:value="getFeedbackDraft( 'employee' )"
+                                      @input="setFeedbackComment( 'employee', $event.target.value )"
                                       x-show="userRole === 1 && canEdit"></textarea>
                             <div class="competence-eval-feedback-value"
                                  x-bind:class="getFeedbackComment( 'employee' ) === getLabel( 'interface.evaluation.default.not-provided' ) ? 'empty' : ''"
@@ -577,8 +577,8 @@
                         <div class="competence-eval-feedback-col">
                             <div class="competence-eval-feedback-col-label" x-text-label="interface.evaluation.appraisal.manager-comment"></div>
                             <textarea id="managerFeedbackText" name="managerFeedbackText" class="ti-textarea" rows="4"
-                                      x-bind:value="getFeedbackComment( 'manager' )"
-                                      @ti-input="setFeedbackComment( 'manager', $event.target.value )"
+                                      x-bind:value="getFeedbackDraft( 'manager' )"
+                                      @input="setFeedbackComment( 'manager', $event.target.value )"
                                       x-show="userRole === 2 && canEdit"></textarea>
                             <div class="competence-eval-feedback-value"
                                  x-bind:class="getFeedbackComment( 'manager' ) === getLabel( 'interface.evaluation.default.not-provided' ) ? 'empty' : ''"
@@ -595,7 +595,7 @@
                     <div x-show="userRole === 4 && canEdit">
                         <label for="teamFeedbackText" class="ti-field-label" x-text-label="interface.evaluation.appraisal.team-comment"></label>
                         <textarea id="teamFeedbackText" name="teamFeedbackText" class="ti-textarea" rows="4"
-                                  @ti-input="setFeedbackComment( 'team', $event.target.value )"></textarea>
+                                  @input="setFeedbackComment( 'team', $event.target.value )"></textarea>
                     </div>
 
                     <!-- Team comments list (manager-only; raw peer free text is not anonymized for employee display). -->

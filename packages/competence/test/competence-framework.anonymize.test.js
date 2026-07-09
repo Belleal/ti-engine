@@ -69,3 +69,65 @@ describe( "CompetenceFramework — anonymizeEvaluationGrades: employee reveal at
     } );
 
 } );
+
+function feedbackEvaluationAt( status ) {
+    return {
+        status: status,
+        comment: "employee self reflection",
+        feedback: {
+            managerComment: "manager private note",
+            teamComments: [ "peer one", "peer two" ]
+        }
+    };
+}
+
+const hasKey = ( object, key ) => Object.prototype.hasOwnProperty.call( object, key );
+
+describe( "CompetenceFramework — anonymizeEvaluationScores: employee feedback exposure", () => {
+
+    it( "withholds the manager comment and the raw peer comments from the employee while OPEN", () => {
+        const evaluation = feedbackEvaluationAt( configurationLoader.evaluationStatus.OPEN );
+        competenceFramework.instance.anonymizeEvaluationScores( evaluation, configurationLoader.roleCode.EMPLOYEE );
+        assert.equal( hasKey( evaluation.feedback, "managerComment" ), false, "manager comment must be withheld before results are revealed" );
+        assert.deepEqual( evaluation.feedback.teamComments, [], "raw peer comments must never reach the employee" );
+        assert.equal( evaluation.comment, "employee self reflection", "the employee keeps their own self-reflection" );
+    } );
+
+    it( "still withholds the manager comment from the employee during IN_REVIEW (not yet finalized)", () => {
+        const evaluation = feedbackEvaluationAt( configurationLoader.evaluationStatus.IN_REVIEW );
+        competenceFramework.instance.anonymizeEvaluationScores( evaluation, configurationLoader.roleCode.EMPLOYEE );
+        assert.equal( hasKey( evaluation.feedback, "managerComment" ), false );
+        assert.deepEqual( evaluation.feedback.teamComments, [] );
+    } );
+
+    it( "reveals the manager comment to the employee at Ready, but still never the raw peer comments", () => {
+        const evaluation = feedbackEvaluationAt( configurationLoader.evaluationStatus.READY );
+        competenceFramework.instance.anonymizeEvaluationScores( evaluation, configurationLoader.roleCode.EMPLOYEE );
+        assert.equal( evaluation.feedback.managerComment, "manager private note", "manager comment is revealed once Ready (mirrors the manager grade)" );
+        assert.deepEqual( evaluation.feedback.teamComments, [], "raw peer comments stay withheld even at Ready — only the team cumulative grade is shown" );
+    } );
+
+    it( "keeps the manager comment revealed at Closed, raw peer comments still withheld", () => {
+        const evaluation = feedbackEvaluationAt( configurationLoader.evaluationStatus.CLOSED );
+        competenceFramework.instance.anonymizeEvaluationScores( evaluation, configurationLoader.roleCode.EMPLOYEE );
+        assert.equal( evaluation.feedback.managerComment, "manager private note" );
+        assert.deepEqual( evaluation.feedback.teamComments, [] );
+    } );
+
+    it( "gives the manager full visibility of their own comment and the raw peer comments at any stage", () => {
+        const evaluation = feedbackEvaluationAt( configurationLoader.evaluationStatus.IN_REVIEW );
+        competenceFramework.instance.anonymizeEvaluationScores( evaluation, configurationLoader.roleCode.MANAGER );
+        assert.equal( evaluation.feedback.managerComment, "manager private note" );
+        assert.deepEqual( evaluation.feedback.teamComments, [ "peer one", "peer two" ] );
+        assert.equal( evaluation.comment, "employee self reflection", "the manager also sees the employee's self-reflection" );
+    } );
+
+    it( "strips all feedback and the self-reflection from a team reviewer", () => {
+        const evaluation = feedbackEvaluationAt( configurationLoader.evaluationStatus.OPEN );
+        competenceFramework.instance.anonymizeEvaluationScores( evaluation, configurationLoader.roleCode.TEAM_MEMBER );
+        assert.equal( hasKey( evaluation.feedback, "managerComment" ), false );
+        assert.deepEqual( evaluation.feedback.teamComments, [] );
+        assert.equal( hasKey( evaluation, "comment" ), false, "a team reviewer must not receive the employee's self-reflection" );
+    } );
+
+} );
