@@ -818,6 +818,19 @@ class CompetenceFramework {
                     }
                 } );
             }
+
+            // The employee must not receive the manager's written feedback until results are revealed (READY/CLOSED —
+            // mirrors the manager-grade reveal in anonymizeEvaluationGrades), and must NEVER receive the raw peer
+            // free-text comments, which are anonymous — only the team cumulative grade is ever shown to the employee.
+            // The manager (and the Supervisor facilitator, rendered as MANAGER) keeps full visibility.
+            if ( userRole === configurationLoader.roleCode.EMPLOYEE && evaluation.feedback ) {
+                const resultsRevealed = evaluation.status === configurationLoader.evaluationStatus.READY
+                    || evaluation.status === configurationLoader.evaluationStatus.CLOSED;
+                if ( !resultsRevealed ) {
+                    delete evaluation.feedback.managerComment;
+                }
+                evaluation.feedback.teamComments = [];
+            }
         } else {
             evaluation.finalScore = {};
             evaluation.scores = {};
