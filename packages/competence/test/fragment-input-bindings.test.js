@@ -7,13 +7,24 @@
 */
 
 /*
- * Input-binding guard for the Alpine (CSP) HTML fragments. The app dispatches only two custom events —
- * `ti-chart:select` (ti-charts.js) and the flyout-close event (ti-framework.js) — and registers only two Alpine
- * directives (`text-label`, `ti-chart`). There is no `ti-input` directive and no code path dispatches a `ti-input`
- * event, so an `@ti-input` / `x-on:ti-input` handler in a fragment is dead wiring: it never fires and the bound
- * setter never runs. This silently dropped user text on the interview-outcome form (CA-85) and again on the
- * evaluation Written Feedback textareas (CA-88). Native form controls must use the DOM `input`/`change` events with
- * `$event.target.value`, matching the working editor screens. This guard fails if the broken pattern reappears.
+ * Input/value-binding guard for the Alpine (CSP) HTML fragments — two related failure modes that both silently
+ * corrupt user text on the appraisal forms.
+ *
+ * 1. Dead event binding. The app dispatches only two custom events — `ti-chart:select` (ti-charts.js) and the
+ *    flyout-close event (ti-framework.js) — and registers only two Alpine directives (`text-label`, `ti-chart`).
+ *    There is no `ti-input` directive and no code path dispatches a `ti-input` event, so an `@ti-input` /
+ *    `x-on:ti-input` handler in a fragment is dead wiring: it never fires and the bound setter never runs. This
+ *    silently dropped user text on the interview-outcome form (CA-85) and again on the evaluation Written Feedback
+ *    textareas (CA-88). Native form controls must use the DOM `input`/`change` events with `$event.target.value`,
+ *    matching the working editor screens.
+ *
+ * 2. Placeholder-as-value binding. `getFeedbackComment` substitutes a localized "not provided" placeholder for an
+ *    empty note — correct for the read-only display, but wrong as the `value` of an EDITABLE control: the field then
+ *    shows the literal placeholder text as if it were prior input, and (because the binding is reactive) clearing the
+ *    field re-inserts it, so a clean note can't be entered. Editable feedback textareas must bind their value to the
+ *    raw-value getter `getFeedbackDraft` (empty when empty), never `getFeedbackComment` (CA-88).
+ *
+ * Each guard fails if the broken pattern reappears.
  */
 
 const { describe, it } = require( "node:test" );
@@ -22,10 +33,15 @@ const fs = require( "node:fs" );
 const path = require( "node:path" );
 
 const FRAGMENTS_DIR = path.join( path.resolve( __dirname, ".." ), "bin", "static", "fragments" );
+const EVALUATION_FRAGMENT = path.join( FRAGMENTS_DIR, "frame-competence-evaluation.html" );
 
 // Alpine binds a listener for a DOM event named after the `@`/`x-on:` directive. `ti-input` is never dispatched,
 // so both spellings of a handler for it are always dead. Match either, with any modifier suffix (e.g. `.stop`).
 const DEAD_TI_INPUT_BINDING = /(?:@|x-on:)ti-input\b/;
+
+// An editable control's value must never be bound to getFeedbackComment (which returns the placeholder for an empty
+// note); it must use getFeedbackDraft. Whitespace-tolerant.
+const PLACEHOLDER_VALUE_BINDING = /x-bind:value\s*=\s*"\s*getFeedbackComment\s*\(/;
 
 function fragmentFiles() {
     return fs.readdirSync( FRAGMENTS_DIR )
@@ -46,6 +62,17 @@ describe( "Fragment input bindings", () => {
             } );
         }
         assert.deepEqual( offenders, [], `Fragments binding to the dead \`ti-input\` event (use native @input/@change with $event.target.value):\n  ${ offenders.join( "\n  " ) }` );
+    } );
+
+    it( "editable feedback textareas do not bind their value to the placeholder getter", () => {
+        const offenders = [];
+        const lines = fs.readFileSync( EVALUATION_FRAGMENT, "utf8" ).split( /\r?\n/ );
+        lines.forEach( ( line, index ) => {
+            if ( PLACEHOLDER_VALUE_BINDING.test( line ) ) {
+                offenders.push( `${ path.basename( EVALUATION_FRAGMENT ) }:${ index + 1 }` );
+            }
+        } );
+        assert.deepEqual( offenders, [], `Editable controls binding value to getFeedbackComment (use getFeedbackDraft — the raw value, empty when empty):\n  ${ offenders.join( "\n  " ) }` );
     } );
 
 } );

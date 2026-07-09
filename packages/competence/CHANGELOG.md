@@ -4,10 +4,11 @@ This document contains the list of changes made to the competence package. The f
 
 ## Version 3.11.1
 
-Fixes a latent input-capture defect on the evaluation grading screen's **Written Feedback** section — the same dead-event-binding root cause fixed for the interview-outcome form in CA-85.
+Two defects that silently corrupted **Written Feedback** capture on the evaluation grading screen (self / team / manager, in both draft and submit). The server, data layer, and read-back round-trip were verified to persist all three notes correctly — both bugs were client-side capture issues.
 
 * fix(competence): capture typed **Written Feedback** on the evaluation screen — the three feedback textareas (employee self-reflection, manager comment, team-reviewer comment in `frame-competence-evaluation.html`) bound with `@ti-input`, but nothing in the app dispatches a `ti-input` event (only the `text-label`/`ti-chart` directives and the `ti-chart:select`/flyout-close CustomEvents exist), so `setFeedbackComment` never ran and typed feedback was never written into `evaluation.comment` / `evaluation.feedback.managerComment` / `.teamComments` — it was silently dropped on save/submit. Switched to the native `@input` event with `$event.target.value`, matching the working editor screens and the CA-85 interview-outcome fix (CA-88)
-* test(competence): add `test/fragment-input-bindings.test.js` — a guard that fails on any `@ti-input`/`x-on:ti-input` handler in an HTML fragment (the event is never dispatched, so such a binding is always dead), covering both this defect and the CA-85 class so it cannot recur
+* fix(competence): stop the editable self-reflection and manager feedback textareas from pre-filling with the "not provided" placeholder — they bound `x-bind:value` to `getFeedbackComment`, which substitutes that placeholder for an empty note (correct for the read-only display, wrong for an editable value: the box showed the placeholder as if it were prior input, and the reactive binding re-inserted it whenever the field was cleared, so a clean note could not be entered). Editable feedback inputs now bind to a new raw-value getter `getFeedbackDraft` (empty when empty); the read-only display keeps using `getFeedbackComment` (CA-88)
+* test(competence): add `test/fragment-input-bindings.test.js` — guards that fail on (a) any `@ti-input`/`x-on:ti-input` handler in a fragment (the event is never dispatched, so such a binding is always dead) and (b) an editable feedback textarea binding its value to the placeholder getter `getFeedbackComment`; covers both defects above and the CA-85 class so they cannot recur
 * build(release): bump package version from `3.11.0` to `3.11.1`
 
 ## Version 3.11.0
