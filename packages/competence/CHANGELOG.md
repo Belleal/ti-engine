@@ -2,6 +2,14 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.11.1
+
+Fixes a latent input-capture defect on the evaluation grading screen's **Written Feedback** section — the same dead-event-binding root cause fixed for the interview-outcome form in CA-85.
+
+* fix(competence): capture typed **Written Feedback** on the evaluation screen — the three feedback textareas (employee self-reflection, manager comment, team-reviewer comment in `frame-competence-evaluation.html`) bound with `@ti-input`, but nothing in the app dispatches a `ti-input` event (only the `text-label`/`ti-chart` directives and the `ti-chart:select`/flyout-close CustomEvents exist), so `setFeedbackComment` never ran and typed feedback was never written into `evaluation.comment` / `evaluation.feedback.managerComment` / `.teamComments` — it was silently dropped on save/submit. Switched to the native `@input` event with `$event.target.value`, matching the working editor screens and the CA-85 interview-outcome fix (CA-88)
+* test(competence): add `test/fragment-input-bindings.test.js` — a guard that fails on any `@ti-input`/`x-on:ti-input` handler in an HTML fragment (the event is never dispatched, so such a binding is always dead), covering both this defect and the CA-85 class so it cannot recur
+* build(release): bump package version from `3.11.0` to `3.11.1`
+
 ## Version 3.11.0
 * feat(competence): Step 8 — interview meeting outcome & formal evaluation closure (Ready → Closed). Records written feedback, up to `numberOfNextPeriodGoals` next-period goals, and an optional Performance Improvement Plan on the interviews hub; the Supervisor formally closes once the interview has been held and an outcome recorded. Closure artifacts become visible to the employee on the Scores screen; grades/scores stay revealed at Ready. New dashboard tasks: Supervisor "interviews awaiting closure" and the evaluee "evaluation closed" notice; the cycle-close modal warns about not-yet-closed evaluations. See `design/interview-closure.md` (CA-78).
 
