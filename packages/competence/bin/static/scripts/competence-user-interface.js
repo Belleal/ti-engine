@@ -376,6 +376,20 @@ const configureCompetenceEvaluation = () => {
             }
         },
 
+        // Raw editable value for the feedback textareas. Unlike getFeedbackComment (which substitutes the localized
+        // "not provided" placeholder — correct for the read-only display), this returns the stored text or an empty
+        // string, so an empty note renders as an empty input rather than the literal placeholder, and clearing the
+        // field is not reverted by the reactive value binding. Only the employee (comment) and manager (managerComment)
+        // columns are editable single-value inputs; the team reviewer input starts empty and has no value binding.
+        getFeedbackDraft( role ) {
+            if ( role === "employee" ) {
+                return this.evaluation.comment || "";
+            } else if ( role === "manager" ) {
+                return this.evaluation.feedback?.managerComment || "";
+            }
+            return "";
+        },
+
         getLabel( label ) {
             return tiApplication.getLabel( label );
         },

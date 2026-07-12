@@ -394,6 +394,13 @@ class CompetenceFramework {
         if ( !evaluation || evaluation.status !== configurationLoader.evaluationStatus.READY ) {
             throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.outcome-not-ready" }, exceptions.httpCode.C_422 );
         }
+        // The outcome is the record of the meeting, so it can only be entered once the interview has been held — it must
+        // be booked and its date reached/passed. (Formal closure enforces the same held precondition downstream.)
+        const interviewDate = evaluation.interviewDate || "";
+        const today = new Date().toISOString().split( "T" )[ 0 ];
+        if ( interviewDate === "" || interviewDate > today ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.outcome-interview-not-held" }, exceptions.httpCode.C_422 );
+        }
         const maxGoals = configurationLoader.getSetting( "performanceAppraisals.numberOfNextPeriodGoals", 5 );
         const src = outcome || {};
         const goalsInput = Array.isArray( src.goals ) ? src.goals : [];
@@ -810,6 +817,19 @@ class CompetenceFramework {
                         score.interpretationName = configurationLoader.performanceThreshold.name( score.interpretation );
                     }
                 } );
+            }
+
+            // The employee must not receive the manager's written feedback until results are revealed (READY/CLOSED —
+            // mirrors the manager-grade reveal in anonymizeEvaluationGrades), and must NEVER receive the raw peer
+            // free-text comments, which are anonymous — only the team cumulative grade is ever shown to the employee.
+            // The manager (and the Supervisor facilitator, rendered as MANAGER) keeps full visibility.
+            if ( userRole === configurationLoader.roleCode.EMPLOYEE && evaluation.feedback ) {
+                const resultsRevealed = evaluation.status === configurationLoader.evaluationStatus.READY
+                    || evaluation.status === configurationLoader.evaluationStatus.CLOSED;
+                if ( !resultsRevealed ) {
+                    delete evaluation.feedback.managerComment;
+                }
+                evaluation.feedback.teamComments = [];
             }
         } else {
             evaluation.finalScore = {};

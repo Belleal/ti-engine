@@ -68,7 +68,7 @@ describe( "CompetenceFramework — createNewEvaluation closure defaults", () => 
 describe( "CompetenceFramework — recordInterviewOutcome", () => {
 
     it( "records feedback, goals, and pip on a READY evaluation", () => {
-        const evaluation = { status: configurationLoader.evaluationStatus.READY, closure: { feedback: "", goals: [], pip: { required: false, plan: "" }, closedAt: null, closedBy: null } };
+        const evaluation = { status: configurationLoader.evaluationStatus.READY, interviewDate: "2000-01-01", closure: { feedback: "", goals: [], pip: { required: false, plan: "" }, closedAt: null, closedBy: null } };
         const result = competenceFramework.instance.recordInterviewOutcome( evaluation, {
             feedback: "Strong half.",
             goals: [ { text: "Lead a project", targetDate: "2027-06-30" }, { text: "Mentor a junior" } ],
@@ -90,16 +90,28 @@ describe( "CompetenceFramework — recordInterviewOutcome", () => {
     } );
 
     it( "rejects more goals than the configured maximum", () => {
-        const evaluation = { status: configurationLoader.evaluationStatus.READY, closure: {} };
+        const evaluation = { status: configurationLoader.evaluationStatus.READY, interviewDate: "2000-01-01", closure: {} };
         const goals = Array.from( { length: 6 }, ( _v, i ) => ( { text: "g" + i } ) );
         assert.throws( () => competenceFramework.instance.recordInterviewOutcome( evaluation, { goals } ),
             ( err ) => ( err?.data?.details === "error.evaluation.too-many-goals" ) );
     } );
 
     it( "rejects a goal with empty text", () => {
-        const evaluation = { status: configurationLoader.evaluationStatus.READY, closure: {} };
+        const evaluation = { status: configurationLoader.evaluationStatus.READY, interviewDate: "2000-01-01", closure: {} };
         assert.throws( () => competenceFramework.instance.recordInterviewOutcome( evaluation, { goals: [ { text: "  " } ] } ),
             ( err ) => ( err?.data?.details === "error.evaluation.invalid-goal" ) );
+    } );
+
+    it( "rejects recording the outcome before the interview date has been reached", () => {
+        const evaluation = { status: configurationLoader.evaluationStatus.READY, interviewDate: "2999-12-31", closure: {} };
+        assert.throws( () => competenceFramework.instance.recordInterviewOutcome( evaluation, { feedback: "x" } ),
+            ( err ) => ( err?.data?.details === "error.evaluation.outcome-interview-not-held" ) );
+    } );
+
+    it( "rejects recording the outcome when no interview is booked", () => {
+        const evaluation = { status: configurationLoader.evaluationStatus.READY, interviewDate: null, closure: {} };
+        assert.throws( () => competenceFramework.instance.recordInterviewOutcome( evaluation, { feedback: "x" } ),
+            ( err ) => ( err?.data?.details === "error.evaluation.outcome-interview-not-held" ) );
     } );
 
 } );

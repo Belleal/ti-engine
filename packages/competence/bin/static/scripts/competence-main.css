@@ -1459,15 +1459,25 @@
     gap: var(--s-2);
 }
 
+/* Groups a Ready evaluation's row with its (conditionally rendered) outcome panel so the x-for template has a single
+   root element (Alpine CSP requires exactly one). The group is the flex item of the list; the panel stacks flush
+   under its own row. */
+.competence-interview-row-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    overflow: hidden;
+}
+
 .competence-interview-row {
     display: grid;
-    grid-template-columns: 40px auto 160px 180px 140px;
+    grid-template-columns: 40px minmax(0, 1fr) auto auto auto;
     gap: var(--s-4);
     align-items: center;
     padding: var(--s-3) var(--s-4);
     background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--r-md);
     transition: border-color var(--dur-fast), background var(--dur-fast);
 }
 
@@ -1514,6 +1524,11 @@
     display: flex;
     gap: var(--s-2);
     justify-content: flex-end;
+    flex-wrap: nowrap;
+}
+
+.competence-interview-actions .ti-btn {
+    white-space: nowrap;
 }
 
 .competence-schedule-badge {
@@ -1529,8 +1544,6 @@
     padding: var(--s-3) var(--s-4) var(--s-4);
     margin-top: calc(-1 * var(--s-2));
     background: var(--bg-sunken);
-    border: 1px solid var(--border-soft);
-    border-radius: var(--r-md);
     display: flex;
     flex-direction: column;
     gap: var(--s-2);
@@ -1564,10 +1577,13 @@
     max-width: 170px;
 }
 
-.competence-outcome-pip-toggle {
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
+/* Compact "add" affordance matching the Cycle Setup add button; kept off the full flex-column stretch. */
+.competence-outcome-add-goal {
+    align-self: flex-start;
+}
+
+.competence-outcome-goal-remove {
+    color: var(--fg-tertiary);
 }
 
 .competence-outcome-pip-hint {
@@ -3655,7 +3671,8 @@
     border-top: 1px dashed var(--border-soft);
 }
 
-.competence-cycle-no-extras-label {
+.competence-cycle-no-extras-label,
+.competence-outcome-pip-toggle {
     display: flex;
     align-items: center;
     gap: var(--s-2);
@@ -3664,7 +3681,8 @@
     cursor: pointer;
 }
 
-.competence-cycle-no-extras-label input[type="checkbox"] {
+.competence-cycle-no-extras-label input[type="checkbox"],
+.competence-outcome-pip-toggle input[type="checkbox"] {
     width: 16px;
     height: 16px;
     accent-color: var(--accent);

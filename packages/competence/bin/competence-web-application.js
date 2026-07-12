@@ -1478,6 +1478,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                             bookedSlotID: bookedSlot ? bookedSlot.slotID : null,
                             closure: { feedback: closure.feedback || "", goals: Array.isArray( closure.goals ) ? closure.goals : [], pip: ( closure.pip && typeof closure.pip === "object" ) ? closure.pip : { required: false, plan: "" } },
                             interviewHeld: interviewHeld,
+                            outcomeRecorded: outcomeRecorded,
                             canRecordOutcome: canRecordOutcome,
                             canClose: isSupervisor && interviewHeld && outcomeRecorded
                         };
@@ -1677,18 +1678,35 @@ class CompetenceWebApplication extends TiWebAppManager {
                 }
 
                 const evaluationID = targetSlot.booking?.evaluationID;
-                targetSlot.status = configurationLoader.slotStatus.AVAILABLE;
-                targetSlot.booking = null;
 
-                const saveSlotPromise = dataManager.instance.saveCalendarSlot( targetSlot );
-                const clearDatePromise = evaluationID
+                // Cannot cancel once the interview outcome has been recorded — clearing the interview date would strand
+                // the recorded feedback/goals and break formal closure (which requires a held interview). Fetch the
+                // evaluation first to guard, then reuse it to clear the date.
+                const resolveEvaluation = evaluationID
                     ? dataManager.instance.fetchEvaluation( evaluationID ).then( ( evaluation ) => {
-                        evaluation.interviewDate = null;
-                        return dataManager.instance.saveEvaluation( evaluation );
+                        const closure = ( evaluation.closure && typeof evaluation.closure === "object" ) ? evaluation.closure : {};
+                        const outcomeRecorded = ( typeof closure.feedback === "string" && closure.feedback.trim() !== "" ) || ( Array.isArray( closure.goals ) && closure.goals.length > 0 );
+                        if ( outcomeRecorded ) {
+                            throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.cancel-outcome-recorded" }, exceptions.httpCode.C_422 );
+                        }
+                        return evaluation;
                     } )
-                    : Promise.resolve();
+                    : Promise.resolve( null );
 
-                return Promise.all( [ saveSlotPromise, clearDatePromise ] );
+                return resolveEvaluation.then( ( evaluation ) => {
+                    targetSlot.status = configurationLoader.slotStatus.AVAILABLE;
+                    targetSlot.booking = null;
+
+                    const saveSlotPromise = dataManager.instance.saveCalendarSlot( targetSlot );
+                    const clearDatePromise = evaluation
+                        ? ( ( evaluationToClear ) => {
+                            evaluationToClear.interviewDate = null;
+                            return dataManager.instance.saveEvaluation( evaluationToClear );
+                        } )( evaluation )
+                        : Promise.resolve();
+
+                    return Promise.all( [ saveSlotPromise, clearDatePromise ] );
+                } );
             } ).then( () => {
                 resolve( { slotID: slotID } );
             } ).catch( ( error ) => {
