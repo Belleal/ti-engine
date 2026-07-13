@@ -508,9 +508,9 @@
                                               x-bind:data-grade="getItemGrade(item.id, 'team')"
                                               x-bind:class="getItemGrade(item.id, 'team') ? '' : 'empty'"
                                               x-text="getItemGrade(item.id, 'team')"
-                                              x-show="(userRole === 4 && !canEdit) || userRole === 2 || (userRole === 1 && evaluation.status === 'Ready')"></span>
-                                        <!-- Hidden from the employee until results are Ready (stripped server-side): show a lock -->
-                                        <span class="ti-grade-chip locked" x-show="userRole === 1 && evaluation.status !== 'Ready'"
+                                              x-show="(userRole === 4 && !canEdit) || userRole === 2 || (userRole === 1 && hasResults())"></span>
+                                        <!-- Hidden from the employee until results are revealed (Ready/Closed; stripped server-side): show a lock -->
+                                        <span class="ti-grade-chip locked" x-show="userRole === 1 && !hasResults()"
                                               x-bind:aria-label="getLabel('interface.evaluation.grade-hidden-aria')">
                                             <span class="ti-icon lock xs" aria-hidden="true"></span>
                                         </span>
@@ -534,9 +534,9 @@
                                               x-bind:data-grade="getItemGrade(item.id, 'manager')"
                                               x-bind:class="getItemGrade(item.id, 'manager') ? '' : 'empty'"
                                               x-text="getItemGrade(item.id, 'manager')"
-                                              x-show="(userRole === 2 && !canEdit) || (userRole === 1 && evaluation.status === 'Ready')"></span>
-                                        <!-- Hidden: team reviewers always; the employee until results are Ready (stripped server-side) -->
-                                        <span class="ti-grade-chip locked" x-show="userRole === 4 || (userRole === 1 && evaluation.status !== 'Ready')"
+                                              x-show="(userRole === 2 && !canEdit) || (userRole === 1 && hasResults())"></span>
+                                        <!-- Hidden: team reviewers always; the employee until results are revealed (Ready/Closed; stripped server-side) -->
+                                        <span class="ti-grade-chip locked" x-show="userRole === 4 || (userRole === 1 && !hasResults())"
                                               x-bind:aria-label="getLabel('interface.evaluation.grade-hidden-aria')">
                                             <span class="ti-icon lock xs" aria-hidden="true"></span>
                                         </span>
