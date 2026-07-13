@@ -3932,6 +3932,46 @@
       "finalize-no-submissions": {
         "en": "Team feedback cannot be finalized without at least one submission.",
         "bg": "Екипната обратна връзка не може да бъде финализирана без поне едно подадено мнение."
+      },
+      "outcome-not-ready": {
+        "en": "The interview outcome can only be recorded while the evaluation is Ready.",
+        "bg": "Резултатът от интервюто може да се записва само докато оценката е в статус „Готова“."
+      },
+      "outcome-not-authorized": {
+        "en": "You are not authorized to record the interview outcome for this evaluation.",
+        "bg": "Нямате права да записвате резултата от интервюто за тази оценка."
+      },
+      "outcome-interview-not-held": {
+        "en": "The interview outcome can only be recorded once the interview has taken place.",
+        "bg": "Резултатът от интервюто може да се запише само след като интервюто се е състояло."
+      },
+      "cancel-outcome-recorded": {
+        "en": "The interview cannot be cancelled after its outcome has been recorded.",
+        "bg": "Интервюто не може да бъде отменено, след като резултатът му е записан."
+      },
+      "too-many-goals": {
+        "en": "Too many goals were provided for the next period.",
+        "bg": "Зададени са твърде много цели за следващия период."
+      },
+      "invalid-goal": {
+        "en": "Each goal must have a non-empty description.",
+        "bg": "Всяка цел трябва да има непразно описание."
+      },
+      "close-not-ready": {
+        "en": "Only a Ready evaluation can be closed.",
+        "bg": "Само оценка в статус „Готова“ може да бъде затворена."
+      },
+      "close-no-interview": {
+        "en": "The evaluation cannot be closed before an interview has been scheduled.",
+        "bg": "Оценката не може да бъде затворена преди да е насрочено интервю."
+      },
+      "close-interview-not-held": {
+        "en": "The evaluation cannot be closed before the interview date.",
+        "bg": "Оценката не може да бъде затворена преди датата на интервюто."
+      },
+      "close-no-outcome": {
+        "en": "Record interview feedback or at least one goal before closing the evaluation.",
+        "bg": "Запишете обратна връзка от интервюто или поне една цел, преди да затворите оценката."
       }
     },
     "cycle": {
@@ -4967,6 +5007,40 @@
         "history-method": {
           "en": "Each point is the final score for a completed cycle. Only cycles with reported results are shown.",
           "bg": "Всяка точка е крайният резултат за завършен цикъл. Показват се само цикли с отчетени резултати."
+        },
+        "closure": {
+          "section-title": {
+            "en": "Interview outcome",
+            "bg": "Резултат от интервюто"
+          },
+          "feedback-title": {
+            "en": "Interview feedback",
+            "bg": "Обратна връзка от интервюто"
+          },
+          "feedback-empty": {
+            "en": "No written feedback was recorded.",
+            "bg": "Няма записана писмена обратна връзка."
+          },
+          "goals-title": {
+            "en": "Goals for the next period",
+            "bg": "Цели за следващия период"
+          },
+          "goals-empty": {
+            "en": "No goals were set.",
+            "bg": "Няма зададени цели."
+          },
+          "goal-target": {
+            "en": "Target",
+            "bg": "Срок"
+          },
+          "pip-title": {
+            "en": "Performance Improvement Plan",
+            "bg": "План за подобряване на представянето"
+          },
+          "closed-on": {
+            "en": "Closed on {date}",
+            "bg": "Затворена на {date}"
+          }
         }
       },
       "results-ready": {
@@ -5950,6 +6024,22 @@
       "task-interview-on": {
         "en": "Scheduled for",
         "bg": "Насрочено за"
+      },
+      "task-interview-close": {
+        "en": "Interviews awaiting closure",
+        "bg": "Интервюта, очакващи затваряне"
+      },
+      "task-interview-close-sub": {
+        "en": "Held interviews are ready to be closed.",
+        "bg": "Проведените интервюта са готови за затваряне."
+      },
+      "task-evaluation-closed": {
+        "en": "Your evaluation is closed",
+        "bg": "Вашата оценка е затворена"
+      },
+      "task-evaluation-closed-sub": {
+        "en": "View your results, feedback, and goals.",
+        "bg": "Вижте резултатите, обратната връзка и целите си."
       }
     },
     "navigation": {
@@ -6840,6 +6930,104 @@
           "en": "Actions",
           "bg": "Действия"
         }
+      },
+      "outcome": {
+        "panel-title": {
+          "en": "Interview outcome",
+          "bg": "Резултат от интервюто"
+        },
+        "status-awaiting": {
+          "en": "Awaiting interview",
+          "bg": "Очаква интервю"
+        },
+        "status-pending": {
+          "en": "Interview held — outcome pending",
+          "bg": "Интервюто е проведено — очаква резултат"
+        },
+        "status-ready-to-close": {
+          "en": "Ready to close",
+          "bg": "Готова за затваряне"
+        },
+        "record-btn": {
+          "en": "Record Outcome",
+          "bg": "Запиши резултат"
+        },
+        "record-locked": {
+          "en": "Available after the interview date",
+          "bg": "Достъпно след датата на интервюто"
+        },
+        "feedback-label": {
+          "en": "Interview feedback",
+          "bg": "Обратна връзка от интервюто"
+        },
+        "goals-label": {
+          "en": "Next-period goals",
+          "bg": "Цели за следващия период"
+        },
+        "goal-text-placeholder": {
+          "en": "Goal description",
+          "bg": "Описание на целта"
+        },
+        "goal-date-label": {
+          "en": "Target date",
+          "bg": "Целева дата"
+        },
+        "goal-add": {
+          "en": "Add Goal",
+          "bg": "Добави цел"
+        },
+        "goal-remove": {
+          "en": "Remove",
+          "bg": "Премахни"
+        },
+        "goal-cap": {
+          "en": "{n} / {max} goals",
+          "bg": "{n} / {max} цели"
+        },
+        "pip-label": {
+          "en": "Performance Improvement Plan",
+          "bg": "План за подобряване на представянето"
+        },
+        "pip-hint": {
+          "en": "This score suggests a formal improvement plan is warranted.",
+          "bg": "Този резултат предполага нужда от официален план за подобрение."
+        },
+        "pip-plan-placeholder": {
+          "en": "Improvement plan details",
+          "bg": "Детайли по плана за подобрение"
+        },
+        "save-btn": {
+          "en": "Save Outcome",
+          "bg": "Запази резултата"
+        },
+        "saved-toast": {
+          "en": "Interview outcome saved.",
+          "bg": "Резултатът от интервюто е записан."
+        },
+        "close-btn": {
+          "en": "Close evaluation",
+          "bg": "Затвори оценката"
+        },
+        "close-modal-title": {
+          "en": "Close evaluation",
+          "bg": "Затваряне на оценката"
+        },
+        "close-modal-body": {
+          "en": "This permanently closes the evaluation and reveals the outcome to the employee. It cannot be undone.",
+          "bg": "Това затваря оценката за постоянно и разкрива резултата на служителя. Действието е необратимо."
+        },
+        "close-modal-confirm": {
+          "en": "Close evaluation",
+          "bg": "Затвори оценката"
+        },
+        "close-modal-cancel": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        },
+        "closed-toast": {
+          "en": "Evaluation closed.",
+          "bg": "Оценката е затворена."
+        }
       }
     },
     "cycles": {
@@ -7126,6 +7314,10 @@
           "en": "Cycle closed.",
           "bg": "Цикълът е затворен."
         }
+      },
+      "close-modal-pending": {
+        "en": "{n} evaluation(s) are not yet closed ({open} open, {inReview} in review, {ready} ready).",
+        "bg": "{n} оценка(и) все още не са затворени ({open} отворени, {inReview} в преглед, {ready} готови)."
       }
     },
     "cycle-setup": {

@@ -379,6 +379,112 @@ class CompetenceFramework {
     }
 
     /**
+     * Records the Step-8 interview meeting outcome (written feedback, next-period goals, optional PIP) onto a READY
+     * evaluation. Pure mutator — does NOT change status or set closedAt/closedBy (that is `closeEvaluation`). Authorization
+     * is enforced by the caller.
+     * <br/>NOTE: This method mutates the passed Evaluation object!
+     *
+     * @method
+     * @param {Evaluation} evaluation
+     * @param {{ feedback?: string, goals?: Array<{ text: string, targetDate?: string|null }>, pip?: { required?: boolean, plan?: string } }} outcome
+     * @returns {Evaluation}
+     * @public
+     */
+    recordInterviewOutcome( evaluation, outcome ) {
+        if ( !evaluation || evaluation.status !== configurationLoader.evaluationStatus.READY ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.outcome-not-ready" }, exceptions.httpCode.C_422 );
+        }
+        // The outcome is the record of the meeting, so it can only be entered once the interview has been held — it must
+        // be booked and its date reached/passed. (Formal closure enforces the same held precondition downstream.)
+        const interviewDate = evaluation.interviewDate || "";
+        const today = new Date().toISOString().split( "T" )[ 0 ];
+        if ( interviewDate === "" || interviewDate > today ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.outcome-interview-not-held" }, exceptions.httpCode.C_422 );
+        }
+        const maxGoals = configurationLoader.getSetting( "performanceAppraisals.numberOfNextPeriodGoals", 5 );
+        const src = outcome || {};
+        const goalsInput = Array.isArray( src.goals ) ? src.goals : [];
+        if ( goalsInput.length > maxGoals ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.too-many-goals" }, exceptions.httpCode.C_422 );
+        }
+        const goals = goalsInput.map( ( goal ) => {
+            const text = ( goal && typeof goal.text === "string" ) ? goal.text.trim() : "";
+            if ( text === "" ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-goal" }, exceptions.httpCode.C_422 );
+            }
+            const targetDate = ( goal && typeof goal.targetDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test( goal.targetDate ) ) ? goal.targetDate : null;
+            return { text: text, targetDate: targetDate };
+        } );
+        const pipInput = ( src.pip && typeof src.pip === "object" ) ? src.pip : {};
+        const existing = ( evaluation.closure && typeof evaluation.closure === "object" ) ? evaluation.closure : {};
+        evaluation.closure = {
+            feedback: ( typeof src.feedback === "string" ) ? src.feedback : "",
+            goals: goals,
+            pip: { required: pipInput.required === true, plan: ( typeof pipInput.plan === "string" ) ? pipInput.plan : "" },
+            closedAt: existing.closedAt || null,
+            closedBy: existing.closedBy || null
+        };
+        return evaluation;
+    }
+
+    /**
+     * Formally closes a READY evaluation (READY → CLOSED), irreversibly. Preconditions: the interview must be booked and
+     * its date in the past, and an outcome (feedback or at least one goal) must be recorded. Stamps closedAt/closedBy and
+     * writes one evaluation-scoped audit entry. Authorization (Supervisor-only) is enforced by the caller.
+     *
+     * @method
+     * @param {string} evaluationID
+     * @param {string} actorID - Employee ID of the Supervisor performing the close (audit `changedBy`).
+     * @returns {Promise<Evaluation>}
+     * @public
+     */
+    closeEvaluation( evaluationID, actorID ) {
+        return dataManager.instance.fetchEvaluation( evaluationID ).then( ( evaluation ) => {
+            const today = new Date().toISOString().split( "T" )[ 0 ];
+
+            if ( evaluation.status !== configurationLoader.evaluationStatus.READY ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.close-not-ready" }, exceptions.httpCode.C_422 );
+            }
+            const interviewDate = evaluation.interviewDate || "";
+            if ( interviewDate === "" ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.close-no-interview" }, exceptions.httpCode.C_422 );
+            }
+            if ( interviewDate > today ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.close-interview-not-held" }, exceptions.httpCode.C_422 );
+            }
+            const closure = ( evaluation.closure && typeof evaluation.closure === "object" ) ? evaluation.closure : {};
+            const hasFeedback = ( typeof closure.feedback === "string" && closure.feedback.trim() !== "" );
+            const hasGoals = ( Array.isArray( closure.goals ) && closure.goals.length > 0 );
+            if ( !hasFeedback && !hasGoals ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.close-no-outcome" }, exceptions.httpCode.C_422 );
+            }
+
+            evaluation.status = configurationLoader.evaluationStatus.CLOSED;
+            evaluation.closure = {
+                feedback: ( typeof closure.feedback === "string" ) ? closure.feedback : "",
+                goals: Array.isArray( closure.goals ) ? closure.goals : [],
+                pip: ( closure.pip && typeof closure.pip === "object" )
+                    ? { required: closure.pip.required === true, plan: ( typeof closure.pip.plan === "string" ) ? closure.pip.plan : "" }
+                    : { required: false, plan: "" },
+                closedAt: new Date().toISOString(),
+                closedBy: actorID
+            };
+
+            return dataManager.instance.saveEvaluation( evaluation ).then( ( saved ) => {
+                return dataManager.instance.appendAuditEntry( {
+                    subjectType: "evaluation",
+                    subjectID: evaluationID,
+                    changedBy: actorID,
+                    field: "status",
+                    oldValue: configurationLoader.evaluationStatus.READY,
+                    newValue: configurationLoader.evaluationStatus.CLOSED,
+                    reason: "Evaluation formally closed after the interview meeting."
+                } ).then( () => saved );
+            } );
+        } );
+    }
+
+    /**
      * Used to create a new Evaluation object. The caller is responsible for pre-resolving the cycle (e.g. via
      * `DataManager.getActiveCycle()`) and the snapshot (via `buildEvaluationSnapshot`).
      *
@@ -420,6 +526,13 @@ class CompetenceFramework {
             feedback: {
                 managerComment: "",
                 teamComments: []
+            },
+            closure: {
+                feedback: "",
+                goals: [],
+                pip: { required: false, plan: "" },
+                closedAt: null,
+                closedBy: null
             },
             workflow: {
                 currentStep: 1,
@@ -704,6 +817,19 @@ class CompetenceFramework {
                         score.interpretationName = configurationLoader.performanceThreshold.name( score.interpretation );
                     }
                 } );
+            }
+
+            // The employee must not receive the manager's written feedback until results are revealed (READY/CLOSED —
+            // mirrors the manager-grade reveal in anonymizeEvaluationGrades), and must NEVER receive the raw peer
+            // free-text comments, which are anonymous — only the team cumulative grade is ever shown to the employee.
+            // The manager (and the Supervisor facilitator, rendered as MANAGER) keeps full visibility.
+            if ( userRole === configurationLoader.roleCode.EMPLOYEE && evaluation.feedback ) {
+                const resultsRevealed = evaluation.status === configurationLoader.evaluationStatus.READY
+                    || evaluation.status === configurationLoader.evaluationStatus.CLOSED;
+                if ( !resultsRevealed ) {
+                    delete evaluation.feedback.managerComment;
+                }
+                evaluation.feedback.teamComments = [];
             }
         } else {
             evaluation.finalScore = {};

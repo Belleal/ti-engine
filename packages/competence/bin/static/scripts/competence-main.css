@@ -1459,15 +1459,25 @@
     gap: var(--s-2);
 }
 
+/* Groups a Ready evaluation's row with its (conditionally rendered) outcome panel so the x-for template has a single
+   root element (Alpine CSP requires exactly one). The group is the flex item of the list; the panel stacks flush
+   under its own row. */
+.competence-interview-row-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    overflow: hidden;
+}
+
 .competence-interview-row {
     display: grid;
-    grid-template-columns: 40px auto 160px 180px 140px;
+    grid-template-columns: 40px minmax(0, 1fr) auto auto auto;
     gap: var(--s-4);
     align-items: center;
     padding: var(--s-3) var(--s-4);
     background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--r-md);
     transition: border-color var(--dur-fast), background var(--dur-fast);
 }
 
@@ -1514,6 +1524,11 @@
     display: flex;
     gap: var(--s-2);
     justify-content: flex-end;
+    flex-wrap: nowrap;
+}
+
+.competence-interview-actions .ti-btn {
+    white-space: nowrap;
 }
 
 .competence-schedule-badge {
@@ -1523,6 +1538,67 @@
     padding-left: var(--s-3);
     border-left: 1px solid var(--border);
     white-space: nowrap;
+}
+
+.competence-outcome-panel {
+    padding: var(--s-3) var(--s-4) var(--s-4);
+    margin-top: calc(-1 * var(--s-2));
+    background: var(--bg-sunken);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.competence-outcome-status {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.competence-outcome-goals-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.competence-outcome-goal-cap {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+}
+
+.competence-outcome-goal-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: var(--s-2);
+    align-items: center;
+}
+
+.competence-outcome-goal-date {
+    max-width: 170px;
+}
+
+/* Compact "add" affordance matching the Cycle Setup add button; kept off the full flex-column stretch. */
+.competence-outcome-add-goal {
+    align-self: flex-start;
+}
+
+.competence-outcome-goal-remove {
+    color: var(--fg-tertiary);
+}
+
+.competence-outcome-pip-hint {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+}
+
+.competence-outcome-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.competence-outcome-close-emp {
+    font-weight: 600;
+    color: var(--fg-primary);
 }
 
 .competence-slot-picker-grid {
@@ -2388,6 +2464,38 @@
 
 .competence-results-ready-bar > .ti-btn {
     flex-shrink: 0;
+}
+
+/* Scores-screen closure card (Step 8, CA-78) — interview feedback, goals, and PIP, shown only once CLOSED. */
+.competence-results-closure {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+}
+
+.competence-closure-block {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+}
+
+.competence-closure-goals {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.competence-closure-goal-date {
+    margin-left: var(--s-2);
+    font-size: 0.85em;
+    opacity: 0.75;
+}
+
+/* De-emphasised text modifier for the Scores closure card — pairs with .ti-kv-value for empty/secondary closure lines. */
+.competence-results-closure .muted {
+    color: var(--fg-secondary);
 }
 
 .competence-eval-emp-top-row {
@@ -3563,7 +3671,8 @@
     border-top: 1px dashed var(--border-soft);
 }
 
-.competence-cycle-no-extras-label {
+.competence-cycle-no-extras-label,
+.competence-outcome-pip-toggle {
     display: flex;
     align-items: center;
     gap: var(--s-2);
@@ -3572,7 +3681,8 @@
     cursor: pointer;
 }
 
-.competence-cycle-no-extras-label input[type="checkbox"] {
+.competence-cycle-no-extras-label input[type="checkbox"],
+.competence-outcome-pip-toggle input[type="checkbox"] {
     width: 16px;
     height: 16px;
     accent-color: var(--accent);
@@ -3829,6 +3939,18 @@
     color: var(--warn);
     border-radius: var(--r-sm);
     font-size: var(--fs-sm);
+}
+
+/* Close-confirm modal pending-count warning (Step 8, CA-78) — same warning-box treatment as the clone warning above. */
+.competence-cycle-close-warning {
+    margin-top: var(--s-3);
+    padding: var(--s-2) var(--s-3);
+    background: var(--warn-soft);
+    border: 1px solid color-mix(in oklab, var(--warn) 40%, transparent);
+    color: var(--warn);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-sm);
+    font-weight: 600;
 }
 
 /* Responsive collapse for two-pane on narrow viewports. The page releases its full-height flex layout and scrolls

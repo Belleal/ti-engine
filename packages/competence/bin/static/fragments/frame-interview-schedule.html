@@ -32,6 +32,7 @@
         <template x-if="evaluations.length > 0">
             <div class="competence-interview-list">
                 <template x-for="evaluation in evaluations" x-bind:key="evaluation.evaluationID">
+                    <div class="competence-interview-row-group">
                     <div class="competence-interview-row" x-bind:class="{ selected: selectedEvaluationID === evaluation.evaluationID }">
                         <div class="ti-avatar sm" x-bind:style="$store.tiToolbox.generateAvatarStyle( evaluation.employeeID, evaluation.employeeName )"
                              x-bind:aria-label="evaluation.employeeName">
@@ -60,12 +61,72 @@
                                 <span x-show="selectedEvaluationID === evaluation.evaluationID"
                                       x-text-label="interface.schedule.actions.cancel-selection"></span>
                             </button>
-                            <button type="button" class="ti-btn sm ghost" x-show="canSchedule && !!evaluation.interviewDate && !!evaluation.bookedSlotID"
+                            <button type="button" class="ti-btn sm ghost" x-show="canSchedule && !!evaluation.interviewDate && !!evaluation.bookedSlotID && !evaluation.outcomeRecorded"
                                     @click="cancelBooking(evaluation.bookedSlotID)">
                                 <span aria-hidden="true">×</span>
                                 <span x-text-label="interface.schedule.actions.cancel-booking"></span>
                             </button>
+                            <button type="button" class="ti-btn sm ghost" x-show="canRecordOutcome( evaluation )"
+                                    x-bind:disabled="!evaluation.interviewHeld"
+                                    x-bind:title="evaluation.interviewHeld ? '' : getLabel( 'interface.schedule.outcome.record-locked' )"
+                                    @click="toggleOutcome( evaluation )">
+                                <span x-text-label="interface.schedule.outcome.record-btn"></span>
+                            </button>
+                            <button type="button" class="ti-btn sm primary" x-show="evaluation.canClose"
+                                    @click="openCloseModal( evaluation )">
+                                <span x-text-label="interface.schedule.outcome.close-btn"></span>
+                            </button>
                         </div>
+                    </div>
+                    <template x-if="outcomeForID === evaluation.evaluationID">
+                        <div class="competence-outcome-panel">
+                            <div class="competence-outcome-status" x-text="rowStatusLabel( evaluation )"></div>
+
+                            <label class="competence-eval-feedback-col-label" x-text-label="interface.schedule.outcome.feedback-label"></label>
+                            <textarea class="ti-textarea" rows="3"
+                                      x-bind:value="outcomeDraft.feedback"
+                                      @input="setOutcomeFeedback( $event.target.value )"></textarea>
+
+                            <div class="competence-outcome-goals-head">
+                                <label class="competence-eval-feedback-col-label" x-text-label="interface.schedule.outcome.goals-label"></label>
+                                <span class="competence-outcome-goal-cap" x-text="goalCapLabel()"></span>
+                            </div>
+                            <template x-for="(goal, index) in outcomeDraft.goals" x-bind:key="index">
+                                <div class="competence-outcome-goal-row">
+                                    <input type="text" class="ti-input" x-bind:value="goal.text"
+                                           x-bind:placeholder="getLabel( 'interface.schedule.outcome.goal-text-placeholder' )"
+                                           @input="setGoalText( index, $event.target.value )">
+                                    <input type="date" class="ti-input competence-outcome-goal-date" x-bind:value="goal.targetDate"
+                                           x-bind:aria-label="getLabel( 'interface.schedule.outcome.goal-date-label' )"
+                                           @change="setGoalDate( index, $event.target.value )">
+                                    <button type="button" class="ti-btn sm ghost competence-outcome-goal-remove" @click="removeGoal( index )"
+                                            x-text-label="interface.schedule.outcome.goal-remove"></button>
+                                </div>
+                            </template>
+                            <button type="button" class="ti-btn sm competence-outcome-add-goal" x-show="canAddGoal()" @click="addGoal()">
+                                <span class="ti-icon plus sm" aria-hidden="true"></span>
+                                <span x-text-label="interface.schedule.outcome.goal-add"></span>
+                            </button>
+
+                            <label class="competence-outcome-pip-toggle">
+                                <input type="checkbox" x-bind:checked="outcomeDraft.pip.required" @change="togglePipRequired()">
+                                <span x-text-label="interface.schedule.outcome.pip-label"></span>
+                            </label>
+                            <div class="competence-outcome-pip-hint" x-show="evaluation.finalScoreGrade === 'framework.performance.threshold.name.T1'"
+                                 x-text-label="interface.schedule.outcome.pip-hint"></div>
+                            <template x-if="outcomeDraft.pip.required">
+                                <textarea class="ti-textarea" rows="3"
+                                          x-bind:value="outcomeDraft.pip.plan"
+                                          x-bind:placeholder="getLabel( 'interface.schedule.outcome.pip-plan-placeholder' )"
+                                          @input="setPipPlan( $event.target.value )"></textarea>
+                            </template>
+
+                            <div class="competence-outcome-actions">
+                                <button type="button" class="ti-btn sm primary" @click="saveOutcome( evaluation.evaluationID )"
+                                        x-text-label="interface.schedule.outcome.save-btn"></button>
+                            </div>
+                        </div>
+                    </template>
                     </div>
                 </template>
             </div>
@@ -121,4 +182,28 @@
             </div>
         </template>
     </div>
+
+    <!-- Close-evaluation confirmation modal -->
+    <template x-if="closeModal.open">
+        <div class="ti-modal-backdrop" @click.self="dismissCloseModal()" @keydown.escape.window="dismissCloseModal()">
+            <div class="ti-modal danger" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.schedule.outcome.close-modal-title"></div>
+                    <button type="button" class="ti-modal-close" @click="dismissCloseModal()" aria-label="Close">
+                        <span class="ti-icon close md" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <p x-text-label="interface.schedule.outcome.close-modal-body"></p>
+                    <p class="competence-outcome-close-emp" x-text="closeModal.employeeName"></p>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="dismissCloseModal()" x-bind:disabled="closeModal.busy"
+                            x-text-label="interface.schedule.outcome.close-modal-cancel"></button>
+                    <button type="button" class="ti-btn primary" @click="confirmClose()" x-bind:disabled="closeModal.busy"
+                            x-text-label="interface.schedule.outcome.close-modal-confirm"></button>
+                </div>
+            </div>
+        </div>
+    </template>
 </div>

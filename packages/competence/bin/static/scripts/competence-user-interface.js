@@ -376,6 +376,20 @@ const configureCompetenceEvaluation = () => {
             }
         },
 
+        // Raw editable value for the feedback textareas. Unlike getFeedbackComment (which substitutes the localized
+        // "not provided" placeholder — correct for the read-only display), this returns the stored text or an empty
+        // string, so an empty note renders as an empty input rather than the literal placeholder, and clearing the
+        // field is not reverted by the reactive value binding. Only the employee (comment) and manager (managerComment)
+        // columns are editable single-value inputs; the team reviewer input starts empty and has no value binding.
+        getFeedbackDraft( role ) {
+            if ( role === "employee" ) {
+                return this.evaluation.comment || "";
+            } else if ( role === "manager" ) {
+                return this.evaluation.feedback?.managerComment || "";
+            }
+            return "";
+        },
+
         getLabel( label ) {
             return tiApplication.getLabel( label );
         },
@@ -507,7 +521,44 @@ const configureCompetenceEvaluation = () => {
             if ( status === "Open" ) return "info";
             if ( status === "In Review" ) return "warn";
             if ( status === "Ready" ) return "success";
+            if ( status === "Closed" ) return "muted";
             return "";
+        },
+
+        hasClosure() {
+            const c = this.evaluation && this.evaluation.closure;
+            if ( !c ) return false;
+            const hasFeedback = ( typeof c.feedback === "string" && c.feedback.trim() !== "" );
+            const hasGoals = ( Array.isArray( c.goals ) && c.goals.length > 0 );
+            const hasPip = ( c.pip && c.pip.required );
+            return hasFeedback || hasGoals || hasPip;
+        },
+
+        closureFeedback() {
+            const c = this.evaluation && this.evaluation.closure;
+            return ( c && typeof c.feedback === "string" ) ? c.feedback : "";
+        },
+
+        closureGoals() {
+            const c = this.evaluation && this.evaluation.closure;
+            return ( c && Array.isArray( c.goals ) ) ? c.goals : [];
+        },
+
+        closurePipVisible() {
+            const c = this.evaluation && this.evaluation.closure;
+            return !!( c && c.pip && c.pip.required );
+        },
+
+        closurePipPlan() {
+            const c = this.evaluation && this.evaluation.closure;
+            return ( c && c.pip && typeof c.pip.plan === "string" ) ? c.pip.plan : "";
+        },
+
+        closureClosedOn() {
+            const c = this.evaluation && this.evaluation.closure;
+            const closedAt = ( c && c.closedAt ) ? c.closedAt : null;
+            if ( !closedAt ) return "";
+            return this.getLabel( "interface.evaluation.results.closure.closed-on" ).replace( "{date}", this.formatDate( closedAt ) );
         },
 
         getEvalStatusSteps() {
@@ -1602,6 +1653,10 @@ const configureInterviewSchedule = () => {
         slotViewStart: null,
         config: {},
         canSchedule: false,
+        maxGoals: 5,
+        outcomeForID: null,
+        outcomeDraft: { feedback: "", goals: [], pip: { required: false, plan: "" } },
+        closeModal: { open: false, evaluationID: null, employeeName: "", busy: false },
 
         init() {
             const onInitialized = () => {
@@ -1627,6 +1682,8 @@ const configureInterviewSchedule = () => {
                 this.slots = Array.isArray( data.slots ) ? tiToolbox.structuredClone( data.slots ) : [];
                 this.config = data.config || {};
                 this.canSchedule = ( data.canSchedule === true );   // only a Supervisor books; managers see this read-only
+                this.maxGoals = ( typeof data.maxGoals === "number" ) ? data.maxGoals : 5;
+                this.outcomeForID = null;
                 this.selectedEvaluationID = null;
 
                 const todayMonday = tiToolbox.getMonday( new Date() );
@@ -1756,6 +1813,120 @@ const configureInterviewSchedule = () => {
             }
             const d = new Date( slot.date + "T00:00:00" );
             return `${ DAY_NAMES_SHORT[ d.getDay() ] || "" } ${ String( d.getDate() ).padStart( 2, "0" ) } ${ slot.startTime }`;
+        },
+
+        canRecordOutcome( evaluation ) {
+            return evaluation.canRecordOutcome === true;
+        },
+
+        toggleOutcome( evaluation ) {
+            if ( this.outcomeForID === evaluation.evaluationID ) {
+                this.outcomeForID = null;
+                return;
+            }
+            const closure = evaluation.closure || { feedback: "", goals: [], pip: { required: false, plan: "" } };
+            this.outcomeDraft = {
+                feedback: closure.feedback || "",
+                goals: Array.isArray( closure.goals ) ? closure.goals.map( ( g ) => ( { text: g.text || "", targetDate: g.targetDate || "" } ) ) : [],
+                pip: { required: !!( closure.pip && closure.pip.required ), plan: ( closure.pip && closure.pip.plan ) ? closure.pip.plan : "" }
+            };
+            this.outcomeForID = evaluation.evaluationID;
+        },
+
+        setOutcomeFeedback( value ) {
+            this.outcomeDraft.feedback = value;
+        },
+
+        addGoal() {
+            if ( this.outcomeDraft.goals.length >= this.maxGoals ) {
+                return;
+            }
+            this.outcomeDraft.goals.push( { text: "", targetDate: "" } );
+        },
+
+        removeGoal( index ) {
+            this.outcomeDraft.goals.splice( index, 1 );
+        },
+
+        setGoalText( index, value ) {
+            if ( this.outcomeDraft.goals[ index ] ) {
+                this.outcomeDraft.goals[ index ].text = value;
+            }
+        },
+
+        setGoalDate( index, value ) {
+            if ( this.outcomeDraft.goals[ index ] ) {
+                this.outcomeDraft.goals[ index ].targetDate = value;
+            }
+        },
+
+        togglePipRequired() {
+            this.outcomeDraft.pip.required = !this.outcomeDraft.pip.required;
+        },
+
+        setPipPlan( value ) {
+            this.outcomeDraft.pip.plan = value;
+        },
+
+        goalCapLabel() {
+            return this.getLabel( "interface.schedule.outcome.goal-cap" )
+                .replace( "{n}", String( this.outcomeDraft.goals.length ) )
+                .replace( "{max}", String( this.maxGoals ) );
+        },
+
+        canAddGoal() {
+            return this.outcomeDraft.goals.length < this.maxGoals;
+        },
+
+        saveOutcome( evaluationID ) {
+            const goals = this.outcomeDraft.goals
+                .map( ( g ) => ( { text: ( g.text || "" ).trim(), targetDate: ( g.targetDate || "" ).trim() || null } ) )
+                .filter( ( g ) => g.text !== "" );
+            tiApplication.sendRequest( "/app/save-interview-outcome", "POST", {
+                evaluationID: evaluationID,
+                feedback: this.outcomeDraft.feedback,
+                goals: goals,
+                pip: { required: this.outcomeDraft.pip.required, plan: this.outcomeDraft.pip.plan }
+            } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.schedule.outcome.saved-toast" ) );
+                this.loadSchedule();
+            } ).catch( ( error ) => {
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        openCloseModal( evaluation ) {
+            this.closeModal = { open: true, evaluationID: evaluation.evaluationID, employeeName: evaluation.employeeName || "", busy: false };
+        },
+
+        dismissCloseModal() {
+            this.closeModal = { open: false, evaluationID: null, employeeName: "", busy: false };
+        },
+
+        confirmClose() {
+            if ( !this.closeModal.evaluationID ) {
+                return;
+            }
+            this.closeModal.busy = true;
+            tiApplication.sendRequest( "/app/close-evaluation", "POST", { evaluationID: this.closeModal.evaluationID } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( "interface.schedule.outcome.closed-toast" ) );
+                this.dismissCloseModal();
+                this.loadSchedule();
+            } ).catch( ( error ) => {
+                this.dismissCloseModal();
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        rowStatusLabel( evaluation ) {
+            if ( !evaluation.interviewHeld ) {
+                return this.getLabel( "interface.schedule.outcome.status-awaiting" );
+            }
+            const closure = evaluation.closure || { feedback: "", goals: [] };
+            const recorded = ( closure.feedback && closure.feedback.trim() !== "" ) || ( Array.isArray( closure.goals ) && closure.goals.length > 0 );
+            return recorded
+                ? this.getLabel( "interface.schedule.outcome.status-ready-to-close" )
+                : this.getLabel( "interface.schedule.outcome.status-pending" );
         },
 
         pendingCount() {
@@ -2659,6 +2830,24 @@ const configureDashboard = () => {
                             evaluationID: serverTask.evaluationID
                         } );
                     }
+                } else if ( serverTask.type === "interview-close" ) {
+                    // Supervisor-only aggregate: N held interviews awaiting closure. Opens the schedule screen.
+                    tasks.push( {
+                        id: "interview-close",
+                        tone: "warn",
+                        title: tiApplication.getLabel( "interface.dashboard.task-interview-close", "Interviews awaiting closure" ) + " (" + serverTask.count + ")",
+                        sub: tiApplication.getLabel( "interface.dashboard.task-interview-close-sub", "Held interviews are ready to be closed." ),
+                        action: "schedule"
+                    } );
+                } else if ( serverTask.type === "evaluation-closed" ) {
+                    // The evaluatee: their evaluation was closed recently; opens the read-only Scores screen.
+                    tasks.push( {
+                        id: "evaluation-closed",
+                        tone: "success",
+                        title: tiApplication.getLabel( "interface.dashboard.task-evaluation-closed", "Your evaluation is closed" ),
+                        sub: tiApplication.getLabel( "interface.dashboard.task-evaluation-closed-sub", "View your results, feedback, and goals." ),
+                        action: "results"
+                    } );
                 }
             }
             return tasks;
@@ -2674,7 +2863,8 @@ const configureDashboard = () => {
             }
             if ( task.action ) {
                 tiApplication.openScreen( task.action === "evaluation" ? "competence-evaluation" :
-                    task.action === "schedule" ? "interview-schedule" : "employees-list" );
+                    task.action === "schedule" ? "interview-schedule" :
+                    task.action === "results" ? "my-results" : "employees-list" );
             }
         },
 
@@ -2795,7 +2985,7 @@ const configureCycleManagement = () => {
         openCloseModal( cycle ) {
             this.modal = {
                 kind: "close-confirm",
-                payload: { cycleID: cycle.cycleID, name: cycle.name },
+                payload: { cycleID: cycle.cycleID, name: cycle.name, counts: cycle.counts },
                 errorMessage: "",
                 errorField: "",
                 busy: false
@@ -2952,6 +3142,18 @@ const configureCycleManagement = () => {
                 this.closeModal();
                 tiApplication.notify( tiApplication.formatException( error ) );
             } );
+        },
+
+        closePendingWarning() {
+            const counts = ( this.modal && this.modal.payload && this.modal.payload.counts ) ? this.modal.payload.counts : null;
+            if ( !counts ) return "";
+            const notClosed = ( counts.open || 0 ) + ( counts.inReview || 0 ) + ( counts.ready || 0 );
+            if ( notClosed === 0 ) return "";
+            return tiApplication.getLabel( "interface.cycles.close-modal-pending" )
+                .replace( "{n}", String( notClosed ) )
+                .replace( "{open}", String( counts.open || 0 ) )
+                .replace( "{inReview}", String( counts.inReview || 0 ) )
+                .replace( "{ready}", String( counts.ready || 0 ) );
         },
 
         groupLockErrors( errors ) {

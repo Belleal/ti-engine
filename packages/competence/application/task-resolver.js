@@ -61,6 +61,20 @@ const configurationLoader = require( "#configuration-loader" );
  */
 
 /**
+ * @typedef {Object} InterviewCloseTask
+ * @property {"interview-close"} type
+ * @property {number} count - READY evaluations whose interview date has passed and that still await formal closure.
+ *           Emitted once, for Supervisors only (the sole role that can close), as a single aggregate.
+ */
+
+/**
+ * @typedef {Object} EvaluationClosedTask
+ * @property {"evaluation-closed"} type
+ * @property {string} evaluationID
+ * @property {string} closedAt - ISO-8601 timestamp of closure (the evaluee is notified for a short window afterwards).
+ */
+
+/**
  * Derives a user's actionable dashboard tasks from already-fetched evaluation/workflow state. Pure by design: it does
  * no persistence and no organization lookups of its own — the manager predicate and the name resolver are injected via
  * `ctx`, so the resolver is fully unit-testable with stubs. This is the seed of a future reusable `web-framework` tasks
@@ -96,7 +110,7 @@ class TaskResolver {
      * @param {string} userID
      * @param {TaskResolverContext} ctx
      * @param {Array<Evaluation>} evaluations - Already-fetched evaluations to derive tasks from.
-     * @returns {Array<TeamFeedbackTask|TeamFinalizeTask|InterviewScheduleTask|InterviewScheduledTask>}
+     * @returns {Array<TeamFeedbackTask|TeamFinalizeTask|InterviewScheduleTask|InterviewScheduledTask|InterviewCloseTask|EvaluationClosedTask>}
      * @public
      */
     resolveTasks( userID, ctx, evaluations ) {
@@ -115,6 +129,10 @@ class TaskResolver {
         // A Supervisor gets a single aggregate "awaiting scheduling" task rather than one-per-evaluation (they schedule
         // across the whole organization). Accumulate the count while iterating; emit once after the loop.
         let interviewsAwaitingScheduling = 0;
+        // A Supervisor also gets a single aggregate "awaiting closure" task for interviews already held (date passed).
+        let interviewsHeldAwaitingClosure = 0;
+        // The evaluatee is notified their evaluation closed for a short window after closure, then it drops off.
+        const CLOSED_NOTICE_WINDOW_DAYS = 14;
 
         for ( const evaluation of evaluations ) {
             if ( !evaluation ) {
@@ -169,25 +187,48 @@ class TaskResolver {
                         interviewsAwaitingScheduling++;
                     }
                 } else {
-                    // Scheduled: inform the evaluatee ("your interview is on …") and, separately, the manager actually
-                    // conducting the interview — the owner of the booked slot, which may not be the evaluatee's usual
-                    // manager (e.g. a stand-in when the direct manager is away). Both are informational.
-                    if ( evaluation.employeeID === userID ) {
-                        tasks.push( {
-                            type: "interview-scheduled",
-                            audience: "self",
-                            evaluationID: evaluation.evaluationID,
-                            interviewDate: interviewDate
-                        } );
+                    // Scheduled and still upcoming: inform the evaluatee and the conducting manager (slot owner). Once the
+                    // interview date has passed these notices are stale, so they stop and the Supervisor's close-pending
+                    // aggregate below takes over.
+                    if ( interviewDate >= today ) {
+                        if ( evaluation.employeeID === userID ) {
+                            tasks.push( {
+                                type: "interview-scheduled",
+                                audience: "self",
+                                evaluationID: evaluation.evaluationID,
+                                interviewDate: interviewDate
+                            } );
+                        }
+                        if ( evaluation.employeeID !== userID && isInterviewManager( evaluation.evaluationID ) ) {
+                            tasks.push( {
+                                type: "interview-scheduled",
+                                audience: "manager",
+                                evaluationID: evaluation.evaluationID,
+                                employeeID: evaluation.employeeID,
+                                employeeName: resolveName( evaluation.employeeID ),
+                                interviewDate: interviewDate
+                            } );
+                        }
                     }
-                    if ( evaluation.employeeID !== userID && isInterviewManager( evaluation.evaluationID ) ) {
+                    // Held (date reached/passed): a Supervisor is prompted to close it.
+                    if ( isSupervisor && today !== "" && interviewDate <= today ) {
+                        interviewsHeldAwaitingClosure++;
+                    }
+                }
+            }
+
+            // A freshly closed evaluation notifies its evaluatee that results/feedback/goals are available — for a short
+            // window only, after which the passive Scores screen carries it.
+            if ( evaluation.status === configurationLoader.evaluationStatus.CLOSED ) {
+                const closure = evaluation.closure || {};
+                const closedAtDate = ( typeof closure.closedAt === "string" ) ? closure.closedAt.slice( 0, 10 ) : "";
+                if ( evaluation.employeeID === userID && closedAtDate !== "" && today !== "" ) {
+                    const daysSince = Math.round( ( new Date( today + "T00:00:00Z" ) - new Date( closedAtDate + "T00:00:00Z" ) ) / 86400000 );
+                    if ( daysSince >= 0 && daysSince <= CLOSED_NOTICE_WINDOW_DAYS ) {
                         tasks.push( {
-                            type: "interview-scheduled",
-                            audience: "manager",
+                            type: "evaluation-closed",
                             evaluationID: evaluation.evaluationID,
-                            employeeID: evaluation.employeeID,
-                            employeeName: resolveName( evaluation.employeeID ),
-                            interviewDate: interviewDate
+                            closedAt: closure.closedAt
                         } );
                     }
                 }
@@ -198,6 +239,13 @@ class TaskResolver {
             tasks.push( {
                 type: "interview-schedule",
                 count: interviewsAwaitingScheduling
+            } );
+        }
+
+        if ( isSupervisor && interviewsHeldAwaitingClosure > 0 ) {
+            tasks.push( {
+                type: "interview-close",
+                count: interviewsHeldAwaitingClosure
             } );
         }
 

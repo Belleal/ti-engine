@@ -22,6 +22,7 @@ function evaluation( over = {} ) {
         employeeID: over.employeeID || "emp1",
         status: over.status || "Open",
         interviewDate: ( over.interviewDate !== undefined ) ? over.interviewDate : null,
+        closure: ( over.closure !== undefined ) ? over.closure : null,
         workflow: {
             team: over.team || [],
             teamEvaluationDeadline: ( over.deadline !== undefined ) ? over.deadline : "2026-07-15",
@@ -267,6 +268,70 @@ describe( "TaskResolver — guards & combinations", () => {
         const tasks = taskResolver.instance.resolveTasks( "u1", ctx( { today: "2026-07-10" } ), evaluations );
         assert.equal( tasks.length, 1 );
         assert.equal( tasks[ 0 ].evaluationID, "e1" );
+    } );
+
+} );
+
+describe( "TaskResolver — interview-close (supervisor aggregate)", () => {
+
+    it( "emits an interview-close aggregate for READY evals whose interview date has passed", () => {
+        const evaluations = [
+            evaluation( { evaluationID: "a", status: "Ready", interviewDate: "2026-07-05" } ),
+            evaluation( { evaluationID: "b", status: "Ready", interviewDate: "2026-07-08" } ),
+            evaluation( { evaluationID: "c", status: "Ready", interviewDate: "2026-07-20" } )   // still future — not counted
+        ];
+        const tasks = taskResolver.instance.resolveTasks( "sup1", ctx( { isSupervisor: true, today: "2026-07-10" } ), evaluations );
+        const close = tasks.find( ( t ) => t.type === "interview-close" );
+        assert.deepEqual( close, { type: "interview-close", count: 2 } );
+    } );
+
+    it( "does NOT emit interview-close for a non-supervisor", () => {
+        const evaluations = [ evaluation( { status: "Ready", interviewDate: "2026-07-05" } ) ];
+        const tasks = taskResolver.instance.resolveTasks( "mgr1", ctx( { isSupervisor: false, today: "2026-07-10" } ), evaluations );
+        assert.equal( tasks.some( ( t ) => t.type === "interview-close" ), false );
+    } );
+
+    it( "suppresses the interview-scheduled self notice once the interview date has passed", () => {
+        const evaluations = [ evaluation( { status: "Ready", employeeID: "emp1", interviewDate: "2026-07-05" } ) ];
+        const tasks = taskResolver.instance.resolveTasks( "emp1", ctx( { today: "2026-07-10" } ), evaluations );
+        assert.equal( tasks.some( ( t ) => t.type === "interview-scheduled" ), false );
+    } );
+
+    it( "still emits the interview-scheduled self notice while the interview is upcoming", () => {
+        const evaluations = [ evaluation( { status: "Ready", employeeID: "emp1", interviewDate: "2026-07-20" } ) ];
+        const tasks = taskResolver.instance.resolveTasks( "emp1", ctx( { today: "2026-07-10" } ), evaluations );
+        assert.ok( tasks.find( ( t ) => t.type === "interview-scheduled" && t.audience === "self" ) );
+    } );
+
+} );
+
+describe( "TaskResolver — evaluation-closed (evaluee notice)", () => {
+
+    it( "emits an evaluation-closed notice to the evaluee within the 14-day window", () => {
+        const evaluations = [ evaluation( { status: "Closed", employeeID: "emp1", closure: { closedAt: "2026-07-06T09:00:00.000Z" } } ) ];
+        const tasks = taskResolver.instance.resolveTasks( "emp1", ctx( { today: "2026-07-10" } ), evaluations );
+        assert.deepEqual( tasks.find( ( t ) => t.type === "evaluation-closed" ), { type: "evaluation-closed", evaluationID: "e1", closedAt: "2026-07-06T09:00:00.000Z" } );
+    } );
+
+    it( "does NOT emit the notice after the 14-day window", () => {
+        const evaluations = [ evaluation( { status: "Closed", employeeID: "emp1", closure: { closedAt: "2026-06-01T09:00:00.000Z" } } ) ];
+        const tasks = taskResolver.instance.resolveTasks( "emp1", ctx( { today: "2026-07-10" } ), evaluations );
+        assert.equal( tasks.some( ( t ) => t.type === "evaluation-closed" ), false );
+    } );
+
+    it( "does NOT emit the notice to anyone other than the evaluee", () => {
+        const evaluations = [ evaluation( { status: "Closed", employeeID: "emp1", closure: { closedAt: "2026-07-06T09:00:00.000Z" } } ) ];
+        const tasks = taskResolver.instance.resolveTasks( "sup1", ctx( { isSupervisor: true, today: "2026-07-10" } ), evaluations );
+        assert.equal( tasks.some( ( t ) => t.type === "evaluation-closed" ), false );
+    } );
+
+    it( "emits at exactly the 14-day boundary but not at 15 days", () => {
+        const at14 = taskResolver.instance.resolveTasks( "emp1", ctx( { today: "2026-07-20" } ),
+            [ evaluation( { status: "Closed", employeeID: "emp1", closure: { closedAt: "2026-07-06T09:00:00.000Z" } } ) ] );
+        assert.ok( at14.find( ( t ) => t.type === "evaluation-closed" ), "day 14 still emits" );
+        const at15 = taskResolver.instance.resolveTasks( "emp1", ctx( { today: "2026-07-21" } ),
+            [ evaluation( { status: "Closed", employeeID: "emp1", closure: { closedAt: "2026-07-06T09:00:00.000Z" } } ) ] );
+        assert.equal( at15.some( ( t ) => t.type === "evaluation-closed" ), false, "day 15 does not emit" );
     } );
 
 } );

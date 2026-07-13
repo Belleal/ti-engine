@@ -331,6 +331,10 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#bookInterviewSlot( session, params );
         } else if ( service === "cancel-interview-booking" ) {
             return this.#cancelInterviewBooking( session, params );
+        } else if ( service === "save-interview-outcome" ) {
+            return this.#saveInterviewOutcome( session, params );
+        } else if ( service === "close-evaluation" ) {
+            return this.#closeEvaluation( session, params );
         } else if ( service === "create-cycle" ) {
             return this.#createCycle( session, params );
         } else if ( service === "lock-cycle" ) {
@@ -960,6 +964,7 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 // NOTE: Make sure to delete the workflow system information:
                 delete currentEvaluation.workflow;
+                delete currentEvaluation.closure;
 
                 const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee );
                 resolve( {
@@ -1064,6 +1069,12 @@ class CompetenceWebApplication extends TiWebAppManager {
                 // The Scores screen renders only the results summary (no grading tables, no feedback section), so the
                 // written feedback is unused here — it stays available on the evaluation screen. Don't ship it.
                 delete current.feedback;
+
+                // Step-8 artifacts (interview feedback, goals, PIP) are the employee's to see only once the evaluation is
+                // formally CLOSED; during READY they are authored on the interviews hub, not shown here.
+                if ( current.status !== configurationLoader.evaluationStatus.CLOSED ) {
+                    delete current.closure;
+                }
 
                 const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee ) || {};
                 resolve( {
@@ -1399,13 +1410,14 @@ class CompetenceWebApplication extends TiWebAppManager {
 
             this.#resolveCurrentCycle().then( ( cycle ) => {
                 if ( !cycle ) {
-                    return resolve( { cycleID: null, evaluations: [], slots: [], config: calendarConfig, canSchedule: isSupervisor } );
+                    return resolve( { cycleID: null, evaluations: [], slots: [], config: calendarConfig, canSchedule: isSupervisor, maxGoals: configurationLoader.getSetting( "performanceAppraisals.numberOfNextPeriodGoals", 5 ) } );
                 }
                 return Promise.all( [
                     dataManager.instance.fetchEvaluations( null, false ),
                     dataManager.instance.fetchAllCalendarSlots( cycle.cycleID )
                 ] ).then( ( [ allEvaluations, allSlots ] ) => {
                     const readyStatus = configurationLoader.evaluationStatus.READY;
+                    const today = new Date().toISOString().split( "T" )[ 0 ];
 
                     // Scope the slots first (the evaluation filter below depends on them): a Supervisor sees the whole
                     // calendar (the only role that books interviews), while a plain manager sees only their own slots (a
@@ -1443,9 +1455,14 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                     const evaluations = readyEvaluations.map( ( evaluation ) => {
                         const bookedSlot = bookedSlotByEvaluationID.get( evaluation.evaluationID ) || null;
-                        // Resolve the reviewing manager live from the org graph (consistent with the dashboard scoping);
-                        // the persisted evaluation.managerID is optional and never refreshed, so it can be unset or stale.
                         const managerID = organizationManager.instance.resolveClosestManagerIDForEmployee( evaluation.employeeID ) || evaluation.managerID || "";
+                        const closure = ( evaluation.closure && typeof evaluation.closure === "object" )
+                            ? evaluation.closure
+                            : { feedback: "", goals: [], pip: { required: false, plan: "" }, closedAt: null, closedBy: null };
+                        const interviewHeld = !!evaluation.interviewDate && evaluation.interviewDate <= today;
+                        const outcomeRecorded = ( typeof closure.feedback === "string" && closure.feedback.trim() !== "" ) || ( Array.isArray( closure.goals ) && closure.goals.length > 0 );
+                        const isConductingManager = !!bookedSlot && bookedSlot.managerID === userID;
+                        const canRecordOutcome = isSupervisor || isConductingManager || organizationManager.instance.isSuperiorManagerOfEmployee( userID, evaluation.employeeID );
                         return {
                             evaluationID: evaluation.evaluationID,
                             shortID: evaluation.shortID,
@@ -1458,7 +1475,12 @@ class CompetenceWebApplication extends TiWebAppManager {
                             finalScore: evaluation.finalScore?.score ?? null,
                             finalScoreGrade: configurationLoader.performanceThreshold.name( evaluation.finalScore?.interpretation ) || "",
                             interviewDate: evaluation.interviewDate || null,
-                            bookedSlotID: bookedSlot ? bookedSlot.slotID : null
+                            bookedSlotID: bookedSlot ? bookedSlot.slotID : null,
+                            closure: { feedback: closure.feedback || "", goals: Array.isArray( closure.goals ) ? closure.goals : [], pip: ( closure.pip && typeof closure.pip === "object" ) ? closure.pip : { required: false, plan: "" } },
+                            interviewHeld: interviewHeld,
+                            outcomeRecorded: outcomeRecorded,
+                            canRecordOutcome: canRecordOutcome,
+                            canClose: isSupervisor && interviewHeld && outcomeRecorded
                         };
                     } );
 
@@ -1466,7 +1488,6 @@ class CompetenceWebApplication extends TiWebAppManager {
                     // 'available' with a past date by the time evaluations reach READY. Excluding past slots keeps a
                     // supervisor from booking an interview in the past and keeps the week-paginator bounded to real,
                     // reachable slots (no stranded past-dated slots behind a dead "Earlier" button).
-                    const today = new Date().toISOString().split( "T" )[ 0 ];
                     const slots = visibleSlots
                         .filter( ( slot ) => slot.status === configurationLoader.slotStatus.AVAILABLE && slot.date >= today )
                         .map( ( slot ) => ( {
@@ -1479,7 +1500,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                         evaluations: evaluations,
                         slots: slots,
                         config: calendarConfig,
-                        canSchedule: isSupervisor   // only a Supervisor can book/cancel; a manager gets a read-only view
+                        canSchedule: isSupervisor,
+                        maxGoals: configurationLoader.getSetting( "performanceAppraisals.numberOfNextPeriodGoals", 5 )
                     } );
                 } );
             } ).catch( ( error ) => {
@@ -1656,20 +1678,122 @@ class CompetenceWebApplication extends TiWebAppManager {
                 }
 
                 const evaluationID = targetSlot.booking?.evaluationID;
-                targetSlot.status = configurationLoader.slotStatus.AVAILABLE;
-                targetSlot.booking = null;
 
-                const saveSlotPromise = dataManager.instance.saveCalendarSlot( targetSlot );
-                const clearDatePromise = evaluationID
+                // Cannot cancel once the interview outcome has been recorded — clearing the interview date would strand
+                // the recorded feedback/goals and break formal closure (which requires a held interview). Fetch the
+                // evaluation first to guard, then reuse it to clear the date.
+                const resolveEvaluation = evaluationID
                     ? dataManager.instance.fetchEvaluation( evaluationID ).then( ( evaluation ) => {
-                        evaluation.interviewDate = null;
-                        return dataManager.instance.saveEvaluation( evaluation );
+                        const closure = ( evaluation.closure && typeof evaluation.closure === "object" ) ? evaluation.closure : {};
+                        const outcomeRecorded = ( typeof closure.feedback === "string" && closure.feedback.trim() !== "" ) || ( Array.isArray( closure.goals ) && closure.goals.length > 0 );
+                        if ( outcomeRecorded ) {
+                            throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.cancel-outcome-recorded" }, exceptions.httpCode.C_422 );
+                        }
+                        return evaluation;
                     } )
-                    : Promise.resolve();
+                    : Promise.resolve( null );
 
-                return Promise.all( [ saveSlotPromise, clearDatePromise ] );
+                return resolveEvaluation.then( ( evaluation ) => {
+                    targetSlot.status = configurationLoader.slotStatus.AVAILABLE;
+                    targetSlot.booking = null;
+
+                    const saveSlotPromise = dataManager.instance.saveCalendarSlot( targetSlot );
+                    const clearDatePromise = evaluation
+                        ? ( ( evaluationToClear ) => {
+                            evaluationToClear.interviewDate = null;
+                            return dataManager.instance.saveEvaluation( evaluationToClear );
+                        } )( evaluation )
+                        : Promise.resolve();
+
+                    return Promise.all( [ saveSlotPromise, clearDatePromise ] );
+                } );
             } ).then( () => {
                 resolve( { slotID: slotID } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Records the Step-8 interview outcome (feedback, goals, pip) on a READY evaluation. Authorized to the conducting
+     * manager, an org-line superior, or a Supervisor. Writes a compact evaluation-scoped audit summary.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.evaluationID
+     * @param {string} [params.feedback]
+     * @param {Array<{ text: string, targetDate?: string|null }>} [params.goals]
+     * @param {{ required?: boolean, plan?: string }} [params.pip]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #saveInterviewOutcome( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireRole( session, configurationLoader.roleCode.MANAGER, configurationLoader.roleCode.SUPERVISOR );
+            const evaluationID = String( params?.evaluationID || "" ).trim();
+            if ( !evaluationID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { params } ) );
+            }
+
+            let targetEvaluation;
+            dataManager.instance.fetchEvaluation( evaluationID ).then( ( evaluation ) => {
+                targetEvaluation = evaluation;
+                return this.#canAuthorInterviewOutcome( userID, userRoles, evaluation );
+            } ).then( ( authorized ) => {
+                if ( !authorized ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "error.evaluation.outcome-not-authorized" }, exceptions.httpCode.C_403 );
+                }
+                competenceFramework.instance.recordInterviewOutcome( targetEvaluation, {
+                    feedback: params?.feedback,
+                    goals: params?.goals,
+                    pip: params?.pip
+                } );
+                return dataManager.instance.saveEvaluation( targetEvaluation );
+            } ).then( ( saved ) => {
+                return dataManager.instance.appendAuditEntry( {
+                    subjectType: "evaluation",
+                    subjectID: evaluationID,
+                    changedBy: userID,
+                    field: "closure.outcome",
+                    oldValue: null,
+                    newValue: {
+                        goalsCount: ( saved.closure && Array.isArray( saved.closure.goals ) ) ? saved.closure.goals.length : 0,
+                        pipRequired: !!( saved.closure && saved.closure.pip && saved.closure.pip.required ),
+                        feedbackLength: ( saved.closure && typeof saved.closure.feedback === "string" ) ? saved.closure.feedback.length : 0
+                    }
+                } ).then( () => resolve( { evaluationID: evaluationID, closure: saved.closure } ) );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Formally closes a READY evaluation (Supervisor-only). Delegates the preconditions + transition + audit to the
+     * framework.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.evaluationID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #closeEvaluation( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+            const evaluationID = String( params?.evaluationID || "" ).trim();
+            if ( !evaluationID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { params } ) );
+            }
+            competenceFramework.instance.closeEvaluation( evaluationID, userID ).then( ( saved ) => {
+                resolve( {
+                    evaluationID: evaluationID,
+                    status: saved.status,
+                    closedAt: ( saved.closure && saved.closure.closedAt ) ? saved.closure.closedAt : null
+                } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
@@ -1924,7 +2048,14 @@ class CompetenceWebApplication extends TiWebAppManager {
                 evaluations.forEach( ( evaluation ) => {
                     const cycleID = evaluation?.cycleID;
                     if ( !cycleID ) return;
-                    const bucket = countsByCycle.get( cycleID ) || { inProgress: 0, completed: 0 };
+                    const bucket = countsByCycle.get( cycleID ) || { inProgress: 0, completed: 0, open: 0, inReview: 0, ready: 0 };
+                    if ( evaluation.status === configurationLoader.evaluationStatus.OPEN ) {
+                        bucket.open++;
+                    } else if ( evaluation.status === configurationLoader.evaluationStatus.IN_REVIEW ) {
+                        bucket.inReview++;
+                    } else if ( evaluation.status === configurationLoader.evaluationStatus.READY ) {
+                        bucket.ready++;
+                    }
                     if ( activeStatuses.includes( evaluation.status ) ) {
                         bucket.inProgress++;
                     } else if ( evaluation.status === configurationLoader.evaluationStatus.CLOSED ) {
@@ -1934,7 +2065,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 } );
 
                 const projected = cycles.map( ( cycle ) => {
-                    const counts = countsByCycle.get( cycle.cycleID ) || { inProgress: 0, completed: 0 };
+                    const counts = countsByCycle.get( cycle.cycleID ) || { inProgress: 0, completed: 0, open: 0, inReview: 0, ready: 0 };
                     return {
                         cycleID: cycle.cycleID,
                         name: cycle.name,
@@ -3592,6 +3723,35 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #canManagerPerformEvaluation( managerID, employeeID ) {
         return Promise.resolve( organizationManager.instance.isSuperiorManagerOfEmployee( managerID, employeeID ) );
+    }
+
+    /**
+     * Determines whether the user may author the Step-8 interview outcome for an evaluation: a Supervisor, an org-line
+     * superior manager, or the conducting manager (owner of the evaluation's booked interview slot — which may be a
+     * stand-in, not the reporting-line manager, mirroring the dashboard's conducting-manager rule).
+     *
+     * @method
+     * @param {string} userID
+     * @param {string[]} userRoles
+     * @param {Evaluation} evaluation
+     * @returns {Promise<boolean>}
+     * @private
+     */
+    #canAuthorInterviewOutcome( userID, userRoles, evaluation ) {
+        if ( userRoles.includes( configurationLoader.roleCode.SUPERVISOR ) ) {
+            return Promise.resolve( true );
+        }
+        if ( organizationManager.instance.isSuperiorManagerOfEmployee( userID, evaluation.employeeID ) ) {
+            return Promise.resolve( true );
+        }
+        return dataManager.instance.fetchAllCalendarSlots( evaluation.cycleID ).then( ( slots ) => {
+            return slots.some( ( slot ) =>
+                slot.status === configurationLoader.slotStatus.BOOKED &&
+                slot.booking &&
+                slot.booking.evaluationID === evaluation.evaluationID &&
+                slot.managerID === userID
+            );
+        } );
     }
 
     /**

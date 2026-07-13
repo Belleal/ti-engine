@@ -142,6 +142,46 @@
         }
       }
     },
+    "closure": {
+      "type": "object",
+      "description": "Step 8 interview meeting outcome and formal-closure metadata. Absent on evaluations created before the feature; initialized on first write.",
+      "additionalProperties": false,
+      "properties": {
+        "feedback": {
+          "type": "string",
+          "description": "Written interview feedback recorded at the meeting."
+        },
+        "goals": {
+          "type": "array",
+          "description": "Next-period goals set at the interview (capped by performanceAppraisals.numberOfNextPeriodGoals).",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [ "text" ],
+            "properties": {
+              "text": { "type": "string", "minLength": 1 },
+              "targetDate": { "type": [ "string", "null" ], "format": "date" }
+            }
+          }
+        },
+        "pip": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "required": { "type": "boolean" },
+            "plan": { "type": "string" }
+          }
+        },
+        "closedAt": {
+          "type": [ "string", "null" ],
+          "description": "ISO-8601 timestamp of formal closure; null until closed."
+        },
+        "closedBy": {
+          "type": [ "string", "null" ],
+          "description": "Employee ID of the Supervisor who closed the evaluation; null until closed."
+        }
+      }
+    },
     "workflow": {
       "type": "object",
       "description": "System workflow state for the evaluation",
