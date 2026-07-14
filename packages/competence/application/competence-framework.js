@@ -379,6 +379,65 @@ class CompetenceFramework {
     }
 
     /**
+     * Supervisor waive of a stalled self round: advances a past-deadline OPEN evaluation without a self-assessment.
+     * Leaves selfEvaluationCompleted false (so the self source is excluded from scoring), advancing to IN_REVIEW only
+     * when the team round is also done. Records the mandatory reason on the evaluation audit trail.
+     *
+     * <br/>NOTE: This method mutates and persists the evaluation.
+     *
+     * @method
+     * @param {string} evaluationID
+     * @param {string} actorID
+     * @param {string} reason
+     * @returns {Promise<Evaluation>}
+     * @public
+     */
+    finalizeSelfEvaluation( evaluationID, actorID, reason ) {
+        return dataManager.instance.fetchEvaluation( evaluationID ).then( ( evaluation ) => {
+            const today = new Date().toISOString().split( "T" )[ 0 ];
+            const workflow = evaluation.workflow || {};
+
+            if ( evaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.self-finalize-not-open" }, exceptions.httpCode.C_422 );
+            }
+            const deadline = workflow.selfEvaluationDeadline || "";
+            if ( !deadline || today <= deadline ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.self-finalize-deadline-not-reached" }, exceptions.httpCode.C_422 );
+            }
+            if ( workflow.selfEvaluationCompleted ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.self-finalize-already-complete" }, exceptions.httpCode.C_422 );
+            }
+            const trimmedReason = String( reason || "" ).trim();
+            if ( !trimmedReason ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.reason-required" }, exceptions.httpCode.C_422 );
+            }
+
+            // Advance only when the team round is done (mirrors the #submitEvaluation OPEN->IN_REVIEW predicate); the
+            // self round stays incomplete and is therefore excluded from scoring at manager submit.
+            const teamDone = workflow.teamEvaluationCompleted || ( !workflow.team || workflow.team.length === 0 );
+            let newValueLabel;
+            if ( teamDone ) {
+                evaluation.status = configurationLoader.evaluationStatus.IN_REVIEW;
+                newValueLabel = configurationLoader.evaluationStatus.IN_REVIEW;
+            } else {
+                newValueLabel = "Open (awaiting team)";
+            }
+
+            return dataManager.instance.saveEvaluation( evaluation ).then( ( saved ) => {
+                return dataManager.instance.appendAuditEntry( {
+                    subjectType: "evaluation",
+                    subjectID: evaluationID,
+                    changedBy: actorID,
+                    field: "workflow.selfEvaluation",
+                    oldValue: "pending",
+                    newValue: "waived → " + newValueLabel,
+                    reason: `Self-evaluation waived after the deadline: ${ trimmedReason }`
+                } ).then( () => saved );
+            } );
+        } );
+    }
+
+    /**
      * Records the Step-8 interview meeting outcome (written feedback, next-period goals, optional PIP) onto a READY
      * evaluation. Pure mutator — does NOT change status or set closedAt/closedBy (that is `closeEvaluation`). Authorization
      * is enforced by the caller.

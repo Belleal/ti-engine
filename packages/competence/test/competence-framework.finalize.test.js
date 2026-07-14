@@ -44,8 +44,8 @@ async function saveEvaluation( over = {} ) {
         workflow: {
             currentStep: 1,
             selfEvaluationCompleted: over.selfEvaluationCompleted === true,
-            selfEvaluationDeadline: "",
-            teamEvaluationCompleted: false,
+            selfEvaluationDeadline: ( over.selfDeadline !== undefined ) ? over.selfDeadline : "",
+            teamEvaluationCompleted: over.teamEvaluationCompleted === true,
             teamEvaluationDeadline: ( over.deadline !== undefined ) ? over.deadline : PAST,
             managerEvaluationCompleted: false,
             managerEvaluationDeadline: "",
@@ -143,4 +143,48 @@ describe( "CompetenceFramework — finalizeTeamFeedback", () => {
         assert.equal( employeeEntries.length, 0 );
     } );
 
+} );
+
+describe( "finalizeSelfEvaluation — supervisor waive of a stalled self round", () => {
+    it( "rejects when the evaluation is not OPEN", async () => {
+        await saveEvaluation( { status: "In Review" } );
+        await assert.rejects(
+            () => competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "left the company" ),
+            ( err ) => /self-finalize-not-open/.test( err?.data?.details || err?.message || "" )
+        );
+    } );
+
+    it( "rejects when the self deadline has not passed", async () => {
+        await saveEvaluation( { selfDeadline: FUTURE } );
+        await assert.rejects(
+            () => competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "left the company" ),
+            ( err ) => /self-finalize-deadline-not-reached/.test( err?.data?.details || err?.message || "" )
+        );
+    } );
+
+    it( "rejects when a reason is missing", async () => {
+        await saveEvaluation( { selfDeadline: PAST } );
+        await assert.rejects(
+            () => competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "   " ),
+            ( err ) => /reason-required/.test( err?.data?.details || err?.message || "" )
+        );
+    } );
+
+    it( "advances to IN_REVIEW when team is done, leaves self incomplete, and writes an audit entry with the reason", async () => {
+        await saveEvaluation( { selfDeadline: PAST, teamEvaluationCompleted: true, team: [] } );
+        const updated = await competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "on extended leave" );
+        assert.equal( updated.status, configurationLoader.evaluationStatus.IN_REVIEW );
+        assert.equal( updated.workflow.selfEvaluationCompleted, false );
+
+        const entries = await dataManager.instance.getAuditEntriesForEvaluation( "eval-1" );
+        assert.equal( entries.length, 1 );
+        assert.equal( entries[ 0 ].field, "workflow.selfEvaluation" );
+        assert.match( entries[ 0 ].reason, /on extended leave/ );
+    } );
+
+    it( "holds OPEN when the team round is still pending", async () => {
+        await saveEvaluation( { selfDeadline: PAST, teamEvaluationCompleted: false, team: [ "u2" ] } );
+        const updated = await competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "unreachable" );
+        assert.equal( updated.status, configurationLoader.evaluationStatus.OPEN );
+    } );
 } );
