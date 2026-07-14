@@ -26,7 +26,11 @@ function evaluation( over = {} ) {
         workflow: {
             team: over.team || [],
             teamEvaluationDeadline: ( over.deadline !== undefined ) ? over.deadline : "2026-07-15",
-            teamEvaluationsSubmitted: over.submitted || 0
+            teamEvaluationsSubmitted: over.submitted || 0,
+            selfEvaluationDeadline: ( over.selfDeadline !== undefined ) ? over.selfDeadline : "",
+            selfEvaluationCompleted: over.selfDone === true,
+            managerEvaluationDeadline: ( over.managerDeadline !== undefined ) ? over.managerDeadline : "",
+            managerEvaluationCompleted: over.managerDone === true
         }
     };
 }
@@ -334,4 +338,30 @@ describe( "TaskResolver — evaluation-closed (evaluee notice)", () => {
         assert.equal( at15.some( ( t ) => t.type === "evaluation-closed" ), false, "day 15 does not emit" );
     } );
 
+} );
+
+describe( "TaskResolver — overdue-self / overdue-manager (supervisor aggregates)", () => {
+    it( "counts OPEN evaluations past the self deadline with self incomplete", () => {
+        const evaluations = [
+            evaluation( { evaluationID: "e1", status: "Open", selfDeadline: "2026-07-01", selfDone: false } ),
+            evaluation( { evaluationID: "e2", status: "Open", selfDeadline: "2026-07-01", selfDone: true } ), // done — excluded
+            evaluation( { evaluationID: "e3", status: "Open", selfDeadline: "2026-08-01", selfDone: false } ) // future — excluded
+        ];
+        const tasks = taskResolver.instance.resolveTasks( "sup", ctx( { isSupervisor: true, today: "2026-07-10" } ), evaluations );
+        assert.deepEqual( tasks.find( ( t ) => t.type === "overdue-self" ), { type: "overdue-self", count: 1 } );
+    } );
+
+    it( "counts IN_REVIEW evaluations past the manager deadline with manager incomplete", () => {
+        const evaluations = [
+            evaluation( { evaluationID: "e1", status: "In Review", managerDeadline: "2026-07-01", managerDone: false } )
+        ];
+        const tasks = taskResolver.instance.resolveTasks( "sup", ctx( { isSupervisor: true, today: "2026-07-10" } ), evaluations );
+        assert.deepEqual( tasks.find( ( t ) => t.type === "overdue-manager" ), { type: "overdue-manager", count: 1 } );
+    } );
+
+    it( "emits neither aggregate for a non-supervisor", () => {
+        const evaluations = [ evaluation( { status: "Open", selfDeadline: "2026-07-01", selfDone: false } ) ];
+        const tasks = taskResolver.instance.resolveTasks( "u1", ctx( { isSupervisor: false, today: "2026-07-10" } ), evaluations );
+        assert.equal( tasks.some( ( t ) => t.type === "overdue-self" || t.type === "overdue-manager" ), false );
+    } );
 } );

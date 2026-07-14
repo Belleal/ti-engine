@@ -131,6 +131,10 @@ class TaskResolver {
         let interviewsAwaitingScheduling = 0;
         // A Supervisor also gets a single aggregate "awaiting closure" task for interviews already held (date passed).
         let interviewsHeldAwaitingClosure = 0;
+        // A Supervisor also gets single aggregates for OPEN/IN_REVIEW evaluations whose self/manager deadline has
+        // passed while the corresponding evaluation step is still incomplete.
+        let overdueSelf = 0;
+        let overdueManager = 0;
         // The evaluatee is notified their evaluation closed for a short window after closure, then it drops off.
         const CLOSED_NOTICE_WINDOW_DAYS = 14;
 
@@ -139,9 +143,21 @@ class TaskResolver {
                 continue;
             }
 
+            const workflow = evaluation.workflow || {};
+
+            if ( isSupervisor && evaluation.status === "Open"
+                && !workflow.selfEvaluationCompleted
+                && workflow.selfEvaluationDeadline && today !== "" && today > workflow.selfEvaluationDeadline ) {
+                overdueSelf++;
+            }
+            if ( isSupervisor && evaluation.status === "In Review"
+                && !workflow.managerEvaluationCompleted
+                && workflow.managerEvaluationDeadline && today !== "" && today > workflow.managerEvaluationDeadline ) {
+                overdueManager++;
+            }
+
             // team-feedback / team-finalize are derived from the still-open team-evaluation round.
             if ( evaluation.status === configurationLoader.evaluationStatus.OPEN ) {
-                const workflow = evaluation.workflow || {};
                 const team = Array.isArray( workflow.team ) ? workflow.team : [];
                 const deadline = workflow.teamEvaluationDeadline || "";
                 // A non-empty deadline strictly before today is "past". A missing/empty deadline is treated as NOT past
@@ -246,6 +262,19 @@ class TaskResolver {
             tasks.push( {
                 type: "interview-close",
                 count: interviewsHeldAwaitingClosure
+            } );
+        }
+
+        if ( isSupervisor && overdueSelf > 0 ) {
+            tasks.push( {
+                type: "overdue-self",
+                count: overdueSelf
+            } );
+        }
+        if ( isSupervisor && overdueManager > 0 ) {
+            tasks.push( {
+                type: "overdue-manager",
+                count: overdueManager
             } );
         }
 
