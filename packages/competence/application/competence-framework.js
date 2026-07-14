@@ -629,18 +629,32 @@ class CompetenceFramework {
             maxScoreByCategory[ category ] = ( maxScoreByCategory[ category ] || 0 ) + relevancy;
         } );
 
+        // Renormalize to the sources that actually participated (matches the client decomposition). A source
+        // participates iff its round completed: self/manager are set on submit, team when all peers submit or the
+        // round is finalized. A waived self (finalizeSelfEvaluation leaves selfEvaluationCompleted false) and a
+        // no-team evaluation are thereby excluded. Dividing by the participating-weight sum keeps an all-R
+        // evaluation ~100 regardless of which sources took part, instead of depressing it by the absent weight.
+        const workflow = evaluation.workflow || {};
+        const selfParticipates = workflow.selfEvaluationCompleted === true;
+        const teamParticipates = workflow.teamEvaluationCompleted === true;
+        const managerParticipates = workflow.managerEvaluationCompleted === true;
+        const participatingWeight =
+            ( selfParticipates ? evaluationWeights.SELF : 0 ) +
+            ( teamParticipates ? evaluationWeights.TEAM : 0 ) +
+            ( managerParticipates ? evaluationWeights.MANAGER : 0 );
+
         evaluation.scores = {};
         evaluation.finalScore = { score: 0 };
 
         Object.entries( maxScoreByCategory ).forEach( ( [ categoryCode, maxCategoryScore ] ) => {
-            if ( !maxCategoryScore ) {
+            if ( !maxCategoryScore || participatingWeight <= 0 ) {
                 return;
             }
-            const categoryScore = Math.ceil( (
-                ( ( selfScore[ categoryCode ] || 0 ) / maxCategoryScore ) * evaluationWeights.SELF +
-                ( ( teamScore[ categoryCode ] || 0 ) / maxCategoryScore ) * evaluationWeights.TEAM +
-                ( ( managerScore[ categoryCode ] || 0 ) / maxCategoryScore ) * evaluationWeights.MANAGER
-            ) * 100 );
+            const weighted =
+                ( selfParticipates ? ( ( selfScore[ categoryCode ] || 0 ) / maxCategoryScore ) * evaluationWeights.SELF : 0 ) +
+                ( teamParticipates ? ( ( teamScore[ categoryCode ] || 0 ) / maxCategoryScore ) * evaluationWeights.TEAM : 0 ) +
+                ( managerParticipates ? ( ( managerScore[ categoryCode ] || 0 ) / maxCategoryScore ) * evaluationWeights.MANAGER : 0 );
+            const categoryScore = Math.ceil( ( weighted / participatingWeight ) * 100 );
 
             let interpretation = null;
             Object.keys( performanceThresholds ).forEach( ( thresholdCode ) => {
