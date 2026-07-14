@@ -400,11 +400,11 @@ When an evaluation is returned — whether on load or after a save/submit — it
 | Field                     | Employee        | Manager         | Team Member | Notes                                                         |
 |---------------------------|-----------------|-----------------|-------------|---------------------------------------------------------------|
 | `grades[c].employee`      | Visible (own)   | Visible         | Hidden      | Self-grade submitted by the employee                          |
-| `grades[c].manager`       | Visible         | Visible (own)   | Hidden      | Manager-grade; revealed to the employee once the evaluation reaches `Ready` |
-| `grades[c].team`          | Hidden          | Cumulative only | See below   | Individual team submissions are never exposed                 |
+| `grades[c].manager`       | Visible at `Ready` | Visible (own) | Hidden   | Manager-grade; revealed to the employee once the evaluation reaches `Ready`  |
+| `grades[c].team`          | Cumulative at `Ready` | Cumulative only | See below | Individual team submissions are never exposed; the employee sees only the cumulative, at `Ready` |
 | `comment`                 | Visible (own)   | Visible         | Hidden      | Employee's written self-evaluation comment                    |
-| `feedback.managerComment` | Visible         | Visible (own)   | Hidden      | Manager's written feedback                                    |
-| `feedback.teamComments`   | Visible         | Visible         | Hidden      | Array of anonymous team comments                              |
+| `feedback.managerComment` | Visible at `Ready` | Visible (own) | Hidden   | Manager's written feedback; revealed to the employee only at `Ready`/`Closed` |
+| `feedback.teamComments`   | Hidden          | Visible         | Hidden      | Anonymous peer free-text — never shown to the employee; the manager sees them |
 | `scores` / `finalScore`   | Visible + label | Visible + label | Hidden      | Only populated after manager submission (status: Ready)       |
 | `closure` (feedback / goals / PIP) | Hidden until `Closed` | Hidden until `Closed` | Hidden | Step 8 interview outcome; revealed to every Scores-screen viewer (employee, org superior, Supervisor) only once the evaluation is `Closed` |
 | `workflow`                | Hidden          | Hidden          | Hidden      | Always stripped from all API responses                        |
@@ -479,7 +479,7 @@ Shown to `Supervisor` and `Manager` users — the interviews hub covering schedu
 
 - **Schedule** — visible when no interview date is set; selecting it reveals the slot picker for that evaluation
 - **Cancel Interview** — visible when an interview date is set; cancels the booking and clears the date
-- **Record outcome** — visible to the conducting manager (the booked slot's owner), an org-line superior, or the Supervisor; opens an inline panel to enter written feedback, up to `numberOfNextPeriodGoals` next-period goals (text + optional target date), and an optional Performance Improvement Plan, then save
+- **Record outcome** — visible to the conducting manager (the booked slot's owner), an org-line superior, or the Supervisor; opens an inline panel to enter written feedback, up to `numberOfNextPeriodGoals` next-period goals (text + optional target date), and an optional Performance Improvement Plan, then save. Recording is enabled only once the interview date has passed (the same interview-held precondition as closure)
 - **Close evaluation** — visible to the `Supervisor` only, enabled once the interview date has passed and an outcome has been recorded; opens a confirmation modal (employee, final score/threshold, goal count, PIP flag) before formally closing the evaluation (`Ready → Closed`, irreversible); the row then leaves the hub
 
 The slot picker shows all `available` slots from all managers, organized into a 4-column weekly grid. Each slot button shows the day and time on the first line and the manager's name below. Navigation shifts the visible window by 4 weeks at a time. Clicking a slot books it immediately and refreshes the screen.
