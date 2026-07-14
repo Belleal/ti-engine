@@ -5197,3 +5197,20 @@
     flex-direction: column;
     gap: var(--s-2);
 }
+
+/* =============================================================
+   Evaluations Oversight screen (frame-evaluations-oversight.html)
+   ============================================================= */
+/* Row columns: avatar + employee (name/role/level) + status + self/manager deadlines +
+   actions (right-aligned). Inherited by .ti-data-grid-head and .ti-data-grid-row via the
+   .ti-data-grid wrapper. */
+.competence-oversight-grid {
+    --ti-grid-cols: 40px minmax(180px, 2fr) 110px minmax(220px, 1.8fr) 260px;
+}
+
+.competence-oversight-actions {
+    display: inline-flex;
+    gap: var(--s-2);
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+}

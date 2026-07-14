@@ -5770,6 +5770,90 @@ const configureRoleFamilies = () => {
     };
 };
 
+/**
+ * Configures the Supervisor-only Evaluations Oversight screen: a table of the active cycle's
+ * active (Open/In Review/Ready) evaluations with per-row actions — advance past a stalled
+ * self-evaluation, complete the manager step (navigates to the evaluation form), or withdraw
+ * the evaluation entirely — behind a shared, reason-required confirmation modal. Backed by the
+ * load-evaluations-oversight loader (Task 8) and the advance-self-evaluation / withdraw-evaluation
+ * services (Task 5).
+ *
+ * @function
+ * @returns {Object}
+ */
+const configureEvaluationsOversight = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    return {
+        cycleID: "",
+        evaluations: [],
+        reasonModal: { open: false, action: null, evaluationID: null, employeeName: "", reason: "", busy: false },
+
+        init() {
+            const onInitialized = () => { this.loadOversight(); };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) { onInitialized(); }
+                } );
+            }
+        },
+
+        loadOversight() {
+            tiApplication.sendRequest( "/app/load-evaluations-oversight" ).then( ( result ) => {
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
+                this.cycleID = data.cycleID || "";
+                this.evaluations = Array.isArray( data.evaluations ) ? tiToolbox.structuredClone( data.evaluations ) : [];
+            } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) { return; }
+                tiApplication.notify( tiApplication.formatException( error ) );
+                if ( error.exception?.httpCode === 401 ) { tiApplication.openScreen( "dashboard" ); }
+            } );
+        },
+
+        openManagerReview( row ) {
+            const params = new URLSearchParams();
+            params.set( "employeeID", row.employeeID );
+            params.set( "evaluationID", row.evaluationID );
+            tiApplication.openScreen( "competence-evaluation?" + params.toString() );
+        },
+
+        openReasonModal( action, row ) {
+            this.reasonModal = { open: true, action: action, evaluationID: row.evaluationID, employeeName: row.employeeName || "", reason: "", busy: false };
+        },
+
+        dismissReasonModal() {
+            this.reasonModal = { open: false, action: null, evaluationID: null, employeeName: "", reason: "", busy: false };
+        },
+
+        confirmReason() {
+            const reason = this.reasonModal.reason.trim();
+            if ( !this.reasonModal.evaluationID || reason === "" ) { return; }
+            const url = this.reasonModal.action === "withdraw" ? "/app/withdraw-evaluation" : "/app/advance-self-evaluation";
+            const toast = this.reasonModal.action === "withdraw" ? "interface.oversight.withdrawn-toast" : "interface.oversight.advanced-toast";
+            this.reasonModal.busy = true;
+            tiApplication.sendRequest( url, "POST", { evaluationID: this.reasonModal.evaluationID, reason: reason } ).then( () => {
+                tiApplication.notify( tiApplication.getLabel( toast ) );
+                this.dismissReasonModal();
+                this.loadOversight();
+            } ).catch( ( error ) => {
+                this.dismissReasonModal();
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        formatDate( value, placeholder = "" ) {
+            return tiToolbox.formatDate( value, tiApplication.getLabel( placeholder, "" ) );
+        },
+
+        getLabel( label ) {
+            return tiApplication.getLabel( label );
+        }
+    };
+};
+
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceEvaluation", configureCompetenceEvaluation );
     Alpine.data( "competenceEmployeesList", configureEmployeesList );
@@ -5788,4 +5872,5 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "insightsCycle", configureInsightsCycle );
     Alpine.data( "insightsTeam", configureInsightsTeam );
     Alpine.data( "insightsTrends", configureTrendsScreen );
+    Alpine.data( "competenceEvaluationsOversight", configureEvaluationsOversight );
 } );

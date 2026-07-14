@@ -129,6 +129,11 @@ class CompetenceWebApplication extends TiWebAppManager {
             path: "fragments/frame-insights-trends.html",
             roles: [ SUPERVISOR ]
         } );
+        this.addFragment( "evaluations-oversight", {
+            title: "Evaluations Oversight",
+            path: "fragments/frame-evaluations-oversight.html",
+            roles: [ SUPERVISOR ]
+        } );
     }
 
     /* Public interface */
@@ -217,7 +222,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "role-families": "administration",
                     "insights-cycle": "insights-cycle",
                     "insights-team": "insights-team",
-                    "insights-trends": "insights-trends"
+                    "insights-trends": "insights-trends",
+                    "evaluations-oversight": "evaluations-oversight"
                 },
                 componentsConfig: {
                     userProfileMenu: {

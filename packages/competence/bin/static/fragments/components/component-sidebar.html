@@ -98,6 +98,15 @@
                 </span>
                 <span class="ti-sidebar-item-label" x-text-label="interface.topbar.cycles">Cycles</span>
             </button>
+
+            <button hx-get="/app/evaluations-oversight" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'evaluations-oversight'"
+                    x-show="$store.tiApplication.hasRole(3)"
+                    x-bind:class="{ active: active === 'evaluations-oversight' }" class="ti-sidebar-item" data-tip="Oversight" aria-label="Evaluations Oversight" type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon eye md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.oversight.nav">Oversight</span>
+            </button>
         </div>
     </div>
 
