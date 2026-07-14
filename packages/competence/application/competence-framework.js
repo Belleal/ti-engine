@@ -537,9 +537,9 @@ class CompetenceFramework {
             workflow: {
                 currentStep: 1,
                 selfEvaluationCompleted: false,
-                selfEvaluationDeadline: "",
+                selfEvaluationDeadline: cycle.teamFeedbackDeadline || cycle.cycleDate || "",
                 managerEvaluationCompleted: false,
-                managerEvaluationDeadline: "",
+                managerEvaluationDeadline: cycle.cycleDate || "",
                 teamEvaluationCompleted: false,
                 // Populated from the cycle's team-feedback deadline (clamped at create-cycle). Falls back to the
                 // manager-review deadline for any legacy cycle created before teamFeedbackDeadline existed.
