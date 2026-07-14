@@ -359,6 +359,10 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#grantSupervisor( session, params );
         } else if ( service === "revoke-supervisor" ) {
             return this.#revokeSupervisor( session, params );
+        } else if ( service === "advance-self-evaluation" ) {
+            return this.#advanceSelfEvaluation( session, params );
+        } else if ( service === "withdraw-evaluation" ) {
+            return this.#withdrawEvaluation( session, params );
         } else {
             return super.processServiceRequest( session, service, params );
         }
@@ -1244,6 +1248,64 @@ class CompetenceWebApplication extends TiWebAppManager {
                 } );
             } ).then( ( updatedEvaluation ) => {
                 resolve( { evaluationID: updatedEvaluation.evaluationID, status: updatedEvaluation.status } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Supervisor override to advance an evaluation's self round past its deadline (waiving or completing an
+     * unfinished self-evaluation) — the "advance self-evaluation" governance action. Precondition checks, the
+     * status transition, and the audit entry are performed by `CompetenceFramework.finalizeSelfEvaluation`.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.evaluationID
+     * @param {string} [params.reason]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #advanceSelfEvaluation( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+            const evaluationID = String( params?.evaluationID || "" ).trim();
+            const reason = String( params?.reason || "" ).trim();
+            if ( !evaluationID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID } ) );
+            }
+            competenceFramework.instance.finalizeSelfEvaluation( evaluationID, userID, reason ).then( ( updated ) => {
+                resolve( { evaluationID: updated.evaluationID, status: updated.status } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Supervisor cancel/withdraw of an active evaluation — the manual stall-recovery action. Irreversible; releases
+     * any booked interview slot, clears the interview date, sets status DELETED, and records the mandatory reason
+     * on the audit trail. Performed by `CompetenceFramework.withdrawEvaluation`.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.evaluationID
+     * @param {string} [params.reason]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #withdrawEvaluation( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+            const evaluationID = String( params?.evaluationID || "" ).trim();
+            const reason = String( params?.reason || "" ).trim();
+            if ( !evaluationID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID } ) );
+            }
+            competenceFramework.instance.withdrawEvaluation( evaluationID, userID, reason ).then( ( result ) => {
+                resolve( result );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
