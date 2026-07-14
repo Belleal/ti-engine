@@ -320,7 +320,7 @@ class CompetenceWebApplication extends TiWebAppManager {
         if ( service === "save-evaluation-draft" ) {
             return this.#saveEvaluationDraft( session, params.evaluation );
         } else if ( service === "submit-evaluation" ) {
-            return this.#submitEvaluation( session, params.evaluation );
+            return this.#submitEvaluation( session, params.evaluation, params.reason );
         } else if ( service === "start-evaluation" ) {
             return this.#startEvaluation( session, params.employeeID, params.team );
         } else if ( service === "finalize-team-feedback" ) {
@@ -613,19 +613,23 @@ class CompetenceWebApplication extends TiWebAppManager {
      *
      * @param {TiSession} session
      * @param {Evaluation} evaluation
+     * @param {string} [reason] Mandatory justification when a Supervisor who is not an org-line superior submits the
+     *     manager grades on the manager's behalf (proxy-completion); ignored for every other caller.
      * @returns {Promise<Evaluation>}
      * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
      * @exception {TiException.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
      * @private
      */
-    #submitEvaluation( session, evaluation ) {
+    #submitEvaluation( session, evaluation, reason ) {
         return new Promise( ( resolve, reject ) => {
-            const { userID } = this.#requireSessionUser( session );
+            const { userID, userRoles } = this.#requireSessionUser( session );
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
 
             let existingEvaluation = null;
             let isEmployee = false;
             let isManager = false;
             let isTeamMember = false;
+            let proxyAuditReason = null;
             dataManager.instance.fetchEvaluation( evaluation.evaluationID ).then( ( storedEvaluation ) => {
                 existingEvaluation = storedEvaluation;
                 isEmployee = existingEvaluation.employeeID === userID;
@@ -705,16 +709,20 @@ class CompetenceWebApplication extends TiWebAppManager {
                         existingEvaluation.workflow.teamEvaluationCompleted = true;
                         competenceFramework.instance.calculateTeamCumulativeGrades( existingEvaluation );
                     }
-                } else if ( isManager ) {
+                } else if ( isManager || isSupervisor ) {
+                    const isProxyBySupervisor = isSupervisor && !isManager;
+                    const managerProxyReason = String( reason || "" ).trim();
+                    if ( isProxyBySupervisor && !managerProxyReason ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.reason-required" }, exceptions.httpCode.C_422 );
+                    }
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.IN_REVIEW ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-in-review" }, exceptions.httpCode.C_422 );
                     }
                     if ( existingEvaluation.workflow.managerEvaluationCompleted ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.already-completed-manager-evaluation" }, exceptions.httpCode.C_422 );
                     }
-                    if ( existingEvaluation.workflow.managerEvaluationDeadline && today > existingEvaluation.workflow.managerEvaluationDeadline ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-manager-evaluation" }, exceptions.httpCode.C_422 );
-                    }
+                    // NOTE: the manager deadline is a nudge/target, not a hard block (CA-59) — a late manager submit is
+                    // never rejected; the overdue-manager task + supervisor proxy provide oversight instead.
 
                     if ( evaluation.feedback && evaluation.feedback.managerComment !== undefined ) {
                         existingEvaluation.feedback = existingEvaluation.feedback || {};
@@ -729,6 +737,9 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                     existingEvaluation.workflow.managerEvaluationCompleted = true;
                     existingEvaluation.status = configurationLoader.evaluationStatus.READY;
+                    if ( isProxyBySupervisor ) {
+                        proxyAuditReason = managerProxyReason;
+                    }
 
                     // At this point calculate the performance scores:
                     competenceFramework.instance.calculateFinalEvaluationScores( existingEvaluation );
@@ -746,7 +757,20 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 // TODO: Make sure to update the 'currentStep' of the workflow accordingly (graph implementation needed first).
 
-                return dataManager.instance.saveEvaluation( existingEvaluation );
+                return dataManager.instance.saveEvaluation( existingEvaluation ).then( ( saved ) => {
+                    if ( proxyAuditReason ) {
+                        return dataManager.instance.appendAuditEntry( {
+                            subjectType: "evaluation",
+                            subjectID: saved.evaluationID,
+                            changedBy: userID,
+                            field: "grades.managerProxy",
+                            oldValue: null,
+                            newValue: { by: "supervisor" },
+                            reason: `Manager grades entered by a Supervisor on the manager's behalf: ${ proxyAuditReason }`
+                        } ).then( () => saved );
+                    }
+                    return saved;
+                } );
             } ).then( ( savedEvaluation ) => {
                 let userRole;
                 if ( isTeamMember ) {
@@ -820,9 +844,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                     if ( existingEvaluation.workflow.managerEvaluationCompleted ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.already-completed-manager-evaluation" }, exceptions.httpCode.C_422 );
                     }
-                    if ( existingEvaluation.workflow?.managerEvaluationDeadline && today > existingEvaluation.workflow.managerEvaluationDeadline ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-manager-evaluation" }, exceptions.httpCode.C_422 );
-                    }
+                    // NOTE: the manager deadline is a nudge/target, not a hard block (CA-59) — a late manager draft is
+                    // never rejected; only the self round hard-blocks on its deadline.
 
                     if ( evaluation.feedback && evaluation.feedback.managerComment !== undefined ) {
                         existingEvaluation.feedback = existingEvaluation.feedback || {};
