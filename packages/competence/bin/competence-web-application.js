@@ -779,6 +779,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                     userRole = configurationLoader.roleCode.EMPLOYEE;
                 } else if ( isManager ) {
                     userRole = configurationLoader.roleCode.MANAGER;
+                } else if ( isSupervisor ) {
+                    userRole = configurationLoader.roleCode.MANAGER;
                 }
 
                 // NOTE: Remove information that should not be exposed to some roles:
@@ -808,7 +810,8 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #saveEvaluationDraft( session, evaluation ) {
         return new Promise( ( resolve, reject ) => {
-            const { userID } = this.#requireSessionUser( session );
+            const { userID, userRoles } = this.#requireSessionUser( session );
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
 
             let existingEvaluation = null;
             let isEmployee = false;
@@ -837,7 +840,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                         existingEvaluation.comment = evaluation.comment;
                     }
                     competenceFramework.instance.updateSelfEvaluationGrades( existingEvaluation, evaluation.grades );
-                } else if ( isManager ) {
+                } else if ( isManager || isSupervisor ) {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.IN_REVIEW ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-draft-status-in-review" }, exceptions.httpCode.C_422 );
                     }
@@ -845,7 +848,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.already-completed-manager-evaluation" }, exceptions.httpCode.C_422 );
                     }
                     // NOTE: the manager deadline is a nudge/target, not a hard block (CA-59) — a late manager draft is
-                    // never rejected; only the self round hard-blocks on its deadline.
+                    // never rejected; only the self round hard-blocks on its deadline. A Supervisor may also save a
+                    // draft here as a manager proxy (CA-59) — drafts need no reason; the reason is required at submit.
 
                     if ( evaluation.feedback && evaluation.feedback.managerComment !== undefined ) {
                         existingEvaluation.feedback = existingEvaluation.feedback || {};
@@ -863,6 +867,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                 if ( isEmployee ) {
                     userRole = configurationLoader.roleCode.EMPLOYEE;
                 } else if ( isManager ) {
+                    userRole = configurationLoader.roleCode.MANAGER;
+                } else if ( isSupervisor ) {
                     userRole = configurationLoader.roleCode.MANAGER;
                 }
 
@@ -936,6 +942,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 let canEdit;
                 let deadlineDate;
                 let isFacilitator = false;
+                let isManagerProxy = false;
                 const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
                 const today = new Date().toISOString().split( "T" )[ 0 ];
                 if ( isTeamMember ) {
@@ -953,17 +960,23 @@ class CompetenceWebApplication extends TiWebAppManager {
                 } else if ( isManager ) {
                     userRole = configurationLoader.roleCode.MANAGER;
                     deadlineDate = currentEvaluation.workflow.managerEvaluationDeadline;
+                    // The manager deadline is a nudge, not a block (CA-59) — a manager may still complete after it.
                     canEdit = !currentEvaluation.workflow.managerEvaluationCompleted
-                        && currentEvaluation.status === configurationLoader.evaluationStatus.IN_REVIEW
-                        && ( !deadlineDate || today <= deadlineDate );
+                        && currentEvaluation.status === configurationLoader.evaluationStatus.IN_REVIEW;
                 } else if ( isSupervisor ) {
-                    // Supervisor as a read-only process facilitator (see design 3.8): manager-level visibility for the
-                    // render (anonymize as MANAGER), but no assessment actions — canEdit is hard false, and the submit/
-                    // draft handlers independently reject any non-org-manager. The only action is finalize (canFinalizeTeam).
-                    isFacilitator = true;
+                    // A Supervisor is a read-only process facilitator (design 3.8) EXCEPT for the CA-59 manager proxy:
+                    // on a stalled IN_REVIEW evaluation whose manager grades are not yet in, a Supervisor may complete
+                    // them on the manager's behalf (the submit handler requires a reason for this out-of-line actor).
+                    // The manager deadline is a nudge, not a block, so there is no deadline gate here.
                     userRole = configurationLoader.roleCode.MANAGER;
-                    deadlineDate = currentEvaluation.workflow.teamEvaluationDeadline;
-                    canEdit = false;
+                    const canProxyManager = currentEvaluation.status === configurationLoader.evaluationStatus.IN_REVIEW
+                        && !currentEvaluation.workflow.managerEvaluationCompleted;
+                    canEdit = canProxyManager;
+                    isManagerProxy = canProxyManager;
+                    isFacilitator = !canProxyManager;
+                    deadlineDate = canProxyManager
+                        ? currentEvaluation.workflow.managerEvaluationDeadline
+                        : currentEvaluation.workflow.teamEvaluationDeadline;
                 } else {
                     throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
                 }
@@ -1027,6 +1040,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     teamReviewers: teamTotal > 0 ? { total: teamTotal, submitted: teamSubmitted } : null,
                     canEdit: canEdit, // Used only for UI visualization purposes - do NOT rely on this!
                     isFacilitator: isFacilitator, // Supervisor viewing read-only as process facilitator (cannot rate).
+                    isManagerProxy: isManagerProxy, // Supervisor completing manager grades on the manager's behalf (CA-59); frontend requires a reason on submit.
                     canFinalizeTeam: canFinalizeTeam, // Drives the "Proceed to manager review" action; server-authoritative.
                     isTeamEvaluationCollective: configurationLoader.getSetting( "performanceAppraisals.isTeamEvaluationCollective" ),
                     competencies: competenceFramework.instance.buildCompetenciesTreeFromSnapshot( currentEvaluation.snapshot, session?.language )
