@@ -266,6 +266,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#loadManagerCalendar( session );
         } else if ( view === "load-interview-schedule" ) {
             return this.#loadInterviewSchedule( session );
+        } else if ( view === "load-evaluations-oversight" ) {
+            return this.#loadEvaluationsOversight( session );
         } else if ( view === "load-cycle-list" ) {
             return this.#loadCycleList( session );
         } else if ( view === "load-cycle-setup" ) {
@@ -1602,6 +1604,79 @@ class CompetenceWebApplication extends TiWebAppManager {
                         canSchedule: isSupervisor,
                         maxGoals: configurationLoader.getSetting( "performanceAppraisals.numberOfNextPeriodGoals", 5 )
                     } );
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to load the active cycle's non-closed/non-deleted evaluations for the Supervisor deadline-governance
+     * oversight view, flagging self/manager deadline overdue state and the per-row actions available (advance past
+     * self-evaluation, complete the manager step, withdraw).
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadEvaluationsOversight( session ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+            const today = new Date().toISOString().split( "T" )[ 0 ];
+
+            this.#resolveCurrentCycle().then( ( cycle ) => {
+                if ( !cycle ) {
+                    return resolve( { cycleID: null, evaluations: [] } );
+                }
+                return Promise.all( [
+                    dataManager.instance.fetchEvaluations( null, false ),
+                    dataManager.instance.fetchAllCalendarSlots( cycle.cycleID )
+                ] ).then( ( [ allEvaluations, allSlots ] ) => {
+                    const bookedByEvaluationID = new Set();
+                    ( Array.isArray( allSlots ) ? allSlots : [] ).forEach( ( slot ) => {
+                        if ( slot.status === configurationLoader.slotStatus.BOOKED && slot.booking?.evaluationID ) {
+                            bookedByEvaluationID.add( slot.booking.evaluationID );
+                        }
+                    } );
+
+                    const active = [
+                        configurationLoader.evaluationStatus.OPEN,
+                        configurationLoader.evaluationStatus.IN_REVIEW,
+                        configurationLoader.evaluationStatus.READY
+                    ];
+
+                    const evaluations = allEvaluations
+                        .filter( ( evaluation ) => evaluation.cycleID === cycle.cycleID && active.includes( evaluation.status ) )
+                        .map( ( evaluation ) => {
+                            const workflow = evaluation.workflow || {};
+                            const selfDeadline = workflow.selfEvaluationDeadline || "";
+                            const managerDeadline = workflow.managerEvaluationDeadline || "";
+                            const selfOverdue = evaluation.status === configurationLoader.evaluationStatus.OPEN
+                                && !workflow.selfEvaluationCompleted && !!selfDeadline && today > selfDeadline;
+                            const managerOverdue = evaluation.status === configurationLoader.evaluationStatus.IN_REVIEW
+                                && !workflow.managerEvaluationCompleted && !!managerDeadline && today > managerDeadline;
+                            return {
+                                evaluationID: evaluation.evaluationID,
+                                shortID: evaluation.shortID,
+                                employeeID: evaluation.employeeID,
+                                employeeName: organizationManager.instance.resolveEmployeeName( evaluation.employeeID ) || evaluation.employeeID,
+                                roleFamilyName: this.#formatRoleFamilyLabel( evaluation.roleFamily, evaluation.specialization, session?.language ),
+                                stageLevel: evaluation.stageLevel || "",
+                                status: evaluation.status,
+                                selfDeadline: selfDeadline,
+                                managerDeadline: managerDeadline,
+                                selfOverdue: selfOverdue,
+                                managerOverdue: managerOverdue,
+                                hasBookedInterview: bookedByEvaluationID.has( evaluation.evaluationID ),
+                                canAdvanceSelf: selfOverdue,
+                                canCompleteManager: evaluation.status === configurationLoader.evaluationStatus.IN_REVIEW && !workflow.managerEvaluationCompleted,
+                                canWithdraw: true
+                            };
+                        } );
+
+                    resolve( { cycleID: cycle.cycleID, evaluations: evaluations } );
                 } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
