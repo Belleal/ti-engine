@@ -2848,6 +2848,22 @@ const configureDashboard = () => {
                         sub: tiApplication.getLabel( "interface.dashboard.task-evaluation-closed-sub", "View your results, feedback, and goals." ),
                         action: "results"
                     } );
+                } else if ( serverTask.type === "overdue-self" ) {
+                    tasks.push( {
+                        id: "overdue-self",
+                        tone: "warn",
+                        title: tiApplication.getLabel( "interface.dashboard.task-overdue-self", "Self-evaluations overdue" ) + " (" + serverTask.count + ")",
+                        sub: tiApplication.getLabel( "interface.dashboard.task-overdue-self-sub", "Past the self-evaluation deadline — review in Oversight." ),
+                        action: "oversight"
+                    } );
+                } else if ( serverTask.type === "overdue-manager" ) {
+                    tasks.push( {
+                        id: "overdue-manager",
+                        tone: "warn",
+                        title: tiApplication.getLabel( "interface.dashboard.task-overdue-manager", "Manager reviews overdue" ) + " (" + serverTask.count + ")",
+                        sub: tiApplication.getLabel( "interface.dashboard.task-overdue-manager-sub", "Past the manager-review deadline — review in Oversight." ),
+                        action: "oversight"
+                    } );
                 }
             }
             return tasks;
@@ -2864,7 +2880,8 @@ const configureDashboard = () => {
             if ( task.action ) {
                 tiApplication.openScreen( task.action === "evaluation" ? "competence-evaluation" :
                     task.action === "schedule" ? "interview-schedule" :
-                    task.action === "results" ? "my-results" : "employees-list" );
+                    task.action === "results" ? "my-results" :
+                    task.action === "oversight" ? "evaluations-oversight" : "employees-list" );
             }
         },
 
