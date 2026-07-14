@@ -438,6 +438,66 @@ class CompetenceFramework {
     }
 
     /**
+     * Supervisor cancel/withdraw of an active evaluation. Releases any booked interview slot, clears the interview
+     * date, sets status DELETED (read-side filters remove it, unblocking a fresh start-evaluation), and records the
+     * mandatory reason on the audit trail. Irreversible.
+     *
+     * @method
+     * @param {string} evaluationID
+     * @param {string} actorID
+     * @param {string} reason
+     * @returns {Promise<{ evaluationID: string, status: string }>}
+     * @public
+     */
+    withdrawEvaluation( evaluationID, actorID, reason ) {
+        return dataManager.instance.fetchEvaluation( evaluationID ).then( ( evaluation ) => {
+            const activeStatuses = [
+                configurationLoader.evaluationStatus.OPEN,
+                configurationLoader.evaluationStatus.IN_REVIEW,
+                configurationLoader.evaluationStatus.READY
+            ];
+            if ( !activeStatuses.includes( evaluation.status ) ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.withdraw-not-active" }, exceptions.httpCode.C_422 );
+            }
+            const trimmedReason = String( reason || "" ).trim();
+            if ( !trimmedReason ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.reason-required" }, exceptions.httpCode.C_422 );
+            }
+
+            const previousStatus = evaluation.status;
+
+            return dataManager.instance.fetchAllCalendarSlots( evaluation.cycleID ).then( ( slots ) => {
+                const bookedSlot = ( Array.isArray( slots ) ? slots : [] ).find(
+                    ( slot ) => slot.status === configurationLoader.slotStatus.BOOKED && slot.booking?.evaluationID === evaluationID
+                );
+                const releaseSlot = bookedSlot
+                    ? ( () => {
+                        bookedSlot.status = configurationLoader.slotStatus.AVAILABLE;
+                        bookedSlot.booking = null;
+                        return dataManager.instance.saveCalendarSlot( bookedSlot );
+                    } )()
+                    : Promise.resolve();
+
+                return releaseSlot.then( () => {
+                    evaluation.status = configurationLoader.evaluationStatus.DELETED;
+                    evaluation.interviewDate = null;
+                    return dataManager.instance.saveEvaluation( evaluation );
+                } );
+            } ).then( () => {
+                return dataManager.instance.appendAuditEntry( {
+                    subjectType: "evaluation",
+                    subjectID: evaluationID,
+                    changedBy: actorID,
+                    field: "status",
+                    oldValue: previousStatus,
+                    newValue: configurationLoader.evaluationStatus.DELETED,
+                    reason: `Evaluation withdrawn: ${ trimmedReason }`
+                } ).then( () => ( { evaluationID: evaluationID, status: configurationLoader.evaluationStatus.DELETED } ) );
+            } );
+        } );
+    }
+
+    /**
      * Records the Step-8 interview meeting outcome (written feedback, next-period goals, optional PIP) onto a READY
      * evaluation. Pure mutator — does NOT change status or set closedAt/closedBy (that is `closeEvaluation`). Authorization
      * is enforced by the caller.

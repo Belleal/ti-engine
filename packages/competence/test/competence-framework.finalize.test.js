@@ -10,6 +10,7 @@ const { describe, it, beforeEach } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 
 const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
+const cache = require( "@ti-engine/core/cache" );
 
 let competenceFramework;
 let dataManager;
@@ -186,5 +187,57 @@ describe( "finalizeSelfEvaluation — supervisor waive of a stalled self round",
         await saveEvaluation( { selfDeadline: PAST, teamEvaluationCompleted: false, team: [ "u2" ] } );
         const updated = await competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "unreachable" );
         assert.equal( updated.status, configurationLoader.evaluationStatus.OPEN );
+    } );
+} );
+
+describe( "withdrawEvaluation — supervisor cancel/withdraw to DELETED", () => {
+    it( "rejects a CLOSED evaluation", async () => {
+        await saveEvaluation( { status: "Closed" } );
+        await assert.rejects(
+            () => competenceFramework.instance.withdrawEvaluation( "eval-1", "sup-1", "duplicate" ),
+            ( err ) => /withdraw-not-active/.test( err?.data?.details || err?.message || "" )
+        );
+    } );
+
+    it( "rejects a missing reason", async () => {
+        await saveEvaluation( { status: "Open" } );
+        await assert.rejects(
+            () => competenceFramework.instance.withdrawEvaluation( "eval-1", "sup-1", "" ),
+            ( err ) => /reason-required/.test( err?.data?.details || err?.message || "" )
+        );
+    } );
+
+    it( "sets DELETED, clears the interview date, and writes an audit entry", async () => {
+        await saveEvaluation( { status: "Ready" } );
+        const result = await competenceFramework.instance.withdrawEvaluation( "eval-1", "sup-1", "created by mistake" );
+        assert.equal( result.status, configurationLoader.evaluationStatus.DELETED );
+
+        // dataManager.fetchEvaluation() intentionally 404s on DELETED evaluations (soft-delete read-side filter —
+        // see the withdrawEvaluation docstring), so persistence is verified via the raw cache entry instead.
+        const [ fetched ] = await cache.instance.getJSON( "ti:competence:data:evaluations", [ "emp-1", "eval-1" ] );
+        assert.equal( fetched.status, configurationLoader.evaluationStatus.DELETED );
+        assert.equal( fetched.interviewDate, null );
+
+        const entries = await dataManager.instance.getAuditEntriesForEvaluation( "eval-1" );
+        assert.equal( entries[ entries.length - 1 ].field, "status" );
+        assert.match( entries[ entries.length - 1 ].reason, /created by mistake/ );
+    } );
+
+    it( "releases a booked interview slot for the withdrawn evaluation", async () => {
+        await saveEvaluation( { status: "Ready" } );
+        const slot = {
+            slotID: "2026-H2|mgr-1|2026-11-20|09:00", cycleID: "2026-H2", managerID: "mgr-1",
+            date: "2026-11-20", startTime: "09:00",
+            status: configurationLoader.slotStatus.BOOKED,
+            booking: { evaluationID: "eval-1", employeeID: "emp-1", employeeName: "E", bookedAt: "2026-11-01" }
+        };
+        await dataManager.instance.saveCalendarSlot( slot );
+
+        await competenceFramework.instance.withdrawEvaluation( "eval-1", "sup-1", "wrong employee" );
+
+        const slots = await dataManager.instance.fetchAllCalendarSlots( "2026-H2" );
+        const released = slots.find( ( s ) => s.slotID === slot.slotID );
+        assert.equal( released.status, configurationLoader.slotStatus.AVAILABLE );
+        assert.equal( released.booking, null );
     } );
 } );
