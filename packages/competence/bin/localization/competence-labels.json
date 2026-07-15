@@ -7159,6 +7159,10 @@
         "en": "Self-evaluation waived; the evaluation advanced.",
         "bg": "Самооценката е отменена; оценката е придвижена."
       },
+      "advanced-held-toast": {
+        "en": "Self-evaluation waived; awaiting team feedback before the evaluation advances.",
+        "bg": "Самооценката е отменена; оценката ще се придвижи след получаване на екипната обратна връзка."
+      },
       "withdrawn-toast": {
         "en": "Evaluation withdrawn.",
         "bg": "Оценката е оттеглена."
@@ -7191,8 +7195,8 @@
           "bg": "Оттегляне на оценка"
         },
         "withdraw-body": {
-          "en": "This permanently withdraws the evaluation and releases any booked interview. It cannot be undone. A reason is required.",
-          "bg": "Това оттегля оценката за постоянно и освобождава резервирано интервю. Действието е необратимо. Изисква се причина."
+          "en": "This permanently withdraws the evaluation, releases any booked interview, and discards any recorded interview outcome (feedback, goals, PIP). It cannot be undone. A reason is required.",
+          "bg": "Това оттегля оценката за постоянно, освобождава резервирано интервю и заличава записан резултат от интервюто (обратна връзка, цели, план за подобрение). Действието е необратимо. Изисква се причина."
         },
         "label": {
           "en": "Reason",

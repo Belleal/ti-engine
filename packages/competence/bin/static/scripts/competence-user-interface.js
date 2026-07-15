@@ -5851,10 +5851,17 @@ const configureEvaluationsOversight = () => {
         confirmReason() {
             const reason = this.reasonModal.reason.trim();
             if ( !this.reasonModal.evaluationID || reason === "" ) { return; }
-            const url = this.reasonModal.action === "withdraw" ? "/app/withdraw-evaluation" : "/app/advance-self-evaluation";
-            const toast = this.reasonModal.action === "withdraw" ? "interface.oversight.withdrawn-toast" : "interface.oversight.advanced-toast";
+            const action = this.reasonModal.action;
+            const url = action === "withdraw" ? "/app/withdraw-evaluation" : "/app/advance-self-evaluation";
             this.reasonModal.busy = true;
-            tiApplication.sendRequest( url, "POST", { evaluationID: this.reasonModal.evaluationID, reason: reason } ).then( () => {
+            tiApplication.sendRequest( url, "POST", { evaluationID: this.reasonModal.evaluationID, reason: reason } ).then( ( result ) => {
+                const data = ( result && result.data ) || {};
+                // `finalizeSelfEvaluation` holds the evaluation at `Open` when the team round is still pending —
+                // only report "advanced" when the returned status actually reached `In Review`.
+                let toast = "interface.oversight.withdrawn-toast";
+                if ( action !== "withdraw" ) {
+                    toast = ( data.status === "In Review" ) ? "interface.oversight.advanced-toast" : "interface.oversight.advanced-held-toast";
+                }
                 tiApplication.notify( tiApplication.getLabel( toast ) );
                 this.dismissReasonModal();
                 this.loadOversight();

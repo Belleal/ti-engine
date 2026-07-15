@@ -12,11 +12,9 @@ const assert = require( "node:assert/strict" );
 const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
 
 let competenceFramework;
-let configurationLoader;
 
 beforeEach( async () => {
     installInMemoryCache();
-    configurationLoader = require( "#configuration-loader" );
     competenceFramework = require( "#competence-framework" );
     process.env.COMPETENCE_PRELOAD_DATA = "true";
     const dataManager = require( "#data-manager" );
