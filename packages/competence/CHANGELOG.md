@@ -2,6 +2,21 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.12.0
+
+Deadline governance & manual stall recovery: the appraisal process could stall forever if an employee never submitted a self-evaluation or a manager never submitted their review, and a mistaken or permanently-stalled evaluation had no way to be removed. This closes all three gaps with manual, reason-justified, audited recovery actions — no scheduler, no notification channel, no automatic skipping of any human judgement. See `design/deadline-governance.md` (CA-59).
+
+* feat(competence): populate `workflow.selfEvaluationDeadline` / `managerEvaluationDeadline` at evaluation creation from the cycle's dates (mirroring the existing `teamEvaluationDeadline`), activating the previously dead late-submit guards for the self round and the deadline data the new manager-round nudge and oversight screen rely on; legacy evaluations created before this change fall back to the same cycle dates at read time
+* feat(competence): renormalize `calculateFinalEvaluationScores` to the grade sources (self/team/manager) that actually participated in an evaluation, instead of applying their fixed weights unconditionally — fixes a latent defect where a no-team evaluation, and now also a waived-self evaluation, had its score silently depressed by the absent source's weight; matches the client's existing score-bar decomposition; forward-only (stored scores and closed-cycle results snapshots are not recomputed)
+* feat(competence): add `finalizeSelfEvaluation` — a Supervisor-only, reason-required, audited escape that waives a stalled `Open` evaluation's self round once its deadline has passed, advancing it to `In Review` (or holding it open awaiting the team round); the waived self round is excluded from scoring by the renormalization above, never automatically
+* feat(competence): add `withdrawEvaluation` — a Supervisor-only, reason-required, audited cancel/withdraw for any `Open`/`In Review`/`Ready` evaluation, setting it to `Deleted` (irreversible), releasing any booked interview slot, and immediately freeing the employee for a new evaluation
+* feat(competence): the manager evaluation deadline is a nudge, not a block — a late manager submit or draft save is never rejected (the manager grade is the decisive 50% input; blocking it would only create a new stall). A **Supervisor** (in addition to the existing org-line superior manager) may now complete the manager grades on an `In Review` evaluation on the manager's behalf; an out-of-line Supervisor proxy requires a reason, audited as `grades.managerProxy`, captured via a reason section added to the evaluation form's submit-confirmation modal, shown only when proxying
+* feat(competence): `task-resolver.js` derives two new Supervisor-facing aggregate dashboard tasks — `overdue-self` and `overdue-manager` — counting `Open`/`In Review` evaluations whose self/manager deadline has passed while that round is still incomplete; both deep-link to the new Evaluations Oversight screen
+* feat(competence): add the Supervisor-only **Evaluations Oversight** screen (`load-evaluations-oversight` loader + `frame-evaluations-oversight.html`) — a table of the active cycle's in-progress evaluations with overdue-deadline badges and per-row "advance without self" / "complete manager review" / "withdraw" actions, each reason-justified action behind a shared confirmation modal
+* feat(competence): add the `interface.oversight.*` / `interface.dashboard.task-overdue-self(-manager)` / `error.evaluation.{self-finalize-*,withdraw-not-active,reason-required}` label keys, en + bg (bg pending native review)
+* docs(competence): document the shipped deadline governance and manual stall recovery behavior in the README (status-lifecycle note, Steps 3/6, Current Status, the Evaluations Oversight screen, and the Scoring Algorithm renormalization), and flag the cohort-analytics `#sourceWeight` reconciliation as a tracked follow-up
+* build(release): bump package version from `3.11.1` to `3.12.0`
+
 ## Version 3.11.1
 
 **Written Feedback** fixes on the evaluation grading screen (self / team / manager, in both draft and submit): two client-side capture defects plus a data-exposure fix. The server, data layer, and read-back round-trip were verified to persist all three notes correctly — the capture bugs were client-side.
@@ -13,6 +28,7 @@ This document contains the list of changes made to the competence package. The f
 * build(release): bump package version from `3.11.0` to `3.11.1`
 
 ## Version 3.11.0
+
 * feat(competence): Step 8 — interview meeting outcome & formal evaluation closure (Ready → Closed). Records written feedback, up to `numberOfNextPeriodGoals` next-period goals, and an optional Performance Improvement Plan on the interviews hub; the Supervisor formally closes once the interview has been held and an outcome recorded. Closure artifacts become visible to the employee on the Scores screen; grades/scores stay revealed at Ready. New dashboard tasks: Supervisor "interviews awaiting closure" and the evaluee "evaluation closed" notice; the cycle-close modal warns about not-yet-closed evaluations. See `design/interview-closure.md` (CA-78).
 
 ## Version 3.10.0

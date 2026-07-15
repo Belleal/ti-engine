@@ -75,6 +75,25 @@ const configurationLoader = require( "#configuration-loader" );
  */
 
 /**
+ * @typedef {Object} OverdueSelfTask
+ * @property {"overdue-self"} type
+ * @property {number} count - `Open` evaluations org-wide whose self-evaluation deadline (`workflow.selfEvaluationDeadline`)
+ *           has passed while `selfEvaluationCompleted` is still false. Emitted once, for Supervisors only, as a single
+ *           aggregate (the CA-59 deadline-governance stall-recovery cue), deep-linking to the Evaluations Oversight
+ *           screen where the Supervisor may waive the round via `finalizeSelfEvaluation`.
+ */
+
+/**
+ * @typedef {Object} OverdueManagerTask
+ * @property {"overdue-manager"} type
+ * @property {number} count - `In Review` evaluations org-wide whose manager-evaluation deadline
+ *           (`workflow.managerEvaluationDeadline`) has passed while `managerEvaluationCompleted` is still false.
+ *           Emitted once, for Supervisors only, as a single aggregate; the manager deadline is a nudge, not a block, so
+ *           this task is purely informational and deep-links to the Evaluations Oversight screen where a Supervisor may
+ *           complete the manager grades on the manager's behalf.
+ */
+
+/**
  * Derives a user's actionable dashboard tasks from already-fetched evaluation/workflow state. Pure by design: it does
  * no persistence and no organization lookups of its own — the manager predicate and the name resolver are injected via
  * `ctx`, so the resolver is fully unit-testable with stubs. This is the seed of a future reusable `web-framework` tasks
@@ -104,13 +123,15 @@ class TaskResolver {
      * Resolves the in-scope task descriptors for the given user: `team-feedback` / `team-finalize` (from OPEN
      * evaluations), plus the interview tasks (from READY evaluations) — `interview-schedule` (a Supervisor-only
      * aggregate of interviews awaiting a slot) and `interview-scheduled` (informing the evaluatee and their manager
-     * once a slot is booked).
+     * once a slot is booked) — plus the CA-59 deadline-governance Supervisor aggregates `overdue-self` /
+     * `overdue-manager` (OPEN/IN_REVIEW evaluations whose self/manager deadline has passed while that round is still
+     * incomplete).
      *
      * @method
      * @param {string} userID
      * @param {TaskResolverContext} ctx
      * @param {Array<Evaluation>} evaluations - Already-fetched evaluations to derive tasks from.
-     * @returns {Array<TeamFeedbackTask|TeamFinalizeTask|InterviewScheduleTask|InterviewScheduledTask|InterviewCloseTask|EvaluationClosedTask>}
+     * @returns {Array<TeamFeedbackTask|TeamFinalizeTask|InterviewScheduleTask|InterviewScheduledTask|InterviewCloseTask|EvaluationClosedTask|OverdueSelfTask|OverdueManagerTask>}
      * @public
      */
     resolveTasks( userID, ctx, evaluations ) {

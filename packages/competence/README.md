@@ -16,7 +16,8 @@ The following features are currently implemented:
 - **[Process]** Saving evaluation drafts (Employee for self-grades; Manager for manager-grades and comment)
 - **[Process]** Submitting evaluations with role-based validation, deadline enforcement, and automatic status transitions
 - **[Process]** Collective team evaluation mode — team members grade by competency subcategory, applied uniformly to all competencies within that subcategory
-- **[Process]** Automatic performance score calculation upon manager submission, across all competency categories and as a combined final score
+- **[Process]** Automatic performance score calculation upon manager submission, across all competency categories and as a combined final score, renormalized to whichever grade sources (self/team/manager) actually participated — so a skipped round no longer depresses the result
+- **[Process]** Deadline governance & manual stall recovery — self/manager evaluation deadlines are populated at creation from the cycle's dates; the self round is deadline-enforced with a Supervisor waive (`finalizeSelfEvaluation`), the manager round's deadline is a nudge (never a hard block) that enables a Supervisor to complete it on the manager's behalf, and a Supervisor may withdraw a stalled evaluation at any active status (`Deleted`, releasing any booked interview slot) — every recovery action requires a reason and is audited; see [Evaluation Status Lifecycle](#evaluation-status-lifecycle)
 - **[Process]** Manager availability calendar — Managers define interview availability by toggling time slots as `available` or `busy` on a configurable weekly grid
 - **[Process]** Interview scheduling — Supervisors book available slots for `READY` evaluations; booking sets `evaluation.interviewDate` and links the slot to the evaluation; cancellation reverses both
 - **[Process]** Interview meeting outcome & formal closure — the conducting manager (the booked slot's owner), an org-line superior, or the Supervisor records written interview feedback, up to `numberOfNextPeriodGoals` next-period goals, and an optional Performance Improvement Plan on a `READY` evaluation; the Supervisor then formally closes it (`READY` → `CLOSED`, irreversible) once the interview date has passed and an outcome has been recorded. Grades stay immutable; the closure artifacts become visible to the employee on the Scores screen
@@ -26,7 +27,7 @@ The following features are currently implemented:
 - **[Data]** Calendar slot persistence in Redis with `available`, `booked`, `busy`, and `deleted` (logical) states
 - **[Data]** Immutable per-cycle results snapshots in Redis — anonymized aggregates (counts / means / percentiles, with small cohorts suppressed) written on cycle close, powering closed-cycle and cross-cycle reporting at near-zero compute
 - **[Data]** Supervisor role grants persisted in Redis (audited), with a synchronous in-memory mirror consulted during login-time role derivation
-- **[UI]** Dashboard screen — personalized landing page with appraisal cycle progress, evaluation status, role-specific metrics, a contextual task list (including a Supervisor's aggregate "interviews awaiting closure" task and an evaluee's time-boxed "evaluation closed" notice), and an activity feed
+- **[UI]** Dashboard screen — personalized landing page with appraisal cycle progress, evaluation status, role-specific metrics, a contextual task list (including a Supervisor's aggregate "interviews awaiting closure", "self-evaluations overdue", and "manager reviews overdue" tasks, and an evaluee's time-boxed "evaluation closed" notice), and an activity feed
 - **[UI]** Employees List screen — hierarchical organization chart view with role-aware data and evaluation status
 - **[UI]** Evaluation Form screen — role-specific grading interface with deadline and submit-state awareness
 - **[UI]** New Evaluation screen — form for starting a new evaluation with optional team member selection
@@ -35,6 +36,7 @@ The following features are currently implemented:
 - **[UI]** Cycle Management screen — Supervisor-only table of cycles with create, lock (with validation-errors modal), and close actions
 - **[UI]** Cycle Setup screen — Supervisor-only two-pane editor for the Active Competency Sets of a cycle; tree of families and specializations, cap and floor-coverage indicators, pool-scoped competency picker, per-family include/exclude, clone-from-another-node flow
 - **[UI]** Employee Management screen — Supervisor + Manager master/detail editor with field-level permission gating, audit log, in-flight evaluation count surfaced on role-family changes, and Supervisor-role assignment (structural Supervisors assign/revoke the role for others, with a warning; structural Supervisors are immutable)
+- **[UI]** Evaluations Oversight screen — Supervisor-only stall-recovery cockpit for the active cycle's in-progress evaluations, with per-row "advance without self", "complete manager review", and "withdraw" actions and overdue-deadline badges
 - **[UI]** Administration screens (admin-allowlisted users) — Configuration landing (config change feed, validated restore, export-to-git bundle), Competency Text Editor (bilingual, for BG review), Archetype Assignment, Archetype Curve Editor, and Role Families editor
 - **[UI]** Insights — Statistics & Results analytics (Manager / Supervisor): Cycle and Team analytics (coverage, interview timing, self-vs-manager alignment, competence heatmap, score-by-level distribution, predictive drivers, grader calibration), individual **Scores** on a dedicated read-only screen ("My Scores" for the evaluee; "{name}'s Scores" / "Performance Scores" for an authorized manager/supervisor), reached from the grading screen's *results-are-ready* bar, and Supervisor-only cross-cycle Trends (score trend, gap-closure, ladder movement, cohort comparison) with a per-employee history line — each chart carrying a methodology explainer, all bilingual (en/bg)
 - **[Config]** Admin configuration management — versioned, validated, restorable editing of the competency dictionary, localization, relevancy archetypes, role families, and active competency sets through the UI, with export back to the source JSON files (reusable machinery lives in `@ti-engine/web-framework`)
@@ -168,7 +170,12 @@ NOT_STARTED ──► OPEN ──► IN_REVIEW ──► READY ──► CLOSED
                   └──► DELETED  (available from any active status)
 ```
 
-Status transitions are triggered by specific actions (submissions), not by deadlines. Automatic deadline-based transitions are planned for a future release.
+Status transitions are triggered by specific actions (submissions), not by the passage of time — there is no scheduler and no automatic time-based advance. The self and manager evaluation deadlines are populated from the cycle's dates at evaluation creation (mirroring the existing team-feedback deadline), which activates two different enforcement policies:
+
+- **Self round — deadline-enforced, with a Supervisor waive.** A late self submit or draft save is rejected. If the employee cannot or will not complete it, a Supervisor may waive the round (`finalizeSelfEvaluation`, reason required and audited) once the deadline has passed; the evaluation advances to `In Review` without the self grades, which are then excluded from scoring (see [Scoring Algorithm](#scoring-algorithm))
+- **Manager round — deadline as a nudge, not a block.** A late manager submit is never rejected — blocking the decisive manager input would only create a new stall. Instead, the passed deadline drives an overdue-manager dashboard task and enables a Supervisor to complete the manager grades on the manager's behalf (reason required and audited), alongside the org-line manager's own unrestricted completion
+- **Overdue visibility is pull-based.** Once either deadline passes, a Supervisor sees aggregate "self-evaluations overdue" / "manager reviews overdue" dashboard tasks linking to the [Evaluations Oversight](#evaluations-oversight) screen
+- **A Supervisor may withdraw** any `Open`/`In Review`/`Ready` evaluation (reason required and audited), setting it to `Deleted`, releasing any booked interview slot, and immediately freeing the employee for a new evaluation — for a mistaken or permanently-stalled record
 
 ### Detailed Process Steps
 
@@ -189,7 +196,7 @@ The new evaluation is created with:
 
 #### Step 3 — Self-Evaluation
 
-The `Employee` receives a notification and fills in self-assessment grades for all competencies. They may also add a written comment. Grades can be saved as a **draft** at any point until the submission deadline. Once all competencies have been graded, the employee submits the form (`selfEvaluationCompleted = true`).
+The `Employee` receives a notification and fills in self-assessment grades for all competencies. They may also add a written comment. Grades can be saved as a **draft** at any point until the submission deadline (derived from the cycle's dates); a draft save or submit past the deadline is rejected. If the employee never completes the round, a `Supervisor` may waive it after the deadline (reason required and audited) so the evaluation can advance without stalling — see [Evaluation Status Lifecycle](#evaluation-status-lifecycle). Once all competencies have been graded, the employee submits the form (`selfEvaluationCompleted = true`).
 
 #### Step 4 — Team Evaluation *(optional)*
 
@@ -213,7 +220,7 @@ The `Manager` receives a notification that the evaluation is ready for their rev
 
 #### Step 6 — Manager Review
 
-The `Manager` reviews all submitted grades (self and aggregated team). They may save drafts of manager-grades and a written manager comment. Once all competencies have been graded by the manager and the form is submitted:
+The `Manager` reviews all submitted grades (self and aggregated team). They may save drafts of manager-grades and a written manager comment. The manager deadline (also derived from the cycle's dates) is a nudge, not a block — a late manager submit is never rejected, since it carries the decisive 50% weight and rejecting it would only create a new stall. Past the deadline it instead drives a Supervisor's "manager reviews overdue" dashboard task, and a `Supervisor` may complete the manager grades on the manager's behalf at any time (reason required and audited) alongside the org-line manager's own unrestricted completion — see [Evaluation Status Lifecycle](#evaluation-status-lifecycle). Once all competencies have been graded by the manager and the form is submitted:
 
 - Manager grades and comment are recorded
 - The system calculates the final performance scores across all categories (see [Scoring Algorithm](#scoring-algorithm) below)
@@ -351,17 +358,20 @@ raw_team[category]    = Σ ( grade_weight(cumulative_grade[c])  × relevancy(c, 
 raw_manager[category] = Σ ( grade_weight(manager_grade[c])     × relevancy(c, stageLevel) )
 ```
 
-**2. Category score** (integer, typically 0–130):
+**2. Category score** (integer, typically 0–130), **renormalized to the evaluator types that actually participated.** A source participates iff its round completed (`selfEvaluationCompleted` / `teamEvaluationCompleted` / `managerEvaluationCompleted`) — so a round that was never requested (no team assigned) or was waived by a Supervisor (a stalled self round; see [Evaluation Status Lifecycle](#evaluation-status-lifecycle)) is *excluded* from the calculation rather than counted as a zero, and no longer depresses the score:
 
 ```
+participating_weight = Σ ( weight(source) for each source that participated )
+
 category_score = ceil(
     (
-      ( raw_self[category]    / max_score[category] ) × 0.20 +
-      ( raw_team[category]    / max_score[category] ) × 0.30 +
-      ( raw_manager[category] / max_score[category] ) × 0.50
+      Σ ( ( raw_source[category] / max_score[category] ) × weight(source), for each source that participated )
+      / participating_weight
     ) × 100
 )
 ```
+
+where `weight(self) = 0.20`, `weight(team) = 0.30`, `weight(manager) = 0.50` (configurable — see [Grade Weights](#evaluation-grades)). With all three sources participating this reduces to the fixed-weight formula; it only differs when a round did not participate. Renormalization runs on the server (matching the client's own score-bar decomposition) and applies only to evaluations scored after this feature shipped — historical scores and closed-cycle results snapshots are not recomputed.
 
 **3. Final score** (average across all categories):
 
@@ -381,7 +391,7 @@ final_score = ceil( sum of all category_scores / number of categories )
 
 ### Reference Score Points
 
-The following reference points apply when all evaluator types submit the same grade uniformly:
+The following reference points apply when every *participating* evaluator type submits the same grade uniformly — the table holds regardless of which subset of self/team/manager actually took part (e.g. a no-team or waived-self evaluation), since the score renormalizes to whichever sources participated rather than being depressed by the absent one:
 
 | All grades                 | Approx. score | Interpretation   |
 |----------------------------|---------------|------------------|
@@ -389,7 +399,9 @@ The following reference points apply when all evaluator types submit the same gr
 | All **S** (Superior)       | ~130          | T5 — Outstanding |
 | All **U** (Unsatisfactory) | ~60           | T1 — Weak        |
 
-Because scores reflect a weighted combination of three evaluator types (self 20%, team 30%, manager 50%), the manager's assessment has the greatest influence on the final outcome.
+Because scores reflect a weighted combination of the participating evaluator types (self 20%, team 30%, manager 50% of the total when all three participate), the manager's assessment carries the greatest influence — more so still when a lighter-weighted source (self or team) did not participate, since the remaining sources' weights are renormalized to fill the gap.
+
+> **Analytics reconciliation (tracked follow-up).** The cohort-level Insights/Trends reports (`results-analytics.js`) compute their own "blended" per-source figure with fixed evaluation weights and do not currently renormalize to participating sources the way the per-evaluation score above does; for a no-team or waived-self evaluation, a cohort's blended figure and that evaluation's own `finalScore` can diverge. Reconciling the two is a tracked follow-up, not yet implemented.
 
 ---
 
@@ -442,8 +454,9 @@ Shows the organization chart rooted at the current user's unit. Each employee en
 The primary grading interface. Displays the employee's personal and career information (role family, specialization with a "Generalist" fallback when unset, stage-level), evaluation metadata, the current deadline, and the full competency tree built from the evaluation's snapshot. Each competency shows its scope description, a grade selector, an origin badge ("Baseline" or the specialization name), and any e-CF mappings.
 
 - A **role banner** at the top indicates the active role (Employee / Manager / Team)
-- Grade inputs are disabled once the role has already submitted or if the deadline has passed
+- Grade inputs are disabled once the role has already submitted; for the Employee and Team roles they are also disabled once their own deadline has passed (hard-enforced — see [Evaluation Status Lifecycle](#evaluation-status-lifecycle)). The manager deadline is a nudge, not a block, so manager grade inputs stay editable past it
 - Save Draft and Submit buttons are only active when editing is permitted for the current role and status
+- When a Supervisor opens a stalled `In Review` evaluation whose manager grades are not yet in, the manager grade inputs become editable for them too (the [Evaluations Oversight](#evaluations-oversight) manager-proxy path); Submit then requires a reason, captured in the submit-confirmation modal
 - Once the evaluation is `Ready`, a compact **final-score panel** shows the final score and threshold label (it reads "Not yet available" until then); a *results-are-ready* info bar links to the separate **Scores** screen, where the full breakdown and charts live — the grading screen itself no longer renders them (3.9.0 split)
 
 ### Scores
@@ -508,6 +521,16 @@ Supervisor-only two-pane editor for a cycle's Active Competency Sets, editable w
 ### Employee Management
 
 Supervisor + Manager master/detail editor (the "People" screen). Lists employees with a detail form whose fields are permission-gated per role. Changing an employee's role family or specialization surfaces the count of in-flight evaluations affected, and an audit log records every change. A badge marks employees who hold the Supervisor role, distinguishing org-derived *structural* supervisors from *assigned* ones; a structural Supervisor can assign the role to another employee (behind a warning) or remove a previously-assigned one — structural supervisors are immutable, and granted supervisors cannot manage roles.
+
+### Evaluations Oversight
+
+Supervisor-only screen — the stall-recovery cockpit for [deadline governance](#evaluation-status-lifecycle). Lists every `Open`/`In Review`/`Ready` evaluation in the active cycle: employee, role family + stage-level, status, and the self/manager deadlines, each shown with a danger-styled overdue badge once it has passed while its round is still incomplete. Per row, actions appear only when applicable:
+
+- **Advance without self** — shown once the self deadline has passed and the round is incomplete; opens a shared reason-required confirmation modal, then calls `advance-self-evaluation`, which waives the self round (excluded from scoring) and advances the evaluation to `In Review` once the team round is also done
+- **Complete manager review** — shown for any `In Review` evaluation whose manager round is incomplete; opens the [Evaluation Form](#evaluation-form) in manager-proxy mode, where Submit raises the same reason modal before calling `submit-evaluation`
+- **Withdraw** — available for any listed evaluation regardless of status; opens the shared reason modal (with an irreversibility and slot-release warning), then calls `withdraw-evaluation`, setting the evaluation to `Deleted`, releasing any booked interview slot, and letting a new evaluation be started for that employee immediately; the row then disappears
+
+Every action records its reason on the evaluation's audit trail.
 
 ### Administration
 

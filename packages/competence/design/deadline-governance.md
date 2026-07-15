@@ -2,7 +2,7 @@
 
 ## Meta
 
-- **Status:** Designed (2026-07-14) — not yet implemented
+- **Status:** Implemented (2026-07-15)
 - **Date:** 2026-07-14
 - **Package:** `competence`
 - **Scope:** Makes the evaluation process run to completion instead of stalling. Populates the self/manager evaluation deadlines (dead since creation), activating the existing late-submit guards; renormalizes the final score to the participating grade sources on the server (matching the client, and fixing the latent no-team depression); adds manual, reason-justified, audited stall-recovery actions for the self and manager rounds; adds a Supervisor-only cancel/withdraw path so a mistaken or permanently-stalled evaluation can be removed; surfaces overdue stages as dashboard tasks; and introduces a Supervisor **Evaluations Oversight** screen as the cockpit for these actions. No scheduler, no notification channel, no automatic skipping of any human judgement.
@@ -170,4 +170,20 @@ New `{ en, bg }` keys: `interface.oversight.*` (screen title, intro, column head
 
 ## Implementation log
 
-_(To be filled during implementation — one dated entry per landed change set, per repo convention.)_
+### 2026-07-15 — Shipped as competence `3.12.0`
+
+Implemented end-to-end per this design, in thematically-bundled commits `5665d66..b6a5220` on branch `current` (base commit `5665d66`, the CA-59 implementation-plan doc-consistency fix), plus this docs/version commit:
+
+- **T1–T2 (deadlines + scoring):** `fc57611` populates `workflow.selfEvaluationDeadline` / `managerEvaluationDeadline` at `createNewEvaluation` from the cycle's dates, with a read-time legacy fallback; `773e517` renormalizes `calculateFinalEvaluationScores` to the participating grade sources (`selfEvaluationCompleted` / `teamEvaluationCompleted` / `managerEvaluationCompleted`), fixing the no-team depression and excluding a waived self round.
+- **T3–T6 (framework escapes + services + manager-proxy authz):** `5b878b3` adds `finalizeSelfEvaluation`; `b981fa7` adds `withdrawEvaluation` (→ `Deleted`, releases any booked interview slot); `76544ad` adds the `advance-self-evaluation` / `withdraw-evaluation` services (Supervisor-gated); `8981ec6` extends `#canManagerPerformEvaluation`'s callers so a Supervisor may proxy-complete the manager round (reason required, audited as `grades.managerProxy`) and drops the manager-round late-submit/draft guards (the deadline is a nudge, not a block); `50efe97` fixes the evaluation-form load side so the manager grade inputs are actually editable for a proxying Supervisor.
+- **T7–T8 (overdue tasks + oversight loader):** `9f14984` adds the `overdue-self` / `overdue-manager` Supervisor aggregate dashboard tasks to `task-resolver.js`; `727eb53` adds the `load-evaluations-oversight` service backing the new screen.
+- **T9–T10 (Oversight screen + client task wiring):** `629fc1a` adds the Evaluations Oversight screen (fragment + `configureEvaluationsOversight` Alpine component + route, `roles: [SUPERVISOR]`); `209cfca` wires the dashboard's client-side `overdue-self` / `overdue-manager` task-card cases and the `oversight` deep-link action.
+- **T11 (labels):** `7d6d68e` adds the `interface.oversight.*`, `interface.dashboard.task-overdue-self(-manager)(-sub)`, and `error.evaluation.{self-finalize-not-open,self-finalize-deadline-not-reached,self-finalize-already-complete,withdraw-not-active,reason-required}` label keys, en + bg (bg pending native review).
+- **T13 (eval-form manager-proxy reason capture, design §8.3 gap):** `b6a5220` adds the `isManagerProxy` state + the submit-confirmation modal's reason section, closing the loop between the Oversight screen's "Complete manager review" action and the Supervisor-proxy submit authorization added in T6.
+- **T12 (this commit — docs + version):** README (`Evaluation Status Lifecycle` note, Steps 3/6, `Current Status`, a new `Evaluations Oversight` screen entry, and the `Scoring Algorithm` renormalization + `Reference Score Points` note, with the `results-analytics.js` `#sourceWeight` reconciliation flagged as a tracked follow-up per §4), `CHANGELOG.md` `## Version 3.12.0`, `package.json` version bump, and a `task-resolver.js` JSDoc extension (`OverdueSelfTask` / `OverdueManagerTask` typedefs + `resolveTasks` `@returns`, a deferred Minor from T7 — no runtime change).
+
+**Verification:** `npm test` 334/334, `npm run test:json` 19/19, `npx eslint .` 0 errors (2 pre-existing warnings, unrelated to this feature, noted in Task 1's and an unrelated results-analytics test's self-review), `node --check application/task-resolver.js` OK. Per-task reviews (see `.superpowers/sdd/task-*-report.md`) all returned spec-OK/quality-approved; browser verification of the UI-only tasks (T9, T10, T13) is flagged PENDING in their reports — no dev server/Redis was available in the implementation environment.
+
+**Deviations from this doc:** none substantive. `finalizeSelfEvaluation` reads the pending-state audit label as `"waived → " + newValueLabel` rather than a fixed string, to distinguish an immediate advance to `In Review` from a hold at `"Open (awaiting team)"` — an implementation refinement of the same audited-escape shape described in §5, not a behavior change.
+
+**Open follow-ups (unchanged from §12, plus one raised during T2's review):** the scheduler/auto-advance, notification channel, reopen/undo, and audit-trail UI items remain out of scope as designed. Additionally, `results-analytics.js`'s `#sourceWeight` "blended" path does not yet renormalize to participating sources the way the per-evaluation score now does (§4 "Analytics consistency"); a no-team or waived-self evaluation's cohort-level blended figure can therefore diverge from that evaluation's own `finalScore`. This is now called out in the README and tracked as a follow-up, not fixed in this feature.
