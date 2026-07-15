@@ -37,6 +37,7 @@ const configureCompetenceEvaluation = () => {
         canEdit: false,
         canFinalizeTeam: false,
         isFacilitator: false,
+        isManagerProxy: false,
         manager: {},
         personal: {},
         evaluation: {
@@ -94,6 +95,7 @@ const configureCompetenceEvaluation = () => {
             this.canEdit = fresh.canEdit;
             this.canFinalizeTeam = ( fresh.canFinalizeTeam === true );
             this.isFacilitator = ( fresh.isFacilitator === true );
+            this.isManagerProxy = ( fresh.isManagerProxy === true );
             if ( typeof fresh.isOwnResults === "boolean" ) {
                 this.isOwnResults = fresh.isOwnResults;
             }
@@ -203,12 +205,13 @@ const configureCompetenceEvaluation = () => {
 
         openSubmitModal( event ) {
             modalReturnFocus = ( event && event.currentTarget ) || null;
-            this.modal = { kind: "submit-confirm", payload: {}, busy: false };
+            this.modal = { kind: "submit-confirm", payload: { reason: "" }, busy: false };
         },
 
         submitEvaluation() {
             this.modal.busy = true;
-            tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: this.evaluation } ).then( () => {
+            const reason = ( this.modal.payload && this.modal.payload.reason ) || "";
+            tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: this.evaluation, reason: reason } ).then( () => {
                 tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.submitted" ) );
                 this.closeModal();
                 tiApplication.openScreen( "dashboard" );
