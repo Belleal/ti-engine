@@ -15,6 +15,7 @@ const dataManager = require( "#data-manager" );
 const organizationManager = require( "#organization-manager" );
 const configurationLoader = require( "#configuration-loader" );
 const roleResolver = require( "#role-resolver" );
+const competenceFramework = require( "#competence-framework" );
 
 /**
  * NOTE: This is still a work in progress.
@@ -50,6 +51,7 @@ class CompetenceWebServer extends TiWebServer {
             .then( () => organizationManager.instance.buildOrganizationChart() )
             .then( () => dataManager.instance.loadRoleGrants() )
             .then( () => configurationLoader.initialize() )
+            .then( () => competenceFramework.instance.backfillMissingEvaluationDeadlines() )
             .catch( ( error ) => {
                 logger.log( `Error while trying to start competence web server within instance '${ ServiceConsumer.instanceID }'!`, logger.logSeverity.ERROR, error );
                 throw exceptions.raise( error );

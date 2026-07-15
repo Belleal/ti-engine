@@ -1066,6 +1066,68 @@ class CompetenceFramework {
         } ).filter( Boolean );
     }
 
+    /**
+     * Idempotent legacy-data migration: stamps `workflow.selfEvaluationDeadline` / `workflow.managerEvaluationDeadline`
+     * onto pre-existing `Open`/`In Review` evaluations that predate the CA-59 deadline population added to
+     * `createNewEvaluation` and therefore still carry empty `""` deadlines. Resolves each evaluation's cycle and
+     * derives the same values `createNewEvaluation` would have written: `selfEvaluationDeadline = cycle.teamFeedbackDeadline
+     * || cycle.cycleDate`; `managerEvaluationDeadline = cycle.cycleDate`. Once this has run, every existing consumer
+     * (the late-submit guards, `finalizeSelfEvaluation`, the overdue dashboard tasks, Oversight's `canAdvanceSelf`)
+     * works unchanged — no read-time fallback is needed.
+     * <br/>
+     * Only an EMPTY field is ever filled; an already-populated deadline is never overwritten, so re-running this
+     * method is a no-op for evaluations it has already touched — safe to invoke unconditionally on every service
+     * start. `Closed`/`Deleted` evaluations are never considered. When an evaluation's cycle cannot be resolved (e.g.
+     * the cycle record itself is missing), that evaluation is left untouched and a debug note is logged — this
+     * method never rejects because of a single unresolvable evaluation.
+     * <br/>
+     * NOTE: Does not write audit entries — this is a system migration, not a user-initiated action.
+     *
+     * @method
+     * @returns {Promise<{scanned: number, updated: number}>} `scanned` = the number of `Open`/`In Review` evaluations
+     * examined; `updated` = the number that actually had a deadline filled in.
+     * @public
+     */
+    backfillMissingEvaluationDeadlines() {
+        const cyclePromises = new Map();
+        const resolveCycle = ( cycleID ) => {
+            if ( !cyclePromises.has( cycleID ) ) {
+                cyclePromises.set( cycleID, dataManager.instance.getCycle( cycleID ).catch( () => null ) );
+            }
+            return cyclePromises.get( cycleID );
+        };
+
+        return dataManager.instance.fetchEvaluations( null, false ).then( ( evaluations ) => {
+            const relevantStatuses = [ configurationLoader.evaluationStatus.OPEN, configurationLoader.evaluationStatus.IN_REVIEW ];
+            const candidates = evaluations.filter( ( evaluation ) => relevantStatuses.indexOf( evaluation.status ) >= 0 );
+
+            return Promise.all( candidates.map( ( evaluation ) => {
+                const workflow = evaluation.workflow || {};
+                if ( workflow.selfEvaluationDeadline && workflow.managerEvaluationDeadline ) {
+                    return false; // Both already set — nothing to backfill, no cycle lookup needed.
+                }
+                return resolveCycle( evaluation.cycleID ).then( ( cycle ) => {
+                    if ( !cycle ) {
+                        logger.log( `Backfill: could not resolve cycle '${ evaluation.cycleID }' for evaluation '${ evaluation.evaluationID }' — leaving its deadlines unchanged.`, logger.logSeverity.DEBUG );
+                        return false;
+                    }
+                    const resolvedSelf = workflow.selfEvaluationDeadline || ( cycle.teamFeedbackDeadline || cycle.cycleDate || "" );
+                    const resolvedManager = workflow.managerEvaluationDeadline || ( cycle.cycleDate || "" );
+                    if ( resolvedSelf === workflow.selfEvaluationDeadline && resolvedManager === workflow.managerEvaluationDeadline ) {
+                        return false;
+                    }
+                    evaluation.workflow = { ...workflow, selfEvaluationDeadline: resolvedSelf, managerEvaluationDeadline: resolvedManager };
+                    return dataManager.instance.saveEvaluation( evaluation ).then( () => true );
+                } );
+            } ) ).then( ( results ) => {
+                const updated = results.filter( ( result ) => result === true ).length;
+                const summary = { scanned: candidates.length, updated };
+                logger.log( `Backfilled deadlines on ${ updated } evaluation(s) (scanned ${ candidates.length } Open/In Review evaluation(s)).`, logger.logSeverity.NOTICE );
+                return summary;
+            } );
+        } );
+    }
+
     /* Private interface */
 
     /**
