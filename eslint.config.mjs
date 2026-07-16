@@ -14,6 +14,12 @@ const compat = new FlatCompat( {
 } );
 
 export default defineConfig( [ {
+    ignores: [
+        "**/*.min.js",
+        "packages/*/bin/static/scripts/lib/**",
+        "eslint.config.mjs",
+    ],
+}, {
     extends: compat.extends( "eslint:recommended" ),
 
     languageOptions: {
