@@ -55,6 +55,7 @@ Established by reading the code during brainstorming:
 | Container config override | **Add `TI_WEB_*` env overrides to web-framework** (12-factor) |
 | Dockerfile location | `packages/competence/Dockerfile`, build context = repo root |
 | Base image | `node:22-alpine` |
+| Dependency install | **`npm install --omit=dev`** (not `npm ci`). `package-lock.json` stays **gitignored** (existing policy) — a fresh CI checkout has no lockfile, so `npm ci` is unavailable. Trade-off: builds are **not version-pinned** (a rebuild may resolve newer patch/minor deps). Accepted by the user. |
 | CodeQL | **Modernize** the stale workflow in the same pass (see §5.8) — flagged optional; user may veto at spec review |
 
 ## 5. Component specs
@@ -84,8 +85,8 @@ Multi-stage, `node:22-alpine`:
 
 **Stage `deps`:**
 1. `WORKDIR /app`
-2. Copy `package.json`, `package-lock.json`, and each `packages/*/package.json` (manifest-only layer for cache).
-3. `RUN npm ci --omit=dev --ignore-scripts`
+2. Copy root `package.json` and each `packages/*/package.json` (manifest-only layer for cache; the lockfile is gitignored and intentionally not copied).
+3. `RUN npm install --omit=dev --ignore-scripts`
 4. Copy the three package source trees (`packages/core`, `packages/web-framework`, `packages/competence`). *(tester not needed at runtime; excluded via .dockerignore or simply not copied.)*
 5. `RUN npm run postinstall -w @ti-engine/web-framework` — materialize static libs (see §3.5).
 
@@ -125,7 +126,7 @@ Ensure root `.env` is gitignored (add if missing). The existing committed `packa
 ### 5.6 CI workflow (`.github/workflows/ci.yml`)
 
 - **on:** `pull_request: [master]`, `push: [current, master]`.
-- **Job `lint-and-test`** (`ubuntu-latest`, Node 22 via `actions/setup-node@v4` with npm cache): `npm ci` → `npx eslint .` → `npm test --workspaces --if-present` → `npm run test:json -w @ti-engine/competence`. **Prettier check is included only if the repo is already prettier-clean** (verified locally during implementation — see §10); if it is not, `prettier --check` is omitted (or scoped to changed files) rather than shipping a red pipeline over pre-existing formatting.
+- **Job `lint-and-test`** (`ubuntu-latest`, Node 22 via `actions/setup-node@v4`, **no npm cache** — the cache keys off `package-lock.json`, which is gitignored): `npm install` → `npx eslint .` → `npm test --workspaces --if-present` → `npm run test:json -w @ti-engine/competence`. **Prettier check is included only if the repo is already prettier-clean** (verified locally during implementation — see §10); if it is not, `prettier --check` is omitted (or scoped to changed files) rather than shipping a red pipeline over pre-existing formatting.
 - **Job `docker-build`** (needs lint-and-test): `docker/setup-buildx-action@v3` → `docker/build-push-action@v6` with `context: .`, `file: packages/competence/Dockerfile`, `push: false`, GHA cache (`cache-from/to: type=gha`). Validates the image builds.
 - Pin actions to current major versions (`checkout@v4`, `setup-node@v4`, buildx/build-push current).
 
@@ -177,4 +178,5 @@ Create `CA-###` in YouTrack (under the DevOps/infra epic if one exists; otherwis
 - **Secret leakage** → `.dockerignore` excludes `**/.env` and `**/bin/tls/**`; nothing secret is baked; GHCR uses `GITHUB_TOKEN`; `.env.example` holds placeholders only.
 - **Relative `start` path fragility** → the container `CMD` uses an absolute path (`/app/node_modules/...`); the npm `start` script's relative path is for local/dev parity only.
 - **CodeQL change unwanted** → isolated in its own commit, trivially reverted.
+- **Non-pinned builds** (consequence of `npm install` without a committed lockfile) → accepted by the user; semver ranges in the manifests bound drift. Revisit by committing the lockfile if a rebuild ever resolves an incompatible dep.
 - **CI lint/format failing on pre-existing code** → before wiring `eslint`/`prettier` into CI, run both locally against the current tree; if either flags pre-existing (non-our-change) violations, either fix them in a clearly-separate commit only if trivial and in-scope, or relax the CI step (eslint with `--max-warnings` tolerance / prettier scoped to changed files or dropped). The pipeline must be green on first run without a mass reformat.
