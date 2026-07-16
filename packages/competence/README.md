@@ -360,7 +360,7 @@ raw_manager[category] = Σ ( grade_weight(manager_grade[c])     × relevancy(c, 
 
 **2. Category score** (integer, typically 0–130), **renormalized to the evaluator types that actually participated.** A source participates iff its round completed (`selfEvaluationCompleted` / `teamEvaluationCompleted` / `managerEvaluationCompleted`) — so a round that was never requested (no team assigned) or was waived by a Supervisor (a stalled self round; see [Evaluation Status Lifecycle](#evaluation-status-lifecycle)) is *excluded* from the calculation rather than counted as a zero, and no longer depresses the score:
 
-```
+```text
 participating_weight = Σ ( weight(source) for each source that participated )
 
 category_score = ceil(

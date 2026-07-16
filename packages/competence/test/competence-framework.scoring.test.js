@@ -42,6 +42,7 @@ function scoringEval( over = {} ) {
         workflow: {
             selfEvaluationCompleted: over.self !== false,
             teamEvaluationCompleted: over.team !== false,
+            teamEvaluationsSubmitted: ( over.teamSubmitted !== undefined ) ? over.teamSubmitted : ( over.team !== false ? 2 : 0 ),
             managerEvaluationCompleted: over.manager !== false
         }
     };
@@ -69,6 +70,19 @@ describe( "calculateFinalEvaluationScores — participating-source renormalizati
         const e = scoringEval( { self: false, grades } );
         competenceFramework.instance.calculateFinalEvaluationScores( e );
         assert.equal( e.finalScore.score, 100 ); // self "S" ignored because selfEvaluationCompleted is false
+    } );
+
+    it( "excludes a team round finalized with zero submissions (renormalizes to 100, not 70)", () => {
+        // allowFinalizeTeamWithoutSubmissions can complete the team round with no submissions and an empty cumulative;
+        // that round must not count as participating (else its 0.30 weight depresses an all-R self/manager to 70).
+        const grades = {
+            "E1-1": { employee: "R", manager: "R", team: { cumulative: "" } },
+            "I1-1": { employee: "R", manager: "R", team: { cumulative: "" } },
+            "C1-1": { employee: "R", manager: "R", team: { cumulative: "" } }
+        };
+        const e = scoringEval( { team: true, teamSubmitted: 0, grades } );
+        competenceFramework.instance.calculateFinalEvaluationScores( e );
+        assert.equal( e.finalScore.score, 100 );
     } );
 
     it( "still differentiates when all participate (self S, team R, manager R => 106)", () => {

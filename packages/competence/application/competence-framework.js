@@ -755,7 +755,10 @@ class CompetenceFramework {
         // evaluation ~100 regardless of which sources took part, instead of depressing it by the absent weight.
         const workflow = evaluation.workflow || {};
         const selfParticipates = workflow.selfEvaluationCompleted === true;
-        const teamParticipates = workflow.teamEvaluationCompleted === true;
+        // A team round finalized with zero submissions (allowFinalizeTeamWithoutSubmissions) is marked complete but
+        // carries no team grades — it must NOT count as participating, or its weight depresses the renormalized score.
+        const teamParticipates = workflow.teamEvaluationCompleted === true
+            && ( workflow.teamEvaluationsSubmitted || 0 ) > 0;
         const managerParticipates = workflow.managerEvaluationCompleted === true;
         const participatingWeight =
             ( selfParticipates ? evaluationWeights.SELF : 0 ) +
