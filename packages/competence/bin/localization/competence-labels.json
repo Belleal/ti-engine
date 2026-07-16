@@ -3972,6 +3972,26 @@
       "close-no-outcome": {
         "en": "Record interview feedback or at least one goal before closing the evaluation.",
         "bg": "Запишете обратна връзка от интервюто или поне една цел, преди да затворите оценката."
+      },
+      "self-finalize-not-open": {
+        "en": "This evaluation is not open, so the self-evaluation cannot be advanced.",
+        "bg": "Тази оценка не е отворена, така че самооценката не може да бъде придвижена."
+      },
+      "self-finalize-deadline-not-reached": {
+        "en": "The self-evaluation deadline has not passed yet.",
+        "bg": "Крайният срок за самооценка все още не е изтекъл."
+      },
+      "self-finalize-already-complete": {
+        "en": "The self-evaluation for this evaluation is already complete.",
+        "bg": "Самооценката за тази оценка вече е завършена."
+      },
+      "withdraw-not-active": {
+        "en": "Only an active evaluation (Open, In Review, or Ready) can be withdrawn.",
+        "bg": "Само активна оценка (Отворена, В преглед или Готова) може да бъде оттеглена."
+      },
+      "reason-required": {
+        "en": "A reason is required for this action.",
+        "bg": "За това действие е необходима причина."
       }
     },
     "cycle": {
@@ -5434,6 +5454,36 @@
           "en": "You don't have an active evaluation for the current cycle. When a new evaluation is opened for you, it will appear here.",
           "bg": "Нямате активна оценка за текущия цикъл. Когато бъде отворена нова оценка за Вас, тя ще се появи тук."
         }
+      },
+      "manager-proxy": {
+        "title": {
+          "en": "Complete manager review",
+          "bg": "Попълване на мениджърска оценка"
+        },
+        "body": {
+          "en": "You are entering the manager's grades on their behalf. A reason is required and recorded on the audit trail.",
+          "bg": "Въвеждате оценките на мениджъра от негово име. Изисква се причина, която се записва в одитната следа."
+        },
+        "reason-label": {
+          "en": "Reason",
+          "bg": "Причина"
+        },
+        "reason-placeholder": {
+          "en": "Why are you completing this on the manager's behalf?",
+          "bg": "Защо попълвате това от името на мениджъра?"
+        },
+        "confirm": {
+          "en": "Submit",
+          "bg": "Изпрати"
+        },
+        "cancel": {
+          "en": "Cancel",
+          "bg": "Отказ"
+        },
+        "saved-toast": {
+          "en": "Manager review submitted.",
+          "bg": "Мениджърската оценка е изпратена."
+        }
       }
     },
     "employees": {
@@ -6040,6 +6090,22 @@
       "task-evaluation-closed-sub": {
         "en": "View your results, feedback, and goals.",
         "bg": "Вижте резултатите, обратната връзка и целите си."
+      },
+      "task-overdue-self": {
+        "en": "Self-evaluations overdue",
+        "bg": "Просрочени самооценки"
+      },
+      "task-overdue-self-sub": {
+        "en": "Past the self-evaluation deadline — review in Oversight.",
+        "bg": "Просрочен срок за самооценка — прегледайте в Надзор."
+      },
+      "task-overdue-manager": {
+        "en": "Manager reviews overdue",
+        "bg": "Просрочени мениджърски прегледи"
+      },
+      "task-overdue-manager-sub": {
+        "en": "Past the manager-review deadline — review in Oversight.",
+        "bg": "Просрочен срок за мениджърски преглед — прегледайте в Надзор."
       }
     },
     "navigation": {
@@ -7027,6 +7093,126 @@
         "closed-toast": {
           "en": "Evaluation closed.",
           "bg": "Оценката е затворена."
+        }
+      }
+    },
+    "oversight": {
+      "nav": {
+        "en": "Oversight",
+        "bg": "Надзор"
+      },
+      "page-eyebrow": {
+        "en": "EVALUATIONS OVERSIGHT",
+        "bg": "НАДЗОР НА ОЦЕНКИТЕ"
+      },
+      "page-title": {
+        "en": "Active Evaluations",
+        "bg": "Активни оценки"
+      },
+      "page-desc": {
+        "en": "Every in-progress evaluation for the active cycle. Advance a stalled self-evaluation, complete a manager review, or withdraw an evaluation.",
+        "bg": "Всички текущи оценки за активния цикъл. Придвижете блокирала самооценка, попълнете мениджърска оценка или оттеглете оценка."
+      },
+      "empty-title": {
+        "en": "No Active Evaluations",
+        "bg": "Няма активни оценки"
+      },
+      "empty-desc": {
+        "en": "No active evaluations in the current cycle.",
+        "bg": "Няма активни оценки в текущия цикъл."
+      },
+      "panel-title": {
+        "en": "In-Progress Evaluations",
+        "bg": "Текущи оценки"
+      },
+      "col": {
+        "employee": {
+          "en": "Employee",
+          "bg": "Служител"
+        },
+        "status": {
+          "en": "Status",
+          "bg": "Статус"
+        },
+        "deadlines": {
+          "en": "Deadlines",
+          "bg": "Крайни срокове"
+        },
+        "actions": {
+          "en": "Actions",
+          "bg": "Действия"
+        }
+      },
+      "self-short": {
+        "en": "Self:",
+        "bg": "Само:"
+      },
+      "manager-short": {
+        "en": "Mgr:",
+        "bg": "Мен:"
+      },
+      "no-date": {
+        "en": "—",
+        "bg": "—"
+      },
+      "advanced-toast": {
+        "en": "Self-evaluation waived; the evaluation advanced.",
+        "bg": "Самооценката е отменена; оценката е придвижена."
+      },
+      "advanced-held-toast": {
+        "en": "Self-evaluation waived; awaiting team feedback before the evaluation advances.",
+        "bg": "Самооценката е отменена; оценката ще се придвижи след получаване на екипната обратна връзка."
+      },
+      "withdrawn-toast": {
+        "en": "Evaluation withdrawn.",
+        "bg": "Оценката е оттеглена."
+      },
+      "actions": {
+        "advance-self": {
+          "en": "Advance without self",
+          "bg": "Придвижи без самооценка"
+        },
+        "complete-manager": {
+          "en": "Complete manager review",
+          "bg": "Попълни мениджърска оценка"
+        },
+        "withdraw": {
+          "en": "Withdraw",
+          "bg": "Оттегли"
+        }
+      },
+      "reason": {
+        "advance-title": {
+          "en": "Advance without self-evaluation",
+          "bg": "Придвижване без самооценка"
+        },
+        "advance-body": {
+          "en": "This waives the employee's self-assessment and advances the evaluation. A reason is required and recorded on the audit trail.",
+          "bg": "Това отменя самооценката на служителя и придвижва оценката. Изисква се причина, която се записва в одитната следа."
+        },
+        "withdraw-title": {
+          "en": "Withdraw evaluation",
+          "bg": "Оттегляне на оценка"
+        },
+        "withdraw-body": {
+          "en": "This permanently withdraws the evaluation, releases any booked interview, and discards any recorded interview outcome (feedback, goals, PIP). It cannot be undone. A reason is required.",
+          "bg": "Това оттегля оценката за постоянно, освобождава резервирано интервю и заличава записан резултат от интервюто (обратна връзка, цели, план за подобрение). Действието е необратимо. Изисква се причина."
+        },
+        "label": {
+          "en": "Reason",
+          "bg": "Причина"
+        },
+        "placeholder": {
+          "en": "Why is this action being taken?",
+          "bg": "Защо се предприема това действие?"
+        },
+        "confirm": {
+          "en": "Confirm",
+          "bg": "Потвърди"
+        },
+        "cancel": {
+          "en": "Cancel",
+          "bg": "Отказ"
         }
       }
     },

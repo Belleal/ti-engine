@@ -1,0 +1,106 @@
+<div class="ti-page" x-data="competenceEvaluationsOversight">
+
+    <!-- Page header -->
+    <div class="ti-page-head">
+        <div class="ti-page-eyebrow" x-text-label="interface.oversight.page-eyebrow"></div>
+        <h1 class="ti-page-title" x-text-label="interface.oversight.page-title"></h1>
+        <p class="ti-page-subtitle" x-text-label="interface.oversight.page-desc"></p>
+    </div>
+
+    <!-- Empty state when the active cycle has no in-flight evaluations left to oversee -->
+    <template x-if="evaluations.length === 0">
+        <div class="ti-empty-state">
+            <div class="ti-empty-state-icon" aria-hidden="true">
+                <span class="ti-icon check-clipboard xl"></span>
+            </div>
+            <div class="ti-empty-state-title" x-text-label="interface.oversight.empty-title"></div>
+            <div class="ti-empty-state-desc" x-text-label="interface.oversight.empty-desc"></div>
+        </div>
+    </template>
+
+    <!-- Oversight table: one row per active (Open/In Review/Ready) evaluation in the active cycle -->
+    <template x-if="evaluations.length > 0">
+        <div class="ti-panel">
+            <div class="ti-panel-head bar">
+                <div class="ti-panel-head-icon">
+                    <span class="ti-icon eye md" aria-hidden="true"></span>
+                </div>
+                <div class="ti-panel-title" x-text-label="interface.oversight.panel-title"></div>
+            </div>
+            <div class="ti-data-grid bordered competence-oversight-grid">
+                <div class="ti-data-grid-head">
+                    <span></span>
+                    <span x-text-label="interface.oversight.col.employee"></span>
+                    <span x-text-label="interface.oversight.col.status"></span>
+                    <span x-text-label="interface.oversight.col.deadlines"></span>
+                    <span class="ti-cell-right" x-text-label="interface.oversight.col.actions"></span>
+                </div>
+                <div class="ti-data-grid-rows">
+                    <template x-for="row in evaluations" x-bind:key="row.evaluationID">
+                        <div class="ti-data-grid-row">
+                            <div class="ti-avatar sm" x-bind:style="$store.tiToolbox.generateAvatarStyle( row.employeeID, row.employeeName )">
+                                <span x-text="(row.employeeName || '?').charAt(0).toUpperCase()"></span>
+                            </div>
+                            <div>
+                                <div class="ti-kv-value" x-text="row.employeeName"></div>
+                                <div class="ti-kv-label" x-text="row.roleFamilyName + ' · ' + row.stageLevel"></div>
+                            </div>
+                            <div>
+                                <span x-text="row.status"></span>
+                            </div>
+                            <div>
+                                <span x-text="getLabel('interface.oversight.self-short') + ' ' + formatDate(row.selfDeadline, 'interface.oversight.no-date')"
+                                      x-bind:class="row.selfOverdue ? 'ti-status-pill danger' : ''"></span>
+                                <span> · </span>
+                                <span x-text="getLabel('interface.oversight.manager-short') + ' ' + formatDate(row.managerDeadline, 'interface.oversight.no-date')"
+                                      x-bind:class="row.managerOverdue ? 'ti-status-pill danger' : ''"></span>
+                            </div>
+                            <div class="ti-cell-right">
+                                <div class="competence-oversight-actions">
+                                    <button type="button" class="ti-btn sm ghost" x-show="row.canAdvanceSelf"
+                                            @click="openReasonModal('advance-self', row)"
+                                            x-text-label="interface.oversight.actions.advance-self"></button>
+                                    <button type="button" class="ti-btn sm primary" x-show="row.canCompleteManager"
+                                            @click="openManagerReview(row)"
+                                            x-text-label="interface.oversight.actions.complete-manager"></button>
+                                    <button type="button" class="ti-btn sm danger" x-show="row.canWithdraw"
+                                            @click="openReasonModal('withdraw', row)"
+                                            x-text-label="interface.oversight.actions.withdraw"></button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Reason-required confirmation modal (shared by "advance without self" and "withdraw") -->
+    <template x-if="reasonModal.open">
+        <div class="ti-modal-backdrop" @click.self="dismissReasonModal()" @keydown.escape.window="dismissReasonModal()">
+            <div class="ti-modal danger" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text="getLabel(reasonModal.action === 'withdraw' ? 'interface.oversight.reason.withdraw-title' : 'interface.oversight.reason.advance-title')"></div>
+                    <button type="button" class="ti-modal-close" @click="dismissReasonModal()" aria-label="Close">
+                        <span class="ti-icon close md" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <div class="ti-modal-body">
+                    <p x-text="getLabel(reasonModal.action === 'withdraw' ? 'interface.oversight.reason.withdraw-body' : 'interface.oversight.reason.advance-body')"></p>
+                    <p class="competence-outcome-close-emp" x-text="reasonModal.employeeName"></p>
+                    <label class="ti-kv-label" x-text-label="interface.oversight.reason.label"></label>
+                    <textarea class="ti-textarea" rows="3" x-model="reasonModal.reason"
+                              x-bind:placeholder="getLabel('interface.oversight.reason.placeholder')"></textarea>
+                </div>
+                <div class="ti-modal-foot">
+                    <button type="button" class="ti-btn ghost" @click="dismissReasonModal()" x-bind:disabled="reasonModal.busy"
+                            x-text-label="interface.oversight.reason.cancel"></button>
+                    <button type="button" class="ti-btn" @click="confirmReason()"
+                            x-bind:class="reasonModal.action === 'withdraw' ? 'danger' : 'primary'"
+                            x-bind:disabled="reasonModal.busy || reasonModal.reason.trim() === ''"
+                            x-text-label="interface.oversight.reason.confirm"></button>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>

@@ -10,6 +10,7 @@ const { describe, it, beforeEach } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 
 const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
+const cache = require( "@ti-engine/core/cache" );
 
 let competenceFramework;
 let dataManager;
@@ -44,8 +45,8 @@ async function saveEvaluation( over = {} ) {
         workflow: {
             currentStep: 1,
             selfEvaluationCompleted: over.selfEvaluationCompleted === true,
-            selfEvaluationDeadline: "",
-            teamEvaluationCompleted: false,
+            selfEvaluationDeadline: ( over.selfDeadline !== undefined ) ? over.selfDeadline : "",
+            teamEvaluationCompleted: over.teamEvaluationCompleted === true,
             teamEvaluationDeadline: ( over.deadline !== undefined ) ? over.deadline : PAST,
             managerEvaluationCompleted: false,
             managerEvaluationDeadline: "",
@@ -143,4 +144,125 @@ describe( "CompetenceFramework — finalizeTeamFeedback", () => {
         assert.equal( employeeEntries.length, 0 );
     } );
 
+} );
+
+describe( "finalizeSelfEvaluation — supervisor waive of a stalled self round", () => {
+    it( "rejects when the evaluation is not OPEN", async () => {
+        await saveEvaluation( { status: "In Review" } );
+        await assert.rejects(
+            () => competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "left the company" ),
+            ( err ) => /self-finalize-not-open/.test( err?.data?.details || err?.message || "" )
+        );
+    } );
+
+    it( "rejects when the self deadline has not passed", async () => {
+        await saveEvaluation( { selfDeadline: FUTURE } );
+        await assert.rejects(
+            () => competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "left the company" ),
+            ( err ) => /self-finalize-deadline-not-reached/.test( err?.data?.details || err?.message || "" )
+        );
+    } );
+
+    it( "rejects when a reason is missing", async () => {
+        await saveEvaluation( { selfDeadline: PAST } );
+        await assert.rejects(
+            () => competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "   " ),
+            ( err ) => /reason-required/.test( err?.data?.details || err?.message || "" )
+        );
+    } );
+
+    it( "advances to IN_REVIEW when team is done, leaves self incomplete, and writes an audit entry with the reason", async () => {
+        await saveEvaluation( { selfDeadline: PAST, teamEvaluationCompleted: true, team: [] } );
+        const updated = await competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "on extended leave" );
+        assert.equal( updated.status, configurationLoader.evaluationStatus.IN_REVIEW );
+        assert.equal( updated.workflow.selfEvaluationCompleted, false );
+
+        const entries = await dataManager.instance.getAuditEntriesForEvaluation( "eval-1" );
+        assert.equal( entries.length, 1 );
+        assert.equal( entries[ 0 ].field, "workflow.selfEvaluation" );
+        assert.match( entries[ 0 ].reason, /on extended leave/ );
+    } );
+
+    it( "holds OPEN when the team round is still pending", async () => {
+        await saveEvaluation( { selfDeadline: PAST, teamEvaluationCompleted: false, team: [ "u2" ] } );
+        const updated = await competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "unreachable" );
+        assert.equal( updated.status, configurationLoader.evaluationStatus.OPEN );
+    } );
+
+    it( "sets selfEvaluationWaived true while keeping selfEvaluationCompleted false (excluded from scoring)", async () => {
+        await saveEvaluation( { selfDeadline: PAST, teamEvaluationCompleted: true, team: [] } );
+        await competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "on extended leave" );
+        const fetched = await dataManager.instance.fetchEvaluation( "eval-1" );
+        assert.equal( fetched.workflow.selfEvaluationWaived, true );
+        assert.equal( fetched.workflow.selfEvaluationCompleted, false );
+    } );
+
+    it( "rejects a repeat waiver once the self round has already been waived", async () => {
+        await saveEvaluation( { selfDeadline: PAST, teamEvaluationCompleted: false, team: [ "u2" ] } );
+        await competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "first waiver" );
+        await assert.rejects(
+            () => competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "second waiver" ),
+            ( err ) => /self-finalize-already-complete/.test( err?.data?.details || err?.message || "" )
+        );
+    } );
+
+    it( "lets a later team finalize advance a waived-then-held evaluation to IN_REVIEW (no re-stall)", async () => {
+        await saveEvaluation( { selfDeadline: PAST, teamEvaluationCompleted: false, team: [ "u2", "u3" ], submitted: 1, deadline: PAST } );
+        const heldOpen = await competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "unreachable" );
+        assert.equal( heldOpen.status, configurationLoader.evaluationStatus.OPEN );
+        const advanced = await competenceFramework.instance.finalizeTeamFeedback( "eval-1", "mgr-1", "supervisor" );
+        assert.equal( advanced.status, configurationLoader.evaluationStatus.IN_REVIEW );
+    } );
+} );
+
+describe( "withdrawEvaluation — supervisor cancel/withdraw to DELETED", () => {
+    it( "rejects a CLOSED evaluation", async () => {
+        await saveEvaluation( { status: "Closed" } );
+        await assert.rejects(
+            () => competenceFramework.instance.withdrawEvaluation( "eval-1", "sup-1", "duplicate" ),
+            ( err ) => /withdraw-not-active/.test( err?.data?.details || err?.message || "" )
+        );
+    } );
+
+    it( "rejects a missing reason", async () => {
+        await saveEvaluation( { status: "Open" } );
+        await assert.rejects(
+            () => competenceFramework.instance.withdrawEvaluation( "eval-1", "sup-1", "" ),
+            ( err ) => /reason-required/.test( err?.data?.details || err?.message || "" )
+        );
+    } );
+
+    it( "sets DELETED, clears the interview date, and writes an audit entry", async () => {
+        await saveEvaluation( { status: "Ready" } );
+        const result = await competenceFramework.instance.withdrawEvaluation( "eval-1", "sup-1", "created by mistake" );
+        assert.equal( result.status, configurationLoader.evaluationStatus.DELETED );
+
+        // dataManager.fetchEvaluation() intentionally 404s on DELETED evaluations (soft-delete read-side filter —
+        // see the withdrawEvaluation docstring), so persistence is verified via the raw cache entry instead.
+        const [ fetched ] = await cache.instance.getJSON( "ti:competence:data:evaluations", [ "emp-1", "eval-1" ] );
+        assert.equal( fetched.status, configurationLoader.evaluationStatus.DELETED );
+        assert.equal( fetched.interviewDate, null );
+
+        const entries = await dataManager.instance.getAuditEntriesForEvaluation( "eval-1" );
+        assert.equal( entries[ entries.length - 1 ].field, "status" );
+        assert.match( entries[ entries.length - 1 ].reason, /created by mistake/ );
+    } );
+
+    it( "releases a booked interview slot for the withdrawn evaluation", async () => {
+        await saveEvaluation( { status: "Ready" } );
+        const slot = {
+            slotID: "2026-H2|mgr-1|2026-11-20|09:00", cycleID: "2026-H2", managerID: "mgr-1",
+            date: "2026-11-20", startTime: "09:00",
+            status: configurationLoader.slotStatus.BOOKED,
+            booking: { evaluationID: "eval-1", employeeID: "emp-1", employeeName: "E", bookedAt: "2026-11-01" }
+        };
+        await dataManager.instance.saveCalendarSlot( slot );
+
+        await competenceFramework.instance.withdrawEvaluation( "eval-1", "sup-1", "wrong employee" );
+
+        const slots = await dataManager.instance.fetchAllCalendarSlots( "2026-H2" );
+        const released = slots.find( ( s ) => s.slotID === slot.slotID );
+        assert.equal( released.status, configurationLoader.slotStatus.AVAILABLE );
+        assert.equal( released.booking, null );
+    } );
 } );

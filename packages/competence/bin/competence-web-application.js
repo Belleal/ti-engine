@@ -129,6 +129,11 @@ class CompetenceWebApplication extends TiWebAppManager {
             path: "fragments/frame-insights-trends.html",
             roles: [ SUPERVISOR ]
         } );
+        this.addFragment( "evaluations-oversight", {
+            title: "Evaluations Oversight",
+            path: "fragments/frame-evaluations-oversight.html",
+            roles: [ SUPERVISOR ]
+        } );
     }
 
     /* Public interface */
@@ -217,7 +222,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "role-families": "administration",
                     "insights-cycle": "insights-cycle",
                     "insights-team": "insights-team",
-                    "insights-trends": "insights-trends"
+                    "insights-trends": "insights-trends",
+                    "evaluations-oversight": "evaluations-oversight"
                 },
                 componentsConfig: {
                     userProfileMenu: {
@@ -266,6 +272,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#loadManagerCalendar( session );
         } else if ( view === "load-interview-schedule" ) {
             return this.#loadInterviewSchedule( session );
+        } else if ( view === "load-evaluations-oversight" ) {
+            return this.#loadEvaluationsOversight( session );
         } else if ( view === "load-cycle-list" ) {
             return this.#loadCycleList( session );
         } else if ( view === "load-cycle-setup" ) {
@@ -320,7 +328,7 @@ class CompetenceWebApplication extends TiWebAppManager {
         if ( service === "save-evaluation-draft" ) {
             return this.#saveEvaluationDraft( session, params.evaluation );
         } else if ( service === "submit-evaluation" ) {
-            return this.#submitEvaluation( session, params.evaluation );
+            return this.#submitEvaluation( session, params.evaluation, params.reason );
         } else if ( service === "start-evaluation" ) {
             return this.#startEvaluation( session, params.employeeID, params.team );
         } else if ( service === "finalize-team-feedback" ) {
@@ -359,6 +367,10 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#grantSupervisor( session, params );
         } else if ( service === "revoke-supervisor" ) {
             return this.#revokeSupervisor( session, params );
+        } else if ( service === "advance-self-evaluation" ) {
+            return this.#advanceSelfEvaluation( session, params );
+        } else if ( service === "withdraw-evaluation" ) {
+            return this.#withdrawEvaluation( session, params );
         } else {
             return super.processServiceRequest( session, service, params );
         }
@@ -609,19 +621,23 @@ class CompetenceWebApplication extends TiWebAppManager {
      *
      * @param {TiSession} session
      * @param {Evaluation} evaluation
+     * @param {string} [reason] Mandatory justification when a Supervisor who is not an org-line superior submits the
+     *     manager grades on the manager's behalf (proxy-completion); ignored for every other caller.
      * @returns {Promise<Evaluation>}
      * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} If the user is not authorized to perform the operation.
      * @exception {TiException.E_APP_SERVICE_ERROR} If there is a business logic error during the operation. See the exception details for more information.
      * @private
      */
-    #submitEvaluation( session, evaluation ) {
+    #submitEvaluation( session, evaluation, reason ) {
         return new Promise( ( resolve, reject ) => {
-            const { userID } = this.#requireSessionUser( session );
+            const { userID, userRoles } = this.#requireSessionUser( session );
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
 
             let existingEvaluation = null;
             let isEmployee = false;
             let isManager = false;
             let isTeamMember = false;
+            let proxyAuditReason = null;
             dataManager.instance.fetchEvaluation( evaluation.evaluationID ).then( ( storedEvaluation ) => {
                 existingEvaluation = storedEvaluation;
                 isEmployee = existingEvaluation.employeeID === userID;
@@ -701,16 +717,20 @@ class CompetenceWebApplication extends TiWebAppManager {
                         existingEvaluation.workflow.teamEvaluationCompleted = true;
                         competenceFramework.instance.calculateTeamCumulativeGrades( existingEvaluation );
                     }
-                } else if ( isManager ) {
+                } else if ( isManager || isSupervisor ) {
+                    const isProxyBySupervisor = isSupervisor && !isManager;
+                    const managerProxyReason = String( reason || "" ).trim();
+                    if ( isProxyBySupervisor && !managerProxyReason ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.reason-required" }, exceptions.httpCode.C_422 );
+                    }
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.IN_REVIEW ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-in-review" }, exceptions.httpCode.C_422 );
                     }
                     if ( existingEvaluation.workflow.managerEvaluationCompleted ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.already-completed-manager-evaluation" }, exceptions.httpCode.C_422 );
                     }
-                    if ( existingEvaluation.workflow.managerEvaluationDeadline && today > existingEvaluation.workflow.managerEvaluationDeadline ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-manager-evaluation" }, exceptions.httpCode.C_422 );
-                    }
+                    // NOTE: the manager deadline is a nudge/target, not a hard block (CA-59) — a late manager submit is
+                    // never rejected; the overdue-manager task + supervisor proxy provide oversight instead.
 
                     if ( evaluation.feedback && evaluation.feedback.managerComment !== undefined ) {
                         existingEvaluation.feedback = existingEvaluation.feedback || {};
@@ -725,6 +745,9 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                     existingEvaluation.workflow.managerEvaluationCompleted = true;
                     existingEvaluation.status = configurationLoader.evaluationStatus.READY;
+                    if ( isProxyBySupervisor ) {
+                        proxyAuditReason = managerProxyReason;
+                    }
 
                     // At this point calculate the performance scores:
                     competenceFramework.instance.calculateFinalEvaluationScores( existingEvaluation );
@@ -735,14 +758,27 @@ class CompetenceWebApplication extends TiWebAppManager {
                 if ( existingEvaluation.status === configurationLoader.evaluationStatus.OPEN ) {
                     const teamDone = existingEvaluation.workflow.teamEvaluationCompleted
                         || ( !existingEvaluation.workflow.team || existingEvaluation.workflow.team.length === 0 );
-                    if ( existingEvaluation.workflow.selfEvaluationCompleted && teamDone ) {
+                    if ( ( existingEvaluation.workflow.selfEvaluationCompleted || existingEvaluation.workflow.selfEvaluationWaived ) && teamDone ) {
                         existingEvaluation.status = configurationLoader.evaluationStatus.IN_REVIEW;
                     }
                 }
 
                 // TODO: Make sure to update the 'currentStep' of the workflow accordingly (graph implementation needed first).
 
-                return dataManager.instance.saveEvaluation( existingEvaluation );
+                return dataManager.instance.saveEvaluation( existingEvaluation ).then( ( saved ) => {
+                    if ( proxyAuditReason ) {
+                        return dataManager.instance.appendAuditEntry( {
+                            subjectType: "evaluation",
+                            subjectID: saved.evaluationID,
+                            changedBy: userID,
+                            field: "grades.managerProxy",
+                            oldValue: null,
+                            newValue: { by: "supervisor" },
+                            reason: `Manager grades entered by a Supervisor on the manager's behalf: ${ proxyAuditReason }`
+                        } ).then( () => saved );
+                    }
+                    return saved;
+                } );
             } ).then( ( savedEvaluation ) => {
                 let userRole;
                 if ( isTeamMember ) {
@@ -750,6 +786,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                 } else if ( isEmployee ) {
                     userRole = configurationLoader.roleCode.EMPLOYEE;
                 } else if ( isManager ) {
+                    userRole = configurationLoader.roleCode.MANAGER;
+                } else if ( isSupervisor ) {
                     userRole = configurationLoader.roleCode.MANAGER;
                 }
 
@@ -780,7 +818,8 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #saveEvaluationDraft( session, evaluation ) {
         return new Promise( ( resolve, reject ) => {
-            const { userID } = this.#requireSessionUser( session );
+            const { userID, userRoles } = this.#requireSessionUser( session );
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
 
             let existingEvaluation = null;
             let isEmployee = false;
@@ -809,16 +848,16 @@ class CompetenceWebApplication extends TiWebAppManager {
                         existingEvaluation.comment = evaluation.comment;
                     }
                     competenceFramework.instance.updateSelfEvaluationGrades( existingEvaluation, evaluation.grades );
-                } else if ( isManager ) {
+                } else if ( isManager || isSupervisor ) {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.IN_REVIEW ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-draft-status-in-review" }, exceptions.httpCode.C_422 );
                     }
                     if ( existingEvaluation.workflow.managerEvaluationCompleted ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.already-completed-manager-evaluation" }, exceptions.httpCode.C_422 );
                     }
-                    if ( existingEvaluation.workflow?.managerEvaluationDeadline && today > existingEvaluation.workflow.managerEvaluationDeadline ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-manager-evaluation" }, exceptions.httpCode.C_422 );
-                    }
+                    // NOTE: the manager deadline is a nudge/target, not a hard block (CA-59) — a late manager draft is
+                    // never rejected; only the self round hard-blocks on its deadline. A Supervisor may also save a
+                    // draft here as a manager proxy (CA-59) — drafts need no reason; the reason is required at submit.
 
                     if ( evaluation.feedback && evaluation.feedback.managerComment !== undefined ) {
                         existingEvaluation.feedback = existingEvaluation.feedback || {};
@@ -836,6 +875,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                 if ( isEmployee ) {
                     userRole = configurationLoader.roleCode.EMPLOYEE;
                 } else if ( isManager ) {
+                    userRole = configurationLoader.roleCode.MANAGER;
+                } else if ( isSupervisor ) {
                     userRole = configurationLoader.roleCode.MANAGER;
                 }
 
@@ -909,6 +950,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 let canEdit;
                 let deadlineDate;
                 let isFacilitator = false;
+                let isManagerProxy = false;
                 const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
                 const today = new Date().toISOString().split( "T" )[ 0 ];
                 if ( isTeamMember ) {
@@ -926,17 +968,23 @@ class CompetenceWebApplication extends TiWebAppManager {
                 } else if ( isManager ) {
                     userRole = configurationLoader.roleCode.MANAGER;
                     deadlineDate = currentEvaluation.workflow.managerEvaluationDeadline;
+                    // The manager deadline is a nudge, not a block (CA-59) — a manager may still complete after it.
                     canEdit = !currentEvaluation.workflow.managerEvaluationCompleted
-                        && currentEvaluation.status === configurationLoader.evaluationStatus.IN_REVIEW
-                        && ( !deadlineDate || today <= deadlineDate );
+                        && currentEvaluation.status === configurationLoader.evaluationStatus.IN_REVIEW;
                 } else if ( isSupervisor ) {
-                    // Supervisor as a read-only process facilitator (see design 3.8): manager-level visibility for the
-                    // render (anonymize as MANAGER), but no assessment actions — canEdit is hard false, and the submit/
-                    // draft handlers independently reject any non-org-manager. The only action is finalize (canFinalizeTeam).
-                    isFacilitator = true;
+                    // A Supervisor is a read-only process facilitator (design 3.8) EXCEPT for the CA-59 manager proxy:
+                    // on a stalled IN_REVIEW evaluation whose manager grades are not yet in, a Supervisor may complete
+                    // them on the manager's behalf (the submit handler requires a reason for this out-of-line actor).
+                    // The manager deadline is a nudge, not a block, so there is no deadline gate here.
                     userRole = configurationLoader.roleCode.MANAGER;
-                    deadlineDate = currentEvaluation.workflow.teamEvaluationDeadline;
-                    canEdit = false;
+                    const canProxyManager = currentEvaluation.status === configurationLoader.evaluationStatus.IN_REVIEW
+                        && !currentEvaluation.workflow.managerEvaluationCompleted;
+                    canEdit = canProxyManager;
+                    isManagerProxy = canProxyManager;
+                    isFacilitator = !canProxyManager;
+                    deadlineDate = canProxyManager
+                        ? currentEvaluation.workflow.managerEvaluationDeadline
+                        : currentEvaluation.workflow.teamEvaluationDeadline;
                 } else {
                     throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
                 }
@@ -1000,6 +1048,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     teamReviewers: teamTotal > 0 ? { total: teamTotal, submitted: teamSubmitted } : null,
                     canEdit: canEdit, // Used only for UI visualization purposes - do NOT rely on this!
                     isFacilitator: isFacilitator, // Supervisor viewing read-only as process facilitator (cannot rate).
+                    isManagerProxy: isManagerProxy, // Supervisor completing manager grades on the manager's behalf (CA-59); frontend requires a reason on submit.
                     canFinalizeTeam: canFinalizeTeam, // Drives the "Proceed to manager review" action; server-authoritative.
                     isTeamEvaluationCollective: configurationLoader.getSetting( "performanceAppraisals.isTeamEvaluationCollective" ),
                     competencies: competenceFramework.instance.buildCompetenciesTreeFromSnapshot( currentEvaluation.snapshot, session?.language )
@@ -1244,6 +1293,64 @@ class CompetenceWebApplication extends TiWebAppManager {
                 } );
             } ).then( ( updatedEvaluation ) => {
                 resolve( { evaluationID: updatedEvaluation.evaluationID, status: updatedEvaluation.status } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Supervisor override to advance an evaluation's self round past its deadline (waiving or completing an
+     * unfinished self-evaluation) — the "advance self-evaluation" governance action. Precondition checks, the
+     * status transition, and the audit entry are performed by `CompetenceFramework.finalizeSelfEvaluation`.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.evaluationID
+     * @param {string} [params.reason]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #advanceSelfEvaluation( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+            const evaluationID = String( params?.evaluationID || "" ).trim();
+            const reason = String( params?.reason || "" ).trim();
+            if ( !evaluationID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID } ) );
+            }
+            competenceFramework.instance.finalizeSelfEvaluation( evaluationID, userID, reason ).then( ( updated ) => {
+                resolve( { evaluationID: updated.evaluationID, status: updated.status } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Supervisor cancel/withdraw of an active evaluation — the manual stall-recovery action. Irreversible; releases
+     * any booked interview slot, clears the interview date, sets status DELETED, and records the mandatory reason
+     * on the audit trail. Performed by `CompetenceFramework.withdrawEvaluation`.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.evaluationID
+     * @param {string} [params.reason]
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #withdrawEvaluation( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+            const evaluationID = String( params?.evaluationID || "" ).trim();
+            const reason = String( params?.reason || "" ).trim();
+            if ( !evaluationID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID } ) );
+            }
+            competenceFramework.instance.withdrawEvaluation( evaluationID, userID, reason ).then( ( result ) => {
+                resolve( result );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
@@ -1503,6 +1610,79 @@ class CompetenceWebApplication extends TiWebAppManager {
                         canSchedule: isSupervisor,
                         maxGoals: configurationLoader.getSetting( "performanceAppraisals.numberOfNextPeriodGoals", 5 )
                     } );
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Used to load the active cycle's non-closed/non-deleted evaluations for the Supervisor deadline-governance
+     * oversight view, flagging self/manager deadline overdue state and the per-row actions available (advance past
+     * self-evaluation, complete the manager step, withdraw).
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadEvaluationsOversight( session ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+            const today = new Date().toISOString().split( "T" )[ 0 ];
+
+            this.#resolveCurrentCycle().then( ( cycle ) => {
+                if ( !cycle ) {
+                    return resolve( { cycleID: null, evaluations: [] } );
+                }
+                return Promise.all( [
+                    dataManager.instance.fetchEvaluations( null, false ),
+                    dataManager.instance.fetchAllCalendarSlots( cycle.cycleID )
+                ] ).then( ( [ allEvaluations, allSlots ] ) => {
+                    const bookedByEvaluationID = new Set();
+                    ( Array.isArray( allSlots ) ? allSlots : [] ).forEach( ( slot ) => {
+                        if ( slot.status === configurationLoader.slotStatus.BOOKED && slot.booking?.evaluationID ) {
+                            bookedByEvaluationID.add( slot.booking.evaluationID );
+                        }
+                    } );
+
+                    const active = [
+                        configurationLoader.evaluationStatus.OPEN,
+                        configurationLoader.evaluationStatus.IN_REVIEW,
+                        configurationLoader.evaluationStatus.READY
+                    ];
+
+                    const evaluations = allEvaluations
+                        .filter( ( evaluation ) => evaluation.cycleID === cycle.cycleID && active.includes( evaluation.status ) )
+                        .map( ( evaluation ) => {
+                            const workflow = evaluation.workflow || {};
+                            const selfDeadline = workflow.selfEvaluationDeadline || "";
+                            const managerDeadline = workflow.managerEvaluationDeadline || "";
+                            const selfOverdue = evaluation.status === configurationLoader.evaluationStatus.OPEN
+                                && !workflow.selfEvaluationCompleted && !workflow.selfEvaluationWaived && !!selfDeadline && today > selfDeadline;
+                            const managerOverdue = evaluation.status === configurationLoader.evaluationStatus.IN_REVIEW
+                                && !workflow.managerEvaluationCompleted && !!managerDeadline && today > managerDeadline;
+                            return {
+                                evaluationID: evaluation.evaluationID,
+                                shortID: evaluation.shortID,
+                                employeeID: evaluation.employeeID,
+                                employeeName: organizationManager.instance.resolveEmployeeName( evaluation.employeeID ) || evaluation.employeeID,
+                                roleFamilyName: this.#formatRoleFamilyLabel( evaluation.roleFamily, evaluation.specialization, session?.language ),
+                                stageLevel: evaluation.stageLevel || "",
+                                status: evaluation.status,
+                                selfDeadline: selfDeadline,
+                                managerDeadline: managerDeadline,
+                                selfOverdue: selfOverdue,
+                                managerOverdue: managerOverdue,
+                                hasBookedInterview: bookedByEvaluationID.has( evaluation.evaluationID ),
+                                canAdvanceSelf: selfOverdue,
+                                canCompleteManager: evaluation.status === configurationLoader.evaluationStatus.IN_REVIEW && !workflow.managerEvaluationCompleted,
+                                canWithdraw: true
+                            };
+                        } );
+
+                    resolve( { cycleID: cycle.cycleID, evaluations: evaluations } );
                 } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );

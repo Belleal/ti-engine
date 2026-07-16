@@ -15,8 +15,8 @@ You are working on the **ti-engine** monorepo — an open-source (GPL-3.0) Node.
 ti-engine/                         npm workspace root (v1.2.4)
 ├── packages/
 │   ├── core/          v1.7.1      Framework foundation (Redis messaging, lifecycle, utils)
-│   ├── web-framework/ v1.13.0     Express HTTP server + auth + admin config-management + ti-charts + role-based screen gate
-│   ├── competence/    v3.10.0     HR competency appraisal application (108-competency dictionary)
+│   ├── web-framework/ v1.13.2     Express HTTP server + auth + admin config-management + ti-charts + role-based screen gate
+│   ├── competence/    v3.11.1     HR competency appraisal application (108-competency dictionary)
 │   └── tester/        v1.3.3      Reference/example service implementation
 ├── package.json                   Workspace root; devDeps: ESLint 10, Prettier 3
 └── eslint.config.mjs              Flat ESLint config (commonjs, browser+node globals)
@@ -116,7 +116,7 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 ---
 
-## Package: web-framework (v1.13.0)
+## Package: web-framework (v1.13.2)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs + a CSP-safe **charting primitive library** (`ti-charts.js`).
 
@@ -168,7 +168,7 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 ---
 
-## Package: competence (v3.10.0)
+## Package: competence (v3.11.1)
 
 **Role**: Complete HR application for competency-based performance appraisals. Models competencies in three dimensions — **Role Family × Specialization × Stage-Level** — with a first-class appraisal **Cycle** (`PLANNING → ACTIVE → CLOSED`). Evaluations snapshot their resolved competency set at creation so later configuration drift never affects in-flight evaluations. Depends on `core` + `web-framework`; uses `graphology` for the org graph.
 
@@ -190,17 +190,21 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 **Dashboard interview tasks (3.10.0, CA-77)**: `task-resolver.js` also derives interview tasks from `READY` evaluations — a Supervisor's aggregate `interview-schedule` (count of READY evals with no booked slot) and `interview-scheduled` self/manager notifications once a slot is booked. The manager notification targets the **owner of the booked calendar slot** (the actual interviewer, resolved from the active cycle's booked slots in `#loadDashboard`), **not** the reporting line — so a stand-in covering an absent manager is notified while non-participant superiors are not. `#loadDashboard` fetches the whole-cycle slots only for MANAGER/SUPERVISOR.
 
+**Interview meeting outcome & formal closure — Step 8 (3.11.0, CA-78 — design `design/interview-closure.md`)**: the appraisal's final step. On a `READY` evaluation the **conducting manager** (the booked calendar slot's owner), an **org-line superior**, or the **Supervisor** records the interview outcome via `recordInterviewOutcome` — written feedback, up to `numberOfNextPeriodGoals` next-period goals, and an optional Performance Improvement Plan (interview-held precondition: `interviewDate` set and `<= today`, tightened in CA-85) — and the **Supervisor** then formally closes it via `closeEvaluation` (`READY → CLOSED`, irreversible) once the interview has been held and an outcome recorded. Grades stay immutable; a nested `closure` object (`feedback`, `goals[]`, `pip{required,plan}`, `closedAt`, `closedBy`) holds the artifacts, revealed to the employee on the Scores screen only at `CLOSED`. New services `save-interview-outcome` / `close-evaluation`; the Interview Schedule screen is now the interviews **hub** (schedule → record outcome → close); new dashboard tasks `interview-close` (Supervisor aggregate) + `evaluation-closed` (evaluee, 14-day window); the cycle-close modal warns about not-yet-closed evaluations.
+
+**Feedback capture & anonymization fix (3.11.1, CA-88/CA-89)**: the evaluation screen's three Written Feedback textareas (self / manager / team) silently dropped input — they bound a never-dispatched `ti-input` event; switched to the native `@input` event. Also closed a data-exposure in `anonymizeEvaluationScores`: the employee now receives the manager's written `managerComment` only at `READY`/`CLOSED` (mirroring the manager-grade reveal) and **never** the raw anonymous `teamComments` (only the team *cumulative grade* is shown). Guard test `test/fragment-input-bindings.test.js` added.
+
 **Key files**:
 | File | Purpose |
 |------|---------|
-| `application/competence-framework.js` | Singleton (`module.exports.instance`); `getActiveCompetencySet`, `buildEvaluationSnapshot`, `validateCycleForLock`, `lockCycle`, `closeCycle`, `finalizeTeamFeedback`, `calculateTeamCumulativeGrades`, `calculateFinalEvaluationScores`, `buildCompetenciesTreeFromSnapshot`, `generateShortID` |
+| `application/competence-framework.js` | Singleton (`module.exports.instance`); `getActiveCompetencySet`, `buildEvaluationSnapshot`, `validateCycleForLock`, `lockCycle`, `closeCycle`, `finalizeTeamFeedback`, `calculateTeamCumulativeGrades`, `calculateFinalEvaluationScores`, `recordInterviewOutcome`, `closeEvaluation`, `buildCompetenciesTreeFromSnapshot`, `generateShortID` |
 | `application/configuration-loader.js` | Loads config JSONs; exports frozen config objects + enums; helpers `getSpecializationCodes`, `getStageLevelCodes`, `getStageLevelLadder`, `getArchetypeStageLevels`, `getSetting`; `initialize(service)` brings the store-backed configs under admin-config control |
 | `application/config-registration.js` | Registers competence config documents + composite editors with the framework registry (`registerCompetenceConfig`) |
 | `application/config-editors.js` | Composite (entity) editors: `competency-text`, `archetype-assignment`, `relevancy-archetype`, `role-families` |
 | `application/config-validators.js` | Semantic validators (Promise-chain style; `ValidationIssue` / `ValidatorContext` typedefs) incl. floor-coverage, cap, pool-membership (`activeSetsWithinPool` / `poolReferenceIntegrity`), and referential-integrity guards |
 | `application/data-manager.js` | Singleton; CRUD for role families, cycles, active sets, employees, evaluations, audit log, **results-snapshots**, **role grants** (Redis JSON) |
 | `application/organization-manager.js` | Singleton; directed graph (graphology) for org chart; resolves manager + role-family attributes, `resolveOrganizationUnitName`, `getOrganizationUnitSubtree`, `isSuperiorManagerOfEmployee`, `isEligibleTeamReviewer`, and the org-derived role helpers (unit-manager / auto-supervisor — CA-72) |
-| `application/task-resolver.js` | Pure singleton; derives dashboard **tasks** (`team-feedback` / `team-finalize`; `interview-schedule` / `interview-scheduled` self/manager — 3.10.0) from evaluation/workflow state with injected org lookups — persistence-free and unit-tested (3.3.0; seed for the future web-framework tasks module) |
+| `application/task-resolver.js` | Pure singleton; derives dashboard **tasks** (`team-feedback` / `team-finalize`; `interview-schedule` / `interview-scheduled` self/manager — 3.10.0; `interview-close` / `evaluation-closed` — 3.11.0) from evaluation/workflow state with injected org lookups — persistence-free and unit-tested (3.3.0; seed for the future web-framework tasks module) |
 | `application/results-analytics.js` | Pure frozen-singleton (3.4.0); cohort-frame + report computes, the live/snapshot `resolve()`, `buildResultsSnapshot`/`persistResultsSnapshot`, `computeTrend` (cross-cycle), `buildEmployeeHistory`. See *Statistics & Results reporting* above |
 | `application/data-objects.types.js` | Shared JSDoc typedefs for data objects |
 | `bin/competence-web-server.js` | Main entry point (extends ServiceConsumer); `onStart` initializes data-manager then `configurationLoader.initialize()` |
@@ -220,11 +224,11 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 | `bin/static/scripts/competence-user-interface.js` | Alpine components for all screens (calls the framework `/admin/config/*` API for admin screens) |
 | `bin/static/scripts/competence-main.css` | App-specific styles layered on the framework primitives |
 | `design/` | Source-of-truth content docs — see below |
-| `test/*.test.js` | `node --test` — JSON validation, content integrity, config-management/editors/live, framework resolution/validation/lifecycle/snapshot, results-analytics (coverage/reports/snapshot-builder/substrate/persist/trend/history) |
+| `test/*.test.js` | `node --test` — JSON validation, content integrity, config-management/editors/live, framework resolution/validation/lifecycle/snapshot/finalize/closure/anonymize, task-resolver, organization + role-grants + role-resolver, results-analytics (coverage/reports/snapshot-builder/substrate/persist/trend/history) |
 
 **UI fragments** (`bin/static/fragments/`): dashboard, employees-list, employee-management, cycles, cycle-setup, competence-evaluation (the grading screen; its **my-results** route reuses the fragment in results-only mode as the read-only **Scores** screen), new-evaluation, manager-calendar, interview-schedule; the **Insights** group (Manager/Supervisor): `frame-insights-cycle`, `frame-insights-team`, `frame-insights-trends` (SUPERVISOR-only); plus admin-gated config screens: **admin-config** (landing: export + change feed/restore), **competency-text-editor**, **archetype-assignment**, **archetype-editor**, **role-families**. Role-restricted screens declare a `roles` requirement enforced by the web-framework fragment gate (see *Role-based screen gate*, 1.13.0); admin screens live under an admin-only "Administration" sidebar section.
 
-**Design docs** (`design/`, source of truth for content): `competency-definitions-final.md`, `competency-master-index.md`, `competency-bg-translations.md`, `competency-relevancy-model.md`; completed records are archived under `design/completed/` (the phase-0 inventories, `role-family-pool-restoration.md`, `dashboard-team-feedback-tasks.md`, and `statistics-and-results.md` — the reporting capability's meta + Phases 0–4 implementation log), and the YouTrack backfill log is `youtrack-backfill-inventory.md`. Plans for the capability live under `docs/superpowers/plans/`.
+**Design docs** (`design/`, source of truth for content): `competency-definitions-final.md`, `competency-master-index.md`, `competency-bg-translations.md`, `competency-relevancy-model.md`; completed records are archived under `design/completed/` (the phase-0 inventories, `role-family-pool-restoration.md`, `dashboard-team-feedback-tasks.md`, and `statistics-and-results.md` — the reporting capability's meta + Phases 0–4 implementation log), and the YouTrack backfill log is `youtrack-backfill-inventory.md`. Per-feature design records for shipped work remain in `design/` root — `auto-org-derived-roles.md` (3.6.0), `screen-access-control.md` (3.8.0), `evaluation-scores-split.md` (3.9.0), `dashboard-interview-tasks.md` (3.10.0), `interview-closure.md` (3.11.0) — not moved to `completed/`; `deadline-governance.md` is the current designed-but-not-yet-implemented plan (CA-59). Plans for the capability live under `docs/superpowers/plans/`.
 
 **Enums** (`configuration-loader.js`):
 - `RoleCode`: EMPLOYEE(1), MANAGER(2), SUPERVISOR(3), TEAM_MEMBER(4)

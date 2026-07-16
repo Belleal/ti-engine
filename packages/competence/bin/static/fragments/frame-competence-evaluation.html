@@ -665,11 +665,19 @@
                 </div>
                 <div class="ti-modal-body">
                     <p x-text-label="interface.evaluation.submit-modal.desc"></p>
+                    <div class="ti-form compact" x-show="isManagerProxy">
+                        <p x-text-label="interface.evaluation.manager-proxy.body"></p>
+                        <div class="ti-form-row">
+                            <label class="ti-field-label" x-text-label="interface.evaluation.manager-proxy.reason-label"></label>
+                            <textarea class="ti-textarea" rows="3" x-model="modal.payload.reason"
+                                      x-bind:placeholder="getLabel( 'interface.evaluation.manager-proxy.reason-placeholder' )"></textarea>
+                        </div>
+                    </div>
                 </div>
                 <div class="ti-modal-foot">
                     <button type="button" class="ti-btn ghost" @click="closeModal()" x-text-label="interface.evaluation.submit-modal.cancel-btn"></button>
                     <button type="button" class="ti-btn primary" @click="submitEvaluation()"
-                            x-bind:disabled="modal.busy"
+                            x-bind:disabled="modal.busy || ( isManagerProxy && ( modal.payload.reason || '' ).trim() === '' )"
                             x-text-label="interface.evaluation.submit-modal.confirm-btn"></button>
                 </div>
             </div>

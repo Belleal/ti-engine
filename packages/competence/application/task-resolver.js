@@ -75,6 +75,25 @@ const configurationLoader = require( "#configuration-loader" );
  */
 
 /**
+ * @typedef {Object} OverdueSelfTask
+ * @property {"overdue-self"} type
+ * @property {number} count - `Open` evaluations org-wide whose self-evaluation deadline (`workflow.selfEvaluationDeadline`)
+ *           has passed while `selfEvaluationCompleted` is still false. Emitted once, for Supervisors only, as a single
+ *           aggregate (the CA-59 deadline-governance stall-recovery cue), deep-linking to the Evaluations Oversight
+ *           screen where the Supervisor may waive the round via `finalizeSelfEvaluation`.
+ */
+
+/**
+ * @typedef {Object} OverdueManagerTask
+ * @property {"overdue-manager"} type
+ * @property {number} count - `In Review` evaluations org-wide whose manager-evaluation deadline
+ *           (`workflow.managerEvaluationDeadline`) has passed while `managerEvaluationCompleted` is still false.
+ *           Emitted once, for Supervisors only, as a single aggregate; the manager deadline is a nudge, not a block, so
+ *           this task is purely informational and deep-links to the Evaluations Oversight screen where a Supervisor may
+ *           complete the manager grades on the manager's behalf.
+ */
+
+/**
  * Derives a user's actionable dashboard tasks from already-fetched evaluation/workflow state. Pure by design: it does
  * no persistence and no organization lookups of its own — the manager predicate and the name resolver are injected via
  * `ctx`, so the resolver is fully unit-testable with stubs. This is the seed of a future reusable `web-framework` tasks
@@ -104,13 +123,15 @@ class TaskResolver {
      * Resolves the in-scope task descriptors for the given user: `team-feedback` / `team-finalize` (from OPEN
      * evaluations), plus the interview tasks (from READY evaluations) — `interview-schedule` (a Supervisor-only
      * aggregate of interviews awaiting a slot) and `interview-scheduled` (informing the evaluatee and their manager
-     * once a slot is booked).
+     * once a slot is booked) — plus the CA-59 deadline-governance Supervisor aggregates `overdue-self` /
+     * `overdue-manager` (OPEN/IN_REVIEW evaluations whose self/manager deadline has passed while that round is still
+     * incomplete).
      *
      * @method
      * @param {string} userID
      * @param {TaskResolverContext} ctx
      * @param {Array<Evaluation>} evaluations - Already-fetched evaluations to derive tasks from.
-     * @returns {Array<TeamFeedbackTask|TeamFinalizeTask|InterviewScheduleTask|InterviewScheduledTask|InterviewCloseTask|EvaluationClosedTask>}
+     * @returns {Array<TeamFeedbackTask|TeamFinalizeTask|InterviewScheduleTask|InterviewScheduledTask|InterviewCloseTask|EvaluationClosedTask|OverdueSelfTask|OverdueManagerTask>}
      * @public
      */
     resolveTasks( userID, ctx, evaluations ) {
@@ -131,6 +152,10 @@ class TaskResolver {
         let interviewsAwaitingScheduling = 0;
         // A Supervisor also gets a single aggregate "awaiting closure" task for interviews already held (date passed).
         let interviewsHeldAwaitingClosure = 0;
+        // A Supervisor also gets single aggregates for OPEN/IN_REVIEW evaluations whose self/manager deadline has
+        // passed while the corresponding evaluation step is still incomplete.
+        let overdueSelf = 0;
+        let overdueManager = 0;
         // The evaluatee is notified their evaluation closed for a short window after closure, then it drops off.
         const CLOSED_NOTICE_WINDOW_DAYS = 14;
 
@@ -139,9 +164,21 @@ class TaskResolver {
                 continue;
             }
 
+            const workflow = evaluation.workflow || {};
+
+            if ( isSupervisor && evaluation.status === configurationLoader.evaluationStatus.OPEN
+                && !workflow.selfEvaluationCompleted && !workflow.selfEvaluationWaived
+                && workflow.selfEvaluationDeadline && today !== "" && today > workflow.selfEvaluationDeadline ) {
+                overdueSelf++;
+            }
+            if ( isSupervisor && evaluation.status === configurationLoader.evaluationStatus.IN_REVIEW
+                && !workflow.managerEvaluationCompleted
+                && workflow.managerEvaluationDeadline && today !== "" && today > workflow.managerEvaluationDeadline ) {
+                overdueManager++;
+            }
+
             // team-feedback / team-finalize are derived from the still-open team-evaluation round.
             if ( evaluation.status === configurationLoader.evaluationStatus.OPEN ) {
-                const workflow = evaluation.workflow || {};
                 const team = Array.isArray( workflow.team ) ? workflow.team : [];
                 const deadline = workflow.teamEvaluationDeadline || "";
                 // A non-empty deadline strictly before today is "past". A missing/empty deadline is treated as NOT past
@@ -246,6 +283,19 @@ class TaskResolver {
             tasks.push( {
                 type: "interview-close",
                 count: interviewsHeldAwaitingClosure
+            } );
+        }
+
+        if ( isSupervisor && overdueSelf > 0 ) {
+            tasks.push( {
+                type: "overdue-self",
+                count: overdueSelf
+            } );
+        }
+        if ( isSupervisor && overdueManager > 0 ) {
+            tasks.push( {
+                type: "overdue-manager",
+                count: overdueManager
             } );
         }
 

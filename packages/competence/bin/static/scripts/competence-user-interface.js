@@ -37,6 +37,7 @@ const configureCompetenceEvaluation = () => {
         canEdit: false,
         canFinalizeTeam: false,
         isFacilitator: false,
+        isManagerProxy: false,
         manager: {},
         personal: {},
         evaluation: {
@@ -94,6 +95,7 @@ const configureCompetenceEvaluation = () => {
             this.canEdit = fresh.canEdit;
             this.canFinalizeTeam = ( fresh.canFinalizeTeam === true );
             this.isFacilitator = ( fresh.isFacilitator === true );
+            this.isManagerProxy = ( fresh.isManagerProxy === true );
             if ( typeof fresh.isOwnResults === "boolean" ) {
                 this.isOwnResults = fresh.isOwnResults;
             }
@@ -203,12 +205,13 @@ const configureCompetenceEvaluation = () => {
 
         openSubmitModal( event ) {
             modalReturnFocus = ( event && event.currentTarget ) || null;
-            this.modal = { kind: "submit-confirm", payload: {}, busy: false };
+            this.modal = { kind: "submit-confirm", payload: { reason: "" }, busy: false };
         },
 
         submitEvaluation() {
             this.modal.busy = true;
-            tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: this.evaluation } ).then( () => {
+            const reason = ( this.modal.payload && this.modal.payload.reason ) || "";
+            tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: this.evaluation, reason: reason } ).then( () => {
                 tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.submitted" ) );
                 this.closeModal();
                 tiApplication.openScreen( "dashboard" );
@@ -2848,6 +2851,22 @@ const configureDashboard = () => {
                         sub: tiApplication.getLabel( "interface.dashboard.task-evaluation-closed-sub", "View your results, feedback, and goals." ),
                         action: "results"
                     } );
+                } else if ( serverTask.type === "overdue-self" ) {
+                    tasks.push( {
+                        id: "overdue-self",
+                        tone: "warn",
+                        title: tiApplication.getLabel( "interface.dashboard.task-overdue-self", "Self-evaluations overdue" ) + " (" + serverTask.count + ")",
+                        sub: tiApplication.getLabel( "interface.dashboard.task-overdue-self-sub", "Past the self-evaluation deadline — review in Oversight." ),
+                        action: "oversight"
+                    } );
+                } else if ( serverTask.type === "overdue-manager" ) {
+                    tasks.push( {
+                        id: "overdue-manager",
+                        tone: "warn",
+                        title: tiApplication.getLabel( "interface.dashboard.task-overdue-manager", "Manager reviews overdue" ) + " (" + serverTask.count + ")",
+                        sub: tiApplication.getLabel( "interface.dashboard.task-overdue-manager-sub", "Past the manager-review deadline — review in Oversight." ),
+                        action: "oversight"
+                    } );
                 }
             }
             return tasks;
@@ -2864,7 +2883,8 @@ const configureDashboard = () => {
             if ( task.action ) {
                 tiApplication.openScreen( task.action === "evaluation" ? "competence-evaluation" :
                     task.action === "schedule" ? "interview-schedule" :
-                    task.action === "results" ? "my-results" : "employees-list" );
+                    task.action === "results" ? "my-results" :
+                    task.action === "oversight" ? "evaluations-oversight" : "employees-list" );
             }
         },
 
@@ -5770,6 +5790,97 @@ const configureRoleFamilies = () => {
     };
 };
 
+/**
+ * Configures the Supervisor-only Evaluations Oversight screen: a table of the active cycle's
+ * active (Open/In Review/Ready) evaluations with per-row actions — advance past a stalled
+ * self-evaluation, complete the manager step (navigates to the evaluation form), or withdraw
+ * the evaluation entirely — behind a shared, reason-required confirmation modal. Backed by the
+ * load-evaluations-oversight loader (Task 8) and the advance-self-evaluation / withdraw-evaluation
+ * services (Task 5).
+ *
+ * @function
+ * @returns {Object}
+ */
+const configureEvaluationsOversight = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    return {
+        cycleID: "",
+        evaluations: [],
+        reasonModal: { open: false, action: null, evaluationID: null, employeeName: "", reason: "", busy: false },
+
+        init() {
+            const onInitialized = () => { this.loadOversight(); };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) { onInitialized(); }
+                } );
+            }
+        },
+
+        loadOversight() {
+            tiApplication.sendRequest( "/app/load-evaluations-oversight" ).then( ( result ) => {
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
+                this.cycleID = data.cycleID || "";
+                this.evaluations = Array.isArray( data.evaluations ) ? tiToolbox.structuredClone( data.evaluations ) : [];
+            } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) { return; }
+                tiApplication.notify( tiApplication.formatException( error ) );
+                if ( error.exception?.httpCode === 401 ) { tiApplication.openScreen( "dashboard" ); }
+            } );
+        },
+
+        openManagerReview( row ) {
+            const params = new URLSearchParams();
+            params.set( "employeeID", row.employeeID );
+            params.set( "evaluationID", row.evaluationID );
+            tiApplication.openScreen( "competence-evaluation?" + params.toString() );
+        },
+
+        openReasonModal( action, row ) {
+            this.reasonModal = { open: true, action: action, evaluationID: row.evaluationID, employeeName: row.employeeName || "", reason: "", busy: false };
+        },
+
+        dismissReasonModal() {
+            this.reasonModal = { open: false, action: null, evaluationID: null, employeeName: "", reason: "", busy: false };
+        },
+
+        confirmReason() {
+            const reason = this.reasonModal.reason.trim();
+            if ( !this.reasonModal.evaluationID || reason === "" ) { return; }
+            const action = this.reasonModal.action;
+            const url = action === "withdraw" ? "/app/withdraw-evaluation" : "/app/advance-self-evaluation";
+            this.reasonModal.busy = true;
+            tiApplication.sendRequest( url, "POST", { evaluationID: this.reasonModal.evaluationID, reason: reason } ).then( ( result ) => {
+                const data = ( result && result.data ) || {};
+                // `finalizeSelfEvaluation` holds the evaluation at `Open` when the team round is still pending —
+                // only report "advanced" when the returned status actually reached `In Review`.
+                let toast = "interface.oversight.withdrawn-toast";
+                if ( action !== "withdraw" ) {
+                    toast = ( data.status === "In Review" ) ? "interface.oversight.advanced-toast" : "interface.oversight.advanced-held-toast";
+                }
+                tiApplication.notify( tiApplication.getLabel( toast ) );
+                this.dismissReasonModal();
+                this.loadOversight();
+            } ).catch( ( error ) => {
+                this.dismissReasonModal();
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        formatDate( value, placeholder = "" ) {
+            return tiToolbox.formatDate( value, tiApplication.getLabel( placeholder, "" ) );
+        },
+
+        getLabel( label ) {
+            return tiApplication.getLabel( label );
+        }
+    };
+};
+
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceEvaluation", configureCompetenceEvaluation );
     Alpine.data( "competenceEmployeesList", configureEmployeesList );
@@ -5788,4 +5899,5 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "insightsCycle", configureInsightsCycle );
     Alpine.data( "insightsTeam", configureInsightsTeam );
     Alpine.data( "insightsTrends", configureTrendsScreen );
+    Alpine.data( "competenceEvaluationsOversight", configureEvaluationsOversight );
 } );

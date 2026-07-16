@@ -357,7 +357,7 @@ class CompetenceFramework {
 
             // Advance to manager review only when self is also done; otherwise hold OPEN until the self-eval lands.
             let newValueLabel;
-            if ( workflow.selfEvaluationCompleted ) {
+            if ( workflow.selfEvaluationCompleted || workflow.selfEvaluationWaived ) {
                 evaluation.status = configurationLoader.evaluationStatus.IN_REVIEW;
                 newValueLabel = configurationLoader.evaluationStatus.IN_REVIEW;
             } else {
@@ -374,6 +374,130 @@ class CompetenceFramework {
                     newValue: newValueLabel,
                     reason: `Team feedback finalized after the deadline by ${ actorRoleLabel || "actor" }; ${ pendingCount } pending reviewer(s) dropped.`
                 } ).then( () => saved );
+            } );
+        } );
+    }
+
+    /**
+     * Supervisor waive of a stalled self round: advances a past-deadline OPEN evaluation without a self-assessment.
+     * Leaves selfEvaluationCompleted false (so the self source is excluded from scoring), advancing to IN_REVIEW only
+     * when the team round is also done. Records the mandatory reason on the evaluation audit trail.
+     *
+     * <br/>NOTE: This method mutates and persists the evaluation.
+     *
+     * @method
+     * @param {string} evaluationID
+     * @param {string} actorID
+     * @param {string} reason
+     * @returns {Promise<Evaluation>}
+     * @public
+     */
+    finalizeSelfEvaluation( evaluationID, actorID, reason ) {
+        return dataManager.instance.fetchEvaluation( evaluationID ).then( ( evaluation ) => {
+            const today = new Date().toISOString().split( "T" )[ 0 ];
+            const workflow = evaluation.workflow || {};
+
+            if ( evaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.self-finalize-not-open" }, exceptions.httpCode.C_422 );
+            }
+            const deadline = workflow.selfEvaluationDeadline || "";
+            if ( !deadline || today <= deadline ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.self-finalize-deadline-not-reached" }, exceptions.httpCode.C_422 );
+            }
+            if ( workflow.selfEvaluationCompleted || workflow.selfEvaluationWaived ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.self-finalize-already-complete" }, exceptions.httpCode.C_422 );
+            }
+            const trimmedReason = String( reason || "" ).trim();
+            if ( !trimmedReason ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.reason-required" }, exceptions.httpCode.C_422 );
+            }
+
+            // Mark the self round waived: it stays out of scoring (selfEvaluationCompleted remains false) but now
+            // satisfies the OPEN->IN_REVIEW transition, so team completion later won't re-stall the evaluation and the
+            // waiver cannot be repeated.
+            workflow.selfEvaluationWaived = true;
+
+            // Advance only when the team round is done (mirrors the #submitEvaluation OPEN->IN_REVIEW predicate); the
+            // self round stays incomplete and is therefore excluded from scoring at manager submit.
+            const teamDone = workflow.teamEvaluationCompleted || ( !workflow.team || workflow.team.length === 0 );
+            let newValueLabel;
+            if ( teamDone ) {
+                evaluation.status = configurationLoader.evaluationStatus.IN_REVIEW;
+                newValueLabel = configurationLoader.evaluationStatus.IN_REVIEW;
+            } else {
+                newValueLabel = "Open (awaiting team)";
+            }
+
+            return dataManager.instance.saveEvaluation( evaluation ).then( ( saved ) => {
+                return dataManager.instance.appendAuditEntry( {
+                    subjectType: "evaluation",
+                    subjectID: evaluationID,
+                    changedBy: actorID,
+                    field: "workflow.selfEvaluation",
+                    oldValue: "pending",
+                    newValue: "waived → " + newValueLabel,
+                    reason: `Self-evaluation waived after the deadline: ${ trimmedReason }`
+                } ).then( () => saved );
+            } );
+        } );
+    }
+
+    /**
+     * Supervisor cancel/withdraw of an active evaluation. Releases any booked interview slot, clears the interview
+     * date, sets status DELETED (read-side filters remove it, unblocking a fresh start-evaluation), and records the
+     * mandatory reason on the audit trail. Irreversible.
+     *
+     * @method
+     * @param {string} evaluationID
+     * @param {string} actorID
+     * @param {string} reason
+     * @returns {Promise<{ evaluationID: string, status: string }>}
+     * @public
+     */
+    withdrawEvaluation( evaluationID, actorID, reason ) {
+        return dataManager.instance.fetchEvaluation( evaluationID ).then( ( evaluation ) => {
+            const activeStatuses = [
+                configurationLoader.evaluationStatus.OPEN,
+                configurationLoader.evaluationStatus.IN_REVIEW,
+                configurationLoader.evaluationStatus.READY
+            ];
+            if ( !activeStatuses.includes( evaluation.status ) ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.withdraw-not-active" }, exceptions.httpCode.C_422 );
+            }
+            const trimmedReason = String( reason || "" ).trim();
+            if ( !trimmedReason ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.reason-required" }, exceptions.httpCode.C_422 );
+            }
+
+            const previousStatus = evaluation.status;
+
+            return dataManager.instance.fetchAllCalendarSlots( evaluation.cycleID ).then( ( slots ) => {
+                const bookedSlot = ( Array.isArray( slots ) ? slots : [] ).find(
+                    ( slot ) => slot.status === configurationLoader.slotStatus.BOOKED && slot.booking?.evaluationID === evaluationID
+                );
+                const releaseSlot = bookedSlot
+                    ? ( () => {
+                        bookedSlot.status = configurationLoader.slotStatus.AVAILABLE;
+                        bookedSlot.booking = null;
+                        return dataManager.instance.saveCalendarSlot( bookedSlot );
+                    } )()
+                    : Promise.resolve();
+
+                return releaseSlot.then( () => {
+                    evaluation.status = configurationLoader.evaluationStatus.DELETED;
+                    evaluation.interviewDate = null;
+                    return dataManager.instance.saveEvaluation( evaluation );
+                } );
+            } ).then( () => {
+                return dataManager.instance.appendAuditEntry( {
+                    subjectType: "evaluation",
+                    subjectID: evaluationID,
+                    changedBy: actorID,
+                    field: "status",
+                    oldValue: previousStatus,
+                    newValue: configurationLoader.evaluationStatus.DELETED,
+                    reason: `Evaluation withdrawn: ${ trimmedReason }`
+                } ).then( () => ( { evaluationID: evaluationID, status: configurationLoader.evaluationStatus.DELETED } ) );
             } );
         } );
     }
@@ -537,9 +661,10 @@ class CompetenceFramework {
             workflow: {
                 currentStep: 1,
                 selfEvaluationCompleted: false,
-                selfEvaluationDeadline: "",
+                selfEvaluationDeadline: cycle.teamFeedbackDeadline || cycle.cycleDate || "",
+                selfEvaluationWaived: false,
                 managerEvaluationCompleted: false,
-                managerEvaluationDeadline: "",
+                managerEvaluationDeadline: cycle.cycleDate || "",
                 teamEvaluationCompleted: false,
                 // Populated from the cycle's team-feedback deadline (clamped at create-cycle). Falls back to the
                 // manager-review deadline for any legacy cycle created before teamFeedbackDeadline existed.
@@ -629,18 +754,35 @@ class CompetenceFramework {
             maxScoreByCategory[ category ] = ( maxScoreByCategory[ category ] || 0 ) + relevancy;
         } );
 
+        // Renormalize to the sources that actually participated (matches the client decomposition). A source
+        // participates iff its round completed: self/manager are set on submit, team when all peers submit or the
+        // round is finalized. A waived self (finalizeSelfEvaluation leaves selfEvaluationCompleted false) and a
+        // no-team evaluation are thereby excluded. Dividing by the participating-weight sum keeps an all-R
+        // evaluation ~100 regardless of which sources took part, instead of depressing it by the absent weight.
+        const workflow = evaluation.workflow || {};
+        const selfParticipates = workflow.selfEvaluationCompleted === true;
+        // A team round finalized with zero submissions (allowFinalizeTeamWithoutSubmissions) is marked complete but
+        // carries no team grades — it must NOT count as participating, or its weight depresses the renormalized score.
+        const teamParticipates = workflow.teamEvaluationCompleted === true
+            && ( workflow.teamEvaluationsSubmitted || 0 ) > 0;
+        const managerParticipates = workflow.managerEvaluationCompleted === true;
+        const participatingWeight =
+            ( selfParticipates ? evaluationWeights.SELF : 0 ) +
+            ( teamParticipates ? evaluationWeights.TEAM : 0 ) +
+            ( managerParticipates ? evaluationWeights.MANAGER : 0 );
+
         evaluation.scores = {};
         evaluation.finalScore = { score: 0 };
 
         Object.entries( maxScoreByCategory ).forEach( ( [ categoryCode, maxCategoryScore ] ) => {
-            if ( !maxCategoryScore ) {
+            if ( !maxCategoryScore || participatingWeight <= 0 ) {
                 return;
             }
-            const categoryScore = Math.ceil( (
-                ( ( selfScore[ categoryCode ] || 0 ) / maxCategoryScore ) * evaluationWeights.SELF +
-                ( ( teamScore[ categoryCode ] || 0 ) / maxCategoryScore ) * evaluationWeights.TEAM +
-                ( ( managerScore[ categoryCode ] || 0 ) / maxCategoryScore ) * evaluationWeights.MANAGER
-            ) * 100 );
+            const weighted =
+                ( selfParticipates ? ( ( selfScore[ categoryCode ] || 0 ) / maxCategoryScore ) * evaluationWeights.SELF : 0 ) +
+                ( teamParticipates ? ( ( teamScore[ categoryCode ] || 0 ) / maxCategoryScore ) * evaluationWeights.TEAM : 0 ) +
+                ( managerParticipates ? ( ( managerScore[ categoryCode ] || 0 ) / maxCategoryScore ) * evaluationWeights.MANAGER : 0 );
+            const categoryScore = Math.ceil( ( weighted / participatingWeight ) * 100 );
 
             let interpretation = null;
             Object.keys( performanceThresholds ).forEach( ( thresholdCode ) => {
@@ -931,6 +1073,68 @@ class CompetenceFramework {
                 subcategories
             };
         } ).filter( Boolean );
+    }
+
+    /**
+     * Idempotent legacy-data migration: stamps `workflow.selfEvaluationDeadline` / `workflow.managerEvaluationDeadline`
+     * onto pre-existing `Open`/`In Review` evaluations that predate the CA-59 deadline population added to
+     * `createNewEvaluation` and therefore still carry empty `""` deadlines. Resolves each evaluation's cycle and
+     * derives the same values `createNewEvaluation` would have written: `selfEvaluationDeadline = cycle.teamFeedbackDeadline
+     * || cycle.cycleDate`; `managerEvaluationDeadline = cycle.cycleDate`. Once this has run, every existing consumer
+     * (the late-submit guards, `finalizeSelfEvaluation`, the overdue dashboard tasks, Oversight's `canAdvanceSelf`)
+     * works unchanged — no read-time fallback is needed.
+     * <br/>
+     * Only an EMPTY field is ever filled; an already-populated deadline is never overwritten, so re-running this
+     * method is a no-op for evaluations it has already touched — safe to invoke unconditionally on every service
+     * start. `Closed`/`Deleted` evaluations are never considered. When an evaluation's cycle cannot be resolved (e.g.
+     * the cycle record itself is missing), that evaluation is left untouched and a debug note is logged — this
+     * method never rejects because of a single unresolvable evaluation.
+     * <br/>
+     * NOTE: Does not write audit entries — this is a system migration, not a user-initiated action.
+     *
+     * @method
+     * @returns {Promise<{scanned: number, updated: number}>} `scanned` = the number of `Open`/`In Review` evaluations
+     * examined; `updated` = the number that actually had a deadline filled in.
+     * @public
+     */
+    backfillMissingEvaluationDeadlines() {
+        const cyclePromises = new Map();
+        const resolveCycle = ( cycleID ) => {
+            if ( !cyclePromises.has( cycleID ) ) {
+                cyclePromises.set( cycleID, dataManager.instance.getCycle( cycleID ).catch( () => null ) );
+            }
+            return cyclePromises.get( cycleID );
+        };
+
+        return dataManager.instance.fetchEvaluations( null, false ).then( ( evaluations ) => {
+            const relevantStatuses = [ configurationLoader.evaluationStatus.OPEN, configurationLoader.evaluationStatus.IN_REVIEW ];
+            const candidates = evaluations.filter( ( evaluation ) => relevantStatuses.indexOf( evaluation.status ) >= 0 );
+
+            return Promise.all( candidates.map( ( evaluation ) => {
+                const workflow = evaluation.workflow || {};
+                if ( workflow.selfEvaluationDeadline && workflow.managerEvaluationDeadline ) {
+                    return false; // Both already set — nothing to backfill, no cycle lookup needed.
+                }
+                return resolveCycle( evaluation.cycleID ).then( ( cycle ) => {
+                    if ( !cycle ) {
+                        logger.log( `Backfill: could not resolve cycle '${ evaluation.cycleID }' for evaluation '${ evaluation.evaluationID }' — leaving its deadlines unchanged.`, logger.logSeverity.DEBUG );
+                        return false;
+                    }
+                    const resolvedSelf = workflow.selfEvaluationDeadline || ( cycle.teamFeedbackDeadline || cycle.cycleDate || "" );
+                    const resolvedManager = workflow.managerEvaluationDeadline || ( cycle.cycleDate || "" );
+                    if ( resolvedSelf === workflow.selfEvaluationDeadline && resolvedManager === workflow.managerEvaluationDeadline ) {
+                        return false;
+                    }
+                    evaluation.workflow = { ...workflow, selfEvaluationDeadline: resolvedSelf, managerEvaluationDeadline: resolvedManager };
+                    return dataManager.instance.saveEvaluation( evaluation ).then( () => true );
+                } );
+            } ) ).then( ( results ) => {
+                const updated = results.filter( ( result ) => result === true ).length;
+                const summary = { scanned: candidates.length, updated };
+                logger.log( `Backfilled deadlines on ${ updated } evaluation(s) (scanned ${ candidates.length } Open/In Review evaluation(s)).`, logger.logSeverity.NOTICE );
+                return summary;
+            } );
+        } );
     }
 
     /* Private interface */

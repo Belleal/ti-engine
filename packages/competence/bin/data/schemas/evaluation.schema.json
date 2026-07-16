@@ -219,6 +219,10 @@
           "format": "date",
           "description": "Deadline for self-evaluation submission"
         },
+        "selfEvaluationWaived": {
+          "type": "boolean",
+          "description": "Set when a Supervisor waives a stalled self-evaluation (advance without self). Kept out of scoring (selfEvaluationCompleted stays false) but satisfies the OPEN->IN_REVIEW transition. Optional for backward compatibility."
+        },
         "teamEvaluationCompleted": {
           "type": "boolean",
           "description": "Indicates if team-evaluation has been completed"
