@@ -358,7 +358,7 @@ raw_team[category]    = Σ ( grade_weight(cumulative_grade[c])  × relevancy(c, 
 raw_manager[category] = Σ ( grade_weight(manager_grade[c])     × relevancy(c, stageLevel) )
 ```
 
-**2. Category score** (integer, typically 0–130), **renormalized to the evaluator types that actually participated.** A source participates iff its round completed (`selfEvaluationCompleted` / `teamEvaluationCompleted` / `managerEvaluationCompleted`) — so a round that was never requested (no team assigned) or was waived by a Supervisor (a stalled self round; see [Evaluation Status Lifecycle](#evaluation-status-lifecycle)) is *excluded* from the calculation rather than counted as a zero, and no longer depresses the score:
+**2. Category score** (integer, typically 0–130), **renormalized to the evaluator types that actually participated.** A source participates iff its round completed (`selfEvaluationCompleted` / `teamEvaluationCompleted` / `managerEvaluationCompleted`), with the team round additionally requiring **at least one submitted grade** — so a round that was never requested (no team assigned), a **team round finalized with zero submissions** (e.g. via `allowFinalizeTeamWithoutSubmissions`, which completes the round but leaves it empty), or a self round waived by a Supervisor (a stalled self round; see [Evaluation Status Lifecycle](#evaluation-status-lifecycle)) is *excluded* from the calculation rather than counted as a zero, and no longer depresses the score:
 
 ```text
 participating_weight = Σ ( weight(source) for each source that participated )
