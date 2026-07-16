@@ -188,6 +188,31 @@ describe( "finalizeSelfEvaluation — supervisor waive of a stalled self round",
         const updated = await competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "unreachable" );
         assert.equal( updated.status, configurationLoader.evaluationStatus.OPEN );
     } );
+
+    it( "sets selfEvaluationWaived true while keeping selfEvaluationCompleted false (excluded from scoring)", async () => {
+        await saveEvaluation( { selfDeadline: PAST, teamEvaluationCompleted: true, team: [] } );
+        await competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "on extended leave" );
+        const fetched = await dataManager.instance.fetchEvaluation( "eval-1" );
+        assert.equal( fetched.workflow.selfEvaluationWaived, true );
+        assert.equal( fetched.workflow.selfEvaluationCompleted, false );
+    } );
+
+    it( "rejects a repeat waiver once the self round has already been waived", async () => {
+        await saveEvaluation( { selfDeadline: PAST, teamEvaluationCompleted: false, team: [ "u2" ] } );
+        await competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "first waiver" );
+        await assert.rejects(
+            () => competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "second waiver" ),
+            ( err ) => /self-finalize-already-complete/.test( err?.data?.details || err?.message || "" )
+        );
+    } );
+
+    it( "lets a later team finalize advance a waived-then-held evaluation to IN_REVIEW (no re-stall)", async () => {
+        await saveEvaluation( { selfDeadline: PAST, teamEvaluationCompleted: false, team: [ "u2", "u3" ], submitted: 1, deadline: PAST } );
+        const heldOpen = await competenceFramework.instance.finalizeSelfEvaluation( "eval-1", "sup-1", "unreachable" );
+        assert.equal( heldOpen.status, configurationLoader.evaluationStatus.OPEN );
+        const advanced = await competenceFramework.instance.finalizeTeamFeedback( "eval-1", "mgr-1", "supervisor" );
+        assert.equal( advanced.status, configurationLoader.evaluationStatus.IN_REVIEW );
+    } );
 } );
 
 describe( "withdrawEvaluation — supervisor cancel/withdraw to DELETED", () => {

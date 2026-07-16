@@ -29,6 +29,7 @@ function evaluation( over = {} ) {
             teamEvaluationsSubmitted: over.submitted || 0,
             selfEvaluationDeadline: ( over.selfDeadline !== undefined ) ? over.selfDeadline : "",
             selfEvaluationCompleted: over.selfDone === true,
+            selfEvaluationWaived: over.selfWaived === true,
             managerEvaluationDeadline: ( over.managerDeadline !== undefined ) ? over.managerDeadline : "",
             managerEvaluationCompleted: over.managerDone === true
         }
@@ -349,6 +350,14 @@ describe( "TaskResolver — overdue-self / overdue-manager (supervisor aggregate
         ];
         const tasks = taskResolver.instance.resolveTasks( "sup", ctx( { isSupervisor: true, today: "2026-07-10" } ), evaluations );
         assert.deepEqual( tasks.find( ( t ) => t.type === "overdue-self" ), { type: "overdue-self", count: 1 } );
+    } );
+
+    it( "excludes an already-waived self round from the overdue-self count", () => {
+        const evaluations = [
+            evaluation( { evaluationID: "e1", status: "Open", selfDeadline: "2026-07-01", selfDone: false, selfWaived: true } )
+        ];
+        const tasks = taskResolver.instance.resolveTasks( "sup", ctx( { isSupervisor: true, today: "2026-07-10" } ), evaluations );
+        assert.equal( tasks.some( ( t ) => t.type === "overdue-self" ), false );
     } );
 
     it( "counts IN_REVIEW evaluations past the manager deadline with manager incomplete", () => {

@@ -758,7 +758,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 if ( existingEvaluation.status === configurationLoader.evaluationStatus.OPEN ) {
                     const teamDone = existingEvaluation.workflow.teamEvaluationCompleted
                         || ( !existingEvaluation.workflow.team || existingEvaluation.workflow.team.length === 0 );
-                    if ( existingEvaluation.workflow.selfEvaluationCompleted && teamDone ) {
+                    if ( ( existingEvaluation.workflow.selfEvaluationCompleted || existingEvaluation.workflow.selfEvaluationWaived ) && teamDone ) {
                         existingEvaluation.status = configurationLoader.evaluationStatus.IN_REVIEW;
                     }
                 }
@@ -1660,7 +1660,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                             const selfDeadline = workflow.selfEvaluationDeadline || "";
                             const managerDeadline = workflow.managerEvaluationDeadline || "";
                             const selfOverdue = evaluation.status === configurationLoader.evaluationStatus.OPEN
-                                && !workflow.selfEvaluationCompleted && !!selfDeadline && today > selfDeadline;
+                                && !workflow.selfEvaluationCompleted && !workflow.selfEvaluationWaived && !!selfDeadline && today > selfDeadline;
                             const managerOverdue = evaluation.status === configurationLoader.evaluationStatus.IN_REVIEW
                                 && !workflow.managerEvaluationCompleted && !!managerDeadline && today > managerDeadline;
                             return {

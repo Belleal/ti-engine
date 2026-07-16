@@ -167,7 +167,7 @@ class TaskResolver {
             const workflow = evaluation.workflow || {};
 
             if ( isSupervisor && evaluation.status === configurationLoader.evaluationStatus.OPEN
-                && !workflow.selfEvaluationCompleted
+                && !workflow.selfEvaluationCompleted && !workflow.selfEvaluationWaived
                 && workflow.selfEvaluationDeadline && today !== "" && today > workflow.selfEvaluationDeadline ) {
                 overdueSelf++;
             }

@@ -357,7 +357,7 @@ class CompetenceFramework {
 
             // Advance to manager review only when self is also done; otherwise hold OPEN until the self-eval lands.
             let newValueLabel;
-            if ( workflow.selfEvaluationCompleted ) {
+            if ( workflow.selfEvaluationCompleted || workflow.selfEvaluationWaived ) {
                 evaluation.status = configurationLoader.evaluationStatus.IN_REVIEW;
                 newValueLabel = configurationLoader.evaluationStatus.IN_REVIEW;
             } else {
@@ -404,13 +404,18 @@ class CompetenceFramework {
             if ( !deadline || today <= deadline ) {
                 throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.self-finalize-deadline-not-reached" }, exceptions.httpCode.C_422 );
             }
-            if ( workflow.selfEvaluationCompleted ) {
+            if ( workflow.selfEvaluationCompleted || workflow.selfEvaluationWaived ) {
                 throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.self-finalize-already-complete" }, exceptions.httpCode.C_422 );
             }
             const trimmedReason = String( reason || "" ).trim();
             if ( !trimmedReason ) {
                 throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.reason-required" }, exceptions.httpCode.C_422 );
             }
+
+            // Mark the self round waived: it stays out of scoring (selfEvaluationCompleted remains false) but now
+            // satisfies the OPEN->IN_REVIEW transition, so team completion later won't re-stall the evaluation and the
+            // waiver cannot be repeated.
+            workflow.selfEvaluationWaived = true;
 
             // Advance only when the team round is done (mirrors the #submitEvaluation OPEN->IN_REVIEW predicate); the
             // self round stays incomplete and is therefore excluded from scoring at manager submit.
@@ -657,6 +662,7 @@ class CompetenceFramework {
                 currentStep: 1,
                 selfEvaluationCompleted: false,
                 selfEvaluationDeadline: cycle.teamFeedbackDeadline || cycle.cycleDate || "",
+                selfEvaluationWaived: false,
                 managerEvaluationCompleted: false,
                 managerEvaluationDeadline: cycle.cycleDate || "",
                 teamEvaluationCompleted: false,
