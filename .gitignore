@@ -8,3 +8,7 @@ package-lock.json
 /.claude/settings.local.json
 # WebStorm/IntelliJ run configs carry local, per-developer secrets in their <env> blocks — keep them out of git.
 packages/*/.run/*.run.xml
+
+# Local environment files (root, for docker compose) — keep the template
+.env
+!.env.example
