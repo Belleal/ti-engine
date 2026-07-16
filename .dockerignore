@@ -22,6 +22,8 @@ node_modules
 # Tests, docs and design artifacts (not needed at runtime)
 **/test
 docs
+**/docs
+**/design
 
 # Lockfile is gitignored and builds use `npm install`
 package-lock.json
