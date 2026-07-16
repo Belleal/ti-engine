@@ -2,6 +2,11 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.13.0
+* feat(competence): containerize the app — multi-stage Dockerfile, docker compose dev stack, `.env` template, and a `start` script
+* build(competence): GitHub Actions CI (lint/test/build) and CD (publish to ghcr.io/belleal/ti-engine-competence)
+* docs(competence): add a Deployment (Docker) section to the README
+
 ## Version 3.12.0
 
 Deadline governance & manual stall recovery: the appraisal process could stall forever if an employee never submitted a self-evaluation or a manager never submitted their review, and a mistaken or permanently-stalled evaluation had no way to be removed. This closes all three gaps with manual, reason-justified, audited recovery actions — no scheduler, no notification channel, no automatic skipping of any human judgement. See `design/deadline-governance.md` (CA-59).
