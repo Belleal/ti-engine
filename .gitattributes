@@ -1,0 +1,7 @@
+# Container/build entrypoints must stay LF on every platform. This repo uses
+# core.autocrlf=true on Windows; without this, a fresh checkout rewrites these
+# files to CRLF and BuildKit can mishandle backslash-continued Dockerfile
+# instructions (baking a stray CR into ENV values → boot failure).
+Dockerfile      text eol=lf
+*.Dockerfile    text eol=lf
+*.sh            text eol=lf
