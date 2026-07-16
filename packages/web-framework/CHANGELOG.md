@@ -2,6 +2,13 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.14.0
+
+`TI_WEB_*` environment-variable overrides for the web server configuration, enabling 12-factor container deployments without per-environment config files (CA-90).
+
+* feat(web-framework): add `applyWebConfigEnvOverrides( config, env = process.env )` (`#web-config-env`) — a pure helper applying `TI_WEB_HOST`, `TI_WEB_PORT`, `TI_WEB_USE_TLS`, `TI_WEB_TLS_CERT_PATH`, `TI_WEB_TLS_KEY_PATH`, and `TI_WEB_COOKIE_SECRET` overrides onto the merged `TiWebServer` configuration, only when each variable is defined (fully backward compatible)
+* build(release): bump package version from `1.13.2` to `1.14.0`
+
 ## Version 1.13.0
 
 A reusable role-based screen gate and a per-screen title override (back the competence screen-access work and the evaluation/scores screen split).
