@@ -42,6 +42,12 @@ describe( "applyWebConfigEnvOverrides", () => {
         assert.equal( config.useTLS, true );
     } );
 
+    it( "ignores a non-integer TI_WEB_PORT, leaving the configured port", () => {
+        const config = baseConfig();
+        applyWebConfigEnvOverrides( config, { TI_WEB_PORT: "not-a-number" } );
+        assert.equal( config.port, 3000 );
+    } );
+
     it( "overrides TLS cert/key paths", () => {
         const config = baseConfig();
         applyWebConfigEnvOverrides( config, { TI_WEB_TLS_CERT_PATH: "/certs/tls.crt", TI_WEB_TLS_KEY_PATH: "/certs/tls.key" } );

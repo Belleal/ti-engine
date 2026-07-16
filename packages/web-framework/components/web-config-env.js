@@ -30,7 +30,10 @@ function applyWebConfigEnvOverrides( config, env = process.env ) {
         config.host = env.TI_WEB_HOST;
     }
     if ( env.TI_WEB_PORT !== undefined ) {
-        config.port = Number( env.TI_WEB_PORT );
+        const port = Number( env.TI_WEB_PORT );
+        if ( Number.isInteger( port ) ) {
+            config.port = port;
+        }
     }
     if ( env.TI_WEB_USE_TLS !== undefined ) {
         config.useTLS = tools.toBool( env.TI_WEB_USE_TLS );
