@@ -22,6 +22,9 @@ function deepClone( value ) {
 
 function deepMerge( target, source ) {
     for ( const [ k, v ] of Object.entries( source ) ) {
+        // Skip prototype-polluting keys — a `__proto__`/`constructor`/`prototype` key would otherwise walk into and
+        // corrupt Object.prototype for the whole process (CWE-1321).
+        if ( k === "__proto__" || k === "constructor" || k === "prototype" ) continue;
         if ( v && typeof v === "object" && !Array.isArray( v ) && target[ k ] && typeof target[ k ] === "object" && !Array.isArray( target[ k ] ) ) {
             deepMerge( target[ k ], v );
         } else {

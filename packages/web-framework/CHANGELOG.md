@@ -2,6 +2,15 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.14.1
+
+Security hardening for the web-server CodeQL findings raised after the scanner was modernized in CA-90 (CA-91).
+
+* fix(web-framework): rewrite the default unprotected static-asset route matchers from the ambiguous `(?:.+/)*` to segment-anchored `(?:[^/]+/)*` — the previous form backtracked exponentially and is evaluated against the raw request path in `isUnprotectedRoute()` before authentication, making it a pre-authentication denial-of-service vector (CodeQL js/redos); the matched language for realistic asset paths is unchanged, and the matchers are now the `RE_STATIC_UNPROTECTED` / `RE_WELL_KNOWN_UNPROTECTED` module constants
+* fix(web-framework): replace the login-fragment section stripper's `open[\s\S]*?close` global-regex removal with a linear `indexOf`-based `stripMarkerSpans()` helper (also used for the per-provider stripper), eliminating the polynomial-time rescan on hostile input (CodeQL js/polynomial-redos)
+* docs(web-framework): document that Helmet's built-in Content-Security-Policy is intentionally disabled because a per-request, nonce-based CSP is enforced by `cspHeaderHandler()` on the following middleware — added an explanatory comment and an inline CodeQL suppression (the alert is a false positive)
+* build(release): bump package version from `1.14.0` to `1.14.1`
+
 ## Version 1.14.0
 
 `TI_WEB_*` environment-variable overrides for the web server configuration, enabling 12-factor container deployments without per-environment config files (CA-90).

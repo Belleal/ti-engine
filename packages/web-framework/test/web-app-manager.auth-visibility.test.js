@@ -64,4 +64,17 @@ describe( "applyAuthMethodVisibility", () => {
         assert.ok( !out.includes( "or continue with" ) );
     } );
 
+    it( "strips an unterminated OAuth section in linear time (ReDoS guard)", () => {
+        // CodeQL js/polynomial-redos (alert #7): the old lazy `[\s\S]*?` under a /g replace rescanned to
+        // end-of-string at every opening marker (O(n^2)) when the closing marker was absent. The tempered-token
+        // rewrite is linear. Pathological input: many opening markers, no closing marker — sized so the vulnerable
+        // pattern is clearly intractable while the fixed one is instant.
+        const hostile = "<!--ti-auth-oauth-section-->".repeat( 50000 );
+        const start = process.hrtime.bigint();
+        const out = applyAuthMethodVisibility( hostile, [ "local" ] );
+        const elapsedMs = Number( process.hrtime.bigint() - start ) / 1e6;
+        assert.ok( !out.includes( "ti-auth-" ), "stray markers should still be stripped" );
+        assert.ok( elapsedMs < 500, `expected linear-time handling, took ${ elapsedMs.toFixed( 1 ) }ms` );
+    } );
+
 } );

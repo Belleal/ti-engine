@@ -20,6 +20,31 @@ const logger = require( "@ti-engine/core/logger" );
 const { registerCompetenceConfig } = require( "../application/config-registration" );
 
 /**
+ * Path segments that must never appear in a dotted field path — walking or assigning through them would reach and
+ * pollute `Object.prototype` (CWE-1321). Employee field paths come from the request body, and the SUPERVISOR edit
+ * scope is unrestricted, so this guard is the process-wide backstop.
+ *
+ * @type {Set<string>}
+ */
+const UNSAFE_PATH_SEGMENTS = new Set( [ "__proto__", "constructor", "prototype" ] );
+
+/**
+ * Rejects a dotted field path that contains a prototype-polluting segment (`__proto__`, `constructor`, or
+ * `prototype`). Legitimate employee field paths never contain these, so this is behavior-preserving for all valid
+ * input while blocking the prototype-pollution vector before any object traversal or assignment.
+ *
+ * @param {string} path
+ * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} If any segment is unsafe.
+ */
+function assertSafeFieldPath( path ) {
+    for ( const segment of String( path ).split( "." ) ) {
+        if ( UNSAFE_PATH_SEGMENTS.has( segment ) ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: `Unsafe field path segment '${ segment }'.` }, exceptions.httpCode.C_422 );
+        }
+    }
+}
+
+/**
  * NOTE: This is still a work in progress.
  *
  * @class CompetenceWebApplication
@@ -3729,6 +3754,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @private
      */
     #getFieldByPath( obj, path ) {
+        assertSafeFieldPath( path );
         const parts = path.split( "." );
         let current = obj;
         for ( const part of parts ) {
@@ -3748,6 +3774,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @private
      */
     #setFieldByPath( obj, path, value ) {
+        assertSafeFieldPath( path );
         const parts = path.split( "." );
         let current = obj;
         for ( let i = 0; i < parts.length - 1; i++ ) {
@@ -4007,3 +4034,5 @@ class CompetenceWebApplication extends TiWebAppManager {
 }
 
 module.exports = CompetenceWebApplication;
+// Exported for unit testing of the field-path prototype-pollution guard; not part of the public surface.
+module.exports.assertSafeFieldPath = assertSafeFieldPath;

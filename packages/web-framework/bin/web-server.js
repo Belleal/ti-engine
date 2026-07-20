@@ -91,6 +91,25 @@ const applyWebConfigEnvOverrides = require( "#web-config-env" );
 const webServerConfig = require( "#web-server-config" );
 
 /**
+ * Default unprotected static-asset route matchers. The path segments are matched with `(?:[^/]+\/)*` rather than
+ * `(?:.+\/)*`: the inner `[^/]+` cannot also consume the "/" delimiter, so the pattern is unambiguous and matches
+ * in linear time. The previous `.+` form was ambiguous and backtracked exponentially on hostile request paths such
+ * as `/static/a/a/…/a/x` (no trailing extension) — and these matchers run against the raw request path in
+ * {@link TiWebServer#isUnprotectedRoute} BEFORE authentication, so that was a pre-auth denial-of-service vector
+ * (CodeQL js/redos). The matched language for realistic asset paths is unchanged.
+ *
+ * @type {RegExp}
+ */
+const RE_STATIC_UNPROTECTED = /^\/static\/(?:[^/]+\/)*[^/]+\.[^/]+$/i;
+
+/**
+ * Default unprotected `/.well-known/` route matcher. See {@link RE_STATIC_UNPROTECTED} for the ReDoS rationale.
+ *
+ * @type {RegExp}
+ */
+const RE_WELL_KNOWN_UNPROTECTED = /^\/\.well-known\/(?:[^/]+\/)*[^/]+\.[^/]+$/i;
+
+/**
  * A web server microservice based on the ti-engine.
  * <br/>
  * Note: The web server is fully functional and already comes with all the necessary fundamentals and security features. However, it is designed to be extended
@@ -256,6 +275,12 @@ class TiWebServer extends ServiceConsumer {
 
                 // Set up security and session middlewares first:
                 this.#webServer.use( webHandlers.nonceGenerationHandler() );
+                // Helmet's built-in Content-Security-Policy is intentionally disabled here because a per-request,
+                // nonce-based CSP is enforced on the very next line by webHandlers.cspHeaderHandler() (see
+                // components/web-handlers.js) — Helmet's static config cannot express per-response nonces. Every other
+                // Helmet header (HSTS, X-Content-Type-Options, X-Frame-Options, …) still applies. This is a deliberate
+                // architecture, not missing CSP; do not enable Helmet's static CSP here, as that would drop the nonce.
+                // codeql[js/insecure-helmet-configuration]
                 this.#webServer.use( helmet( { contentSecurityPolicy: false } ) );
                 this.#webServer.use( webHandlers.cspHeaderHandler() );
                 this.#webServer.use( express.json( { limit: "1mb" } ) );
@@ -543,8 +568,8 @@ class TiWebServer extends ServiceConsumer {
         this.#unprotectedRoutes.push( "/app/config" );
         this.#unprotectedRoutes.push( /^\/login\/[^/]+$/i );
         this.#unprotectedRoutes.push( "/logout" );
-        this.#unprotectedRoutes.push( /^\/static\/(?:.+\/)*[^/]+\.[^/]+$/i );
-        this.#unprotectedRoutes.push( /^\/\.well-known\/(?:.+\/)*[^/]+\.[^/]+$/i );
+        this.#unprotectedRoutes.push( RE_STATIC_UNPROTECTED );
+        this.#unprotectedRoutes.push( RE_WELL_KNOWN_UNPROTECTED );
     }
 
     /* Private interface */
@@ -608,3 +633,6 @@ class TiWebServer extends ServiceConsumer {
 }
 
 module.exports = TiWebServer;
+// Exported for unit testing of the ReDoS-hardened matchers; not part of the customization surface.
+module.exports.RE_STATIC_UNPROTECTED = RE_STATIC_UNPROTECTED;
+module.exports.RE_WELL_KNOWN_UNPROTECTED = RE_WELL_KNOWN_UNPROTECTED;

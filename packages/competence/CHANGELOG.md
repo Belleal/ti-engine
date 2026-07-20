@@ -2,6 +2,14 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.13.1
+
+Security hardening for the prototype-pollution CodeQL findings raised after the scanner was modernized in CA-90 (CA-91).
+
+* fix(competence): guard employee field-path traversal against prototype pollution — `#setFieldByPath` and `#getFieldByPath` now reject `__proto__` / `constructor` / `prototype` path segments through a shared `assertSafeFieldPath()` before any object traversal or assignment; the dotted path comes from the employee-update request body and the Supervisor edit scope is unrestricted, so an authenticated Supervisor could otherwise pollute `Object.prototype` process-wide (CodeQL js/prototype-pollution-utility)
+* fix(competence): guard the in-memory cache test double's `deepMerge` against prototype-polluting keys so a `__proto__`/`constructor`/`prototype` key can no longer reach `Object.prototype` (CodeQL js/prototype-polluting-assignment)
+* build(release): bump package version from `3.13.0` to `3.13.1`
+
 ## Version 3.13.0
 
 Containerized deployment: package the app as a Docker image and give it a repeatable, automated path to a registry — a multi-stage Dockerfile, a docker compose dev stack, an `.env` template for configuration, and GitHub Actions CI/CD (lint/test/build, then publish to `ghcr.io/belleal/ti-engine-competence`). See `docs/superpowers/specs/2026-07-16-competence-docker-cicd-design.md` (CA-90).
