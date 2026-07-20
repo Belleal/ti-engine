@@ -20,6 +20,38 @@ const RE_CSRF_ATTR = /\{ti-csrf-placeholder}/g;
 const RE_HTMX_CONFIG = /\{ti-htmx-config-placeholder}/g;
 const RE_CSP_NONCE = /^[A-Za-z0-9+/=_-]{16,}$/;
 const TI_NESTED_FRAME_PLACEHOLDER = "ti-nested-frame-placeholder";
+const OAUTH_METHODS = [ "openid-google", "openid-azure" ];
+const RE_AUTH_MARKERS = /<!--\/?ti-auth-(?:oauth-section|method(?::[a-z-]+)?)-->/g;
+
+/**
+ * Removes login-page OpenID provider markup for any OAuth method that is not currently enabled, and removes the
+ * entire "or continue with" section when no OAuth method is enabled at all. The login fragment delimits the
+ * relevant blocks with HTML-comment markers: `<!--ti-auth-method:METHOD-->…<!--/ti-auth-method-->` around each
+ * provider button, and `<!--ti-auth-oauth-section-->…<!--/ti-auth-oauth-section-->` around the divider + social
+ * block. Any remaining markers are stripped so clean HTML ships. Fragments without these markers (every non-login
+ * fragment) are returned unchanged.
+ *
+ * @param {string} html
+ * @param {string[]} [enabledMethods] The effective enabled authentication methods.
+ * @returns {string}
+ */
+function applyAuthMethodVisibility( html, enabledMethods ) {
+    let result = String( html );
+    const enabled = Array.isArray( enabledMethods ) ? enabledMethods : [];
+
+    if ( !OAUTH_METHODS.some( ( method ) => enabled.includes( method ) ) ) {
+        // No OAuth providers available — drop the whole "or continue with" section, then any stray markers.
+        return result.replace( /<!--ti-auth-oauth-section-->[\s\S]*?<!--\/ti-auth-oauth-section-->/g, "" ).replace( RE_AUTH_MARKERS, "" );
+    }
+
+    // Drop the button block for each OAuth method that is not enabled, then strip the remaining markers.
+    OAUTH_METHODS.forEach( ( method ) => {
+        if ( !enabled.includes( method ) ) {
+            result = result.replace( new RegExp( "<!--ti-auth-method:" + method + "-->[\\s\\S]*?<!--/ti-auth-method-->", "g" ), "" );
+        }
+    } );
+    return result.replace( RE_AUTH_MARKERS, "" );
+}
 
 /**
  * A generic web application manager that handles the rendering and behavior of web application views. It is designed to be extended by specific web application
@@ -39,6 +71,7 @@ class TiWebAppManager {
     #fragments = {};
     #staticFileCache = {};
     #staticFileCacheEnabled;
+    #enabledAuthMethods = [];
 
     /**
      * @constructor
@@ -174,6 +207,18 @@ class TiWebAppManager {
     }
 
     /**
+     * Sets the effective enabled authentication methods used to gate login-page provider buttons. The web server
+     * calls this at startup, after the auth manager has dropped any enabled-but-unconfigured OpenID providers.
+     *
+     * @method
+     * @param {string[]} methods
+     * @public
+     */
+    setEnabledAuthMethods( methods ) {
+        this.#enabledAuthMethods = Array.isArray( methods ) ? [ ...methods ] : [];
+    }
+
+    /**
      * Optional HTML transformation hook.
      * <br/>
      * NOTE: Override in subclasses to add nonces or other dynamic data to outgoing HTML.
@@ -211,6 +256,9 @@ class TiWebAppManager {
             transformedHtml = transformedHtml.replaceAll( RE_CSRF_ATTR, csrfToken );
 
             transformedHtml = transformedHtml.replace( "{ti-title-placeholder}", options.title || "" );
+
+            // Gate login-page OpenID provider buttons to the effective enabled auth methods (no-op on other fragments).
+            transformedHtml = applyAuthMethodVisibility( transformedHtml, this.#enabledAuthMethods );
 
             resolve( transformedHtml );
         } );
@@ -562,3 +610,4 @@ class TiWebAppManager {
 }
 
 module.exports = TiWebAppManager;
+module.exports.applyAuthMethodVisibility = applyAuthMethodVisibility;

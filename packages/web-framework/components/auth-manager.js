@@ -142,6 +142,19 @@ class AuthManager {
     }
 
     /**
+     * Returns the list of currently enabled authentication methods, reflecting any OpenID providers dropped by
+     * {@link AuthManager#initialize} for being enabled but unconfigured. Callers (e.g. the login-page renderer)
+     * use this to present only the methods a user can actually complete.
+     *
+     * @method
+     * @returns {TiAuthMethod[]}
+     * @public
+     */
+    getEnabledMethods() {
+        return [ ...this.#authSettings.enabledMethods ];
+    }
+
+    /**
      * Used to authenticate a user via the specified authentication method.
      *
      * @method

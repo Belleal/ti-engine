@@ -306,6 +306,11 @@ class TiWebServer extends ServiceConsumer {
 
                 return this.#authManager.initialize();
             } ).then( () => {
+                // Hand the web application manager the effective enabled auth methods (after any unconfigured OpenID
+                // providers were dropped) so the login page only renders providers a user can actually complete.
+                if ( this.#webAppManager && typeof this.#webAppManager.setEnabledAuthMethods === "function" ) {
+                    this.#webAppManager.setEnabledAuthMethods( this.#authManager.getEnabledMethods() );
+                }
                 return this.#beginListening( this.#netServer, this.serviceConfig.port, this.serviceConfig.host );
             } ).then( ( server ) => {
                 if ( server.listening === true ) {
