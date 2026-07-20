@@ -1,0 +1,30 @@
+# Git & CI metadata
+.git
+.github
+.gitignore
+
+# Dependencies are installed inside the image
+node_modules
+**/node_modules
+
+# Local dev / IDE / tooling
+.idea
+.vscode
+.claude
+**/.run
+
+# Environment & secrets — never ship these into the image
+**/.env
+.env.*
+!.env.example
+**/bin/tls
+
+# Tests, docs and design artifacts (not needed at runtime)
+**/test
+docs
+**/docs
+**/design
+
+# Lockfile is gitignored and builds use `npm install`
+package-lock.json
+**/package-lock.json

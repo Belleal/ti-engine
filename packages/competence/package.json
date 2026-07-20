@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/competence",
-  "version": "3.12.0",
+  "version": "3.13.0",
   "description": "The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
@@ -29,6 +29,7 @@
     "graphology": "^0.26.0"
   },
   "scripts": {
+    "start": "node ../../node_modules/@ti-engine/core/bin/start-instance.js",
     "test": "node --test test/*.test.js",
     "test:json": "node --test test/json-config-validation.test.js"
   },

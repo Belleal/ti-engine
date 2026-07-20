@@ -24,6 +24,7 @@ const authMethod = require( "#auth-manager" ).authMethod;
 const authorization = require( "#authorization" );
 const adminConfigHandlers = require( "#admin-config-handlers" );
 const configService = require( "#config-service" );
+const applyWebConfigEnvOverrides = require( "#web-config-env" );
 
 /** @typedef {import("node:http").Server} NodeServer */
 
@@ -121,7 +122,7 @@ class TiWebServer extends ServiceConsumer {
      * @throws {TiException.E_GEN_JS_INTERNAL_ERROR} If the web application manager cannot be loaded.
      */
     constructor( serviceDomainName, serviceConfig ) {
-        super( serviceDomainName, _.merge( {}, webServerConfig, ( _.isObjectLike( serviceConfig ) ) ? serviceConfig : {} ) );
+        super( serviceDomainName, applyWebConfigEnvOverrides( _.merge( {}, webServerConfig, ( _.isObjectLike( serviceConfig ) ) ? serviceConfig : {} ) ) );
 
         // Include the current host in the list of allowed hosts:
         this.#allowedHosts.push( this.serviceConfig.host );
@@ -305,6 +306,11 @@ class TiWebServer extends ServiceConsumer {
 
                 return this.#authManager.initialize();
             } ).then( () => {
+                // Hand the web application manager the effective enabled auth methods (after any unconfigured OpenID
+                // providers were dropped) so the login page only renders providers a user can actually complete.
+                if ( this.#webAppManager && typeof this.#webAppManager.setEnabledAuthMethods === "function" ) {
+                    this.#webAppManager.setEnabledAuthMethods( this.#authManager.getEnabledMethods() );
+                }
                 return this.#beginListening( this.#netServer, this.serviceConfig.port, this.serviceConfig.host );
             } ).then( ( server ) => {
                 if ( server.listening === true ) {

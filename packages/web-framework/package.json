@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/web-framework",
-  "version": "1.13.2",
+  "version": "1.14.0",
   "description": "A web-framework based on the ti-engine. It provides a customizable ready-to-use web-server microservice and a set of tools for creating web applications. NOTICE: This is still a work in progress and the full architecture, design, and functionality are not available!",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
@@ -20,6 +20,7 @@
     "#session-store": "./components/session-store.js",
     "#user": "./components/user.js",
     "#web-app-manager": "./bin/web-app-manager.js",
+    "#web-config-env": "./components/web-config-env.js",
     "#web-handlers": "./components/web-handlers.js",
     "#web-server": "./bin/web-server.js",
     "#web-server-config": "./bin/web-server.json"

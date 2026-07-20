@@ -43,6 +43,46 @@ The following features are currently implemented:
 
 ---
 
+## Deployment (Docker)
+
+The competence app ships as a container built from the monorepo. It requires a Redis
+instance **with the JSON module** (Redis Stack, or Redis 8+).
+
+### Local development
+
+```bash
+cp .env.example .env   # then set the two secret values
+docker compose up --build
+# open http://localhost:3000/login
+```
+
+The compose stack starts Redis Stack + the app. `COMPETENCE_TEST_USER_ENABLED=true` (dev only)
+enables the login test panel.
+
+### Building the image standalone
+
+```bash
+docker build -f packages/competence/Dockerfile -t ti-engine-competence:local .
+docker run --rm -p 3000:3000 \
+  -e TI_MEMORY_CACHE_REDIS_HOST=<redis-host> \
+  -e TI_WEB_HOST=0.0.0.0 -e TI_WEB_USE_TLS=false \
+  -e TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY=<strong-random> \
+  -e TI_WEB_COOKIE_SECRET=<strong-random> \
+  ti-engine-competence:local
+```
+
+### Production notes
+
+- Put a TLS-terminating reverse proxy / ingress in front (the container runs plain HTTP;
+  it trusts `X-Forwarded-*`). Keep `TI_WEB_USE_TLS=false`.
+- Set `TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY` and `TI_WEB_COOKIE_SECRET` to strong, private values.
+- Set `COMPETENCE_TEST_USER_ENABLED=false` (default).
+- Point `TI_MEMORY_CACHE_*` at your JSON-capable Redis; set `TI_MEMORY_CACHE_AUTH_KEY` if it requires auth.
+- See `.env.example` for the full variable list. Images are published to
+  `ghcr.io/belleal/ti-engine-competence` (`:latest`, `:X.Y.Z` on `competence-v*` tags, `:edge` on master).
+
+---
+
 ## Core Concepts
 
 ### Roles

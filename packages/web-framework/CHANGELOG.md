@@ -2,6 +2,15 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.14.0
+
+`TI_WEB_*` environment-variable overrides for the web server configuration, enabling 12-factor container deployments without per-environment config files (CA-90).
+
+* feat(web-framework): add `applyWebConfigEnvOverrides( config, env = process.env )` (`#web-config-env`) — a pure helper applying `TI_WEB_HOST`, `TI_WEB_PORT`, `TI_WEB_USE_TLS`, `TI_WEB_TLS_CERT_PATH`, `TI_WEB_TLS_KEY_PATH`, and `TI_WEB_COOKIE_SECRET` overrides onto the merged `TiWebServer` configuration, only when each variable is defined (fully backward compatible)
+* fix(web-framework): skip an enabled OpenID Connect provider that has no client ID instead of crashing the instance during discovery — an OAuth-less deployment (e.g. a container started without OAuth credentials) now boots on its remaining methods, with a warning, and reports the dropped provider as unavailable so a sign-in attempt against it fails per-request rather than at startup
+* feat(web-framework): the login page now renders an OpenID provider button only when that provider is an effective enabled auth method — the web server passes the post-drop enabled methods to the app manager, which strips the Google/Azure button (and the whole "or continue with" section when no provider is available) from `frame-login.html` at render time
+* build(release): bump package version from `1.13.2` to `1.14.0`
+
 ## Version 1.13.0
 
 A reusable role-based screen gate and a per-screen title override (back the competence screen-access work and the evaluation/scores screen split).

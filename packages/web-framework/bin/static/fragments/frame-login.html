@@ -46,6 +46,7 @@
                 </button>
             </form>
 
+            <!--ti-auth-oauth-section-->
             <!-- Divider -->
             <div class="ti-login-divider">
                 <div class="ti-login-divider-line"></div>
@@ -55,6 +56,7 @@
 
             <!-- Social auth -->
             <div class="ti-login-social">
+                <!--ti-auth-method:openid-google-->
                 <a href="/login/openid-google" class="ti-btn full">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <path d="M21.6 12.23c0-.68-.06-1.33-.17-1.96H12v3.71h5.39a4.6 4.6 0 0 1-2 3.02v2.51h3.23c1.9-1.74 2.98-4.31 2.98-7.28Z" fill="#4285F4"/>
@@ -67,13 +69,17 @@
                     </svg>
                     <span x-text-label="interface.default.login.sign-in-google">Sign in with Google</span>
                 </a>
+                <!--/ti-auth-method-->
+                <!--ti-auth-method:openid-azure-->
                 <a href="/login/openid-azure" class="ti-btn full">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <path d="M11.5 2L4 8.5l4 1-4 6.5h8l-2-4 4-1-2.5 8H20L14 2h-2.5Z" fill="#0078D4"/>
                     </svg>
                     <span x-text-label="interface.default.login.sign-in-azure">Sign in with Azure</span>
                 </a>
+                <!--/ti-auth-method-->
             </div>
+            <!--/ti-auth-oauth-section-->
         </div>
 
         <!-- TEMPORARY: Test user selector for augmentSession() experimentation. Remove once AD-driven identity is wired up. -->

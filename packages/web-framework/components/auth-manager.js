@@ -105,6 +105,11 @@ class AuthManager {
      * @public
      */
     initialize() {
+        // Drop any OpenID Connect provider that is enabled but not configured (missing a client ID) so the
+        // instance boots with the remaining methods instead of crashing during discovery — e.g. a container
+        // started without OAuth credentials falls back to whatever else is enabled rather than failing to start.
+        this.#dropUnconfiguredOpenIDProviders();
+
         let promises = [];
         if ( this.isAuthEnabled( authMethodEnum.OPENID_GOOGLE ) ) {
             promises.push( this.#initializeOpenIDClient( this.#authSettings.oauth2.google ).then( ( configuration ) => {
@@ -134,6 +139,19 @@ class AuthManager {
      */
     isAuthEnabled( authMethod ) {
         return this.#authSettings.enabledMethods.includes( authMethod );
+    }
+
+    /**
+     * Returns the list of currently enabled authentication methods, reflecting any OpenID providers dropped by
+     * {@link AuthManager#initialize} for being enabled but unconfigured. Callers (e.g. the login-page renderer)
+     * use this to present only the methods a user can actually complete.
+     *
+     * @method
+     * @returns {TiAuthMethod[]}
+     * @public
+     */
+    getEnabledMethods() {
+        return [ ...this.#authSettings.enabledMethods ];
     }
 
     /**
@@ -209,6 +227,41 @@ class AuthManager {
     }
 
     /* Private interface */
+
+    /**
+     * Removes any OpenID Connect provider that is enabled but not configured (missing a client ID) from the set
+     * of enabled authentication methods, logging a warning for each. This prevents a startup crash during OpenID
+     * discovery when an enabled provider has no credentials (e.g. a container started without OAuth env vars): the
+     * instance boots on its remaining methods, and `isAuthEnabled` then correctly reports the dropped provider as
+     * unavailable so a sign-in attempt against it is rejected per-request instead of taking down startup.
+     *
+     * @method
+     * @private
+     */
+    #dropUnconfiguredOpenIDProviders() {
+        const providers = [
+            { method: authMethodEnum.OPENID_GOOGLE, oauth2: this.#authSettings.oauth2.google, label: "Google" },
+            { method: authMethodEnum.OPENID_AZURE, oauth2: this.#authSettings.oauth2.azure, label: "Azure" }
+        ];
+        providers.forEach( ( provider ) => {
+            if ( this.isAuthEnabled( provider.method ) && !this.#isOpenIDConfigured( provider.oauth2 ) ) {
+                this.#authSettings.enabledMethods = this.#authSettings.enabledMethods.filter( ( method ) => method !== provider.method );
+                logger.log( `OpenID Connect (${ provider.label }) is enabled but not configured (missing client ID); skipping this provider.`, logger.logSeverity.WARNING );
+            }
+        } );
+    }
+
+    /**
+     * Checks whether an OpenID Connect provider has the minimum configuration required to initialize (a non-empty client ID).
+     *
+     * @method
+     * @param {SettingsOAuth2Client} [oauth2] The provider's OAuth2 settings.
+     * @returns {boolean}
+     * @private
+     */
+    #isOpenIDConfigured( oauth2 ) {
+        return !!( oauth2 && typeof oauth2.clientID === "string" && oauth2.clientID.trim() !== "" );
+    }
 
     /**
      * Used to initialize the OpenID Connect client for the specified OAuth2 authentication method.

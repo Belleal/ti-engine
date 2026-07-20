@@ -1,0 +1,43 @@
+# Local development stack for the competence app.
+# Usage: `docker compose up --build` then open http://localhost:3000/login
+services:
+  redis:
+    # Redis Stack bundles the JSON module the app requires (JSON.MERGE / JSON.MGET).
+    # Alternative smaller image if you prefer: image: redis:8-alpine
+    image: redis/redis-stack-server:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  competence:
+    build:
+      context: .
+      dockerfile: packages/competence/Dockerfile
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      TI_MEMORY_CACHE_REDIS_HOST: redis
+      TI_MEMORY_CACHE_REDIS_PORT: "6379"
+      TI_MEMORY_CACHE_REDIS_DB: "0"
+      TI_WEB_HOST: 0.0.0.0
+      TI_WEB_PORT: "3000"
+      TI_WEB_USE_TLS: "false"
+      TI_AUDITING_LOG_MIN_LEVEL: "0"
+      # Dev-only application flags:
+      COMPETENCE_PRELOAD_DATA: "false"        # set "true" once to seed demo data (destructive)
+      COMPETENCE_TEST_USER_ENABLED: "true"    # dev-only login test panel; MUST be false in production
+      # Secrets — dev-only fallbacks; ALWAYS override with real values in production:
+      TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY: "${TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY:-dev-only-not-for-prod-change-me}"
+      TI_WEB_COOKIE_SECRET: "${TI_WEB_COOKIE_SECRET:-dev-only-not-for-prod-change-me}"
+
+volumes:
+  redis-data:
