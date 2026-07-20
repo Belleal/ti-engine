@@ -7,6 +7,7 @@ This document will contain the list of changes made to the framework. The format
 `TI_WEB_*` environment-variable overrides for the web server configuration, enabling 12-factor container deployments without per-environment config files (CA-90).
 
 * feat(web-framework): add `applyWebConfigEnvOverrides( config, env = process.env )` (`#web-config-env`) — a pure helper applying `TI_WEB_HOST`, `TI_WEB_PORT`, `TI_WEB_USE_TLS`, `TI_WEB_TLS_CERT_PATH`, `TI_WEB_TLS_KEY_PATH`, and `TI_WEB_COOKIE_SECRET` overrides onto the merged `TiWebServer` configuration, only when each variable is defined (fully backward compatible)
+* fix(web-framework): skip an enabled OpenID Connect provider that has no client ID instead of crashing the instance during discovery — an OAuth-less deployment (e.g. a container started without OAuth credentials) now boots on its remaining methods, with a warning, and reports the dropped provider as unavailable so a sign-in attempt against it fails per-request rather than at startup
 * build(release): bump package version from `1.13.2` to `1.14.0`
 
 ## Version 1.13.0
