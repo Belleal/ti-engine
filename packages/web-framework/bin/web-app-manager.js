@@ -24,6 +24,39 @@ const OAUTH_METHODS = [ "openid-google", "openid-azure" ];
 const RE_AUTH_MARKERS = /<!--\/?ti-auth-(?:oauth-section|method(?::[a-z-]+)?)-->/g;
 
 /**
+ * Removes every `<openMarker>…<closeMarker>` span (inclusive) from `html` in a single linear pass. The markers are
+ * matched as fixed strings via `indexOf`, so — unlike an `openMarker[\s\S]*?closeMarker` regular expression under a
+ * global replace — this cannot exhibit super-linear backtracking on hostile input containing many opening markers
+ * (CodeQL js/polynomial-redos). Matches the lazy-regex semantics: each opening marker pairs with the *next* closing
+ * marker after it. An opening marker with no matching closing marker is left untouched (the caller strips any stray
+ * markers afterwards with {@link RE_AUTH_MARKERS}).
+ *
+ * @param {string} html
+ * @param {string} openMarker
+ * @param {string} closeMarker
+ * @returns {string}
+ */
+function stripMarkerSpans( html, openMarker, closeMarker ) {
+    let result = "";
+    let cursor = 0;
+    for ( ; ; ) {
+        const open = html.indexOf( openMarker, cursor );
+        if ( open === -1 ) {
+            result += html.slice( cursor );
+            break;
+        }
+        const close = html.indexOf( closeMarker, open + openMarker.length );
+        if ( close === -1 ) {
+            result += html.slice( cursor );
+            break;
+        }
+        result += html.slice( cursor, open );
+        cursor = close + closeMarker.length;
+    }
+    return result;
+}
+
+/**
  * Removes login-page OpenID provider markup for any OAuth method that is not currently enabled, and removes the
  * entire "or continue with" section when no OAuth method is enabled at all. The login fragment delimits the
  * relevant blocks with HTML-comment markers: `<!--ti-auth-method:METHOD-->…<!--/ti-auth-method-->` around each
@@ -41,13 +74,13 @@ function applyAuthMethodVisibility( html, enabledMethods ) {
 
     if ( !OAUTH_METHODS.some( ( method ) => enabled.includes( method ) ) ) {
         // No OAuth providers available — drop the whole "or continue with" section, then any stray markers.
-        return result.replace( /<!--ti-auth-oauth-section-->[\s\S]*?<!--\/ti-auth-oauth-section-->/g, "" ).replace( RE_AUTH_MARKERS, "" );
+        return stripMarkerSpans( result, "<!--ti-auth-oauth-section-->", "<!--/ti-auth-oauth-section-->" ).replace( RE_AUTH_MARKERS, "" );
     }
 
     // Drop the button block for each OAuth method that is not enabled, then strip the remaining markers.
     OAUTH_METHODS.forEach( ( method ) => {
         if ( !enabled.includes( method ) ) {
-            result = result.replace( new RegExp( "<!--ti-auth-method:" + method + "-->[\\s\\S]*?<!--/ti-auth-method-->", "g" ), "" );
+            result = stripMarkerSpans( result, "<!--ti-auth-method:" + method + "-->", "<!--/ti-auth-method-->" );
         }
     } );
     return result.replace( RE_AUTH_MARKERS, "" );
