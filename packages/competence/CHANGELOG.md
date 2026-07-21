@@ -2,6 +2,15 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.13.3
+
+Container auth-posture and health-probe refinements for the sys-admin deployment story (CA-90).
+
+* build(competence): default the container to Azure SSO — the image sets `TI_WEB_AUTH_METHODS=openid-azure`, so the placeholder `local` credentials auth is off by default (override with `TI_WEB_AUTH_METHODS` per deployment; the dev `docker-compose.yml` sets `local`)
+* build(competence): point the Docker `HEALTHCHECK` at the new `GET /health` endpoint instead of the user-facing `/login` route
+* docs(competence): expand the sys-admin `INSTALL.md` for the Azure-default auth posture, the `/health` probe, and the `TI_WEB_AUTH_METHODS` control
+* build(release): bump package version from `3.13.2` to `3.13.3`
+
 ## Version 3.13.2
 
 Follow-up to 3.13.1: CodeQL did not recognize the shared `assertSafeFieldPath()` call as a sanitizer (it is interprocedural), so the two `js/prototype-pollution-utility` alerts stayed open (CA-91).
