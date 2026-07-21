@@ -10,11 +10,16 @@ const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 const { applyAuthMethodVisibility } = require( "#web-app-manager" );
 
-// A minimal login fragment carrying the same markers frame-login.html uses.
+// A minimal login fragment carrying the same markers frame-login.html uses: a local form, an "or continue with"
+// divider, an SSO group with two provider buttons, and a "no method configured" fallback.
 const LOGIN_HTML = [
+    `<!--ti-auth-method:local-->`,
     `<form action="/login/local"><button>Sign In</button></form>`,
-    `<!--ti-auth-oauth-section-->`,
+    `<!--/ti-auth-method-->`,
+    `<!--ti-auth-divider-->`,
     `<div class="ti-login-divider">or continue with</div>`,
+    `<!--/ti-auth-divider-->`,
+    `<!--ti-auth-social-->`,
     `<div class="ti-login-social">`,
     `<!--ti-auth-method:openid-google-->`,
     `<a href="/login/openid-google">Sign in with Google</a>`,
@@ -23,34 +28,75 @@ const LOGIN_HTML = [
     `<a href="/login/openid-azure">Sign in with Azure</a>`,
     `<!--/ti-auth-method-->`,
     `</div>`,
-    `<!--/ti-auth-oauth-section-->`
+    `<!--/ti-auth-social-->`,
+    `<!--ti-auth-none-->`,
+    `<div class="ti-login-empty">No sign-in method is configured.</div>`,
+    `<!--/ti-auth-none-->`
 ].join( "\n" );
+
+const hasLocal = ( html ) => html.includes( "/login/local" );
+const hasGoogle = ( html ) => html.includes( "/login/openid-google" );
+const hasAzure = ( html ) => html.includes( "/login/openid-azure" );
+const hasDivider = ( html ) => html.includes( "or continue with" );
+const hasNone = ( html ) => html.includes( "No sign-in method is configured" );
+const hasMarkers = ( html ) => html.includes( "ti-auth-" );
 
 describe( "applyAuthMethodVisibility", () => {
 
-    it( "keeps both provider buttons when both are enabled, and strips all markers", () => {
+    it( "shows everything (local form, divider, both buttons) when all methods are enabled", () => {
         const out = applyAuthMethodVisibility( LOGIN_HTML, [ "local", "openid-google", "openid-azure" ] );
-        assert.ok( out.includes( "/login/openid-google" ) );
-        assert.ok( out.includes( "/login/openid-azure" ) );
-        assert.ok( out.includes( "or continue with" ) );
-        assert.ok( !out.includes( "ti-auth-" ), "all marker comments should be stripped" );
+        assert.ok( hasLocal( out ) );
+        assert.ok( hasGoogle( out ) );
+        assert.ok( hasAzure( out ) );
+        assert.ok( hasDivider( out ) );
+        assert.ok( !hasNone( out ) );
+        assert.ok( !hasMarkers( out ), "all marker comments should be stripped" );
     } );
 
-    it( "removes only the unconfigured provider (Google enabled, Azure not)", () => {
+    it( "removes only the disabled SSO provider (local + Google, Azure not)", () => {
         const out = applyAuthMethodVisibility( LOGIN_HTML, [ "local", "openid-google" ] );
-        assert.ok( out.includes( "/login/openid-google" ) );
-        assert.ok( !out.includes( "/login/openid-azure" ), "Azure button should be removed" );
-        assert.ok( out.includes( "or continue with" ), "section stays while any provider is enabled" );
-        assert.ok( !out.includes( "ti-auth-" ) );
+        assert.ok( hasLocal( out ) );
+        assert.ok( hasGoogle( out ) );
+        assert.ok( !hasAzure( out ), "Azure button should be removed" );
+        assert.ok( hasDivider( out ), "divider stays while both a local form and an SSO provider are present" );
+        assert.ok( !hasMarkers( out ) );
     } );
 
-    it( "removes the whole OAuth section when no provider is enabled (local only)", () => {
+    it( "local only: keeps the form, drops the divider and the whole SSO group", () => {
         const out = applyAuthMethodVisibility( LOGIN_HTML, [ "local" ] );
-        assert.ok( !out.includes( "/login/openid-google" ) );
-        assert.ok( !out.includes( "/login/openid-azure" ) );
-        assert.ok( !out.includes( "or continue with" ), "divider/section should be gone" );
-        assert.ok( out.includes( "/login/local" ), "local form is untouched" );
-        assert.ok( !out.includes( "ti-auth-" ) );
+        assert.ok( hasLocal( out ) );
+        assert.ok( !hasGoogle( out ) );
+        assert.ok( !hasAzure( out ) );
+        assert.ok( !hasDivider( out ), "divider should be gone without any SSO provider" );
+        assert.ok( !hasNone( out ) );
+        assert.ok( !hasMarkers( out ) );
+    } );
+
+    it( "SSO only (local disabled): hides the local form and the divider, keeps the SSO button", () => {
+        const out = applyAuthMethodVisibility( LOGIN_HTML, [ "openid-azure" ] );
+        assert.ok( !hasLocal( out ), "local credentials form should be removed when local auth is disabled" );
+        assert.ok( hasAzure( out ) );
+        assert.ok( !hasGoogle( out ) );
+        assert.ok( !hasDivider( out ), "divider should be gone without a local form to separate from" );
+        assert.ok( !hasNone( out ) );
+        assert.ok( !hasMarkers( out ) );
+    } );
+
+    it( "shows the fallback and nothing else when no method is enabled", () => {
+        const out = applyAuthMethodVisibility( LOGIN_HTML, [] );
+        assert.ok( !hasLocal( out ) );
+        assert.ok( !hasGoogle( out ) );
+        assert.ok( !hasAzure( out ) );
+        assert.ok( !hasDivider( out ) );
+        assert.ok( hasNone( out ), "the 'no method configured' fallback should be shown" );
+        assert.ok( !hasMarkers( out ) );
+    } );
+
+    it( "treats a missing/invalid methods list as nothing enabled (shows the fallback)", () => {
+        const out = applyAuthMethodVisibility( LOGIN_HTML, undefined );
+        assert.ok( !hasLocal( out ) );
+        assert.ok( !hasGoogle( out ) );
+        assert.ok( hasNone( out ) );
     } );
 
     it( "leaves fragments without markers unchanged", () => {
@@ -58,22 +104,15 @@ describe( "applyAuthMethodVisibility", () => {
         assert.equal( applyAuthMethodVisibility( plain, [ "local" ] ), plain );
     } );
 
-    it( "treats a missing/invalid methods list as no OAuth enabled", () => {
-        const out = applyAuthMethodVisibility( LOGIN_HTML, undefined );
-        assert.ok( !out.includes( "/login/openid-google" ) );
-        assert.ok( !out.includes( "or continue with" ) );
-    } );
-
-    it( "strips an unterminated OAuth section in linear time (ReDoS guard)", () => {
-        // CodeQL js/polynomial-redos (alert #7): the old lazy `[\s\S]*?` under a /g replace rescanned to
-        // end-of-string at every opening marker (O(n^2)) when the closing marker was absent. The tempered-token
-        // rewrite is linear. Pathological input: many opening markers, no closing marker — sized so the vulnerable
-        // pattern is clearly intractable while the fixed one is instant.
-        const hostile = "<!--ti-auth-oauth-section-->".repeat( 50000 );
+    it( "strips an unterminated marker span in linear time (ReDoS guard)", () => {
+        // CodeQL js/polynomial-redos: a lazy `open[\s\S]*?close` under a /g replace rescanned to end-of-string at
+        // every opening marker (O(n^2)) when the closing marker was absent. The indexOf-based stripMarkerSpans is
+        // linear. Pathological input: many opening markers, no closing marker.
+        const hostile = "<!--ti-auth-social-->".repeat( 50000 );
         const start = process.hrtime.bigint();
         const out = applyAuthMethodVisibility( hostile, [ "local" ] );
         const elapsedMs = Number( process.hrtime.bigint() - start ) / 1e6;
-        assert.ok( !out.includes( "ti-auth-" ), "stray markers should still be stripped" );
+        assert.ok( !hasMarkers( out ), "stray markers should still be stripped" );
         assert.ok( elapsedMs < 500, `expected linear-time handling, took ${ elapsedMs.toFixed( 1 ) }ms` );
     } );
 

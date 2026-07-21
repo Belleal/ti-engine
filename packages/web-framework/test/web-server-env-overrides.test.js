@@ -61,6 +61,19 @@ describe( "applyWebConfigEnvOverrides", () => {
         assert.equal( config.cookies.secret, "s3cr3t" );
     } );
 
+    it( "replaces auth.enabledMethods from a comma-separated TI_WEB_AUTH_METHODS (trimmed, empties dropped)", () => {
+        const config = { auth: { enabledMethods: [ "local", "openid-google" ], admins: [ "x" ] } };
+        applyWebConfigEnvOverrides( config, { TI_WEB_AUTH_METHODS: " openid-azure , local ,, " } );
+        assert.deepEqual( config.auth.enabledMethods, [ "openid-azure", "local" ] );
+        assert.deepEqual( config.auth.admins, [ "x" ], "other auth settings are preserved" );
+    } );
+
+    it( "creates the auth object when TI_WEB_AUTH_METHODS is set on a config without one", () => {
+        const config = { host: "127.0.0.1" };
+        applyWebConfigEnvOverrides( config, { TI_WEB_AUTH_METHODS: "openid-azure" } );
+        assert.deepEqual( config.auth.enabledMethods, [ "openid-azure" ] );
+    } );
+
     it( "returns the same config object reference", () => {
         const config = baseConfig();
         assert.equal( applyWebConfigEnvOverrides( config, {} ), config );
