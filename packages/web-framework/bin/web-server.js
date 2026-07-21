@@ -528,6 +528,7 @@ class TiWebServer extends ServiceConsumer {
         this.#webServer.get( "/login/:method", webHandlers.authenticationHandler( this ) );
         this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
         this.#webServer.post( "/logout", webHandlers.logoutHandler() );
+        this.#webServer.get( "/health", webHandlers.healthHandler() );
         this.#webServer.get( "/me", webHandlers.userInformationHandler() );
         if ( this.#authManager.isAuthEnabled( authMethod.OPENID_GOOGLE ) ) {
             this.#webServer.get( this.#authManager.getOAuth2CallbackUrl( authMethod.OPENID_GOOGLE ), webHandlers.authorizedOAuth2CallbackHandler( this, authMethod.OPENID_GOOGLE ) );
@@ -568,6 +569,7 @@ class TiWebServer extends ServiceConsumer {
         this.#unprotectedRoutes.push( "/app/config" );
         this.#unprotectedRoutes.push( /^\/login\/[^/]+$/i );
         this.#unprotectedRoutes.push( "/logout" );
+        this.#unprotectedRoutes.push( "/health" );
         this.#unprotectedRoutes.push( RE_STATIC_UNPROTECTED );
         this.#unprotectedRoutes.push( RE_WELL_KNOWN_UNPROTECTED );
     }

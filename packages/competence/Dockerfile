@@ -32,7 +32,8 @@ ENV NODE_ENV=production \
     TI_LOCALIZATION_LABELS_PATH=bin/localization/competence-labels.json \
     TI_WEB_HOST=0.0.0.0 \
     TI_WEB_PORT=3000 \
-    TI_WEB_USE_TLS=false
+    TI_WEB_USE_TLS=false \
+    TI_WEB_AUTH_METHODS=openid-azure
 
 WORKDIR /app
 COPY --from=deps --chown=node:node /app /app
@@ -42,9 +43,9 @@ USER node
 WORKDIR /app/packages/competence
 EXPOSE 3000
 
-# Liveness probe: any HTTP response with status < 500 means the server is up (auth redirects are fine).
+# Liveness probe: the dedicated /health endpoint returns 200 whenever the server is serving.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.TI_WEB_PORT||3000)+'/login',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"
+  CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.TI_WEB_PORT||3000)+'/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 
 # @ti-engine/core is hoisted to /app/node_modules and symlinked to /app/packages/core.
 CMD ["node", "/app/node_modules/@ti-engine/core/bin/start-instance.js"]

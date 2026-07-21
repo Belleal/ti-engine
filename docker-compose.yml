@@ -1,5 +1,5 @@
 # Local development stack for the competence app.
-# Usage: `docker compose up --build` then open http://localhost:3000/login
+# Usage: `docker compose up --build` then open http://localhost:3000/ (health probe: /health)
 services:
   redis:
     # Redis Stack bundles the JSON module the app requires (JSON.MERGE / JSON.MGET).
@@ -32,6 +32,9 @@ services:
       TI_WEB_PORT: "3000"
       TI_WEB_USE_TLS: "false"
       TI_AUDITING_LOG_MIN_LEVEL: "0"
+      # Dev-only: the image defaults to Azure SSO (openid-azure); dev has no Azure creds, so use local auth here.
+      # In production, leave this unset to keep the Azure-only default, or set your enabled methods explicitly.
+      TI_WEB_AUTH_METHODS: local
       # Dev-only application flags:
       COMPETENCE_PRELOAD_DATA: "false"        # set "true" once to seed demo data (destructive)
       COMPETENCE_TEST_USER_ENABLED: "true"    # dev-only login test panel; MUST be false in production

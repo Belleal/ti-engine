@@ -2,6 +2,15 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.15.0
+
+A dedicated health endpoint, a `TI_WEB_AUTH_METHODS` env override, and login-page gating for every auth method — completing the container-friendly auth/health story for the competence deployment (CA-90).
+
+* feat(web-framework): add an unprotected `GET /health` endpoint (`healthHandler`) that returns `200` with `{ status, broker, uptime }` — a purpose-built liveness/readiness probe for container and orchestrator health checks, so probes no longer have to hit the user-facing login route; `broker` reports the Redis connection state
+* feat(web-framework): add the `TI_WEB_AUTH_METHODS` env override (comma-separated) which REPLACES `auth.enabledMethods` — a clean, 12-factor way to select enabled auth methods per deployment (the config-file merge is by-index and cannot cleanly override an array)
+* feat(web-framework): extend login-page auth gating from the OAuth buttons to every method — the `local` credentials form and the "or continue with" divider are now gated too, and a "no method configured" fallback is shown when nothing is enabled, so an SSO-only deployment presents no dead local form
+* build(release): bump package version from `1.14.1` to `1.15.0`
+
 ## Version 1.14.1
 
 Security hardening for the web-server CodeQL findings raised after the scanner was modernized in CA-90 (CA-91).

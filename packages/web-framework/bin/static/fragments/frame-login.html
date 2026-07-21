@@ -14,6 +14,7 @@
             <!-- Error message -->
             <div id="ti-error" class="ti-login-error"></div>
 
+            <!--ti-auth-method:local-->
             <!-- Local auth form -->
             <form id="ti-login-form" action="/login/local" method="post" class="ti-login-form">
                 <input type="hidden" name="_csrf" value='{ti-csrf-placeholder}'>
@@ -45,15 +46,18 @@
                     <span x-text-label="interface.default.login.sign-in">Sign In</span>
                 </button>
             </form>
+            <!--/ti-auth-method-->
 
-            <!--ti-auth-oauth-section-->
+            <!--ti-auth-divider-->
             <!-- Divider -->
             <div class="ti-login-divider">
                 <div class="ti-login-divider-line"></div>
                 <span class="ti-login-divider-label">or continue with</span>
                 <div class="ti-login-divider-line"></div>
             </div>
+            <!--/ti-auth-divider-->
 
+            <!--ti-auth-social-->
             <!-- Social auth -->
             <div class="ti-login-social">
                 <!--ti-auth-method:openid-google-->
@@ -79,7 +83,12 @@
                 </a>
                 <!--/ti-auth-method-->
             </div>
-            <!--/ti-auth-oauth-section-->
+            <!--/ti-auth-social-->
+
+            <!--ti-auth-none-->
+            <!-- Shown only when no authentication method is enabled/configured. -->
+            <div class="ti-login-empty">No sign-in method is configured. Please contact your administrator.</div>
+            <!--/ti-auth-none-->
         </div>
 
         <!-- TEMPORARY: Test user selector for augmentSession() experimentation. Remove once AD-driven identity is wired up. -->

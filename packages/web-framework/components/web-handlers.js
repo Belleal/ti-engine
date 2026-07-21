@@ -13,6 +13,7 @@ const { randomBytes, timingSafeEqual } = require( "node:crypto" );
 const URL = require( "node:url" ).URL;
 const _ = require( "lodash" );
 const helmet = require( "helmet" );
+const cache = require( "@ti-engine/core/cache" );
 const authMethod = require( "#auth-manager" ).authMethod;
 const authorization = require( "#authorization" );
 
@@ -369,6 +370,29 @@ module.exports.logoutHandler = () => {
         } else {
             done();
         }
+    };
+};
+
+/**
+ * Handler for a lightweight, unauthenticated health probe. Responds `200` whenever the web server is serving
+ * (a liveness signal for container/orchestrator probes), and reports the message-broker (Redis) connection state
+ * in the body so it can double as a readiness signal without hitting a user-facing route like the login page.
+ *
+ * @method
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.healthHandler = () => {
+    return ( request, response ) => {
+        const broker = ( cache.instance && cache.instance.isOperational === true ) ? "connected" : "disconnected";
+        response.status( exceptions.httpCode.C_200 ).send( {
+            isSuccessful: true,
+            data: {
+                status: "ok",
+                broker: broker,
+                uptime: Math.round( process.uptime() )
+            }
+        } );
     };
 };
 
