@@ -3758,6 +3758,11 @@ class CompetenceWebApplication extends TiWebAppManager {
         const parts = path.split( "." );
         let current = obj;
         for ( const part of parts ) {
+            // Inline literal guard (mirrors assertSafeFieldPath above) so static analysis recognizes the barrier
+            // adjacent to the property access (CWE-1321 / CodeQL js/prototype-pollution-utility).
+            if ( part === "__proto__" || part === "constructor" || part === "prototype" ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: `Unsafe field path segment '${ part }'.` }, exceptions.httpCode.C_422 );
+            }
             if ( current === null || current === undefined ) return undefined;
             current = current[ part ];
         }
@@ -3778,12 +3783,21 @@ class CompetenceWebApplication extends TiWebAppManager {
         const parts = path.split( "." );
         let current = obj;
         for ( let i = 0; i < parts.length - 1; i++ ) {
-            if ( current[ parts[ i ] ] === undefined || current[ parts[ i ] ] === null ) {
-                current[ parts[ i ] ] = {};
+            const key = parts[ i ];
+            // Inline literal guard (mirrors assertSafeFieldPath above) so static analysis recognizes the barrier
+            // adjacent to each property write (CWE-1321 / CodeQL js/prototype-pollution-utility).
+            if ( key === "__proto__" || key === "constructor" || key === "prototype" ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: `Unsafe field path segment '${ key }'.` }, exceptions.httpCode.C_422 );
             }
-            current = current[ parts[ i ] ];
+            if ( current[ key ] === undefined || current[ key ] === null ) {
+                current[ key ] = {};
+            }
+            current = current[ key ];
         }
         const lastPart = parts[ parts.length - 1 ];
+        if ( lastPart === "__proto__" || lastPart === "constructor" || lastPart === "prototype" ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: `Unsafe field path segment '${ lastPart }'.` }, exceptions.httpCode.C_422 );
+        }
         if ( value === null || value === undefined || value === "" ) {
             // For specialization specifically, store null. For optional scalars (email, birthDate), delete the key.
             if ( path === "career.specialization" ) {

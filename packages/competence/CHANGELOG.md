@@ -2,6 +2,13 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.13.2
+
+Follow-up to 3.13.1: CodeQL did not recognize the shared `assertSafeFieldPath()` call as a sanitizer (it is interprocedural), so the two `js/prototype-pollution-utility` alerts stayed open (CA-91).
+
+* fix(competence): add inline `__proto__`/`constructor`/`prototype` literal guards inside `#setFieldByPath` and `#getFieldByPath`, adjacent to each property access/write, so static analysis recognizes the barrier at the sink; `assertSafeFieldPath()` is retained as the early-rejection policy check and its unit tests are unchanged — runtime behavior is identical (unsafe paths are still rejected with 422)
+* build(release): bump package version from `3.13.1` to `3.13.2`
+
 ## Version 3.13.1
 
 Security hardening for the prototype-pollution CodeQL findings raised after the scanner was modernized in CA-90 (CA-91).
