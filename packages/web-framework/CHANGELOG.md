@@ -2,6 +2,13 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.16.0
+
+Support explicitly trusted request origins so state-changing requests (e.g. login) work behind proxies that do not present the app's external host — most notably GitHub Codespaces port forwarding (CA-90).
+
+* feat(web-framework): add `TI_WEB_TRUSTED_ORIGINS` (comma-separated) / `config.trustedOrigins`. The `originRefererValidationHandler` now accepts a non-GET request whose `Origin`/`Referer` matches the server-reconstructed base URL **or** any configured trusted origin. Previously such a request behind a proxy that rewrote/omitted the forwarded host was rejected with `E_WEB_INVALID_REQUEST_PARAMETERS` (HTTP 403). Backward compatible (empty list = prior behavior); the CSRF double-submit token check is unchanged and still enforced
+* build(release): bump package version from `1.15.0` to `1.16.0`
+
 ## Version 1.15.0
 
 A dedicated health endpoint, a `TI_WEB_AUTH_METHODS` env override, and login-page gating for every auth method — completing the container-friendly auth/health story for the competence deployment (CA-90).

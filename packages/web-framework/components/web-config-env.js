@@ -14,9 +14,10 @@ const tools = require( "@ti-engine/core/tools" );
  * Applies TI_WEB_* environment-variable overrides onto an (already-merged) web server configuration object.
  * Each override is applied ONLY when its environment variable is defined, so an absent variable leaves the
  * configured/default value untouched (fully backward compatible). This gives ti-engine web servers 12-factor,
- * container-friendly control over network binding, TLS, the session cookie secret, and the enabled authentication
- * methods without editing config files. Note `TI_WEB_AUTH_METHODS` fully REPLACES `auth.enabledMethods` (a clean
- * array replacement) rather than merging — the config-file merge is by-index and cannot cleanly override an array.
+ * container-friendly control over network binding, TLS, the session cookie secret, the enabled authentication
+ * methods, and the trusted request origins without editing config files. Note `TI_WEB_AUTH_METHODS` and
+ * `TI_WEB_TRUSTED_ORIGINS` fully REPLACE their config arrays (`auth.enabledMethods` / `trustedOrigins`) rather than
+ * merging — the config-file merge is by-index and cannot cleanly override an array.
  *
  * @method
  * @param {Object} config The web server configuration to augment (mutated in place and returned).
@@ -53,6 +54,9 @@ function applyWebConfigEnvOverrides( config, env = process.env ) {
     if ( env.TI_WEB_AUTH_METHODS !== undefined ) {
         config.auth = config.auth || {};
         config.auth.enabledMethods = env.TI_WEB_AUTH_METHODS.split( "," ).map( ( method ) => method.trim() ).filter( ( method ) => method.length > 0 );
+    }
+    if ( env.TI_WEB_TRUSTED_ORIGINS !== undefined ) {
+        config.trustedOrigins = env.TI_WEB_TRUSTED_ORIGINS.split( "," ).map( ( origin ) => origin.trim() ).filter( ( origin ) => origin.length > 0 );
     }
     return config;
 }

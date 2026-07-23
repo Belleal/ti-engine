@@ -4,7 +4,9 @@ This `.devcontainer/` lets you run the **competence** app straight from GitHub, 
 **testing and demos** — not production. It starts the repo's dev `docker-compose.yml` (the app +
 Redis Stack) inside a Codespace and forwards the app on port **3000**. Sign-in uses **local auth**
 plus the dev **Test User** panel (`TI_WEB_AUTH_METHODS=local`, `COMPETENCE_TEST_USER_ENABLED=true`
-from the dev compose), so no Azure/OIDC setup is needed.
+from the dev compose), so no Azure/OIDC setup is needed. The startup script also sets
+`TI_WEB_TRUSTED_ORIGINS` to the Codespace's forwarded URL so login POSTs pass the app's CSRF
+Origin/Referer check through the port-forwarding proxy.
 
 > Production hosting is different — deploy the published image (`ghcr.io/belleal/ti-engine-competence`)
 > to a container platform. See [`packages/competence/INSTALL.md`](../packages/competence/INSTALL.md).
@@ -25,6 +27,16 @@ docker compose logs -f competence        # app logs
 docker compose ps                         # status/health
 docker compose up -d --build competence   # rebuild + restart after a code change
 docker compose down                       # stop the stack
+```
+
+## Viewing the app's console output
+
+The stack starts **detached** (`docker compose up -d`), so the app's log does not stream into the
+Codespace's startup terminal. Open a terminal and follow it:
+
+```bash
+docker compose logs -f competence   # follow just the app
+docker compose logs -f              # follow all services (competence + redis)
 ```
 
 ## What to set up in GitHub

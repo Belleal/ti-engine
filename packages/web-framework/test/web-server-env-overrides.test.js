@@ -74,6 +74,12 @@ describe( "applyWebConfigEnvOverrides", () => {
         assert.deepEqual( config.auth.enabledMethods, [ "openid-azure" ] );
     } );
 
+    it( "replaces trustedOrigins from a comma-separated TI_WEB_TRUSTED_ORIGINS (trimmed, empties dropped)", () => {
+        const config = {};
+        applyWebConfigEnvOverrides( config, { TI_WEB_TRUSTED_ORIGINS: " https://a.example , https://b.example ,, " } );
+        assert.deepEqual( config.trustedOrigins, [ "https://a.example", "https://b.example" ] );
+    } );
+
     it( "returns the same config object reference", () => {
         const config = baseConfig();
         assert.equal( applyWebConfigEnvOverrides( config, {} ), config );

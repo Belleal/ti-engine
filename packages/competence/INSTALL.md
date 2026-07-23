@@ -3,7 +3,7 @@
 **Audience:** system administrators deploying the **competence** HR appraisal application.
 **Scope:** installing, configuring, running, upgrading, and troubleshooting the app as a container. Application usage (running appraisal cycles, etc.) is out of scope.
 
-> **Package versions this guide targets:** competence `3.13.3`, `@ti-engine/web-framework` `1.15.0`, `@ti-engine/core` `1.7.1`. Container image: `ghcr.io/belleal/ti-engine-competence`.
+> **Package versions this guide targets:** competence `3.13.3`, `@ti-engine/web-framework` `1.16.0`, `@ti-engine/core` `1.7.1`. Container image: `ghcr.io/belleal/ti-engine-competence`.
 
 ---
 
@@ -189,6 +189,8 @@ server {
 ```
 Keep `TI_WEB_USE_TLS=false`. (Only set it `true` + provide certs if there is no TLS-terminating layer.)
 
+**Trusted origins.** The app validates the `Origin`/`Referer` of state-changing requests (e.g. login) against the origin it reconstructs from the forwarded headers. If your proxy does not forward the external host faithfully (so the reconstructed origin differs from the browser's), those POSTs are rejected with HTTP 403 (`E_WEB_INVALID_REQUEST_PARAMETERS`, code 4005). Set **`TI_WEB_TRUSTED_ORIGINS`** (comma-separated, e.g. `https://competence.example.com`) to the public origin(s) the app is served under. The nginx example above forwards `X-Forwarded-Host`, so it does not need this; environments like GitHub Codespaces port forwarding do (the test Codespaces setup sets it automatically).
+
 ---
 
 ## 10. Installation
@@ -328,6 +330,7 @@ docker run -d --name competence \
 | App exits immediately; logs show it can't reach Redis                 | Wrong `TI_MEMORY_CACHE_REDIS_HOST/PORT`, Redis down, or auth needed | Fix host/port; set `TI_MEMORY_CACHE_AUTH_KEY`; confirm Redis healthy.       |
 | Page unreachable though container is "up"                             | App bound to loopback                                               | Ensure `TI_WEB_HOST=0.0.0.0` (image default).                               |
 | Browser shows insecure / mixed content, or redirect loops             | Proxy not forwarding `X-Forwarded-Proto`                            | Set the forwarded headers (§9); keep `TI_WEB_USE_TLS=false`.                |
+| Login (or other POST) returns **HTTP 403, code 4005** behind a proxy  | Origin/Referer mismatch — the app can't reconstruct its external origin from the forwarded headers | Set `TI_WEB_TRUSTED_ORIGINS` to your public origin(s) (§9).                 |
 | Startup **warning**: security hash key missing/default                | `TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY` unset                       | Set a strong value (§8).                                                    |
 | Startup **warning**: an OpenID provider "skipped (missing client ID)" | Provider enabled but not configured                                 | Expected — configure the provider's env vars (§7) or ignore if intentional. |
 | `GET /logout` returns Not Found                                       | Logout is `POST /logout` (by design)                                | Use the in-app Logout button; not a GET URL.                                |

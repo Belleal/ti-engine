@@ -35,6 +35,10 @@ services:
       # Dev-only: the image defaults to Azure SSO (openid-azure); dev has no Azure creds, so use local auth here.
       # In production, leave this unset to keep the Azure-only default, or set your enabled methods explicitly.
       TI_WEB_AUTH_METHODS: local
+      # Trust the external origin the app is served under (needed behind proxies that don't present the real host,
+      # e.g. GitHub Codespaces port forwarding). Passed through from the environment (the devcontainer sets it from
+      # $CODESPACE_NAME); empty for plain local runs, where the reconstructed localhost origin already matches.
+      TI_WEB_TRUSTED_ORIGINS: "${TI_WEB_TRUSTED_ORIGINS:-}"
       # Dev-only application flags:
       COMPETENCE_PRELOAD_DATA: "false"        # set "true" once to seed demo data (destructive)
       COMPETENCE_TEST_USER_ENABLED: "true"    # dev-only login test panel; MUST be false in production

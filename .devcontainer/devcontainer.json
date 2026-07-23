@@ -28,10 +28,9 @@
     },
 
     // Build + start the stack on every Codespace start (idempotent; only rebuilds on change).
-    // First run takes a few minutes while the image builds and Redis Stack is pulled.
-    // The docker-in-docker daemon starts asynchronously, so wait (bounded to 90s) for it to be
-    // ready before invoking compose — otherwise the first run can hit "cannot connect to the Docker daemon".
-    "postStartCommand": "timeout 90 sh -c 'until docker info >/dev/null 2>&1; do echo waiting for docker daemon...; sleep 2; done' && docker compose up -d --build",
+    // First run takes a few minutes while the image builds and Redis Stack is pulled. The script waits
+    // (bounded) for the async docker-in-docker daemon and trusts the Codespaces forwarded origin so login works.
+    "postStartCommand": "bash .devcontainer/up.sh",
 
     // One-time hint printed in the terminal after the Codespace attaches.
     "postAttachCommand": "echo 'competence is starting on port 3000 — open the forwarded 3000 URL from the Ports panel. Sign in with the Test User panel or admin/admin. Logs: docker compose logs -f competence | Stop: docker compose down'"
