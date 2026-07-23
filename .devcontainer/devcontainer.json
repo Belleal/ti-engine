@@ -14,8 +14,11 @@
         "ghcr.io/devcontainers/features/docker-in-docker:2": {}
     },
 
-    // Forward the competence web port. Codespaces gives it a PRIVATE URL by default; set it to
-    // Public/Org in the Ports panel to share a demo link (subject to your org's Codespaces policy).
+    // Forward the competence web port. Codespaces gives it a PRIVATE URL by default. In the Ports
+    // panel you can share it as "Org" (signed-in members of your organization only) or "Public"
+    // (ANYONE on the internet with the URL). This stack uses test-only auth + dev-only fallback
+    // secrets, so only expose a Public URL for a throwaway demo with disposable data — never real
+    // data (subject to your org's Codespaces policy).
     "forwardPorts": [ 3000 ],
     "portsAttributes": {
         "3000": {
@@ -26,7 +29,9 @@
 
     // Build + start the stack on every Codespace start (idempotent; only rebuilds on change).
     // First run takes a few minutes while the image builds and Redis Stack is pulled.
-    "postStartCommand": "docker compose up -d --build",
+    // The docker-in-docker daemon starts asynchronously, so wait (bounded to 90s) for it to be
+    // ready before invoking compose — otherwise the first run can hit "cannot connect to the Docker daemon".
+    "postStartCommand": "timeout 90 sh -c 'until docker info >/dev/null 2>&1; do echo waiting for docker daemon...; sleep 2; done' && docker compose up -d --build",
 
     // One-time hint printed in the terminal after the Codespace attaches.
     "postAttachCommand": "echo 'competence is starting on port 3000 — open the forwarded 3000 URL from the Ports panel. Sign in with the Test User panel or admin/admin. Logs: docker compose logs -f competence | Stop: docker compose down'"
