@@ -42,6 +42,7 @@ describe( "originRefererValidationHandler", () => {
         const r = runHandler( {
             request: mockRequest( { headers: { host: "localhost:3000", "x-forwarded-proto": "https", origin: "https://localhost:3000" } } )
         } );
+        assert.equal( r.called, true );
         assert.equal( r.error, undefined );
     } );
 
@@ -50,6 +51,7 @@ describe( "originRefererValidationHandler", () => {
             request: mockRequest( { headers: { host: "localhost:3000", origin: "https://demo-3000.app.github.dev" } } ),
             trustedOrigins: [ "https://demo-3000.app.github.dev" ]
         } );
+        assert.equal( r.called, true );
         assert.equal( r.error, undefined, "a configured trusted origin should be accepted" );
     } );
 
@@ -65,6 +67,7 @@ describe( "originRefererValidationHandler", () => {
 
     it( "passes through when the browser sent no Origin/Referer (CSRF token handles protection)", () => {
         const r = runHandler( { request: mockRequest( { headers: { host: "localhost:3000" } } ) } );
+        assert.equal( r.called, true );
         assert.equal( r.error, undefined );
     } );
 

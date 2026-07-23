@@ -7,10 +7,16 @@ set -euo pipefail
 timeout 90 sh -c 'until docker info >/dev/null 2>&1; do echo "waiting for docker daemon..."; sleep 2; done'
 
 # In a Codespace the app is reached via a port-forwarding proxy that does not present the external host to the
-# container, so the app's CSRF Origin/Referer check would reject login POSTs. Trust the forwarded origin explicitly.
+# container, so the app's CSRF Origin/Referer check would reject login POSTs. Trust the forwarded origin explicitly,
+# built from the documented Codespaces variables. GitHub advises against hardcoding the forwarding domain (it can
+# change), so require GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN rather than assuming a default.
 if [ -n "${CODESPACE_NAME:-}" ]; then
-    export TI_WEB_TRUSTED_ORIGINS="https://${CODESPACE_NAME}-3000.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-app.github.dev}"
-    echo "Trusting Codespaces origin: ${TI_WEB_TRUSTED_ORIGINS}"
+    if [ -n "${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-}" ]; then
+        export TI_WEB_TRUSTED_ORIGINS="https://${CODESPACE_NAME}-3000.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
+        echo "Trusting Codespaces origin: ${TI_WEB_TRUSTED_ORIGINS}"
+    else
+        echo "WARNING: CODESPACE_NAME is set but GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN is empty; not setting TI_WEB_TRUSTED_ORIGINS. Login via the forwarded port may fail with an origin mismatch until you set TI_WEB_TRUSTED_ORIGINS to your Codespace URL." >&2
+    fi
 fi
 
 docker compose up -d --build
