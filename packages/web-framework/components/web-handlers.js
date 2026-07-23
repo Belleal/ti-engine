@@ -690,19 +690,30 @@ module.exports.webAppHandler = ( instance ) => {
  * @returns {ExpressHandler}
  * @public
  */
-module.exports.originRefererValidationHandler = () => {
+module.exports.originRefererValidationHandler = ( instance ) => {
     return ( request, response, next ) => {
         if ( request.method === "GET" || request.method === "HEAD" || request.method === "OPTIONS" ) {
             next();
         } else {
-            const expectedOrigin = getBaseUrl( request );
             const providedOrigin = getRequestOrigin( request );
-            // If the browser didn’t send Origin/Referer (normal for same-origin form POSTs), let CSRF middleware handle protection instead of blocking here:
-            if ( providedOrigin && String( providedOrigin ).trim().toLowerCase() !== String( expectedOrigin ).trim().toLowerCase() ) {
-                logger.log( `Issue identified with origin/referer mismatch. Expected '${ expectedOrigin }', received '${ providedOrigin }'.`, logger.logSeverity.WARNING );
-                next( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, null, exceptions.httpCode.C_403 ) );
-            } else {
+            // If the browser didn't send Origin/Referer (normal for same-origin form POSTs), let CSRF middleware handle protection instead of blocking here:
+            if ( !providedOrigin ) {
                 next();
+            } else {
+                // Accept the origin the server reconstructs from the request, plus any explicitly trusted origins
+                // (TI_WEB_TRUSTED_ORIGINS / config.trustedOrigins). The trusted list is needed behind proxies that do
+                // not present the external host to the app (e.g. GitHub Codespaces port forwarding), where the browser
+                // Origin cannot be reconstructed from the forwarded headers.
+                const configured = ( instance && instance.serviceConfig && Array.isArray( instance.serviceConfig.trustedOrigins ) ) ? instance.serviceConfig.trustedOrigins : [];
+                const allowedOrigins = [ getBaseUrl( request ) ].concat( configured );
+                const normalizedProvided = String( providedOrigin ).trim().toLowerCase();
+                const isAllowed = allowedOrigins.some( ( origin ) => String( origin ).trim().toLowerCase() === normalizedProvided );
+                if ( isAllowed ) {
+                    next();
+                } else {
+                    logger.log( `Issue identified with origin/referer mismatch. Received '${ providedOrigin }'; expected one of [ ${ allowedOrigins.join( ", " ) } ].`, logger.logSeverity.WARNING );
+                    next( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, null, exceptions.httpCode.C_403 ) );
+                }
             }
         }
     };
