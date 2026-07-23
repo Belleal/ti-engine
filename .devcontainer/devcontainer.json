@@ -1,0 +1,38 @@
+// GitHub Codespaces / Dev Containers configuration for TESTING & DEMO of the competence app.
+// NOT for production. It brings up the repo's dev docker-compose stack (competence + Redis Stack)
+// inside the Codespace and forwards the app on port 3000. Auth uses the dev compose settings
+// (TI_WEB_AUTH_METHODS=local + the test-user panel), so you can sign in without configuring Azure.
+{
+    "name": "competence (test/demo)",
+
+    // A lightweight Ubuntu workspace. The app itself runs as a container via docker compose (below),
+    // not in this container — so a crash/restart of the app never tears down your Codespace.
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+
+    // Provides the Docker engine + the `docker compose` CLI inside the Codespace.
+    "features": {
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    },
+
+    // Forward the competence web port. Codespaces gives it a PRIVATE URL by default. In the Ports
+    // panel you can share it as "Org" (signed-in members of your organization only) or "Public"
+    // (ANYONE on the internet with the URL). This stack uses test-only auth + dev-only fallback
+    // secrets, so only expose a Public URL for a throwaway demo with disposable data — never real
+    // data (subject to your org's Codespaces policy).
+    "forwardPorts": [ 3000 ],
+    "portsAttributes": {
+        "3000": {
+            "label": "competence app",
+            "onAutoForward": "notify"
+        }
+    },
+
+    // Build + start the stack on every Codespace start (idempotent; only rebuilds on change).
+    // First run takes a few minutes while the image builds and Redis Stack is pulled.
+    // The docker-in-docker daemon starts asynchronously, so wait (bounded to 90s) for it to be
+    // ready before invoking compose — otherwise the first run can hit "cannot connect to the Docker daemon".
+    "postStartCommand": "timeout 90 sh -c 'until docker info >/dev/null 2>&1; do echo waiting for docker daemon...; sleep 2; done' && docker compose up -d --build",
+
+    // One-time hint printed in the terminal after the Codespace attaches.
+    "postAttachCommand": "echo 'competence is starting on port 3000 — open the forwarded 3000 URL from the Ports panel. Sign in with the Test User panel or admin/admin. Logs: docker compose logs -f competence | Stop: docker compose down'"
+}
