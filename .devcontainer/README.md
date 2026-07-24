@@ -40,6 +40,18 @@ docker compose logs -f competence   # follow just the app
 docker compose logs -f              # follow all services (competence + redis)
 ```
 
+## Loading demo data
+
+Redis starts **empty**. To populate demo data (employees, a cycle, sample evaluations), seed once:
+
+```bash
+COMPETENCE_PRELOAD_DATA=true docker compose up -d
+```
+
+This is **destructive** — while the flag is `true` it wipes and reloads the seed data on *every* start. After
+seeding, run plain `docker compose up -d` (the flag defaults to `false`) to keep your changes; the `redis-data`
+volume persists them across restarts.
+
 ## What to set up in GitHub
 
 For personal repos, Codespaces is on by default (with a monthly free quota). For an **organization

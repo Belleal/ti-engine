@@ -275,7 +275,7 @@ docker run -d --name competence \
 
 ## 11. First run & data
 
-- **Demo data:** setting `COMPETENCE_PRELOAD_DATA=true` **once** seeds destructive demo data (employees, a cycle, sample evaluations). Leave it `false` for a real install; with it off you start empty.
+- **Demo data:** `COMPETENCE_PRELOAD_DATA=true` seeds demo data (employees, a cycle, sample evaluations). It is **destructive and runs on every startup** — while the flag is `true` it wipes and reloads all collections each time the app boots. Use it only to seed a throwaway/test instance, then set it back to `false` to keep data. Leave it `false` for a real install (you start empty).
 - **Organization structure:** the org chart is loaded from a configuration file baked into the image. Reflecting *your* organization requires supplying/adjusting that configuration (via the framework's admin configuration system or a custom build) — plan this with the application owner; it is not an environment variable.
 - **Admin access:** the admin configuration screens are gated to identities listed in the web-server config `auth.admins` (empty by default → no admins). Populating it (and other non-env config such as `auth.enabledMethods`) is a configuration step, not an env var — coordinate with the application owner.
 - **First login:** browse to your HTTPS host. With the default `TI_WEB_AUTH_METHODS=openid-azure`, you sign in via Azure — so Azure must be configured (§7), otherwise the page shows "no sign-in method is configured." (A local `admin`/`admin` login only appears if you add `local` to `TI_WEB_AUTH_METHODS` — dev/break-glass only, see §1.)

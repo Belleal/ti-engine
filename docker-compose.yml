@@ -40,7 +40,10 @@ services:
       # $CODESPACE_NAME); empty for plain local runs, where the reconstructed localhost origin already matches.
       TI_WEB_TRUSTED_ORIGINS: "${TI_WEB_TRUSTED_ORIGINS:-}"
       # Dev-only application flags:
-      COMPETENCE_PRELOAD_DATA: "false"        # set "true" once to seed demo data (destructive)
+      # Demo-data seed. DESTRUCTIVE: while "true" it WIPES and reloads all data on EVERY startup. Seed once with
+      # `COMPETENCE_PRELOAD_DATA=true docker compose up -d`, then run without it (default "false") to keep your
+      # changes — the named redis-data volume persists them across restarts.
+      COMPETENCE_PRELOAD_DATA: "${COMPETENCE_PRELOAD_DATA:-false}"
       COMPETENCE_TEST_USER_ENABLED: "true"    # dev-only login test panel; MUST be false in production
       # Secrets — dev-only fallbacks; ALWAYS override with real values in production:
       TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY: "${TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY:-dev-only-not-for-prod-change-me}"
