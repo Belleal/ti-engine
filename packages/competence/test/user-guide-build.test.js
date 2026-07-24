@@ -20,11 +20,15 @@
 
 const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
+const fs = require( "node:fs" );
+const path = require( "node:path" );
 
 const {
     parseChapterSource,
     convertMarkdown,
-    buildGuideScreens
+    buildGuideScreens,
+    GUIDE_SOURCE_DIR,
+    OUTPUT_DIR
 } = require( "../bin/build/build-user-guide.js" );
 
 describe( "User guide build — chapter parsing", () => {
@@ -128,6 +132,65 @@ describe( "User guide build — screen assembly", () => {
 
     it( "rejects duplicate chapter orders or slugs", () => {
         assert.throws( () => buildGuideScreens( [ ...sources, { fileName: "01-intro.md", raw: "# Intro\n\nX." } ], "3.14.0" ), /Duplicate chapter order/ );
+    } );
+
+} );
+
+const PACKAGE_ROOT = path.resolve( __dirname, ".." );
+const WEB_APPLICATION_FILE = path.join( PACKAGE_ROOT, "bin", "competence-web-application.js" );
+const LABELS_FILE = path.join( PACKAGE_ROOT, "bin", "localization", "competence-labels.json" );
+
+// Task 8 appends "process-guide" here (hand-authored screen — registered/mapped/titled but not generated):
+const GUIDE_FRAGMENT_NAMES = [
+    "help-overview", "help-getting-started", "help-employee", "help-team-member", "help-manager",
+    "help-supervisor", "help-administrator", "help-appraisal-process", "help-faq-glossary"
+];
+
+const normalizeLineEndings = ( text ) => text.replace( /\r\n/g, "\n" );
+
+describe( "User guide — repo state", () => {
+
+    it( "committed screens are exactly reproducible from docs/user-guide (run npm run build:guide after editing)", () => {
+        const packageVersion = JSON.parse( fs.readFileSync( path.join( PACKAGE_ROOT, "package.json" ), "utf8" ) ).version;
+        const sources = fs.readdirSync( GUIDE_SOURCE_DIR ).filter( ( name ) => name.endsWith( ".md" ) )
+            .map( ( fileName ) => ( { fileName: fileName, raw: fs.readFileSync( path.join( GUIDE_SOURCE_DIR, fileName ), "utf8" ) } ) );
+        const screens = buildGuideScreens( sources, packageVersion );
+        const committed = fs.readdirSync( OUTPUT_DIR ).filter( ( name ) => name.endsWith( ".html" ) );
+        assert.deepEqual( committed.sort(), screens.map( ( screen ) => screen.fileName ).sort(), "generated file set differs from committed set" );
+        for ( const screen of screens ) {
+            const onDisk = normalizeLineEndings( fs.readFileSync( path.join( OUTPUT_DIR, screen.fileName ), "utf8" ) );
+            assert.equal( onDisk, normalizeLineEndings( screen.html ), `${ screen.fileName } is stale — run 'npm run build:guide -w @ti-engine/competence' and commit the result` );
+        }
+    } );
+
+    it( "every guide screen is registered, sidebar-mapped, and topbar-titled", () => {
+        const webApplicationSource = fs.readFileSync( WEB_APPLICATION_FILE, "utf8" );
+        const labels = JSON.parse( fs.readFileSync( LABELS_FILE, "utf8" ) );
+        const missing = [];
+        for ( const fragmentName of GUIDE_FRAGMENT_NAMES ) {
+            if ( !webApplicationSource.includes( `addFragment( "${ fragmentName }"` ) ) {
+                missing.push( `${ fragmentName }: addFragment registration` );
+            }
+            if ( !webApplicationSource.includes( `"${ fragmentName }": "` ) ) {
+                missing.push( `${ fragmentName }: sidebarNavMapping entry` );
+            }
+            const topbarLabel = labels.interface && labels.interface.topbar && labels.interface.topbar[ fragmentName ];
+            if ( !topbarLabel || !topbarLabel.en || !topbarLabel.bg ) {
+                missing.push( `${ fragmentName }: interface.topbar label (en + bg)` );
+            }
+        }
+        assert.deepEqual( missing, [], `Guide screens missing wiring:\n  ${ missing.join( "\n  " ) }` );
+    } );
+
+    it( "generated output stays CSP-clean (no inline styles, scripts, or event handlers)", () => {
+        const offenders = [];
+        for ( const fileName of fs.readdirSync( OUTPUT_DIR ).filter( ( name ) => name.endsWith( ".html" ) ) ) {
+            const html = fs.readFileSync( path.join( OUTPUT_DIR, fileName ), "utf8" );
+            if ( /\s(?:style|on[a-z]+)\s*=\s*"/i.test( html ) || /<script/i.test( html ) ) {
+                offenders.push( fileName );
+            }
+        }
+        assert.deepEqual( offenders, [], `Generated guide screens with CSP violations: ${ offenders.join( ", " ) }` );
     } );
 
 } );

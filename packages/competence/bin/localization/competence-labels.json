@@ -6258,6 +6258,42 @@
       "insights-trends": {
         "en": "Trends",
         "bg": "Тенденции"
+      },
+      "help-overview": {
+        "en": "User Guide — Overview",
+        "bg": "Ръководство — Общ преглед"
+      },
+      "help-getting-started": {
+        "en": "User Guide — Getting Started",
+        "bg": "Ръководство — Първи стъпки"
+      },
+      "help-employee": {
+        "en": "User Guide — For Employees",
+        "bg": "Ръководство — За служители"
+      },
+      "help-team-member": {
+        "en": "User Guide — For Team Members",
+        "bg": "Ръководство — За членове на екип"
+      },
+      "help-manager": {
+        "en": "User Guide — For Managers",
+        "bg": "Ръководство — За мениджъри"
+      },
+      "help-supervisor": {
+        "en": "User Guide — For Supervisors",
+        "bg": "Ръководство — За супервайзори"
+      },
+      "help-administrator": {
+        "en": "User Guide — For Administrators",
+        "bg": "Ръководство — За администратори"
+      },
+      "help-appraisal-process": {
+        "en": "User Guide — The Appraisal Process",
+        "bg": "Ръководство — Процесът на оценяване"
+      },
+      "help-faq-glossary": {
+        "en": "User Guide — FAQ & Glossary",
+        "bg": "Ръководство — Въпроси и речник"
       }
     },
     "sidebar": {

@@ -170,8 +170,9 @@
             </span>
             <span class="ti-sidebar-item-label" x-text-label="interface.navigation.process-guide">Process Guide</span>
         </button>
-        <button class="ti-sidebar-item" type="button" x-text-label:data-tip="interface.navigation.help" x-text-label:aria-label="interface.navigation.help"
-                disabled>
+        <button hx-get="/app/help-overview" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'help'"
+                x-bind:class="{ active: active === 'help' }" class="ti-sidebar-item" type="button"
+                x-text-label:data-tip="interface.navigation.help" x-text-label:aria-label="interface.navigation.help">
             <span class="ti-sidebar-item-icon">
                 <span class="ti-icon help-circle md" aria-hidden="true"></span>
             </span>
