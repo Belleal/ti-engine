@@ -4,7 +4,7 @@ Every evaluation follows the same eight steps on its way from start to close. Th
 
 ## Step 1 — Appraisal Cycle Start
 
-Every evaluation belongs to an appraisal cycle, and the cycle comes first. The Supervisor creates it on the Cycle Management screen — an ID, a name, and its key dates — where it starts out in Planning. While it's in Planning, the Supervisor uses Cycle Setup to decide which competencies apply to each role family and specialization, excluding any family that isn't ready for this cycle yet.
+Every evaluation belongs to an appraisal cycle, and the cycle comes first. The Supervisor creates it on the **Cycles** screen — an ID, a name, and its key dates — where it starts out in Planning. While it's in Planning, the Supervisor uses Cycle Setup to decide which competencies apply to each role family and specialization, excluding any family that isn't ready for this cycle yet.
 
 Once every included family passes validation, the Supervisor locks the cycle, and it moves from Planning to Active. Only one cycle can be Active at a time, and no evaluation can start against it before this point.
 
@@ -24,7 +24,7 @@ If the Employee cannot finish in time, the Supervisor may waive the round from O
 
 If team members were named at Step 2, each grades the evaluation form before a separate, cycle-level deadline — by subcategory in the default collective mode, or competency by competency if collective mode is switched off. Each team member submits once, and once every one of them has, the system averages the individual grades into a single cumulative grade per competency.
 
-This round is skipped entirely when an evaluation starts without team members. Its deadline behaves differently from the self-round's: a late submission isn't rejected, but once the deadline passes, the Manager — or a Supervisor acting as a read-only facilitator — may finalize the round with whatever was actually submitted, so one non-responder can't hold up the rest.
+This round is skipped entirely when an evaluation starts without team members. Its deadline blocks late input the same way the self-round's does — a late submission is rejected outright. What differs is the recovery: once the deadline passes, the Manager — or a Supervisor acting as a read-only facilitator — may finalize the round with whatever was actually submitted, so one non-responder can't hold up the rest, and a round with no submissions at all is simply excluded from the score.
 
 ## Step 5 — Status Transition: Open → In Review
 

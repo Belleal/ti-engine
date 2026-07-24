@@ -18,7 +18,7 @@ While it's in Planning, use **Cycle Setup** to decide which competencies apply t
 
 ## Locking a cycle
 
-Locking is what turns a Planning cycle into the live one. It validates everything at once: that every baseline covers all nine subcategories, that no resolved set exceeds the cap, that every referenced competency actually exists, that every competency comes from its own family's pool, and that every family you've included is actually configured. If anything fails, you'll see the errors grouped by family rather than one long undifferentiated list. Once it passes, the cycle becomes Active — only one cycle can be Active at a time — and evaluations can finally be started against it.
+Locking is what turns a Planning cycle into the live one. It validates everything at once: that every baseline covers all nine subcategories, that no resolved set exceeds the cap, that every referenced competency actually exists, that every competency comes from its own family's pool, that a family with specialization selections also has a non-empty baseline, and that every family you've included is actually configured. If anything fails, you'll see the errors grouped by family rather than one long undifferentiated list. Once it passes, the cycle becomes Active — only one cycle can be Active at a time — and evaluations can finally be started against it.
 
 ## Keeping evaluations moving (Oversight)
 

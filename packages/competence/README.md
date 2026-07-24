@@ -523,7 +523,7 @@ The per-competency grading tables, grade guide, and feedback section stay on the
 
 ### New Evaluation
 
-A setup screen for starting a new evaluation. Displays the selected employee's profile, the current appraisal cycle information, and a list of available team members to select for peer feedback (excludes the employee and their manager). On confirmation, the `start-evaluation` service is called and the user is navigated to the newly created evaluation form.
+A setup screen for starting a new evaluation. Displays the selected employee's profile, the current appraisal cycle information, and a list of available team members to select for peer feedback (excludes the employee and everyone in their management chain). On confirmation, the `start-evaluation` service is called and the user is navigated to the newly created evaluation form.
 
 ### Manager Availability Calendar
 

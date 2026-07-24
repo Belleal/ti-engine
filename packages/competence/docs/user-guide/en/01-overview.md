@@ -96,7 +96,7 @@ Each grading round has its own relationship with its deadline:
 
 > **Warning:** The self-assessment deadline is strict — a late draft save or a late submission is rejected outright, so don't leave your self-assessment until the last day.
 
-The team deadline works differently: it doesn't reject a late peer submission the same way, but it does gate when the round can be wrapped up — once it passes, the manager (or a Supervisor) may finalize the round even if not every teammate has responded, so the evaluation isn't held up by one non-responder. The manager deadline is different again — it's a reminder rather than a block; a late manager submission is never rejected, since it's the single most influential input in the score.
+The team deadline works the same way — a late peer submission is rejected outright, just like the self-assessment. What sets the team round apart is the recovery: once its deadline passes, the manager (or a Supervisor) may finalize the round with whatever was actually submitted, so the evaluation isn't held up by one non-responder — and if nobody on the team submitted at all, the round is simply excluded from the score rather than counted as a zero. The manager deadline is different again — it's a reminder rather than a block; a late manager submission is never rejected, since it's the single most influential input in the score.
 
 ## Privacy at a glance
 

@@ -71,6 +71,10 @@ describe( "User guide build — markdown conversion", () => {
         assert.throws( () => convertMarkdown( "Hello <span>world</span>.", "01-overview.md" ), /Raw HTML is not allowed/ );
     } );
 
+    it( "rejects block-level raw HTML too", () => {
+        assert.throws( () => convertMarkdown( "<div>block</div>", "01-overview.md" ), /Raw HTML is not allowed/ );
+    } );
+
     it( "rejects relative .md links", () => {
         assert.throws( () => convertMarkdown( "See [the manager chapter](05-manager.md).", "01-overview.md" ), /Relative \.md links are not allowed/ );
     } );
@@ -134,6 +138,14 @@ describe( "User guide build — screen assembly", () => {
         assert.throws( () => buildGuideScreens( [ ...sources, { fileName: "01-intro.md", raw: "# Intro\n\nX." } ], "3.14.0" ), /Duplicate chapter order/ );
     } );
 
+    it( "rejects duplicate chapter slugs, even with different orders", () => {
+        const duplicateSlugSources = [
+            { fileName: "01-overview.md", raw: "# Overview\n\nOne." },
+            { fileName: "02-overview.md", raw: "# Overview Two\n\nTwo." }
+        ];
+        assert.throws( () => buildGuideScreens( duplicateSlugSources, "3.14.0" ), /Duplicate chapter slug/ );
+    } );
+
 } );
 
 const PACKAGE_ROOT = path.resolve( __dirname, ".." );
@@ -183,15 +195,18 @@ describe( "User guide — repo state", () => {
         assert.deepEqual( missing, [], `Guide screens missing wiring:\n  ${ missing.join( "\n  " ) }` );
     } );
 
-    it( "generated output stays CSP-clean (no inline styles, scripts, or event handlers)", () => {
+    it( "guide screens stay CSP-clean (generated + hand-authored)", () => {
         const offenders = [];
-        for ( const fileName of fs.readdirSync( OUTPUT_DIR ).filter( ( name ) => name.endsWith( ".html" ) ) ) {
-            const html = fs.readFileSync( path.join( OUTPUT_DIR, fileName ), "utf8" );
+        const filesToScan = fs.readdirSync( OUTPUT_DIR ).filter( ( name ) => name.endsWith( ".html" ) )
+            .map( ( fileName ) => path.join( OUTPUT_DIR, fileName ) );
+        filesToScan.push( path.join( PACKAGE_ROOT, "bin", "static", "fragments", "frame-process-guide.html" ) );
+        for ( const filePath of filesToScan ) {
+            const html = fs.readFileSync( filePath, "utf8" );
             if ( /\s(?:style|on[a-z]+)\s*=\s*"/i.test( html ) || /<script/i.test( html ) ) {
-                offenders.push( fileName );
+                offenders.push( path.relative( PACKAGE_ROOT, filePath ) );
             }
         }
-        assert.deepEqual( offenders, [], `Generated guide screens with CSP violations: ${ offenders.join( ", " ) }` );
+        assert.deepEqual( offenders, [], `Guide screens with CSP violations: ${ offenders.join( ", " ) }` );
     } );
 
 } );

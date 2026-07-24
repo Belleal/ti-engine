@@ -48,7 +48,7 @@ From Ready onward, your manager's grades and their written feedback are visible 
 
 ## The interview and closure
 
-With your results in, the process moves toward a closing conversation. A Supervisor books a slot on your manager's availability calendar to schedule it — occasionally a different manager in your line conducts it instead, for example if your own manager is standing in for someone else. Either way, once a slot is booked you'll get a dashboard notice with the date.
+With your results in, the process moves toward a closing conversation. A Supervisor books an interview slot to schedule it — usually your own manager conducts the interview, but occasionally another manager does, for example when your own manager is unavailable and the Supervisor books any manager's open slot instead. Either way, once a slot is booked you'll get a dashboard notice with the date.
 
 During the meeting, whoever is conducting it walks you through your results, discusses their written feedback, and works out up to five concrete goals for your next appraisal period — optionally alongside a formal Performance Improvement Plan, if the conversation calls for one. Afterward, they record that outcome, and a Supervisor formally closes the evaluation — the final step, and it can't be undone.
 
