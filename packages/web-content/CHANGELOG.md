@@ -16,3 +16,7 @@ Initial scaffold of the content-publishing engine for the standalone author's si
 * feat(web-content): `content/sources.js` — reads explicitly registered front-matter/YAML files; a directory is an error, never scanned
 * feat(web-content): `render/html.js` — escaping tagged template with an explicit `raw()` opt-out
 * feat(web-content): `render/document.js` — document-head composition: canonical, reciprocal hreflang, noindex policy, and per-type JSON-LD
+* feat(web-content): `routes/content-routes.js` — the catch-all path-index resolver (alias → 301, miss → `next()`, hit → render) with cache policy keyed on the record's visibility, so a non-public response never carries public cache headers
+* feat(web-content): `routes/feeds.js` — `sitemap.xml`, `rss.xml`, `robots.txt`; sitemap membership resolved as an anonymous viewer, including gated records only when they expose a public teaser; RSS is public-only
+* feat(web-content): `routes/index.js` — `mountContentRoutes` / `defineContentUnprotectedRoutes`, built on the web-framework 1.17.0 route seams
+* fix(web-content): normalise YAML-parsed dates to ISO-8601 strings at the source boundary — an unquoted ISO timestamp parsed as a `Date` failed schema validation and silently excluded an otherwise valid record

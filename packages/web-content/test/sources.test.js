@@ -62,6 +62,25 @@ describe( "sources — parseRecord (pure)", () => {
         assert.throws( () => parseRecord( "id: [unclosed\n", { format: "yaml" } ) );
     } );
 
+    it( "normalises YAML-parsed dates to ISO-8601 strings, not Date objects", () => {
+        // YAML silently converts an unquoted ISO timestamp into a Date, which would fail the string schema and
+        // exclude an otherwise valid record. Caught by an end-to-end smoke test on real content.
+        const record = parseRecord( "---\nid: p1\npublishedAt: 2026-03-20T00:00:00Z\n---\nx\n", { format: "markdown" } );
+        assert.equal( typeof record.publishedAt, "string" );
+        assert.equal( record.publishedAt, "2026-03-20T00:00:00.000Z" );
+    } );
+
+    it( "normalises dates nested inside structured YAML records too", () => {
+        const record = parseRecord( "id: r1\nreleaseDate: 2026-05-01\ntracks:\n  - recordedAt: 2025-11-02\n", { format: "yaml" } );
+        assert.equal( typeof record.releaseDate, "string" );
+        assert.equal( typeof record.tracks[ 0 ].recordedAt, "string" );
+    } );
+
+    it( "leaves an explicitly quoted date string untouched", () => {
+        const record = parseRecord( "---\nid: p1\npublishedAt: \"2026-03-20\"\n---\nx\n", { format: "markdown" } );
+        assert.equal( record.publishedAt, "2026-03-20" );
+    } );
+
 } );
 
 describe( "sources — parseVocabulary (pure)", () => {

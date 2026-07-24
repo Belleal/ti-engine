@@ -24,7 +24,9 @@
     "./markdown": "./content/markdown.js",
     "./sources": "./content/sources.js",
     "./html": "./render/html.js",
-    "./render": "./render/document.js"
+    "./render": "./render/document.js",
+    "./routes": "./routes/index.js",
+    "./feeds": "./routes/feeds.js"
   },
   "imports": {
     "#schema": "./content/schema.js",
@@ -35,7 +37,10 @@
     "#markdown": "./content/markdown.js",
     "#sources": "./content/sources.js",
     "#html": "./render/html.js",
-    "#document": "./render/document.js"
+    "#document": "./render/document.js",
+    "#routes": "./routes/index.js",
+    "#feeds": "./routes/feeds.js",
+    "#content-routes": "./routes/content-routes.js"
   },
   "dependencies": {
     "@ti-engine/core": "*",

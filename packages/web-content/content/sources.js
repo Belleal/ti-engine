@@ -44,6 +44,34 @@ function formatOf( filePath ) {
 }
 
 /**
+ * Recursively converts Date instances to ISO-8601 strings, in place-safe fashion.
+ *
+ * YAML silently parses an unquoted ISO timestamp (`publishedAt: 2026-03-20T00:00:00Z`) into a Date object, which
+ * fails the schema's string constraint and would quietly exclude an otherwise valid record from the site. Authors
+ * should not have to remember to quote every date, so the shape is normalised here instead -- one place, at the
+ * boundary, keeping every downstream consumer on plain ISO strings.
+ *
+ * @param {*} value
+ * @returns {*}
+ */
+function normalizeDates( value ) {
+    if ( value instanceof Date ) {
+        return value.toISOString();
+    }
+    if ( Array.isArray( value ) ) {
+        return value.map( normalizeDates );
+    }
+    if ( value !== null && typeof value === "object" ) {
+        const normalized = {};
+        for ( const key of Object.keys( value ) ) {
+            normalized[ key ] = normalizeDates( value[ key ] );
+        }
+        return normalized;
+    }
+    return value;
+}
+
+/**
  * Parses source text into a raw content record. Pure -- no validation happens here; the record is validated by the
  * loader when it is indexed.
  *
@@ -55,11 +83,11 @@ function formatOf( filePath ) {
 function parseRecord( text, options ) {
     const source = ( text === null || text === undefined ) ? "" : String( text );
     if ( options && options.format === "yaml" ) {
-        return matter.engines.yaml.parse( source ) || {};
+        return normalizeDates( matter.engines.yaml.parse( source ) || {} );
     }
 
     const parsed = matter( source );
-    const record = Object.assign( {}, parsed.data );
+    const record = normalizeDates( Object.assign( {}, parsed.data ) );
     const body = String( parsed.content || "" ).trim();
     if ( body !== "" ) {
         record.body = body;
@@ -79,7 +107,7 @@ function parseRecord( text, options ) {
  * @returns {Object}
  */
 function parseVocabulary( text ) {
-    return matter.engines.yaml.parse( ( text === null || text === undefined ) ? "" : String( text ) ) || {};
+    return normalizeDates( matter.engines.yaml.parse( ( text === null || text === undefined ) ? "" : String( text ) ) || {} );
 }
 
 /**

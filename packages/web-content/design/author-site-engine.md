@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Active — P0, P1, P2 complete; P3a (html + document head) complete — 102 tests green. Deps installed 2026-07-24. Next: P4 routes/feeds, then P3b/P5 sections + templates |
+| **Status** | Active — P0–P2, P3a, P4 complete — 128 tests green + an end-to-end smoke test serving real content files. Next: P3b/P5 (sections, editorial components, templates) and Track B (theme) |
 | **Created** | 2026-07-24 |
 | **Last updated** | 2026-07-24 |
 | **Owner** | Boris Kostadinov |
@@ -11,7 +11,7 @@
 
 ## Implementation log
 
-How this design lands in code — update as each step is committed (branch `current`). Nothing built yet.
+How this design lands in code — update as each step is committed (branch `current`).
 
 | Phase / step | Status | Commit | Date |
 |---|---|---|---|
@@ -25,7 +25,7 @@ How this design lands in code — update as each step is committed (branch `curr
 | **P2b** — `content/markdown.js` (markdown-it, `html:false`) + `content/sources.js` (front-matter/YAML reader, no directory scanning) | ✅ 22 tests | — | 2026-07-24 |
 | **P3a** — `render/html.js` (escaping + `raw()`) + `render/document.js` (head/JSON-LD/hreflang) | ✅ 19 tests | `9ad6bf1` | 2026-07-24 |
 | **P3b** — `render/sections.js` + editorial components + full-body/teaser document assembly | ☐ pending (with P5) | — | — |
-| **P4** — `routes/content-routes.js` (catch-all resolver + alias 301) · `routes/feeds.js` (sitemap/rss/robots) · `mountContentRoutes` helpers | ☐ pending | — | — |
+| **P4** — `routes/content-routes.js` (catch-all resolver + alias 301 + cache policy) · `routes/feeds.js` (sitemap/rss/robots) · `routes/index.js` mount helpers | ✅ 23 tests + e2e smoke | — | 2026-07-24 |
 | **P5** — `render/editorial/*` components + page templates (showcase first) — Track B meets Track A here | ☐ pending | — | — |
 | **P6** — `capture/store.js` + `capture/admin.js` (behind `role:admin`) | ☐ pending | — | — |
 | **P7** — Migration tooling (URL inventory → WP REST export → uploads copy → redirect map) | ☐ pending | — | — |
@@ -252,6 +252,13 @@ The `build-spec.md` §8 list — the failures that don't throw — become the fi
 > **P2b note (2026-07-24, deps installed):** `markdown-it@14.3.0` + `gray-matter@4.0.3` installed; `@ti-engine/web-framework` resolves to the **local workspace** package (verified), and a pre-existing transitive `fast-uri` advisory (via `ajv`, monorepo-wide — not from these deps) was cleared by an in-range bump to 3.1.4, leaving **0 vulnerabilities**. Two modules landed:
 > - `content/markdown.js` — markdown-it with **`html: false`** (raw HTML in authored markdown is *escaped*, never passed through — this module is one of only two sanctioned `raw()` sites, so its output must be trustworthy), returning `SafeString` so it composes with `html\`\``. `renderInline` serves summaries/blurbs. **Typographer and linkify are deliberately OFF**: the manuscripts already carry authored Unicode punctuation (em dashes, curly quotes) from the editorial process, and re-transforming it would silently alter deliberate prose. 8 tests.
 > - `content/sources.js` — the disk input stage, split out of `loader.js` (which stays pure): parses markdown-with-front-matter and pure YAML via `gray-matter` (using `matter.engines.yaml` so no transitive `js-yaml` dependency), with parsing separated from I/O so format handling is unit-testable. **Enforces CLAUDE.md 5** — a directory passed to `readSources()` is reported as an *error*, never expanded, and the module exposes no glob/scan/readdir capability (pinned by a test asserting no such export exists). Read/parse failures are collected, not thrown. `readVocabulary` covers `taxonomies.yml`. 14 tests.
+
+> **P4 note (2026-07-24):** the resolver and feeds are in, and an **end-to-end smoke test** now serves real content files (a front-matter post + a gated beta chapter) through sources -> loader -> repository -> routes.
+> - `routes/content-routes.js` -- the catch-all: alias -> 301, miss -> `next()` (falls through to the framework 404, so hidden / unpublished / unknown are indistinguishable from outside), hit -> render. **Cache policy is keyed on the record's `visibility`, not on what was rendered** -- a gated record's *teaser* is `private, no-store` + `Vary: Cookie` too, because the response for that path differs by who is asking and must never be shared by a CDN. `renderPage` is injectable; a minimal fallback document ships until P5 templates land.
+> - `routes/feeds.js` -- sitemap membership is decided through the repository as an **anonymous** viewer, so hidden records and drafts are excluded structurally. The Section 8 rule is implemented: public records are included; a **gated record is included only when it has a `teaser`** (that teaser page is public and indexable) while its body renders `noindex`. RSS is **public-only** -- the specs pin the sitemap rule but leave the feed open, and a syndicated item travels far and is cached by aggregators, so the conservative reading wins.
+> - `routes/index.js` -- `mountContentRoutes` / `defineContentUnprotectedRoutes`, using only the public P0 seams (`registerRoute` / `addUnprotectedRoute`), never Express internals; the catch-all is registered last.
+>
+> **Bug caught by the smoke test, not by the unit tests:** YAML silently parses an unquoted ISO timestamp (`publishedAt: 2026-03-20T00:00:00Z`) into a **Date object**, which failed the schema's string constraint and *silently excluded* an otherwise valid post from the site -- precisely the class of failure this project exists to prevent. Fixed by normalising Dates to ISO strings at the source boundary (`normalizeDates`, recursive, covering nested structures), so authors never have to remember to quote a date. Three regression tests added. Worth remembering: unit tests built on hand-written fixtures cannot catch format-boundary bugs -- only real files can.
 
 ---
 
