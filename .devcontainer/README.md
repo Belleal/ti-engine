@@ -4,9 +4,10 @@ This `.devcontainer/` lets you run the **competence** app straight from GitHub, 
 **testing and demos** — not production. It starts the repo's dev `docker-compose.yml` (the app +
 Redis Stack) inside a Codespace and forwards the app on port **3000**. Sign-in uses **local auth**
 plus the dev **Test User** panel (`TI_WEB_AUTH_METHODS=local`, `COMPETENCE_TEST_USER_ENABLED=true`
-from the dev compose), so no Azure/OIDC setup is needed. The startup script also sets
-`TI_WEB_TRUSTED_ORIGINS` to the Codespace's forwarded URL so login POSTs pass the app's CSRF
-Origin/Referer check through the port-forwarding proxy.
+from the dev compose), so no Azure/OIDC setup is needed. The startup script sets `TI_WEB_TRUSTED_ORIGINS`
+to both `http(s)://localhost:3000` (VS Code tunnels the port to localhost, so that's the browser origin) and
+the public `https://<name>-3000.<domain>` URL, so login POSTs pass the app's CSRF Origin/Referer check whichever
+way you open the app.
 
 > Production hosting is different — deploy the published image (`ghcr.io/belleal/ti-engine-competence`)
 > to a container platform. See [`packages/competence/INSTALL.md`](../packages/competence/INSTALL.md).
