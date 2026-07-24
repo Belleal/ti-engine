@@ -17,11 +17,13 @@
   "type": "commonjs",
   "exports": {
     "./schema": "./content/schema.js",
-    "./loader": "./content/loader.js"
+    "./loader": "./content/loader.js",
+    "./repository": "./content/repository.js"
   },
   "imports": {
     "#schema": "./content/schema.js",
-    "#loader": "./content/loader.js"
+    "#loader": "./content/loader.js",
+    "#repository": "./content/repository.js"
   },
   "dependencies": {
     "@ti-engine/core": "*",
