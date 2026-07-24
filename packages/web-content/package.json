@@ -18,12 +18,16 @@
   "exports": {
     "./schema": "./content/schema.js",
     "./loader": "./content/loader.js",
-    "./repository": "./content/repository.js"
+    "./repository": "./content/repository.js",
+    "./transliterate": "./content/transliterate.js",
+    "./taxonomy": "./content/taxonomy.js"
   },
   "imports": {
     "#schema": "./content/schema.js",
     "#loader": "./content/loader.js",
-    "#repository": "./content/repository.js"
+    "#repository": "./content/repository.js",
+    "#transliterate": "./content/transliterate.js",
+    "#taxonomy": "./content/taxonomy.js"
   },
   "dependencies": {
     "@ti-engine/core": "*",

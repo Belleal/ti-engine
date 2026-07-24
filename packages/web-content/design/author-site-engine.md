@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Active — P0 + P1 backbone done (web-framework 1.17.0 seams; web-content schema + loader + repository, 41 tests green; P1d uncommitted); P2 (taxonomy/transliterate/markdown) next |
+| **Status** | Active — P0 + P1 committed; P2 dep-free half done (transliterate + taxonomy graph, 61 tests green); deferred in P2: `taxonomies.yml` loader + `markdown.js` (need `npm install` for `gray-matter`/`markdown-it`) |
 | **Created** | 2026-07-24 |
 | **Last updated** | 2026-07-24 |
 | **Owner** | Boris Kostadinov |
@@ -21,7 +21,7 @@ How this design lands in code — update as each step is committed (branch `curr
 | **P1b** — `content/schema.js` (ajv envelope + per-type) + **invariant tests written first** | ✅ 16 tests green (uncommitted) | — | 2026-07-24 |
 | **P1c** — `content/loader.js` (validate records → indexes + conflict reporting; disk source-reader deferred) | ✅ 8 tests green | — | 2026-07-24 |
 | **P1d** — `content/repository.js` — THE visibility-filtered query layer | ✅ 17 tests green (uncommitted) | — | 2026-07-24 |
-| **P2** — `content/taxonomy.js` · `content/transliterate.js` · `content/markdown.js` | ☐ pending | — | — |
+| **P2** — `transliterate.js` ✅ + `taxonomy.js` graph ✅ (dep-free, 20 tests); `taxonomies.yml` loader + `markdown.js` deferred (need `gray-matter`/`markdown-it`) | ◑ partial | — | 2026-07-24 |
 | **P3** — `render/html.js` (escaping template + `raw()`) · `render/document.js` (head/JSON-LD) · `render/sections.js` | ☐ pending | — | — |
 | **P4** — `routes/content-routes.js` (catch-all resolver + alias 301) · `routes/feeds.js` (sitemap/rss/robots) · `mountContentRoutes` helpers | ☐ pending | — | — |
 | **P5** — `render/editorial/*` components + page templates (showcase first) — Track B meets Track A here | ☐ pending | — | — |
@@ -241,6 +241,8 @@ The `build-spec.md` §8 list — the failures that don't throw — become the fi
 > **P1c loader note (2026-07-24):** `content/loader.js` is refined from the §2 sketch: it does **validate + build indexes only** (pure, records in → index out), and the disk source-reader (front-matter / YAML parsing via `gray-matter`) is a separate input stage deferred until real content is wired — so the index build stays filesystem-free and fully unit-tested. It excludes invalid records and reports id/path/alias conflicts (incl. an alias shadowed by a real path) rather than throwing; first record wins a collision. 8 tests in `test/loader.test.js`.
 
 > **P1d repository note (2026-07-24):** `content/repository.js` (class `ContentRepository`, constructed over a loader index) is the single visibility chokepoint. `resolveVisibility(record, viewer)` (public static, pure) returns `visible`/`gated`/`hidden` per the ratified model; `role:__none__`, empty, missing, or unrecognised → hidden (deny-all, admins included — no implicit role hierarchy). `resolve` / `list` / `count` / `getById` / `resolveIds` all route through it, and drafts are excluded from every surface. §8 invariants green here: a no-visibility/deny-all record appears in no surface (incl. defense-in-depth against a schema-bypassing bogus value), curated `featured` ids are visibility-filtered, gated records stay listable as teasers. Deferred to their surfaces: sitemap body-exclusion + `noindex` (P4 feeds / P3 render), taxonomy parent expansion (P2), hreflang reciprocity + escaping + cache headers (P3 render). 17 tests in `test/repository.test.js`.
+
+> **P2 note (2026-07-24):** the dependency-free half is in. `transliterate.js` (Streamlined System + `slugify`, deterministic — 9 tests, incl. the stability invariant and reference slugs) and `taxonomy.js` (pure term-graph over an in-memory vocabulary: `resolve` by id/per-language slug, one-level `expand`/`ancestors`/`children`, `slugFor` — 11 tests) are complete. Deferred until the first `npm install` with network access (needed for P3/P5 regardless): the `taxonomies.yml` reader (`gray-matter`/`js-yaml`) and `markdown.js` (`markdown-it`, `html:false`). The §8 taxonomy-parent-expansion invariant is proven at the graph level — `expand('world','dark-intent')` includes `alexander-dark`; wiring it into `repository.list` archive queries lands with the routes (P4/P5).
 
 ---
 
