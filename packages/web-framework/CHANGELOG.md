@@ -2,6 +2,15 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.17.0
+
+Route-registration seams so an application subclass can add its own Express routes and unprotected-route patterns — enabling public, content-driven sites (the first consumer being the standalone author's site) to layer a catch-all content resolver over the framework without reaching into private state.
+
+* feat(web-server): add `TiWebServer.registerRoute( method, path, ...handlers )` — registers a custom route on the underlying Express app from a `defineWebApplicationRoutes()` override (after `super()`), so a catch-all resolver can be mounted after the framework's own routes but before its `*splat` 404 handler. Limited to route-scoped verbs (get/post/put/patch/delete/options/head/all); raises `E_GEN_INVALID_ARGUMENT_TYPE` for any other method and `E_GEN_NOT_INITIALIZED` if called before the Express app exists
+* feat(web-server): add `TiWebServer.addUnprotectedRoute( pattern )` — appends a string (exact-match) or RegExp (tested) pattern to the unprotected-routes list from a `defineUnprotectedRoutes()` override, so a public-by-default site can invert the framework's protect-by-default stance; non-string/non-RegExp values are ignored with a warning
+* refactor(web-server): extract the unprotected-route matching loop from `isUnprotectedRoute()` into the pure, unit-tested `isRouteInList()` helper (behavior unchanged, including the defensive `lastIndex` reset), and add the `normalizeRegistrableMethod()` helper — both exported for testing alongside the existing `RE_*` matcher constants
+* build(release): bump package version from `1.16.0` to `1.17.0`
+
 ## Version 1.16.0
 
 Support explicitly trusted request origins so state-changing requests (e.g. login) work behind proxies that do not present the app's external host — most notably GitHub Codespaces port forwarding (CA-90).
