@@ -57,8 +57,11 @@ class DataManager {
     /* Public interface */
 
     /**
-     * Used to initialize the data manager. When the `COMPETENCE_PRELOAD_DATA` env var is true, performs a destructive
-     * reseeding: wipes every managed collection and reloads from the bootstrap configuration and seed files.
+     * Used to initialize the data manager. Ensures every managed collection exists, creating it as an empty document
+     * only when it is absent (`setJSON` with `NX`), so existing data is left intact and persists across restarts.
+     * When the `COMPETENCE_PRELOAD_DATA` env var is true, additionally merges the bootstrap configuration and seed
+     * files into the collections (re-applied on each start while the flag is set). This is a non-destructive seed —
+     * it does not wipe existing data.
      *
      * @method
      * @returns {Promise}
