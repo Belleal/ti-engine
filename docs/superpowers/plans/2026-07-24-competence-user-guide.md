@@ -435,10 +435,10 @@ function assembleScreen( chapter, chapters, sourceFile, packageVersion ) {
     const previous = index > 0 ? chapters[ index - 1 ] : null;
     const next = index < chapters.length - 1 ? chapters[ index + 1 ] : null;
     const previousButton = previous
-        ? `            <button class="ti-button ghost competence-guide-prev" type="button" hx-get="/app/${ previous.fragmentName }" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">← ${ escapeHtml( previous.title ) }</button>`
+        ? `            <button class="ti-btn ghost competence-guide-prev" type="button" hx-get="/app/${ previous.fragmentName }" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">← ${ escapeHtml( previous.title ) }</button>`
         : "            <span></span>";
     const nextButton = next
-        ? `            <button class="ti-button ghost competence-guide-next" type="button" hx-get="/app/${ next.fragmentName }" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">${ escapeHtml( next.title ) } →</button>`
+        ? `            <button class="ti-btn ghost competence-guide-next" type="button" hx-get="/app/${ next.fragmentName }" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">${ escapeHtml( next.title ) } →</button>`
         : "            <span></span>";
     return `${ GENERATED_BANNER( sourceFile ) }
 <div class="ti-page competence-guide-page">
@@ -1285,7 +1285,7 @@ Create `packages/competence/bin/static/fragments/frame-process-guide.html`. Hand
             <p>A Supervisor creates the appraisal cycle, selects the competencies each role family is evaluated on, and locks the cycle once validation passes. From that moment the cycle is active — the only active one — and evaluations can be started.</p>
             <div class="competence-pg-step-foot">
                 <span class="competence-pg-step-where">Cycles · Cycle Setup</span>
-                <button class="ti-button ghost" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Learn more</button>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Learn more</button>
             </div>
         </div>
 
@@ -1299,7 +1299,7 @@ Create `packages/competence/bin/static/fragments/frame-process-guide.html`. Hand
             <p>A manager (or Supervisor) starts an evaluation for an employee and may pick 3–5 peers for team feedback. The employee's competency set is frozen into the evaluation at this moment — later configuration changes never affect it.</p>
             <div class="competence-pg-step-foot">
                 <span class="competence-pg-step-where">Org Chart · New Evaluation</span>
-                <button class="ti-button ghost" type="button" hx-get="/app/help-manager" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Learn more</button>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-manager" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Learn more</button>
             </div>
         </div>
 
@@ -1312,7 +1312,7 @@ Create `packages/competence/bin/static/fragments/frame-process-guide.html`. Hand
             <p>The employee grades every competency against its scope description and adds a written comment. Drafts can be saved until the deadline — a late submission is rejected, though a Supervisor can move a stalled evaluation on without it.</p>
             <div class="competence-pg-step-foot">
                 <span class="competence-pg-step-where">My Evaluation</span>
-                <button class="ti-button ghost" type="button" hx-get="/app/help-employee" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Learn more</button>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-employee" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Learn more</button>
             </div>
         </div>
 
@@ -1325,7 +1325,7 @@ Create `packages/competence/bin/static/fragments/frame-process-guide.html`. Hand
             <p>If peers were assigned, each submits feedback once — by default one grade per competency group. Individual grades stay private forever; only the averaged team grade is ever shown. A round that never happens is excluded from the score, not counted against it.</p>
             <div class="competence-pg-step-foot">
                 <span class="competence-pg-step-where">My Evaluation (as Team)</span>
-                <button class="ti-button ghost" type="button" hx-get="/app/help-team-member" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Learn more</button>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-team-member" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Learn more</button>
             </div>
         </div>
 
@@ -1338,7 +1338,7 @@ Create `packages/competence/bin/static/fragments/frame-process-guide.html`. Hand
             <p>Once the self-evaluation is in and team feedback is complete (or was not requested), the evaluation moves to In Review on its own and the manager is notified.</p>
             <div class="competence-pg-step-foot">
                 <span class="competence-pg-step-where">—</span>
-                <button class="ti-button ghost" type="button" hx-get="/app/help-appraisal-process" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Learn more</button>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-appraisal-process" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Learn more</button>
             </div>
         </div>
 
@@ -1351,7 +1351,7 @@ Create `packages/competence/bin/static/fragments/frame-process-guide.html`. Hand
             <p>The manager reviews the self grades, the team result, and the anonymous peer notes, then grades every competency and writes their feedback. Submitting computes the scores — the manager's input carries the largest weight — and the evaluation becomes Ready. The manager deadline is a reminder, never a block.</p>
             <div class="competence-pg-step-foot">
                 <span class="competence-pg-step-where">Evaluation Form</span>
-                <button class="ti-button ghost" type="button" hx-get="/app/help-manager" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Learn more</button>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-manager" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Learn more</button>
             </div>
         </div>
 
@@ -1365,7 +1365,7 @@ Create `packages/competence/bin/static/fragments/frame-process-guide.html`. Hand
             <p>Managers keep a weekly availability calendar; a Supervisor books a slot for each Ready evaluation. Whoever owns the booked slot conducts the interview, and both the employee and that manager are notified of the date.</p>
             <div class="competence-pg-step-foot">
                 <span class="competence-pg-step-where">Availability · Interviews</span>
-                <button class="ti-button ghost" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Learn more</button>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Learn more</button>
             </div>
         </div>
 
@@ -1379,7 +1379,7 @@ Create `packages/competence/bin/static/fragments/frame-process-guide.html`. Hand
             <p>After the meeting, the conducting manager records the outcome — written feedback, next-period goals, and an optional improvement plan. The Supervisor then formally closes the evaluation: grades are untouched, the closure becomes visible to the employee, and nothing can change afterwards.</p>
             <div class="competence-pg-step-foot">
                 <span class="competence-pg-step-where">Interviews</span>
-                <button class="ti-button ghost" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Learn more</button>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Learn more</button>
             </div>
         </div>
 

@@ -148,10 +148,10 @@ function assembleScreen( chapter, chapters, sourceFile, packageVersion ) {
     const previous = index > 0 ? chapters[ index - 1 ] : null;
     const next = index < chapters.length - 1 ? chapters[ index + 1 ] : null;
     const previousButton = previous
-        ? `            <button class="ti-button ghost competence-guide-prev" type="button" hx-get="/app/${ previous.fragmentName }" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">← ${ escapeHtml( previous.title ) }</button>`
+        ? `            <button class="ti-btn ghost competence-guide-prev" type="button" hx-get="/app/${ previous.fragmentName }" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">← ${ escapeHtml( previous.title ) }</button>`
         : "            <span></span>";
     const nextButton = next
-        ? `            <button class="ti-button ghost competence-guide-next" type="button" hx-get="/app/${ next.fragmentName }" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">${ escapeHtml( next.title ) } →</button>`
+        ? `            <button class="ti-btn ghost competence-guide-next" type="button" hx-get="/app/${ next.fragmentName }" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">${ escapeHtml( next.title ) } →</button>`
         : "            <span></span>";
     return `${ GENERATED_BANNER( sourceFile ) }
 <div class="ti-page competence-guide-page">
