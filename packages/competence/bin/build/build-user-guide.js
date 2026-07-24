@@ -124,7 +124,7 @@ function convertMarkdown( md, fileName ) {
         return `<h${ level } id="${ slugify( inner.replace( /<[^>]+>/g, "" ) ) }">${ inner }</h${ level }>`;
     } );
     html = html.replace( /<table>/g, "<div class=\"ti-doc-table\">\n<table>" ).replace( /<\/table>/g, "</table>\n</div>" );
-    html = html.replace( /<a href="(https?:\/\/[^"]+)">/g, "<a href=\"$1\" target=\"_blank\" rel=\"noopener noreferrer\">" );
+    html = html.replace( /<a href="(https?:\/\/[^"]+)"/g, "<a href=\"$1\" target=\"_blank\" rel=\"noopener noreferrer\"" );
     return html;
 }
 

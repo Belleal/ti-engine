@@ -76,6 +76,11 @@ describe( "User guide build — markdown conversion", () => {
         assert.match( html, /<a href="https:\/\/github\.com\/Belleal\/ti-engine" target="_blank" rel="noopener noreferrer">/ );
     } );
 
+    it( "opens titled external links in a new tab too", () => {
+        const html = convertMarkdown( "Visit [the repo](https://github.com/Belleal/ti-engine \"ti-engine repo\").", "01-overview.md" );
+        assert.match( html, /<a href="https:\/\/github\.com\/Belleal\/ti-engine" target="_blank" rel="noopener noreferrer" title="ti-engine repo">/ );
+    } );
+
     it( "emits no inline styles, scripts, or event-handler attributes", () => {
         const md = "## Section\n\nText with **bold** and `code`.\n\n> **Note:** a callout.\n\n- one\n- two";
         const html = convertMarkdown( md, "01-overview.md" );
