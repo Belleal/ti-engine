@@ -20,14 +20,18 @@
     "./loader": "./content/loader.js",
     "./repository": "./content/repository.js",
     "./transliterate": "./content/transliterate.js",
-    "./taxonomy": "./content/taxonomy.js"
+    "./taxonomy": "./content/taxonomy.js",
+    "./html": "./render/html.js",
+    "./render": "./render/document.js"
   },
   "imports": {
     "#schema": "./content/schema.js",
     "#loader": "./content/loader.js",
     "#repository": "./content/repository.js",
     "#transliterate": "./content/transliterate.js",
-    "#taxonomy": "./content/taxonomy.js"
+    "#taxonomy": "./content/taxonomy.js",
+    "#html": "./render/html.js",
+    "#document": "./render/document.js"
   },
   "dependencies": {
     "@ti-engine/core": "*",
