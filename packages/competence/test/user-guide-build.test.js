@@ -143,7 +143,8 @@ const LABELS_FILE = path.join( PACKAGE_ROOT, "bin", "localization", "competence-
 // Task 8 appends "process-guide" here (hand-authored screen — registered/mapped/titled but not generated):
 const GUIDE_FRAGMENT_NAMES = [
     "help-overview", "help-getting-started", "help-employee", "help-team-member", "help-manager",
-    "help-supervisor", "help-administrator", "help-appraisal-process", "help-faq-glossary"
+    "help-supervisor", "help-administrator", "help-appraisal-process", "help-faq-glossary",
+    "process-guide"
 ];
 
 const normalizeLineEndings = ( text ) => text.replace( /\r\n/g, "\n" );

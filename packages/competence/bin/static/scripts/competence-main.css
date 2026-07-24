@@ -5408,3 +5408,170 @@
     color: var(--fg-primary);
     border-bottom-color: var(--border);
 }
+
+/* ---------- Process Guide screen ---------- */
+
+.competence-pg-lifecycle-panel {
+    margin-bottom: var(--s-4);
+}
+
+.competence-pg-lifecycle {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: var(--s-2);
+    padding: var(--s-4);
+}
+
+.competence-pg-status {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--bg-sunken);
+    color: var(--fg-primary);
+    font-weight: 600;
+    font-size: var(--fs-sm);
+}
+
+.competence-pg-status.ready {
+    border-color: var(--accent);
+}
+
+.competence-pg-status.closed {
+    border-color: var(--success);
+}
+
+.competence-pg-status-sub {
+    color: var(--fg-tertiary);
+    font-weight: 400;
+    font-size: var(--fs-xs);
+}
+
+.competence-pg-arrow {
+    align-self: center;
+    color: var(--fg-tertiary);
+}
+
+.competence-pg-lifecycle-note {
+    padding: 0 var(--s-4) var(--s-4);
+    margin: 0;
+    color: var(--fg-tertiary);
+    font-size: var(--fs-sm);
+}
+
+.competence-pg-steps {
+    display: grid;
+    grid-template-columns: repeat( auto-fill, minmax( 340px, 1fr ) );
+    gap: var(--s-4);
+    margin-bottom: var(--s-4);
+}
+
+.competence-pg-step {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    padding: var(--s-4);
+}
+
+.competence-pg-step p {
+    margin: 0;
+    color: var(--fg-secondary);
+    font-size: var(--fs-sm);
+    line-height: 1.6;
+    flex: 1;
+}
+
+.competence-pg-step-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    flex-wrap: wrap;
+}
+
+.competence-pg-step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--fg-primary);
+    font-weight: 700;
+    font-size: var(--fs-sm);
+    flex-shrink: 0;
+}
+
+.competence-pg-step-title {
+    margin: 0;
+    font-size: 1.05rem;
+    color: var(--fg-primary);
+    flex: 1;
+}
+
+.competence-pg-role {
+    display: inline-block;
+    padding: 1px var(--s-2);
+    border-radius: var(--r-pill);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    border: 1px solid var(--border);
+    color: var(--fg-secondary);
+    background: var(--bg-sunken);
+    white-space: nowrap;
+}
+
+.competence-pg-role.supervisor {
+    border-color: var(--accent);
+}
+
+.competence-pg-role.manager {
+    border-color: var(--info);
+}
+
+.competence-pg-role.employee {
+    border-color: var(--success);
+}
+
+.competence-pg-role.team {
+    border-color: var(--warn);
+}
+
+.competence-pg-step-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--s-2);
+    border-top: 1px solid var(--border-soft);
+    padding-top: var(--s-3);
+}
+
+.competence-pg-step-where {
+    color: var(--fg-tertiary);
+    font-size: var(--fs-xs);
+}
+
+.competence-pg-legend-list {
+    list-style: none;
+    margin: 0;
+    padding: var(--s-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    color: var(--fg-secondary);
+    font-size: var(--fs-sm);
+}
+
+.competence-pg-legend-list .competence-pg-role {
+    margin-right: var(--s-2);
+}
+
+.competence-pg-legend-note {
+    padding: 0 var(--s-4) var(--s-4);
+    margin: 0;
+    color: var(--fg-tertiary);
+    font-size: var(--fs-sm);
+}

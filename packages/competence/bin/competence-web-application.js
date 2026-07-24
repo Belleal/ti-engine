@@ -199,6 +199,10 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "User Guide — FAQ & Glossary",
             path: "fragments/guide/frame-help-faq-glossary.html"
         } );
+        this.addFragment( "process-guide", {
+            title: "Process Guide",
+            path: "fragments/frame-process-guide.html"
+        } );
     }
 
     /* Public interface */
@@ -297,7 +301,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "help-supervisor": "help",
                     "help-administrator": "help",
                     "help-appraisal-process": "help",
-                    "help-faq-glossary": "help"
+                    "help-faq-glossary": "help",
+                    "process-guide": "process-guide"
                 },
                 componentsConfig: {
                     userProfileMenu: {

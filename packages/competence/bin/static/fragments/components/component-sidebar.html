@@ -163,8 +163,9 @@
     <!-- Quick links section -->
     <div class="ti-sidebar-section-label" x-text-label="interface.navigation.quick-links">Quick links</div>
     <div class="ti-sidebar-nav">
-        <button class="ti-sidebar-item" type="button" x-text-label:data-tip="interface.navigation.process-guide"
-                x-text-label:aria-label="interface.navigation.process-guide" disabled>
+        <button hx-get="/app/process-guide" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'process-guide'"
+                x-bind:class="{ active: active === 'process-guide' }" class="ti-sidebar-item" type="button"
+                x-text-label:data-tip="interface.navigation.process-guide" x-text-label:aria-label="interface.navigation.process-guide">
             <span class="ti-sidebar-item-icon">
                 <span class="ti-icon book md" aria-hidden="true"></span>
             </span>

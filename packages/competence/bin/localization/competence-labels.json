@@ -6294,6 +6294,10 @@
       "help-faq-glossary": {
         "en": "User Guide — FAQ & Glossary",
         "bg": "Ръководство — Въпроси и речник"
+      },
+      "process-guide": {
+        "en": "Process Guide",
+        "bg": "Ръководство за процеса"
       }
     },
     "sidebar": {
