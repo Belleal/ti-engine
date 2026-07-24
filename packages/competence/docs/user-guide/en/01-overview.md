@@ -20,7 +20,7 @@ Appraisals don't run continuously — they run in **cycles**, typically annual o
 | Supervisor | The appraisal process owner (typically HR leadership) | Own the process end to end: create and lock cycles, schedule interviews, keep stalled evaluations moving, and formally close evaluations. |
 | Administrator | A separate, operations-managed list of trusted accounts | Configure the application itself — things like the competency dictionary and scoring settings. |
 
-> **Note:** Your Employee, Manager, Supervisor, and Team Member standing is worked out automatically the moment you sign in, based on your place in the organization chart — you can hold more than one at a time (everyone is always an Employee, and you might also be a Manager, and a Team Member on a colleague's evaluation this cycle). A Supervisor can additionally grant the Supervisor capacity to someone else. Being an Administrator is different: it's a fixed list kept by your operations team, not something derived from the org chart.
+> **Note:** Your Employee, Manager, and Supervisor standing is worked out automatically the moment you sign in, based on your place in the organization chart, while Team Member is conferred when you're picked for a specific evaluation's feedback team — you can hold more than one at a time (everyone is always an Employee, and you might also be a Manager, and a Team Member on a colleague's evaluation this cycle). A Supervisor can additionally grant the Supervisor capacity to someone else. Being an Administrator is different: it's a fixed list kept by your operations team, not something derived from the org chart.
 
 ## Appraisal cycles
 

@@ -6,7 +6,7 @@ This chapter gets you into the application and oriented: how to sign in, what th
 
 You sign in with your organization account through your company's single sign-on — there's no separate registration or password to create for this application specifically. Depending on how your organization has set things up, this is typically a Microsoft Entra (Azure) sign-in, though the exact method depends on your deployment.
 
-The moment you sign in, the application works out which capacities you hold — Employee, Manager, Supervisor, Team Member — from your position in the organization chart. There's nothing for you to configure yourself.
+The moment you sign in, the application works out which capacities you hold — Employee, Manager, and Supervisor — from your position in the organization chart, while Team Member is conferred when you're picked for a specific evaluation's feedback team. There's nothing for you to configure yourself.
 
 > **Note:** If sign-in fails, that's an account issue the application itself can't resolve — contact your administrator.
 
