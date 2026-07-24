@@ -10,6 +10,8 @@
             <button class="competence-guide-nav-item" type="button" hx-get="/app/help-getting-started" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Getting Started</button>
             <button class="competence-guide-nav-item" type="button" hx-get="/app/help-employee" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Employees</button>
             <button class="competence-guide-nav-item active" type="button" aria-current="page" hx-get="/app/help-team-member" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Team Members</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-manager" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Managers</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Supervisors</button>
         </nav>
         <article class="ti-panel competence-guide-content">
             <div class="ti-doc">
@@ -38,7 +40,7 @@
             <footer class="competence-guide-footer">
             <button class="ti-button ghost competence-guide-prev" type="button" hx-get="/app/help-employee" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">← For Employees</button>
                 <span class="competence-guide-version">Guide for competence v3.13.3</span>
-            <span></span>
+            <button class="ti-button ghost competence-guide-next" type="button" hx-get="/app/help-manager" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Managers →</button>
             </footer>
         </article>
     </div>
