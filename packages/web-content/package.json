@@ -16,10 +16,12 @@
   "license": "GPL-3.0-or-later",
   "type": "commonjs",
   "exports": {
-    "./schema": "./content/schema.js"
+    "./schema": "./content/schema.js",
+    "./loader": "./content/loader.js"
   },
   "imports": {
-    "#schema": "./content/schema.js"
+    "#schema": "./content/schema.js",
+    "#loader": "./content/loader.js"
   },
   "dependencies": {
     "@ti-engine/core": "*",
