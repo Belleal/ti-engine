@@ -163,15 +163,17 @@
     <!-- Quick links section -->
     <div class="ti-sidebar-section-label" x-text-label="interface.navigation.quick-links">Quick links</div>
     <div class="ti-sidebar-nav">
-        <button class="ti-sidebar-item" type="button" x-text-label:data-tip="interface.navigation.process-guide"
-                x-text-label:aria-label="interface.navigation.process-guide" disabled>
+        <button hx-get="/app/process-guide" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'process-guide'"
+                x-bind:class="{ active: active === 'process-guide' }" class="ti-sidebar-item" type="button"
+                x-text-label:data-tip="interface.navigation.process-guide" x-text-label:aria-label="interface.navigation.process-guide">
             <span class="ti-sidebar-item-icon">
                 <span class="ti-icon book md" aria-hidden="true"></span>
             </span>
             <span class="ti-sidebar-item-label" x-text-label="interface.navigation.process-guide">Process Guide</span>
         </button>
-        <button class="ti-sidebar-item" type="button" x-text-label:data-tip="interface.navigation.help" x-text-label:aria-label="interface.navigation.help"
-                disabled>
+        <button hx-get="/app/help-overview" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'help'"
+                x-bind:class="{ active: active === 'help' }" class="ti-sidebar-item" type="button"
+                x-text-label:data-tip="interface.navigation.help" x-text-label:aria-label="interface.navigation.help">
             <span class="ti-sidebar-item-icon">
                 <span class="ti-icon help-circle md" aria-hidden="true"></span>
             </span>

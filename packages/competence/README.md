@@ -48,6 +48,11 @@ The following features are currently implemented:
 The competence app ships as a container built from the monorepo. It requires a Redis
 instance **with the JSON module** (Redis Stack, or Redis 8+).
 
+> **Deploying for real?** See **[INSTALL.md](INSTALL.md)** — the system-administrator
+> installation & operations guide (image tags, configuration reference, secrets, TLS,
+> Kubernetes pointers, backups, upgrades, troubleshooting). The sections below are the
+> developer quickstart only.
+
 ### Local development
 
 ```bash
@@ -73,11 +78,16 @@ docker run --rm -p 3000:3000 \
 
 ### Production notes
 
+Production deployment is covered end-to-end in **[INSTALL.md](INSTALL.md)**. The essentials:
+
+- **Azure SSO is the container default** — the image ships `TI_WEB_AUTH_METHODS=openid-azure`, so you must
+  configure the Azure OpenID credentials (or explicitly override the auth methods); the placeholder `local`
+  credentials auth is off by default and is a development stand-in only.
+- The container exposes **`GET /health`** for liveness probes (the Docker `HEALTHCHECK` uses it).
 - Put a TLS-terminating reverse proxy / ingress in front (the container runs plain HTTP;
   it trusts `X-Forwarded-*`). Keep `TI_WEB_USE_TLS=false`.
 - Set `TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY` and `TI_WEB_COOKIE_SECRET` to strong, private values.
-- Set `COMPETENCE_TEST_USER_ENABLED=false` (default).
-- Point `TI_MEMORY_CACHE_*` at your JSON-capable Redis; set `TI_MEMORY_CACHE_AUTH_KEY` if it requires auth.
+- Keep `COMPETENCE_TEST_USER_ENABLED=false` (default).
 - See `.env.example` for the full variable list. Images are published to
   `ghcr.io/belleal/ti-engine-competence` (`:latest`, `:X.Y.Z` on `competence-v*` tags, `:edge` on master).
 
@@ -513,7 +523,7 @@ The per-competency grading tables, grade guide, and feedback section stay on the
 
 ### New Evaluation
 
-A setup screen for starting a new evaluation. Displays the selected employee's profile, the current appraisal cycle information, and a list of available team members to select for peer feedback (excludes the employee and their manager). On confirmation, the `start-evaluation` service is called and the user is navigated to the newly created evaluation form.
+A setup screen for starting a new evaluation. Displays the selected employee's profile, the current appraisal cycle information, and a list of available team members to select for peer feedback (excludes the employee and everyone in their management chain). On confirmation, the `start-evaluation` service is called and the user is navigated to the newly created evaluation form.
 
 ### Manager Availability Calendar
 
@@ -1060,7 +1070,7 @@ All application settings are in `bin/config/config.application.json` and are val
 
 | Variable                      | Default | Description                                                                                                                                                                                                                                            |
 |-------------------------------|---------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `COMPETENCE_PRELOAD_DATA`     | `false` | If `true`, seeds employee and evaluation data from `bin/data/seeders/` into Redis on startup (useful for development and testing)                                                                                                                      |
+| `COMPETENCE_PRELOAD_DATA`     | `false` | If `true`, merges demo employee/evaluation seed data from `bin/data/seeders/` into Redis on startup. Non-destructive — collections are only initialized when empty, so existing data persists; while the flag stays `true` the seed is re-applied on every boot. See INSTALL.md §11 for details. |
 | `COMPETENCE_TEST_USER_ENABLED`| `false` | If `true`, honors the temporary `ti-test-user` login cookie that injects a dev identity and optional roles override. **Dev only** — leave unset in production, where it would let any client self-assign identity and roles, bypassing authorization. |
 
 These are the application-specific variables. The standard `@ti-engine/core` and `@ti-engine/web-framework` variables also apply — service identity (`TI_INSTANCE_NAME`, `TI_INSTANCE_CLASS`), the Redis connection (`TI_MEMORY_CACHE_HOST`/`PORT`/`AUTH`/`DB`), logging, and the web/auth settings — and are loaded from the package `.env` via dotenvx. The administrator allowlist (`auth.admins`) and the authentication methods are configured in the web server's JSON config, not through environment variables.

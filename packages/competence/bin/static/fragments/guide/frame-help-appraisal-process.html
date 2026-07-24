@@ -1,0 +1,76 @@
+<!-- GENERATED FILE — do not edit. Source: docs/user-guide/en/08-appraisal-process.md. Regenerate: npm run build:guide -->
+<div class="ti-page competence-guide-page">
+    <div class="ti-page-head">
+        <div class="ti-page-eyebrow">User Guide</div>
+        <h1 class="ti-page-title">The Appraisal Process</h1>
+    </div>
+    <div class="competence-guide-layout">
+        <nav class="ti-panel competence-guide-nav" aria-label="Guide chapters">
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-overview" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Overview &amp; Key Concepts</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-getting-started" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Getting Started</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-employee" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Employees</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-team-member" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Team Members</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-manager" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Managers</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Supervisors</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-administrator" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Administrators</button>
+            <button class="competence-guide-nav-item active" type="button" aria-current="page" hx-get="/app/help-appraisal-process" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">The Appraisal Process</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-faq-glossary" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">FAQ &amp; Glossary</button>
+        </nav>
+        <article class="ti-panel competence-guide-content">
+            <div class="ti-doc">
+<p>Every evaluation follows the same eight steps on its way from start to close. The earlier chapters cover those steps one role at a time — this chapter instead follows a single evaluation straight through, naming who acts at each point, which screen they act on, and what changes as a result. It closes with the status lifecycle those steps drive, and where to look for more detail on any one part.</p>
+<h2 id="step-1-appraisal-cycle-start">Step 1 — Appraisal Cycle Start</h2>
+<p>Every evaluation belongs to an appraisal cycle, and the cycle comes first. The Supervisor creates it on the <strong>Cycles</strong> screen — an ID, a name, and its key dates — where it starts out in Planning. While it&#39;s in Planning, the Supervisor uses Cycle Setup to decide which competencies apply to each role family and specialization, excluding any family that isn&#39;t ready for this cycle yet.</p>
+<p>Once every included family passes validation, the Supervisor locks the cycle, and it moves from Planning to Active. Only one cycle can be Active at a time, and no evaluation can start against it before this point.</p>
+<h2 id="step-2-evaluation-start">Step 2 — Evaluation Start</h2>
+<p>An evaluation begins when an authorized Manager — or, standing in for one, a Supervisor — starts it for a specific employee on the New Evaluation screen, after the system confirms the employee has no other evaluation already in progress. At this point the Manager may also name between three and five eligible colleagues to give peer feedback.</p>
+<p>The evaluation is created at Open status, carrying a snapshot of the competency set resolved from the employee&#39;s role family and specialization for the active cycle. Whatever changes later in the configuration, this evaluation keeps the set — and the relevancy weights behind it — it started with.</p>
+<h2 id="step-3-self-evaluation">Step 3 — Self-Evaluation</h2>
+<p>The Employee completes the self-assessment on the evaluation form, grading every competency and adding a written comment, and may save drafts freely until a strict deadline; a draft or submission after that point is rejected outright. Submitting requires every competency to be graded.</p>
+<p>If the Employee cannot finish in time, the Supervisor may waive the round from Oversight once the deadline has passed, recording a reason. Waiving moves the evaluation on to In Review without the self-grades, which are then excluded from scoring rather than counted against the Employee.</p>
+<h2 id="step-4-team-evaluation-optional">Step 4 — Team Evaluation <em>(optional)</em></h2>
+<p>If team members were named at Step 2, each grades the evaluation form before a separate, cycle-level deadline — by subcategory in the default collective mode, or competency by competency if collective mode is switched off. Each team member submits once, and once every one of them has, the system averages the individual grades into a single cumulative grade per competency.</p>
+<p>This round is skipped entirely when an evaluation starts without team members. Its deadline blocks late input the same way the self-round&#39;s does — a late submission is rejected outright. What differs is the recovery: once the deadline passes, the Manager — or a Supervisor acting as a read-only facilitator — may finalize the round with whatever was actually submitted, so one non-responder can&#39;t hold up the rest, and a round with no submissions at all is simply excluded from the score.</p>
+<h2 id="step-5-status-transition-open-in-review">Step 5 — Status Transition: Open → In Review</h2>
+<p>No one takes a direct action for this step — it happens on its own. As soon as the Employee&#39;s self-assessment is submitted, and the team round is either complete or was never requested, the evaluation&#39;s status changes from Open to In Review automatically, and the Manager is notified that it&#39;s waiting on them.</p>
+<h2 id="step-6-manager-review">Step 6 — Manager Review</h2>
+<p>The Manager reviews the submitted self and team grades on the evaluation form, adds a grade for every competency plus a written comment, and may save drafts freely. The Manager&#39;s own deadline works differently from the Employee&#39;s: it&#39;s a reminder rather than a block, so a late manager submission is never rejected.</p>
+<p>Once the deadline passes, it surfaces as an overdue task for the Supervisor, who may complete the manager grades from Oversight on the Manager&#39;s behalf, recording a reason — a manager further up the same reporting line may also step in directly, without needing to record one, since they&#39;d be acting as a manager rather than standing in for someone. Once the manager review is submitted, by whichever of them does it, the system calculates the evaluation&#39;s performance scores and its status changes to Ready, and the Supervisor is notified.</p>
+<h2 id="step-7-interview-scheduling">Step 7 — Interview Scheduling</h2>
+<p>Before scheduling can happen, every Manager keeps their own interview availability current on the Availability calendar, marking slots available or busy for the current cycle. Once slots exist, the Supervisor opens Interviews, selects a Ready evaluation, and books one of the available slots from the weekly picker.</p>
+<p>Booking sets the evaluation&#39;s interview date and hands the interview to whichever Manager owns that slot — its conducting manager, even when that isn&#39;t the employee&#39;s own manager — and notifies both the Employee and that Manager. The evaluation&#39;s status doesn&#39;t change at this step; it stays Ready until the interview itself is recorded and closed. The Supervisor may cancel a booking at any time, which clears the interview date and reopens the slot.</p>
+<h2 id="step-8-interview-meeting-and-closure">Step 8 — Interview Meeting and Closure</h2>
+<p>During the interview meeting, whoever conducts it — the conducting manager, an org-line superior manager, or the Supervisor — records its outcome on Interviews: written feedback, up to five concrete goals for the Employee&#39;s next period, and, if the conversation calls for one, a formal Performance Improvement Plan. Grades already submitted are never changed at this point.</p>
+<p>Once the interview date has passed and at least some outcome has been recorded, the Supervisor formally closes the evaluation from the same screen — an irreversible change from Ready to Closed. Closing doesn&#39;t change any grade or score; those were already visible to the Employee at Ready. What it does add is visibility: the interview&#39;s feedback, goals, and any Performance Improvement Plan appear to the Employee on My Scores only from this point on.</p>
+<h2 id="the-status-lifecycle">The status lifecycle</h2>
+<p>The eight steps above drive a fixed sequence of statuses. Nothing here advances on a timer — every arrow below is the result of someone submitting, waiving, finalizing, or closing something:</p>
+<pre><code>NOT STARTED → OPEN → IN REVIEW → READY → CLOSED
+                └────────┴──────────┴──► WITHDRAWN (Supervisor action, any active status)
+</code></pre>
+<ul>
+<li><strong>Not Started</strong> — no evaluation exists yet for the employee.</li>
+<li><strong>Open</strong> — the self-assessment, and any team feedback, are in progress.</li>
+<li><strong>In Review</strong> — both of those are done, and the manager review is in progress.</li>
+<li><strong>Ready</strong> — the manager has submitted; scores are calculated and visible, and the interview gets scheduled and held from here.</li>
+<li><strong>Closed</strong> — the interview&#39;s outcome is recorded and the Supervisor has formally closed the evaluation; nothing more happens after this.</li>
+<li><strong>Withdrawn</strong> — the Supervisor cancelled the evaluation outright, from Open, In Review, or Ready; irreversible, and it immediately frees the employee for a new evaluation.</li>
+</ul>
+<h2 id="where-to-read-more">Where to read more</h2>
+<p>For the detail behind any one step, the earlier chapters cover it from that role&#39;s own side:</p>
+<ul>
+<li><strong>For Employees</strong> covers the self-assessment, the results screen, and what stays private, from the employee&#39;s side.</li>
+<li><strong>For Team Members</strong> covers being picked for peer feedback, how it&#39;s graded, and how anonymous it stays.</li>
+<li><strong>For Managers</strong> covers starting evaluations, the manager review, the availability calendar, and conducting interviews.</li>
+<li><strong>For Supervisors</strong> covers configuring and locking a cycle, recovering stalled evaluations, scheduling interviews, and closing both evaluations and the cycle itself.</li>
+<li><strong>For Administrators</strong> covers the configuration screens — the competency dictionary, the relevancy model behind scoring, and role families — and when each kind of change takes effect.</li>
+</ul>
+
+            </div>
+            <footer class="competence-guide-footer">
+            <button class="ti-btn ghost competence-guide-prev" type="button" hx-get="/app/help-administrator" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">← For Administrators</button>
+                <span class="competence-guide-version">Guide for competence v3.14.0</span>
+            <button class="ti-btn ghost competence-guide-next" type="button" hx-get="/app/help-faq-glossary" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">FAQ &amp; Glossary →</button>
+            </footer>
+        </article>
+    </div>
+</div>

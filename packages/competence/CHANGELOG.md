@@ -2,6 +2,17 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.14.0
+
+End-user documentation: a comprehensive role-based user guide, in the repo and in the app. The markdown chapters under `docs/user-guide/` are the single source; a build step generates the in-app Help screens, and a hand-authored Process Guide screen walks the eight appraisal steps. The sidebar Quick Links ("Process Guide", "Help") — disabled placeholders until now — are live. See `docs/superpowers/specs/2026-07-24-competence-user-guide-design.md` (CA-92).
+
+* docs(competence): refresh the README — link the `INSTALL.md` ops guide from Deployment, document the Azure-SSO container default and the `GET /health` probe, and align the `COMPETENCE_PRELOAD_DATA` wording with the non-destructive merge-seed semantics
+* docs(competence): add the end-user guide — nine markdown chapters under `docs/user-guide/en/` (overview & key concepts, getting started, employees, team members, managers, supervisors, administrators, the appraisal process end-to-end, FAQ & glossary)
+* feat(competence): generate the in-app Help screens from the guide markdown — `bin/build/build-user-guide.js` (`npm run build:guide`; `marked` pinned as a build-time devDependency) emits one committed static fragment per chapter with chapter navigation, prev/next links, and a version stamp; raw HTML, relative `.md` links, inline styles, and scripts are build errors
+* feat(competence): register the nine public Help screens and enable the sidebar Help quick link, with sidebar active-state mapping and topbar titles (en + bg, bg pending native review); freshness, wiring, and CSP guards land in `test/user-guide-build.test.js`
+* feat(competence): add the Process Guide screen — a hand-authored walkthrough of the eight appraisal steps with role badges, the evaluation status lifecycle, and deep links into the Help chapters; sidebar Process Guide quick link enabled
+* build(release): bump package version from `3.13.3` to `3.14.0`
+
 ## Version 3.13.3
 
 Container auth-posture and health-probe refinements for the sys-admin deployment story (CA-90).

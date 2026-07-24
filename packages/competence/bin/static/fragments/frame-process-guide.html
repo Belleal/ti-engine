@@ -1,0 +1,157 @@
+<!-- Process Guide — a hand-authored, static walkthrough of the eight appraisal steps. English-only in v1, like the
+     generated User Guide chapters (see docs/user-guide); the BG pass regenerates/translates both together. -->
+<div class="ti-page competence-pg-page">
+
+    <div class="ti-page-head">
+        <div class="ti-page-eyebrow">User Guide</div>
+        <h1 class="ti-page-title">The Appraisal Process at a Glance</h1>
+        <p class="ti-page-subtitle">Eight steps from opening a cycle to a closed evaluation — who does what, where, and what happens next. Every step links to the chapter with the full details.</p>
+    </div>
+
+    <!-- Status lifecycle -->
+    <div class="ti-panel competence-pg-lifecycle-panel">
+        <div class="ti-panel-head bar">
+            <div class="ti-panel-head-icon"><span class="ti-icon cycles-loop md" aria-hidden="true"></span></div>
+            <div class="ti-panel-title">The life of an evaluation</div>
+        </div>
+        <div class="competence-pg-lifecycle" role="list" aria-label="Evaluation statuses in order">
+            <span class="competence-pg-status open" role="listitem">Open<span class="competence-pg-status-sub">self &amp; team rounds</span></span>
+            <span class="competence-pg-arrow" aria-hidden="true">→</span>
+            <span class="competence-pg-status in-review" role="listitem">In Review<span class="competence-pg-status-sub">manager round</span></span>
+            <span class="competence-pg-arrow" aria-hidden="true">→</span>
+            <span class="competence-pg-status ready" role="listitem">Ready<span class="competence-pg-status-sub">scores out, interview</span></span>
+            <span class="competence-pg-arrow" aria-hidden="true">→</span>
+            <span class="competence-pg-status closed" role="listitem">Closed<span class="competence-pg-status-sub">final &amp; irreversible</span></span>
+        </div>
+        <p class="competence-pg-lifecycle-note">A Supervisor can withdraw a stalled or mistaken evaluation from any active status — it is removed and a fresh one can be started.</p>
+    </div>
+
+    <!-- The eight steps -->
+    <div class="competence-pg-steps">
+
+        <div class="ti-panel competence-pg-step">
+            <div class="competence-pg-step-head">
+                <span class="competence-pg-step-number" aria-hidden="true">1</span>
+                <h2 class="competence-pg-step-title">The cycle opens</h2>
+                <span class="competence-pg-role supervisor">Supervisor</span>
+            </div>
+            <p>A Supervisor creates the appraisal cycle, selects the competencies each role family is evaluated on, and locks the cycle once validation passes. From that moment the cycle is active — the only active one — and evaluations can be started.</p>
+            <div class="competence-pg-step-foot">
+                <span class="competence-pg-step-where">Cycles · Cycle Setup</span>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" aria-label="Learn more — For Supervisors">Learn more</button>
+            </div>
+        </div>
+
+        <div class="ti-panel competence-pg-step">
+            <div class="competence-pg-step-head">
+                <span class="competence-pg-step-number" aria-hidden="true">2</span>
+                <h2 class="competence-pg-step-title">An evaluation starts</h2>
+                <span class="competence-pg-role manager">Manager</span>
+                <span class="competence-pg-role supervisor">Supervisor</span>
+            </div>
+            <p>A manager (or Supervisor) starts an evaluation for an employee and may pick 3–5 peers for team feedback. The employee's competency set is frozen into the evaluation at this moment — later configuration changes never affect it.</p>
+            <div class="competence-pg-step-foot">
+                <span class="competence-pg-step-where">Org Chart · New Evaluation</span>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-manager" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" aria-label="Learn more — For Managers">Learn more</button>
+            </div>
+        </div>
+
+        <div class="ti-panel competence-pg-step">
+            <div class="competence-pg-step-head">
+                <span class="competence-pg-step-number" aria-hidden="true">3</span>
+                <h2 class="competence-pg-step-title">Self-evaluation</h2>
+                <span class="competence-pg-role employee">Employee</span>
+            </div>
+            <p>The employee grades every competency against its scope description and adds a written comment. Drafts can be saved until the deadline — a late submission is rejected, though a Supervisor can move a stalled evaluation on without it.</p>
+            <div class="competence-pg-step-foot">
+                <span class="competence-pg-step-where">My Evaluation</span>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-employee" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" aria-label="Learn more — For Employees">Learn more</button>
+            </div>
+        </div>
+
+        <div class="ti-panel competence-pg-step">
+            <div class="competence-pg-step-head">
+                <span class="competence-pg-step-number" aria-hidden="true">4</span>
+                <h2 class="competence-pg-step-title">Team feedback</h2>
+                <span class="competence-pg-role team">Team Members</span>
+            </div>
+            <p>If peers were assigned, each submits feedback once — by default one grade per competency group. Individual grades stay private forever; only the averaged team grade is ever shown. A round that never happens is excluded from the score, not counted against it.</p>
+            <div class="competence-pg-step-foot">
+                <span class="competence-pg-step-where">My Evaluation (as Team)</span>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-team-member" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" aria-label="Learn more — For Team Members">Learn more</button>
+            </div>
+        </div>
+
+        <div class="ti-panel competence-pg-step">
+            <div class="competence-pg-step-head">
+                <span class="competence-pg-step-number" aria-hidden="true">5</span>
+                <h2 class="competence-pg-step-title">Ready for review</h2>
+                <span class="competence-pg-role system">Automatic</span>
+            </div>
+            <p>Once the self-evaluation is in and team feedback is complete (or was not requested), the evaluation moves to In Review on its own and the manager is notified.</p>
+            <div class="competence-pg-step-foot">
+                <span class="competence-pg-step-where">—</span>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-appraisal-process" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" aria-label="Learn more — The Appraisal Process">Learn more</button>
+            </div>
+        </div>
+
+        <div class="ti-panel competence-pg-step">
+            <div class="competence-pg-step-head">
+                <span class="competence-pg-step-number" aria-hidden="true">6</span>
+                <h2 class="competence-pg-step-title">Manager review</h2>
+                <span class="competence-pg-role manager">Manager</span>
+            </div>
+            <p>The manager reviews the self grades, the team result, and the anonymous peer notes, then grades every competency and writes their feedback. Submitting computes the scores — the manager's input carries the largest weight — and the evaluation becomes Ready. The manager deadline is a reminder, never a block.</p>
+            <div class="competence-pg-step-foot">
+                <span class="competence-pg-step-where">Evaluation Form</span>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-manager" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" aria-label="Learn more — For Managers">Learn more</button>
+            </div>
+        </div>
+
+        <div class="ti-panel competence-pg-step">
+            <div class="competence-pg-step-head">
+                <span class="competence-pg-step-number" aria-hidden="true">7</span>
+                <h2 class="competence-pg-step-title">The interview is scheduled</h2>
+                <span class="competence-pg-role manager">Manager</span>
+                <span class="competence-pg-role supervisor">Supervisor</span>
+            </div>
+            <p>Managers keep a weekly availability calendar; a Supervisor books a slot for each Ready evaluation. Whoever owns the booked slot conducts the interview, and both the employee and that manager are notified of the date.</p>
+            <div class="competence-pg-step-foot">
+                <span class="competence-pg-step-where">Availability · Interviews</span>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" aria-label="Learn more — For Supervisors">Learn more</button>
+            </div>
+        </div>
+
+        <div class="ti-panel competence-pg-step">
+            <div class="competence-pg-step-head">
+                <span class="competence-pg-step-number" aria-hidden="true">8</span>
+                <h2 class="competence-pg-step-title">Interview &amp; closure</h2>
+                <span class="competence-pg-role manager">Manager</span>
+                <span class="competence-pg-role supervisor">Supervisor</span>
+            </div>
+            <p>After the meeting, the conducting manager, an org-line superior manager, or the Supervisor records the outcome — written feedback, next-period goals, and an optional improvement plan. The Supervisor then formally closes the evaluation: grades are untouched, the closure becomes visible to the employee, and nothing can change afterwards.</p>
+            <div class="competence-pg-step-foot">
+                <span class="competence-pg-step-where">Interviews</span>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" aria-label="Learn more — For Supervisors">Learn more</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Roles legend -->
+    <div class="ti-panel competence-pg-legend">
+        <div class="ti-panel-head bar">
+            <div class="ti-panel-head-icon"><span class="ti-icon users md" aria-hidden="true"></span></div>
+            <div class="ti-panel-title">Who's who</div>
+        </div>
+        <ul class="competence-pg-legend-list">
+            <li><span class="competence-pg-role employee">Employee</span> The person being evaluated — everyone holds this role.</li>
+            <li><span class="competence-pg-role team">Team Member</span> A peer picked to give feedback on one specific evaluation.</li>
+            <li><span class="competence-pg-role manager">Manager</span> Manages a unit — starts evaluations, reviews, and conducts interviews.</li>
+            <li><span class="competence-pg-role supervisor">Supervisor</span> The process owner — runs cycles, unblocks stalls, schedules and closes.</li>
+            <li><span class="competence-pg-role system">Automatic</span> Done by the application itself — no action needed.</li>
+        </ul>
+        <p class="competence-pg-legend-note">Roles are assigned automatically from the organization chart when you sign in; one person can hold several. Administrators (configuration) are a separate, operations-managed capacity.</p>
+    </div>
+
+</div>
