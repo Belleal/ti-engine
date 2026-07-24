@@ -21,6 +21,8 @@
     "./repository": "./content/repository.js",
     "./transliterate": "./content/transliterate.js",
     "./taxonomy": "./content/taxonomy.js",
+    "./markdown": "./content/markdown.js",
+    "./sources": "./content/sources.js",
     "./html": "./render/html.js",
     "./render": "./render/document.js"
   },
@@ -30,13 +32,17 @@
     "#repository": "./content/repository.js",
     "#transliterate": "./content/transliterate.js",
     "#taxonomy": "./content/taxonomy.js",
+    "#markdown": "./content/markdown.js",
+    "#sources": "./content/sources.js",
     "#html": "./render/html.js",
     "#document": "./render/document.js"
   },
   "dependencies": {
     "@ti-engine/core": "*",
     "@ti-engine/web-framework": "*",
-    "ajv": "^8.20.0"
+    "ajv": "^8.20.0",
+    "gray-matter": "^4.0.3",
+    "markdown-it": "^14.1.0"
   },
   "devDependencies": {
   },

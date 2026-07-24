@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Active — P0 + P1 committed; P2 + P3 dep-free halves done (transliterate, taxonomy graph, html escaping, document head — 80 tests green); deferred (need `npm install` for `gray-matter`/`markdown-it`): `taxonomies.yml` loader, `markdown.js`, `sections.js` + body rendering |
+| **Status** | Active — P0, P1, P2 complete; P3a (html + document head) complete — 102 tests green. Deps installed 2026-07-24. Next: P4 routes/feeds, then P3b/P5 sections + templates |
 | **Created** | 2026-07-24 |
 | **Last updated** | 2026-07-24 |
 | **Owner** | Boris Kostadinov |
@@ -17,12 +17,14 @@ How this design lands in code — update as each step is committed (branch `curr
 |---|---|---|---|
 | Design ratified (placement · name · seams · render model · deps · on-disk format · defer search) | ✅ ratified | — | 2026-07-24 |
 | **P0** — Framework route seams (`registerRoute` + `addUnprotectedRoute`) + tests → web-framework `1.17.0` | ✅ committed | `d01dc6a` | 2026-07-24 |
-| **P1a** — `web-content` package inception (package.json, CHANGELOG, README) | ✅ done (uncommitted) | — | 2026-07-24 |
-| **P1b** — `content/schema.js` (ajv envelope + per-type) + **invariant tests written first** | ✅ 16 tests green (uncommitted) | — | 2026-07-24 |
-| **P1c** — `content/loader.js` (validate records → indexes + conflict reporting; disk source-reader deferred) | ✅ 8 tests green | — | 2026-07-24 |
-| **P1d** — `content/repository.js` — THE visibility-filtered query layer | ✅ 17 tests green (uncommitted) | — | 2026-07-24 |
-| **P2** — `transliterate.js` ✅ + `taxonomy.js` graph ✅ (dep-free, 20 tests); `taxonomies.yml` loader + `markdown.js` deferred (need `gray-matter`/`markdown-it`) | ◑ partial | — | 2026-07-24 |
-| **P3** — `render/html.js` (escaping) ✅ + `render/document.js` (head/JSON-LD/hreflang) ✅ (dep-free, 19 tests); `sections.js` + body rendering deferred (need `markdown-it`) | ◑ partial | — | 2026-07-24 |
+| **P1a** — `web-content` package inception (package.json, CHANGELOG, README) | ✅ committed | `abfb51a` | 2026-07-24 |
+| **P1b** — `content/schema.js` (ajv envelope + per-type) + **invariant tests written first** | ✅ 16 tests | `abfb51a` | 2026-07-24 |
+| **P1c** — `content/loader.js` (validate records → indexes + conflict reporting) | ✅ 8 tests | `62e5f87` | 2026-07-24 |
+| **P1d** — `content/repository.js` — THE visibility-filtered query layer | ✅ 17 tests | `5fe75b8` | 2026-07-24 |
+| **P2a** — `transliterate.js` + `taxonomy.js` graph (dep-free) | ✅ 20 tests | `b4aebe4` | 2026-07-24 |
+| **P2b** — `content/markdown.js` (markdown-it, `html:false`) + `content/sources.js` (front-matter/YAML reader, no directory scanning) | ✅ 22 tests | — | 2026-07-24 |
+| **P3a** — `render/html.js` (escaping + `raw()`) + `render/document.js` (head/JSON-LD/hreflang) | ✅ 19 tests | `9ad6bf1` | 2026-07-24 |
+| **P3b** — `render/sections.js` + editorial components + full-body/teaser document assembly | ☐ pending (with P5) | — | — |
 | **P4** — `routes/content-routes.js` (catch-all resolver + alias 301) · `routes/feeds.js` (sitemap/rss/robots) · `mountContentRoutes` helpers | ☐ pending | — | — |
 | **P5** — `render/editorial/*` components + page templates (showcase first) — Track B meets Track A here | ☐ pending | — | — |
 | **P6** — `capture/store.js` + `capture/admin.js` (behind `role:admin`) | ☐ pending | — | — |
@@ -69,7 +71,8 @@ Relocated verbatim from `build-spec.md` §2's framework column:
 packages/web-content/
   content/
     schema.js         ajv schemas: common envelope + each type
-    loader.js         reads registered sources, validates, builds indexes
+    sources.js        reads EXPLICITLY REGISTERED files (front-matter md / YAML); never scans a directory
+    loader.js         validates records, builds indexes, reports conflicts
     repository.js     THE query layer — all visibility filtering lives here
     taxonomy.js       vocabulary load, one-level parent expansion, term resolution
     markdown.js       markdown-it wrapper, html:false
@@ -215,7 +218,7 @@ The specs pin the *schema* but not the *authoring format*. Proposed:
 
 `build-spec.md` §2 says "new dependencies: `markdown-it` only." Two amendments:
 
-1. **Runtime also needs a YAML/front-matter parser** — `gray-matter` (bundles `js-yaml`) — for `taxonomies.yml`, front-matter posts, and the structured YAML records. Not optional.
+1. **Runtime also needs a YAML/front-matter parser** — `gray-matter` (bundles `js-yaml`) — for `taxonomies.yml`, front-matter posts, and the structured YAML records. Not optional. *(Installed 2026-07-24; `sources.js` uses `matter.engines.yaml` for pure-YAML records rather than requiring `js-yaml` transitively.)*
 2. **HTML sanitising for legacy WordPress import is a *migration-tooling* dependency, not a runtime one.** `markdown-it` with `html:false` *escapes*; it does not *sanitise* real HTML. Legacy bodies are "sanitised once at import and stored clean" (`content-schemas.md` §2), so a sanitiser (e.g. `sanitize-html`) belongs to the P7 import script (a `devDependency` there), and the deployed image stays `markdown-it` + `gray-matter` only.
 
 `ajv`, RedisJSON via `cache.instance`, `express` 5, session/auth all come from the existing stack.
@@ -245,6 +248,10 @@ The `build-spec.md` §8 list — the failures that don't throw — become the fi
 > **P2 note (2026-07-24):** the dependency-free half is in. `transliterate.js` (Streamlined System + `slugify`, deterministic — 9 tests, incl. the stability invariant and reference slugs) and `taxonomy.js` (pure term-graph over an in-memory vocabulary: `resolve` by id/per-language slug, one-level `expand`/`ancestors`/`children`, `slugFor` — 11 tests) are complete. Deferred until the first `npm install` with network access (needed for P3/P5 regardless): the `taxonomies.yml` reader (`gray-matter`/`js-yaml`) and `markdown.js` (`markdown-it`, `html:false`). The §8 taxonomy-parent-expansion invariant is proven at the graph level — `expand('world','dark-intent')` includes `alexander-dark`; wiring it into `repository.list` archive queries lands with the routes (P4/P5).
 
 > **P3 note (2026-07-24):** the dep-free render primitives are in. `render/html.js` — the escaping tagged template + `raw()` (SafeString; arrays and nested `html\`\`` compose without double-escaping; the §8 `<script>`-in-title invariant — 8 tests). `render/document.js` — pure head composition (11 tests): `canonicalUrl` (canonical → `path`), reciprocal `hreflangLinks` (+ x-default → English side), `shouldNoindex` (non-public body noindex; teaser stays indexable), per-type `jsonLd` (Article/Book/MusicAlbum), and `composeHead` assembling them (title escaped in-head; JSON-LD `<` neutralised against `</script>` breakout). Deferred (need `markdown-it`): `sections.js`, the editorial components, full-body vs teaser document assembly, and the sitewide Person JSON-LD node — all land with P5 templates.
+
+> **P2b note (2026-07-24, deps installed):** `markdown-it@14.3.0` + `gray-matter@4.0.3` installed; `@ti-engine/web-framework` resolves to the **local workspace** package (verified), and a pre-existing transitive `fast-uri` advisory (via `ajv`, monorepo-wide — not from these deps) was cleared by an in-range bump to 3.1.4, leaving **0 vulnerabilities**. Two modules landed:
+> - `content/markdown.js` — markdown-it with **`html: false`** (raw HTML in authored markdown is *escaped*, never passed through — this module is one of only two sanctioned `raw()` sites, so its output must be trustworthy), returning `SafeString` so it composes with `html\`\``. `renderInline` serves summaries/blurbs. **Typographer and linkify are deliberately OFF**: the manuscripts already carry authored Unicode punctuation (em dashes, curly quotes) from the editorial process, and re-transforming it would silently alter deliberate prose. 8 tests.
+> - `content/sources.js` — the disk input stage, split out of `loader.js` (which stays pure): parses markdown-with-front-matter and pure YAML via `gray-matter` (using `matter.engines.yaml` so no transitive `js-yaml` dependency), with parsing separated from I/O so format handling is unit-testable. **Enforces CLAUDE.md 5** — a directory passed to `readSources()` is reported as an *error*, never expanded, and the module exposes no glob/scan/readdir capability (pinned by a test asserting no such export exists). Read/parse failures are collected, not thrown. `readVocabulary` covers `taxonomies.yml`. 14 tests.
 
 ---
 

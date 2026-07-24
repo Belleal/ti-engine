@@ -7,3 +7,12 @@ This document will contain the list of changes made to the web-content package. 
 Initial scaffold of the content-publishing engine for the standalone author's site (design: `design/author-site-engine.md`). Layers on `@ti-engine/web-framework` >= 1.17.0 (the route-registration seams).
 
 * feat(web-content): package inception — CommonJS package `@ti-engine/web-content` depending on `@ti-engine/core` and `@ti-engine/web-framework`; dependencies and `exports`/`imports` grow per phase
+* feat(web-content): `content/schema.js` — ajv validators for the common envelope, each content type, and the capture record; `visibility` is required and pattern-constrained, so a missing or unrecognised value is a hard validation failure (deny-by-default)
+* feat(web-content): `content/loader.js` — validates records and builds the id/path/alias/type indexes, excluding invalid records and reporting conflicts rather than throwing
+* feat(web-content): `content/repository.js` — the single visibility chokepoint; `resolveVisibility` returns visible/gated/hidden and every query surface (resolve, list, count, getById, curated ids) routes through it
+* feat(web-content): `content/transliterate.js` — Streamlined System romanisation + deterministic `slugify`
+* feat(web-content): `content/taxonomy.js` — pure term graph with one-level parent expansion, per-language slug resolution
+* feat(web-content): `content/markdown.js` — markdown-it wrapper with `html: false`; typographer/linkify off so authored Unicode punctuation is preserved verbatim
+* feat(web-content): `content/sources.js` — reads explicitly registered front-matter/YAML files; a directory is an error, never scanned
+* feat(web-content): `render/html.js` — escaping tagged template with an explicit `raw()` opt-out
+* feat(web-content): `render/document.js` — document-head composition: canonical, reciprocal hreflang, noindex policy, and per-type JSON-LD
