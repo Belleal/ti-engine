@@ -139,7 +139,7 @@ All configuration is via environment variables. **Bold = must set for production
 ### Application flags
 | Variable                           | Default | Purpose                                                                    |
 |------------------------------------|---------|----------------------------------------------------------------------------|
-| `COMPETENCE_PRELOAD_DATA`          | `false` | **Destructive demo-data seed.** Leave `false` for real installs (see §11). |
+| `COMPETENCE_PRELOAD_DATA`          | `false` | **Demo-data seed** — merges seed data on startup (re-applied each boot while `true`; does not wipe your data). Leave `false` for real installs (see §11). |
 | **`COMPETENCE_TEST_USER_ENABLED`** | `false` | Dev-only login test-user panel. **Must be `false` in production.**         |
 
 ### OpenID Connect (Azure is the default SSO — configure it)
@@ -275,7 +275,7 @@ docker run -d --name competence \
 
 ## 11. First run & data
 
-- **Demo data:** setting `COMPETENCE_PRELOAD_DATA=true` **once** seeds destructive demo data (employees, a cycle, sample evaluations). Leave it `false` for a real install; with it off you start empty.
+- **Demo data:** `COMPETENCE_PRELOAD_DATA=true` seeds demo data (employees, a cycle, sample evaluations) by merging it into the collections on startup. It does **not** wipe existing data — collections are only initialized when empty, so data you create persists across restarts. While the flag stays `true` the seed is re-applied on every boot (re-adding seeded records), so set it back to `false` once seeded. Leave it `false` for a real install (you start empty).
 - **Organization structure:** the org chart is loaded from a configuration file baked into the image. Reflecting *your* organization requires supplying/adjusting that configuration (via the framework's admin configuration system or a custom build) — plan this with the application owner; it is not an environment variable.
 - **Admin access:** the admin configuration screens are gated to identities listed in the web-server config `auth.admins` (empty by default → no admins). Populating it (and other non-env config such as `auth.enabledMethods`) is a configuration step, not an env var — coordinate with the application owner.
 - **First login:** browse to your HTTPS host. With the default `TI_WEB_AUTH_METHODS=openid-azure`, you sign in via Azure — so Azure must be configured (§7), otherwise the page shows "no sign-in method is configured." (A local `admin`/`admin` login only appears if you add `local` to `TI_WEB_AUTH_METHODS` — dev/break-glass only, see §1.)
