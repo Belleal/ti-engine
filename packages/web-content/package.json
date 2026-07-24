@@ -1,0 +1,55 @@
+{
+  "name": "@ti-engine/web-content",
+  "version": "0.1.0",
+  "description": "A content-publishing engine for ti-engine sites: path-index routing, deny-by-default content visibility, SEO document rendering, feeds, and email capture, layered on @ti-engine/web-framework. NOTICE: This is a work in progress and the full architecture, design, and functionality are not yet available!",
+  "keywords": [
+    "cms",
+    "content",
+    "publishing",
+    "static-site",
+    "markdown",
+    "seo",
+    "ti-engine",
+    "web-framework"
+  ],
+  "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
+  "license": "GPL-3.0-or-later",
+  "type": "commonjs",
+  "exports": {
+    "./schema": "./content/schema.js"
+  },
+  "imports": {
+    "#schema": "./content/schema.js"
+  },
+  "dependencies": {
+    "@ti-engine/core": "*",
+    "@ti-engine/web-framework": "*",
+    "ajv": "^8.20.0"
+  },
+  "devDependencies": {
+  },
+  "files": [
+    "content/",
+    "render/",
+    "routes/",
+    "capture/",
+    "package.json",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Belleal/ti-engine.git",
+    "directory": "packages/web-content"
+  },
+  "bugs": {
+    "url": "https://github.com/Belleal/ti-engine/issues"
+  },
+  "homepage": "https://github.com/Belleal/ti-engine/tree/master/packages/web-content#readme",
+  "engines": {
+    "node": ">=20.12.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Ratified 2026-07-24 — P0 complete (web-framework 1.17.0, uncommitted); P1 next |
+| **Status** | Active — P0 committed (web-framework 1.17.0); P1a–P1b done (web-content package + content schema, 16 tests green, uncommitted); P1c (loader) next |
 | **Created** | 2026-07-24 |
 | **Last updated** | 2026-07-24 |
 | **Owner** | Boris Kostadinov |
@@ -16,9 +16,9 @@ How this design lands in code — update as each step is committed (branch `curr
 | Phase / step | Status | Commit | Date |
 |---|---|---|---|
 | Design ratified (placement · name · seams · render model · deps · on-disk format · defer search) | ✅ ratified | — | 2026-07-24 |
-| **P0** — Framework route seams (`registerRoute` + `addUnprotectedRoute`) + tests → web-framework `1.17.0` | ✅ code + tests green (uncommitted) | — | 2026-07-24 |
-| **P1a** — `web-content` package inception (package.json, workspace pickup, CHANGELOG, module skeleton) | ☐ pending | — | — |
-| **P1b** — `content/schema.js` (ajv envelope + per-type) + **invariant tests written first** | ☐ pending | — | — |
+| **P0** — Framework route seams (`registerRoute` + `addUnprotectedRoute`) + tests → web-framework `1.17.0` | ✅ committed | `d01dc6a` | 2026-07-24 |
+| **P1a** — `web-content` package inception (package.json, CHANGELOG, README) | ✅ done (uncommitted) | — | 2026-07-24 |
+| **P1b** — `content/schema.js` (ajv envelope + per-type) + **invariant tests written first** | ✅ 16 tests green (uncommitted) | — | 2026-07-24 |
 | **P1c** — `content/loader.js` (registered sources → validated records → indexes) | ☐ pending | — | — |
 | **P1d** — `content/repository.js` — THE visibility-filtered query layer | ☐ pending | — | — |
 | **P2** — `content/taxonomy.js` · `content/transliterate.js` · `content/markdown.js` | ☐ pending | — | — |
@@ -235,6 +235,8 @@ The `build-spec.md` §8 list — the failures that don't throw — become the fi
 - Taxonomy parent expansion: querying `dark-intent` returns posts tagged `alexander-dark`.
 - Transliteration is stable — same input, same slug, forever.
 - Curated `featured` lists are visibility-filtered — a gated item renders its teaser card, an unpublished one drops out.
+
+> **P1b schema notes (2026-07-24):** `content/schema.js` anchors deny-by-default by making `visibility` a **required**, pattern-constrained envelope field (`^(public|authenticated|role:[a-z0-9_-]+)$`), so a missing/unrecognised value is a hard validation failure — the repository (P1d) is the second layer that keeps such a record out of every surface. Decisions worth flagging: (1) added an optional `post.bodyFormat` enum (`markdown`|`html`) so the renderer distinguishes legacy-HTML posts from Markdown without inference; (2) required fields kept minimal per type (`post`→world+form, `page`→sections with recognised section `type`, `book`→cover+blurb, `release`→releaseState+format+cover) and `additionalProperties` left open for now — strictness can tighten once the WordPress import (P7) shows the real field spread; (3) `capture` validates separately (no envelope). 16 invariant tests in `test/schema.test.js`.
 
 ---
 
