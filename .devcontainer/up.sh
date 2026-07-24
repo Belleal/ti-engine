@@ -20,7 +20,12 @@ if [ -n "${CODESPACE_NAME:-}" ]; then
     else
         echo "WARNING: GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN is empty; trusting only the localhost origins. If you open the app via the *.app.github.dev URL, set TI_WEB_TRUSTED_ORIGINS to that origin." >&2
     fi
-    export TI_WEB_TRUSTED_ORIGINS="${trusted}"
+    # Preserve a caller-provided value (append the generated origins) rather than overwriting it.
+    if [ -n "${TI_WEB_TRUSTED_ORIGINS:-}" ]; then
+        export TI_WEB_TRUSTED_ORIGINS="${TI_WEB_TRUSTED_ORIGINS},${trusted}"
+    else
+        export TI_WEB_TRUSTED_ORIGINS="${trusted}"
+    fi
     echo "Trusting origins: ${TI_WEB_TRUSTED_ORIGINS}"
 fi
 

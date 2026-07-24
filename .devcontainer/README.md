@@ -4,10 +4,11 @@ This `.devcontainer/` lets you run the **competence** app straight from GitHub, 
 **testing and demos** — not production. It starts the repo's dev `docker-compose.yml` (the app +
 Redis Stack) inside a Codespace and forwards the app on port **3000**. Sign-in uses **local auth**
 plus the dev **Test User** panel (`TI_WEB_AUTH_METHODS=local`, `COMPETENCE_TEST_USER_ENABLED=true`
-from the dev compose), so no Azure/OIDC setup is needed. The startup script sets `TI_WEB_TRUSTED_ORIGINS`
-to both `http(s)://localhost:3000` (VS Code tunnels the port to localhost, so that's the browser origin) and
-the public `https://<name>-3000.<domain>` URL, so login POSTs pass the app's CSRF Origin/Referer check whichever
-way you open the app.
+from the dev compose), so no Azure/OIDC setup is needed. The startup script trusts `http(s)://localhost:3000`
+(VS Code tunnels the port to localhost, so that's the browser origin) and — **only when
+`GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN` is available** — the public `https://<name>-3000.<domain>` URL, so
+login POSTs pass the app's CSRF Origin/Referer check. If that variable is missing, only the localhost origins are
+trusted; set `TI_WEB_TRUSTED_ORIGINS` yourself to also allow the public URL (the script preserves a value you set).
 
 > Production hosting is different — deploy the published image (`ghcr.io/belleal/ti-engine-competence`)
 > to a container platform. See [`packages/competence/INSTALL.md`](../packages/competence/INSTALL.md).
@@ -48,9 +49,10 @@ Redis starts **empty**. To populate demo data (employees, a cycle, sample evalua
 COMPETENCE_PRELOAD_DATA=true docker compose up -d
 ```
 
-This is **destructive** — while the flag is `true` it wipes and reloads the seed data on *every* start. After
-seeding, run plain `docker compose up -d` (the flag defaults to `false`) to keep your changes; the `redis-data`
-volume persists them across restarts.
+While the flag is `true` the demo seed is **re-applied on every start** (it merges the seed records back in) — it
+does **not** delete data you create; collections are only initialized when empty. After seeding, run plain
+`docker compose up -d` (the flag defaults to `false`) so the seed isn't re-applied; the `redis-data` volume
+persists your data across restarts either way.
 
 ## What to set up in GitHub
 
