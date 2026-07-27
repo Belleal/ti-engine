@@ -1687,8 +1687,10 @@ git add packages/competence/application/data-manager.js packages/competence/test
 **Interfaces:**
 - Consumes: `researchConsent.requireDecision` / `buildDecisionRecord` / `resolveEffective` (Tasks 2–3); `dataManager.saveConsentDecision` / `fetchConsentChain` (Task 4); `configurationLoader.configResearchConsent` (Task 1).
 - Produces:
-  - Service `get-research-consent` → `{ enabled, version, locale, body, decision, decidedAt, cycleID }` (`decision` null when never asked).
-  - Service `submit-research-consent` with params `{ decision }` → `{ decision, decidedAt, cycleID }`.
+  - **View** `load-research-consent` → `{ enabled, version, locale, body, decision, decidedAt, cycleID }` (`decision` null when never asked).
+  - **Service** `submit-research-consent` with params `{ decision }` → `{ decision, decidedAt, cycleID }`.
+
+> **This codebase has two dispatchers.** Reads are *views* handled by `processDataRequest( session, view, options = {} )` (line ~239), named `load-*`, with query parameters arriving as `options.query.<name>`; the client calls them with `tiApplication.sendRequest( "/app/load-x" )` — no method, no body. Writes are *services* handled by `processServiceRequest( session, service, params )` (line ~406); the client calls `tiApplication.sendRequest( "/app/x", "POST", body )`. Put each endpoint in the right one.
   - Private `#recordConsentDecision( userID, cycleID, decision, source ) → Promise<ResearchConsentRecord|null>` — resolves `null` when the decision is idempotent (no-op).
   - `#submitEvaluation` now rejects a self-submit that carries no decision.
 
@@ -1778,7 +1780,7 @@ Add these three private methods near the other private helpers in the class:
      * @returns {Promise<Object>}
      * @private
      */
-    #getResearchConsent( session ) {
+    #loadResearchConsent( session ) {
         return new Promise( ( resolve, reject ) => {
             const { userID } = this.#requireSessionUser( session );
             const consentConfig = this.#resolveConsentConfig( session && session.language );
@@ -1845,13 +1847,18 @@ Add these three private methods near the other private helpers in the class:
     }
 ```
 
-- [ ] **Step 3: Wire the two services into the dispatcher**
+- [ ] **Step 3: Wire the endpoints into their respective dispatchers**
 
-In `processServiceRequest`, add two branches after the `close-evaluation` branch:
+The read is a **view**. In `processDataRequest`, add a branch alongside the other `load-*` views (e.g. after `load-cycle-list`):
 
 ```js
-        } else if ( service === "get-research-consent" ) {
-            return this.#getResearchConsent( session );
+        } else if ( view === "load-research-consent" ) {
+            return this.#loadResearchConsent( session );
+```
+
+The write is a **service**. In `processServiceRequest`, add a branch after `close-evaluation`:
+
+```js
         } else if ( service === "submit-research-consent" ) {
             return this.#submitResearchConsent( session, params );
 ```
@@ -1944,9 +1951,9 @@ git add packages/competence/bin/competence-web-application.js && git commit -m "
 
 **Interfaces:**
 - Consumes: `researchConsent.buildConsentRegister` (Task 3); `dataManager.fetchConsentDecisions` / `fetchConsentChain` / `fetchConsentText` / `fetchEmployees` (Task 4).
-- Produces:
-  - Service `get-consent-register` with params `{ cycleID }` → `{ cycleID, counts: {granted, declined, notAsked}, rows: Array<{employeeID, employeeName, decision, decidedAt, textVersion, textHash}> }`.
-  - Service `get-consent-evidence` with params `{ employeeID, cycleID }` → `{ employeeID, cycleID, records: Array<ResearchConsentRecord & {body: string}> }`.
+- Produces (both are **views** on `processDataRequest`, not services — see the dispatcher note in Task 5):
+  - View `load-consent-register`, query `cycleID` → `{ cycleID, counts: {granted, declined, notAsked}, rows: Array<{employeeID, employeeName, decision, decidedAt, textVersion, textHash}> }`.
+  - View `load-consent-evidence`, query `employeeID` + `cycleID` → `{ employeeID, cycleID, records: Array<ResearchConsentRecord & {body: string}> }`.
 
 - [ ] **Step 1: Add the two private methods**
 
@@ -1959,15 +1966,13 @@ In `packages/competence/bin/competence-web-application.js`, add after `#submitRe
      *
      * @method
      * @param {TiSession} session
-     * @param {Object} params
-     * @param {string} params.cycleID
+     * @param {string} cycleID
      * @returns {Promise<Object>}
      * @private
      */
-    #getConsentRegister( session, params ) {
+    #loadConsentRegister( session, cycleID ) {
         return new Promise( ( resolve, reject ) => {
             this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
-            const cycleID = String( ( params && params.cycleID ) || "" ).trim();
             if ( !cycleID ) {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID } ) );
             }
@@ -1996,17 +2001,14 @@ In `packages/competence/bin/competence-web-application.js`, add after `#submitRe
      *
      * @method
      * @param {TiSession} session
-     * @param {Object} params
-     * @param {string} params.employeeID
-     * @param {string} params.cycleID
+     * @param {string} employeeID
+     * @param {string} cycleID
      * @returns {Promise<Object>}
      * @private
      */
-    #getConsentEvidence( session, params ) {
+    #loadConsentEvidence( session, employeeID, cycleID ) {
         return new Promise( ( resolve, reject ) => {
             const { userID, userRoles } = this.#requireSessionUser( session );
-            const employeeID = String( ( params && params.employeeID ) || "" ).trim();
-            const cycleID = String( ( params && params.cycleID ) || "" ).trim();
             if ( !employeeID || !cycleID ) {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID, cycleID } ) );
             }
@@ -2033,16 +2035,21 @@ In `packages/competence/bin/competence-web-application.js`, add after `#submitRe
     }
 ```
 
-- [ ] **Step 2: Wire the services**
+- [ ] **Step 2: Wire the two views**
 
-In `processServiceRequest`, add after the `submit-research-consent` branch:
+Both are reads, so they go in `processDataRequest` next to `load-research-consent`. Query parameters are read from `options.query`, matching the `load-cycle-setup` branch:
 
 ```js
-        } else if ( service === "get-consent-register" ) {
-            return this.#getConsentRegister( session, params );
-        } else if ( service === "get-consent-evidence" ) {
-            return this.#getConsentEvidence( session, params );
+        } else if ( view === "load-consent-register" ) {
+            const cycleID = String( options?.query?.cycleID || "" ).trim();
+            return this.#loadConsentRegister( session, cycleID );
+        } else if ( view === "load-consent-evidence" ) {
+            const employeeID = String( options?.query?.employeeID || "" ).trim();
+            const cycleID = String( options?.query?.cycleID || "" ).trim();
+            return this.#loadConsentEvidence( session, employeeID, cycleID );
 ```
+
+Note `?.` is permitted here — the CSP restriction applies to Alpine template expressions in fragments, not to server-side JavaScript, and the neighbouring view branches already use this exact form.
 
 - [ ] **Step 3: Run the full suite**
 
@@ -2069,7 +2076,7 @@ git add packages/competence/bin/competence-web-application.js && git commit -m "
 - Modify: `packages/competence/test/fragment-input-bindings.test.js`
 
 **Interfaces:**
-- Consumes: services `get-research-consent` / `submit-research-consent` (Task 5).
+- Consumes: view `load-research-consent` and service `submit-research-consent` (Task 5).
 - Produces: Alpine state on `competenceEvaluation` — `consent` object `{ enabled, body, paragraphs, decision, decidedAt, version, cycleID, error }`, plus methods `loadConsent()`, `setConsentDecision(value)`, `saveConsentChange()`.
 
 - [ ] **Step 1: Add the labels**
@@ -2129,7 +2136,8 @@ In `packages/competence/bin/static/scripts/competence-user-interface.js`, inside
         consent: { enabled: false, body: "", paragraphs: [], decision: null, decidedAt: null, version: "", cycleID: null, editing: false, error: "" },
 
         loadConsent() {
-            tiApplication.sendRequest( "/app/get-research-consent", "POST", {} ).then( ( result ) => {
+            // A view request: no method, no body — matching load-dashboard / load-cycle-list.
+            tiApplication.sendRequest( "/app/load-research-consent" ).then( ( result ) => {
                 const body = ( result && result.body ) ? result.body : "";
                 this.consent = {
                     enabled: !!( result && result.enabled ),
@@ -2232,12 +2240,12 @@ In `packages/competence/bin/static/fragments/frame-competence-evaluation.html`, 
 ```html
 <section class="ti-panel" x-show="consent.enabled && isSelfEvaluation && !isResultsOnly">
     <div class="ti-panel-head">
-        <span class="ti-panel-head-icon ti-icon shield md"></span>
+        <span class="ti-panel-head-icon ti-icon check-clipboard md"></span>
         <div class="ti-panel-head-text">
-            <h2 class="ti-panel-title" x-text="label('interface.consent.panel-title')"></h2>
+            <h2 class="ti-panel-title" x-text-label="interface.consent.panel-title">Use of your data for research</h2>
         </div>
     </div>
-    <p class="ti-panel-body-intro" x-text="label('interface.consent.panel-intro')"></p>
+    <p class="ti-panel-body-intro" x-text-label="interface.consent.panel-intro">Please choose one option.</p>
 
     <div class="ti-form" id="consent-statement">
         <template x-for="block in consent.paragraphs">
@@ -2246,13 +2254,13 @@ In `packages/competence/bin/static/fragments/frame-competence-evaluation.html`, 
     </div>
 
     <fieldset class="ti-form-section" aria-describedby="consent-statement">
-        <legend class="ti-form-section-title" x-text="label('interface.consent.legend')"></legend>
+        <legend class="ti-form-section-title" x-text-label="interface.consent.legend">Do you agree?</legend>
         <div class="ti-form-row">
             <label>
                 <input type="radio" name="research-consent" value="granted"
                        x-bind:checked="consent.decision === 'granted'"
                        @change="setConsentDecision('granted')"/>
-                <span x-text="label('interface.consent.grant')"></span>
+                <span x-text-label="interface.consent.grant">Yes</span>
             </label>
         </div>
         <div class="ti-form-row">
@@ -2260,7 +2268,7 @@ In `packages/competence/bin/static/fragments/frame-competence-evaluation.html`, 
                 <input type="radio" name="research-consent" value="declined"
                        x-bind:checked="consent.decision === 'declined'"
                        @change="setConsentDecision('declined')"/>
-                <span x-text="label('interface.consent.decline')"></span>
+                <span x-text-label="interface.consent.decline">No</span>
             </label>
         </div>
         <p class="ti-form-error" x-show="consent.error" x-text="consent.error"></p>
@@ -2268,28 +2276,30 @@ In `packages/competence/bin/static/fragments/frame-competence-evaluation.html`, 
 </section>
 ```
 
+> **Three codebase idioms this markup follows — do not substitute your own.** Labels use the `x-text-label="<key>"` directive with the English text as inline fallback (there are 43 uses in `frame-insights-cycle.html` alone and **zero** uses of an `x-text="label(...)"` helper). The icon variant `check-clipboard` is a real entry in the `.ti-icon` set — `shield` does not exist, and inventing a variant yields a silently blank icon. Buttons are `.ti-btn` with modifiers (`primary`, `ghost`, `danger`, `sm`, `lg`, `icon`); **there is no `.ti-button` class**.
+
 And the read/change panel for the Scores route, shown only to the subject:
 
 ```html
 <section class="ti-panel" x-show="consent.enabled && isResultsOnly && isOwnResults">
     <div class="ti-panel-head">
-        <span class="ti-panel-head-icon ti-icon shield md"></span>
+        <span class="ti-panel-head-icon ti-icon check-clipboard md"></span>
         <div class="ti-panel-head-text">
-            <h2 class="ti-panel-title" x-text="label('interface.consent.panel-title')"></h2>
+            <h2 class="ti-panel-title" x-text-label="interface.consent.panel-title">Use of your data for research</h2>
         </div>
     </div>
 
     <div class="ti-kv-grid" x-show="!consent.editing">
-        <span class="ti-kv-label" x-text="label('interface.consent.current-label')"></span>
-        <span class="ti-kv-value" x-text="consent.decision === 'granted' ? label('interface.consent.grant') : ( consent.decision === 'declined' ? label('interface.consent.decline') : label('interface.consent.not-answered') )"></span>
-        <span class="ti-kv-label" x-text="label('interface.consent.decided-label')"></span>
+        <span class="ti-kv-label" x-text-label="interface.consent.current-label">Your answer</span>
+        <span class="ti-kv-value" x-text="consentDecisionText"></span>
+        <span class="ti-kv-label" x-text-label="interface.consent.decided-label">Answered on</span>
         <span class="ti-kv-value" x-text="formatDateTime(consent.decidedAt)"></span>
-        <span class="ti-kv-label" x-text="label('interface.consent.version-label')"></span>
+        <span class="ti-kv-label" x-text-label="interface.consent.version-label">Statement version</span>
         <span class="ti-kv-value" x-text="consent.version"></span>
     </div>
 
     <div class="ti-form-actions" x-show="!consent.editing">
-        <button type="button" class="ti-button" @click="beginConsentChange()" x-text="label('interface.consent.change')"></button>
+        <button type="button" class="ti-btn ghost" @click="beginConsentChange()" x-text-label="interface.consent.change">Change my answer</button>
     </div>
 
     <div x-show="consent.editing">
@@ -2299,13 +2309,13 @@ And the read/change panel for the Scores route, shown only to the subject:
             </template>
         </div>
         <fieldset class="ti-form-section" aria-describedby="consent-statement-results">
-            <legend class="ti-form-section-title" x-text="label('interface.consent.legend')"></legend>
+            <legend class="ti-form-section-title" x-text-label="interface.consent.legend">Do you agree?</legend>
             <div class="ti-form-row">
                 <label>
                     <input type="radio" name="research-consent-change" value="granted"
                            x-bind:checked="consent.decision === 'granted'"
                            @change="setConsentDecision('granted')"/>
-                    <span x-text="label('interface.consent.grant')"></span>
+                    <span x-text-label="interface.consent.grant">Yes</span>
                 </label>
             </div>
             <div class="ti-form-row">
@@ -2313,21 +2323,33 @@ And the read/change panel for the Scores route, shown only to the subject:
                     <input type="radio" name="research-consent-change" value="declined"
                            x-bind:checked="consent.decision === 'declined'"
                            @change="setConsentDecision('declined')"/>
-                    <span x-text="label('interface.consent.decline')"></span>
+                    <span x-text-label="interface.consent.decline">No</span>
                 </label>
             </div>
             <p class="ti-form-error" x-show="consent.error" x-text="consent.error"></p>
         </fieldset>
         <div class="ti-form-actions">
-            <button type="button" class="ti-button primary" @click="saveConsentChange()" x-text="label('interface.consent.save')"></button>
+            <button type="button" class="ti-btn primary" @click="saveConsentChange()" x-text-label="interface.consent.save">Save answer</button>
         </div>
     </div>
 </section>
 ```
 
-> `label(...)`, `formatDateTime(...)`, `isResultsOnly` and `isOwnResults` are the component's existing helpers/predicates. Use the names actually present in `configureCompetenceEvaluation`; if `isOwnResults` does not exist, derive it from the existing comparison of the viewed `employeeID` against the session user and give it that name.
->
-> Pick a real icon variant from the `.ti-icon` set for `shield` — check `ti-framework.css` for the available ~40 names and choose the closest; do not invent one.
+`consentDecisionText` is a getter on the component, because a nested ternary calling a label helper is not expressible in a CSP-mode Alpine expression. Add it next to the other consent methods:
+
+```js
+        get consentDecisionText() {
+            if ( this.consent.decision === "granted" ) {
+                return tiApplication.getLabel( "interface.consent.grant" );
+            }
+            if ( this.consent.decision === "declined" ) {
+                return tiApplication.getLabel( "interface.consent.decline" );
+            }
+            return tiApplication.getLabel( "interface.consent.not-answered" );
+        },
+```
+
+> `formatDateTime(...)`, `isSelfEvaluation`, `isResultsOnly` and `isOwnResults` must be the names actually present in `configureCompetenceEvaluation`. Read the component before writing the markup; if `isOwnResults` does not exist, derive it from the existing comparison of the viewed `employeeID` against the session user and give it that name. Do not introduce a second flag that duplicates an existing one.
 
 - [ ] **Step 5: Extend the input-bindings guard**
 
@@ -2382,7 +2404,7 @@ git add packages/competence/bin/localization/competence-labels.json packages/com
 - Modify: `packages/competence/bin/static/scripts/competence-user-interface.js`
 
 **Interfaces:**
-- Consumes: services `get-consent-register` / `get-consent-evidence` (Task 6); labels from Task 7.
+- Consumes: views `load-consent-register` / `load-consent-evidence` (Task 6); labels from Task 7.
 - Produces: Alpine component `competenceConsentRegister`; fragment route `consent-register` gated on `SUPERVISOR`.
 
 - [ ] **Step 1: Register the fragment**
@@ -2414,8 +2436,9 @@ function configureConsentRegister() {
         busy: false,
 
         init() {
-            tiApplication.sendRequest( "/app/get-cycles", "POST", {} ).then( ( result ) => {
+            tiApplication.sendRequest( "/app/load-cycle-list" ).then( ( result ) => {
                 this.cycles = ( result && result.cycles ) ? result.cycles : [];
+                // CycleStatus values are UPPERCASE (unlike EvaluationStatus, which is title-case).
                 const active = this.cycles.find( ( cycle ) => cycle.status === "ACTIVE" );
                 this.cycleID = active ? active.cycleID : ( this.cycles.length > 0 ? this.cycles[ 0 ].cycleID : "" );
                 if ( this.cycleID ) {
@@ -2429,7 +2452,7 @@ function configureConsentRegister() {
         loadRegister() {
             this.busy = true;
             this.evidence = null;
-            tiApplication.sendRequest( "/app/get-consent-register", "POST", { cycleID: this.cycleID } ).then( ( result ) => {
+            tiApplication.sendRequest( `/app/load-consent-register?cycleID=${ encodeURIComponent( this.cycleID ) }` ).then( ( result ) => {
                 this.counts = ( result && result.counts ) ? result.counts : { granted: 0, declined: 0, notAsked: 0 };
                 this.rows = ( result && result.rows ) ? result.rows : [];
                 this.busy = false;
@@ -2440,7 +2463,8 @@ function configureConsentRegister() {
         },
 
         openEvidence( employeeID ) {
-            tiApplication.sendRequest( "/app/get-consent-evidence", "POST", { employeeID: employeeID, cycleID: this.cycleID } ).then( ( result ) => {
+            const query = `employeeID=${ encodeURIComponent( employeeID ) }&cycleID=${ encodeURIComponent( this.cycleID ) }`;
+            tiApplication.sendRequest( `/app/load-consent-evidence?${ query }` ).then( ( result ) => {
                 this.evidence = result || null;
             } ).catch( ( error ) => {
                 tiApplication.notify( tiApplication.formatException( error ) );
@@ -2449,10 +2473,6 @@ function configureConsentRegister() {
 
         closeEvidence() {
             this.evidence = null;
-        },
-
-        label( key ) {
-            return tiApplication.getLabel( key );
         }
     };
 }
@@ -2464,7 +2484,9 @@ and register it beside the others:
     Alpine.data( "competenceConsentRegister", configureConsentRegister );
 ```
 
-> `get-cycles` is the existing cycle-listing service; use whatever its real name and response shape are in `processServiceRequest`. `CycleStatus` values are uppercase, so `"ACTIVE"` is correct here — unlike `EvaluationStatus`.
+> Confirm `load-cycle-list`'s actual response shape in `#loadCycleList` before relying on `result.cycles` — adjust the destructuring to whatever it really returns. Confirm the query-string form against how another view with parameters is called from the client (e.g. the `load-cycle-setup` caller); if the client passes parameters differently, follow that.
+>
+> There is no `label()` helper on these components — labels come from the `x-text-label` directive in markup, and `tiApplication.getLabel(...)` in JavaScript.
 
 - [ ] **Step 3: Create the fragment**
 
@@ -2473,8 +2495,8 @@ Create `packages/competence/bin/static/fragments/frame-consent-register.html`, m
 ```html
 <div x-data="competenceConsentRegister">
     <div class="ti-page-head">
-        <h1 x-text="label('interface.consent.register-title')"></h1>
-        <p x-text="label('interface.consent.register-intro')"></p>
+        <h1 x-text-label="interface.consent.register-title">Research Consent Register</h1>
+        <p x-text-label="interface.consent.register-intro">Who was asked, what they answered, and when.</p>
     </div>
 
     <div class="ti-form-row">
@@ -2486,28 +2508,28 @@ Create `packages/competence/bin/static/fragments/frame-consent-register.html`, m
     </div>
 
     <div class="ti-kv-grid">
-        <span class="ti-kv-label" x-text="label('interface.consent.count-granted')"></span>
+        <span class="ti-kv-label" x-text-label="interface.consent.count-granted">Granted</span>
         <span class="ti-kv-value" x-text="counts.granted"></span>
-        <span class="ti-kv-label" x-text="label('interface.consent.count-declined')"></span>
+        <span class="ti-kv-label" x-text-label="interface.consent.count-declined">Declined</span>
         <span class="ti-kv-value" x-text="counts.declined"></span>
-        <span class="ti-kv-label" x-text="label('interface.consent.count-not-asked')"></span>
+        <span class="ti-kv-label" x-text-label="interface.consent.count-not-asked">Not asked</span>
         <span class="ti-kv-value" x-text="counts.notAsked"></span>
     </div>
 
     <table class="ti-data-grid">
         <thead>
             <tr>
-                <th x-text="label('interface.consent.column-employee')"></th>
-                <th x-text="label('interface.consent.column-decision')"></th>
-                <th x-text="label('interface.consent.column-decided')"></th>
-                <th x-text="label('interface.consent.column-version')"></th>
+                <th x-text-label="interface.consent.column-employee">Employee</th>
+                <th x-text-label="interface.consent.column-decision">Decision</th>
+                <th x-text-label="interface.consent.column-decided">Date</th>
+                <th x-text-label="interface.consent.column-version">Version</th>
             </tr>
         </thead>
         <tbody>
             <template x-for="row in rows">
                 <tr @click="openEvidence(row.employeeID)">
                     <td x-text="row.employeeName"></td>
-                    <td x-text="row.decision === 'granted' ? label('interface.consent.count-granted') : ( row.decision === 'declined' ? label('interface.consent.count-declined') : label('interface.consent.not-answered') )"></td>
+                    <td x-text="row.decisionText"></td>
                     <td x-text="row.decidedAt"></td>
                     <td x-text="row.textVersion"></td>
                 </tr>
@@ -2518,32 +2540,49 @@ Create `packages/competence/bin/static/fragments/frame-consent-register.html`, m
     <section class="ti-panel" x-show="evidence">
         <div class="ti-panel-head">
             <div class="ti-panel-head-text">
-                <h2 class="ti-panel-title" x-text="label('interface.consent.evidence-title')"></h2>
+                <h2 class="ti-panel-title" x-text-label="interface.consent.evidence-title">Consent evidence</h2>
             </div>
             <div class="ti-panel-head-actions">
-                <button type="button" class="ti-button" @click="closeEvidence()" x-text="label('interface.default.close')"></button>
+                <button type="button" class="ti-btn ghost sm" @click="closeEvidence()" x-text-label="interface.consent.evidence-close">Close</button>
             </div>
         </div>
-        <p class="ti-panel-body-intro" x-text="label('interface.consent.evidence-intro')"></p>
+        <p class="ti-panel-body-intro" x-text-label="interface.consent.evidence-intro">Every record for this employee in this cycle.</p>
         <template x-for="entry in evidence.records">
             <div class="ti-form-section">
                 <div class="ti-kv-grid">
-                    <span class="ti-kv-label" x-text="label('interface.consent.column-decision')"></span>
+                    <span class="ti-kv-label" x-text-label="interface.consent.column-decision">Decision</span>
                     <span class="ti-kv-value" x-text="entry.decision"></span>
-                    <span class="ti-kv-label" x-text="label('interface.consent.column-decided')"></span>
+                    <span class="ti-kv-label" x-text-label="interface.consent.column-decided">Date</span>
                     <span class="ti-kv-value" x-text="entry.decidedAt"></span>
-                    <span class="ti-kv-label" x-text="label('interface.consent.column-version')"></span>
+                    <span class="ti-kv-label" x-text-label="interface.consent.column-version">Version</span>
                     <span class="ti-kv-value" x-text="entry.textVersion"></span>
                 </div>
                 <p class="ti-form-readonly" x-text="entry.body"></p>
-                <p class="ti-form-hint" x-show="entry.supersedes" x-text="label('interface.consent.evidence-superseded')"></p>
+                <p class="ti-form-hint" x-show="entry.supersedes" x-text-label="interface.consent.evidence-superseded">Superseded</p>
             </div>
         </template>
     </section>
 </div>
 ```
 
-> `interface.default.close` must exist in the labels file; if it does not, add it in the same `{ en, bg }` form.
+Two supporting changes this markup needs:
+
+1. **`row.decisionText`** — a nested ternary over label lookups is not expressible in a CSP-mode Alpine expression, so resolve it in `loadRegister()` when the rows arrive:
+
+```js
+                const decisionLabel = ( decision ) => {
+                    if ( decision === "granted" ) return tiApplication.getLabel( "interface.consent.count-granted" );
+                    if ( decision === "declined" ) return tiApplication.getLabel( "interface.consent.count-declined" );
+                    return tiApplication.getLabel( "interface.consent.not-answered" );
+                };
+                this.rows = ( ( result && result.rows ) ? result.rows : [] ).map( ( row ) => Object.assign( {}, row, { decisionText: decisionLabel( row.decision ) } ) );
+```
+
+2. **`interface.consent.evidence-close`** — add to the `consent` label section from Task 7:
+
+```json
+"evidence-close": { "en": "Close", "bg": "Затваряне" }
+```
 
 - [ ] **Step 4: Add the sidebar entry**
 
@@ -2553,7 +2592,7 @@ In `packages/competence/bin/static/fragments/components/component-sidebar.html`,
             <button hx-get="/app/consent-register" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'consent-register'"
                     x-show="$store.tiApplication.hasRole(3)"
                     x-bind:class="{ active: active === 'consent-register' }" class="ti-sidebar-item" data-tip="Consent" aria-label="Consent Register" type="button">
-                <span class="ti-sidebar-item-icon ti-icon shield md"></span>
+                <span class="ti-sidebar-item-icon ti-icon check-clipboard md"></span>
                 <span class="ti-sidebar-item-label" x-text-label="interface.navigation.consent-register">Consent</span>
             </button>
 ```

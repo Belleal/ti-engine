@@ -230,12 +230,14 @@ Modelled on [task-resolver.js](../../../packages/competence/application/task-res
 
 ### 6.3 `bin/competence-web-application.js` — HTTP surface
 
-| Service | Access |
-|---|---|
-| `get-research-consent` | Self only — own effective decision for the active cycle + the active text in the caller's locale |
-| `submit-research-consent` | Self only — record or change a decision |
-| `get-consent-register` | `SUPERVISOR` — per-cycle counts and per-employee rows |
-| `get-consent-evidence` | `SUPERVISOR`, or the employee for themselves — full chain with verbatim texts resolved |
+The app separates **views** (reads — dispatched by `processDataRequest`, named `load-*`, parameters arriving as `options.query.<name>`, called from the client with no method or body) from **services** (writes — dispatched by `processServiceRequest`, called with `POST` and a body). Three of the four endpoints are reads:
+
+| Endpoint | Kind | Access |
+|---|---|---|
+| `load-research-consent` | view | Self only — own effective decision for the active cycle + the active text in the caller's locale |
+| `submit-research-consent` | service | Self only — record or change a decision |
+| `load-consent-register` | view | `SUPERVISOR` — per-cycle counts and per-employee rows |
+| `load-consent-evidence` | view | `SUPERVISOR`, or the employee for themselves — full chain with verbatim texts resolved |
 
 Register and evidence are **`SUPERVISOR`, not `admin`**. `admin` is a config-management role; `isAccessAllowed` has no implicit hierarchy; and this is per-person personal data, not configuration.
 
