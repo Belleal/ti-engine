@@ -215,6 +215,103 @@ class ResearchConsent {
         return !!effective && effective.decision === DECISION_GRANTED;
     }
 
+    /**
+     * The per-cycle consent register: one row per employee in the supplied population, whether or not they have ever
+     * been asked. A not-asked employee is reported with a null decision rather than omitted — the register's purpose
+     * is to show who was asked and what they said, and "nobody asked them" is part of that answer.
+     *
+     * @method
+     * @param {Array<string>} employeeIDs - The population to report on.
+     * @param {Object.<string, Array<ResearchConsentRecord>>} chains - Consent chains keyed by employeeID.
+     * @returns {{rows: Array<Object>, counts: {granted: number, declined: number, notAsked: number}}}
+     * @public
+     */
+    buildConsentRegister( employeeIDs, chains ) {
+        const population = Array.isArray( employeeIDs ) ? employeeIDs : [];
+        const source = ( chains && typeof chains === "object" ) ? chains : {};
+        const counts = { granted: 0, declined: 0, notAsked: 0 };
+        const rows = [];
+
+        for ( const employeeID of population ) {
+            const effective = this.resolveEffective( source[ employeeID ] );
+            if ( !effective ) {
+                counts.notAsked++;
+                rows.push( { employeeID: employeeID, decision: null, decidedAt: null, textVersion: null, textHash: null } );
+                continue;
+            }
+            if ( effective.decision === DECISION_GRANTED ) {
+                counts.granted++;
+            } else {
+                counts.declined++;
+            }
+            rows.push( {
+                employeeID: employeeID,
+                decision: effective.decision,
+                decidedAt: effective.decidedAt,
+                textVersion: effective.textVersion || null,
+                textHash: effective.textHash || null
+            } );
+        }
+
+        return { rows: rows, counts: counts };
+    }
+
+    /**
+     * THE CHOKEPOINT. The only sanctioned path from evaluation data to research use — every future research export
+     * must go through this function, and its fail-closed rules are what make a refusal consequential.
+     *
+     * Fail-closed in four ways: a disabled capability yields nothing, an employee with no chain is excluded, a
+     * declined record is excluded, and any unrecognized decision is excluded. Only an explicit newest-record
+     * `granted` gets in.
+     *
+     * Consent is resolved at CALL TIME, not at evaluation time, so a withdrawal genuinely takes effect for every
+     * subsequent export. The returned `basis` is the provenance manifest an export should persist alongside its
+     * dataset to record which consents backed it.
+     *
+     * @method
+     * @param {Array<Object>} evaluations - Candidate evaluations (any cycle; filtered to options.cycleID here).
+     * @param {Object.<string, Array<ResearchConsentRecord>>} chains - Consent chains keyed by employeeID.
+     * @param {Object} options
+     * @param {string} options.cycleID
+     * @param {boolean} options.enabled - The research-consent config `enabled` flag.
+     * @returns {{included: Array<Object>, consentedCount: number, excludedCount: number, basis: {cycleID: string, resolvedAt: string, textHashes: Array<string>}}}
+     * @public
+     */
+    filterConsentedEvaluations( evaluations, chains, options ) {
+        const settings = options || {};
+        const cycleID = settings.cycleID;
+        const candidates = Array.isArray( evaluations ) ? evaluations.filter( ( evaluation ) => !!evaluation && evaluation.cycleID === cycleID ) : [];
+        const basis = { cycleID: cycleID, resolvedAt: new Date().toISOString(), textHashes: [] };
+
+        if ( settings.enabled !== true ) {
+            return { included: [], consentedCount: 0, excludedCount: candidates.length, basis: basis };
+        }
+
+        const source = ( chains && typeof chains === "object" ) ? chains : {};
+        const included = [];
+        const hashes = new Set();
+
+        for ( const evaluation of candidates ) {
+            const chain = source[ evaluation.employeeID ];
+            const effective = this.resolveEffective( chain );
+            if ( !effective || effective.decision !== DECISION_GRANTED ) {
+                continue;
+            }
+            included.push( evaluation );
+            if ( effective.textHash ) {
+                hashes.add( effective.textHash );
+            }
+        }
+
+        basis.textHashes = Array.from( hashes ).sort();
+        return {
+            included: included,
+            consentedCount: included.length,
+            excludedCount: candidates.length - included.length,
+            basis: basis
+        };
+    }
+
 }
 
 const instance = new ResearchConsent();
