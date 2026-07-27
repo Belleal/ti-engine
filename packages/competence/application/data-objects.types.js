@@ -345,3 +345,28 @@
 /**
  * @typedef {"available"|"booked"|"busy"|"deleted"} SlotStatusValue
  */
+
+/**
+ * @typedef {"granted"|"declined"} ResearchConsentDecisionValue
+ */
+
+/**
+ * @typedef {Object} ResearchConsentRecord
+ * @property {string} recordID - UUID; also the key this record is stored under within its chain.
+ * @property {ResearchConsentDecisionValue} decision
+ * @property {string} decidedAt - ISO-8601 timestamp.
+ * @property {string} decidedBy - Employee ID of the subject; always equal to the chain's employeeID (no proxy consent).
+ * @property {string} textHash - SHA-256 (hex) of the exact consent body shown.
+ * @property {string} textVersion - The research-consent config `version` at the time of the decision.
+ * @property {string} locale - Language the body was shown in.
+ * @property {"evaluation-submit"|"scores-screen"} source - Where the decision was captured.
+ * @property {string|null} supersedes - recordID this record replaces, or null for the first in a chain.
+ */
+
+/**
+ * @typedef {Object} ResearchConsentText
+ * @property {string} locale
+ * @property {string} version
+ * @property {string} body - The verbatim consent statement, stored once per distinct hash.
+ * @property {string} firstSeenAt - ISO-8601 timestamp this text was first recorded against a decision.
+ */
