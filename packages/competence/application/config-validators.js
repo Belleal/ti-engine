@@ -393,6 +393,59 @@ function labelsContentComplete( value, context ) {
 }
 
 /**
+ * research-consent: the consent statement must never change silently. Because every stored consent record references
+ * the `version` in force when it was given, editing a `body` without bumping `version` would make the historical
+ * records ambiguous — two different texts sharing one version string. This does not block the edit; it forces the
+ * version to move with it.
+ *
+ * @method
+ * @param {Object} value - The pending research-consent document being validated.
+ * @param {ValidatorContext} context
+ * @returns {Promise<Array<ValidationIssue>>}
+ * @public
+ */
+function consentTextVersionBumped( value, context ) {
+    return context.getConfig( "research-consent" ).then( ( storedConfig ) => {
+        const issues = [];
+        const stored = storedConfig || {};
+        // Nothing stored yet (first seed): there is no prior text to contradict, so any version is acceptable.
+        if ( !stored.version ) {
+            return issues;
+        }
+        const incomingVersion = ( value && value.version ) || "";
+        // The version moved — the admin has acknowledged the change, so any text edit is fine.
+        if ( incomingVersion !== stored.version ) {
+            return issues;
+        }
+        const incomingText = ( value && value.text ) || {};
+        const storedText = stored.text || {};
+        for ( const [ locale, entry ] of Object.entries( incomingText ) ) {
+            const incomingBody = ( entry && entry.body ) || "";
+            const storedEntry = storedText[ locale ];
+            const storedBody = ( storedEntry && storedEntry.body ) || "";
+            // A brand-new locale adds text that nobody has consented against yet, so it needs no bump.
+            if ( storedEntry && incomingBody !== storedBody ) {
+                issues.push( {
+                    path: `.text.${ locale }.body`,
+                    message: `the consent text changed but 'version' is still '${ incomingVersion }' — bump the version so existing consent records stay unambiguous`,
+                    code: "consent-version"
+                } );
+            }
+        }
+        for ( const locale of Object.keys( storedText ) ) {
+            if ( !incomingText[ locale ] ) {
+                issues.push( {
+                    path: `.text.${ locale }`,
+                    message: `locale '${ locale }' was removed but 'version' is still '${ incomingVersion }' — bump the version`,
+                    code: "consent-version"
+                } );
+            }
+        }
+        return issues;
+    } );
+}
+
+/**
  * Employee source for {@link roleFamiliesReferentialIntegrity}, isolated as a seam so it can be overridden in tests
  * (the data-manager singleton is frozen and cannot be stubbed directly). Resolves to [] when the data layer is absent
  * (e.g. outside the running service); a genuine fetch failure is allowed to reject so the caller can fail closed.
@@ -424,5 +477,6 @@ module.exports = {
     archetypesReferentialIntegrity,
     roleFamiliesReferentialIntegrity,
     fetchEmployeesForValidation,
-    labelsContentComplete
+    labelsContentComplete,
+    consentTextVersionBumped
 };

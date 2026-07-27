@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/research-consent.json",
+  "title": "Research-Use Consent",
+  "description": "The configurable consent statement shown to employees when asked whether their anonymized evaluation data may be used for analysis and research. `version` identifies the wording in force; every stored consent record references it, so the version must be bumped whenever a body changes (enforced by the consentTextVersionBumped semantic validator). `enabled: false` is a fail-closed kill switch that hides the prompt, skips the submit gate, and makes the export chokepoint return nothing.",
+  "type": "object",
+  "required": [ "enabled", "version", "text" ],
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Master switch for the whole consent capability."
+    },
+    "version": {
+      "type": "string",
+      "description": "Human-readable version of the wording, e.g. '1.0'. Must change whenever any body changes.",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "text": {
+      "type": "object",
+      "description": "The consent statement per locale. The body is the ONLY thing hashed into a consent record, so it must be the complete statement.",
+      "minProperties": 1,
+      "patternProperties": {
+        "^(en|bg)$": {
+          "type": "object",
+          "required": [ "body" ],
+          "properties": {
+            "body": {
+              "type": "string",
+              "description": "The verbatim consent statement. Plain text only — rendered as one paragraph per blank-line-separated block. No HTML.",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
