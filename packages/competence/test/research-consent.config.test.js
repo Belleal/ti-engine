@@ -12,11 +12,14 @@ const assert = require( "node:assert/strict" );
 const validators = require( "../application/config-validators" );
 
 /**
- * Builds a ValidatorContext whose getConfig returns the supplied stored document for the "research-consent" key.
+ * Builds a ValidatorContext whose getStoredConfig returns the supplied stored document for the "research-consent"
+ * key — the accessor consentTextVersionBumped actually reads (see config-service.test.js / research-consent.live.test.js
+ * for why getConfig would be wrong here: research-consent is always part of its own edit batch, so getConfig would
+ * resolve to the pending value under validation, not its prior state).
  */
 function contextWith( stored ) {
     return {
-        getConfig: ( key ) => Promise.resolve( key === "research-consent" ? stored : null )
+        getStoredConfig: ( key ) => Promise.resolve( key === "research-consent" ? stored : null )
     };
 }
 
@@ -63,6 +66,17 @@ describe( "consentTextVersionBumped validator", () => {
         const incoming = { enabled: false, version: "1.0", text: { en: { body: "A" } } };
         const issues = await validators.consentTextVersionBumped( incoming, contextWith( stored ) );
         assert.deepEqual( issues, [] );
+    } );
+
+    it( "fails closed when the context does not provide getStoredConfig", async () => {
+        const incoming = { enabled: true, version: "1.0", text: { en: { body: "A" } } };
+        // A context shaped like the pre-fix ValidatorContext (getConfig only) must not be silently treated as "no
+        // prior state to check" — that is exactly how the original defect (comparing an edit against itself)
+        // survived undetected. Absence of getStoredConfig is a blocking issue, not a pass.
+        const legacyContext = { getConfig: () => Promise.resolve( null ) };
+        const issues = await validators.consentTextVersionBumped( incoming, legacyContext );
+        assert.equal( issues.length, 1 );
+        assert.equal( issues[ 0 ].code, "consent-version" );
     } );
 
 } );

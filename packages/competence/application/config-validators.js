@@ -9,12 +9,16 @@
 /**
  * Semantic (cross-document) validators for the competence configuration documents, used by the framework's config
  * registry at write time. These encode the same integrity rules previously enforced only in tests (reference
- * integrity, baseline floor coverage, cap, content completeness, relevancy-archetype resolution).
+ * integrity, baseline floor coverage, cap, content completeness, relevancy-archetype resolution, and the
+ * research-consent text/version-bump guard).
  *
  * Each validator is `(value, context) => issue[] | Promise<issue[]>`, where `context.getConfig(key)` returns a Promise
  * of the current (or pending, within the same edit) value of another editable document — every cross-document
- * reference is read this way so that a single change-set sees its own pending values. The cap is a runtime setting
- * (not a registered editable document) and is the only sibling still read from `configuration-loader` directly.
+ * reference is read this way so that a single change-set sees its own pending values. `context.getStoredConfig(key)`
+ * instead always returns the committed value, even for the document currently under validation — used by
+ * {@link consentTextVersionBumped} to compare a pending edit against its own prior state rather than, via
+ * `getConfig`, against itself. The cap is a runtime setting (not a registered editable document) and is the only
+ * sibling still read from `configuration-loader` directly.
  *
  * @module config-validators
  */
@@ -35,11 +39,19 @@ const nonEmpty = ( value ) => typeof value === "string" && value.trim().length >
  */
 
 /**
- * The cross-document read context handed to every validator. `getConfig` resolves the current — or pending, within the
- * same change-set — value of another editable configuration document, keyed by its admin config key.
+ * The cross-document read context handed to every validator.
+ *  - `getConfig(key)` resolves the current — or pending, within the same change-set — value of another editable
+ *    configuration document, keyed by its admin config key. For a document that is itself part of the current edit
+ *    batch, this returns the *pending* (incoming) value, not its prior state — fine for checking a sibling
+ *    document's post-edit state, but never useful for a document validating itself against its own history.
+ *  - `getStoredConfig(key)` always resolves the committed value, even for a document inside the current edit batch.
+ *    A validator that must compare its own document against its previous state (e.g. detecting an unbumped version)
+ *    must use this instead of `getConfig`, which would otherwise hand back the pending value already under
+ *    validation.
  *
  * @typedef {Object} ValidatorContext
  * @property {function( string ): Promise<*>} getConfig
+ * @property {function( string ): Promise<*>} getStoredConfig
  */
 
 /**
@@ -398,6 +410,13 @@ function labelsContentComplete( value, context ) {
  * records ambiguous — two different texts sharing one version string. This does not block the edit; it forces the
  * version to move with it.
  *
+ * Reads the document's previously *committed* value via `context.getStoredConfig` rather than `context.getConfig` —
+ * `research-consent` is always part of its own edit batch, so `getConfig` would resolve to the same pending value
+ * being validated (comparing the incoming document against itself, which can never detect an unbumped change).
+ * `getStoredConfig` is guaranteed by {@link ValidatorContext} but is guarded defensively anyway: a context that
+ * doesn't provide it fails the edit closed (a blocking issue) instead of silently skipping the check — a validator
+ * that quietly stops validating is exactly how this defect went unnoticed in the first place.
+ *
  * @method
  * @param {Object} value - The pending research-consent document being validated.
  * @param {ValidatorContext} context
@@ -405,7 +424,17 @@ function labelsContentComplete( value, context ) {
  * @public
  */
 function consentTextVersionBumped( value, context ) {
-    return context.getConfig( "research-consent" ).then( ( storedConfig ) => {
+    if ( !context || typeof context.getStoredConfig !== "function" ) {
+        // Fail closed rather than silently skip: without getStoredConfig this validator has no way to distinguish a
+        // no-op from an unbumped text edit, and letting the edit through unvalidated is the exact failure mode this
+        // validator exists to prevent.
+        return Promise.resolve( [ {
+            path: ".",
+            message: "validator context does not provide getStoredConfig(); the previously committed research-consent text could not be verified, so the edit was rejected rather than left unvalidated",
+            code: "consent-version"
+        } ] );
+    }
+    return context.getStoredConfig( "research-consent" ).then( ( storedConfig ) => {
         const issues = [];
         const stored = storedConfig || {};
         // Nothing stored yet (first seed): there is no prior text to contradict, so any version is acceptable.

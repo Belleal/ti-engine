@@ -12,10 +12,11 @@
  * {@link TiWebAppManager} registration API. Called during web-application initialization; the `/admin/config/*`
  * endpoints then serve these documents and editors.
  *
- * Editable: the dictionary, its localization, the relevancy archetypes, the active competency sets, and the role
- * families (the nine disciplines are fixed by schema; their text and their specializations are editable). The
- * role-family competency pool and the stage levels are registered read-only — versioned, validated, restorable, and
- * exportable, but not exposed for inline editing yet.
+ * Editable: the dictionary, its localization, the relevancy archetypes, the active competency sets, the role
+ * families (the nine disciplines are fixed by schema; their text and their specializations are editable), and the
+ * research-consent statement (guarded by the consentTextVersionBumped validator so its text can't change without a
+ * version bump). The role-family competency pool and the stage levels are registered read-only — versioned,
+ * validated, restorable, and exportable, but not exposed for inline editing yet.
  *
  * @module config-registration
  */
