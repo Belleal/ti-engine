@@ -1,0 +1,59 @@
+<!-- GENERATED FILE — do not edit. Source: docs/user-guide/en/07-administrator.md. Regenerate: npm run build:guide -->
+<div class="ti-page competence-guide-page">
+    <div class="ti-page-head">
+        <div class="ti-page-eyebrow">User Guide</div>
+        <h1 class="ti-page-title">For Administrators</h1>
+    </div>
+    <div class="competence-guide-layout">
+        <nav class="ti-panel competence-guide-nav" aria-label="Guide chapters">
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-overview" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Overview &amp; Key Concepts</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-getting-started" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Getting Started</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-employee" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Employees</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-team-member" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Team Members</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-manager" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Managers</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Supervisors</button>
+            <button class="competence-guide-nav-item active" type="button" aria-current="page" hx-get="/app/help-administrator" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Administrators</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-appraisal-process" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">The Appraisal Process</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-faq-glossary" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">FAQ &amp; Glossary</button>
+        </nav>
+        <article class="ti-panel competence-guide-content">
+            <div class="ti-doc">
+<p>Being an Administrator is unlike every other capacity in this guide — it has nothing to do with grading, managing, or overseeing evaluations. It&#39;s about configuring the application itself: the competency dictionary, the relevancy model behind scoring, and the shape of the organization&#39;s role families. This chapter covers the Administration screens — who reaches them, what each one lets you change, when your changes actually take effect, and the safety rails that keep every edit recoverable.</p>
+<h2 id="who-is-an-administrator">Who is an administrator</h2>
+<p>Administrator status doesn&#39;t come from the organization chart the way your other capacities do. Being an Employee, Manager, or Supervisor is worked out automatically from where you sit in the organization, and being a Team Member comes from being picked for a specific evaluation&#39;s feedback team — but Administrator is different: it&#39;s a separate list of trusted accounts, kept directly by your operations team, and it isn&#39;t derived from anything else you hold.</p>
+<p>If your account is on that list, an <strong>Administration</strong> section appears in your sidebar, giving you access to everything covered in this chapter. If it isn&#39;t, that section doesn&#39;t appear at all — Administrator status is entirely independent of whatever else you can already do in the application.</p>
+<h2 id="the-configuration-screen">The Configuration screen</h2>
+<p><strong>Configuration</strong> is the landing screen for Administration, and it works more like a control center than an editor of its own. It shows a running feed of every configuration change that&#39;s been made, each one kept as its own version, with the option to restore any earlier one. It also offers an export: a bundle of the current configuration that you hand off to the development team, who commit it into source control as part of a release.</p>
+<h2 id="what-you-can-edit">What you can edit</h2>
+<p>Four editor screens, reached from Configuration, cover the parts of the application that are meant to be tuned rather than hard-coded.</p>
+<h3 id="competency-texts">Competency Texts</h3>
+<p><strong>Competency Texts</strong> is where you edit each competency&#39;s name, description, and per-level scope anchors, in both English and Bulgarian side by side. This screen was built specifically for the Bulgarian-translation review pass, so both languages are always visible together instead of being handled on separate screens.</p>
+<h3 id="archetype-assignment">Archetype Assignment</h3>
+<p><strong>Archetype Assignment</strong> is where you choose which relevancy archetype — which curve of importance across the stage-levels — each competency uses. A preview of the curve appears alongside the picker, so you can see its shape before you commit to it.</p>
+<h3 id="archetype-curve-editor">Archetype Curve Editor</h3>
+<p><strong>Archetype Curve Editor</strong> is where the archetypes themselves live. For each one, you can edit its name, its description, and the twelve individual weights — one per stage-level — that make up its curve.</p>
+<h3 id="role-families">Role Families</h3>
+<p><strong>Role Families</strong> is where you edit each role family&#39;s name and description, and manage the specializations available within it.</p>
+<h2 id="when-changes-take-effect">When changes take effect</h2>
+<p>This is the one thing worth understanding clearly before you make any edit here: not everything you save takes effect the same way.</p>
+<p>Competency texts, and an archetype&#39;s name and description, are stored as translation labels rather than as live data. Editing them versions the change and makes it exportable, but it only becomes visible to everyone once that export has been committed and the application redeployed — it will not appear in the running application right away.</p>
+<p>Archetype assignments, an archetype&#39;s own twelve weights, role-family structure, and active competency sets work differently: they&#39;re stored data, not translation labels, so a save takes effect live — immediately, for evaluations that start from that point on.</p>
+<blockquote>
+<p><strong>Note:</strong> Either way, an evaluation already in progress is never touched. Every evaluation carries its own frozen snapshot from the moment it starts, so nothing you change here — live or not — reaches back into one that&#39;s already under way.</p>
+</blockquote>
+<h2 id="safety-rails">Safety rails</h2>
+<p>Every save is checked twice before it&#39;s accepted: once for format, and once against the application&#39;s own business rules — for example, a reference to a competency or an archetype has to actually exist. A save that fails either check is rejected outright, with the specific problem reported back to you.</p>
+<p>Every change that does get accepted is versioned, which is what makes the change feed and the restore option on Configuration possible.</p>
+<blockquote>
+<p><strong>Note:</strong> A restore isn&#39;t exempt from any of this — reapplying an older version runs it through the same validation as a brand-new save, so a version that no longer fits the application&#39;s current rules is rejected rather than silently reapplied.</p>
+</blockquote>
+
+            </div>
+            <footer class="competence-guide-footer">
+            <button class="ti-btn ghost competence-guide-prev" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">← For Supervisors</button>
+                <span class="competence-guide-version">Guide for competence v3.14.0</span>
+            <button class="ti-btn ghost competence-guide-next" type="button" hx-get="/app/help-appraisal-process" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">The Appraisal Process →</button>
+            </footer>
+        </article>
+    </div>
+</div>

@@ -159,6 +159,50 @@ class CompetenceWebApplication extends TiWebAppManager {
             path: "fragments/frame-evaluations-oversight.html",
             roles: [ SUPERVISOR ]
         } );
+
+        // End-user guide screens — public (any signed-in user). The HTML under bin/static/fragments/guide/ is
+        // GENERATED from docs/user-guide by bin/build/build-user-guide.js (npm run build:guide) — edit the markdown,
+        // never these files:
+        this.addFragment( "help-overview", {
+            title: "User Guide — Overview",
+            path: "fragments/guide/frame-help-overview.html"
+        } );
+        this.addFragment( "help-getting-started", {
+            title: "User Guide — Getting Started",
+            path: "fragments/guide/frame-help-getting-started.html"
+        } );
+        this.addFragment( "help-employee", {
+            title: "User Guide — For Employees",
+            path: "fragments/guide/frame-help-employee.html"
+        } );
+        this.addFragment( "help-team-member", {
+            title: "User Guide — For Team Members",
+            path: "fragments/guide/frame-help-team-member.html"
+        } );
+        this.addFragment( "help-manager", {
+            title: "User Guide — For Managers",
+            path: "fragments/guide/frame-help-manager.html"
+        } );
+        this.addFragment( "help-supervisor", {
+            title: "User Guide — For Supervisors",
+            path: "fragments/guide/frame-help-supervisor.html"
+        } );
+        this.addFragment( "help-administrator", {
+            title: "User Guide — For Administrators",
+            path: "fragments/guide/frame-help-administrator.html"
+        } );
+        this.addFragment( "help-appraisal-process", {
+            title: "User Guide — The Appraisal Process",
+            path: "fragments/guide/frame-help-appraisal-process.html"
+        } );
+        this.addFragment( "help-faq-glossary", {
+            title: "User Guide — FAQ & Glossary",
+            path: "fragments/guide/frame-help-faq-glossary.html"
+        } );
+        this.addFragment( "process-guide", {
+            title: "Process Guide",
+            path: "fragments/frame-process-guide.html"
+        } );
     }
 
     /* Public interface */
@@ -248,7 +292,17 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "insights-cycle": "insights-cycle",
                     "insights-team": "insights-team",
                     "insights-trends": "insights-trends",
-                    "evaluations-oversight": "evaluations-oversight"
+                    "evaluations-oversight": "evaluations-oversight",
+                    "help-overview": "help",
+                    "help-getting-started": "help",
+                    "help-employee": "help",
+                    "help-team-member": "help",
+                    "help-manager": "help",
+                    "help-supervisor": "help",
+                    "help-administrator": "help",
+                    "help-appraisal-process": "help",
+                    "help-faq-glossary": "help",
+                    "process-guide": "process-guide"
                 },
                 componentsConfig: {
                     userProfileMenu: {
