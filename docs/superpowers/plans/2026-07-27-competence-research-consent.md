@@ -21,7 +21,8 @@
 - **Tests are `node --test`** — `const { describe, it, beforeEach } = require( "node:test" )`, `const assert = require( "node:assert/strict" )`. No external test framework.
 - **Commits are Conventional Commits scoped to the package** — `feat(competence): …`, `test(competence): …`, `build(release): …` — each referencing the YouTrack card as `(CA-###)`.
 - **Never commit `.run/*.run.xml`** — they carry live local credentials.
-- **Version target:** competence `3.14.0` → `3.15.0`.
+- **Version targets:** competence `3.14.0` → `3.15.0`; web-framework `1.13.2` → `1.14.0`.
+- **`ValidatorContext.getConfig` returns the PENDING value** for any document in the current edit batch, not the stored one. A validator comparing its own document to its previous state must use `getStoredConfig` (added to web-framework in the Task 1 fix pass) — `getConfig` would hand back the value being validated. Any self-referential validator also needs a test through the real `ConfigService.applyEdits`; a stubbed context cannot catch this class of bug.
 - **Two invariants that must not be relaxed:** consent is self-attested only (`decidedBy` must equal `employeeID`; no proxy path exists), and no IP address or user-agent is ever captured.
 
 Replace `CA-###` in every commit message with the real card number before committing.

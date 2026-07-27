@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Date** | 2026-07-27 |
-| **Packages** | `packages/competence` (only) |
+| **Packages** | `packages/competence`, plus a small `packages/web-framework` addition (see §6.4) |
 | **Status** | Approved (brainstorming) — pending spec review |
-| **Version targets** | competence `3.14.0` → `3.15.0` (minor) |
+| **Version targets** | competence `3.14.0` → `3.15.0` (minor); web-framework `1.13.2` → `1.14.0` (minor) |
 | **Author** | Boris Kostadinov (with Claude) |
 | **Tracking** | YouTrack `CA-###` — to be created, suggested parent `E4 — Evaluation Workflow` (`area:evaluation`) |
 
@@ -55,7 +55,7 @@ Related deliberate choices that follow from this framing are marked **[lawful-ba
 - **No backfill** of consent for evaluations submitted before this ships — see §8.
 - **No proxy capture.** Nobody records consent on another person's behalf (§4.1).
 - **No IP address or user-agent capture** (§4.1).
-- **No web-framework changes.** Everything lands in `packages/competence`.
+- **Minimal web-framework change only** — one new accessor on `ValidatorContext` (§6.4). No other framework work; everything else lands in `packages/competence`.
 
 ## 4. Verified facts (the contract we build against)
 
@@ -66,7 +66,7 @@ Established by reading the code during brainstorming:
 3. `appendAuditEntry` **resolves optimistically when the cache is not operational** ([data-manager.js:1086](../../../packages/competence/application/data-manager.js#L1086)) — it does not reject. The role-grants writes mirror optimistically for the same reason.
 4. The self-evaluation submit path is the `isEmployee` branch of `#submitEvaluation` at [competence-web-application.js:730](../../../packages/competence/bin/competence-web-application.js#L730): status check → already-completed check → deadline check → grade write → completeness validation → `selfEvaluationCompleted = true`. Business-rule failures throw `E_APP_SERVICE_ERROR` with a `details` label key and `httpCode.C_422`.
 5. Config documents register in [config-registration.js](../../../packages/competence/application/config-registration.js) via `registerConfigDocument(key, { schema, validators, defaultValue, metadata })`. Once registered they are versioned, audited, validated, restorable and exportable through the framework's `/admin/config/*` API with no additional app plumbing.
-6. `ValidatorContext.getConfig(name)` resolves the **currently stored** value of any document, so a semantic validator can compare an incoming save against what is live.
+6. `ValidatorContext.getConfig(name)` resolves the **pending** value for any document in the current edit batch, and the stored value only for documents outside it ([config-service.js:67-77](../../../packages/web-framework/components/config-service.js#L67)). This is deliberate — it lets a validator check a sibling's post-edit state — but it means **a validator cannot use `getConfig` to see its own document's previous value**: it gets back the very value it is validating. Confirmed empirically during Task 1 review, where a text change with an unchanged version was silently accepted. §6.4 adds the accessor that closes this.
 7. Store-backed config values holding **inline text** are live on save. Only values that are *label keys* need the export → commit → redeploy cycle. The consent statement therefore lives inline in its config document, not in `competence-labels.json`.
 8. Fragments register via `addFragment(name, { title, path, components?, roles? })`; a declared `roles` requirement is enforced server-side by the web-framework `verifyAccess` gate (≥1.13.0), so a role-restricted screen is unreachable by direct URL, not merely hidden.
 9. Alpine runs in **CSP mode**: no inline `style="…"`, no optional chaining (`?.`), no `Array`/`Object` in template expressions. Radio inputs bound with `x-model` are the established idiom ([frame-cycle-setup.html:377](../../../packages/competence/bin/static/fragments/frame-cycle-setup.html#L377)).
@@ -240,6 +240,26 @@ The app separates **views** (reads — dispatched by `processDataRequest`, named
 | `load-consent-evidence` | view | `SUPERVISOR`, or the employee for themselves — full chain with verbatim texts resolved |
 
 Register and evidence are **`SUPERVISOR`, not `admin`**. `admin` is a config-management role; `isAccessAllowed` has no implicit hierarchy; and this is per-person personal data, not configuration.
+
+### 6.4 `packages/web-framework` — one new `ValidatorContext` accessor
+
+Per §4 fact 6, a validator cannot see its own document's previous value: `getConfig` hands back the pending value for anything in the edit batch. That makes any *self-referential* validator silently inert — this feature's version guard is simply the first one to need it.
+
+Add `getStoredConfig( key )` to the context built in `ConfigService#applyEdits`, always reading through to the store and never consulting `pending`:
+
+```js
+        const context = {
+            getConfig: ( key ) => { /* unchanged — pending wins, for sibling checks */ },
+            // Always the committed value, even for a document inside this edit batch. A validator comparing its own
+            // document against its previous state must use this; getConfig would hand back the pending value it is
+            // currently validating.
+            getStoredConfig: ( key ) => this.#store.getCurrent( key ).then( ( current ) => ( current ? current.value : null ) )
+        };
+```
+
+Additive and backward compatible — no existing validator changes, and `getConfig`'s cross-document semantics are untouched. web-framework `1.13.2` → `1.14.0`.
+
+**Testing note:** a validator unit test that stubs the context proves only its internal branching. The Task 1 review caught this defect precisely because the stub returned a fixed snapshot regardless of key, which the real `ConfigService` does not do. Self-referential validators therefore need at least one test that runs through the **real** `ConfigService.applyEdits`.
 
 ## 7. Behaviour
 
