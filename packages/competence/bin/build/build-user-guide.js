@@ -116,6 +116,11 @@ function convertMarkdown( md, fileName ) {
     if ( rawHtmlSample !== null ) {
         throw new Error( `Raw HTML is not allowed in guide markdown (${ fileName }): '${ rawHtmlSample }' — use plain markdown; callouts are '> **Note:** …' blockquotes` );
     }
+    // Images are not part of the guide in v1 (the spec excludes screenshots, and the app's CSP would not load
+    // remote sources anyway) — fail at authoring time instead of shipping something half-supported:
+    if ( /<img\b/i.test( html ) ) {
+        throw new Error( `Images are not supported in guide markdown (${ fileName }) — the guide ships text-only in v1` );
+    }
     // Every link must be an absolute http(s) URL. Relative links (including *.md chapter cross-references — the
     // chapter navigation is the navigation) and non-web schemes (javascript:, data:, vbscript:, …) are build errors,
     // because marked emits authored hrefs unsanitized and the output ships as static app screens:

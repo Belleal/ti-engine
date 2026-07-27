@@ -84,6 +84,10 @@ describe( "User guide build — markdown conversion", () => {
         assert.match( html, /<a href="https:\/\/github\.com\/Belleal\/ti-engine\/blob\/master\/README\.md" target="_blank" rel="noopener noreferrer">/ );
     } );
 
+    it( "rejects images (text-only guide in v1)", () => {
+        assert.throws( () => convertMarkdown( "![a diagram](https://example.com/diagram.png)", "01-overview.md" ), /Images are not supported/ );
+    } );
+
     it( "rejects non-http(s) link schemes", () => {
         for ( const badHref of [ "javascript:alert(1)", "data:text/plain,hello", "vbscript:msgbox(1)" ] ) {
             assert.throws( () => convertMarkdown( `[click](${ badHref })`, "01-overview.md" ), /Only absolute http\(s\) links are allowed/, badHref );
