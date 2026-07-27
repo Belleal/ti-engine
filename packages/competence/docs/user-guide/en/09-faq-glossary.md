@@ -80,7 +80,7 @@ You don't request it inside the application — Administrator status is a separa
 | Conducting manager | The manager who owns the calendar slot booked for a given interview, whether or not they're the employee's own manager. |
 | Structural Supervisor | A Supervisor by virtue of organization-chart position — the top manager, or a direct report whose own sub-organization runs at least two management levels deep; the role can't be taken away. |
 | Granted Supervisor | A Supervisor role given to someone by a structural Supervisor; the same powers, except managing other people's roles, taking effect at the grantee's next sign-in. |
-| Oversight | The screen where a Supervisor finds every stalled evaluation in the active cycle and recovers it — waiving a self-round, completing a manager round, or withdrawing the evaluation. |
+| Oversight | The Supervisor screen listing every in-progress evaluation in the active cycle — Open, In Review, and Ready — with overdue flags, and recovery actions where applicable: waiving a self round, completing a manager round, or withdrawing an evaluation. |
 | Waive (self round) | A Supervisor action that excuses a stalled, deadline-passed self-assessment from scoring so the evaluation can move on. |
 | Withdraw | A Supervisor action that cancels an evaluation outright, at any active status; irreversible, and it immediately frees the employee for a new evaluation. |
 | Closure | The Step 8 record of the interview's outcome — written feedback, next-period goals, and any Performance Improvement Plan — visible to the employee only once the evaluation is Closed. |

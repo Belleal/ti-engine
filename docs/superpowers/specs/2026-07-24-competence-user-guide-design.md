@@ -95,7 +95,7 @@ No structural rewrite; the process/screens/scoring sections are current and stay
 - **Dependency:** `marked` (MIT), pinned, as the package's first **devDependency** — build-time only; generated output is committed, so `npm ci --omit=dev` installs and the container image are unaffected.
 - **Input:** `docs/user-guide/en/*.md` in filename order. **Output:** `bin/static/fragments/guide/frame-help-<slug>.html` (committed), where `<slug>` is the filename minus its numeric prefix — fragment names stay stable if chapters are reordered.
 - Each generated file is a **complete screen**: guide header, a chapter nav listing all chapters (the current one statically marked active), the converted content wrapped in `.ti-doc`, and prev/next footer links. Chapter-nav and prev/next links are plain `hx-get="/app/help-<slug>"` buttons targeting `#ti-content` with `hx-push-url` — pure HTMX, **no Alpine state**, matching how the rest of the app navigates.
-- Generation details: tables are wrapped in a scroll container (`overflow-x`); `h2`/`h3` get stable slugified `id`s (future deep-link anchors; unused in v1); each file starts with a `<!-- GENERATED from docs/user-guide — edit the markdown and run npm run build:guide -->` banner; the build stamps the guide footer with the package version from `package.json`.
+- Generation details: tables are wrapped in a scroll container (`overflow-x`); `h2`/`h3` get stable slugified `id`s (future deep-link anchors; unused in v1); each file starts with the banner `<!-- GENERATED FILE — do not edit. Source: docs/user-guide/en/<file>. Regenerate: npm run build:guide -->` (the exact contract the generator and freshness guard share); the build stamps the guide footer with the package version from `package.json`.
 - **CSP discipline enforced at build:** the converter must emit no inline `style=`, no `<script>`, no event-handler attributes; raw HTML in the source is a build error.
 
 ## 7. Deliverable 4 — screens & navigation
@@ -110,7 +110,7 @@ No structural rewrite; the process/screens/scoring sections are current and stay
 **The Process Guide screen** (hand-authored, static — no data loader, no Alpine component unless a collapse interaction proves necessary):
 
 - A short hero: what the appraisal process is and how to read the page.
-- A **status lifecycle strip**: `NOT_STARTED → OPEN → IN_REVIEW → READY → CLOSED` (+ the `DELETED` branch), styled with existing status-chip classes.
+- A **status lifecycle strip**: `NOT_STARTED → OPEN → IN_REVIEW → READY → CLOSED` (+ the `DELETED` branch), styled with existing status-chip classes. *(As shipped, the guide presents the user-facing view of this: creation lands directly at Open so "Not Started" appears only in the narrative chapter, and the terminal branch is described as the Supervisor's **withdraw** action — the persisted `Deleted` status never surfaces anywhere in the UI, so the guide deliberately does not introduce that word.)*
 - **Eight step cards** — number, title, role badges (who acts), a two-to-four-sentence summary, the screen where it happens, and a "Learn more" button `hx-get`-ing the relevant help chapter.
 - A **roles legend**: the four process roles plus admin, one line each.
 - Built from existing CSS primitives (`.ti-panel*`, `.ti-kv-*`, icons); new CSS kept minimal and app-specific.
