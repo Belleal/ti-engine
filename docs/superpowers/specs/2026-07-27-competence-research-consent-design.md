@@ -93,8 +93,8 @@ Established by reading the code during brainstorming:
   },
   decisions: {
     "<employeeID>": {
-      "<cycleID>": [                      // append-only, chronological
-        {
+      "<cycleID>": {                      // append-only, keyed by recordID
+        "<recordID>": {
           recordID,      // UUID
           decision,      // "granted" | "declined"
           decidedAt,     // ISO-8601
@@ -105,11 +105,18 @@ Established by reading the code during brainstorming:
           source,        // "evaluation-submit" | "scores-screen"
           supersedes     // recordID this replaces, or null
         }
-      ]
+      }
     }
   }
 }
 ```
+
+**The chain is a map keyed by `recordID`, not an array** — mirroring how the audit log stores its entries (`{ [entryID]: entry }`) and reads them back with `Object.values(...)` sorted by timestamp. Two reasons this matters:
+
+1. **Appending is a single merge-patch with no read.** An array leaf would require read-modify-write, which is a real lost-update race if the same person answers from two tabs. A keyed map has no such race — `editJSON` merges the new `recordID` in and touches nothing else.
+2. **It avoids an unwrap hazard.** `getJSON` returns values wrapped in an array (RedisJSON `$`-path semantics), so an array-valued leaf comes back as `[[rec, rec]]` and the codebase's standard `( result instanceof Array ) ? result[ 0 ] : result` idiom happens to work — but only by coincidence, and it silently returns the wrong thing under a different path form. An object leaf has no ambiguity.
+
+Chronological order is recovered on read by sorting on `decidedAt`, exactly as `getAuditEntriesForEmployee` sorts on `timestamp`.
 
 **`decision` has exactly two stored values.** "Not asked yet" is the *absence* of a chain, never a stored null — an absent chain cannot be accidentally written over a real answer, and a null one can.
 
@@ -197,13 +204,13 @@ Three layers, each independently testable.
 
 | Method | Returns |
 |---|---|
-| `saveConsentDecision(employeeID, cycleID, record, text)` | `Promise<ResearchConsentRecord>` — appends the record; registers `text` under its hash if not already present |
-| `fetchConsentChain(employeeID, cycleID)` | `Promise<ResearchConsentRecord[]>` — chronological, `[]` when absent |
+| `saveConsentDecision(employeeID, cycleID, record, text, previousDecision)` | `Promise<ResearchConsentRecord>` — merge-patch appends the record, registers `text` under its hash when not already present, and writes the audit entry using the caller-supplied `previousDecision` |
+| `fetchConsentChain(employeeID, cycleID)` | `Promise<ResearchConsentRecord[]>` — sorted by `decidedAt` ascending, `[]` when absent |
 | `fetchConsentDecisions(cycleID)` | `Promise<Object.<string, ResearchConsentRecord[]>>` — every employee's chain for one cycle |
 | `fetchConsentText(textHash)` | `Promise<ResearchConsentText\|null>` |
 | `fetchConsentHistory(employeeID)` | `Promise<Object.<string, ResearchConsentRecord[]>>` — all cycles, for subject-access requests |
 
-It appends and reads. It resolves nothing and decides nothing.
+It appends and reads. It resolves nothing and decides nothing — `previousDecision` is passed in by the service layer (which owns `resolveEffective`) rather than derived here, so the "newest wins" rule lives in exactly one place.
 
 **Divergence from the role-grants precedent:** when `cache.instance.isOperational` is false, `saveConsentDecision` **rejects** with `E_APP_SERVICE_ERROR` raised explicitly with `httpCode.C_500`, rather than resolving optimistically. A consent record you cannot prove is worse than a visible failure. This is a conscious departure from §4 fact 3 and must not be "fixed" for consistency.
 
@@ -382,7 +389,7 @@ Node's built-in `node --test`, per package convention.
 - returns `null` (gate skipped) when `enabled` is false
 - rejects with `error.consent.invalid-decision` / 422 for an unrecognized value
 
-The ordering guarantee from §7.1 — incomplete grades leave the consent recorded and the evaluation untouched — is covered in `data-manager.research-consent.test.js`, where the persistence sequence is observable.
+The ordering guarantee from §7.1 — consent settling before the evaluation persists — is **not** unit-tested. It lives in `#submitEvaluation`, a private method on the web application, and the package has no HTTP-level test harness; standing one up for this single assertion is not worth the fixture weight. It is instead enforced structurally (the consent promise is chained ahead of `saveEvaluation` in the one place all three submit branches converge) and confirmed in the browser verification step. If a web-application harness is ever introduced, this is the first case to add.
 
 **Extend `test/fragment-input-bindings.test.js`** — the new radios bind a real, dispatched event, guarding the exact 3.11.1 silent-drop bug class.
 
