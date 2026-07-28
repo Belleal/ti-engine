@@ -2,6 +2,13 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.17.0
+
+A validator that needs to compare its own config document against its previously committed state had no way to do so: `applyEdits`'s cross-document context resolves `getConfig` to the *pending* value for any document inside the current edit batch — by design, so a validator can check a sibling document's post-edit state — but a document is always part of its own edit batch, so calling `getConfig` on itself just hands back the same incoming value already passed as the validator's argument, never its prior state. This silently defeated the competence `research-consent` config's version-bump guard (CA-###).
+
+* feat(web-framework): add `getStoredConfig(key)` to the `applyEdits` validator context (`ConfigService`) — always resolves the current *committed* value from the store, even for the document currently under validation, so a validator comparing its own document against its previous state has a way to do it; purely additive — `getConfig`'s existing cross-document (pending-value) semantics are unchanged
+* build(release): bump package version from `1.16.0` to `1.17.0`
+
 ## Version 1.16.0
 
 Support explicitly trusted request origins so state-changing requests (e.g. login) work behind proxies that do not present the app's external host — most notably GitHub Codespaces port forwarding (CA-90).
