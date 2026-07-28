@@ -216,6 +216,24 @@ class ResearchConsent {
     }
 
     /**
+     * Whether an incoming decision would be a no-op write against the effective record: both the decision value AND
+     * the exact statement text it was given against must match. Matching on decision alone would wrongly skip a
+     * write when the statement text has changed since the last answer — the subject would then be left with an
+     * on-file consent that predates the version they most recently saw. Kept here (rather than inline in the
+     * caller) so this rule — genuinely new business logic — is unit-testable without Redis.
+     *
+     * @method
+     * @param {ResearchConsentRecord|null} effective - The record currently in force, or null when there is none.
+     * @param {"granted"|"declined"} decision - The incoming decision.
+     * @param {string} textHash - The hash of the statement text currently shown.
+     * @returns {boolean}
+     * @public
+     */
+    isNoOpDecision( effective, decision, textHash ) {
+        return !!effective && effective.decision === decision && effective.textHash === textHash;
+    }
+
+    /**
      * The per-cycle consent register: one row per employee in the supplied population, whether or not they have ever
      * been asked. A not-asked employee is reported with a null decision rather than omitted — the register's purpose
      * is to show who was asked and what they said, and "nobody asked them" is part of that answer.

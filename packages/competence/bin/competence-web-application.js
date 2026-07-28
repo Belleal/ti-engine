@@ -748,7 +748,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     // Research-use consent (CA-###): a self-submit must carry an explicit decision when the
                     // capability is enabled. Both answers proceed identically — refusing costs the employee nothing,
                     // which is the only reading under which this is genuine consent.
-                    const consentConfig = this.#resolveConsentConfig( session && session.language );
+                    const consentConfig = this.#resolveConsentConfig( session?.language );
                     consentDecision = researchConsent.instance.requireDecision( evaluation.researchConsent, consentConfig.enabled );
 
                     if ( evaluation.comment !== undefined ) {
@@ -766,7 +766,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     // The reverse ordering can leave a submitted evaluation with no consent record, which is the
                     // state that cannot be defended. The write is idempotent, so a retry adds no duplicate.
                     if ( consentDecision ) {
-                        consentWrite = this.#recordConsentDecision( existingEvaluation.employeeID, existingEvaluation.cycleID, consentDecision, "evaluation-submit", session && session.language );
+                        consentWrite = this.#recordConsentDecision( existingEvaluation.employeeID, existingEvaluation.cycleID, consentDecision, "evaluation-submit", session?.language );
                     }
                 } else if ( isTeamMember ) {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
@@ -1043,7 +1043,7 @@ class CompetenceWebApplication extends TiWebAppManager {
         return dataManager.instance.fetchConsentChain( userID, cycleID ).then( ( chain ) => {
             const effective = researchConsent.instance.resolveEffective( chain );
             const textHash = researchConsent.instance.hashText( consentConfig.body );
-            if ( effective && effective.decision === decision && effective.textHash === textHash ) {
+            if ( researchConsent.instance.isNoOpDecision( effective, decision, textHash ) ) {
                 return null;
             }
             const built = researchConsent.instance.buildDecisionRecord( {
@@ -1072,7 +1072,7 @@ class CompetenceWebApplication extends TiWebAppManager {
     #loadResearchConsent( session ) {
         return new Promise( ( resolve, reject ) => {
             const { userID } = this.#requireSessionUser( session );
-            const consentConfig = this.#resolveConsentConfig( session && session.language );
+            const consentConfig = this.#resolveConsentConfig( session?.language );
             if ( !consentConfig.enabled ) {
                 return resolve( { enabled: false, version: "", locale: consentConfig.locale, body: "", decision: null, decidedAt: null, cycleID: null } );
             }
@@ -1110,7 +1110,7 @@ class CompetenceWebApplication extends TiWebAppManager {
     #submitResearchConsent( session, params ) {
         return new Promise( ( resolve, reject ) => {
             const { userID } = this.#requireSessionUser( session );
-            const consentConfig = this.#resolveConsentConfig( session && session.language );
+            const consentConfig = this.#resolveConsentConfig( session?.language );
             let decision;
             try {
                 decision = researchConsent.instance.requireDecision( params && params.decision, consentConfig.enabled );
@@ -1124,7 +1124,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 if ( !activeCycle ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.consent.no-active-cycle" }, exceptions.httpCode.C_422 );
                 }
-                return this.#recordConsentDecision( userID, activeCycle.cycleID, decision, "scores-screen", session && session.language ).then( ( record ) => {
+                return this.#recordConsentDecision( userID, activeCycle.cycleID, decision, "scores-screen", session?.language ).then( ( record ) => {
                     resolve( {
                         decision: decision,
                         decidedAt: record ? record.decidedAt : null,

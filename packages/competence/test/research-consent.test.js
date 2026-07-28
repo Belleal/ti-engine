@@ -150,3 +150,35 @@ describe( "ResearchConsent.isConsented", () => {
     } );
 
 } );
+
+describe( "ResearchConsent.isNoOpDecision", () => {
+
+    const HASH_A = researchConsent.hashText( "statement A" );
+    const HASH_B = researchConsent.hashText( "statement B" );
+
+    it( "is not a no-op when there is no effective record", () => {
+        assert.equal( researchConsent.isNoOpDecision( null, "granted", HASH_A ), false );
+        assert.equal( researchConsent.isNoOpDecision( undefined, "granted", HASH_A ), false );
+    } );
+
+    it( "is a no-op when the decision and text hash both match", () => {
+        const effective = { decision: "granted", textHash: HASH_A };
+        assert.equal( researchConsent.isNoOpDecision( effective, "granted", HASH_A ), true );
+    } );
+
+    it( "is NOT a no-op when the decision matches but the text hash differs — the statement changed since the last answer", () => {
+        const effective = { decision: "granted", textHash: HASH_A };
+        assert.equal( researchConsent.isNoOpDecision( effective, "granted", HASH_B ), false );
+    } );
+
+    it( "is not a no-op when the text hash matches but the decision differs", () => {
+        const effective = { decision: "granted", textHash: HASH_A };
+        assert.equal( researchConsent.isNoOpDecision( effective, "declined", HASH_A ), false );
+    } );
+
+    it( "is not a no-op when both the decision and the text hash differ", () => {
+        const effective = { decision: "granted", textHash: HASH_A };
+        assert.equal( researchConsent.isNoOpDecision( effective, "declined", HASH_B ), false );
+    } );
+
+} );
