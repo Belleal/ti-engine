@@ -358,6 +358,13 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#loadCycleList( session );
         } else if ( view === "load-research-consent" ) {
             return this.#loadResearchConsent( session );
+        } else if ( view === "load-consent-register" ) {
+            const cycleID = String( options?.query?.cycleID || "" ).trim();
+            return this.#loadConsentRegister( session, cycleID );
+        } else if ( view === "load-consent-evidence" ) {
+            const employeeID = String( options?.query?.employeeID || "" ).trim();
+            const cycleID = String( options?.query?.cycleID || "" ).trim();
+            return this.#loadConsentEvidence( session, employeeID, cycleID );
         } else if ( view === "load-cycle-setup" ) {
             const cycleID = String( options?.query?.cycleID || "" ).trim();
             return this.#loadCycleSetup( session, cycleID );
@@ -1129,6 +1136,80 @@ class CompetenceWebApplication extends TiWebAppManager {
                         decision: decision,
                         decidedAt: record ? record.decidedAt : null,
                         cycleID: activeCycle.cycleID
+                    } );
+                } );
+            } ).catch( reject );
+        } );
+    }
+
+    /**
+     * The per-cycle consent register. Supervisor-only: the rows are per-person consent decisions, which is personal
+     * data rather than configuration, so this is NOT gated on the `admin` role (there is no implicit role hierarchy).
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {string} cycleID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadConsentRegister( session, cycleID ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+            if ( !cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID } ) );
+            }
+            Promise.all( [
+                dataManager.instance.fetchEmployees(),
+                dataManager.instance.fetchConsentDecisions( cycleID )
+            ] ).then( ( [ employees, chains ] ) => {
+                const population = ( employees || [] ).map( ( employee ) => employee.employeeID );
+                const nameByID = new Map( ( employees || [] ).map( ( employee ) => {
+                    const personal = employee.personal || {};
+                    return [ employee.employeeID, `${ personal.firstName || "" } ${ personal.lastName || "" }`.trim() || employee.employeeID ];
+                } ) );
+                const register = researchConsent.instance.buildConsentRegister( population, chains );
+                resolve( {
+                    cycleID: cycleID,
+                    counts: register.counts,
+                    rows: register.rows.map( ( row ) => Object.assign( {}, row, { employeeName: nameByID.get( row.employeeID ) || row.employeeID } ) )
+                } );
+            } ).catch( reject );
+        } );
+    }
+
+    /**
+     * The full consent chain for one employee in one cycle, with each record's verbatim statement resolved from the
+     * text registry — the evidence view. Available to a Supervisor, and to the employee for their own record.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {string} employeeID
+     * @param {string} cycleID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadConsentEvidence( session, employeeID, cycleID ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireSessionUser( session );
+            if ( !employeeID || !cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID, cycleID } ) );
+            }
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+            if ( !isSupervisor && employeeID !== userID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "error.consent.not-self" }, exceptions.httpCode.C_403 ) );
+            }
+            dataManager.instance.fetchConsentChain( employeeID, cycleID ).then( ( chain ) => {
+                const hashes = Array.from( new Set( chain.map( ( entry ) => entry.textHash ).filter( Boolean ) ) );
+                return Promise.all( hashes.map( ( hash ) => dataManager.instance.fetchConsentText( hash ) ) ).then( ( texts ) => {
+                    const bodyByHash = new Map();
+                    hashes.forEach( ( hash, index ) => {
+                        const entry = texts[ index ];
+                        bodyByHash.set( hash, ( entry && entry.body ) ? entry.body : "" );
+                    } );
+                    resolve( {
+                        employeeID: employeeID,
+                        cycleID: cycleID,
+                        records: chain.map( ( entry ) => Object.assign( {}, entry, { body: bodyByHash.get( entry.textHash ) || "" } ) )
                     } );
                 } );
             } ).catch( reject );
