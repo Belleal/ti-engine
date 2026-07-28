@@ -155,6 +155,11 @@ class CompetenceWebApplication extends TiWebAppManager {
             path: "fragments/frame-insights-trends.html",
             roles: [ SUPERVISOR ]
         } );
+        this.addFragment( "consent-register", {
+            title: "Research Consent Register",
+            path: "fragments/frame-consent-register.html",
+            roles: [ SUPERVISOR ]
+        } );
         this.addFragment( "evaluations-oversight", {
             title: "Evaluations Oversight",
             path: "fragments/frame-evaluations-oversight.html",
@@ -293,6 +298,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "insights-cycle": "insights-cycle",
                     "insights-team": "insights-team",
                     "insights-trends": "insights-trends",
+                    "consent-register": "consent-register",
                     "evaluations-oversight": "evaluations-oversight",
                     "help-overview": "help",
                     "help-getting-started": "help",

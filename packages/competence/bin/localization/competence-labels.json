@@ -5612,6 +5612,10 @@
       "evidence-superseded": {
         "en": "Superseded",
         "bg": "Заменено"
+      },
+      "evidence-close": {
+        "en": "Close",
+        "bg": "Затваряне"
       }
     },
     "employees": {
@@ -6280,6 +6284,10 @@
       "insights-trends": {
         "en": "Trends",
         "bg": "Тенденции"
+      },
+      "consent-register": {
+        "en": "Consent",
+        "bg": "Съгласия"
       }
     },
     "topbar": {

@@ -5208,6 +5208,15 @@
     --ti-grid-cols: 40px minmax(180px, 2fr) 110px minmax(220px, 1.8fr) 260px;
 }
 
+/* =============================================================
+   Consent Register screen (frame-consent-register.html)
+   ============================================================= */
+/* Row columns: employee + decision + decided-on date + statement version. Inherited by
+   .ti-data-grid-head and .ti-data-grid-row via the .ti-data-grid wrapper. */
+.competence-consent-register-grid {
+    --ti-grid-cols: minmax(220px, 2fr) 140px 170px 120px;
+}
+
 .competence-oversight-actions {
     display: inline-flex;
     gap: var(--s-2);

@@ -5966,6 +5966,98 @@ const configureEvaluationsOversight = () => {
     };
 };
 
+const configureConsentRegister = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    return {
+        cycleID: "",
+        cycles: [],
+        counts: { granted: 0, declined: 0, notAsked: 0 },
+        rows: [],
+        evidence: null,
+        busy: false,
+
+        init() {
+            const onInitialized = () => { this.loadCycles(); };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) { onInitialized(); }
+                } );
+            }
+        },
+
+        loadCycles() {
+            tiApplication.sendRequest( "/app/load-cycle-list" ).then( ( result ) => {
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
+                this.cycles = Array.isArray( data.cycles ) ? data.cycles : [];
+                // The server already resolves the active cycle (`activeCycleID`). CycleStatus values are UPPERCASE
+                // ("ACTIVE"), unlike EvaluationStatus (title-case) -- the scan below is only a fallback for the
+                // (should-not-happen) case where the server omits activeCycleID.
+                const active = this.cycles.find( ( cycle ) => cycle.status === "ACTIVE" );
+                this.cycleID = data.activeCycleID || ( active ? active.cycleID : ( this.cycles.length > 0 ? this.cycles[ 0 ].cycleID : "" ) );
+                if ( this.cycleID ) {
+                    this.loadRegister();
+                }
+            } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) { return; }
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        loadRegister() {
+            if ( !this.cycleID ) { return; }
+            this.busy = true;
+            this.evidence = null;
+            tiApplication.sendRequest( `/app/load-consent-register?cycleID=${ encodeURIComponent( this.cycleID ) }` ).then( ( result ) => {
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
+                this.counts = data.counts || { granted: 0, declined: 0, notAsked: 0 };
+                const decisionLabel = ( decision ) => {
+                    if ( decision === "granted" ) return tiApplication.getLabel( "interface.consent.count-granted" );
+                    if ( decision === "declined" ) return tiApplication.getLabel( "interface.consent.count-declined" );
+                    return tiApplication.getLabel( "interface.consent.not-answered" );
+                };
+                this.rows = ( Array.isArray( data.rows ) ? data.rows : [] ).map( ( row ) => Object.assign( {}, row, { decisionText: decisionLabel( row.decision ) } ) );
+                this.busy = false;
+            } ).catch( ( error ) => {
+                this.busy = false;
+                if ( error?.name === "AbortError" || error?.isAborted ) { return; }
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        openEvidence( row ) {
+            const query = `employeeID=${ encodeURIComponent( row.employeeID ) }&cycleID=${ encodeURIComponent( this.cycleID ) }`;
+            tiApplication.sendRequest( `/app/load-consent-evidence?${ query }` ).then( ( result ) => {
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : null;
+                if ( data ) {
+                    // `entry.supersedes` names the OLDER recordID a given entry replaces -- it is not a flag on the
+                    // entry itself. Whether THIS entry has since been superseded is whether some other entry in the
+                    // same chain points back at it via `supersedes`.
+                    const records = Array.isArray( data.records ) ? data.records : [];
+                    const supersededIDs = new Set( records.map( ( entry ) => entry.supersedes ).filter( Boolean ) );
+                    data.records = records.map( ( entry ) => Object.assign( {}, entry, { isSuperseded: supersededIDs.has( entry.recordID ) } ) );
+                    data.employeeName = row.employeeName || row.employeeID;
+                }
+                this.evidence = data;
+            } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) { return; }
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        closeEvidence() {
+            this.evidence = null;
+        },
+
+        formatDate( value ) {
+            return tiToolbox.formatDate( value, "" );
+        }
+    };
+};
+
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceEvaluation", configureCompetenceEvaluation );
     Alpine.data( "competenceEmployeesList", configureEmployeesList );
@@ -5985,4 +6077,5 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "insightsTeam", configureInsightsTeam );
     Alpine.data( "insightsTrends", configureTrendsScreen );
     Alpine.data( "competenceEvaluationsOversight", configureEvaluationsOversight );
+    Alpine.data( "competenceConsentRegister", configureConsentRegister );
 } );
