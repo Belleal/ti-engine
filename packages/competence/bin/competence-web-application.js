@@ -1074,8 +1074,53 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
+     * Resolves the cycle the Scores-screen consent panel should act against when there is no ACTIVE cycle: the cycle
+     * holding the subject's own globally newest consent record (across all cycles they have ever answered in). This
+     * is the fallback behind design spec §7.2 — withdrawal cannot be conditional on workflow state, so a subject must
+     * still be able to see and revoke their consent after their cycle closes, which is exactly when a research export
+     * would target that cycle's data.
+     *
+     * Reuses {@link ResearchConsent#resolveEffective} rather than hand-rolling a second newest-wins rule: every
+     * record from every cycle is tagged with the cycleID it came from and concatenated into one array, and the
+     * record `resolveEffective` picks as newest (by `decidedAt`, tie-broken on `recordID`) names its own cycle.
+     *
+     * Returns null when the subject has never answered in any cycle — there is nothing to fall back to, and (by
+     * design) consent must never be first captured outside an active cycle.
+     *
+     * @method
+     * @param {string} userID - The subject; history is always fetched for the session user, never a parameter.
+     * @returns {Promise<string|null>}
+     * @private
+     */
+    #resolveFallbackConsentCycleID( userID ) {
+        return dataManager.instance.fetchConsentHistory( userID ).then( ( history ) => {
+            const source = ( history && typeof history === "object" ) ? history : {};
+            const tagged = [];
+            for ( const [ cycleID, chain ] of Object.entries( source ) ) {
+                if ( !Array.isArray( chain ) ) {
+                    continue;
+                }
+                for ( const record of chain ) {
+                    if ( record ) {
+                        tagged.push( Object.assign( {}, record, { cycleID: cycleID } ) );
+                    }
+                }
+            }
+            const newest = researchConsent.instance.resolveEffective( tagged );
+            return newest ? newest.cycleID : null;
+        } );
+    }
+
+    /**
      * The caller's own consent state for the active cycle, plus the statement to show them. Self-scoped only — there
      * is no parameter to read anyone else's.
+     *
+     * When there is no ACTIVE cycle, falls back to the cycle of the subject's own most recent consent record (see
+     * {@link #resolveFallbackConsentCycleID} and design spec §7.2: withdrawal cannot be conditional on workflow
+     * state) so the panel still shows their live state — with the current statement text, so a change would be
+     * against the wording they are actually looking at. If the subject has never answered in any cycle, the panel
+     * stays reported as disabled: a person who was never asked has no record to change, and first capture only ever
+     * happens through the evaluation form or an active-cycle Scores screen.
      *
      * @method
      * @param {TiSession} session
@@ -1090,10 +1135,15 @@ class CompetenceWebApplication extends TiWebAppManager {
                 return resolve( { enabled: false, version: "", locale: consentConfig.locale, body: "", decision: null, decidedAt: null, cycleID: null } );
             }
             dataManager.instance.getActiveCycle().then( ( activeCycle ) => {
-                if ( !activeCycle ) {
+                if ( activeCycle ) {
+                    return activeCycle.cycleID;
+                }
+                return this.#resolveFallbackConsentCycleID( userID );
+            } ).then( ( cycleID ) => {
+                if ( !cycleID ) {
                     return resolve( { enabled: false, version: consentConfig.version, locale: consentConfig.locale, body: consentConfig.body, decision: null, decidedAt: null, cycleID: null } );
                 }
-                return dataManager.instance.fetchConsentChain( userID, activeCycle.cycleID ).then( ( chain ) => {
+                return dataManager.instance.fetchConsentChain( userID, cycleID ).then( ( chain ) => {
                     const effective = researchConsent.instance.resolveEffective( chain );
                     resolve( {
                         enabled: true,
@@ -1102,7 +1152,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                         body: consentConfig.body,
                         decision: effective ? effective.decision : null,
                         decidedAt: effective ? effective.decidedAt : null,
-                        cycleID: activeCycle.cycleID
+                        cycleID: cycleID
                     } );
                 } );
             } ).catch( reject );
@@ -1112,6 +1162,12 @@ class CompetenceWebApplication extends TiWebAppManager {
     /**
      * Records or changes the caller's own consent decision for the active cycle. Available at any evaluation status —
      * withdrawal cannot be conditional on workflow state.
+     *
+     * When there is no ACTIVE cycle, falls back to the cycle of the subject's own most recent consent record (see
+     * {@link #resolveFallbackConsentCycleID} and design spec §7.2) so a withdrawal remains possible after the cycle
+     * that was consented to has closed — exactly the data a research export would target. If the subject has no
+     * consent record in any cycle, this still rejects with `error.consent.no-active-cycle`: consent is never first
+     * captured outside an active cycle.
      *
      * @method
      * @param {TiSession} session
@@ -1134,14 +1190,19 @@ class CompetenceWebApplication extends TiWebAppManager {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.consent.disabled" }, exceptions.httpCode.C_422 ) );
             }
             dataManager.instance.getActiveCycle().then( ( activeCycle ) => {
-                if ( !activeCycle ) {
+                if ( activeCycle ) {
+                    return activeCycle.cycleID;
+                }
+                return this.#resolveFallbackConsentCycleID( userID );
+            } ).then( ( cycleID ) => {
+                if ( !cycleID ) {
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.consent.no-active-cycle" }, exceptions.httpCode.C_422 );
                 }
-                return this.#recordConsentDecision( userID, activeCycle.cycleID, decision, "scores-screen", session?.language ).then( ( record ) => {
+                return this.#recordConsentDecision( userID, cycleID, decision, "scores-screen", session?.language ).then( ( record ) => {
                     resolve( {
                         decision: decision,
                         decidedAt: record ? record.decidedAt : null,
-                        cycleID: activeCycle.cycleID
+                        cycleID: cycleID
                     } );
                 } );
             } ).catch( reject );

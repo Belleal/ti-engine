@@ -283,6 +283,8 @@ A change appends a new record with `supersedes` set and `source: "scores-screen"
 
 Because the chokepoint resolves consent **at the time it runs**, a withdrawal genuinely takes effect for every subsequent research use. It cannot retroactively affect an export already produced; that is what the `basis` manifest in §7.3 exists to document.
 
+**Closed-cycle fallback (CA-93).** The Scores panel's `load`/`submit` handlers resolve their target cycle via `getActiveCycle()` first; when there is no ACTIVE cycle (e.g. after `close-cycle`), they fall back to the cycle holding the subject's own globally newest consent record (across every cycle they have ever answered in — `fetchConsentHistory` + `ResearchConsent.resolveEffective` over the tagged concatenation, so the newest-wins rule is not duplicated). This keeps withdrawal genuinely available after the cycle it applies to has closed, which is precisely the data a later research export would target — otherwise §7.2's any-time guarantee would silently lapse the moment a cycle closes. The fallback only ever *resumes* an existing chain: a subject with no consent record in any cycle still sees a disabled panel and a rejected submit (`error.consent.no-active-cycle`), because first capture is only ever through the evaluation form or an active-cycle Scores screen, never through this fallback.
+
 ### 7.3 The chokepoint
 
 ```js
