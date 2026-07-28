@@ -5,7 +5,7 @@
 | **Date** | 2026-07-27 |
 | **Packages** | `packages/competence`, plus a small `packages/web-framework` addition (see §6.4) |
 | **Status** | Approved (brainstorming) — pending spec review |
-| **Version targets** | competence `3.14.0` → `3.15.0` (minor); web-framework `1.13.2` → `1.14.0` (minor) |
+| **Version targets** | competence `3.14.0` → `3.15.0` (minor); web-framework `1.16.0` → `1.17.0` (minor) |
 | **Author** | Boris Kostadinov (with Claude) |
 | **Tracking** | YouTrack `CA-###` — to be created, suggested parent `E4 — Evaluation Workflow` (`area:evaluation`) |
 
@@ -61,7 +61,7 @@ Related deliberate choices that follow from this framing are marked **[lawful-ba
 
 Established by reading the code during brainstorming:
 
-1. `DataManager` owns eight Redis-JSON root keys, all seeded non-destructively (`setJSON(key, {}, "$", 1)` — NX) in `initialize()` at [data-manager.js:70](../../../packages/competence/application/data-manager.js#L70). The role-grants store (`ti:competence:data:role-grants`, 3.6.0) is the precedent for a dedicated, audited, application-owned store.
+1. `DataManager` owns nine Redis-JSON root keys, all seeded non-destructively (`setJSON(key, {}, "$", 1)` — NX) in `initialize()` at [data-manager.js:70](../../../packages/competence/application/data-manager.js#L70). The role-grants store (`ti:competence:data:role-grants`, 3.6.0) is the precedent for a dedicated, audited, application-owned store.
 2. The audit log is append-only, bucketed by `employee` / `cycle` / `activeCompetencySet` / `evaluation`, written via `appendAuditEntry` (auto-fills `entryID` + ISO `timestamp`) and read via `getAuditEntriesForEmployee` / `getAuditEntriesForEvaluation`. Its shape is a change journal (`field` / `oldValue` / `newValue`), not a state store.
 3. `appendAuditEntry` **resolves optimistically when the cache is not operational** ([data-manager.js:1086](../../../packages/competence/application/data-manager.js#L1086)) — it does not reject. The role-grants writes mirror optimistically for the same reason.
 4. The self-evaluation submit path is the `isEmployee` branch of `#submitEvaluation` at [competence-web-application.js:730](../../../packages/competence/bin/competence-web-application.js#L730): status check → already-completed check → deadline check → grade write → completeness validation → `selfEvaluationCompleted = true`. Business-rule failures throw `E_APP_SERVICE_ERROR` with a `details` label key and `httpCode.C_422`.
@@ -82,7 +82,7 @@ Established by reading the code during brainstorming:
 
 ## 5. Data model
 
-### 5.1 Store — ninth `data-manager` key
+### 5.1 Store — tenth `data-manager` key
 
 `ti:competence:data:research-consent`, seeded `{ texts: {}, decisions: {} }` in `initialize()` using the same non-destructive NX form as the other eight.
 
@@ -257,7 +257,7 @@ Add `getStoredConfig( key )` to the context built in `ConfigService#applyEdits`,
         };
 ```
 
-Additive and backward compatible — no existing validator changes, and `getConfig`'s cross-document semantics are untouched. web-framework `1.13.2` → `1.14.0`.
+Additive and backward compatible — no existing validator changes, and `getConfig`'s cross-document semantics are untouched. web-framework `1.16.0` → `1.17.0`.
 
 **Testing note:** a validator unit test that stubs the context proves only its internal branching. The Task 1 review caught this defect precisely because the stub returned a fixed snapshot regardless of key, which the real `ConfigService` does not do. Self-referential validators therefore need at least one test that runs through the **real** `ConfigService.applyEdits`.
 

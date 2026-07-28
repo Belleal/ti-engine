@@ -4,7 +4,7 @@
 
 **Goal:** Ask each employee, once per appraisal cycle, whether their anonymized evaluation data may be used for analysis and research; record the answer as a provable electronic consent; and gate all future research use behind a fail-closed chokepoint.
 
-**Architecture:** A new store-backed config document holds the configurable consent statement. A ninth `DataManager` Redis-JSON key holds append-only consent records keyed by `recordID`, each carrying the SHA-256 hash of the verbatim text the person saw. A new pure frozen-singleton (`application/research-consent.js`) owns every decision rule — hashing, record construction, newest-wins resolution, the submit-gate check, the register, and the export filter — so it unit-tests without Redis. The web application exposes four services and one gate inside the existing self-evaluation submit path. Nothing in `results-analytics.js` changes.
+**Architecture:** A new store-backed config document holds the configurable consent statement. A tenth `DataManager` Redis-JSON key holds append-only consent records keyed by `recordID`, each carrying the SHA-256 hash of the verbatim text the person saw. A new pure frozen-singleton (`application/research-consent.js`) owns every decision rule — hashing, record construction, newest-wins resolution, the submit-gate check, the register, and the export filter — so it unit-tests without Redis. The web application exposes four services and one gate inside the existing self-evaluation submit path. Nothing in `results-analytics.js` changes.
 
 **Tech Stack:** Node.js ≥20 (CommonJS), Redis JSON via `@ti-engine/core/cache`, `node:crypto` for SHA-256, `node:test` + `node:assert/strict`, HTMX + Alpine.js (CSP build) for UI.
 
@@ -21,7 +21,7 @@
 - **Tests are `node --test`** — `const { describe, it, beforeEach } = require( "node:test" )`, `const assert = require( "node:assert/strict" )`. No external test framework.
 - **Commits are Conventional Commits scoped to the package** — `feat(competence): …`, `test(competence): …`, `build(release): …` — each referencing the YouTrack card as `(CA-###)`.
 - **Never commit `.run/*.run.xml`** — they carry live local credentials.
-- **Version targets:** competence `3.14.0` → `3.15.0`; web-framework `1.13.2` → `1.14.0`.
+- **Version targets:** competence `3.14.0` → `3.15.0`; web-framework `1.16.0` → `1.17.0`.
 - **`ValidatorContext.getConfig` returns the PENDING value** for any document in the current edit batch, not the stored one. A validator comparing its own document to its previous state must use `getStoredConfig` (added to web-framework in the Task 1 fix pass) — `getConfig` would hand back the value being validated. Any self-referential validator also needs a test through the real `ConfigService.applyEdits`; a stubbed context cannot catch this class of bug.
 - **Two invariants that must not be relaxed:** consent is self-attested only (`decidedBy` must equal `employeeID`; no proxy path exists), and no IP address or user-agent is ever captured.
 
@@ -1432,7 +1432,7 @@ In `packages/competence/application/data-manager.js`, add the key constant after
 const cacheEntryKeyResearchConsent = "ti:competence:data:research-consent"; // { texts: { [textHash]: ResearchConsentText }, decisions: { [employeeID]: { [cycleID]: { [recordID]: ResearchConsentRecord } } } }
 ```
 
-In `initialize()`, add the seed alongside the other eight (after the `cacheEntryKeyRoleGrants` line):
+In `initialize()`, add the seed alongside the other nine (after the `cacheEntryKeyRoleGrants` line):
 
 ```js
         promises.push( cache.instance.setJSON( cacheEntryKeyResearchConsent, { texts: {}, decisions: {} }, "$", 1 ) );
@@ -1675,7 +1675,7 @@ Expected: PASS. Watch specifically that `data-manager.role-grants.test.js` and e
 - [ ] **Step 7: Commit**
 
 ```bash
-git add packages/competence/application/data-manager.js packages/competence/test/data-manager.research-consent.test.js && git commit -m "feat(competence): add the append-only research-consent store as the ninth data-manager key (CA-###)"
+git add packages/competence/application/data-manager.js packages/competence/test/data-manager.research-consent.test.js && git commit -m "feat(competence): add the append-only research-consent store as the tenth data-manager key (CA-###)"
 ```
 
 ---
@@ -2659,7 +2659,7 @@ Research-use consent: employees are asked once per cycle whether their anonymize
 
 * feat(competence): add the store-backed `research-consent` config document — the consent statement is admin-editable per locale, with a `consentTextVersionBumped` semantic validator that forces the version to move whenever a body changes, and `enabled: false` as a fail-closed kill switch
 * feat(competence): add `application/research-consent.js`, a pure frozen-singleton owning every consent rule — SHA-256 statement hashing, record construction (self-attested only: `decidedBy` must equal the subject), newest-wins resolution, the submit-gate check, the register, and the fail-closed export chokepoint
-* feat(competence): add the append-only consent store as the ninth `data-manager` key `ti:competence:data:research-consent` — records keyed by `recordID` so an append is a single merge-patch with no lost-update race, a hash-keyed registry holding each verbatim statement once, and an employee-scoped audit entry per decision; unlike the role-grants store it rejects rather than resolving optimistically when the cache is down, because an unprovable consent is worse than a visible failure
+* feat(competence): add the append-only consent store as the tenth `data-manager` key `ti:competence:data:research-consent` — records keyed by `recordID` so an append is a single merge-patch with no lost-update race, a hash-keyed registry holding each verbatim statement once, and an employee-scoped audit entry per decision; unlike the role-grants store it rejects rather than resolving optimistically when the cache is down, because an unprovable consent is worse than a visible failure
 * feat(competence): capture the decision at self-evaluation submit — mandatory when enabled, both answers proceeding identically, written before the evaluation persists and idempotent so a retried submit adds no duplicate; changeable at any time (including after closure) from the Scores screen
 * feat(competence): add the Supervisor consent register with per-employee evidence showing the exact statement each person saw, including superseded answers; gated on `SUPERVISOR` rather than `admin`, since the rows are personal data rather than configuration
 * build(release): bump package version from `3.14.0` to `3.15.0`
