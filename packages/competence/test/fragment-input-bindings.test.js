@@ -88,4 +88,25 @@ describe( "Fragment input bindings", () => {
         }
     } );
 
+    // Consent capture-panel canEdit guard (CA-###). Every other editable control on this fragment (grade pill
+    // groups, feedback textareas, the sticky submit bar) additionally gates on `canEdit`, so a completed/lapsed
+    // evaluation degrades them to read-only. The consent radios must follow the same convention — otherwise an
+    // employee revisiting a submitted or deadline-lapsed evaluation sees a live, clickable consent control with no
+    // reachable Submit button, and clicking it gives the false impression something was recorded. The Scores
+    // read/change (withdrawal) panel must NOT pick up `canEdit`: it is deliberately available at any evaluation
+    // status, including Closed, because withdrawal cannot be conditional on workflow state.
+    it( "the capture panel's consent gate requires canEdit; the Scores withdrawal panel's does not", () => {
+        const markup = fs.readFileSync( EVALUATION_FRAGMENT, "utf8" );
+
+        const captureSection = markup.match( /<section[^>]*x-show="consent\.enabled && userRole === 1 && !isMyResults[^"]*"[^>]*>/ );
+        assert.ok( captureSection, "expected to find the consent capture panel's <section x-show=\"...\">" );
+        assert.ok( /canEdit/.test( captureSection[ 0 ] ),
+            `consent capture panel must also gate on canEdit, matching every other editable control on this fragment: ${ captureSection[ 0 ] }` );
+
+        const scoresSection = markup.match( /<section[^>]*x-show="consent\.enabled && isMyResults && isOwnResults[^"]*"[^>]*>/ );
+        assert.ok( scoresSection, "expected to find the Scores consent (withdrawal) panel's <section x-show=\"...\">" );
+        assert.ok( !/canEdit/.test( scoresSection[ 0 ] ),
+            `Scores withdrawal panel must stay independent of canEdit — withdrawal cannot be conditional on workflow state: ${ scoresSection[ 0 ] }` );
+    } );
+
 } );

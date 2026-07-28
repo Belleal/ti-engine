@@ -676,7 +676,7 @@
                  evaluation (userRole === 1 is this fragment's existing "self" predicate — see getPageTitle()/etc.),
                  never on the read-only Scores view. Neither radio is pre-selected and both carry equal visual
                  weight: this is a consent question, not a recommendation. -->
-            <section class="ti-panel" x-show="consent.enabled && userRole === 1 && !isMyResults">
+            <section class="ti-panel" x-show="consent.enabled && userRole === 1 && !isMyResults && canEdit">
                 <div class="ti-panel-head">
                     <span class="ti-panel-head-icon ti-icon check-clipboard md"></span>
                     <div class="ti-panel-head-text">
