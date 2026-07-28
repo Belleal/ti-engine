@@ -50,21 +50,22 @@
                 </span>
             </div>
         </div>
-    </section>
 
-    <!-- Empty state: no rows for the selected cycle (e.g. nobody in scope yet) -->
-    <template x-if="!busy && rows.length === 0">
-        <div class="ti-panel">
+        <!-- The summary head, the empty state and the register live in ONE panel: `.ti-panel-head.bar` already
+             supplies the sunken background and bottom border that attach it to the content below, so splitting them
+             into separate panels would show a seam where the two cards meet. Matches the team blocks in
+             frame-employees-list.html. -->
+
+        <!-- Empty state: no rows for the selected cycle (e.g. nobody in scope yet) -->
+        <template x-if="!busy && rows.length === 0">
             <div class="ti-empty-state">
                 <div class="ti-empty-state-icon" aria-hidden="true"><span class="ti-icon check-clipboard xl"></span></div>
                 <div class="ti-empty-state-title" x-text-label="interface.consent.register-intro">Who was asked for research-use consent in this cycle, what they answered, and when.</div>
             </div>
-        </div>
-    </template>
+        </template>
 
-    <!-- Register: one row per employee in the selected cycle, including those never asked (decision stays blank) -->
-    <template x-if="rows.length > 0">
-        <div class="ti-panel">
+        <!-- Register: one row per employee in the selected cycle, including those never asked (decision stays blank) -->
+        <template x-if="rows.length > 0">
             <div class="ti-data-grid bordered competence-consent-register-grid">
                 <div class="ti-data-grid-head">
                     <span x-text-label="interface.consent.column-employee">Employee</span>
@@ -83,8 +84,8 @@
                     </template>
                 </div>
             </div>
-        </div>
-    </template>
+        </template>
+    </section>
 
     <!-- Evidence: the full consent chain for one employee in this cycle, including superseded records -->
     <section class="ti-panel" x-show="evidence">
