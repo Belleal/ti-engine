@@ -758,7 +758,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-self-evaluation" }, exceptions.httpCode.C_422 );
                     }
 
-                    // Research-use consent (CA-###): a self-submit must carry an explicit decision when the
+                    // Research-use consent (CA-93): a self-submit must carry an explicit decision when the
                     // capability is enabled. Both answers proceed identically — refusing costs the employee nothing,
                     // which is the only reading under which this is genuine consent.
                     const consentConfig = this.#resolveConsentConfig( session?.language );

@@ -47,7 +47,7 @@ function readValidIconTokens() {
     return tokens;
 }
 
-describe( "Consent register screen (CA-###) — static wiring guards", () => {
+describe( "Consent register screen (CA-93) — static wiring guards", () => {
 
     it( "the consent-register fragment is registered with the SUPERVISOR role requirement", () => {
         const source = fs.readFileSync( WEB_APPLICATION_FILE, "utf8" );

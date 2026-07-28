@@ -186,7 +186,7 @@
                 <button type="button" class="ti-btn primary" @click="openResults()" x-text="getLabel( getResultsReadyAction() )"></button>
             </div>
 
-            <!-- Research-use consent (CA-###) — read/change panel on the Scores route, shown only to the subject
+            <!-- Research-use consent (CA-93) — read/change panel on the Scores route, shown only to the subject
                  (isOwnResults false for a manager/supervisor viewing someone else's scores hides this entirely — it
                  is the subject's own control, not a third party's). Deliberately a SIBLING of, not nested inside, the
                  hasResults()-gated results block below: withdrawal must work at any evaluation status, including
@@ -672,7 +672,7 @@
                 </div>
             </div>
 
-            <!-- Research-use consent (CA-###) — capture panel, shown only to the evaluee filling out their own
+            <!-- Research-use consent (CA-93) — capture panel, shown only to the evaluee filling out their own
                  evaluation (userRole === 1 is this fragment's existing "self" predicate — see getPageTitle()/etc.),
                  never on the read-only Scores view. Neither radio is pre-selected and both carry equal visual
                  weight: this is a consent question, not a recommendation. -->

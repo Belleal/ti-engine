@@ -19,13 +19,13 @@
 - **Config objects are `deepFreeze`d** — never mutate `configurationLoader.config*` in place.
 - **Every user-visible string is a label** in `bin/localization/competence-labels.json` with `{ "en": …, "bg": … }` leaves. Bulgarian is machine-drafted and marked pending native review, consistent with the rest of the file.
 - **Tests are `node --test`** — `const { describe, it, beforeEach } = require( "node:test" )`, `const assert = require( "node:assert/strict" )`. No external test framework.
-- **Commits are Conventional Commits scoped to the package** — `feat(competence): …`, `test(competence): …`, `build(release): …` — each referencing the YouTrack card as `(CA-###)`.
+- **Commits are Conventional Commits scoped to the package** — `feat(competence): …`, `test(competence): …`, `build(release): …` — each referencing the YouTrack card as `(CA-93)`.
 - **Never commit `.run/*.run.xml`** — they carry live local credentials.
 - **Version targets:** competence `3.14.0` → `3.15.0`; web-framework `1.16.0` → `1.17.0`.
 - **`ValidatorContext.getConfig` returns the PENDING value** for any document in the current edit batch, not the stored one. A validator comparing its own document to its previous state must use `getStoredConfig` (added to web-framework in the Task 1 fix pass) — `getConfig` would hand back the value being validated. Any self-referential validator also needs a test through the real `ConfigService.applyEdits`; a stubbed context cannot catch this class of bug.
 - **Two invariants that must not be relaxed:** consent is self-attested only (`decidedBy` must equal `employeeID`; no proxy path exists), and no IP address or user-agent is ever captured.
 
-Replace `CA-###` in every commit message with the real card number before committing.
+Tracking card: [`CA-93`](https://belleal.youtrack.cloud/issue/CA-93) (subtask of `CA-7` Evaluation Workflow). It is referenced in every commit message so the GitHub integration links commit ↔ issue. (During execution this read `CA-###`, because the card was created after the work; the placeholder was rewritten across the branch once `CA-93` existed.)
 
 ---
 
@@ -398,7 +398,7 @@ Expected: PASS, including the new `config.research-consent.json validates…` ca
 - [ ] **Step 12: Commit**
 
 ```bash
-git add packages/competence/bin/config/config.research-consent.json packages/competence/bin/data/schemas/research-consent.schema.json packages/competence/package.json packages/competence/application/configuration-loader.js packages/competence/application/config-validators.js packages/competence/application/config-registration.js packages/competence/test/research-consent.config.test.js packages/competence/test/json-config-validation.test.js && git commit -m "feat(competence): add the store-backed research-consent config document with a version guard (CA-###)"
+git add packages/competence/bin/config/config.research-consent.json packages/competence/bin/data/schemas/research-consent.schema.json packages/competence/package.json packages/competence/application/configuration-loader.js packages/competence/application/config-validators.js packages/competence/application/config-registration.js packages/competence/test/research-consent.config.test.js packages/competence/test/json-config-validation.test.js && git commit -m "feat(competence): add the store-backed research-consent config document with a version guard (CA-93)"
 ```
 
 ---
@@ -933,7 +933,7 @@ Expected: PASS. No previously-passing test changes.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add packages/competence/application/research-consent.js packages/competence/application/data-objects.types.js packages/competence/test/research-consent.test.js packages/competence/test/research-consent.gate.test.js && git commit -m "feat(competence): add the pure research-consent module — hashing, record construction, newest-wins resolution, submit gate (CA-###)"
+git add packages/competence/application/research-consent.js packages/competence/application/data-objects.types.js packages/competence/test/research-consent.test.js packages/competence/test/research-consent.gate.test.js && git commit -m "feat(competence): add the pure research-consent module — hashing, record construction, newest-wins resolution, submit gate (CA-93)"
 ```
 
 ---
@@ -1232,7 +1232,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add packages/competence/application/research-consent.js packages/competence/test/research-consent.filter.test.js && git commit -m "feat(competence): add the consent register and the fail-closed research-export chokepoint (CA-###)"
+git add packages/competence/application/research-consent.js packages/competence/test/research-consent.filter.test.js && git commit -m "feat(competence): add the consent register and the fail-closed research-export chokepoint (CA-93)"
 ```
 
 ---
@@ -1675,7 +1675,7 @@ Expected: PASS. Watch specifically that `data-manager.role-grants.test.js` and e
 - [ ] **Step 7: Commit**
 
 ```bash
-git add packages/competence/application/data-manager.js packages/competence/test/data-manager.research-consent.test.js && git commit -m "feat(competence): add the append-only research-consent store as the tenth data-manager key (CA-###)"
+git add packages/competence/application/data-manager.js packages/competence/test/data-manager.research-consent.test.js && git commit -m "feat(competence): add the append-only research-consent store as the tenth data-manager key (CA-93)"
 ```
 
 ---
@@ -1869,7 +1869,7 @@ The write is a **service**. In `processServiceRequest`, add a branch after `clos
 In `#submitEvaluation`, inside the `isEmployee` branch, insert the gate immediately after the self-evaluation deadline check and before the `evaluation.comment` assignment:
 
 ```js
-                    // Research-use consent (CA-###): a self-submit must carry an explicit decision when the
+                    // Research-use consent (CA-93): a self-submit must carry an explicit decision when the
                     // capability is enabled. Both answers proceed identically — refusing costs the employee nothing,
                     // which is the only reading under which this is genuine consent.
                     const consentConfig = this.#resolveConsentConfig( session && session.language );
@@ -1940,7 +1940,7 @@ If any is false, fix it before committing — this ordering is the whole reason 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add packages/competence/bin/competence-web-application.js && git commit -m "feat(competence): capture research consent at self-evaluation submit; add the self-scoped consent services (CA-###)"
+git add packages/competence/bin/competence-web-application.js && git commit -m "feat(competence): capture research consent at self-evaluation submit; add the self-scoped consent services (CA-93)"
 ```
 
 ---
@@ -2063,7 +2063,7 @@ Expected: PASS.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/competence/bin/competence-web-application.js && git commit -m "feat(competence): add the Supervisor consent register and per-employee evidence services (CA-###)"
+git add packages/competence/bin/competence-web-application.js && git commit -m "feat(competence): add the Supervisor consent register and per-employee evidence services (CA-93)"
 ```
 
 ---
@@ -2391,7 +2391,7 @@ Open `http://localhost:3000`, sign in as an employee with an `Open` evaluation, 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add packages/competence/bin/localization/competence-labels.json packages/competence/bin/static/fragments/frame-competence-evaluation.html packages/competence/bin/static/scripts/competence-user-interface.js packages/competence/test/fragment-input-bindings.test.js && git commit -m "feat(competence): add the research-consent panel to the evaluation form and Scores screen (CA-###)"
+git add packages/competence/bin/localization/competence-labels.json packages/competence/bin/static/fragments/frame-competence-evaluation.html packages/competence/bin/static/scripts/competence-user-interface.js packages/competence/test/fragment-input-bindings.test.js && git commit -m "feat(competence): add the research-consent panel to the evaluation form and Scores screen (CA-93)"
 ```
 
 ---
@@ -2625,7 +2625,7 @@ Sign in as a Supervisor, open the register, confirm the counts and rows render f
 - [ ] **Step 7: Commit**
 
 ```bash
-git add packages/competence/bin/static/fragments/frame-consent-register.html packages/competence/bin/competence-web-application.js packages/competence/bin/static/fragments/components/component-sidebar.html packages/competence/bin/static/scripts/competence-user-interface.js && git commit -m "feat(competence): add the Supervisor consent register screen with per-employee evidence (CA-###)"
+git add packages/competence/bin/static/fragments/frame-consent-register.html packages/competence/bin/competence-web-application.js packages/competence/bin/static/fragments/components/component-sidebar.html packages/competence/bin/static/scripts/competence-user-interface.js && git commit -m "feat(competence): add the Supervisor consent register screen with per-employee evidence (CA-93)"
 ```
 
 ---
@@ -2655,7 +2655,7 @@ At the top of `packages/competence/CHANGELOG.md`, immediately below the title pa
 ```markdown
 ## Version 3.15.0
 
-Research-use consent: employees are asked once per cycle whether their anonymized evaluation data may be used for analysis and research, and the answer is recorded as a provable electronic consent. In-app Insights and the per-cycle `ResultsSnapshot` are unchanged — they run on legitimate interest and continue to cover everyone; consent gates secondary research use only. See `docs/superpowers/specs/2026-07-27-competence-research-consent-design.md` (CA-###).
+Research-use consent: employees are asked once per cycle whether their anonymized evaluation data may be used for analysis and research, and the answer is recorded as a provable electronic consent. In-app Insights and the per-cycle `ResultsSnapshot` are unchanged — they run on legitimate interest and continue to cover everyone; consent gates secondary research use only. See `docs/superpowers/specs/2026-07-27-competence-research-consent-design.md` (CA-93).
 
 * feat(competence): add the store-backed `research-consent` config document — the consent statement is admin-editable per locale, with a `consentTextVersionBumped` semantic validator that forces the version to move whenever a body changes, and `enabled: false` as a fail-closed kill switch
 * feat(competence): add `application/research-consent.js`, a pure frozen-singleton owning every consent rule — SHA-256 statement hashing, record construction (self-attested only: `decidedBy` must equal the subject), newest-wins resolution, the submit-gate check, the register, and the fail-closed export chokepoint
@@ -2668,12 +2668,12 @@ Research-use consent: employees are asked once per cycle whether their anonymize
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/competence/package.json packages/competence/CHANGELOG.md && git commit -m "build(release): competence 3.14.0 -> 3.15.0 — research-use consent capture, register, and export gate (CA-###)"
+git add packages/competence/package.json packages/competence/CHANGELOG.md && git commit -m "build(release): competence 3.14.0 -> 3.15.0 — research-use consent capture, register, and export gate (CA-93)"
 ```
 
 - [ ] **Step 5: Log the work**
 
-Update the YouTrack `CA-###` card: set `State: Verified`, `Stage: Done`, `Version: v3.15.0`, `Shipped` to the release date **+1** (the MCP stores it a day early), and log the time spent.
+Update the YouTrack `CA-93` card: set `State: Verified`, `Stage: Done`, `Version: v3.15.0`, `Shipped` to the release date **+1** (the MCP stores it a day early), and log the time spent.
 
 ---
 

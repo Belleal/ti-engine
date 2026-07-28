@@ -54,7 +54,7 @@ const configureCompetenceEvaluation = () => {
         isOwnResults: false,
         modal: emptyModal(),
 
-        // Research-use consent (CA-###) — captured once per cycle on the evaluation form (self only), changeable any
+        // Research-use consent (CA-93) — captured once per cycle on the evaluation form (self only), changeable any
         // time on the Scores screen regardless of evaluation status. `decision` is null until first answered.
         consent: { enabled: false, body: "", paragraphs: [], decision: null, decidedAt: null, version: "", cycleID: null, editing: false, error: "" },
 
@@ -208,7 +208,7 @@ const configureCompetenceEvaluation = () => {
             } );
         },
 
-        // Research-use consent (CA-###).
+        // Research-use consent (CA-93).
 
         loadConsent() {
             // A view request: no method, no body — matching load-dashboard / load-cycle-list.

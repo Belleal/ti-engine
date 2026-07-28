@@ -14,7 +14,7 @@
  * The fallback is an EMPTY STRING, so a screen registered without a matching label renders with no title at all and
  * nothing anywhere reports the omission — it is only visible by opening the screen and noticing the blank.
  *
- * That is exactly how `consent-register` shipped titleless (CA-###) and how `evaluations-oversight` went titleless
+ * That is exactly how `consent-register` shipped titleless (CA-93) and how `evaluations-oversight` went titleless
  * from 3.12.0 until the same review caught it. This test closes the class: every registered fragment must have a
  * topbar label, in both languages.
  */

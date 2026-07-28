@@ -7,7 +7,7 @@
 | **Status** | Approved (brainstorming) — pending spec review |
 | **Version targets** | competence `3.14.0` → `3.15.0` (minor); web-framework `1.16.0` → `1.17.0` (minor) |
 | **Author** | Boris Kostadinov (with Claude) |
-| **Tracking** | YouTrack `CA-###` — to be created, suggested parent `E4 — Evaluation Workflow` (`area:evaluation`) |
+| **Tracking** | YouTrack [`CA-93`](https://belleal.youtrack.cloud/issue/CA-93) (subtask of `CA-7` Evaluation Workflow) |
 
 ---
 
@@ -427,7 +427,7 @@ The idempotency rule was also extracted out of the private method into `research
 
 - competence `3.14.0` → `3.15.0` (`feat`), with a `CHANGELOG.md` entry.
 - This spec is the design record; following the 3.14.0 / CA-92 precedent there is no separate `design/*.md` for the feature.
-- A `CA-###` card created under its epic (suggested: `E4 — Evaluation Workflow`), referenced in every commit so the GitHub integration links commit ↔ issue, with time logged against it.
+- A `CA-93` card created under its epic (suggested: `E4 — Evaluation Workflow`), referenced in every commit so the GitHub integration links commit ↔ issue, with time logged against it.
 - Commits bundled thematically — roughly: store + typedefs; pure module; config document + schema + validator; services + submit gate; UI fragments + labels; tests; release bump.
 
 ## 13. Follow-ups (explicitly out of scope)
