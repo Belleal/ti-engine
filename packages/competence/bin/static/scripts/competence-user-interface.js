@@ -211,18 +211,21 @@ const configureCompetenceEvaluation = () => {
         // Research-use consent (CA-93).
 
         loadConsent() {
-            // A view request: no method, no body — matching load-dashboard / load-cycle-list.
+            // A view request: no method, no body — matching load-dashboard / load-cycle-list. Every view/service
+            // response is wrapped as { isSuccessful, data } (web-handlers.js) — unwrap result.data here, matching
+            // loadRegister/openEvidence in configureConsentRegister.
             tiApplication.sendRequest( "/app/load-research-consent" ).then( ( result ) => {
-                const body = ( result && result.body ) ? result.body : "";
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
+                const body = data.body ? data.body : "";
                 this.consent = {
-                    enabled: !!( result && result.enabled ),
+                    enabled: !!data.enabled,
                     body: body,
                     // Split on blank lines so the fragment can render one <p> per block without any HTML in the config.
                     paragraphs: body ? body.split( /\n\s*\n/ ).map( ( block ) => block.trim() ).filter( ( block ) => block.length > 0 ) : [],
-                    decision: ( result && result.decision ) ? result.decision : null,
-                    decidedAt: ( result && result.decidedAt ) ? result.decidedAt : null,
-                    version: ( result && result.version ) ? result.version : "",
-                    cycleID: ( result && result.cycleID ) ? result.cycleID : null,
+                    decision: data.decision ? data.decision : null,
+                    decidedAt: data.decidedAt ? data.decidedAt : null,
+                    version: data.version ? data.version : "",
+                    cycleID: data.cycleID ? data.cycleID : null,
                     editing: false,
                     error: ""
                 };
@@ -247,7 +250,8 @@ const configureCompetenceEvaluation = () => {
                 return;
             }
             tiApplication.sendRequest( "/app/submit-research-consent", "POST", { decision: this.consent.decision } ).then( ( result ) => {
-                this.consent.decidedAt = ( result && result.decidedAt ) ? result.decidedAt : this.consent.decidedAt;
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
+                this.consent.decidedAt = data.decidedAt ? data.decidedAt : this.consent.decidedAt;
                 this.consent.editing = false;
                 tiApplication.notify( tiApplication.getLabel( "interface.consent.saved" ) );
             } ).catch( ( error ) => {

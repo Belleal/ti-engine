@@ -191,9 +191,11 @@
                  is the subject's own control, not a third party's). Deliberately a SIBLING of, not nested inside, the
                  hasResults()-gated results block below: withdrawal must work at any evaluation status, including
                  Closed, and must never be coupled to whether the results computation itself succeeded. -->
-            <section class="ti-panel" x-show="consent.enabled && isMyResults && isOwnResults">
+            <section class="ti-panel competence-panel-body" x-show="consent.enabled && isMyResults && isOwnResults">
                 <div class="ti-panel-head">
-                    <span class="ti-panel-head-icon ti-icon check-clipboard md"></span>
+                    <div class="ti-panel-head-icon">
+                        <span class="ti-icon check-clipboard md" aria-hidden="true"></span>
+                    </div>
                     <div class="ti-panel-head-text">
                         <h2 class="ti-panel-title" x-text-label="interface.consent.panel-title">Use of your data for research</h2>
                     </div>
@@ -676,9 +678,11 @@
                  evaluation (userRole === 1 is this fragment's existing "self" predicate — see getPageTitle()/etc.),
                  never on the read-only Scores view. Neither radio is pre-selected and both carry equal visual
                  weight: this is a consent question, not a recommendation. -->
-            <section class="ti-panel" x-show="consent.enabled && userRole === 1 && !isMyResults && canEdit">
+            <section class="ti-panel competence-panel-body" x-show="consent.enabled && userRole === 1 && !isMyResults && canEdit">
                 <div class="ti-panel-head">
-                    <span class="ti-panel-head-icon ti-icon check-clipboard md"></span>
+                    <div class="ti-panel-head-icon">
+                        <span class="ti-icon check-clipboard md" aria-hidden="true"></span>
+                    </div>
                     <div class="ti-panel-head-text">
                         <h2 class="ti-panel-title" x-text-label="interface.consent.panel-title">Use of your data for research</h2>
                     </div>

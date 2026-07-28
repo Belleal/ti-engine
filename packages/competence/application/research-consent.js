@@ -288,7 +288,9 @@ class ResearchConsent {
      *
      * @method
      * @param {Array<Object>} evaluations - Candidate evaluations (any cycle; filtered to options.cycleID here).
-     * @param {Object.<string, Array<ResearchConsentRecord>>} chains - Consent chains keyed by employeeID.
+     * @param {Object.<string, Array<ResearchConsentRecord>>} chains - Consent chains keyed by employeeID, for THIS
+     *   SAME cycle as options.cycleID (i.e. the result of dataManager.fetchConsentDecisions( options.cycleID )).
+     *   Passing chains resolved for a different cycle silently yields cross-cycle consent from this fail-closed gate.
      * @param {Object} options
      * @param {string} options.cycleID
      * @param {boolean} options.enabled - The research-consent config `enabled` flag.

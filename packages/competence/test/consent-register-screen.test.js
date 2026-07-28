@@ -22,6 +22,11 @@
  *   4. The Alpine component must unwrap the `.data` envelope every view response is wrapped in
  *      ({ isSuccessful, data } -- see web-handlers.js). Reading `result.cycles`/`result.rows`/`result.records`
  *      directly off the envelope silently yields empty state forever; this was caught during Task 8 review.
+ *   5. The same `.data`-envelope rule, guarded here too even though it belongs to a different fragment/component
+ *      (configureCompetenceEvaluation's loadConsent/saveConsentChange in competence-user-interface.js, backing
+ *      frame-competence-evaluation.html): this exact mistake had already shipped there when the guard above was
+ *      added for the register screen, and went unnoticed because nobody generalized it. Left unfixed it made
+ *      `consent.enabled` permanently false, hid both consent panels, and broke every self-evaluation submit.
  */
 
 const { describe, it } = require( "node:test" );
@@ -119,6 +124,25 @@ describe( "Consent register screen (CA-93) — static wiring guards", () => {
         assert.doesNotMatch( factory, /result\.counts\b/, "must not read counts directly off the envelope — use result.data.counts" );
         assert.doesNotMatch( factory, /result\.rows\b/, "must not read rows directly off the envelope — use result.data.rows" );
         assert.doesNotMatch( factory, /result\.records\b/, "must not read records directly off the envelope — use result.data.records" );
+    } );
+
+    // Same bug class, different component: configureCompetenceEvaluation's own consent loader/saver
+    // (loadConsent/saveConsentChange in competence-user-interface.js) read the unwrapped envelope directly for
+    // months after the fix above landed here, which made `consent.enabled` permanently false and hid both consent
+    // panels — killing every self-evaluation submit behind a server-side consent gate with no question ever shown
+    // (CA-93). Guard that component's consent section the same way.
+    it( "configureCompetenceEvaluation's consent loader/saver unwrap the JSON envelope's .data too", () => {
+        const source = fs.readFileSync( UI_SCRIPT_FILE, "utf8" );
+        const sectionMatch = /\/\/ Research-use consent \(CA-93\)\.[\s\S]*?get consentDecisionText/.exec( source );
+        assert.ok( sectionMatch, "expected to find the loadConsent/saveConsentChange section in configureCompetenceEvaluation" );
+        const section = sectionMatch[ 0 ];
+        assert.match( section, /result\.data/, "loadConsent/saveConsentChange must unwrap result.data, not read the envelope's top level" );
+        assert.doesNotMatch( section, /result\.enabled\b/, "must not read enabled directly off the envelope — use result.data.enabled" );
+        assert.doesNotMatch( section, /result\.body\b/, "must not read body directly off the envelope — use result.data.body" );
+        assert.doesNotMatch( section, /result\.decision\b/, "must not read decision directly off the envelope — use result.data.decision" );
+        assert.doesNotMatch( section, /result\.decidedAt\b/, "must not read decidedAt directly off the envelope — use result.data.decidedAt" );
+        assert.doesNotMatch( section, /result\.version\b/, "must not read version directly off the envelope — use result.data.version" );
+        assert.doesNotMatch( section, /result\.cycleID\b/, "must not read cycleID directly off the envelope — use result.data.cycleID" );
     } );
 
     it( "the required interface.consent / interface.navigation labels exist with both en and bg leaves", () => {
