@@ -142,4 +142,53 @@ describe( "ResearchConsent.filterConsentedEvaluations", () => {
         assert.deepEqual( result.basis.textHashes, [] );
     } );
 
+    it( "returns nothing when options is undefined — fail-closed", () => {
+        const chains = { "1": [ record( { decision: "granted" } ) ] };
+        const result = researchConsent.filterConsentedEvaluations( evaluations, chains, undefined );
+        assert.deepEqual( result.included, [] );
+    } );
+
+    it( "returns nothing when options is null — fail-closed", () => {
+        const chains = { "1": [ record( { decision: "granted" } ) ] };
+        const result = researchConsent.filterConsentedEvaluations( evaluations, chains, null );
+        assert.deepEqual( result.included, [] );
+    } );
+
+    it( "returns nothing when options has no enabled key — fail-closed", () => {
+        const chains = { "1": [ record( { decision: "granted" } ) ] };
+        const result = researchConsent.filterConsentedEvaluations( evaluations, chains, { cycleID: "2026-H2" } );
+        assert.deepEqual( result.included, [] );
+    } );
+
+    it( "returns nothing when enabled is the string 'true' rather than boolean true — fail-closed", () => {
+        const chains = { "1": [ record( { decision: "granted" } ) ] };
+        const result = researchConsent.filterConsentedEvaluations( evaluations, chains, { cycleID: "2026-H2", enabled: "true" } );
+        assert.deepEqual( result.included, [] );
+    } );
+
+    it( "returns nothing when enabled is the number 1 rather than boolean true — fail-closed", () => {
+        const chains = { "1": [ record( { decision: "granted" } ) ] };
+        const result = researchConsent.filterConsentedEvaluations( evaluations, chains, { cycleID: "2026-H2", enabled: 1 } );
+        assert.deepEqual( result.included, [] );
+    } );
+
+    it( "returns nothing when a chain is present but an empty array — fail-closed", () => {
+        const chains = { "1": [] };
+        const result = researchConsent.filterConsentedEvaluations( evaluations, chains, { cycleID: "2026-H2", enabled: true } );
+        assert.deepEqual( result.included, [] );
+    } );
+
+    it( "returns nothing when chains itself is null — fail-closed", () => {
+        const result = researchConsent.filterConsentedEvaluations( evaluations, null, { cycleID: "2026-H2", enabled: true } );
+        assert.deepEqual( result.included, [] );
+    } );
+
+    it( "returns nothing when an effective record has an unrecognized decision value — fail-closed", () => {
+        const chains = {
+            "1": [ record( { decision: "maybe" } ) ]
+        };
+        const result = researchConsent.filterConsentedEvaluations( evaluations, chains, { cycleID: "2026-H2", enabled: true } );
+        assert.deepEqual( result.included, [] );
+    } );
+
 } );
