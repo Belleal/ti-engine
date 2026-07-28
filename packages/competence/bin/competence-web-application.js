@@ -16,6 +16,7 @@ const organizationManager = require( "#organization-manager" );
 const competenceFramework = require( "#competence-framework" );
 const taskResolver = require( "#task-resolver" );
 const resultsAnalytics = require( "#results-analytics" );
+const researchConsent = require( "#research-consent" );
 const logger = require( "@ti-engine/core/logger" );
 const { registerCompetenceConfig } = require( "../application/config-registration" );
 
@@ -355,6 +356,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#loadEvaluationsOversight( session );
         } else if ( view === "load-cycle-list" ) {
             return this.#loadCycleList( session );
+        } else if ( view === "load-research-consent" ) {
+            return this.#loadResearchConsent( session );
         } else if ( view === "load-cycle-setup" ) {
             const cycleID = String( options?.query?.cycleID || "" ).trim();
             return this.#loadCycleSetup( session, cycleID );
@@ -422,6 +425,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#saveInterviewOutcome( session, params );
         } else if ( service === "close-evaluation" ) {
             return this.#closeEvaluation( session, params );
+        } else if ( service === "submit-research-consent" ) {
+            return this.#submitResearchConsent( session, params );
         } else if ( service === "create-cycle" ) {
             return this.#createCycle( session, params );
         } else if ( service === "lock-cycle" ) {
@@ -717,6 +722,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             let isManager = false;
             let isTeamMember = false;
             let proxyAuditReason = null;
+            let consentDecision = null;
+            let consentWrite = Promise.resolve( null );
             dataManager.instance.fetchEvaluation( evaluation.evaluationID ).then( ( storedEvaluation ) => {
                 existingEvaluation = storedEvaluation;
                 isEmployee = existingEvaluation.employeeID === userID;
@@ -738,6 +745,12 @@ class CompetenceWebApplication extends TiWebAppManager {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-self-evaluation" }, exceptions.httpCode.C_422 );
                     }
 
+                    // Research-use consent (CA-###): a self-submit must carry an explicit decision when the
+                    // capability is enabled. Both answers proceed identically — refusing costs the employee nothing,
+                    // which is the only reading under which this is genuine consent.
+                    const consentConfig = this.#resolveConsentConfig( session && session.language );
+                    consentDecision = researchConsent.instance.requireDecision( evaluation.researchConsent, consentConfig.enabled );
+
                     if ( evaluation.comment !== undefined ) {
                         existingEvaluation.comment = evaluation.comment;
                     }
@@ -748,6 +761,13 @@ class CompetenceWebApplication extends TiWebAppManager {
                     }
 
                     existingEvaluation.workflow.selfEvaluationCompleted = true;
+                    // Consent is written BEFORE the evaluation persists. If the submit then fails, a valid consent
+                    // record with no evaluation change is harmless — the consent is per-cycle and true regardless.
+                    // The reverse ordering can leave a submitted evaluation with no consent record, which is the
+                    // state that cannot be defended. The write is idempotent, so a retry adds no duplicate.
+                    if ( consentDecision ) {
+                        consentWrite = this.#recordConsentDecision( existingEvaluation.employeeID, existingEvaluation.cycleID, consentDecision, "evaluation-submit", session && session.language );
+                    }
                 } else if ( isTeamMember ) {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-open" }, exceptions.httpCode.C_422 );
@@ -844,7 +864,10 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 // TODO: Make sure to update the 'currentStep' of the workflow accordingly (graph implementation needed first).
 
-                return dataManager.instance.saveEvaluation( existingEvaluation ).then( ( saved ) => {
+                // Research consent settles BEFORE the evaluation persists, so a failed consent write aborts the
+                // submit rather than leaving a submitted evaluation with no consent record. `consentWrite` is an
+                // already-resolved promise for every non-employee branch and whenever the capability is disabled.
+                return consentWrite.then( () => dataManager.instance.saveEvaluation( existingEvaluation ) ).then( ( saved ) => {
                     if ( proxyAuditReason ) {
                         return dataManager.instance.appendAuditEntry( {
                             subjectType: "evaluation",
@@ -970,6 +993,145 @@ class CompetenceWebApplication extends TiWebAppManager {
             } ).catch( ( error ) => {
                 reject( error );
             } );
+        } );
+    }
+
+    /**
+     * The active research-consent configuration for a locale, with the statement resolved. Falls back to `en` when
+     * the requested locale has no body, and reports `enabled: false` if the document is malformed — fail-closed, so a
+     * broken config suppresses the prompt rather than showing an empty one.
+     *
+     * @method
+     * @param {string} [locale="en"]
+     * @returns {{enabled: boolean, version: string, locale: string, body: string}}
+     * @private
+     */
+    #resolveConsentConfig( locale ) {
+        const config = configurationLoader.configResearchConsent || {};
+        const text = config.text || {};
+        const requested = String( locale || "en" ).trim() || "en";
+        const entry = text[ requested ] || text.en || null;
+        const body = ( entry && entry.body ) ? String( entry.body ) : "";
+        const version = config.version ? String( config.version ) : "";
+        return {
+            enabled: ( config.enabled === true ) && !!body && !!version,
+            version: version,
+            locale: ( text[ requested ] && text[ requested ].body ) ? requested : "en",
+            body: body
+        };
+    }
+
+    /**
+     * Records a consent decision for the caller against a cycle. Idempotent: when the incoming decision matches the
+     * one already in force AND references the same text, nothing is written and null is returned. That is what makes
+     * it safe to call this ahead of a submit that may fail validation and be retried.
+     *
+     * @method
+     * @param {string} userID - The subject; consent is self-attested only.
+     * @param {string} cycleID
+     * @param {"granted"|"declined"} decision
+     * @param {"evaluation-submit"|"scores-screen"} source
+     * @param {string} [locale]
+     * @returns {Promise<ResearchConsentRecord|null>} The stored record, or null when the write was a no-op.
+     * @private
+     */
+    #recordConsentDecision( userID, cycleID, decision, source, locale ) {
+        const consentConfig = this.#resolveConsentConfig( locale );
+        if ( !consentConfig.enabled ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.consent.disabled" }, exceptions.httpCode.C_422 ) );
+        }
+        return dataManager.instance.fetchConsentChain( userID, cycleID ).then( ( chain ) => {
+            const effective = researchConsent.instance.resolveEffective( chain );
+            const textHash = researchConsent.instance.hashText( consentConfig.body );
+            if ( effective && effective.decision === decision && effective.textHash === textHash ) {
+                return null;
+            }
+            const built = researchConsent.instance.buildDecisionRecord( {
+                employeeID: userID,
+                decidedBy: userID,
+                decision: decision,
+                body: consentConfig.body,
+                locale: consentConfig.locale,
+                version: consentConfig.version,
+                source: source,
+                supersedes: effective ? effective.recordID : null
+            } );
+            return dataManager.instance.saveConsentDecision( userID, cycleID, built.record, built.text, effective ? effective.decision : null );
+        } );
+    }
+
+    /**
+     * The caller's own consent state for the active cycle, plus the statement to show them. Self-scoped only — there
+     * is no parameter to read anyone else's.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadResearchConsent( session ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireSessionUser( session );
+            const consentConfig = this.#resolveConsentConfig( session && session.language );
+            if ( !consentConfig.enabled ) {
+                return resolve( { enabled: false, version: "", locale: consentConfig.locale, body: "", decision: null, decidedAt: null, cycleID: null } );
+            }
+            dataManager.instance.getActiveCycle().then( ( activeCycle ) => {
+                if ( !activeCycle ) {
+                    return resolve( { enabled: false, version: consentConfig.version, locale: consentConfig.locale, body: consentConfig.body, decision: null, decidedAt: null, cycleID: null } );
+                }
+                return dataManager.instance.fetchConsentChain( userID, activeCycle.cycleID ).then( ( chain ) => {
+                    const effective = researchConsent.instance.resolveEffective( chain );
+                    resolve( {
+                        enabled: true,
+                        version: consentConfig.version,
+                        locale: consentConfig.locale,
+                        body: consentConfig.body,
+                        decision: effective ? effective.decision : null,
+                        decidedAt: effective ? effective.decidedAt : null,
+                        cycleID: activeCycle.cycleID
+                    } );
+                } );
+            } ).catch( reject );
+        } );
+    }
+
+    /**
+     * Records or changes the caller's own consent decision for the active cycle. Available at any evaluation status —
+     * withdrawal cannot be conditional on workflow state.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.decision
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #submitResearchConsent( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireSessionUser( session );
+            const consentConfig = this.#resolveConsentConfig( session && session.language );
+            let decision;
+            try {
+                decision = researchConsent.instance.requireDecision( params && params.decision, consentConfig.enabled );
+            } catch ( error ) {
+                return reject( error );
+            }
+            if ( decision === null ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.consent.disabled" }, exceptions.httpCode.C_422 ) );
+            }
+            dataManager.instance.getActiveCycle().then( ( activeCycle ) => {
+                if ( !activeCycle ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.consent.no-active-cycle" }, exceptions.httpCode.C_422 );
+                }
+                return this.#recordConsentDecision( userID, activeCycle.cycleID, decision, "scores-screen", session && session.language ).then( ( record ) => {
+                    resolve( {
+                        decision: decision,
+                        decidedAt: record ? record.decidedAt : null,
+                        cycleID: activeCycle.cycleID
+                    } );
+                } );
+            } ).catch( reject );
         } );
     }
 
