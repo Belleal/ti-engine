@@ -75,4 +75,17 @@ describe( "Fragment input bindings", () => {
         assert.deepEqual( offenders, [], `Editable controls binding value to getFeedbackComment (use getFeedbackDraft — the raw value, empty when empty):\n  ${ offenders.join( "\n  " ) }` );
     } );
 
+    // Research-use consent radios (CA-###) — the same class of bug this suite exists for: a control that silently
+    // drops input because it binds a custom event nothing ever dispatches. `[^>]*` spans newlines here (attributes
+    // are wrapped across lines), so this matches each whole `<input ...>` tag regardless of how it's line-wrapped.
+    it( "the research-consent radios bind the native change event, not the dead ti-input event", () => {
+        const markup = fs.readFileSync( EVALUATION_FRAGMENT, "utf8" );
+        const radios = markup.match( /<input[^>]*name="research-consent[^"]*"[^>]*>/g ) || [];
+        assert.ok( radios.length >= 4, "expected the consent radios in both the form-entry panel and the Scores change panel" );
+        for ( const radio of radios ) {
+            assert.ok( /(?:@|x-on:)change\s*=/.test( radio ), `consent radio must bind a dispatched change event: ${ radio }` );
+            assert.ok( !DEAD_TI_INPUT_BINDING.test( radio ), `consent radio must not bind the never-dispatched ti-input event: ${ radio }` );
+        }
+    } );
+
 } );

@@ -3994,6 +3994,32 @@
         "bg": "За това действие е необходима причина."
       }
     },
+    "consent": {
+      "decision-required": {
+        "en": "Please answer the research-use consent question before submitting.",
+        "bg": "Моля, отговорете на въпроса за съгласие за проучвания преди изпращане."
+      },
+      "invalid-decision": {
+        "en": "The consent answer was not recognized.",
+        "bg": "Отговорът за съгласие не беше разпознат."
+      },
+      "not-self": {
+        "en": "Consent can only be given by the person it concerns.",
+        "bg": "Съгласие може да бъде дадено само от лицето, за което се отнася."
+      },
+      "no-active-cycle": {
+        "en": "There is no active cycle to record consent against.",
+        "bg": "Няма активен цикъл, за който да бъде записано съгласие."
+      },
+      "disabled": {
+        "en": "Research-use consent is not currently being collected.",
+        "bg": "В момента не се събира съгласие за проучвания."
+      },
+      "storage-unavailable": {
+        "en": "The consent could not be stored and was therefore not recorded. Please try again.",
+        "bg": "Съгласието не можа да бъде съхранено и затова не беше записано. Моля, опитайте отново."
+      }
+    },
     "cycle": {
       "invalid-id-format": {
         "en": "The cycle ID must be in the format YYYY-H1 or YYYY-H2 (for example, 2026-H2).",
@@ -5484,6 +5510,108 @@
           "en": "Manager review submitted.",
           "bg": "Мениджърската оценка е изпратена."
         }
+      }
+    },
+    "consent": {
+      "panel-title": {
+        "en": "Use of your data for research",
+        "bg": "Използване на вашите данни за проучвания"
+      },
+      "panel-intro": {
+        "en": "Please choose one option. Your answer does not affect your appraisal in any way.",
+        "bg": "Моля, изберете една опция. Вашият отговор по никакъв начин не влияе върху вашето оценяване."
+      },
+      "legend": {
+        "en": "Do you agree?",
+        "bg": "Съгласни ли сте?"
+      },
+      "grant": {
+        "en": "Yes, my anonymized data may be used",
+        "bg": "Да, моите анонимизирани данни могат да бъдат използвани"
+      },
+      "decline": {
+        "en": "No, do not use my data",
+        "bg": "Не, не използвайте моите данни"
+      },
+      "required": {
+        "en": "Please choose an option before submitting.",
+        "bg": "Моля, изберете опция преди изпращане."
+      },
+      "current-label": {
+        "en": "Your answer",
+        "bg": "Вашият отговор"
+      },
+      "decided-label": {
+        "en": "Answered on",
+        "bg": "Отговорено на"
+      },
+      "version-label": {
+        "en": "Statement version",
+        "bg": "Версия на текста"
+      },
+      "not-answered": {
+        "en": "Not answered",
+        "bg": "Няма отговор"
+      },
+      "change": {
+        "en": "Change my answer",
+        "bg": "Промяна на отговора"
+      },
+      "save": {
+        "en": "Save answer",
+        "bg": "Запазване на отговора"
+      },
+      "saved": {
+        "en": "Your answer has been recorded.",
+        "bg": "Вашият отговор беше записан."
+      },
+      "register-title": {
+        "en": "Research Consent Register",
+        "bg": "Регистър на съгласията за проучвания"
+      },
+      "register-intro": {
+        "en": "Who was asked for research-use consent in this cycle, what they answered, and when.",
+        "bg": "Кой е бил попитан за съгласие за проучвания в този цикъл, какво е отговорил и кога."
+      },
+      "count-granted": {
+        "en": "Granted",
+        "bg": "Дадено"
+      },
+      "count-declined": {
+        "en": "Declined",
+        "bg": "Отказано"
+      },
+      "count-not-asked": {
+        "en": "Not asked",
+        "bg": "Непопитани"
+      },
+      "column-employee": {
+        "en": "Employee",
+        "bg": "Служител"
+      },
+      "column-decision": {
+        "en": "Decision",
+        "bg": "Решение"
+      },
+      "column-decided": {
+        "en": "Date",
+        "bg": "Дата"
+      },
+      "column-version": {
+        "en": "Version",
+        "bg": "Версия"
+      },
+      "evidence-title": {
+        "en": "Consent evidence",
+        "bg": "Доказателство за съгласие"
+      },
+      "evidence-intro": {
+        "en": "Every record for this employee in this cycle, including superseded answers, with the exact statement shown at the time.",
+        "bg": "Всички записи за този служител в този цикъл, включително заменените отговори, с точния текст, показан по това време."
+      },
+      "evidence-superseded": {
+        "en": "Superseded",
+        "bg": "Заменено"
       }
     },
     "employees": {

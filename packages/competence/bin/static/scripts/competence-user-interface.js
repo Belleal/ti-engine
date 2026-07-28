@@ -54,6 +54,10 @@ const configureCompetenceEvaluation = () => {
         isOwnResults: false,
         modal: emptyModal(),
 
+        // Research-use consent (CA-###) — captured once per cycle on the evaluation form (self only), changeable any
+        // time on the Scores screen regardless of evaluation status. `decision` is null until first answered.
+        consent: { enabled: false, body: "", paragraphs: [], decision: null, decidedAt: null, version: "", cycleID: null, editing: false, error: "" },
+
         // Phase 3 — individual results (populated by buildResults() at READY/CLOSED)
         resultsReady: false,
         resultsHeroSpec: { type: "stat", data: { value: 0, label: "", sub: "" }, a11yLabel: "" },
@@ -71,6 +75,7 @@ const configureCompetenceEvaluation = () => {
                 this.grades = tiApplication.configuration.grades;
                 this.employeeID = tiToolbox.getUrlParam( "employeeID" );
                 this.loadEmployeeEvaluation( this.employeeID );
+                this.loadConsent();
             };
 
             if ( tiApplication.isInitialized ) {
@@ -203,7 +208,72 @@ const configureCompetenceEvaluation = () => {
             } );
         },
 
+        // Research-use consent (CA-###).
+
+        loadConsent() {
+            // A view request: no method, no body — matching load-dashboard / load-cycle-list.
+            tiApplication.sendRequest( "/app/load-research-consent" ).then( ( result ) => {
+                const body = ( result && result.body ) ? result.body : "";
+                this.consent = {
+                    enabled: !!( result && result.enabled ),
+                    body: body,
+                    // Split on blank lines so the fragment can render one <p> per block without any HTML in the config.
+                    paragraphs: body ? body.split( /\n\s*\n/ ).map( ( block ) => block.trim() ).filter( ( block ) => block.length > 0 ) : [],
+                    decision: ( result && result.decision ) ? result.decision : null,
+                    decidedAt: ( result && result.decidedAt ) ? result.decidedAt : null,
+                    version: ( result && result.version ) ? result.version : "",
+                    cycleID: ( result && result.cycleID ) ? result.cycleID : null,
+                    editing: false,
+                    error: ""
+                };
+            } ).catch( () => {
+                this.consent = { enabled: false, body: "", paragraphs: [], decision: null, decidedAt: null, version: "", cycleID: null, editing: false, error: "" };
+            } );
+        },
+
+        setConsentDecision( value ) {
+            this.consent.decision = value;
+            this.consent.error = "";
+        },
+
+        beginConsentChange() {
+            this.consent.editing = true;
+            this.consent.error = "";
+        },
+
+        saveConsentChange() {
+            if ( !this.consent.decision ) {
+                this.consent.error = tiApplication.getLabel( "interface.consent.required", "Please choose an option before submitting." );
+                return;
+            }
+            tiApplication.sendRequest( "/app/submit-research-consent", "POST", { decision: this.consent.decision } ).then( ( result ) => {
+                this.consent.decidedAt = ( result && result.decidedAt ) ? result.decidedAt : this.consent.decidedAt;
+                this.consent.editing = false;
+                tiApplication.notify( tiApplication.getLabel( "interface.consent.saved" ) );
+            } ).catch( ( error ) => {
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        // Text shown for the current decision on the Scores read panel. A getter because a nested ternary calling a
+        // label helper is not expressible in a CSP-mode Alpine template expression.
+        get consentDecisionText() {
+            if ( this.consent.decision === "granted" ) {
+                return tiApplication.getLabel( "interface.consent.grant" );
+            }
+            if ( this.consent.decision === "declined" ) {
+                return tiApplication.getLabel( "interface.consent.decline" );
+            }
+            return tiApplication.getLabel( "interface.consent.not-answered" );
+        },
+
         openSubmitModal( event ) {
+            // isSelfEvaluation in the design brief === userRole 1 here (the evaluee-in-form-mode case; see the same
+            // comparison used throughout this fragment, e.g. getPageTitle()).
+            if ( this.consent.enabled && this.userRole === 1 && !this.consent.decision ) {
+                this.consent.error = tiApplication.getLabel( "interface.consent.required", "Please choose an option before submitting." );
+                return;
+            }
             modalReturnFocus = ( event && event.currentTarget ) || null;
             this.modal = { kind: "submit-confirm", payload: { reason: "" }, busy: false };
         },
@@ -211,7 +281,11 @@ const configureCompetenceEvaluation = () => {
         submitEvaluation() {
             this.modal.busy = true;
             const reason = ( this.modal.payload && this.modal.payload.reason ) || "";
-            tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: this.evaluation, reason: reason } ).then( () => {
+            const payload = Object.assign( {}, this.evaluation );
+            if ( this.consent.enabled && this.consent.decision ) {
+                payload.researchConsent = this.consent.decision;
+            }
+            tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: payload, reason: reason } ).then( () => {
                 tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.submitted" ) );
                 this.closeModal();
                 tiApplication.openScreen( "dashboard" );
@@ -399,6 +473,17 @@ const configureCompetenceEvaluation = () => {
 
         formatDate( value, placeholder = "" ) {
             return tiToolbox.formatDate( value, tiApplication.getLabel( placeholder, "" ) );
+        },
+
+        // Deviation from the design brief: this component has no formatDateTime — only the date-only formatDate above
+        // (tiToolbox.formatDate truncates to toLocaleDateString()). The consent "Answered on" evidence line needs the
+        // time of day too, so this mirrors the existing formatDateTime already used for audit trails elsewhere in this
+        // file (configureEmployeeManagement), rather than introducing a differently-behaved helper under the same name.
+        formatDateTime( value ) {
+            if ( !value ) return "—";
+            const date = new Date( value );
+            if ( !Number.isFinite( date.getTime() ) ) return value;
+            return date.toLocaleString();
         },
 
         toggleGrade( competencyCode, role, gradeKey ) {
