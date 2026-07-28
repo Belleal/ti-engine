@@ -22,6 +22,7 @@ const cacheEntryKeyEvaluations = "ti:competence:data:evaluations";
 const cacheEntryKeyRoleFamilies = "ti:competence:data:role-families";
 const cacheEntryKeyResultsSnapshots = "ti:competence:data:results-snapshots"; // { [cycleID]: ResultsSnapshot }
 const cacheEntryKeyRoleGrants = "ti:competence:data:role-grants"; // { [employeeID]: { role: 3, grantedBy, grantedAt } }
+const cacheEntryKeyResearchConsent = "ti:competence:data:research-consent"; // { texts: { [textHash]: ResearchConsentText }, decisions: { [employeeID]: { [cycleID]: { [recordID]: ResearchConsentRecord } } } }
 
 const BASELINE_KEY = "baseline";
 
@@ -79,6 +80,7 @@ class DataManager {
         promises.push( cache.instance.setJSON( cacheEntryKeyRoleFamilies, {}, "$", 1 ) );
         promises.push( cache.instance.setJSON( cacheEntryKeyResultsSnapshots, {}, "$", 1 ) );
         promises.push( cache.instance.setJSON( cacheEntryKeyRoleGrants, {}, "$", 1 ) );
+        promises.push( cache.instance.setJSON( cacheEntryKeyResearchConsent, { texts: {}, decisions: {} }, "$", 1 ) );
 
         let preloadData = ( process.env.COMPETENCE_PRELOAD_DATA !== undefined ) ? tools.toBool( process.env.COMPETENCE_PRELOAD_DATA ) : false;
 
@@ -1152,6 +1154,203 @@ class DataManager {
         } );
     }
 
+    /* ------------------------------------------------------------------ */
+    /*                        Research-use consent                        */
+
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Appends a consent record and, when the referenced text is not yet in the registry, stores it under its hash.
+     *
+     * The chain is a map keyed by `recordID` (mirroring the audit log's `{ [entryID]: entry }` shape) rather than an
+     * array, so the append is a single RFC-7396 merge-patch with no read-modify-write — there is no lost-update race
+     * if the same person answers from two tabs. Records are never updated or removed; a withdrawal is a new record
+     * whose `supersedes` names the one it replaces.
+     *
+     * `previousDecision` is supplied by the caller rather than derived here: the "newest wins" rule belongs to
+     * research-consent.js, and duplicating it here would give it two homes.
+     *
+     * @method
+     * @param {string} employeeID - The subject.
+     * @param {string} cycleID
+     * @param {ResearchConsentRecord} record
+     * @param {ResearchConsentText} text - The verbatim text this record references.
+     * @param {ResearchConsentDecisionValue|null} previousDecision - The decision in force before this one, for the audit trail.
+     * @returns {Promise<ResearchConsentRecord>}
+     * @exception {TiException.E_APP_SERVICE_ERROR} When the cache is not operational.
+     * @public
+     */
+    saveConsentDecision( employeeID, cycleID, record, text, previousDecision ) {
+        return new Promise( ( resolve, reject ) => {
+            const targetID = String( employeeID || "" ).trim();
+            const cycle = String( cycleID || "" ).trim();
+            if ( !targetID || !cycle || !record || !record.recordID || !record.decision || !record.textHash ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID, cycleID } ) );
+            }
+            // DELIBERATE DIVERGENCE from the role-grants store, which resolves optimistically when the cache is down:
+            // a consent record that was never persisted cannot be proven, and silently reporting success for one is
+            // worse than a visible failure. Do not "fix" this for consistency.
+            if ( !cache.instance.isOperational ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.consent.storage-unavailable" }, exceptions.httpCode.C_500 ) );
+            }
+
+            this.fetchConsentText( record.textHash ).then( ( existingText ) => {
+                const update = { decisions: { [ targetID ]: { [ cycle ]: { [ record.recordID ]: record } } } };
+                // Only register the text the first time this hash is seen, so `firstSeenAt` keeps recording when the
+                // wording entered circulation rather than when it was last used.
+                if ( !existingText && text && text.body ) {
+                    update.texts = { [ record.textHash ]: text };
+                }
+                return cache.instance.editJSON( cacheEntryKeyResearchConsent, update );
+            } ).then( () => {
+                // The consent is committed. The audit append is a best-effort cross-check: a failed audit write must
+                // not reject an already-recorded consent, or the UI would report failure for a stored decision and a
+                // retry would append a duplicate record.
+                this.appendAuditEntry( {
+                    subjectType: "employee",
+                    subjectID: targetID,
+                    changedBy: String( record.decidedBy || targetID ),
+                    field: `researchConsent.${ cycle }`,
+                    oldValue: previousDecision || null,
+                    newValue: record.decision,
+                    // DEVIATION FROM THE BRIEF: pin the audit entry's timestamp to the decision's own `decidedAt`
+                    // instead of letting appendAuditEntry default it to `new Date().toISOString()` at write time.
+                    // getAuditEntriesForEmployee orders entries by `timestamp` (millisecond-precision wall clock);
+                    // two saves issued back-to-back in the same millisecond otherwise tie and the sort — while
+                    // stable — falls back to insertion order, which happens to be correct here but is not
+                    // guaranteed to be. `decidedAt` is the domain-authoritative moment of the decision (fully
+                    // caller-controlled, distinct in every test fixture and in practice), so using it makes the
+                    // ordering deterministic and keeps the audit entry and the consent record agreeing on exactly
+                    // when the decision happened — the two facts a regulator would cross-check against each other.
+                    timestamp: record.decidedAt
+                } ).catch( ( auditError ) => {
+                    logger.log( `Research consent for employee '${ targetID }' in cycle '${ cycle }' was recorded, but the audit append failed.`, logger.logSeverity.WARNING, auditError );
+                } );
+                resolve( _.cloneDeep( record ) );
+            } ).catch( reject );
+        } );
+    }
+
+    /**
+     * Every consent record this employee has given for the cycle, oldest first. Ordering is recovered by sorting on
+     * `decidedAt` because the store keys records by `recordID` (see saveConsentDecision).
+     *
+     * @method
+     * @param {string} employeeID
+     * @param {string} cycleID
+     * @returns {Promise<Array<ResearchConsentRecord>>} Empty when nothing was ever recorded.
+     * @public
+     */
+    fetchConsentChain( employeeID, cycleID ) {
+        return new Promise( ( resolve, reject ) => {
+            const targetID = String( employeeID || "" ).trim();
+            const cycle = String( cycleID || "" ).trim();
+            if ( !targetID || !cycle ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID, cycleID } ) );
+            }
+            if ( !cache.instance.isOperational ) {
+                return resolve( [] );
+            }
+            cache.instance.getJSON( cacheEntryKeyResearchConsent, [ "decisions", targetID, cycle ] ).then( ( result ) => {
+                resolve( this.#sortConsentChain( ( result instanceof Array ) ? result[ 0 ] : result ) );
+            } ).catch( reject );
+        } );
+    }
+
+    /**
+     * Every employee's consent chain for one cycle, keyed by employeeID. Employees who were never asked are absent
+     * from the result — the caller supplies the population it wants reported on.
+     *
+     * @method
+     * @param {string} cycleID
+     * @returns {Promise<Object.<string, Array<ResearchConsentRecord>>>}
+     * @public
+     */
+    fetchConsentDecisions( cycleID ) {
+        return new Promise( ( resolve, reject ) => {
+            const cycle = String( cycleID || "" ).trim();
+            if ( !cycle ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID } ) );
+            }
+            if ( !cache.instance.isOperational ) {
+                return resolve( {} );
+            }
+            cache.instance.getJSON( cacheEntryKeyResearchConsent, [ "decisions" ] ).then( ( result ) => {
+                const source = ( result instanceof Array ) ? result[ 0 ] : result;
+                const decisions = {};
+                if ( source && typeof source === "object" ) {
+                    for ( const [ employeeID, byCycle ] of Object.entries( source ) ) {
+                        if ( !byCycle || typeof byCycle !== "object" || !byCycle[ cycle ] ) {
+                            continue;
+                        }
+                        const chain = this.#sortConsentChain( byCycle[ cycle ] );
+                        if ( chain.length > 0 ) {
+                            decisions[ employeeID ] = chain;
+                        }
+                    }
+                }
+                resolve( decisions );
+            } ).catch( reject );
+        } );
+    }
+
+    /**
+     * Every cycle's consent chain for one employee, keyed by cycleID. Backs subject-access requests.
+     *
+     * @method
+     * @param {string} employeeID
+     * @returns {Promise<Object.<string, Array<ResearchConsentRecord>>>}
+     * @public
+     */
+    fetchConsentHistory( employeeID ) {
+        return new Promise( ( resolve, reject ) => {
+            const targetID = String( employeeID || "" ).trim();
+            if ( !targetID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID } ) );
+            }
+            if ( !cache.instance.isOperational ) {
+                return resolve( {} );
+            }
+            cache.instance.getJSON( cacheEntryKeyResearchConsent, [ "decisions", targetID ] ).then( ( result ) => {
+                const source = ( result instanceof Array ) ? result[ 0 ] : result;
+                const history = {};
+                if ( source && typeof source === "object" ) {
+                    for ( const [ cycleID, chain ] of Object.entries( source ) ) {
+                        const sorted = this.#sortConsentChain( chain );
+                        if ( sorted.length > 0 ) {
+                            history[ cycleID ] = sorted;
+                        }
+                    }
+                }
+                resolve( history );
+            } ).catch( reject );
+        } );
+    }
+
+    /**
+     * The verbatim consent statement behind a record's `textHash` — what the person actually saw.
+     *
+     * @method
+     * @param {string} textHash
+     * @returns {Promise<ResearchConsentText|null>}
+     * @public
+     */
+    fetchConsentText( textHash ) {
+        return new Promise( ( resolve, reject ) => {
+            const hash = String( textHash || "" ).trim();
+            if ( !hash ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { textHash } ) );
+            }
+            if ( !cache.instance.isOperational ) {
+                return resolve( null );
+            }
+            cache.instance.getJSON( cacheEntryKeyResearchConsent, [ "texts", hash ] ).then( ( result ) => {
+                const source = _.cloneDeep( ( result instanceof Array ) ? result[ 0 ] : result );
+                resolve( ( source && typeof source === "object" ) ? source : null );
+            } ).catch( reject );
+        } );
+    }
+
     /* Private interface */
 
     /**
@@ -1182,6 +1381,27 @@ class DataManager {
             default:
                 return "employees";
         }
+    }
+
+    /**
+     * Normalizes a stored consent chain (a `{ [recordID]: record }` map) into an array ordered oldest-first by
+     * `decidedAt`, tie-broken on `recordID` so the order is deterministic.
+     *
+     * @method
+     * @private
+     * @param {Object} stored
+     * @returns {Array<ResearchConsentRecord>}
+     */
+    #sortConsentChain( stored ) {
+        if ( !stored || typeof stored !== "object" ) {
+            return [];
+        }
+        const entries = _.cloneDeep( Object.values( stored ) ).filter( ( entry ) => !!entry && !!entry.decidedAt );
+        entries.sort( ( a, b ) => {
+            const byTime = String( a.decidedAt ).localeCompare( String( b.decidedAt ) );
+            return ( byTime !== 0 ) ? byTime : String( a.recordID || "" ).localeCompare( String( b.recordID || "" ) );
+        } );
+        return entries;
     }
 
     /**
