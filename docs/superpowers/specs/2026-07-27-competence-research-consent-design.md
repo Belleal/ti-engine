@@ -411,7 +411,11 @@ Node's built-in `node --test`, per package convention.
 - returns `null` (gate skipped) when `enabled` is false
 - rejects with `error.consent.invalid-decision` / 422 for an unrecognized value
 
-The ordering guarantee from §7.1 — consent settling before the evaluation persists — is **not** unit-tested. It lives in `#submitEvaluation`, a private method on the web application, and the package has no HTTP-level test harness; standing one up for this single assertion is not worth the fixture weight. It is instead enforced structurally (the consent promise is chained ahead of `saveEvaluation` in the one place all three submit branches converge) and confirmed in the browser verification step. If a web-application harness is ever introduced, this is the first case to add.
+The ordering guarantee from §7.1 — consent settling before the evaluation persists — **is** covered, in `test/competence-web-application.consent-gate.test.js`.
+
+This design originally recorded it as untestable, on the assumption that reaching `#submitEvaluation` required an HTTP harness. That was wrong, and the Task 5 review showed why: `processServiceRequest` is a **public** method on the app class, and only the exported `DataManager.instance` is frozen — `DataManager.prototype` is not, so `t.mock.method` can stub persistence without Redis or Express. The test drives a real submit through the public dispatcher and asserts three things: a missing decision rejects with `error.consent.decision-required`; a rejected `saveConsentDecision` means `saveEvaluation` is **never** called; and a retry with the same decision and text does not write twice. It was verified as a real guard by breaking the ordering and confirming the assertion fails.
+
+The idempotency rule was also extracted out of the private method into `researchConsent.isNoOpDecision( effective, decision, textHash )` so it is unit-tested directly — matching this module's stated principle that the rules carrying legal weight should be testable without Redis.
 
 **Extend `test/fragment-input-bindings.test.js`** — the new radios bind a real, dispatched event, guarding the exact 3.11.1 silent-drop bug class.
 
