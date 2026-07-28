@@ -6054,6 +6054,17 @@ const configureConsentRegister = () => {
 
         formatDate( value ) {
             return tiToolbox.formatDate( value, "" );
+        },
+
+        // Summary-header subtitle. Both are getters rather than markup expressions because Alpine's CSP build
+        // cannot evaluate a .find(...) or a nested ternary inside a template attribute.
+        get totalInScope() {
+            return this.counts.granted + this.counts.declined + this.counts.notAsked;
+        },
+
+        get selectedCycleName() {
+            const selected = this.cycles.find( ( cycle ) => cycle.cycleID === this.cycleID );
+            return selected ? selected.name : "";
         }
     };
 };

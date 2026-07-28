@@ -5217,6 +5217,44 @@
     --ti-grid-cols: minmax(220px, 2fr) 140px 170px 120px;
 }
 
+/* Consent summary counters, shown inside the panel head aside. Same pill shape as .competence-team-incycle, but
+   tone-differentiated per outcome so granted / declined / not-asked read apart at a glance. */
+.competence-consent-counts {
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.competence-consent-count {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: var(--r-pill);
+    white-space: nowrap;
+}
+
+.competence-consent-count strong {
+    font-size: var(--fs-sm);
+    font-weight: 700;
+}
+
+.competence-consent-count.granted {
+    color: var(--success);
+    background: var(--success-soft);
+}
+
+.competence-consent-count.declined {
+    color: var(--danger);
+    background: var(--danger-soft);
+}
+
+.competence-consent-count.not-asked {
+    color: var(--muted);
+    background: var(--muted-soft);
+}
+
 .competence-oversight-actions {
     display: inline-flex;
     gap: var(--s-2);

@@ -5616,6 +5616,14 @@
       "evidence-close": {
         "en": "Close",
         "bg": "Затваряне"
+      },
+      "summary-title": {
+        "en": "Consent summary",
+        "bg": "Обобщение на съгласията"
+      },
+      "summary-in-scope": {
+        "en": "employees in scope",
+        "bg": "служители в обхвата"
       }
     },
     "employees": {
@@ -6434,6 +6442,10 @@
       "process-guide": {
         "en": "Process Guide",
         "bg": "Ръководство за процеса"
+      },
+      "consent-register": {
+        "en": "Consents",
+        "bg": "Съгласия"
       }
     },
     "sidebar": {

@@ -16,14 +16,39 @@
         </label>
     </div>
 
-    <section class="ti-panel competence-panel-body">
-        <div class="ti-kv-grid">
-            <span class="ti-kv-label" x-text-label="interface.consent.count-granted">Granted</span>
-            <span class="ti-kv-value" x-text="counts.granted"></span>
-            <span class="ti-kv-label" x-text-label="interface.consent.count-declined">Declined</span>
-            <span class="ti-kv-value" x-text="counts.declined"></span>
-            <span class="ti-kv-label" x-text-label="interface.consent.count-not-asked">Not asked</span>
-            <span class="ti-kv-value" x-text="counts.notAsked"></span>
+    <section class="ti-panel">
+        <div class="ti-panel-head bar">
+            <div class="ti-panel-head-icon">
+                <span class="ti-icon check-clipboard md" aria-hidden="true"></span>
+            </div>
+            <div class="ti-panel-head-text">
+                <div class="ti-panel-title" x-text-label="interface.consent.summary-title">Consent summary</div>
+                <div class="ti-panel-subtitle">
+                    <span class="ti-icon users xs" aria-hidden="true"></span>
+                    <span x-text="totalInScope"></span>
+                    <span x-text-label="interface.consent.summary-in-scope">employees in scope</span>
+                    <template x-if="selectedCycleName">
+                        <span class="competence-org-sub-sep">·</span>
+                    </template>
+                    <template x-if="selectedCycleName">
+                        <span x-text="selectedCycleName"></span>
+                    </template>
+                </div>
+            </div>
+            <div class="ti-panel-head-aside competence-consent-counts">
+                <span class="competence-consent-count granted">
+                    <strong x-text="counts.granted"></strong>
+                    <span x-text-label="interface.consent.count-granted">Granted</span>
+                </span>
+                <span class="competence-consent-count declined">
+                    <strong x-text="counts.declined"></strong>
+                    <span x-text-label="interface.consent.count-declined">Declined</span>
+                </span>
+                <span class="competence-consent-count not-asked">
+                    <strong x-text="counts.notAsked"></strong>
+                    <span x-text-label="interface.consent.count-not-asked">Not asked</span>
+                </span>
+            </div>
         </div>
     </section>
 
