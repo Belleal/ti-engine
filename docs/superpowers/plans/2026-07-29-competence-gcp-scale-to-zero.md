@@ -102,7 +102,7 @@ Add to `packages/web-framework/test/web-server-env-overrides.test.js`, immediate
 node --test packages/web-framework/test/web-server-env-overrides.test.js
 ```
 
-Expected: FAIL — `tests 15`, `pass 11`, `fail 4`. All four new cases fail on `config.auth.admins` being unchanged or `undefined`. The **11** pre-existing cases must still pass.
+Expected: FAIL — `tests 15`, `pass 12`, `fail 3`. Three of the four new cases fail on `config.auth.admins` being unchanged or `undefined`. The fourth ("leaves a configured auth.admins untouched when TI_WEB_AUTH_ADMINS is absent") passes even at this stage — it asserts a no-op, and before Step 3 the override function does nothing at all, so an absent env var trivially leaves `auth.admins` untouched. The **11** pre-existing cases must still pass.
 
 - [ ] **Step 3: Implement the override**
 
@@ -433,6 +433,14 @@ RUNTIME_SA="${RUNTIME_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 DEPLOY_SA="${DEPLOY_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 AR_HOST="${REGION}-docker.pkg.dev"
 
+# Every mktemp'd file is appended here; a single EXIT trap removes them all, no
+# matter how many get created. (A second `trap ... EXIT` would replace rather
+# than stack with the first, silently dropping earlier files from cleanup —
+# this accumulator sidesteps that.) Safe when empty: bash >=4.4 expands
+# "${CLEANUP_FILES[@]}" to nothing under `set -u` rather than erroring.
+CLEANUP_FILES=()
+trap 'rm -f "${CLEANUP_FILES[@]}"' EXIT
+
 # Print-or-execute. Every mutating command goes through this. The dry-run form is
 # %q-quoted so multi-word arguments stay visibly distinct and the line is
 # copy-pasteable, rather than collapsing into an ambiguous flat string.
@@ -466,6 +474,8 @@ run gcloud services enable \
     storage.googleapis.com \
     iap.googleapis.com \
     iamcredentials.googleapis.com \
+    sts.googleapis.com \
+    billingbudgets.googleapis.com \
     --project "${PROJECT_ID}"
 
 step "2/7 Artifact Registry repository + cleanup policy"
@@ -479,7 +489,7 @@ fi
 
 # Keep the 3 most recent versions; delete anything else older than 30 days.
 CLEANUP_POLICY="$( mktemp )"
-trap 'rm -f "${CLEANUP_POLICY}"' EXIT
+CLEANUP_FILES+=("${CLEANUP_POLICY}")
 cat > "${CLEANUP_POLICY}" <<'JSON'
 [
   {
@@ -519,10 +529,10 @@ else
         --location "${REGION}" --uniform-bucket-level-access \
         --public-access-prevention --project "${PROJECT_ID}"
 fi
-run gcloud storage buckets update "gs://${BUCKET}" --versioning
+run gcloud storage buckets update "gs://${BUCKET}" --versioning --project "${PROJECT_ID}"
 
 LIFECYCLE="$( mktemp )"
-trap 'rm -f "${CLEANUP_POLICY}" "${LIFECYCLE}"' EXIT
+CLEANUP_FILES+=("${LIFECYCLE}")
 cat > "${LIFECYCLE}" <<'JSON'
 {
   "rule": [
@@ -533,7 +543,7 @@ cat > "${LIFECYCLE}" <<'JSON'
   ]
 }
 JSON
-run gcloud storage buckets update "gs://${BUCKET}" --lifecycle-file="${LIFECYCLE}"
+run gcloud storage buckets update "gs://${BUCKET}" --lifecycle-file="${LIFECYCLE}" --project "${PROJECT_ID}"
 
 step "5/7 Runtime service account + least-privilege bindings"
 if exists gcloud iam service-accounts describe "${RUNTIME_SA}" --project "${PROJECT_ID}"; then
@@ -545,7 +555,7 @@ fi
 
 # Bucket-scoped, not project-wide.
 run gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
-    --member="serviceAccount:${RUNTIME_SA}" --role="roles/storage.objectAdmin"
+    --member="serviceAccount:${RUNTIME_SA}" --role="roles/storage.objectAdmin" --project "${PROJECT_ID}"
 
 step "6/7 Secrets (values are generated here and never printed)"
 create_random_secret() {
@@ -601,11 +611,20 @@ if exists gcloud iam workload-identity-pools providers describe "${WIF_PROVIDER}
         --workload-identity-pool="${WIF_POOL}" --location=global --project "${PROJECT_ID}"; then
     echo "    WIF provider ${WIF_PROVIDER} already exists"
 else
+    # Scoped to the master branch and release tags only (spec §7.7) — a
+    # workflow run from any other branch or PR cannot mint a token that
+    # impersonates the deploy service account.
+    #
+    # NOTE: this provider is created here ONLY when absent, so re-running this
+    # script does NOT reconcile the attribute condition on an existing
+    # provider — editing GITHUB_REPO or the condition below has no effect once
+    # the provider exists. To change it later, use:
+    #   gcloud iam workload-identity-pools providers update-oidc
     run gcloud iam workload-identity-pools providers create-oidc "${WIF_PROVIDER}" \
         --workload-identity-pool="${WIF_POOL}" --location=global \
         --issuer-uri="https://token.actions.githubusercontent.com" \
         --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref" \
-        --attribute-condition="assertion.repository=='${GITHUB_REPO}'" \
+        --attribute-condition="assertion.repository=='${GITHUB_REPO}' && (assertion.ref=='refs/heads/master' || assertion.ref.startsWith('refs/tags/competence-v'))" \
         --project "${PROJECT_ID}"
 fi
 
@@ -637,8 +656,8 @@ else
             --threshold-rule=percent=0.9 \
             --threshold-rule=percent=1.0 \
             --filter-projects="projects/${PROJECT_NUMBER}" \
-            2>/dev/null || {
-                echo "    SKIPPED: budget creation failed (needs roles/billing.admin)."
+            || {
+                echo "    SKIPPED: the budget could not be created (see the gcloud error above)."
                 echo "    Create it by hand: Console → Billing → Budgets & alerts → Create budget (${BUDGET_AMOUNT}/month)."
             }
     fi
@@ -670,7 +689,7 @@ cat <<EOF
 
   5. Grant each tester roles/iap.httpsResourceAccessor on the service.
 
-  6. GitHub repository variables for CD (Task 6 of the plan):
+  6. GitHub repository variables for CD:
        GCP_PROJECT_ID=${PROJECT_ID}
        GCP_WIF_PROVIDER=projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${WIF_POOL}/providers/${WIF_PROVIDER}
        GCP_DEPLOY_SA=${DEPLOY_SA}
@@ -799,7 +818,7 @@ run() {
 
 step() { printf '\n==> %s\n' "$1"; }
 
-step "1/4 Rendering the manifest"
+step "1/6 Rendering the manifest"
 RENDERED="$( mktemp )"
 trap 'rm -f "${RENDERED}"' EXIT
 sed \
@@ -820,10 +839,28 @@ if grep -q '__[A-Z_]*__' "${RENDERED}"; then
 fi
 echo "    rendered ${MANIFEST} -> ${RENDERED} (image tag ${IMAGE_TAG})"
 
-step "2/4 Applying the service"
+step "2/6 Applying the service"
+# maxScale=1 bounds concurrent instances of ONE revision, not across
+# revisions: this replace creates a new revision while the old one may still
+# be draining, so for a short window two Redis processes can both hold
+# gs://.../dump.rdb. If the service is under active use when this runs, the
+# old instance's SIGTERM save can land after the new instance already loaded,
+# overwriting dump.rdb with a stale snapshot. Harmless when idle — the normal
+# case, since min-instances=0 means no instance is running to begin with — so
+# redeploy while nobody is testing.
 run gcloud run services replace "${RENDERED}" --region "${REGION}" --project "${PROJECT_ID}"
 
-step "3/4 Patching the URL-dependent settings"
+step "3/6 Asserting --no-allow-unauthenticated"
+# `services replace` above rewrites the whole service, dropping the
+# service-level IAP annotation with it — the access gate is down the instant
+# the replace lands. Assert this immediately, before touching env vars or
+# printing anything, so the service is never open, not even for the few
+# seconds the rest of this script takes to run. IAP itself is re-asserted
+# last, in step 6 below — see there for why it moved.
+run gcloud run services update "${SERVICE}" --region "${REGION}" \
+    --project "${PROJECT_ID}" --no-allow-unauthenticated
+
+step "4/6 Patching the URL-dependent settings"
 if [[ -n "${DRY_RUN}" ]]; then
     URL="https://competence-000000000000.${REGION}.run.app"
     printf '    [dry-run] gcloud run services describe %s --format=value(status.url)  -> %s\n' "${SERVICE}" "${URL}"
@@ -834,40 +871,58 @@ fi
 # NOTE: gcloud splits --update-env-vars on commas, so this works only because
 # TI_WEB_TRUSTED_ORIGINS carries exactly one origin. To trust several, use
 # gcloud's alternate-delimiter form: --update-env-vars ^:^KEY=a,b:OTHER=c
+#
+# --container app targets this multi-container service's app container:
+# container-scoped flags such as --update-env-vars generally need the target
+# container named. Not verified against a live gcloud — if a gcloud version
+# rejects --container on this subcommand, removing the flag is the fallback.
 run gcloud run services update "${SERVICE}" --region "${REGION}" --project "${PROJECT_ID}" \
+    --container app \
     --update-env-vars "TI_WEB_TRUSTED_ORIGINS=${URL},TI_GCLOUD_AUTH_CALLBACK_URL=${URL}/login/google-callback"
 
-step "4/4 Re-asserting the access gate"
-# `services replace` rewrites the whole service, so IAP and the
-# no-unauthenticated policy are re-asserted after every deploy. Both are
-# idempotent. If IAP has never been enabled, this may fail — enable it once in
-# the Console (see bootstrap.sh NEXT STEPS), then re-run.
-run gcloud run services update "${SERVICE}" --region "${REGION}" \
-    --project "${PROJECT_ID}" --no-allow-unauthenticated --iap
-
+step "5/6 Printing operator guidance"
 cat <<EOF
 
-==> Deployed: ${URL}
+  Deployed: ${URL}
 
   If this is a first deploy (or the URL changed), add this to the OAuth
   client's "Authorised redirect URIs" — sign-in fails until you do:
 
       ${URL}/login/google-callback
 
-  Verify the gate is on before sharing the URL:
+  Verify the gate is on before sharing the URL — two checks, because IAP is a
+  service-level annotation and the invoker allowlist is a separate IAM policy;
+  neither one shows the other:
 
-      gcloud run services describe ${SERVICE} --region ${REGION} \\
-        --project ${PROJECT_ID} --format='yaml(spec.template.metadata.annotations)'
+      gcloud run services describe ${SERVICE} --region ${REGION} \
+        --project ${PROJECT_ID} --format='yaml(metadata.annotations)'
+      # expect run.googleapis.com/iap-enabled: "true"
+
+      gcloud run services get-iam-policy ${SERVICE} --region ${REGION} \
+        --project ${PROJECT_ID}
+      # must NOT list allUsers
 
   To seed the demo dataset ONCE (then set it back to false, or every boot
   re-adds seeded records):
 
-      gcloud run services update ${SERVICE} --region ${REGION} \\
+      gcloud run services update ${SERVICE} --region ${REGION} \
         --project ${PROJECT_ID} --update-env-vars COMPETENCE_PRELOAD_DATA=true
       # open the app, confirm the data is there, then:
-      gcloud run services update ${SERVICE} --region ${REGION} \\
+      gcloud run services update ${SERVICE} --region ${REGION} \
         --project ${PROJECT_ID} --update-env-vars COMPETENCE_PRELOAD_DATA=false
 EOF
+
+step "6/6 Asserting IAP (expected to fail before it has ever been enabled)"
+# IAP can only be enabled for the first time in the Console (see bootstrap.sh
+# NEXT STEPS), and that can only be done once the service already exists — so
+# on a first deploy this command fails. That is expected: enable IAP once in
+# the Console, then re-run this command (or all of deploy.sh) and it will
+# succeed. This is why the guidance above is printed before this step rather
+# than after it — a first-run failure here must never suppress the redirect
+# URI the operator needs to register. Service-scoped, unlike --container app
+# in step 4.
+run gcloud run services update "${SERVICE}" --region "${REGION}" \
+    --project "${PROJECT_ID}" --iap
 ```
 
 - [ ] **Step 2: Make it executable and check the syntax**
@@ -894,12 +949,13 @@ DRY_RUN=1 GOOGLE_CLIENT_ID=test-client-id.apps.googleusercontent.com bash packag
 ```
 
 Expected: exit 0, and the output must show:
-- all four `==>` steps
+- all six `==>` steps
 - `rendered …/service.yaml -> /tmp/… (image tag edge)` with **no** unsubstituted-placeholder error — this proves Task 3's placeholder set and this script's `sed` list agree, which is the one thing that silently breaks the deploy
 - `[dry-run] gcloud run services replace …`
-- the patch step carrying both `TI_WEB_TRUSTED_ORIGINS=` and `TI_GCLOUD_AUTH_CALLBACK_URL=…/login/google-callback`
-- `[dry-run] gcloud run services update competence … --no-allow-unauthenticated --iap`
-- the `Deployed:` block printing the redirect URI to register
+- `[dry-run] gcloud run services update competence … --no-allow-unauthenticated` on its own (step 3), asserted before the URL patch
+- the patch step (step 4) carrying `--container app` and both `TI_WEB_TRUSTED_ORIGINS=` and `TI_GCLOUD_AUTH_CALLBACK_URL=…/login/google-callback`
+- the operator guidance block (step 5) printing the redirect URI and both halves of the gate-verification command — printed *before* the final step, so it still appears even when that step is expected to fail on a first run
+- `[dry-run] gcloud run services update competence … --iap` as the last step (step 6)
 
 - [ ] **Step 5: Prove the placeholder guard actually fires**
 
@@ -1283,5 +1339,5 @@ Use the `superpowers:finishing-a-development-branch` skill: 8 commits on `curren
 
 - **The riskiest assumption is Redis-on-gcsfuse** (spec §9.1). Nothing in Tasks 3–8 proves it. If Task 9 step 7 fails, the fix is not to patch the manifest repeatedly — it is the documented `e2-micro` fallback.
 - **Fractional per-container CPU** (`600m` + `400m` = 1 vCPU) may be rejected by Cloud Run in a multi-container service (spec §9.4). If `deploy.sh` step 2 fails with a resource error, set both containers to `cpu: "1"` (a 2-vCPU instance, still inside the free tier) and note the change in the INSTALL.md Method D properties list.
-- **IAP after `services replace`** is re-asserted by `deploy.sh` step 4 because a full replace rewrites the service. If that command fails on a service where IAP was never enabled, enable it once in the Console, then re-run — do not remove the re-assert step; without it a redeploy could silently drop the only access gate.
+- **IAP after `services replace`** is re-asserted by `deploy.sh` step 6 — deliberately the *last* step, not the first thing after the replace — because a full replace rewrites the service and drops the service-level IAP annotation with it. `--no-allow-unauthenticated` is re-asserted separately and immediately, in step 3, so the service is never open even during the window before step 6 runs. If step 6 fails on a service where IAP was never enabled, enable it once in the Console, then re-run — do not remove the re-assert step; without it a redeploy could silently drop the only access gate.
 - **Do not enable `COMPETENCE_TEST_USER_ENABLED` anywhere IAP is not in front.** It is the documented hard coupling in spec §9.6.

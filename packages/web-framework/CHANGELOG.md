@@ -4,7 +4,7 @@ This document will contain the list of changes made to the framework. The format
 
 ## Version 1.18.0
 
-Every web-server setting a container deployment needs could be supplied per environment except one: the admin allowlist. `auth.admins` was readable only from the config file baked into the image, so a containerized deployment had no way to name an administrator — leaving the admin configuration screens unreachable, or forcing a real identity to be committed to the repository. This closes that gap in the existing `TI_WEB_*` override set.
+Every web-server setting a container deployment needs could be supplied per environment except one: the admin allowlist. `auth.admins` was readable only from the config file baked into the image, so a containerized deployment had no way to name an administrator — leaving the admin configuration screens unreachable, or forcing a real identity to be committed to the repository. This closes that gap in the existing `TI_WEB_*` override set (CA-94).
 
 * feat(web-framework): add the `TI_WEB_AUTH_ADMINS` environment override — comma-separated, **replaces** `auth.admins` (matched against the session user's user ID, username or email), so the admin allowlist is configurable per environment like every other web setting; an explicitly empty value means no admins
 * docs(web-framework): document `TI_WEB_AUTH_METHODS` and `TI_WEB_TRUSTED_ORIGINS` in the README's environment-variable list, which had never listed them

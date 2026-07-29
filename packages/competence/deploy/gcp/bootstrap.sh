@@ -46,6 +46,14 @@ RUNTIME_SA="${RUNTIME_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 DEPLOY_SA="${DEPLOY_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 AR_HOST="${REGION}-docker.pkg.dev"
 
+# Every mktemp'd file is appended here; a single EXIT trap removes them all, no
+# matter how many get created. (A second `trap ... EXIT` would replace rather
+# than stack with the first, silently dropping earlier files from cleanup —
+# this accumulator sidesteps that.) Safe when empty: bash >=4.4 expands
+# "${CLEANUP_FILES[@]}" to nothing under `set -u` rather than erroring.
+CLEANUP_FILES=()
+trap 'rm -f "${CLEANUP_FILES[@]}"' EXIT
+
 # Print-or-execute. Every mutating command goes through this. The dry-run form is
 # %q-quoted so multi-word arguments stay visibly distinct and the line is
 # copy-pasteable, rather than collapsing into an ambiguous flat string.
@@ -79,6 +87,8 @@ run gcloud services enable \
     storage.googleapis.com \
     iap.googleapis.com \
     iamcredentials.googleapis.com \
+    sts.googleapis.com \
+    billingbudgets.googleapis.com \
     --project "${PROJECT_ID}"
 
 step "2/7 Artifact Registry repository + cleanup policy"
@@ -92,7 +102,7 @@ fi
 
 # Keep the 3 most recent versions; delete anything else older than 30 days.
 CLEANUP_POLICY="$( mktemp )"
-trap 'rm -f "${CLEANUP_POLICY}"' EXIT
+CLEANUP_FILES+=("${CLEANUP_POLICY}")
 cat > "${CLEANUP_POLICY}" <<'JSON'
 [
   {
@@ -132,10 +142,10 @@ else
         --location "${REGION}" --uniform-bucket-level-access \
         --public-access-prevention --project "${PROJECT_ID}"
 fi
-run gcloud storage buckets update "gs://${BUCKET}" --versioning
+run gcloud storage buckets update "gs://${BUCKET}" --versioning --project "${PROJECT_ID}"
 
 LIFECYCLE="$( mktemp )"
-trap 'rm -f "${CLEANUP_POLICY}" "${LIFECYCLE}"' EXIT
+CLEANUP_FILES+=("${LIFECYCLE}")
 cat > "${LIFECYCLE}" <<'JSON'
 {
   "rule": [
@@ -146,7 +156,7 @@ cat > "${LIFECYCLE}" <<'JSON'
   ]
 }
 JSON
-run gcloud storage buckets update "gs://${BUCKET}" --lifecycle-file="${LIFECYCLE}"
+run gcloud storage buckets update "gs://${BUCKET}" --lifecycle-file="${LIFECYCLE}" --project "${PROJECT_ID}"
 
 step "5/7 Runtime service account + least-privilege bindings"
 if exists gcloud iam service-accounts describe "${RUNTIME_SA}" --project "${PROJECT_ID}"; then
@@ -158,7 +168,7 @@ fi
 
 # Bucket-scoped, not project-wide.
 run gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
-    --member="serviceAccount:${RUNTIME_SA}" --role="roles/storage.objectAdmin"
+    --member="serviceAccount:${RUNTIME_SA}" --role="roles/storage.objectAdmin" --project "${PROJECT_ID}"
 
 step "6/7 Secrets (values are generated here and never printed)"
 create_random_secret() {
@@ -214,11 +224,20 @@ if exists gcloud iam workload-identity-pools providers describe "${WIF_PROVIDER}
         --workload-identity-pool="${WIF_POOL}" --location=global --project "${PROJECT_ID}"; then
     echo "    WIF provider ${WIF_PROVIDER} already exists"
 else
+    # Scoped to the master branch and release tags only (spec §7.7) — a
+    # workflow run from any other branch or PR cannot mint a token that
+    # impersonates the deploy service account.
+    #
+    # NOTE: this provider is created here ONLY when absent, so re-running this
+    # script does NOT reconcile the attribute condition on an existing
+    # provider — editing GITHUB_REPO or the condition below has no effect once
+    # the provider exists. To change it later, use:
+    #   gcloud iam workload-identity-pools providers update-oidc
     run gcloud iam workload-identity-pools providers create-oidc "${WIF_PROVIDER}" \
         --workload-identity-pool="${WIF_POOL}" --location=global \
         --issuer-uri="https://token.actions.githubusercontent.com" \
         --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref" \
-        --attribute-condition="assertion.repository=='${GITHUB_REPO}'" \
+        --attribute-condition="assertion.repository=='${GITHUB_REPO}' && (assertion.ref=='refs/heads/master' || assertion.ref.startsWith('refs/tags/competence-v'))" \
         --project "${PROJECT_ID}"
 fi
 
@@ -250,8 +269,8 @@ else
             --threshold-rule=percent=0.9 \
             --threshold-rule=percent=1.0 \
             --filter-projects="projects/${PROJECT_NUMBER}" \
-            2>/dev/null || {
-                echo "    SKIPPED: budget creation failed (needs roles/billing.admin)."
+            || {
+                echo "    SKIPPED: the budget could not be created (see the gcloud error above)."
                 echo "    Create it by hand: Console → Billing → Budgets & alerts → Create budget (${BUDGET_AMOUNT}/month)."
             }
     fi
@@ -283,7 +302,7 @@ cat <<EOF
 
   5. Grant each tester roles/iap.httpsResourceAccessor on the service.
 
-  6. GitHub repository variables for CD (Task 6 of the plan):
+  6. GitHub repository variables for CD:
        GCP_PROJECT_ID=${PROJECT_ID}
        GCP_WIF_PROVIDER=projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${WIF_POOL}/providers/${WIF_PROVIDER}
        GCP_DEPLOY_SA=${DEPLOY_SA}

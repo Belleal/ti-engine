@@ -21,6 +21,16 @@ GOOGLE_CLIENT_ID=<client-id> ADMIN_EMAILS=<your-email> ./deploy.sh
 `ADMIN_EMAILS` is optional — omit it and the admin configuration screens stay
 unreachable, because the allowlist is empty.
 
+`bootstrap.sh` is safe to re-run, but it does not *reconcile* resources that
+already exist — notably, the Workload Identity provider's attribute condition
+and any of the three secrets are left untouched once present, even if the
+inputs change.
+
+**Before merging to `master`:** the three GitHub repository variables
+`bootstrap.sh` prints at the end (`GCP_PROJECT_ID`, `GCP_WIF_PROVIDER`,
+`GCP_DEPLOY_SA`) must already be set, or the CD workflow's publish job fails —
+see the CD precondition in **[INSTALL.md](../../INSTALL.md), Method D**.
+
 Full walkthrough, cost model, and the recovery procedure for a locked-out
 sign-in: **[INSTALL.md](../../INSTALL.md), Method D**.
 

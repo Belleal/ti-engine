@@ -4,7 +4,7 @@ This document contains the list of changes made to the competence package. The f
 
 ## Version 3.16.0
 
-The app was containerized and continuously delivered, but there was still nowhere for anyone other than a developer to open it. This adds a hosted test environment on Google Cloud Run that costs approximately nothing when idle: a single instance holding the app plus a `redis:8-alpine` sidecar, with Redis snapshotting onto a mounted Cloud Storage bucket so cycles, evaluations and feedback survive scale-to-zero. Identity-Aware Proxy fronts it with an email allowlist, and the app itself is Google-sign-in only. Setup and deployment are idempotent, dry-runnable scripts rather than a wiki page.
+The app was containerized and continuously delivered, but there was still nowhere for anyone other than a developer to open it. This adds a hosted test environment on Google Cloud Run that costs approximately nothing when idle: a single instance holding the app plus a `redis:8-alpine` sidecar, with Redis snapshotting onto a mounted Cloud Storage bucket so cycles, evaluations and feedback survive scale-to-zero. Identity-Aware Proxy fronts it with an email allowlist, and the app itself is Google-sign-in only. Setup and deployment are idempotent, dry-runnable scripts rather than a wiki page (CA-94).
 
 * feat(competence): add `deploy/gcp/` — the Cloud Run service manifest plus idempotent `bootstrap.sh` and `deploy.sh`, both supporting `DRY_RUN=1` to preview every command without touching the cloud
 * build(competence): publish the container image to Artifact Registry alongside GHCR from a single build in the CD workflow, authenticated with Workload Identity Federation (no stored credentials); exclude `**/deploy` from the image build context

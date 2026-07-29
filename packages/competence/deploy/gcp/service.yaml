@@ -26,7 +26,10 @@ spec:
         run.googleapis.com/cpu-throttling: "true"
         # Applies to both containers; trims the cold start.
         run.googleapis.com/startup-cpu-boost: "true"
-        # The app must never boot against a Redis still loading its snapshot.
+        # Ensures Redis is listening before the app container starts — not that
+        # it has finished loading: Redis opens its socket before the RDB load
+        # from disk completes. The app's own Redis client retries indefinitely,
+        # which covers whatever load time remains.
         run.googleapis.com/container-dependencies: '{"app":["redis"]}'
     spec:
       serviceAccountName: __RUNTIME_SA__
@@ -105,6 +108,13 @@ spec:
           # NOTE: "30 1" is ONE argument containing two words, not two arguments.
           # noeviction is deliberate: this Redis is the system of record, not a
           # cache — a full instance must fail writes loudly, never discard data.
+          # maxmemory sits well below the 512Mi container limit on purpose: an
+          # RDB save forks (copy-on-write can approach a second copy of the
+          # dataset under write load), and gcsfuse stages the file locally
+          # before uploading it — both charged against the same container
+          # memory. A near-full Redis attempting a snapshot could be
+          # OOM-killed, which is a silent restart that loses everything since
+          # the last save — precisely what noeviction exists to prevent.
           args:
             - "redis-server"
             - "--dir"
@@ -116,7 +126,7 @@ spec:
             - "--appendonly"
             - "no"
             - "--maxmemory"
-            - "384mb"
+            - "192mb"
             - "--maxmemory-policy"
             - "noeviction"
           resources:

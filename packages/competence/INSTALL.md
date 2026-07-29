@@ -292,6 +292,15 @@ configuration screens stay unreachable.
 OAuth client (consent screen **Internal**), storing its client secret, enabling
 IAP in the Console, and granting testers `roles/iap.httpsResourceAccessor`.
 
+**Before merging this branch to `master`:** set the three GitHub repository
+variables `bootstrap.sh` prints at the end of its run — `GCP_PROJECT_ID`,
+`GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA` (repo Settings → Secrets and variables →
+Actions → Variables). The CD workflow's Google Cloud authentication step is
+unconditional, so without them the whole `publish` job fails on every push to
+`master` — including the GHCR push that works today. Setting the variables
+does not, by itself, update the running service: a new `master` build only
+reaches it once `deploy.sh` is re-run.
+
 **Properties and limits of this shape:**
 
 - **`max-instances=1` is mandatory, not tuning.** Two instances would mean two
@@ -301,6 +310,15 @@ IAP in the Console, and granting testers `roles/iap.httpsResourceAccessor`.
   lost if the instance dies without a clean shutdown, or if the save exceeds the
   ~10-second shutdown grace. Fine for synthetic test data; not a production
   durability guarantee.
+- **Redeploy while idle.** A deploy creates two revisions — the old one
+  draining while the new one starts — so redeploying while someone is actively
+  using the app can let the draining instance's shutdown save overwrite the
+  snapshot with a stale one. Redeploy when the service is idle.
+- **`/health` doesn't see Redis write-health.** It returns `200` whenever the
+  app is serving, regardless of whether the bucket mount is actually writable —
+  a broken mount shows up as write failures in the app, not as an unhealthy
+  instance. The Redis-aware signal is the `broker` field in the same JSON body
+  (§12).
 - **Cold start of roughly 5–15 seconds** for the first request after idle.
 - **The service URL is a configuration dependency.** It is baked into
   `TI_WEB_TRUSTED_ORIGINS` and the OAuth callback; recreating the service changes
@@ -315,6 +333,13 @@ IAP in the Console, and granting testers `roles/iap.httpsResourceAccessor`.
   ```bash
   gcloud run services update competence --region europe-west1 \
     --update-env-vars ^:^TI_WEB_AUTH_METHODS=local,openid-google
+  ```
+  **Revert as soon as sign-in works again** — hardcoded `admin`/`admin`
+  credentials should never stay enabled longer than it takes to fix the OAuth
+  client:
+  ```bash
+  gcloud run services update competence --region europe-west1 \
+    --update-env-vars TI_WEB_AUTH_METHODS=openid-google
   ```
 
 ---
