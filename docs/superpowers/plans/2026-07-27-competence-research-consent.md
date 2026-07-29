@@ -189,7 +189,9 @@ In `packages/competence/application/config-validators.js`, add this function imm
  * @public
  */
 function consentTextVersionBumped( value, context ) {
-    return context.getConfig( "research-consent" ).then( ( storedConfig ) => {
+    // getStoredConfig, NOT getConfig: getConfig resolves to the PENDING value for any document inside its own
+    // edit batch, so a self-comparison through it would silently compare the document against itself.
+    return context.getStoredConfig( "research-consent" ).then( ( storedConfig ) => {
         const issues = [];
         const stored = storedConfig || {};
         // Nothing stored yet (first seed): there is no prior text to contradict, so any version is acceptable.

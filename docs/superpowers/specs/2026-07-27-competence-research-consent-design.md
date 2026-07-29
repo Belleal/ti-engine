@@ -190,7 +190,7 @@ app.registerConfigDocument( "research-consent", {
 } );
 ```
 
-**`consentTextVersionBumped`** — a semantic validator that reads `context.getConfig("research-consent")` and raises a `ValidationIssue` if any locale's `body` differs from the live one while `version` is unchanged. This stops an admin silently editing text that people have already consented to. It does not prevent the edit; it forces the version to move with it, so the historical records stay unambiguous.
+**`consentTextVersionBumped`** — a semantic validator that reads `context.getStoredConfig("research-consent")` (the committed value — `getConfig` would return the pending edit itself, see §4 fact 6 and §6.4) and raises a `ValidationIssue` if any locale's `body` differs from the live one while `version` is unchanged, or if a locale is added or removed without a bump. This stops an admin silently editing text that people have already consented to. It does not prevent the edit; it forces the version to move with it, so the historical records stay unambiguous.
 
 **`enabled: false` is a fail-closed kill switch:** no panel, no submit gate, and the export chokepoint returns **empty** rather than everything.
 
