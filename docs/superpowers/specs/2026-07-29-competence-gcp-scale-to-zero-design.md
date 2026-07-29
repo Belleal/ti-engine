@@ -121,7 +121,7 @@ Multi-container services need a YAML manifest (`gcloud run services replace`), n
 | `run.googleapis.com/execution-environment` | `gen2` | required for Cloud Storage volume mounts |
 | `run.googleapis.com/cpu-throttling` | `true` | request-based billing (§7.11) |
 | `run.googleapis.com/startup-cpu-boost` | `true` | trims cold start; applies to both containers |
-| `run.googleapis.com/container-dependencies` | `{"app":["redis"]}` | the app never boots against a Redis still loading its snapshot |
+| `run.googleapis.com/container-dependencies` | `{"app":["redis"]}` | the app starts only once Redis is *listening*. Note this does not prove the snapshot finished loading — Redis opens its socket before `loadDataFromDisk()` completes — so the app's Redis client retries cover the remainder |
 | `containerConcurrency` | `80` | default; ample for a handful of testers |
 | `serviceAccountName` | the dedicated runtime SA (§7.7) | not the default compute SA |
 
