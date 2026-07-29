@@ -1,0 +1,142 @@
+# Cloud Run service manifest for the competence scale-to-zero test environment.
+# Rendered and applied by ./deploy.sh — do not apply this file directly, its
+# placeholder tokens must be substituted first. Never put a secret VALUE here.
+#
+# CAUTION: do not write a placeholder-shaped token (double underscore, capitals,
+# double underscore) anywhere in a comment. deploy.sh aborts on any such token
+# left after substitution, so a merely illustrative one would block every deploy.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: competence
+  labels:
+    cloud.googleapis.com/location: __REGION__
+spec:
+  template:
+    metadata:
+      annotations:
+        # Nothing runs — and nothing is billed — while nobody is testing.
+        autoscaling.knative.dev/minScale: "0"
+        # HARD REQUIREMENT, not a cost knob: two instances would mean two Redis
+        # processes writing the same dump.rdb object in the bucket.
+        autoscaling.knative.dev/maxScale: "1"
+        # gen2 is required for Cloud Storage volume mounts.
+        run.googleapis.com/execution-environment: gen2
+        # Request-based billing: CPU only while serving, plus start/stop.
+        run.googleapis.com/cpu-throttling: "true"
+        # Applies to both containers; trims the cold start.
+        run.googleapis.com/startup-cpu-boost: "true"
+        # The app must never boot against a Redis still loading its snapshot.
+        run.googleapis.com/container-dependencies: '{"app":["redis"]}'
+    spec:
+      serviceAccountName: __RUNTIME_SA__
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      containers:
+        - name: app
+          image: __REGION__-docker.pkg.dev/__PROJECT_ID__/competence/ti-engine-competence:__IMAGE_TAG__
+          ports:
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits:
+              cpu: 600m
+              memory: 1Gi
+          env:
+            - name: TI_MEMORY_CACHE_REDIS_HOST
+              value: "127.0.0.1"
+            - name: TI_MEMORY_CACHE_REDIS_PORT
+              value: "6379"
+            - name: TI_MEMORY_CACHE_REDIS_DB
+              value: "0"
+            - name: TI_WEB_HOST
+              value: "0.0.0.0"
+            - name: TI_WEB_PORT
+              value: "8080"
+            - name: TI_WEB_USE_TLS
+              value: "false"
+            - name: TI_WEB_AUTH_METHODS
+              value: "openid-google"
+            # Admin allowlist (web-framework >= 1.18.0). Empty means no admins,
+            # which leaves the admin config screens unreachable.
+            - name: TI_WEB_AUTH_ADMINS
+              value: "__ADMIN_EMAILS__"
+            - name: TI_AUDITING_LOG_MIN_LEVEL
+              value: "300"
+            - name: TI_GCLOUD_AUTH_CLIENT_ID
+              value: "__GOOGLE_CLIENT_ID__"
+            # TI_WEB_TRUSTED_ORIGINS and TI_GCLOUD_AUTH_CALLBACK_URL are patched in
+            # by deploy.sh once the run.app URL exists (spec §7.4, phase two).
+            # Dev-only identity picker. SAFE ONLY BEHIND IAP — see spec §9.6.
+            - name: COMPETENCE_TEST_USER_ENABLED
+              value: "true"
+            # Seed once, then flip to "false": the seed re-merges on every boot and
+            # would resurrect seed records a tester deleted.
+            - name: COMPETENCE_PRELOAD_DATA
+              value: "false"
+            - name: TI_WEB_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: competence-cookie-secret
+                  key: latest
+            - name: TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: competence-message-hash-key
+                  key: latest
+            - name: TI_GCLOUD_AUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: competence-google-client-secret
+                  key: latest
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 2
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 30
+        - name: redis
+          image: __REGION__-docker.pkg.dev/__PROJECT_ID__/competence/redis:8-alpine
+          # NOTE: "30 1" is ONE argument containing two words, not two arguments.
+          # noeviction is deliberate: this Redis is the system of record, not a
+          # cache — a full instance must fail writes loudly, never discard data.
+          args:
+            - "redis-server"
+            - "--dir"
+            - "/data"
+            - "--dbfilename"
+            - "dump.rdb"
+            - "--save"
+            - "30 1"
+            - "--appendonly"
+            - "no"
+            - "--maxmemory"
+            - "384mb"
+            - "--maxmemory-policy"
+            - "noeviction"
+          resources:
+            limits:
+              cpu: 400m
+              memory: 512Mi
+          volumeMounts:
+            - name: redis-state
+              mountPath: /data
+          startupProbe:
+            tcpSocket:
+              port: 6379
+            periodSeconds: 2
+            failureThreshold: 60
+      volumes:
+        - name: redis-state
+          csi:
+            driver: gcsfuse.run.googleapis.com
+            volumeAttributes:
+              bucketName: __BUCKET__
+  traffic:
+    - percent: 100
+      latestRevision: true

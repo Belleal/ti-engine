@@ -24,6 +24,7 @@ node_modules
 docs
 **/docs
 **/design
+**/deploy
 
 # Lockfile is gitignored and builds use `npm install`
 package-lock.json
