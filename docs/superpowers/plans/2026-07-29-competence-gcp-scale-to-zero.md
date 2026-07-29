@@ -618,23 +618,28 @@ if [[ -z "${DRY_RUN}" ]]; then
     BILLING_ACCOUNT="$( gcloud billing projects describe "${PROJECT_ID}" --format='value(billingAccountName)' 2>/dev/null || true )"
 fi
 if [[ -n "${DRY_RUN}" ]]; then
-    printf '    [dry-run] gcloud billing budgets create --billing-account=<account> --display-name=competence-test --budget-amount=%s --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0\n' "${BUDGET_AMOUNT}"
+    printf '    [dry-run] gcloud billing budgets create --billing-account=<account> --display-name=competence-test --budget-amount=%s --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0 --filter-projects=projects/%s\n' "${BUDGET_AMOUNT}" "${PROJECT_NUMBER}"
 elif [[ -z "${BILLING_ACCOUNT}" ]]; then
     echo "    SKIPPED: could not read the billing account (needs billing permissions)."
     echo "    Create it by hand: Console → Billing → Budgets & alerts → Create budget (${BUDGET_AMOUNT}/month)."
 else
-    gcloud billing budgets create \
-        --billing-account="${BILLING_ACCOUNT##*/}" \
-        --display-name="competence-test" \
-        --budget-amount="${BUDGET_AMOUNT}" \
-        --threshold-rule=percent=0.5 \
-        --threshold-rule=percent=0.9 \
-        --threshold-rule=percent=1.0 \
-        --filter-projects="projects/${PROJECT_NUMBER}" \
-        2>/dev/null || {
-            echo "    SKIPPED: budget creation failed (needs roles/billing.admin)."
-            echo "    Create it by hand: Console → Billing → Budgets & alerts → Create budget (${BUDGET_AMOUNT}/month)."
-        }
+    EXISTING_BUDGET="$( gcloud billing budgets list --billing-account="${BILLING_ACCOUNT##*/}" --filter="displayName=competence-test" --format='value(name)' 2>/dev/null || true )"
+    if [[ -n "${EXISTING_BUDGET}" ]]; then
+        echo "    budget competence-test already exists — left untouched"
+    else
+        gcloud billing budgets create \
+            --billing-account="${BILLING_ACCOUNT##*/}" \
+            --display-name="competence-test" \
+            --budget-amount="${BUDGET_AMOUNT}" \
+            --threshold-rule=percent=0.5 \
+            --threshold-rule=percent=0.9 \
+            --threshold-rule=percent=1.0 \
+            --filter-projects="projects/${PROJECT_NUMBER}" \
+            2>/dev/null || {
+                echo "    SKIPPED: budget creation failed (needs roles/billing.admin)."
+                echo "    Create it by hand: Console → Billing → Budgets & alerts → Create budget (${BUDGET_AMOUNT}/month)."
+            }
+    fi
 fi
 
 cat <<EOF
