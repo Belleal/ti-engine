@@ -1099,10 +1099,11 @@ IAP in the Console, and granting testers `roles/iap.httpsResourceAccessor`.
   put real employee data here.
 - **Locked out?** `local` auth is disabled, so a broken OAuth client locks
   everyone out of the app. Re-enable it temporarily — safe, because IAP still
-  fronts the service:
+  fronts the service (the `^:^` prefix changes the delimiter so the comma is part
+  of the value):
   ```bash
   gcloud run services update competence --region europe-west1 \
-    --update-env-vars TI_WEB_AUTH_METHODS=local,openid-google
+    --update-env-vars ^:^TI_WEB_AUTH_METHODS=local,openid-google
   ```
 ```
 
