@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Active — P0–P2, P3a, P4 complete — 128 tests green + an end-to-end smoke test serving real content files. Next: P3b/P5 (sections, editorial components, templates) and Track B (theme) |
+| **Status** | Active — P0–P2, P3a/P3b, P4 complete — 181 tests green; theme + self-hosted fonts landed in `Site/`. Next: P3c (document assembly + site script), then the fixture acceptance diff |
 | **Created** | 2026-07-24 |
-| **Last updated** | 2026-07-24 |
+| **Last updated** | 2026-07-30 |
 | **Owner** | Boris Kostadinov |
 | **Scope** | New package `@ti-engine/web-content` (reusable engine) + a small enabling change in `@ti-engine/web-framework` (route seams) + the private `anarandaris` `Site/` app (content, theme, wiring) |
 | **Relates to** | Realises the three `Site/docs/` specs — `build-spec.md`, `content-schemas.md`, `token-contract.md` — which remain the source of truth for *what*. This doc records *how it lands as a package* and **supersedes `build-spec.md` §2 on module placement** (framework column → `web-content`). |
@@ -24,7 +24,8 @@ How this design lands in code — update as each step is committed (branch `curr
 | **P2a** — `transliterate.js` + `taxonomy.js` graph (dep-free) | ✅ 20 tests | `b4aebe4` | 2026-07-24 |
 | **P2b** — `content/markdown.js` (markdown-it, `html:false`) + `content/sources.js` (front-matter/YAML reader, no directory scanning) | ✅ 22 tests | — | 2026-07-24 |
 | **P3a** — `render/html.js` (escaping + `raw()`) + `render/document.js` (head/JSON-LD/hreflang) | ✅ 19 tests | `9ad6bf1` | 2026-07-24 |
-| **P3b** — `render/sections.js` + editorial components + full-body/teaser document assembly | ☐ pending (with P5) | — | — |
+| **P3b** — `render/sections.js` (registry + mechanical dispatch) + all 15 editorial components | ✅ 53 tests | — | 2026-07-30 |
+| **P3c** — full document assembly (shell · topbar · footer · gate · 404) + the vanilla site script | ☐ next | — | — |
 | **P4** — `routes/content-routes.js` (catch-all resolver + alias 301 + cache policy) · `routes/feeds.js` (sitemap/rss/robots) · `routes/index.js` mount helpers | ✅ 23 tests + e2e smoke | — | 2026-07-24 |
 | **P5** — `render/editorial/*` components + page templates (showcase first) — Track B meets Track A here | ☐ pending | — | — |
 | **P6** — `capture/store.js` + `capture/admin.js` (behind `role:admin`) | ☐ pending | — | — |
@@ -80,10 +81,15 @@ packages/web-content/
   render/
     html.js           escaping tagged template + raw()
     document.js       full document: head, meta, JSON-LD, shell, cache headers
-    sections.js       section-type registry and dispatch
-    editorial/        prose · verse · characterCards · languageExample · audio ·
-                      agePanels · timeStrip · timeline · gallery · capture ·
-                      featured · postList · closing · hero  (generic, token-driven)
+    sections.js       section-type registry, shared chrome, mechanical type→class dispatch
+    editorial/        the 15 section bodies, grouped by kind (generic, token-driven):
+                        text.js       prose · verse · closing · languageExample
+                        media.js      hero · gallery · audio
+                        lore.js       characterCards · agePanels · timeStrip · timeline
+                        listing.js    featured · postList (+ post card, pagination)
+                        forms.js      capture (+ form status)
+                        dictionary.js dictionary
+                        index.js      aggregator bound into the registry
   routes/
     content-routes.js catch-all resolver, alias 301s, archives, pagination (?page=N)
     feeds.js          sitemap.xml, rss.xml, robots.txt
@@ -260,6 +266,14 @@ The `build-spec.md` §8 list — the failures that don't throw — become the fi
 >
 > **Bug caught by the smoke test, not by the unit tests:** YAML silently parses an unquoted ISO timestamp (`publishedAt: 2026-03-20T00:00:00Z`) into a **Date object**, which failed the schema's string constraint and *silently excluded* an otherwise valid post from the site -- precisely the class of failure this project exists to prevent. Fixed by normalising Dates to ISO strings at the source boundary (`normalizeDates`, recursive, covering nested structures), so authors never have to remember to quote a date. Three regression tests added. Worth remembering: unit tests built on hand-written fixtures cannot catch format-boundary bugs -- only real files can.
 
+
+> **P3b note (2026-07-30):** the section layer is in, built against the ratified `Site/docs/markup-contract.md`. `render/sections.js` holds the registry, the shared wrapper/chrome, and the **mechanical** type -> class derivation (`characterCards` -> `.section-character-cards`); the full 15-type map is pinned in a test, because a CSS rule written against a class the renderer never emits is a silent no-op. All 15 bodies live in `render/editorial/`, grouped by kind (text · media · lore · listing · forms · dictionary) rather than one file per component. 53 tests.
+>
+> Verified by rendering all 17 section variants and diffing every emitted class against `anarand.css`: **161 classes emitted, zero style attributes**, and the only undefined ones are the deliberate mechanical `section-*` hooks plus three genuine gaps (below).
+>
+> Decisions worth recording: (1) `featured` and `postList` resolve through `repository.resolveIds()` / `list()`, so a curated id list inherits visibility filtering — a gated item shows its `teaser` and **never** its `summary`, since a summary may be derived from the withheld body; (2) the capture form emits the framework's `csrfToken` hidden input, without which every submission 403s; (3) era/phase/accent modifiers are validated against allow-lists so a record value cannot inject a class name; (4) the contract's table said `.section-language` for `languageExample` while its stated rule derives `.section-language-example` — the table was aligned to the rule (neither was styled, so nothing broke).
+>
+> **Gap raised, not papered over:** `verse.attribution`, `audio.subtitle`, and `languageExample[].note` are declared in `content-schemas.md` §3 but have no rule in `anarand.css`. The renderer emits `.verse-attribution` / `.audio-subtitle` / `.language-note` so styling can land without touching markup, and the contract now records them under *Pending theme coverage* — either style them or drop the fields; leaving both is the state that rots.
 ---
 
 ## 11. Phased plan (maps to the implementation log)

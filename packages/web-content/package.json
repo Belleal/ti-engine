@@ -25,6 +25,8 @@
     "./sources": "./content/sources.js",
     "./html": "./render/html.js",
     "./render": "./render/document.js",
+    "./sections": "./render/sections.js",
+    "./editorial": "./render/editorial/index.js",
     "./routes": "./routes/index.js",
     "./feeds": "./routes/feeds.js"
   },
@@ -38,6 +40,8 @@
     "#sources": "./content/sources.js",
     "#html": "./render/html.js",
     "#document": "./render/document.js",
+    "#sections": "./render/sections.js",
+    "#editorial": "./render/editorial/index.js",
     "#routes": "./routes/index.js",
     "#feeds": "./routes/feeds.js",
     "#content-routes": "./routes/content-routes.js"

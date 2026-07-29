@@ -20,3 +20,6 @@ Initial scaffold of the content-publishing engine for the standalone author's si
 * feat(web-content): `routes/feeds.js` — `sitemap.xml`, `rss.xml`, `robots.txt`; sitemap membership resolved as an anonymous viewer, including gated records only when they expose a public teaser; RSS is public-only
 * feat(web-content): `routes/index.js` — `mountContentRoutes` / `defineContentUnprotectedRoutes`, built on the web-framework 1.17.0 route seams
 * fix(web-content): normalise YAML-parsed dates to ISO-8601 strings at the source boundary — an unquoted ISO timestamp parsed as a `Date` failed schema validation and silently excluded an otherwise valid record
+* feat(web-content): add `dictionary` to `SECTION_TYPES` (15 values) — a lexicon is a section on a `page`, not a fifth content type
+* feat(web-content): `render/sections.js` — the section registry, shared wrapper/chrome, and mechanical type→class derivation (`characterCards` → `.section-character-cards`), with the full type→class map pinned by test
+* feat(web-content): `render/editorial/*` — all 15 section bodies emitting the DOM specified by the site's markup contract, grouped by kind; `featured` and `postList` resolve through the repository so a curated id list inherits visibility filtering, showing a gated record's teaser and never a summary derived from its withheld body
