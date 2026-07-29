@@ -271,13 +271,58 @@ docker run -d --name competence \
 - Expose the app with a `Service` (port 3000) + `Ingress` that terminates TLS and forwards `X-Forwarded-*`.
 - Liveness/readiness probe: HTTP `GET /health` on port 3000 (returns `200` while serving); for readiness you can additionally gate on the JSON body's `broker` field being `connected` (see §12).
 
+### Method D — Google Cloud Run (scale-to-zero test environment)
+
+A hosted environment that costs approximately nothing when idle: one Cloud Run
+service holding the app plus a `redis:8-alpine` sidecar, with Redis snapshotting
+to a mounted Cloud Storage bucket so data survives scale-to-zero. Fronted by
+Identity-Aware Proxy with an email allowlist. Scripts live in
+[`deploy/gcp/`](deploy/gcp/README.md); run them in Cloud Shell:
+
+```bash
+cd packages/competence/deploy/gcp
+./bootstrap.sh                                  # one-time, idempotent
+GOOGLE_CLIENT_ID=<client-id> ADMIN_EMAILS=<your-email> ./deploy.sh
+```
+
+`ADMIN_EMAILS` populates `TI_WEB_AUTH_ADMINS`; omit it and the admin
+configuration screens stay unreachable.
+
+`bootstrap.sh` prints the manual steps it cannot script: creating the app's
+OAuth client (consent screen **Internal**), storing its client secret, enabling
+IAP in the Console, and granting testers `roles/iap.httpsResourceAccessor`.
+
+**Properties and limits of this shape:**
+
+- **`max-instances=1` is mandatory, not tuning.** Two instances would mean two
+  Redis processes writing the same snapshot object.
+- **Durability window.** Redis saves 30 seconds after a write and again on
+  `SIGTERM` when Cloud Run stops the instance. Writes after the last save are
+  lost if the instance dies without a clean shutdown, or if the save exceeds the
+  ~10-second shutdown grace. Fine for synthetic test data; not a production
+  durability guarantee.
+- **Cold start of roughly 5–15 seconds** for the first request after idle.
+- **The service URL is a configuration dependency.** It is baked into
+  `TI_WEB_TRUSTED_ORIGINS` and the OAuth callback; recreating the service changes
+  it and breaks sign-in until `deploy.sh` is re-run and the redirect URI updated.
+- **Test-user mode is on**, so any authenticated visitor can act as any
+  employee. IAP is the only thing preventing that. Do not disable it, and do not
+  put real employee data here.
+- **Locked out?** `local` auth is disabled, so a broken OAuth client locks
+  everyone out of the app. Re-enable it temporarily — safe, because IAP still
+  fronts the service:
+  ```bash
+  gcloud run services update competence --region europe-west1 \
+    --update-env-vars TI_WEB_AUTH_METHODS=local,openid-google
+  ```
+
 ---
 
 ## 11. First run & data
 
 - **Demo data:** `COMPETENCE_PRELOAD_DATA=true` seeds demo data (employees, a cycle, sample evaluations) by merging it into the collections on startup. It does **not** wipe existing data — collections are only initialized when empty, so data you create persists across restarts. While the flag stays `true` the seed is re-applied on every boot (re-adding seeded records), so set it back to `false` once seeded. Leave it `false` for a real install (you start empty).
 - **Organization structure:** the org chart is loaded from a configuration file baked into the image. Reflecting *your* organization requires supplying/adjusting that configuration (via the framework's admin configuration system or a custom build) — plan this with the application owner; it is not an environment variable.
-- **Admin access:** the admin configuration screens are gated to identities listed in the web-server config `auth.admins` (empty by default → no admins). Populating it (and other non-env config such as `auth.enabledMethods`) is a configuration step, not an env var — coordinate with the application owner.
+- **Admin access:** the admin configuration screens are gated to identities listed in the web-server config `auth.admins` (empty by default → no admins). Set it per environment with **`TI_WEB_AUTH_ADMINS`** (comma-separated; matched against the session user's user ID, username or email — so an OpenID deployment lists emails), or in the config file for a baked-in default. Other non-env config such as the organization structure remains a configuration step — coordinate with the application owner.
 - **First login:** browse to your HTTPS host. With the default `TI_WEB_AUTH_METHODS=openid-azure`, you sign in via Azure — so Azure must be configured (§7), otherwise the page shows "no sign-in method is configured." (A local `admin`/`admin` login only appears if you add `local` to `TI_WEB_AUTH_METHODS` — dev/break-glass only, see §1.)
 
 ---
