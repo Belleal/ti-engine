@@ -100,6 +100,14 @@ class InMemoryCache {
         // RedisJSON's JSON.SET rejects a write whose parent path does not already exist, so this helper does not
         // create intermediate structure the real store wouldn't).
         const parts = Array.isArray( path ) ? path : String( path ).split( "." );
+        for ( const part of parts ) {
+            if ( part === "*" ) {
+                return Promise.reject( new Error( `in-memory-cache setJSON: wildcard path segment is not supported for writes` ) );
+            }
+            if ( isUnsafePropertyName( part ) ) {
+                return Promise.reject( new Error( `in-memory-cache setJSON: unsafe path segment "${ part }"` ) );
+            }
+        }
         const leaf = parts[ parts.length - 1 ];
         if ( isUnsafePropertyName( leaf ) ) {
             return Promise.reject( new Error( `in-memory-cache setJSON: unsafe path leaf "${ leaf }"` ) );
