@@ -15,6 +15,7 @@ module.exports.configActiveCompetencySets = tools.deepFreeze( require( "#config-
 module.exports.configCompetencies = tools.deepFreeze( require( "#config-competencies" ) );
 /** @type {ConfigRelevancyArchetypes} */
 module.exports.configRelevancyArchetypes = tools.deepFreeze( require( "#config-relevancy-archetypes" ) );
+module.exports.configResearchConsent = tools.deepFreeze( require( "#config-research-consent" ) );
 module.exports.configOrganizationStructure = tools.deepFreeze( require( "#config-organization-structure" ) );
 /** @type {ConfigRoleFamilies} */
 module.exports.configRoleFamilies = tools.deepFreeze( require( "#config-role-families" ) );
@@ -245,7 +246,8 @@ const STORE_BACKED = {
     "active-competency-sets": "configActiveCompetencySets",
     "role-families": "configRoleFamilies",
     "role-family-competencies": "configRoleFamilyCompetencies",
-    "stage-levels": "configStageLevels"
+    "stage-levels": "configStageLevels",
+    "research-consent": "configResearchConsent"
 };
 const fileDefaults = {};
 Object.entries( STORE_BACKED ).forEach( ( [ configKey, property ] ) => {

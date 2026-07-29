@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/competence",
-  "version": "3.14.0",
+  "version": "3.15.0",
   "description": "The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
@@ -10,6 +10,7 @@
     "#config-application": "./bin/config/config.application.json",
     "#config-competencies": "./bin/config/config.competencies.json",
     "#config-relevancy-archetypes": "./bin/config/config.relevancy-archetypes.json",
+    "#config-research-consent": "./bin/config/config.research-consent.json",
     "#config-organization-structure": "./bin/config/config.organization-structure.json",
     "#config-role-families": "./bin/config/config.role-families.json",
     "#config-role-family-competencies": "./bin/config/config.role-family-competencies.json",
@@ -19,6 +20,7 @@
     "#data-evaluations": "./bin/data/seeders/evaluations.json",
     "#data-manager": "./application/data-manager.js",
     "#organization-manager": "./application/organization-manager.js",
+    "#research-consent": "./application/research-consent.js",
     "#results-analytics": "./application/results-analytics.js",
     "#role-resolver": "./application/role-resolver.js",
     "#task-resolver": "./application/task-resolver.js"

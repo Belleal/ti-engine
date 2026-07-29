@@ -1,0 +1,129 @@
+<div class="ti-page" x-data="competenceConsentRegister">
+
+    <div class="ti-page-head competence-insights-head">
+        <div>
+            <div class="ti-page-eyebrow" x-text-label="interface.insights.eyebrow">Insights</div>
+            <h1 class="ti-page-title" x-text-label="interface.consent.register-title">Research Consent Register</h1>
+            <p class="ti-page-subtitle" x-text-label="interface.consent.register-intro">Who was asked for research-use consent in this cycle, what they answered, and when.</p>
+        </div>
+        <label class="competence-insights-picker">
+            <span x-text-label="interface.insights.cycle.select-label">Cycle</span>
+            <select class="ti-select" x-bind:value="cycleID" x-bind:disabled="busy" @change="selectCycle($event.target.value)">
+                <template x-for="cycle in cycles" x-bind:key="cycle.cycleID">
+                    <option x-bind:value="cycle.cycleID" x-text="cycle.name"></option>
+                </template>
+            </select>
+        </label>
+    </div>
+
+    <section class="ti-panel">
+        <div class="ti-panel-head bar">
+            <div class="ti-panel-head-icon">
+                <span class="ti-icon check-clipboard md" aria-hidden="true"></span>
+            </div>
+            <div class="ti-panel-head-text">
+                <div class="ti-panel-title" x-text-label="interface.consent.summary-title">Consent summary</div>
+                <div class="ti-panel-subtitle">
+                    <span class="ti-icon users xs" aria-hidden="true"></span>
+                    <span x-text="totalInScope"></span>
+                    <span x-text-label="interface.consent.summary-in-scope">employees in scope</span>
+                    <template x-if="selectedCycleName">
+                        <span class="competence-org-sub-sep">·</span>
+                    </template>
+                    <template x-if="selectedCycleName">
+                        <span x-text="selectedCycleName"></span>
+                    </template>
+                </div>
+            </div>
+            <div class="ti-panel-head-aside competence-consent-counts">
+                <span class="competence-consent-count granted">
+                    <strong x-text="counts.granted"></strong>
+                    <span x-text-label="interface.consent.count-granted">Granted</span>
+                </span>
+                <span class="competence-consent-count declined">
+                    <strong x-text="counts.declined"></strong>
+                    <span x-text-label="interface.consent.count-declined">Declined</span>
+                </span>
+                <span class="competence-consent-count not-asked">
+                    <strong x-text="counts.notAsked"></strong>
+                    <span x-text-label="interface.consent.count-not-asked">Not asked</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- The summary head, the empty state and the register live in ONE panel: `.ti-panel-head.bar` already
+             supplies the sunken background and bottom border that attach it to the content below, so splitting them
+             into separate panels would show a seam where the two cards meet. Matches the team blocks in
+             frame-employees-list.html. -->
+
+        <!-- Empty state: no rows for the selected cycle (e.g. nobody in scope yet) -->
+        <template x-if="!busy && rows.length === 0">
+            <div class="ti-empty-state">
+                <div class="ti-empty-state-icon" aria-hidden="true"><span class="ti-icon check-clipboard xl"></span></div>
+                <div class="ti-empty-state-title" x-text-label="interface.consent.register-intro">Who was asked for research-use consent in this cycle, what they answered, and when.</div>
+            </div>
+        </template>
+
+        <!-- Register: one row per employee in the selected cycle, including those never asked (decision stays blank) -->
+        <template x-if="rows.length > 0">
+            <div class="ti-data-grid bordered competence-consent-register-grid">
+                <div class="ti-data-grid-head">
+                    <span x-text-label="interface.consent.column-employee">Employee</span>
+                    <span x-text-label="interface.consent.column-decision">Decision</span>
+                    <span x-text-label="interface.consent.column-decided">Date</span>
+                    <span x-text-label="interface.consent.column-version">Version</span>
+                </div>
+                <div class="ti-data-grid-rows">
+                    <template x-for="row in rows" x-bind:key="row.employeeID">
+                        <div class="ti-data-grid-row" role="button" tabindex="0" @click="openEvidence(row)"
+                             @keydown.enter="openEvidence(row)" @keydown.space.prevent="openEvidence(row)">
+                            <span x-text="row.employeeName"></span>
+                            <span x-text="row.decisionText"></span>
+                            <span x-text="formatDate(row.decidedAt)"></span>
+                            <span x-text="row.textVersion"></span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+    </section>
+
+    <!-- Evidence: the full consent chain for one employee in this cycle, including superseded records -->
+    <section class="ti-panel competence-consent-evidence" x-show="evidence">
+        <!-- `bar` head, not the default: .ti-panel carries no padding of its own, so the default head (which uses
+             padding-bottom + margin-bottom and assumes panel padding) would sit flush against the panel edges.
+             Titles are divs rather than h2/p so no default browser margin fights the head's own spacing. -->
+        <div class="ti-panel-head bar">
+            <div class="ti-panel-head-icon">
+                <span class="ti-icon eye md" aria-hidden="true"></span>
+            </div>
+            <div class="ti-panel-head-text">
+                <div class="ti-panel-title" x-text-label="interface.consent.evidence-title">Consent evidence</div>
+                <div class="ti-panel-subtitle">
+                    <span class="ti-icon user xs" aria-hidden="true"></span>
+                    <span x-text="evidence ? evidence.employeeName : ''"></span>
+                </div>
+            </div>
+            <div class="ti-panel-head-actions">
+                <button type="button" class="ti-btn ghost sm" @click="closeEvidence()" x-text-label="interface.consent.evidence-close">Close</button>
+            </div>
+        </div>
+        <div class="competence-consent-evidence-body">
+            <p class="ti-panel-body-intro" x-text-label="interface.consent.evidence-intro">Every record for this employee in this cycle, including superseded answers, with the exact statement shown at the time.</p>
+            <template x-for="entry in (evidence ? evidence.records : [])" x-bind:key="entry.recordID">
+                <div class="ti-form-section">
+                    <div class="ti-kv-grid">
+                        <span class="ti-kv-label" x-text-label="interface.consent.column-decision">Decision</span>
+                        <span class="ti-kv-value" x-text="entry.decision"></span>
+                        <span class="ti-kv-label" x-text-label="interface.consent.column-decided">Date</span>
+                        <span class="ti-kv-value" x-text="formatDate(entry.decidedAt)"></span>
+                        <span class="ti-kv-label" x-text-label="interface.consent.column-version">Version</span>
+                        <span class="ti-kv-value" x-text="entry.textVersion"></span>
+                    </div>
+                    <p class="ti-form-readonly" x-text="entry.body"></p>
+                    <p class="ti-form-hint" x-show="entry.isSuperseded" x-text-label="interface.consent.evidence-superseded">Superseded</p>
+                </div>
+            </template>
+        </div>
+    </section>
+</div>

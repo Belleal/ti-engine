@@ -75,4 +75,38 @@ describe( "Fragment input bindings", () => {
         assert.deepEqual( offenders, [], `Editable controls binding value to getFeedbackComment (use getFeedbackDraft — the raw value, empty when empty):\n  ${ offenders.join( "\n  " ) }` );
     } );
 
+    // Research-use consent radios (CA-93) — the same class of bug this suite exists for: a control that silently
+    // drops input because it binds a custom event nothing ever dispatches. `[^>]*` spans newlines here (attributes
+    // are wrapped across lines), so this matches each whole `<input ...>` tag regardless of how it's line-wrapped.
+    it( "the research-consent radios bind the native change event, not the dead ti-input event", () => {
+        const markup = fs.readFileSync( EVALUATION_FRAGMENT, "utf8" );
+        const radios = markup.match( /<input[^>]*name="research-consent[^"]*"[^>]*>/g ) || [];
+        assert.ok( radios.length >= 4, "expected the consent radios in both the form-entry panel and the Scores change panel" );
+        for ( const radio of radios ) {
+            assert.ok( /(?:@|x-on:)change\s*=/.test( radio ), `consent radio must bind a dispatched change event: ${ radio }` );
+            assert.ok( !DEAD_TI_INPUT_BINDING.test( radio ), `consent radio must not bind the never-dispatched ti-input event: ${ radio }` );
+        }
+    } );
+
+    // Consent capture-panel canEdit guard (CA-93). Every other editable control on this fragment (grade pill
+    // groups, feedback textareas, the sticky submit bar) additionally gates on `canEdit`, so a completed/lapsed
+    // evaluation degrades them to read-only. The consent radios must follow the same convention — otherwise an
+    // employee revisiting a submitted or deadline-lapsed evaluation sees a live, clickable consent control with no
+    // reachable Submit button, and clicking it gives the false impression something was recorded. The Scores
+    // read/change (withdrawal) panel must NOT pick up `canEdit`: it is deliberately available at any evaluation
+    // status, including Closed, because withdrawal cannot be conditional on workflow state.
+    it( "the capture panel's consent gate requires canEdit; the Scores withdrawal panel's does not", () => {
+        const markup = fs.readFileSync( EVALUATION_FRAGMENT, "utf8" );
+
+        const captureSection = markup.match( /<section[^>]*x-show="consent\.enabled && userRole === 1 && !isMyResults[^"]*"[^>]*>/ );
+        assert.ok( captureSection, "expected to find the consent capture panel's <section x-show=\"...\">" );
+        assert.ok( /canEdit/.test( captureSection[ 0 ] ),
+            `consent capture panel must also gate on canEdit, matching every other editable control on this fragment: ${ captureSection[ 0 ] }` );
+
+        const scoresSection = markup.match( /<section[^>]*x-show="consent\.enabled && isMyResults && isOwnResults[^"]*"[^>]*>/ );
+        assert.ok( scoresSection, "expected to find the Scores consent (withdrawal) panel's <section x-show=\"...\">" );
+        assert.ok( !/canEdit/.test( scoresSection[ 0 ] ),
+            `Scores withdrawal panel must stay independent of canEdit — withdrawal cannot be conditional on workflow state: ${ scoresSection[ 0 ] }` );
+    } );
+
 } );

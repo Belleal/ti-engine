@@ -115,6 +115,10 @@ describe( "Configuration files validate against their schemas", () => {
         expectValid( "https://ti-engine.dev/schemas/competence/role-family-competencies.json", path.join( CONFIG_DIR, "config.role-family-competencies.json" ) );
     } );
 
+    it( "config.research-consent.json validates against research-consent.schema.json", () => {
+        expectValid( "https://ti-engine.dev/schemas/competence/research-consent.json", path.join( CONFIG_DIR, "config.research-consent.json" ) );
+    } );
+
 } );
 
 describe( "Seed data files validate against their schemas", () => {

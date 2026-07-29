@@ -41,9 +41,23 @@ const instancePathToDataPath = ( instancePath ) => {
  */
 
 /**
- * @typedef {function(Object, Object): (ConfigValidationIssue[]|Promise<ConfigValidationIssue[]>)} SemanticValidator
- * A semantic validator receives the candidate value and a context object (e.g. `{ getConfig(key) }` to read other
- * current configs for cross-document checks) and returns the issues it found (empty array = OK). May be async.
+ * The cross-document read context passed to every {@link SemanticValidator}, built fresh for each
+ * {@link ConfigService#applyEdits} call.
+ *
+ * @typedef {Object} ValidatorContext
+ * @property {function(string): Promise<*>} getConfig Resolves the *pending* value of `key` when it is part of the
+ *      current edit batch, otherwise its current committed value. Lets a validator check a sibling document's
+ *      post-edit state — but calling this for the document being validated itself just returns the same incoming
+ *      value already passed as the validator's first argument, not its prior state.
+ * @property {function(string): Promise<*>} getStoredConfig Always resolves the current committed value of `key`,
+ *      even when `key` is the document currently under validation. Use this to compare a document against its own
+ *      previous state (e.g. detecting an edit that should have bumped a version marker).
+ */
+
+/**
+ * @typedef {function(Object, ValidatorContext): (ConfigValidationIssue[]|Promise<ConfigValidationIssue[]>)} SemanticValidator
+ * A semantic validator receives the candidate value and a {@link ValidatorContext} and returns the issues it found
+ * (empty array = OK). May be async.
  */
 
 /**
@@ -163,7 +177,7 @@ class ConfigRegistry {
      * @method
      * @param {string} configKey
      * @param {Object} value
-     * @param {Object} [context] Passed to each semantic validator (e.g. `{ getConfig(key) }`).
+     * @param {ValidatorContext} [context] Passed to each semantic validator.
      * @returns {Promise<{valid: boolean, errors: ConfigValidationIssue[]}>}
      * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} If the document is not registered.
      * @public

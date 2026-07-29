@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "version": "1.0",
+  "text": {
+    "en": {
+      "body": "We would like to use your evaluation information for analysis and research that helps us understand and improve how performance appraisal works across the organisation.\n\nIf you agree, your evaluation data is included in this analysis in anonymized form only. It is never linked back to you by name, and results are only ever reported for groups, never for individuals.\n\nThis is entirely your choice. Whichever answer you give, it has no effect on your appraisal, your scores, or anything else in this application. You can change your answer at any time from your Scores screen."
+    },
+    "bg": {
+      "body": "Бихме искали да използваме информацията от вашето оценяване за анализ и проучвания, които ни помагат да разберем и подобрим начина, по който работи оценяването на представянето в организацията.\n\nАко се съгласите, данните от вашето оценяване се включват в този анализ само в анонимизиран вид. Те никога не се свързват обратно с вашето име, а резултатите се отчитат само за групи, никога за отделни лица.\n\nИзборът е изцяло ваш. Какъвто и отговор да дадете, той няма никакво влияние върху вашето оценяване, вашите резултати или каквото и да е друго в това приложение. Можете да промените отговора си по всяко време от екрана с вашите оценки."
+    }
+  }
+}

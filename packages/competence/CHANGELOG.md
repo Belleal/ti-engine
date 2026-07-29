@@ -2,6 +2,17 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.15.0
+
+Research-use consent: employees are asked once per appraisal cycle whether their anonymized evaluation data may be used for analysis and research, and the answer is recorded as a provable electronic consent. In-app Insights and the per-cycle `ResultsSnapshot` are unchanged — they run on legitimate interest and continue to cover every employee; consent gates secondary research use only. See `docs/superpowers/specs/2026-07-27-competence-research-consent-design.md` (CA-93).
+
+* feat(competence): add the store-backed `research-consent` config document — the consent statement is admin-editable per locale (en/bg), with a `consentTextVersionBumped` semantic validator that forces the version to move whenever a body changes, and `enabled: false` as a fail-closed kill switch
+* feat(competence): add `application/research-consent.js`, a pure frozen-singleton owning every consent rule — SHA-256 statement hashing (`hashText`), record construction (self-attested only: `decidedBy` must equal the subject), newest-wins resolution (`resolveEffective`), the submit-gate check (`requireDecision`), an exact-match no-op guard (`isNoOpDecision`) that keeps a repeated answer from writing a duplicate record, the per-cycle register (`buildConsentRegister`), and the fail-closed export chokepoint (`filterConsentedEvaluations`)
+* feat(competence): add the append-only consent store as the tenth `data-manager` cache key `ti:competence:data:research-consent` — records keyed by `recordID` so an append is a single merge-patch with no lost-update race, a hash-keyed registry holding each verbatim statement once, and an employee-scoped audit entry per decision; unlike the role-grants store it rejects rather than resolving optimistically when the cache is unavailable, because an unprovable consent is worse than a visible failure
+* feat(competence): capture the decision at self-evaluation submit — mandatory when enabled, both answers proceeding identically, written before the evaluation persists and idempotent so a retried submit adds no duplicate; changeable at any time (including after an evaluation reaches `Closed`) from the Scores screen
+* feat(competence): add the Supervisor consent register with per-employee evidence showing the exact statement each person saw, including superseded answers; gated on `SUPERVISOR` rather than `admin`, since the rows are personal data rather than configuration
+* build(release): bump package version from `3.14.0` to `3.15.0`
+
 ## Version 3.14.0
 
 End-user documentation: a comprehensive role-based user guide, in the repo and in the app. The markdown chapters under `docs/user-guide/` are the single source; a build step generates the in-app Help screens, and a hand-authored Process Guide screen walks the eight appraisal steps. The sidebar Quick Links ("Process Guide", "Help") — disabled placeholders until now — are live. See `docs/superpowers/specs/2026-07-24-competence-user-guide-design.md` (CA-92).

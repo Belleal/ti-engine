@@ -5208,6 +5208,81 @@
     --ti-grid-cols: 40px minmax(180px, 2fr) 110px minmax(220px, 1.8fr) 260px;
 }
 
+/* =============================================================
+   Consent Register screen (frame-consent-register.html)
+   ============================================================= */
+/* Row columns: employee + decision + decided-on date + statement version. Inherited by
+   .ti-data-grid-head and .ti-data-grid-row via the .ti-data-grid wrapper. */
+.competence-consent-register-grid {
+    --ti-grid-cols: minmax(220px, 2fr) 140px 170px 120px;
+}
+
+/* Rows are keyboard-operable (role="button" + Enter/Space open the evidence panel, matching the @click) -- give them
+   a visible focus ring like any other interactive control. Same token as .ti-btn's focus treatment. */
+.competence-consent-register-grid .ti-data-grid-row:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+}
+
+/* Consent summary counters, shown inside the panel head aside. Same pill shape as .competence-team-incycle, but
+   tone-differentiated per outcome so granted / declined / not-asked read apart at a glance. */
+.competence-consent-counts {
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.competence-consent-count {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: var(--r-pill);
+    white-space: nowrap;
+}
+
+.competence-consent-count strong {
+    font-size: var(--fs-sm);
+    font-weight: 700;
+}
+
+.competence-consent-count.granted {
+    color: var(--success);
+    background: var(--success-soft);
+}
+
+.competence-consent-count.declined {
+    color: var(--danger);
+    background: var(--danger-soft);
+}
+
+.competence-consent-count.not-asked {
+    color: var(--muted);
+    background: var(--muted-soft);
+}
+
+/* The evidence panel is a sibling of the register panel and .ti-page has no gap of its own, so without this the two
+   cards butt together. Same per-screen spacing convention as .competence-team-block + .competence-team-block. */
+.competence-consent-evidence {
+    margin-top: var(--s-4);
+}
+
+/* .ti-panel has no padding, so the evidence body supplies its own — aligned with the `bar` head's horizontal
+   padding (--s-5) so the intro and the record blocks line up with the title above them. */
+.competence-consent-evidence-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    padding: var(--s-5);
+}
+
+/* .ti-panel-body-intro ships its own padding for use directly inside a padded panel; inside this wrapper that
+   would double up and misalign it against the head. */
+.competence-consent-evidence-body .ti-panel-body-intro {
+    padding: 0;
+}
+
 .competence-oversight-actions {
     display: inline-flex;
     gap: var(--s-2);
