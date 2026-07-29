@@ -55,6 +55,22 @@ describe( "consentTextVersionBumped validator", () => {
         assert.equal( issues[ 0 ].path, ".text.bg" );
     } );
 
+    it( "rejects adding a locale without bumping the version", async () => {
+        const stored = { enabled: true, version: "1.0", text: { en: { body: "A" } } };
+        const incoming = { enabled: true, version: "1.0", text: { en: { body: "A" }, bg: { body: "Б" } } };
+        const issues = await validators.consentTextVersionBumped( incoming, contextWith( stored ) );
+        assert.equal( issues.length, 1 );
+        assert.equal( issues[ 0 ].code, "consent-version" );
+        assert.equal( issues[ 0 ].path, ".text.bg" );
+    } );
+
+    it( "accepts adding a locale with a bumped version", async () => {
+        const stored = { enabled: true, version: "1.0", text: { en: { body: "A" } } };
+        const incoming = { enabled: true, version: "1.1", text: { en: { body: "A" }, bg: { body: "Б" } } };
+        const issues = await validators.consentTextVersionBumped( incoming, contextWith( stored ) );
+        assert.deepEqual( issues, [] );
+    } );
+
     it( "accepts any version when nothing is stored yet (first seed)", async () => {
         const incoming = { enabled: true, version: "1.0", text: { en: { body: "A" } } };
         const issues = await validators.consentTextVersionBumped( incoming, contextWith( null ) );

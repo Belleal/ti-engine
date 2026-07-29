@@ -91,6 +91,26 @@ describe( "DataManager research-consent store", () => {
         assert.equal( stored.firstSeenAt, "2026-08-01T10:00:00.000Z", "the second write must not re-stamp an existing text entry" );
     } );
 
+    it( "an NX write resolves the race between two concurrent first-sightings of the same brand-new hash — the earlier save wins", async () => {
+        // Unlike the test above (sequential saves, where the second simply finds the text already registered), this
+        // fires both saves without awaiting between them, so both reach the text-registration write before either
+        // completes -- the scenario the read-then-write TOCTOU used to lose. The fix (an NX write straight to the
+        // "texts" subpath, no read first) must let only the earlier call's firstSeenAt land.
+        const hash = "c".repeat( 64 );
+        const earlier = dataManager.instance.saveConsentDecision( "7", CYCLE,
+            record( { recordID: "race-a", textHash: hash } ),
+            text( { body: "Statement C", firstSeenAt: "2026-08-01T10:00:00.000Z" } ), null );
+        const later = dataManager.instance.saveConsentDecision( "8", CYCLE,
+            record( { recordID: "race-b", decidedBy: "8", textHash: hash } ),
+            text( { body: "Statement C", firstSeenAt: "2026-08-02T10:00:00.000Z" } ), null );
+        await Promise.all( [ earlier, later ] );
+
+        const stored = await dataManager.instance.fetchConsentText( hash );
+        assert.equal( stored.body, "Statement C" );
+        assert.equal( stored.firstSeenAt, "2026-08-01T10:00:00.000Z",
+            "the earlier save's firstSeenAt must win the race, not be overwritten by the later save" );
+    } );
+
     it( "stores distinct texts under distinct hashes", async () => {
         await dataManager.instance.saveConsentDecision( "7", CYCLE, record(), text(), null );
         await dataManager.instance.saveConsentDecision( "7", CYCLE, record( { recordID: "r2", textHash: HASH_B, textVersion: "1.1", decidedAt: "2026-08-05T10:00:00.000Z" } ), text( { version: "1.1", body: "Statement B" } ), "granted" );

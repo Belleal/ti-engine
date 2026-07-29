@@ -1160,7 +1160,9 @@ class DataManager {
     /* ------------------------------------------------------------------ */
 
     /**
-     * Appends a consent record and, when the referenced text is not yet in the registry, stores it under its hash.
+     * Appends a consent record and registers the referenced text under its hash via an NX (set-if-absent) write, so
+     * only the first sighting of a given hash ever lands — later saves referencing the same hash leave the
+     * previously registered `firstSeenAt` untouched, including when two first-sightings race each other.
      *
      * The chain is a map keyed by `recordID` (mirroring the audit log's `{ [entryID]: entry }` shape) rather than an
      * array, so the append is a single RFC-7396 merge-patch with no read-modify-write — there is no lost-update race
@@ -1184,7 +1186,7 @@ class DataManager {
         return new Promise( ( resolve, reject ) => {
             const targetID = String( employeeID || "" ).trim();
             const cycle = String( cycleID || "" ).trim();
-            if ( !targetID || !cycle || !record || !record.recordID || !record.decision || !record.textHash ) {
+            if ( !targetID || !cycle || !record || !record.recordID || !record.decision || !record.textHash || !record.decidedAt ) {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID, cycleID } ) );
             }
             // DELIBERATE DIVERGENCE from the role-grants store, which resolves optimistically when the cache is down:
@@ -1194,13 +1196,19 @@ class DataManager {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.consent.storage-unavailable" }, exceptions.httpCode.C_500 ) );
             }
 
-            this.fetchConsentText( record.textHash ).then( ( existingText ) => {
+            // Register the text under its hash with an NX (set-if-absent) write at the "texts" subpath, rather than
+            // reading `fetchConsentText` first and conditionally including it in the edit below: two concurrent
+            // first-sightings of the same new hash could both see "not yet registered" and both write, the later one
+            // overwriting the earlier one's `firstSeenAt`. NX at a subpath resolves without error when the path
+            // already exists (a skip, not a failure — RedisJSON `JSON.SET ... NX`), so this is safe to fire
+            // unconditionally whenever a text was supplied; the parent `texts` object always exists (seeded in
+            // `initialize()`), so there is nothing to create beyond the leaf itself.
+            const registerText = ( text && text.body )
+                ? cache.instance.setJSON( cacheEntryKeyResearchConsent, text, [ "texts", record.textHash ], 1 )
+                : Promise.resolve();
+
+            registerText.then( () => {
                 const update = { decisions: { [ targetID ]: { [ cycle ]: { [ record.recordID ]: record } } } };
-                // Only register the text the first time this hash is seen, so `firstSeenAt` keeps recording when the
-                // wording entered circulation rather than when it was last used.
-                if ( !existingText && text && text.body ) {
-                    update.texts = { [ record.textHash ]: text };
-                }
                 return cache.instance.editJSON( cacheEntryKeyResearchConsent, update );
             } ).then( () => {
                 // The consent is committed. The audit append is a best-effort cross-check: a failed audit write must

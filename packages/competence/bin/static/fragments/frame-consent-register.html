@@ -8,7 +8,7 @@
         </div>
         <label class="competence-insights-picker">
             <span x-text-label="interface.insights.cycle.select-label">Cycle</span>
-            <select class="ti-select" x-model="cycleID" x-bind:disabled="busy" @change="loadRegister()">
+            <select class="ti-select" x-bind:value="cycleID" x-bind:disabled="busy" @change="selectCycle($event.target.value)">
                 <template x-for="cycle in cycles" x-bind:key="cycle.cycleID">
                     <option x-bind:value="cycle.cycleID" x-text="cycle.name"></option>
                 </template>
@@ -75,7 +75,8 @@
                 </div>
                 <div class="ti-data-grid-rows">
                     <template x-for="row in rows" x-bind:key="row.employeeID">
-                        <div class="ti-data-grid-row" @click="openEvidence(row)">
+                        <div class="ti-data-grid-row" role="button" tabindex="0" @click="openEvidence(row)"
+                             @keydown.enter="openEvidence(row)" @keydown.space.prevent="openEvidence(row)">
                             <span x-text="row.employeeName"></span>
                             <span x-text="row.decisionText"></span>
                             <span x-text="formatDate(row.decidedAt)"></span>

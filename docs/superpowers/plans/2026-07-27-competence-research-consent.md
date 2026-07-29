@@ -103,11 +103,13 @@ const assert = require( "node:assert/strict" );
 const validators = require( "../application/config-validators" );
 
 /**
- * Builds a ValidatorContext whose getConfig returns the supplied stored document for the "research-consent" key.
+ * Builds a ValidatorContext whose getStoredConfig returns the supplied stored document for the "research-consent"
+ * key. The validator reads getStoredConfig rather than getConfig — research-consent is always part of its own edit
+ * batch, so getConfig would resolve to the same pending value being validated (comparing an edit against itself).
  */
 function contextWith( stored ) {
     return {
-        getConfig: ( key ) => Promise.resolve( key === "research-consent" ? stored : null )
+        getStoredConfig: ( key ) => Promise.resolve( key === "research-consent" ? stored : null )
     };
 }
 

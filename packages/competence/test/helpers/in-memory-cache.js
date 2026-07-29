@@ -12,6 +12,11 @@
  * paths used in production: `$` (root), a single key (e.g. `"1"` or `"2026-H2"`), and a path array
  * (`[cycleID, managerID]`). Wildcard paths like `*.uuid` are NOT supported because the Phase 2 suites do not need
  * them — extend this helper if a later phase introduces a new access pattern.
+ *
+ * `setJSON` honors `path` and `overrideMode` (NX/XX), matching RedisJSON `JSON.SET` semantics at a subpath: NX
+ * writes only when the target path is currently absent (including the root-path case), XX only when it is already
+ * present. This is what lets `DataManager.saveConsentDecision`'s NX text-registration write (CA-93) behave the same
+ * way here as it does against real Redis.
  */
 
 const cache = require( "@ti-engine/core/cache" );
@@ -69,8 +74,33 @@ class InMemoryCache {
         return true;
     }
 
-    setJSON( key, value /*, path, expiry */ ) {
-        this.storage[ key ] = deepClone( value );
+    setJSON( key, value, path = "$", overrideMode = 0 ) {
+        const rootExists = Object.prototype.hasOwnProperty.call( this.storage, key );
+        // Root write ($): NX only fires if the key itself is absent, XX only if it is already present -- mirrors
+        // RedisJSON JSON.SET's NX/XX semantics at the root path.
+        if ( path === undefined || path === null || path === "$" ) {
+            if ( ( overrideMode === 1 && rootExists ) || ( overrideMode === 2 && !rootExists ) ) {
+                return Promise.resolve();
+            }
+            this.storage[ key ] = deepClone( value );
+            return Promise.resolve();
+        }
+
+        // Subpath write: resolve the parent via the same traversal resolvePath() uses (no auto-vivification --
+        // RedisJSON's JSON.SET rejects a write whose parent path does not already exist, so this helper does not
+        // create intermediate structure the real store wouldn't).
+        const parts = Array.isArray( path ) ? path : String( path ).split( "." );
+        const leaf = parts[ parts.length - 1 ];
+        const parentPath = parts.slice( 0, -1 );
+        const parent = parentPath.length ? resolvePath( this.storage[ key ], parentPath ) : this.storage[ key ];
+        if ( !parent || typeof parent !== "object" ) {
+            return Promise.reject( new Error( `in-memory-cache setJSON: parent path does not exist for key "${ key }" (path ${ JSON.stringify( path ) })` ) );
+        }
+        const leafExists = Object.prototype.hasOwnProperty.call( parent, leaf );
+        if ( ( overrideMode === 1 && leafExists ) || ( overrideMode === 2 && !leafExists ) ) {
+            return Promise.resolve();
+        }
+        parent[ leaf ] = deepClone( value );
         return Promise.resolve();
     }
 

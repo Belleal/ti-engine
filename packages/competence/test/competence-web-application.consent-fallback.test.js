@@ -100,6 +100,7 @@ describe( "CompetenceWebApplication — research-consent closed-cycle fallback (
         assert.equal( loaded.cycleID, NEWER_CLOSED_CYCLE_ID, "the globally newest record lives in the newer closed cycle, not the older one" );
         assert.equal( loaded.decision, researchConsent.decisionDeclined );
         assert.equal( loaded.decidedAt, newerRecord.decidedAt );
+        assert.equal( fetchChainMock.mock.calls[ 0 ].arguments[ 1 ], NEWER_CLOSED_CYCLE_ID );
 
         const saveMock = t.mock.method( DataManagerPrototype, "saveConsentDecision", ( employeeID, cycleID, savedRecord, text, previousDecision ) => {
             assert.equal( cycleID, NEWER_CLOSED_CYCLE_ID );

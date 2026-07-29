@@ -451,9 +451,20 @@ function consentTextVersionBumped( value, context ) {
         for ( const [ locale, entry ] of Object.entries( incomingText ) ) {
             const incomingBody = ( entry && entry.body ) || "";
             const storedEntry = storedText[ locale ];
-            const storedBody = ( storedEntry && storedEntry.body ) || "";
-            // A brand-new locale adds text that nobody has consented against yet, so it needs no bump.
-            if ( storedEntry && incomingBody !== storedBody ) {
+            // A brand-new locale changes the consent-text set just as much as an edited body would -- the
+            // one-version-one-wording-set contract does not distinguish "added" from "changed". Without this, a
+            // locale could be added under an existing version with no bump, leaving that version's wording set
+            // ambiguous between what a consent record from before the addition saw and what it means now.
+            if ( !storedEntry ) {
+                issues.push( {
+                    path: `.text.${ locale }`,
+                    message: `locale '${ locale }' was added but 'version' is still '${ incomingVersion }' — bump the version so the wording set for this version stays fixed`,
+                    code: "consent-version"
+                } );
+                continue;
+            }
+            const storedBody = storedEntry.body || "";
+            if ( incomingBody !== storedBody ) {
                 issues.push( {
                     path: `.text.${ locale }.body`,
                     message: `the consent text changed but 'version' is still '${ incomingVersion }' — bump the version so existing consent records stay unambiguous`,

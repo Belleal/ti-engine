@@ -160,6 +160,18 @@ describe( "ResearchConsent.filterConsentedEvaluations", () => {
         assert.deepEqual( result.included, [] );
     } );
 
+    it( "returns nothing when options has no cycleID — fail-closed (every real evaluation has a cycleID, so none matches undefined)", () => {
+        const chains = {
+            "1": [ record( { decision: "granted" } ) ],
+            "2": [ record( { recordID: "r2", decision: "granted", decidedBy: "2" } ) ],
+            "3": [ record( { recordID: "r3", decision: "granted", decidedBy: "3" } ) ]
+        };
+        const result = researchConsent.filterConsentedEvaluations( evaluations, chains, { enabled: true } );
+        assert.deepEqual( result.included, [] );
+        assert.equal( result.consentedCount, 0 );
+        assert.equal( result.excludedCount, 0, "no evaluation matches a missing cycleID, so none are even candidates" );
+    } );
+
     it( "returns nothing when enabled is the string 'true' rather than boolean true — fail-closed", () => {
         const chains = { "1": [ record( { decision: "granted" } ) ] };
         const result = researchConsent.filterConsentedEvaluations( evaluations, chains, { cycleID: "2026-H2", enabled: "true" } );

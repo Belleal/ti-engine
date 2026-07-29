@@ -6011,6 +6011,13 @@ const configureConsentRegister = () => {
             } );
         },
 
+        // CSP-safe idiom for a bound <select>: x-model does not propagate under Alpine's CSP build, so the fragment
+        // binds x-bind:value + @change and calls this instead (mirrors setArchetype in frame-archetype-assignment.html).
+        selectCycle( cycleID ) {
+            this.cycleID = cycleID;
+            this.loadRegister();
+        },
+
         loadRegister() {
             if ( !this.cycleID ) { return; }
             this.busy = true;

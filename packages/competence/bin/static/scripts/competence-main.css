@@ -5217,6 +5217,13 @@
     --ti-grid-cols: minmax(220px, 2fr) 140px 170px 120px;
 }
 
+/* Rows are keyboard-operable (role="button" + Enter/Space open the evidence panel, matching the @click) -- give them
+   a visible focus ring like any other interactive control. Same token as .ti-btn's focus treatment. */
+.competence-consent-register-grid .ti-data-grid-row:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+}
+
 /* Consent summary counters, shown inside the panel head aside. Same pill shape as .competence-team-incycle, but
    tone-differentiated per outcome so granted / declined / not-asked read apart at a glance. */
 .competence-consent-counts {
