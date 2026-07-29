@@ -2,6 +2,14 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.18.0
+
+Every web-server setting a container deployment needs could be supplied per environment except one: the admin allowlist. `auth.admins` was readable only from the config file baked into the image, so a containerized deployment had no way to name an administrator — leaving the admin configuration screens unreachable, or forcing a real identity to be committed to the repository. This closes that gap in the existing `TI_WEB_*` override set.
+
+* feat(web-framework): add the `TI_WEB_AUTH_ADMINS` environment override — comma-separated, **replaces** `auth.admins` (matched against the session user's user ID, username or email), so the admin allowlist is configurable per environment like every other web setting; an explicitly empty value means no admins
+* docs(web-framework): document `TI_WEB_AUTH_METHODS` and `TI_WEB_TRUSTED_ORIGINS` in the README's environment-variable list, which had never listed them
+* build(release): bump package version from `1.17.0` to `1.18.0`
+
 ## Version 1.17.0
 
 A validator that needs to compare its own config document against its previously committed state had no way to do so: `applyEdits`'s cross-document context resolves `getConfig` to the *pending* value for any document inside the current edit batch — by design, so a validator can check a sibling document's post-edit state — but a document is always part of its own edit batch, so calling `getConfig` on itself just hands back the same incoming value already passed as the validator's argument, never its prior state. This silently defeated the competence `research-consent` config's version-bump guard (CA-93).

@@ -2,6 +2,15 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.16.0
+
+The app was containerized and continuously delivered, but there was still nowhere for anyone other than a developer to open it. This adds a hosted test environment on Google Cloud Run that costs approximately nothing when idle: a single instance holding the app plus a `redis:8-alpine` sidecar, with Redis snapshotting onto a mounted Cloud Storage bucket so cycles, evaluations and feedback survive scale-to-zero. Identity-Aware Proxy fronts it with an email allowlist, and the app itself is Google-sign-in only. Setup and deployment are idempotent, dry-runnable scripts rather than a wiki page.
+
+* feat(competence): add `deploy/gcp/` — the Cloud Run service manifest plus idempotent `bootstrap.sh` and `deploy.sh`, both supporting `DRY_RUN=1` to preview every command without touching the cloud
+* build(competence): publish the container image to Artifact Registry alongside GHCR from a single build in the CD workflow, authenticated with Workload Identity Federation (no stored credentials); exclude `**/deploy` from the image build context
+* docs(competence): add INSTALL.md "Method D — Google Cloud Run (scale-to-zero test environment)" covering the durability window, the cold-start cost, the IAP coupling and the locked-out recovery procedure; correct the §11 admin-access note, which no longer needs a config-file edit
+* build(release): bump package version from `3.15.0` to `3.16.0`
+
 ## Version 3.15.0
 
 Research-use consent: employees are asked once per appraisal cycle whether their anonymized evaluation data may be used for analysis and research, and the answer is recorded as a provable electronic consent. In-app Insights and the per-cycle `ResultsSnapshot` are unchanged — they run on legitimate interest and continue to cover every employee; consent gates secondary research use only. See `docs/superpowers/specs/2026-07-27-competence-research-consent-design.md` (CA-93).
