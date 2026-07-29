@@ -10,6 +10,7 @@ const { describe, it, beforeEach } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 
 const cache = require( "@ti-engine/core/cache" );
+const exceptions = require( "@ti-engine/core/exceptions" );
 const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
 const dataManager = require( "#data-manager" );
 
@@ -172,6 +173,74 @@ describe( "DataManager research-consent store", () => {
         await assert.rejects( () => dataManager.instance.saveConsentDecision( "", CYCLE, record(), text(), null ) );
         await assert.rejects( () => dataManager.instance.saveConsentDecision( "7", "", record(), text(), null ) );
         await assert.rejects( () => dataManager.instance.saveConsentDecision( "7", CYCLE, null, text(), null ) );
+    } );
+
+    it( "rejects when the text is missing or has an empty body — a decision must never reference an unregistered statement (N2)", async () => {
+        await assert.rejects(
+            () => dataManager.instance.saveConsentDecision( "7", CYCLE, record(), null, null ),
+            ( error ) => {
+                assert.equal( error.code, exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS );
+                return true;
+            }
+        );
+        await assert.rejects(
+            () => dataManager.instance.saveConsentDecision( "7", CYCLE, record(), text( { body: "" } ), null ),
+            ( error ) => {
+                assert.equal( error.code, exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS );
+                return true;
+            }
+        );
+        // Nothing must have been persisted by either rejected attempt.
+        assert.deepEqual( await dataManager.instance.fetchConsentChain( "7", CYCLE ), [] );
+    } );
+
+    it( "persists the first record for a previously-unseen employee AND cycle (exercises the ensure-parents step)", async () => {
+        // Neither "9" nor "2031-H1" has ever been written to the store before this call, so the NX create at
+        // ["decisions", "9", "2031-H1", recordID] would hit a missing parent were it not for the ensure-parents
+        // merge-patch step. If that step were ever removed, this call rejects against the in-memory helper's
+        // deliberate parent-must-exist rule and this test fails.
+        const saved = await dataManager.instance.saveConsentDecision( "9", "2031-H1",
+            record( { recordID: "first-ever" } ), text(), null );
+        assert.equal( saved.recordID, "first-ever" );
+
+        const chain = await dataManager.instance.fetchConsentChain( "9", "2031-H1" );
+        assert.equal( chain.length, 1 );
+        assert.equal( chain[ 0 ].recordID, "first-ever" );
+    } );
+
+    it( "a reused recordID with DIFFERENT content rejects with a 409 conflict, leaves the original record intact, and appends no audit entry (N3)", async () => {
+        await dataManager.instance.saveConsentDecision( "7", CYCLE, record(), text(), null );
+        const entriesBefore = await dataManager.instance.getAuditEntriesForEmployee( "7" );
+
+        await assert.rejects(
+            () => dataManager.instance.saveConsentDecision( "7", CYCLE,
+                record( { decision: "declined" } ), // same recordID "r1", different decision
+                text(), "granted" ),
+            ( error ) => {
+                assert.equal( error.code, exceptions.exceptionCode.E_APP_RESOURCE_ALREADY_EXISTS );
+                assert.equal( error.httpCode, exceptions.httpCode.C_409 );
+                return true;
+            }
+        );
+
+        const chain = await dataManager.instance.fetchConsentChain( "7", CYCLE );
+        assert.equal( chain.length, 1, "the conflicting write must not have been appended alongside the original" );
+        assert.equal( chain[ 0 ].recordID, "r1" );
+        assert.equal( chain[ 0 ].decision, "granted", "the original record must survive unchanged" );
+
+        const entriesAfter = await dataManager.instance.getAuditEntriesForEmployee( "7" );
+        assert.equal( entriesAfter.length, entriesBefore.length, "no audit entry must be appended for a write that never persisted" );
+    } );
+
+    it( "a reused recordID with IDENTICAL content resolves, and exactly one such record exists afterwards (N3)", async () => {
+        await dataManager.instance.saveConsentDecision( "7", CYCLE, record(), text(), null );
+
+        const retry = await dataManager.instance.saveConsentDecision( "7", CYCLE, record(), text(), null );
+        assert.equal( retry.recordID, "r1" );
+
+        const chain = await dataManager.instance.fetchConsentChain( "7", CYCLE );
+        assert.equal( chain.length, 1, "an identical retry must not create a second record" );
+        assert.equal( chain[ 0 ].decision, "granted" );
     } );
 
 } );

@@ -4018,6 +4018,10 @@
       "storage-unavailable": {
         "en": "The consent could not be stored and was therefore not recorded. Please try again.",
         "bg": "Съгласието не можа да бъде съхранено и затова не беше записано. Моля, опитайте отново."
+      },
+      "record-conflict": {
+        "en": "This consent record already exists with different content and could not be overwritten.",
+        "bg": "Този запис за съгласие вече съществува с различно съдържание и не можа да бъде презаписан."
       }
     },
     "cycle": {

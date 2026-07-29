@@ -1165,9 +1165,24 @@ class DataManager {
      * previously registered `firstSeenAt` untouched, including when two first-sightings race each other.
      *
      * The chain is a map keyed by `recordID` (mirroring the audit log's `{ [entryID]: entry }` shape) rather than an
-     * array, so the append is a single RFC-7396 merge-patch with no read-modify-write — there is no lost-update race
-     * if the same person answers from two tabs. Records are never updated or removed; a withdrawal is a new record
-     * whose `supersedes` names the one it replaces.
+     * array. The append-only guarantee — an original grant is never overwritten by a later change — is enforced at
+     * this storage layer, not left to caller discipline: the record is written with an NX (create-only) write
+     * straight at its final `["decisions", employeeID, cycle, recordID]` path, so a reused `recordID` can never merge
+     * new content into an existing historical record. Because `JSON.SET` (and this repo's in-memory test double,
+     * deliberately) cannot create intermediate objects, the parent path is ensured first via an RFC-7396 merge-patch
+     * of empty objects — safe because merging `{}` creates missing structure without touching any existing sibling
+     * record. The NX write is then read back and deep-compared against the record just submitted: an equal result
+     * means either a fresh write or an identical retry landed and this resolves as success (the audit append below
+     * still runs); a different result means the `recordID` already names other content, which rejects with
+     * `E_APP_RESOURCE_ALREADY_EXISTS` (409) and appends **no** audit entry — nothing was written, and an audit event
+     * for a decision that did not persist would be worse than none. Records are never updated or removed; a
+     * withdrawal is a new record whose `supersedes` names the one it replaces.
+     *
+     * One accepted looseness: NX resolves without error whether it created the leaf or found it already there (a
+     * silent skip, not reported back), so an *identical* retry (same `recordID`, same content) still appends a
+     * fresh audit entry after the read-back matches. Distinguishing "created" from "already there, identical" would
+     * need another racy read and isn't worth the extra mechanism — the upstream `#recordConsentDecision` idempotency
+     * check makes such retries rare, and a duplicate audit entry with identical values is truthful.
      *
      * `previousDecision` is supplied by the caller rather than derived here: the "newest wins" rule belongs to
      * research-consent.js, and duplicating it here would give it two homes.
@@ -1176,17 +1191,20 @@ class DataManager {
      * @param {string} employeeID - The subject.
      * @param {string} cycleID
      * @param {ResearchConsentRecord} record
-     * @param {ResearchConsentText} text - The verbatim text this record references.
+     * @param {ResearchConsentText} text - The verbatim text this record references. Must carry a non-empty `body` —
+     *     a record must never persist referencing a text that was never registered.
      * @param {ResearchConsentDecisionValue|null} previousDecision - The decision in force before this one, for the audit trail.
      * @returns {Promise<ResearchConsentRecord>}
+     * @exception {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} On missing identifiers/record fields or a missing/empty `text.body`.
      * @exception {TiException.E_APP_SERVICE_ERROR} When the cache is not operational.
+     * @exception {TiException.E_APP_RESOURCE_ALREADY_EXISTS} When `recordID` already names a different record (HTTP 409).
      * @public
      */
     saveConsentDecision( employeeID, cycleID, record, text, previousDecision ) {
         return new Promise( ( resolve, reject ) => {
             const targetID = String( employeeID || "" ).trim();
             const cycle = String( cycleID || "" ).trim();
-            if ( !targetID || !cycle || !record || !record.recordID || !record.decision || !record.textHash || !record.decidedAt ) {
+            if ( !targetID || !cycle || !record || !record.recordID || !record.decision || !record.textHash || !record.decidedAt || !text || !text.body ) {
                 return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID, cycleID } ) );
             }
             // DELIBERATE DIVERGENCE from the role-grants store, which resolves optimistically when the cache is down:
@@ -1208,12 +1226,36 @@ class DataManager {
                 : Promise.resolve();
 
             registerText.then( () => {
-                const update = { decisions: { [ targetID ]: { [ cycle ]: { [ record.recordID ]: record } } } };
-                return cache.instance.editJSON( cacheEntryKeyResearchConsent, update );
+                // Step 1: ensure the parent path exists via an RFC-7396 merge-patch of empty objects. Merging `{}`
+                // creates whatever intermediate structure is missing (this employee/cycle's first record) and
+                // leaves any existing sibling record — and the rest of the store — completely untouched. This is
+                // required because the NX create in step 2 cannot create intermediate objects itself (mirrors real
+                // RedisJSON `JSON.SET`; see the in-memory test double's deliberate parent-must-exist rule).
+                return cache.instance.editJSON( cacheEntryKeyResearchConsent, { decisions: { [ targetID ]: { [ cycle ]: {} } } } );
             } ).then( () => {
-                // The consent is committed. The audit append is a best-effort cross-check: a failed audit write must
-                // not reject an already-recorded consent, or the UI would report failure for a stored decision and a
-                // retry would append a duplicate record.
+                // Step 2: NX-create the record straight at its final path. This is what makes the store create-only
+                // by recordID — a reused recordID can never merge new content into an existing historical record.
+                // NX resolves without error when the leaf already exists (a silent skip, not a failure — RedisJSON
+                // `JSON.SET ... NX`), which is why step 3 reads back and compares rather than trusting this to have
+                // written anything.
+                return cache.instance.setJSON( cacheEntryKeyResearchConsent, record, [ "decisions", targetID, cycle, record.recordID ], 1 );
+            } ).then( () => {
+                // Step 3: read back what actually landed at that path and deep-compare against the record just
+                // submitted.
+                return cache.instance.getJSON( cacheEntryKeyResearchConsent, [ "decisions", targetID, cycle, record.recordID ] );
+            } ).then( ( result ) => {
+                const stored = ( result instanceof Array ) ? result[ 0 ] : result;
+                if ( !_.isEqual( stored, record ) ) {
+                    // The recordID already named different content, so the NX create above was a no-op — nothing
+                    // was written. Reject without appending an audit entry: an audit event for a decision that did
+                    // not persist would be worse than none.
+                    return reject( exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_ALREADY_EXISTS, { details: "error.consent.record-conflict" }, exceptions.httpCode.C_409 ) );
+                }
+
+                // The consent is committed — either freshly written or an identical retry landed on the existing
+                // record. The audit append is a best-effort cross-check: a failed audit write must not reject an
+                // already-recorded consent, or the UI would report failure for a stored decision and a retry would
+                // append a duplicate record.
                 this.appendAuditEntry( {
                     subjectType: "employee",
                     subjectID: targetID,

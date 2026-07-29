@@ -90,6 +90,17 @@ class InMemoryCache {
         // RedisJSON's JSON.SET rejects a write whose parent path does not already exist, so this helper does not
         // create intermediate structure the real store wouldn't).
         const parts = Array.isArray( path ) ? path : String( path ).split( "." );
+        // Reject a prototype-polluting path segment outright, adjacent to the walk/assignment below, rather than
+        // skipping it silently -- a test helper hitting `__proto__`/`constructor`/`prototype` here is a test bug to
+        // surface loudly, not a case to tolerate (CWE-1321 / CodeQL js/prototype-polluting-assignment). Mirrors the
+        // inline literal guard in this file's deepMerge and in application/data-manager.js's #setFieldByPath /
+        // #getFieldByPath. CodeQL does not recognize interprocedural sanitizers, so the check must live right next
+        // to the sink -- an extracted helper would not clear the alert.
+        for ( const part of parts ) {
+            if ( part === "__proto__" || part === "constructor" || part === "prototype" ) {
+                return Promise.reject( new Error( `in-memory-cache setJSON: unsafe path segment '${ part }' for key "${ key }" (path ${ JSON.stringify( path ) })` ) );
+            }
+        }
         const leaf = parts[ parts.length - 1 ];
         const parentPath = parts.slice( 0, -1 );
         const parent = parentPath.length ? resolvePath( this.storage[ key ], parentPath ) : this.storage[ key ];
