@@ -46,4 +46,22 @@ describe( "InMemoryCache deepMerge prototype-pollution guard", () => {
         assert.deepEqual( value, { a: 1, b: 2, nested: { x: 1, y: 2 } } );
     } );
 
+    // N1 (CodeQL js/prototype-polluting-assignment, round-2 finding): setJSON's subpath walk/assignment can be
+    // poisoned the same way editJSON's deepMerge can. Unlike deepMerge (which silently skips the poisoned key), a
+    // test helper being asked to write to such a path is a test bug — it must reject loudly instead of pretending
+    // to succeed.
+    it( "rejects a __proto__ path segment passed to setJSON and leaves Object.prototype unaffected", async () => {
+        const cache = new InMemoryCache();
+        await cache.setJSON( "k", { safe: {} } );
+        await assert.rejects( () => cache.setJSON( "k", { polluted: "pwned" }, [ "__proto__", "polluted" ], 1 ) );
+        assert.equal( ( {} ).polluted, undefined, "Object.prototype must not be polluted" );
+    } );
+
+    it( "rejects a constructor/prototype path segment passed to setJSON and leaves Object.prototype unaffected", async () => {
+        const cache = new InMemoryCache();
+        await cache.setJSON( "k", { safe: {} } );
+        await assert.rejects( () => cache.setJSON( "k", "pwned", [ "safe", "constructor", "prototype", "polluted" ], 1 ) );
+        assert.equal( ( {} ).polluted, undefined, "Object.prototype must not be polluted" );
+    } );
+
 } );

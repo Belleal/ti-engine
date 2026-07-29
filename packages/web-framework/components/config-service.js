@@ -13,9 +13,11 @@ const exceptions = require( "@ti-engine/core/exceptions" );
  *
  * Two layers:
  *  - **Document level** — {@link ConfigService#applyEdits}: validate every affected document (schema + semantic,
- *    with a cross-document context that sees the *pending* values of the same edit) and, only if all pass, commit
- *    them as one change-set. Validation failures return `{ ok:false, errors }` and write nothing; a version
- *    conflict from the store surfaces as a rejection.
+ *    with a cross-document {@link ValidatorContext} whose `getConfig` sees the *pending* values of the same edit —
+ *    letting a validator check a sibling document's post-edit state — while `getStoredConfig` always returns the
+ *    committed value, even for the document currently under validation) and, only if all pass, commit them as one
+ *    change-set. Validation failures return `{ ok:false, errors }` and write nothing; a version conflict from the
+ *    store surfaces as a rejection.
  *  - **Entity level** — composite editors registered with `compose(docs)→view` / `decompose(edited, docs)→{key:value}`,
  *    so the UI edits a domain entity (e.g. a "competency") that is projected from, and scattered back into, several
  *    documents. {@link ConfigService#saveEditorEdit} decomposes the edit and routes it through `applyEdits`.
@@ -61,8 +63,13 @@ class ConfigService {
             return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { reason: "invalid-apply-input" } ) );
         }
 
-        // Cross-document validation context: a document being edited is seen at its *pending* value; others are read
-        // from the store. This lets a validator on one document check against the post-edit state of its siblings.
+        // Cross-document validation context: a document being edited is seen at its *pending* value via getConfig —
+        // even when that document is the one currently under validation, so calling getConfig on "yourself" just
+        // hands back the same incoming value already passed as the validator's first argument, not its prior state.
+        // This lets a validator on one document check against the post-edit state of its siblings. getStoredConfig
+        // is the counterpart: it always resolves the committed value, so a validator that must compare its own
+        // document against its previous state (e.g. detecting an edit that should have bumped a version marker)
+        // uses that instead.
         const pending = {};
         for ( const edit of edits ) {
             pending[ edit.configKey ] = edit.value;
@@ -73,7 +80,11 @@ class ConfigService {
                     return Promise.resolve( clone( pending[ key ] ) );
                 }
                 return this.#store.getCurrent( key ).then( ( current ) => ( current ? current.value : null ) );
-            }
+            },
+            // Always the committed value, even for a document inside this edit batch. A validator comparing its own
+            // document against its previous state must use this; getConfig would hand back the pending value it is
+            // currently validating.
+            getStoredConfig: ( key ) => this.#store.getCurrent( key ).then( ( current ) => ( current ? current.value : null ) )
         };
 
         return Promise.all( edits.map( ( edit ) => {

@@ -186,6 +186,66 @@
                 <button type="button" class="ti-btn primary" @click="openResults()" x-text="getLabel( getResultsReadyAction() )"></button>
             </div>
 
+            <!-- Research-use consent (CA-93) — read/change panel on the Scores route, shown only to the subject
+                 (isOwnResults false for a manager/supervisor viewing someone else's scores hides this entirely — it
+                 is the subject's own control, not a third party's). Deliberately a SIBLING of, not nested inside, the
+                 hasResults()-gated results block below: withdrawal must work at any evaluation status, including
+                 Closed, and must never be coupled to whether the results computation itself succeeded. -->
+            <section class="ti-panel competence-panel-body" x-show="consent.enabled && isMyResults && isOwnResults">
+                <div class="ti-panel-head">
+                    <div class="ti-panel-head-icon">
+                        <span class="ti-icon check-clipboard md" aria-hidden="true"></span>
+                    </div>
+                    <div class="ti-panel-head-text">
+                        <h2 class="ti-panel-title" x-text-label="interface.consent.panel-title">Use of your data for research</h2>
+                    </div>
+                </div>
+
+                <div class="ti-kv-grid" x-show="!consent.editing">
+                    <span class="ti-kv-label" x-text-label="interface.consent.current-label">Your answer</span>
+                    <span class="ti-kv-value" x-text="consentDecisionText"></span>
+                    <span class="ti-kv-label" x-text-label="interface.consent.decided-label">Answered on</span>
+                    <span class="ti-kv-value" x-text="formatDateTime(consent.decidedAt)"></span>
+                    <span class="ti-kv-label" x-text-label="interface.consent.version-label">Statement version</span>
+                    <span class="ti-kv-value" x-text="consent.version"></span>
+                </div>
+
+                <div class="ti-form-actions" x-show="!consent.editing">
+                    <button type="button" class="ti-btn ghost" @click="beginConsentChange()" x-text-label="interface.consent.change">Change my answer</button>
+                </div>
+
+                <div x-show="consent.editing">
+                    <div class="ti-form" id="consent-statement-results">
+                        <template x-for="block in consent.paragraphs">
+                            <p x-text="block"></p>
+                        </template>
+                    </div>
+                    <fieldset class="ti-form-section" aria-describedby="consent-statement-results">
+                        <legend class="ti-form-section-title" x-text-label="interface.consent.legend">Do you agree?</legend>
+                        <div class="ti-form-row">
+                            <label>
+                                <input type="radio" name="research-consent-change" value="granted"
+                                       x-bind:checked="consent.decision === 'granted'"
+                                       @change="setConsentDecision('granted')"/>
+                                <span x-text-label="interface.consent.grant">Yes</span>
+                            </label>
+                        </div>
+                        <div class="ti-form-row">
+                            <label>
+                                <input type="radio" name="research-consent-change" value="declined"
+                                       x-bind:checked="consent.decision === 'declined'"
+                                       @change="setConsentDecision('declined')"/>
+                                <span x-text-label="interface.consent.decline">No</span>
+                            </label>
+                        </div>
+                        <p class="ti-form-error" x-show="consent.error" x-text="consent.error"></p>
+                    </fieldset>
+                    <div class="ti-form-actions">
+                        <button type="button" class="ti-btn primary" @click="saveConsentChange()" x-text-label="interface.consent.save">Save answer</button>
+                    </div>
+                </div>
+            </section>
+
             <!-- Individual results (READY/CLOSED) — shown only on the read-only Scores screen; the grading screen links
                  to it via the info bar above.
                  Lean 3-band layout: (1) full-width hero = final score + per-category scores; (2) two charts side-by-side;
@@ -613,6 +673,49 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Research-use consent (CA-93) — capture panel, shown only to the evaluee filling out their own
+                 evaluation (userRole === 1 is this fragment's existing "self" predicate — see getPageTitle()/etc.),
+                 never on the read-only Scores view. Neither radio is pre-selected and both carry equal visual
+                 weight: this is a consent question, not a recommendation. -->
+            <section class="ti-panel competence-panel-body" x-show="consent.enabled && userRole === 1 && !isMyResults && canEdit">
+                <div class="ti-panel-head">
+                    <div class="ti-panel-head-icon">
+                        <span class="ti-icon check-clipboard md" aria-hidden="true"></span>
+                    </div>
+                    <div class="ti-panel-head-text">
+                        <h2 class="ti-panel-title" x-text-label="interface.consent.panel-title">Use of your data for research</h2>
+                    </div>
+                </div>
+                <p class="ti-panel-body-intro" x-text-label="interface.consent.panel-intro">Please choose one option.</p>
+
+                <div class="ti-form" id="consent-statement">
+                    <template x-for="block in consent.paragraphs">
+                        <p x-text="block"></p>
+                    </template>
+                </div>
+
+                <fieldset class="ti-form-section" aria-describedby="consent-statement">
+                    <legend class="ti-form-section-title" x-text-label="interface.consent.legend">Do you agree?</legend>
+                    <div class="ti-form-row">
+                        <label>
+                            <input type="radio" name="research-consent" value="granted"
+                                   x-bind:checked="consent.decision === 'granted'"
+                                   @change="setConsentDecision('granted')"/>
+                            <span x-text-label="interface.consent.grant">Yes</span>
+                        </label>
+                    </div>
+                    <div class="ti-form-row">
+                        <label>
+                            <input type="radio" name="research-consent" value="declined"
+                                   x-bind:checked="consent.decision === 'declined'"
+                                   @change="setConsentDecision('declined')"/>
+                            <span x-text-label="interface.consent.decline">No</span>
+                        </label>
+                    </div>
+                    <p class="ti-form-error" x-show="consent.error" x-text="consent.error"></p>
+                </fieldset>
+            </section>
 
             <!-- Sticky action bar -->
             <div class="competence-eval-sticky-bar" x-show="!isMyResults && ( userRole === 1 || userRole === 2 || userRole === 4 ) && canEdit">

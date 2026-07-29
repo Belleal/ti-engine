@@ -79,6 +79,32 @@ describe( "User guide build — markdown conversion", () => {
         assert.throws( () => convertMarkdown( "See [the manager chapter](05-manager.md).", "01-overview.md" ), /Relative \.md links are not allowed/ );
     } );
 
+    it( "allows absolute external links to .md files", () => {
+        const html = convertMarkdown( "See [the readme](https://github.com/Belleal/ti-engine/blob/master/README.md).", "01-overview.md" );
+        assert.match( html, /<a href="https:\/\/github\.com\/Belleal\/ti-engine\/blob\/master\/README\.md" target="_blank" rel="noopener noreferrer">/ );
+    } );
+
+    it( "rejects images (text-only guide in v1)", () => {
+        assert.throws( () => convertMarkdown( "![a diagram](https://example.com/diagram.png)", "01-overview.md" ), /Images are not supported/ );
+    } );
+
+    it( "rejects non-http(s) link schemes", () => {
+        for ( const badHref of [ "javascript:alert(1)", "data:text/plain,hello", "vbscript:msgbox(1)" ] ) {
+            assert.throws( () => convertMarkdown( `[click](${ badHref })`, "01-overview.md" ), /Only absolute http\(s\) links are allowed/, badHref );
+        }
+    } );
+
+    it( "rejects relative non-.md links too", () => {
+        assert.throws( () => convertMarkdown( "[a picture](../images/example.png)", "01-overview.md" ), /Only absolute http\(s\) links are allowed/ );
+    } );
+
+    it( "deduplicates repeated heading ids within a chapter and drops entities from ids", () => {
+        const html = convertMarkdown( "## Overview\n\nA.\n\n## Overview\n\nB.\n\n## You can't skip this\n\nC.", "01-overview.md" );
+        assert.match( html, /<h2 id="overview">/ );
+        assert.match( html, /<h2 id="overview-2">/ );
+        assert.match( html, /<h2 id="you-cant-skip-this">/ );
+    } );
+
     it( "opens external links in a new tab", () => {
         const html = convertMarkdown( "Visit [the repo](https://github.com/Belleal/ti-engine).", "01-overview.md" );
         assert.match( html, /<a href="https:\/\/github\.com\/Belleal\/ti-engine" target="_blank" rel="noopener noreferrer">/ );
@@ -193,6 +219,22 @@ describe( "User guide — repo state", () => {
             }
         }
         assert.deepEqual( missing, [], `Guide screens missing wiring:\n  ${ missing.join( "\n  " ) }` );
+    } );
+
+    it( "every registered guide screen path resolves to an existing fragment file", () => {
+        const webApplicationSource = fs.readFileSync( WEB_APPLICATION_FILE, "utf8" );
+        const broken = [];
+        for ( const fragmentName of GUIDE_FRAGMENT_NAMES ) {
+            const registration = new RegExp( `addFragment\\( "${ fragmentName }", \\{[^}]*?path: "([^"]+)"`, "s" ).exec( webApplicationSource );
+            if ( !registration ) {
+                broken.push( `${ fragmentName }: no addFragment registration with a path` );
+                continue;
+            }
+            if ( !fs.existsSync( path.join( PACKAGE_ROOT, "bin", "static", registration[ 1 ] ) ) ) {
+                broken.push( `${ fragmentName }: registered path '${ registration[ 1 ] }' does not exist under bin/static/` );
+            }
+        }
+        assert.deepEqual( broken, [], `Registered guide screen paths that do not resolve to files:\n  ${ broken.join( "\n  " ) }` );
     } );
 
     it( "guide screens stay CSP-clean (generated + hand-authored)", () => {

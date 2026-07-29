@@ -141,6 +141,15 @@
                 </span>
                 <span class="ti-sidebar-item-label" x-text-label="interface.navigation.insights-trends">Trends</span>
             </button>
+
+            <button hx-get="/app/consent-register" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'consent-register'"
+                    x-show="$store.tiApplication.hasRole(3)"
+                    x-bind:class="{ active: active === 'consent-register' }" class="ti-sidebar-item" data-tip="Consent" aria-label="Consent" type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon check-clipboard md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.navigation.consent-register">Consent</span>
+            </button>
         </div>
     </div>
 

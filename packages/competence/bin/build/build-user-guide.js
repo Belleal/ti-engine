@@ -116,12 +116,43 @@ function convertMarkdown( md, fileName ) {
     if ( rawHtmlSample !== null ) {
         throw new Error( `Raw HTML is not allowed in guide markdown (${ fileName }): '${ rawHtmlSample }' — use plain markdown; callouts are '> **Note:** …' blockquotes` );
     }
-    if ( /href="[^"]*\.md(?:#[^"]*)?"/.test( html ) ) {
-        throw new Error( `Relative .md links are not allowed in guide markdown (${ fileName }) — cross-reference chapters as plain text; the chapter navigation is the navigation` );
+    // Images are not part of the guide in v1 (the spec excludes screenshots, and the app's CSP would not load
+    // remote sources anyway) — fail at authoring time instead of shipping something half-supported:
+    if ( /<img\b/i.test( html ) ) {
+        throw new Error( `Images are not supported in guide markdown (${ fileName }) — the guide ships text-only in v1` );
     }
-    // Stable ids on h2/h3 (future deep-link anchors), scroll wrapper on tables, new-tab external links:
+    // Every link must be an absolute http(s) URL. Relative links (including *.md chapter cross-references — the
+    // chapter navigation is the navigation) and non-web schemes (javascript:, data:, vbscript:, …) are build errors,
+    // because marked emits authored hrefs unsanitized and the output ships as static app screens:
+    for ( const [ , href ] of html.matchAll( /<a href="([^"]*)"/g ) ) {
+        if ( /^https?:\/\//i.test( href ) ) {
+            continue;
+        }
+        if ( /\.md(?:#[^"]*)?$/i.test( href ) ) {
+            throw new Error( `Relative .md links are not allowed in guide markdown (${ fileName }) — cross-reference chapters as plain text; the chapter navigation is the navigation` );
+        }
+        throw new Error( `Only absolute http(s) links are allowed in guide markdown (${ fileName }): '${ href }'` );
+    }
+    // Stable, unique ids on h2/h3 (future deep-link anchors), scroll wrapper on tables, new-tab external links:
+    const seenHeadingIds = new Set();
     html = html.replace( /<h([23])>([\s\S]*?)<\/h\1>/g, ( full, level, inner ) => {
-        return `<h${ level } id="${ slugify( inner.replace( /<[^>]+>/g, "" ) ) }">${ inner }</h${ level }>`;
+        // Strip tags in a loop so nested/malformed markup cannot leave reconstructible fragments behind
+        // (CodeQL js/incomplete-multi-character-sanitization); drop HTML entities so "can't" slugs as "cant":
+        let plainText = inner;
+        let previous;
+        do {
+            previous = plainText;
+            plainText = previous.replace( /<[^>]+>/g, "" );
+        } while ( plainText !== previous );
+        const baseID = slugify( plainText.replace( /&#?[a-z0-9]+;/gi, "" ) );
+        let id = baseID;
+        let suffix = 2;
+        while ( seenHeadingIds.has( id ) ) {
+            id = `${ baseID }-${ suffix }`;
+            suffix++;
+        }
+        seenHeadingIds.add( id );
+        return `<h${ level } id="${ id }">${ inner }</h${ level }>`;
     } );
     html = html.replace( /<table>/g, "<div class=\"ti-doc-table\">\n<table>" ).replace( /<\/table>/g, "</table>\n</div>" );
     html = html.replace( /<a href="(https?:\/\/[^"]+)"/g, "<a href=\"$1\" target=\"_blank\" rel=\"noopener noreferrer\"" );

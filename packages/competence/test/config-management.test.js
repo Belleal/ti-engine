@@ -146,7 +146,7 @@ describe( "config-registration (competence)", () => {
 
         assert.deepEqual(
             Object.keys( registered ).sort(),
-            [ "active-competency-sets", "competence-labels", "competencies", "relevancy-archetypes", "role-families", "role-family-competencies", "stage-levels" ]
+            [ "active-competency-sets", "competence-labels", "competencies", "relevancy-archetypes", "research-consent", "role-families", "role-family-competencies", "stage-levels" ]
         );
         assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "relevancy-archetype", "role-families" ] );
         assert.deepEqual( editors[ "competency-text" ].documents, [ "competencies", "competence-labels" ] );

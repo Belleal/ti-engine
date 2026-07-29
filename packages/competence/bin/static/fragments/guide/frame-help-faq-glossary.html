@@ -20,7 +20,7 @@
             <div class="ti-doc">
 <p>This chapter closes out the guide with two things: quick answers to the questions people ask most often, and a glossary defining the terms used throughout — a quick reference for whenever you want to double-check exactly what a word means.</p>
 <h2 id="frequently-asked-questions">Frequently asked questions</h2>
-<h3 id="why-can-39-t-i-see-my-manager-39-s-grades-yet">Why can&#39;t I see my manager&#39;s grades yet?</h3>
+<h3 id="why-cant-i-see-my-managers-grades-yet">Why can&#39;t I see my manager&#39;s grades yet?</h3>
 <p>Your manager&#39;s grades stay hidden from you until your evaluation reaches Ready. From that point on, they&#39;re visible alongside the team&#39;s cumulative grade — never earlier.</p>
 <h3 id="can-i-ever-see-how-a-specific-teammate-graded-me">Can I ever see how a specific teammate graded me?</h3>
 <p>No — individual peer grades are never shown to anyone but the person who gave them, not even your manager. What you see instead, once your evaluation reaches Ready, is the team&#39;s single combined cumulative grade.</p>
@@ -30,13 +30,13 @@
 <p>A draft save or a submission after your self-evaluation deadline is rejected outright. If you genuinely can&#39;t finish in time, a Supervisor can waive the round once the deadline has passed so your evaluation isn&#39;t held up — your self-grades are then excluded from scoring entirely, never treated as a zero.</p>
 <h3 id="does-a-skipped-team-round-hurt-the-score">Does a skipped team round hurt the score?</h3>
 <p>No. When a team round wasn&#39;t requested — or was finalized without any submissions — it&#39;s excluded from the score calculation entirely, and the remaining sources are renormalized to cover the full result, rather than the missing round counting as a zero.</p>
-<h3 id="what-does-quot-not-utilized-quot-n-do-to-the-score">What does &quot;Not Utilized&quot; (N) do to the score?</h3>
+<h3 id="what-does-not-utilized-n-do-to-the-score">What does &quot;Not Utilized&quot; (N) do to the score?</h3>
 <p>It carries a weight of zero, so that competency contributes nothing to the score, positive or negative. Use it whenever a competency genuinely doesn&#39;t apply to the work being graded, or wasn&#39;t demonstrated during the period — not as a way to avoid grading something.</p>
 <h3 id="who-sees-my-written-self-evaluation-comment">Who sees my written self-evaluation comment?</h3>
 <p>Your manager sees it, as part of their review. Team members never do, and that never changes.</p>
 <h3 id="who-conducts-my-interview">Who conducts my interview?</h3>
 <p>Whoever owns the calendar slot that gets booked for your interview — most often your own manager, but the Supervisor can book any manager&#39;s open slot, so it&#39;s occasionally someone else. Either way, you&#39;re notified once the slot is booked, well before the interview itself.</p>
-<h3 id="why-won-39-t-the-cycle-lock">Why won&#39;t the cycle lock?</h3>
+<h3 id="why-wont-the-cycle-lock">Why won&#39;t the cycle lock?</h3>
 <p>Locking runs a full validation pass, and any failure blocks it: a baseline not covering all nine subcategories, a resolved set over the cap, a competency drawn from outside its family&#39;s pool, or a family that&#39;s included but not yet configured. Whatever it finds is grouped by family so it&#39;s clear what to fix.</p>
 <h3 id="why-is-a-chart-cell-empty-in-analytics">Why is a chart cell empty in analytics?</h3>
 <p>Analytics screens never display a group smaller than three people. Rather than risk identifying someone by working backward from a tiny statistic, the application suppresses that cell entirely and leaves it empty.</p>
@@ -123,7 +123,7 @@
 </tr>
 <tr>
 <td>Oversight</td>
-<td>The screen where a Supervisor finds every stalled evaluation in the active cycle and recovers it — waiving a self-round, completing a manager round, or withdrawing the evaluation.</td>
+<td>The Supervisor screen listing every in-progress evaluation in the active cycle — Open, In Review, and Ready — with overdue flags, and recovery actions where applicable: waiving a self round, completing a manager round, or withdrawing an evaluation.</td>
 </tr>
 <tr>
 <td>Waive (self round)</td>
@@ -147,7 +147,7 @@
             </div>
             <footer class="competence-guide-footer">
             <button class="ti-btn ghost competence-guide-prev" type="button" hx-get="/app/help-appraisal-process" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">← The Appraisal Process</button>
-                <span class="competence-guide-version">Guide for competence v3.14.0</span>
+                <span class="competence-guide-version">Guide for competence v3.16.0</span>
             <span></span>
             </footer>
         </article>

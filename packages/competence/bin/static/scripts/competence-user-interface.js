@@ -54,6 +54,10 @@ const configureCompetenceEvaluation = () => {
         isOwnResults: false,
         modal: emptyModal(),
 
+        // Research-use consent (CA-93) — captured once per cycle on the evaluation form (self only), changeable any
+        // time on the Scores screen regardless of evaluation status. `decision` is null until first answered.
+        consent: { enabled: false, body: "", paragraphs: [], decision: null, decidedAt: null, version: "", cycleID: null, editing: false, error: "" },
+
         // Phase 3 — individual results (populated by buildResults() at READY/CLOSED)
         resultsReady: false,
         resultsHeroSpec: { type: "stat", data: { value: 0, label: "", sub: "" }, a11yLabel: "" },
@@ -71,6 +75,7 @@ const configureCompetenceEvaluation = () => {
                 this.grades = tiApplication.configuration.grades;
                 this.employeeID = tiToolbox.getUrlParam( "employeeID" );
                 this.loadEmployeeEvaluation( this.employeeID );
+                this.loadConsent();
             };
 
             if ( tiApplication.isInitialized ) {
@@ -203,7 +208,76 @@ const configureCompetenceEvaluation = () => {
             } );
         },
 
+        // Research-use consent (CA-93).
+
+        loadConsent() {
+            // A view request: no method, no body — matching load-dashboard / load-cycle-list. Every view/service
+            // response is wrapped as { isSuccessful, data } (web-handlers.js) — unwrap result.data here, matching
+            // loadRegister/openEvidence in configureConsentRegister.
+            tiApplication.sendRequest( "/app/load-research-consent" ).then( ( result ) => {
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
+                const body = data.body ? data.body : "";
+                this.consent = {
+                    enabled: !!data.enabled,
+                    body: body,
+                    // Split on blank lines so the fragment can render one <p> per block without any HTML in the config.
+                    paragraphs: body ? body.split( /\n\s*\n/ ).map( ( block ) => block.trim() ).filter( ( block ) => block.length > 0 ) : [],
+                    decision: data.decision ? data.decision : null,
+                    decidedAt: data.decidedAt ? data.decidedAt : null,
+                    version: data.version ? data.version : "",
+                    cycleID: data.cycleID ? data.cycleID : null,
+                    editing: false,
+                    error: ""
+                };
+            } ).catch( () => {
+                this.consent = { enabled: false, body: "", paragraphs: [], decision: null, decidedAt: null, version: "", cycleID: null, editing: false, error: "" };
+            } );
+        },
+
+        setConsentDecision( value ) {
+            this.consent.decision = value;
+            this.consent.error = "";
+        },
+
+        beginConsentChange() {
+            this.consent.editing = true;
+            this.consent.error = "";
+        },
+
+        saveConsentChange() {
+            if ( !this.consent.decision ) {
+                this.consent.error = tiApplication.getLabel( "interface.consent.required", "Please choose an option before submitting." );
+                return;
+            }
+            tiApplication.sendRequest( "/app/submit-research-consent", "POST", { decision: this.consent.decision } ).then( ( result ) => {
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
+                this.consent.decidedAt = data.decidedAt ? data.decidedAt : this.consent.decidedAt;
+                this.consent.editing = false;
+                tiApplication.notify( tiApplication.getLabel( "interface.consent.saved" ) );
+            } ).catch( ( error ) => {
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        // Text shown for the current decision on the Scores read panel. A getter because a nested ternary calling a
+        // label helper is not expressible in a CSP-mode Alpine template expression.
+        get consentDecisionText() {
+            if ( this.consent.decision === "granted" ) {
+                return tiApplication.getLabel( "interface.consent.grant" );
+            }
+            if ( this.consent.decision === "declined" ) {
+                return tiApplication.getLabel( "interface.consent.decline" );
+            }
+            return tiApplication.getLabel( "interface.consent.not-answered" );
+        },
+
         openSubmitModal( event ) {
+            // isSelfEvaluation in the design brief === userRole 1 here (the evaluee-in-form-mode case; see the same
+            // comparison used throughout this fragment, e.g. getPageTitle()).
+            if ( this.consent.enabled && this.userRole === 1 && !this.consent.decision ) {
+                this.consent.error = tiApplication.getLabel( "interface.consent.required", "Please choose an option before submitting." );
+                return;
+            }
             modalReturnFocus = ( event && event.currentTarget ) || null;
             this.modal = { kind: "submit-confirm", payload: { reason: "" }, busy: false };
         },
@@ -211,7 +285,11 @@ const configureCompetenceEvaluation = () => {
         submitEvaluation() {
             this.modal.busy = true;
             const reason = ( this.modal.payload && this.modal.payload.reason ) || "";
-            tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: this.evaluation, reason: reason } ).then( () => {
+            const payload = Object.assign( {}, this.evaluation );
+            if ( this.consent.enabled && this.consent.decision ) {
+                payload.researchConsent = this.consent.decision;
+            }
+            tiApplication.sendRequest( "/app/submit-evaluation", "POST", { evaluation: payload, reason: reason } ).then( () => {
                 tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.submitted" ) );
                 this.closeModal();
                 tiApplication.openScreen( "dashboard" );
@@ -399,6 +477,17 @@ const configureCompetenceEvaluation = () => {
 
         formatDate( value, placeholder = "" ) {
             return tiToolbox.formatDate( value, tiApplication.getLabel( placeholder, "" ) );
+        },
+
+        // Deviation from the design brief: this component has no formatDateTime — only the date-only formatDate above
+        // (tiToolbox.formatDate truncates to toLocaleDateString()). The consent "Answered on" evidence line needs the
+        // time of day too, so this mirrors the existing formatDateTime already used for audit trails elsewhere in this
+        // file (configureEmployeeManagement), rather than introducing a differently-behaved helper under the same name.
+        formatDateTime( value ) {
+            if ( !value ) return "—";
+            const date = new Date( value );
+            if ( !Number.isFinite( date.getTime() ) ) return value;
+            return date.toLocaleString();
         },
 
         toggleGrade( competencyCode, role, gradeKey ) {
@@ -5881,6 +5970,116 @@ const configureEvaluationsOversight = () => {
     };
 };
 
+const configureConsentRegister = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    return {
+        cycleID: "",
+        cycles: [],
+        counts: { granted: 0, declined: 0, notAsked: 0 },
+        rows: [],
+        evidence: null,
+        busy: false,
+
+        init() {
+            const onInitialized = () => { this.loadCycles(); };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) { onInitialized(); }
+                } );
+            }
+        },
+
+        loadCycles() {
+            tiApplication.sendRequest( "/app/load-cycle-list" ).then( ( result ) => {
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
+                this.cycles = Array.isArray( data.cycles ) ? data.cycles : [];
+                // The server already resolves the active cycle (`activeCycleID`). CycleStatus values are UPPERCASE
+                // ("ACTIVE"), unlike EvaluationStatus (title-case) -- the scan below is only a fallback for the
+                // (should-not-happen) case where the server omits activeCycleID.
+                const active = this.cycles.find( ( cycle ) => cycle.status === "ACTIVE" );
+                this.cycleID = data.activeCycleID || ( active ? active.cycleID : ( this.cycles.length > 0 ? this.cycles[ 0 ].cycleID : "" ) );
+                if ( this.cycleID ) {
+                    this.loadRegister();
+                }
+            } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) { return; }
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        // CSP-safe idiom for a bound <select>: x-model does not propagate under Alpine's CSP build, so the fragment
+        // binds x-bind:value + @change and calls this instead (mirrors setArchetype in frame-archetype-assignment.html).
+        selectCycle( cycleID ) {
+            this.cycleID = cycleID;
+            this.loadRegister();
+        },
+
+        loadRegister() {
+            if ( !this.cycleID ) { return; }
+            this.busy = true;
+            this.evidence = null;
+            tiApplication.sendRequest( `/app/load-consent-register?cycleID=${ encodeURIComponent( this.cycleID ) }` ).then( ( result ) => {
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
+                this.counts = data.counts || { granted: 0, declined: 0, notAsked: 0 };
+                const decisionLabel = ( decision ) => {
+                    if ( decision === "granted" ) return tiApplication.getLabel( "interface.consent.count-granted" );
+                    if ( decision === "declined" ) return tiApplication.getLabel( "interface.consent.count-declined" );
+                    return tiApplication.getLabel( "interface.consent.not-answered" );
+                };
+                this.rows = ( Array.isArray( data.rows ) ? data.rows : [] ).map( ( row ) => Object.assign( {}, row, { decisionText: decisionLabel( row.decision ) } ) );
+                this.busy = false;
+            } ).catch( ( error ) => {
+                this.busy = false;
+                if ( error?.name === "AbortError" || error?.isAborted ) { return; }
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        openEvidence( row ) {
+            const query = `employeeID=${ encodeURIComponent( row.employeeID ) }&cycleID=${ encodeURIComponent( this.cycleID ) }`;
+            tiApplication.sendRequest( `/app/load-consent-evidence?${ query }` ).then( ( result ) => {
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : null;
+                if ( data ) {
+                    // `entry.supersedes` names the OLDER recordID a given entry replaces -- it is not a flag on the
+                    // entry itself. Whether THIS entry has since been superseded is whether some other entry in the
+                    // same chain points back at it via `supersedes`.
+                    const records = Array.isArray( data.records ) ? data.records : [];
+                    const supersededIDs = new Set( records.map( ( entry ) => entry.supersedes ).filter( Boolean ) );
+                    data.records = records.map( ( entry ) => Object.assign( {}, entry, { isSuperseded: supersededIDs.has( entry.recordID ) } ) );
+                    data.employeeName = row.employeeName || row.employeeID;
+                }
+                this.evidence = data;
+            } ).catch( ( error ) => {
+                if ( error?.name === "AbortError" || error?.isAborted ) { return; }
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        closeEvidence() {
+            this.evidence = null;
+        },
+
+        formatDate( value ) {
+            return tiToolbox.formatDate( value, "" );
+        },
+
+        // Summary-header subtitle. Both are getters rather than markup expressions because Alpine's CSP build
+        // cannot evaluate a .find(...) or a nested ternary inside a template attribute.
+        get totalInScope() {
+            return this.counts.granted + this.counts.declined + this.counts.notAsked;
+        },
+
+        get selectedCycleName() {
+            const selected = this.cycles.find( ( cycle ) => cycle.cycleID === this.cycleID );
+            return selected ? selected.name : "";
+        }
+    };
+};
+
 document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceEvaluation", configureCompetenceEvaluation );
     Alpine.data( "competenceEmployeesList", configureEmployeesList );
@@ -5900,4 +6099,5 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "insightsTeam", configureInsightsTeam );
     Alpine.data( "insightsTrends", configureTrendsScreen );
     Alpine.data( "competenceEvaluationsOversight", configureEvaluationsOversight );
+    Alpine.data( "competenceConsentRegister", configureConsentRegister );
 } );

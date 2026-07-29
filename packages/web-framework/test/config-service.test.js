@@ -80,6 +80,31 @@ describe( "ConfigService — applyEdits (document level)", () => {
         await assert.rejects( service.applyEdits( [ { configKey: "alpha", value: { n: 8 }, expectedVersion: 0 } ], { adminID: "admin:1" } ) );
     } );
 
+    it( "getStoredConfig bypasses pending and returns the committed value for a document in its own edit batch", async () => {
+        // Regression guard: getConfig deliberately resolves to the *pending* value for a document inside the current
+        // edit batch (so a validator can see a sibling's post-edit state) — but that means a validator checking a
+        // document against itself via getConfig would compare the incoming edit against itself. getStoredConfig is
+        // the accessor that must NOT do that: it always reads the store's committed value, even for the document
+        // currently being validated.
+        let seenByStoredConfig;
+        const GAMMA = { $id: "https://ti.test/gamma.json", type: "object", properties: { n: { type: "integer" } }, required: [ "n" ], additionalProperties: false };
+        const registry = new ConfigRegistry();
+        registry.register( "gamma", {
+            schema: GAMMA,
+            validators: [ ( value, context ) => context.getStoredConfig( "gamma" ).then( ( stored ) => {
+                seenByStoredConfig = stored;
+                return [];
+            } ) ]
+        } );
+        const svc = new ConfigService( { store: store, registry: registry, notifier: notifier } );
+        await store.seedIfEmpty( "gamma", { n: 1 } );
+
+        const result = await svc.applyEdits( [ { configKey: "gamma", value: { n: 2 }, expectedVersion: 1 } ], { adminID: "admin:1" } );
+
+        assert.equal( result.ok, true );
+        assert.deepEqual( seenByStoredConfig, { n: 1 }, "getStoredConfig must see the committed value (1), not the pending edit value (2), for gamma itself" );
+    } );
+
 } );
 
 describe( "ConfigService — composite editor (entity level)", () => {

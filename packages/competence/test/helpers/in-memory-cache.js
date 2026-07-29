@@ -12,6 +12,11 @@
  * paths used in production: `$` (root), a single key (e.g. `"1"` or `"2026-H2"`), and a path array
  * (`[cycleID, managerID]`). Wildcard paths like `*.uuid` are NOT supported because the Phase 2 suites do not need
  * them — extend this helper if a later phase introduces a new access pattern.
+ *
+ * `setJSON` honors `path` and `overrideMode` (NX/XX), matching RedisJSON `JSON.SET` semantics at a subpath: NX
+ * writes only when the target path is currently absent (including the root-path case), XX only when it is already
+ * present. This is what lets `DataManager.saveConsentDecision`'s NX text-registration write (CA-93) behave the same
+ * way here as it does against real Redis.
  */
 
 const cache = require( "@ti-engine/core/cache" );
@@ -20,12 +25,21 @@ function deepClone( value ) {
     return value === undefined || value === null ? value : JSON.parse( JSON.stringify( value ) );
 }
 
+function isUnsafePropertyName( name ) {
+    return name === "__proto__" || name === "constructor" || name === "prototype";
+}
+
 function deepMerge( target, source ) {
     for ( const [ k, v ] of Object.entries( source ) ) {
         // Skip prototype-polluting keys — a `__proto__`/`constructor`/`prototype` key would otherwise walk into and
-        // corrupt Object.prototype for the whole process (CWE-1321).
+        // corrupt Object.prototype for the whole process (CWE-1321). Inline literals at the sink, NOT the
+        // isUnsafePropertyName helper: CodeQL does not recognize interprocedural sanitizers (CA-91 / 3.13.2), and
+        // refactoring this to the helper is what reopened the alert once already.
         if ( k === "__proto__" || k === "constructor" || k === "prototype" ) continue;
         if ( v && typeof v === "object" && !Array.isArray( v ) && target[ k ] && typeof target[ k ] === "object" && !Array.isArray( target[ k ] ) ) {
+            deepMerge( target[ k ], v );
+        } else if ( v && typeof v === "object" && !Array.isArray( v ) ) {
+            target[ k ] = Object.create( null );
             deepMerge( target[ k ], v );
         } else {
             target[ k ] = deepClone( v );
@@ -62,21 +76,69 @@ function resolvePath( root, path ) {
 
 class InMemoryCache {
     constructor() {
-        this.storage = {};
+        this.storage = Object.create( null );
     }
 
     get isOperational() {
         return true;
     }
 
-    setJSON( key, value /*, path, expiry */ ) {
-        this.storage[ key ] = deepClone( value );
+    setJSON( key, value, path = "$", overrideMode = 0 ) {
+        if ( isUnsafePropertyName( key ) ) {
+            return Promise.reject( new Error( `in-memory-cache setJSON: unsafe key "${ key }"` ) );
+        }
+        const rootExists = Object.prototype.hasOwnProperty.call( this.storage, key );
+        // Root write ($): NX only fires if the key itself is absent, XX only if it is already present -- mirrors
+        // RedisJSON JSON.SET's NX/XX semantics at the root path.
+        if ( path === undefined || path === null || path === "$" ) {
+            if ( ( overrideMode === 1 && rootExists ) || ( overrideMode === 2 && !rootExists ) ) {
+                return Promise.resolve();
+            }
+            this.storage[ key ] = deepClone( value );
+            return Promise.resolve();
+        }
+
+        // Subpath write: resolve the parent via the same traversal resolvePath() uses (no auto-vivification --
+        // RedisJSON's JSON.SET rejects a write whose parent path does not already exist, so this helper does not
+        // create intermediate structure the real store wouldn't).
+        const parts = Array.isArray( path ) ? path : String( path ).split( "." );
+        // Reject a prototype-polluting path segment outright, adjacent to the walk/assignment below, rather than
+        // skipping it silently -- a test helper hitting `__proto__`/`constructor`/`prototype` here is a test bug to
+        // surface loudly, not a case to tolerate (CWE-1321 / CodeQL js/prototype-polluting-assignment). The literals
+        // are INLINE at the sink deliberately: CodeQL does not recognize interprocedural sanitizers (the CA-91
+        // lesson, see the 3.13.2 changelog), so routing this through isUnsafePropertyName would leave the alert
+        // open even though the behaviour is identical.
+        for ( const part of parts ) {
+            if ( part === "*" ) {
+                return Promise.reject( new Error( `in-memory-cache setJSON: wildcard path segment is not supported for writes` ) );
+            }
+            if ( part === "__proto__" || part === "constructor" || part === "prototype" ) {
+                return Promise.reject( new Error( `in-memory-cache setJSON: unsafe path segment '${ part }' for key "${ key }" (path ${ JSON.stringify( path ) })` ) );
+            }
+        }
+        const leaf = parts[ parts.length - 1 ];
+        if ( isUnsafePropertyName( leaf ) ) {
+            return Promise.reject( new Error( `in-memory-cache setJSON: unsafe path leaf "${ leaf }"` ) );
+        }
+        const parentPath = parts.slice( 0, -1 );
+        const parent = parentPath.length ? resolvePath( this.storage[ key ], parentPath ) : this.storage[ key ];
+        if ( !parent || typeof parent !== "object" ) {
+            return Promise.reject( new Error( `in-memory-cache setJSON: parent path does not exist for key "${ key }" (path ${ JSON.stringify( path ) })` ) );
+        }
+        const leafExists = Object.prototype.hasOwnProperty.call( parent, leaf );
+        if ( ( overrideMode === 1 && leafExists ) || ( overrideMode === 2 && !leafExists ) ) {
+            return Promise.resolve();
+        }
+        parent[ leaf ] = deepClone( value );
         return Promise.resolve();
     }
 
     editJSON( key, update ) {
+        if ( isUnsafePropertyName( key ) ) {
+            return Promise.reject( new Error( `in-memory-cache editJSON: unsafe key "${ key }"` ) );
+        }
         if ( !this.storage[ key ] || typeof this.storage[ key ] !== "object" ) {
-            this.storage[ key ] = {};
+            this.storage[ key ] = Object.create( null );
         }
         deepMerge( this.storage[ key ], update );
         return Promise.resolve();

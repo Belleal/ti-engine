@@ -2,13 +2,33 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.16.0
+
+The app was containerized and continuously delivered, but there was still nowhere for anyone other than a developer to open it. This adds a hosted test environment on Google Cloud Run that costs approximately nothing when idle: a single instance holding the app plus a `redis:8-alpine` sidecar, with Redis snapshotting onto a mounted Cloud Storage bucket so cycles, evaluations and feedback survive scale-to-zero. Identity-Aware Proxy fronts it with an email allowlist, and the app itself is Google-sign-in only. Setup and deployment are idempotent, dry-runnable scripts rather than a wiki page (CA-94).
+
+* feat(competence): add `deploy/gcp/` — the Cloud Run service manifest plus idempotent `bootstrap.sh` and `deploy.sh`, both supporting `DRY_RUN=1` to preview every command without touching the cloud
+* build(competence): publish the container image to Artifact Registry alongside GHCR from a single build in the CD workflow, authenticated with Workload Identity Federation (no stored credentials); exclude `**/deploy` from the image build context
+* docs(competence): add INSTALL.md "Method D — Google Cloud Run (scale-to-zero test environment)" covering the durability window, the cold-start cost, the IAP coupling and the locked-out recovery procedure; correct the §11 admin-access note, which no longer needs a config-file edit
+* build(release): bump package version from `3.15.0` to `3.16.0`
+
+## Version 3.15.0
+
+Research-use consent: employees are asked once per appraisal cycle whether their anonymized evaluation data may be used for analysis and research, and the answer is recorded as a provable electronic consent. In-app Insights and the per-cycle `ResultsSnapshot` are unchanged — they run on legitimate interest and continue to cover every employee; consent gates secondary research use only. See `docs/superpowers/specs/2026-07-27-competence-research-consent-design.md` (CA-93).
+
+* feat(competence): add the store-backed `research-consent` config document — the consent statement is admin-editable per locale (en/bg), with a `consentTextVersionBumped` semantic validator that forces the version to move whenever a body changes, and `enabled: false` as a fail-closed kill switch
+* feat(competence): add `application/research-consent.js`, a pure frozen-singleton owning every consent rule — SHA-256 statement hashing (`hashText`), record construction (self-attested only: `decidedBy` must equal the subject), newest-wins resolution (`resolveEffective`), the submit-gate check (`requireDecision`), an exact-match no-op guard (`isNoOpDecision`) that keeps a repeated answer from writing a duplicate record, the per-cycle register (`buildConsentRegister`), and the fail-closed export chokepoint (`filterConsentedEvaluations`)
+* feat(competence): add the append-only consent store as the tenth `data-manager` cache key `ti:competence:data:research-consent` — records keyed by `recordID` so an append is a single merge-patch with no lost-update race, a hash-keyed registry holding each verbatim statement once, and an employee-scoped audit entry per decision; unlike the role-grants store it rejects rather than resolving optimistically when the cache is unavailable, because an unprovable consent is worse than a visible failure
+* feat(competence): capture the decision at self-evaluation submit — mandatory when enabled, both answers proceeding identically, written before the evaluation persists and idempotent so a retried submit adds no duplicate; changeable at any time (including after an evaluation reaches `Closed`) from the Scores screen
+* feat(competence): add the Supervisor consent register with per-employee evidence showing the exact statement each person saw, including superseded answers; gated on `SUPERVISOR` rather than `admin`, since the rows are personal data rather than configuration
+* build(release): bump package version from `3.14.0` to `3.15.0`
+
 ## Version 3.14.0
 
 End-user documentation: a comprehensive role-based user guide, in the repo and in the app. The markdown chapters under `docs/user-guide/` are the single source; a build step generates the in-app Help screens, and a hand-authored Process Guide screen walks the eight appraisal steps. The sidebar Quick Links ("Process Guide", "Help") — disabled placeholders until now — are live. See `docs/superpowers/specs/2026-07-24-competence-user-guide-design.md` (CA-92).
 
 * docs(competence): refresh the README — link the `INSTALL.md` ops guide from Deployment, document the Azure-SSO container default and the `GET /health` probe, and align the `COMPETENCE_PRELOAD_DATA` wording with the non-destructive merge-seed semantics
 * docs(competence): add the end-user guide — nine markdown chapters under `docs/user-guide/en/` (overview & key concepts, getting started, employees, team members, managers, supervisors, administrators, the appraisal process end-to-end, FAQ & glossary)
-* feat(competence): generate the in-app Help screens from the guide markdown — `bin/build/build-user-guide.js` (`npm run build:guide`; `marked` pinned as a build-time devDependency) emits one committed static fragment per chapter with chapter navigation, prev/next links, and a version stamp; raw HTML, relative `.md` links, inline styles, and scripts are build errors
+* feat(competence): generate the in-app Help screens from the guide markdown — `bin/build/build-user-guide.js` (`npm run build:guide`; `marked` pinned as a build-time devDependency) emits one committed static fragment per chapter with chapter navigation, prev/next links, and a version stamp; raw HTML, images, relative or non-http(s) links, inline styles, and scripts are build errors
 * feat(competence): register the nine public Help screens and enable the sidebar Help quick link, with sidebar active-state mapping and topbar titles (en + bg, bg pending native review); freshness, wiring, and CSP guards land in `test/user-guide-build.test.js`
 * feat(competence): add the Process Guide screen — a hand-authored walkthrough of the eight appraisal steps with role badges, the evaluation status lifecycle, and deep links into the Help chapters; sidebar Process Guide quick link enabled
 * build(release): bump package version from `3.13.3` to `3.14.0`

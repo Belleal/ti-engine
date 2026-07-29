@@ -16,6 +16,7 @@ const organizationManager = require( "#organization-manager" );
 const competenceFramework = require( "#competence-framework" );
 const taskResolver = require( "#task-resolver" );
 const resultsAnalytics = require( "#results-analytics" );
+const researchConsent = require( "#research-consent" );
 const logger = require( "@ti-engine/core/logger" );
 const { registerCompetenceConfig } = require( "../application/config-registration" );
 
@@ -152,6 +153,11 @@ class CompetenceWebApplication extends TiWebAppManager {
         this.addFragment( "insights-trends", {
             title: "Trends",
             path: "fragments/frame-insights-trends.html",
+            roles: [ SUPERVISOR ]
+        } );
+        this.addFragment( "consent-register", {
+            title: "Research Consent Register",
+            path: "fragments/frame-consent-register.html",
             roles: [ SUPERVISOR ]
         } );
         this.addFragment( "evaluations-oversight", {
@@ -292,6 +298,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "insights-cycle": "insights-cycle",
                     "insights-team": "insights-team",
                     "insights-trends": "insights-trends",
+                    "consent-register": "consent-register",
                     "evaluations-oversight": "evaluations-oversight",
                     "help-overview": "help",
                     "help-getting-started": "help",
@@ -355,6 +362,15 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#loadEvaluationsOversight( session );
         } else if ( view === "load-cycle-list" ) {
             return this.#loadCycleList( session );
+        } else if ( view === "load-research-consent" ) {
+            return this.#loadResearchConsent( session );
+        } else if ( view === "load-consent-register" ) {
+            const cycleID = String( options?.query?.cycleID || "" ).trim();
+            return this.#loadConsentRegister( session, cycleID );
+        } else if ( view === "load-consent-evidence" ) {
+            const employeeID = String( options?.query?.employeeID || "" ).trim();
+            const cycleID = String( options?.query?.cycleID || "" ).trim();
+            return this.#loadConsentEvidence( session, employeeID, cycleID );
         } else if ( view === "load-cycle-setup" ) {
             const cycleID = String( options?.query?.cycleID || "" ).trim();
             return this.#loadCycleSetup( session, cycleID );
@@ -422,6 +438,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#saveInterviewOutcome( session, params );
         } else if ( service === "close-evaluation" ) {
             return this.#closeEvaluation( session, params );
+        } else if ( service === "submit-research-consent" ) {
+            return this.#submitResearchConsent( session, params );
         } else if ( service === "create-cycle" ) {
             return this.#createCycle( session, params );
         } else if ( service === "lock-cycle" ) {
@@ -717,6 +735,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             let isManager = false;
             let isTeamMember = false;
             let proxyAuditReason = null;
+            let consentDecision = null;
+            let consentWrite = Promise.resolve( null );
             dataManager.instance.fetchEvaluation( evaluation.evaluationID ).then( ( storedEvaluation ) => {
                 existingEvaluation = storedEvaluation;
                 isEmployee = existingEvaluation.employeeID === userID;
@@ -738,6 +758,12 @@ class CompetenceWebApplication extends TiWebAppManager {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.deadline-over-self-evaluation" }, exceptions.httpCode.C_422 );
                     }
 
+                    // Research-use consent (CA-93): a self-submit must carry an explicit decision when the
+                    // capability is enabled. Both answers proceed identically — refusing costs the employee nothing,
+                    // which is the only reading under which this is genuine consent.
+                    const consentConfig = this.#resolveConsentConfig( session?.language );
+                    consentDecision = researchConsent.instance.requireDecision( evaluation.researchConsent, consentConfig.enabled );
+
                     if ( evaluation.comment !== undefined ) {
                         existingEvaluation.comment = evaluation.comment;
                     }
@@ -748,6 +774,13 @@ class CompetenceWebApplication extends TiWebAppManager {
                     }
 
                     existingEvaluation.workflow.selfEvaluationCompleted = true;
+                    // Consent is written BEFORE the evaluation persists. If the submit then fails, a valid consent
+                    // record with no evaluation change is harmless — the consent is per-cycle and true regardless.
+                    // The reverse ordering can leave a submitted evaluation with no consent record, which is the
+                    // state that cannot be defended. The write is idempotent, so a retry adds no duplicate.
+                    if ( consentDecision ) {
+                        consentWrite = this.#recordConsentDecision( existingEvaluation.employeeID, existingEvaluation.cycleID, consentDecision, "evaluation-submit", session?.language );
+                    }
                 } else if ( isTeamMember ) {
                     if ( existingEvaluation.status !== configurationLoader.evaluationStatus.OPEN ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.evaluation.invalid-submit-status-open" }, exceptions.httpCode.C_422 );
@@ -844,7 +877,10 @@ class CompetenceWebApplication extends TiWebAppManager {
 
                 // TODO: Make sure to update the 'currentStep' of the workflow accordingly (graph implementation needed first).
 
-                return dataManager.instance.saveEvaluation( existingEvaluation ).then( ( saved ) => {
+                // Research consent settles BEFORE the evaluation persists, so a failed consent write aborts the
+                // submit rather than leaving a submitted evaluation with no consent record. `consentWrite` is an
+                // already-resolved promise for every non-employee branch and whenever the capability is disabled.
+                return consentWrite.then( () => dataManager.instance.saveEvaluation( existingEvaluation ) ).then( ( saved ) => {
                     if ( proxyAuditReason ) {
                         return dataManager.instance.appendAuditEntry( {
                             subjectType: "evaluation",
@@ -970,6 +1006,280 @@ class CompetenceWebApplication extends TiWebAppManager {
             } ).catch( ( error ) => {
                 reject( error );
             } );
+        } );
+    }
+
+    /**
+     * The active research-consent configuration for a locale, with the statement resolved. Falls back to `en` when
+     * the requested locale has no body, and reports `enabled: false` if the document is malformed — fail-closed, so a
+     * broken config suppresses the prompt rather than showing an empty one.
+     *
+     * @method
+     * @param {string} [locale="en"]
+     * @returns {{enabled: boolean, version: string, locale: string, body: string}}
+     * @private
+     */
+    #resolveConsentConfig( locale ) {
+        const config = configurationLoader.configResearchConsent || {};
+        const text = config.text || {};
+        const requested = String( locale || "en" ).trim() || "en";
+        const entry = text[ requested ] || text.en || null;
+        const body = ( entry && entry.body ) ? String( entry.body ) : "";
+        const version = config.version ? String( config.version ) : "";
+        return {
+            enabled: ( config.enabled === true ) && !!body && !!version,
+            version: version,
+            locale: ( text[ requested ] && text[ requested ].body ) ? requested : "en",
+            body: body
+        };
+    }
+
+    /**
+     * Records a consent decision for the caller against a cycle. Idempotent: when the incoming decision matches the
+     * one already in force AND references the same text, nothing is written and null is returned. That is what makes
+     * it safe to call this ahead of a submit that may fail validation and be retried.
+     *
+     * @method
+     * @param {string} userID - The subject; consent is self-attested only.
+     * @param {string} cycleID
+     * @param {"granted"|"declined"} decision
+     * @param {"evaluation-submit"|"scores-screen"} source
+     * @param {string} [locale]
+     * @returns {Promise<ResearchConsentRecord|null>} The stored record, or null when the write was a no-op.
+     * @private
+     */
+    #recordConsentDecision( userID, cycleID, decision, source, locale ) {
+        const consentConfig = this.#resolveConsentConfig( locale );
+        if ( !consentConfig.enabled ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.consent.disabled" }, exceptions.httpCode.C_422 ) );
+        }
+        return dataManager.instance.fetchConsentChain( userID, cycleID ).then( ( chain ) => {
+            const effective = researchConsent.instance.resolveEffective( chain );
+            const textHash = researchConsent.instance.hashText( consentConfig.body );
+            if ( researchConsent.instance.isNoOpDecision( effective, decision, textHash ) ) {
+                return null;
+            }
+            const built = researchConsent.instance.buildDecisionRecord( {
+                employeeID: userID,
+                decidedBy: userID,
+                decision: decision,
+                body: consentConfig.body,
+                locale: consentConfig.locale,
+                version: consentConfig.version,
+                source: source,
+                supersedes: effective ? effective.recordID : null
+            } );
+            return dataManager.instance.saveConsentDecision( userID, cycleID, built.record, built.text, effective ? effective.decision : null );
+        } );
+    }
+
+    /**
+     * Resolves the cycle the Scores-screen consent panel should act against when there is no ACTIVE cycle: the cycle
+     * holding the subject's own globally newest consent record (across all cycles they have ever answered in). This
+     * is the fallback behind design spec §7.2 — withdrawal cannot be conditional on workflow state, so a subject must
+     * still be able to see and revoke their consent after their cycle closes, which is exactly when a research export
+     * would target that cycle's data.
+     *
+     * Reuses {@link ResearchConsent#resolveEffective} rather than hand-rolling a second newest-wins rule: every
+     * record from every cycle is tagged with the cycleID it came from and concatenated into one array, and the
+     * record `resolveEffective` picks as newest (by `decidedAt`, tie-broken on `recordID`) names its own cycle.
+     *
+     * Returns null when the subject has never answered in any cycle — there is nothing to fall back to, and (by
+     * design) consent must never be first captured outside an active cycle.
+     *
+     * @method
+     * @param {string} userID - The subject; history is always fetched for the session user, never a parameter.
+     * @returns {Promise<string|null>}
+     * @private
+     */
+    #resolveFallbackConsentCycleID( userID ) {
+        return dataManager.instance.fetchConsentHistory( userID ).then( ( history ) => {
+            const source = ( history && typeof history === "object" ) ? history : {};
+            const tagged = [];
+            for ( const [ cycleID, chain ] of Object.entries( source ) ) {
+                if ( !Array.isArray( chain ) ) {
+                    continue;
+                }
+                for ( const record of chain ) {
+                    if ( record ) {
+                        tagged.push( Object.assign( {}, record, { cycleID: cycleID } ) );
+                    }
+                }
+            }
+            const newest = researchConsent.instance.resolveEffective( tagged );
+            return newest ? newest.cycleID : null;
+        } );
+    }
+
+    /**
+     * The caller's own consent state for the active cycle, plus the statement to show them. Self-scoped only — there
+     * is no parameter to read anyone else's.
+     *
+     * When there is no ACTIVE cycle, falls back to the cycle of the subject's own most recent consent record (see
+     * {@link #resolveFallbackConsentCycleID} and design spec §7.2: withdrawal cannot be conditional on workflow
+     * state) so the panel still shows their live state — with the current statement text, so a change would be
+     * against the wording they are actually looking at. If the subject has never answered in any cycle, the panel
+     * stays reported as disabled: a person who was never asked has no record to change, and first capture only ever
+     * happens through the evaluation form or an active-cycle Scores screen.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadResearchConsent( session ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireSessionUser( session );
+            const consentConfig = this.#resolveConsentConfig( session?.language );
+            if ( !consentConfig.enabled ) {
+                return resolve( { enabled: false, version: "", locale: consentConfig.locale, body: "", decision: null, decidedAt: null, cycleID: null } );
+            }
+            dataManager.instance.getActiveCycle().then( ( activeCycle ) => {
+                if ( activeCycle ) {
+                    return activeCycle.cycleID;
+                }
+                return this.#resolveFallbackConsentCycleID( userID );
+            } ).then( ( cycleID ) => {
+                if ( !cycleID ) {
+                    return resolve( { enabled: false, version: consentConfig.version, locale: consentConfig.locale, body: consentConfig.body, decision: null, decidedAt: null, cycleID: null } );
+                }
+                return dataManager.instance.fetchConsentChain( userID, cycleID ).then( ( chain ) => {
+                    const effective = researchConsent.instance.resolveEffective( chain );
+                    resolve( {
+                        enabled: true,
+                        version: consentConfig.version,
+                        locale: consentConfig.locale,
+                        body: consentConfig.body,
+                        decision: effective ? effective.decision : null,
+                        decidedAt: effective ? effective.decidedAt : null,
+                        cycleID: cycleID
+                    } );
+                } );
+            } ).catch( reject );
+        } );
+    }
+
+    /**
+     * Records or changes the caller's own consent decision for the active cycle. Available at any evaluation status —
+     * withdrawal cannot be conditional on workflow state.
+     *
+     * When there is no ACTIVE cycle, falls back to the cycle of the subject's own most recent consent record (see
+     * {@link #resolveFallbackConsentCycleID} and design spec §7.2) so a withdrawal remains possible after the cycle
+     * that was consented to has closed — exactly the data a research export would target. If the subject has no
+     * consent record in any cycle, this still rejects with `error.consent.no-active-cycle`: consent is never first
+     * captured outside an active cycle.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.decision
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #submitResearchConsent( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireSessionUser( session );
+            const consentConfig = this.#resolveConsentConfig( session?.language );
+            let decision;
+            try {
+                decision = researchConsent.instance.requireDecision( params && params.decision, consentConfig.enabled );
+            } catch ( error ) {
+                return reject( error );
+            }
+            if ( decision === null ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.consent.disabled" }, exceptions.httpCode.C_422 ) );
+            }
+            dataManager.instance.getActiveCycle().then( ( activeCycle ) => {
+                if ( activeCycle ) {
+                    return activeCycle.cycleID;
+                }
+                return this.#resolveFallbackConsentCycleID( userID );
+            } ).then( ( cycleID ) => {
+                if ( !cycleID ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "error.consent.no-active-cycle" }, exceptions.httpCode.C_422 );
+                }
+                return this.#recordConsentDecision( userID, cycleID, decision, "scores-screen", session?.language ).then( ( record ) => {
+                    resolve( {
+                        decision: decision,
+                        decidedAt: record ? record.decidedAt : null,
+                        cycleID: cycleID
+                    } );
+                } );
+            } ).catch( reject );
+        } );
+    }
+
+    /**
+     * The per-cycle consent register. Supervisor-only: the rows are per-person consent decisions, which is personal
+     * data rather than configuration, so this is NOT gated on the `admin` role (there is no implicit role hierarchy).
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {string} cycleID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadConsentRegister( session, cycleID ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireRole( session, configurationLoader.roleCode.SUPERVISOR );
+            if ( !cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { cycleID } ) );
+            }
+            Promise.all( [
+                dataManager.instance.fetchEmployees(),
+                dataManager.instance.fetchConsentDecisions( cycleID )
+            ] ).then( ( [ employees, chains ] ) => {
+                const population = ( employees || [] ).map( ( employee ) => employee.employeeID );
+                const nameByID = new Map( ( employees || [] ).map( ( employee ) => {
+                    const personal = employee.personal || {};
+                    return [ employee.employeeID, `${ personal.firstName || "" } ${ personal.lastName || "" }`.trim() || employee.employeeID ];
+                } ) );
+                const register = researchConsent.instance.buildConsentRegister( population, chains );
+                resolve( {
+                    cycleID: cycleID,
+                    counts: register.counts,
+                    rows: register.rows.map( ( row ) => Object.assign( {}, row, { employeeName: nameByID.get( row.employeeID ) || row.employeeID } ) )
+                } );
+            } ).catch( reject );
+        } );
+    }
+
+    /**
+     * The full consent chain for one employee in one cycle, with each record's verbatim statement resolved from the
+     * text registry — the evidence view. Available to a Supervisor, and to the employee for their own record.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {string} employeeID
+     * @param {string} cycleID
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #loadConsentEvidence( session, employeeID, cycleID ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireSessionUser( session );
+            if ( !employeeID || !cycleID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { employeeID, cycleID } ) );
+            }
+            const isSupervisor = userRoles.includes( configurationLoader.roleCode.SUPERVISOR );
+            if ( !isSupervisor && employeeID !== userID ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "error.consent.not-self" }, exceptions.httpCode.C_403 ) );
+            }
+            dataManager.instance.fetchConsentChain( employeeID, cycleID ).then( ( chain ) => {
+                const hashes = Array.from( new Set( chain.map( ( entry ) => entry.textHash ).filter( Boolean ) ) );
+                return Promise.all( hashes.map( ( hash ) => dataManager.instance.fetchConsentText( hash ) ) ).then( ( texts ) => {
+                    const bodyByHash = new Map();
+                    hashes.forEach( ( hash, index ) => {
+                        const entry = texts[ index ];
+                        bodyByHash.set( hash, ( entry && entry.body ) ? entry.body : "" );
+                    } );
+                    resolve( {
+                        employeeID: employeeID,
+                        cycleID: cycleID,
+                        records: chain.map( ( entry ) => Object.assign( {}, entry, { body: bodyByHash.get( entry.textHash ) || "" } ) )
+                    } );
+                } );
+            } ).catch( reject );
         } );
     }
 
