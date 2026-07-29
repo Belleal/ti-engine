@@ -25,12 +25,21 @@ function deepClone( value ) {
     return value === undefined || value === null ? value : JSON.parse( JSON.stringify( value ) );
 }
 
+function isUnsafePropertyName( name ) {
+    return name === "__proto__" || name === "constructor" || name === "prototype";
+}
+
 function deepMerge( target, source ) {
     for ( const [ k, v ] of Object.entries( source ) ) {
         // Skip prototype-polluting keys — a `__proto__`/`constructor`/`prototype` key would otherwise walk into and
-        // corrupt Object.prototype for the whole process (CWE-1321).
+        // corrupt Object.prototype for the whole process (CWE-1321). Inline literals at the sink, NOT the
+        // isUnsafePropertyName helper: CodeQL does not recognize interprocedural sanitizers (CA-91 / 3.13.2), and
+        // refactoring this to the helper is what reopened the alert once already.
         if ( k === "__proto__" || k === "constructor" || k === "prototype" ) continue;
         if ( v && typeof v === "object" && !Array.isArray( v ) && target[ k ] && typeof target[ k ] === "object" && !Array.isArray( target[ k ] ) ) {
+            deepMerge( target[ k ], v );
+        } else if ( v && typeof v === "object" && !Array.isArray( v ) ) {
+            target[ k ] = Object.create( null );
             deepMerge( target[ k ], v );
         } else {
             target[ k ] = deepClone( v );
@@ -67,7 +76,7 @@ function resolvePath( root, path ) {
 
 class InMemoryCache {
     constructor() {
-        this.storage = {};
+        this.storage = Object.create( null );
     }
 
     get isOperational() {
@@ -75,6 +84,9 @@ class InMemoryCache {
     }
 
     setJSON( key, value, path = "$", overrideMode = 0 ) {
+        if ( isUnsafePropertyName( key ) ) {
+            return Promise.reject( new Error( `in-memory-cache setJSON: unsafe key "${ key }"` ) );
+        }
         const rootExists = Object.prototype.hasOwnProperty.call( this.storage, key );
         // Root write ($): NX only fires if the key itself is absent, XX only if it is already present -- mirrors
         // RedisJSON JSON.SET's NX/XX semantics at the root path.
@@ -92,16 +104,22 @@ class InMemoryCache {
         const parts = Array.isArray( path ) ? path : String( path ).split( "." );
         // Reject a prototype-polluting path segment outright, adjacent to the walk/assignment below, rather than
         // skipping it silently -- a test helper hitting `__proto__`/`constructor`/`prototype` here is a test bug to
-        // surface loudly, not a case to tolerate (CWE-1321 / CodeQL js/prototype-polluting-assignment). Mirrors the
-        // inline literal guard in this file's deepMerge and in application/data-manager.js's #setFieldByPath /
-        // #getFieldByPath. CodeQL does not recognize interprocedural sanitizers, so the check must live right next
-        // to the sink -- an extracted helper would not clear the alert.
+        // surface loudly, not a case to tolerate (CWE-1321 / CodeQL js/prototype-polluting-assignment). The literals
+        // are INLINE at the sink deliberately: CodeQL does not recognize interprocedural sanitizers (the CA-91
+        // lesson, see the 3.13.2 changelog), so routing this through isUnsafePropertyName would leave the alert
+        // open even though the behaviour is identical.
         for ( const part of parts ) {
+            if ( part === "*" ) {
+                return Promise.reject( new Error( `in-memory-cache setJSON: wildcard path segment is not supported for writes` ) );
+            }
             if ( part === "__proto__" || part === "constructor" || part === "prototype" ) {
                 return Promise.reject( new Error( `in-memory-cache setJSON: unsafe path segment '${ part }' for key "${ key }" (path ${ JSON.stringify( path ) })` ) );
             }
         }
         const leaf = parts[ parts.length - 1 ];
+        if ( isUnsafePropertyName( leaf ) ) {
+            return Promise.reject( new Error( `in-memory-cache setJSON: unsafe path leaf "${ leaf }"` ) );
+        }
         const parentPath = parts.slice( 0, -1 );
         const parent = parentPath.length ? resolvePath( this.storage[ key ], parentPath ) : this.storage[ key ];
         if ( !parent || typeof parent !== "object" ) {
@@ -116,8 +134,11 @@ class InMemoryCache {
     }
 
     editJSON( key, update ) {
+        if ( isUnsafePropertyName( key ) ) {
+            return Promise.reject( new Error( `in-memory-cache editJSON: unsafe key "${ key }"` ) );
+        }
         if ( !this.storage[ key ] || typeof this.storage[ key ] !== "object" ) {
-            this.storage[ key ] = {};
+            this.storage[ key ] = Object.create( null );
         }
         deepMerge( this.storage[ key ], update );
         return Promise.resolve();
