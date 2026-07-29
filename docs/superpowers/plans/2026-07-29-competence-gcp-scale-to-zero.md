@@ -1141,6 +1141,7 @@ Spec §11. House style: an intro paragraph explaining the *why*, then bullets, c
 - Modify: `packages/web-framework/CHANGELOG.md` (new entry at the top, above `## Version 1.17.0`)
 - Modify: `packages/competence/package.json` (version `3.15.0` → `3.16.0`)
 - Modify: `packages/competence/CHANGELOG.md` (new entry at the top)
+- Regenerate: `packages/competence/bin/static/fragments/guide/frame-help-*.html` (nine generated guide screens)
 
 - [ ] **Step 1: Bump web-framework and write its changelog entry**
 
@@ -1171,19 +1172,29 @@ The app was containerized and continuously delivered, but there was still nowher
 * build(release): bump package version from `3.15.0` to `3.16.0`
 ```
 
-- [ ] **Step 3: Verify both bumps and that nothing else changed**
+- [ ] **Step 3: Regenerate the guide screens**
+
+The guide builder stamps the competence package version into every user guide screen's footer, so version bumps require regeneration to keep committed screens in sync with the source. Run the builder and commit the result:
+
+```bash
+npm run build:guide -w @ti-engine/competence
+```
+
+Expected: generated 9 screen(s). The diff should show only `v3.15.0` → `v3.16.0` in the version-stamp line of each screen — if the diff contains any other content change, something else is stale and must be investigated before committing.
+
+- [ ] **Step 4: Verify both bumps and that nothing else changed**
 
 ```bash
 node -e "for (const p of ['web-framework','competence']) console.log(p, require('./packages/'+p+'/package.json').version)"
 git diff --stat
 ```
 
-Expected: `web-framework 1.18.0`, `competence 3.16.0`, and the diff touching only the four files listed above.
+Expected: `web-framework 1.18.0`, `competence 3.16.0`, and the diff touching only the four files listed above plus the nine regenerated guide screens.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add packages/web-framework/package.json packages/web-framework/CHANGELOG.md packages/competence/package.json packages/competence/CHANGELOG.md
+git add packages/web-framework/package.json packages/web-framework/CHANGELOG.md packages/competence/package.json packages/competence/CHANGELOG.md packages/competence/bin/static/fragments/guide/
 git commit -m "build(release): bump web-framework to 1.18.0 and competence to 3.16.0 (CA-###)"
 ```
 
