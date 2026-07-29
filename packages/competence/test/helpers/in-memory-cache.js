@@ -25,12 +25,19 @@ function deepClone( value ) {
     return value === undefined || value === null ? value : JSON.parse( JSON.stringify( value ) );
 }
 
+function isUnsafePropertyName( name ) {
+    return name === "__proto__" || name === "constructor" || name === "prototype";
+}
+
 function deepMerge( target, source ) {
     for ( const [ k, v ] of Object.entries( source ) ) {
         // Skip prototype-polluting keys — a `__proto__`/`constructor`/`prototype` key would otherwise walk into and
         // corrupt Object.prototype for the whole process (CWE-1321).
-        if ( k === "__proto__" || k === "constructor" || k === "prototype" ) continue;
+        if ( isUnsafePropertyName( k ) ) continue;
         if ( v && typeof v === "object" && !Array.isArray( v ) && target[ k ] && typeof target[ k ] === "object" && !Array.isArray( target[ k ] ) ) {
+            deepMerge( target[ k ], v );
+        } else if ( v && typeof v === "object" && !Array.isArray( v ) ) {
+            target[ k ] = Object.create( null );
             deepMerge( target[ k ], v );
         } else {
             target[ k ] = deepClone( v );
@@ -67,7 +74,7 @@ function resolvePath( root, path ) {
 
 class InMemoryCache {
     constructor() {
-        this.storage = {};
+        this.storage = Object.create( null );
     }
 
     get isOperational() {
@@ -75,6 +82,9 @@ class InMemoryCache {
     }
 
     setJSON( key, value, path = "$", overrideMode = 0 ) {
+        if ( isUnsafePropertyName( key ) ) {
+            return Promise.reject( new Error( `in-memory-cache setJSON: unsafe key "${ key }"` ) );
+        }
         const rootExists = Object.prototype.hasOwnProperty.call( this.storage, key );
         // Root write ($): NX only fires if the key itself is absent, XX only if it is already present -- mirrors
         // RedisJSON JSON.SET's NX/XX semantics at the root path.
@@ -91,6 +101,9 @@ class InMemoryCache {
         // create intermediate structure the real store wouldn't).
         const parts = Array.isArray( path ) ? path : String( path ).split( "." );
         const leaf = parts[ parts.length - 1 ];
+        if ( isUnsafePropertyName( leaf ) ) {
+            return Promise.reject( new Error( `in-memory-cache setJSON: unsafe path leaf "${ leaf }"` ) );
+        }
         const parentPath = parts.slice( 0, -1 );
         const parent = parentPath.length ? resolvePath( this.storage[ key ], parentPath ) : this.storage[ key ];
         if ( !parent || typeof parent !== "object" ) {
@@ -105,8 +118,11 @@ class InMemoryCache {
     }
 
     editJSON( key, update ) {
+        if ( isUnsafePropertyName( key ) ) {
+            return Promise.reject( new Error( `in-memory-cache editJSON: unsafe key "${ key }"` ) );
+        }
         if ( !this.storage[ key ] || typeof this.storage[ key ] !== "object" ) {
-            this.storage[ key ] = {};
+            this.storage[ key ] = Object.create( null );
         }
         deepMerge( this.storage[ key ], update );
         return Promise.resolve();
