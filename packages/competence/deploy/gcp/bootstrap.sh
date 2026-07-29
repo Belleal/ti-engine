@@ -92,6 +92,7 @@ fi
 
 # Keep the 3 most recent versions; delete anything else older than 30 days.
 CLEANUP_POLICY="$( mktemp )"
+trap 'rm -f "${CLEANUP_POLICY}"' EXIT
 cat > "${CLEANUP_POLICY}" <<'JSON'
 [
   {
@@ -134,6 +135,7 @@ fi
 run gcloud storage buckets update "gs://${BUCKET}" --versioning
 
 LIFECYCLE="$( mktemp )"
+trap 'rm -f "${CLEANUP_POLICY}" "${LIFECYCLE}"' EXIT
 cat > "${LIFECYCLE}" <<'JSON'
 {
   "rule": [

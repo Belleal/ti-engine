@@ -479,6 +479,7 @@ fi
 
 # Keep the 3 most recent versions; delete anything else older than 30 days.
 CLEANUP_POLICY="$( mktemp )"
+trap 'rm -f "${CLEANUP_POLICY}"' EXIT
 cat > "${CLEANUP_POLICY}" <<'JSON'
 [
   {
@@ -521,6 +522,7 @@ fi
 run gcloud storage buckets update "gs://${BUCKET}" --versioning
 
 LIFECYCLE="$( mktemp )"
+trap 'rm -f "${CLEANUP_POLICY}" "${LIFECYCLE}"' EXIT
 cat > "${LIFECYCLE}" <<'JSON'
 {
   "rule": [
@@ -752,7 +754,10 @@ set -euo pipefail
 
 DRY_RUN="${DRY_RUN:-}"
 REGION="${REGION:-europe-west1}"
-SERVICE="${SERVICE:-competence}"
+# Fixed, not configurable: service.yaml hardcodes metadata.name, and it is not one of
+# the templated tokens — an override here would replace the real service and then abort
+# before the IAP re-assert. Change both together or neither.
+SERVICE="competence"
 IMAGE_TAG="${IMAGE_TAG:-edge}"
 # Comma-separated admin allowlist. Empty = no admins, so the admin config
 # screens stay unreachable (web-framework >= 1.18.0 reads TI_WEB_AUTH_ADMINS).
@@ -796,6 +801,7 @@ step() { printf '\n==> %s\n' "$1"; }
 
 step "1/4 Rendering the manifest"
 RENDERED="$( mktemp )"
+trap 'rm -f "${RENDERED}"' EXIT
 sed \
     -e "s|__PROJECT_ID__|${PROJECT_ID}|g" \
     -e "s|__REGION__|${REGION}|g" \
