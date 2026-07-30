@@ -296,11 +296,14 @@ cat <<EOF
      URI empty for now — deploy.sh prints the exact value to add once the service
      URL exists.
 
-  2. Store its client secret (the value is read from stdin, never echoed):
-       gcloud secrets create competence-google-client-secret \\
+  2. Store its client secret. Read it into a variable first — --data-file=- stores
+     stdin byte for byte, so typing the secret in and pressing Enter would store a
+     trailing newline, which Google rejects as invalid_client on every sign-in:
+       read -rsp 'Paste the client secret, then press Enter: ' SECRET && echo
+       printf %s "\$SECRET" | gcloud secrets create competence-google-client-secret \\
          --data-file=- --replication-policy=user-managed --locations=${REGION} \\
          --project ${PROJECT_ID}
-       # paste the secret, then press Ctrl-D
+       unset SECRET
      Then re-run this script so the runtime account gets read access to it.
 
   3. Deploy:  GOOGLE_CLIENT_ID=<client-id> ADMIN_EMAILS=<your-email> ./deploy.sh

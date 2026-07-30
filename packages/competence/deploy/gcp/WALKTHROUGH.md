@@ -162,13 +162,20 @@ twice when you first open the service, which is normal and usually one click the
 - [ ] Copy both values. The **Client ID** ends in `.apps.googleusercontent.com` and is not sensitive.
     The **Client secret** is — do not put it in a file, a chat, or a commit.
 - [ ] That is the only client to create. **Do not make one for IAP** — phase 7 provisions it.
-- [ ] Store the secret. This reads from your keyboard, so nothing lands in shell history:
+- [ ] Store the secret. Read it into a variable first — `read -rs` does not echo it and it never
+    reaches your shell history, and `printf %s` writes it **without a trailing newline**:
     ```bash
-    gcloud secrets create competence-google-client-secret \
+    read -rsp 'Paste the client secret, then press Enter: ' SECRET && echo
+    printf %s "$SECRET" | gcloud secrets create competence-google-client-secret \
       --data-file=- --replication-policy=user-managed --locations=europe-west1 \
       --project <PROJECT_ID>
+    unset SECRET
     ```
-    Paste the secret, press **Enter**, then **Ctrl-D**.
+    **The trailing newline matters.** `--data-file=-` stores stdin byte for byte, so typing the secret
+    straight into the command and pressing Enter before Ctrl-D would store `<secret>\n` — and Google
+    rejects that with `invalid_client`, which surfaces much later as a `/?error=1000` bounce on sign-in.
+    A Google client secret is 35 bytes (`GOCSPX-` plus 28); if `gcloud secrets versions access latest
+    --secret=competence-google-client-secret | wc -c` says 36, that newline is your problem.
 - [ ] Re-run `./bootstrap.sh` so the runtime service account is granted read access to it. It will
     report what already exists and add only the missing binding.
 
