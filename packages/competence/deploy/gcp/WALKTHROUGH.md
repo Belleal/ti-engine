@@ -1,7 +1,9 @@
 # Deploying competence to Google Cloud Run — first-time walkthrough
 
-A step-by-step setup guide for a **scale-to-zero test environment**: nothing runs, and nothing is
-billed, while nobody is testing. Every step says *which* surface you should be on — **Cloud Shell**,
+A step-by-step setup guide for a **scale-to-zero test environment**: while nobody is testing, no
+Cloud Run instance runs and no compute is billed. A few resources do persist — the stored container
+image, the Redis snapshot and three secrets — which is where the €0–1/month below comes from.
+Every step says *which* surface you should be on — **Cloud Shell**,
 **GCP Console**, **GitHub**, or a **browser** — because the usual way to lose an hour here is doing
 the right thing in the wrong place.
 
@@ -163,15 +165,18 @@ Pick either route. The tag gives you a pinned version to point at deliberately; 
 **Option A — re-run the pipeline.** Repository → **Actions** → the most recent failed **CD** run →
 **Re-run failed jobs**. It rebuilds from the same commit, which is what you want.
 
-**Option B — cut a release tag**, from a local clone on `master`:
+**Option B — cut a release tag**, from a local clone on `master`. Derive the version from the package
+rather than typing one, so the tag always matches what the image will report:
 
 ```bash
 git checkout master && git pull
-git tag competence-v3.16.0
-git push origin competence-v3.16.0
+VERSION=$(node -p "require('./packages/competence/package.json').version")
+git tag "competence-v${VERSION}"
+git push origin "competence-v${VERSION}"
 ```
 
-That publishes `:3.16.0` and `:latest` alongside `:edge`, to both registries from a single build.
+That publishes `:<version>` and `:latest` alongside `:edge`, to both registries from a single build.
+Tag only a version whose changelog entry is in place — the tag is what the release is named after.
 
 - [ ] Watch the run go green, then confirm the image arrived:
       ```bash

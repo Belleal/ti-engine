@@ -3,7 +3,7 @@
 **Audience:** system administrators deploying the **competence** HR appraisal application.
 **Scope:** installing, configuring, running, upgrading, and troubleshooting the app as a container. Application usage (running appraisal cycles, etc.) is out of scope.
 
-> **Package versions this guide targets:** competence `3.13.3`, `@ti-engine/web-framework` `1.16.0`, `@ti-engine/core` `1.7.1`. Container image: `ghcr.io/belleal/ti-engine-competence`.
+> **Package versions this guide targets:** competence `3.16.0`, `@ti-engine/web-framework` `1.18.1`, `@ti-engine/core` `1.7.1`. Container image: `ghcr.io/belleal/ti-engine-competence`.
 
 ---
 
@@ -55,11 +55,11 @@ There are no other required services. (The framework can call peer ti-engine ser
 
 - **Name:** `ghcr.io/belleal/ti-engine-competence`
 - **Tags:**
-  - `:X.Y.Z` — a released version (e.g. `:3.13.3`), published from a `competence-v*` git tag. **Use a pinned version tag in production.**
+  - `:X.Y.Z` — a released version (e.g. `:3.16.0`), published from a `competence-v*` git tag. **Use a pinned version tag in production.**
   - `:latest` — the most recent released version.
   - `:edge` — the tip of `master` (pre-release; for staging only).
 - **Base:** `node:22-alpine`, non-root (`node` user), `NODE_ENV=production`.
-- **Pulling:** if the package is public, `docker pull ghcr.io/belleal/ti-engine-competence:3.13.3`. If private, authenticate to GHCR first:
+- **Pulling:** if the package is public, `docker pull ghcr.io/belleal/ti-engine-competence:3.16.0`. If private, authenticate to GHCR first:
   ```bash
   echo "$GITHUB_TOKEN" | docker login ghcr.io -u <your-username> --password-stdin
   ```
@@ -216,7 +216,7 @@ services:
     restart: unless-stopped
 
   competence:
-    image: ghcr.io/belleal/ti-engine-competence:3.13.3
+    image: ghcr.io/belleal/ti-engine-competence:3.16.0
     depends_on:
       redis:
         condition: service_healthy
@@ -263,7 +263,7 @@ docker run -d --name competence \
   -e COMPETENCE_TEST_USER_ENABLED=false \
   -e TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY=<strong-random> \
   -e TI_WEB_COOKIE_SECRET=<strong-random> \
-  ghcr.io/belleal/ti-engine-competence:3.13.3
+  ghcr.io/belleal/ti-engine-competence:3.16.0
 ```
 
 ### Method C — Kubernetes (pointers)

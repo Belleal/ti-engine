@@ -280,10 +280,13 @@ cat <<EOF
 
 ==> DONE. Manual steps that cannot be scripted (spec §7.4):
 
-  1. Create the app's OAuth client (Console → APIs & Services → Credentials →
-     Create credentials → OAuth client ID → Web application). Consent screen
-     must be INTERNAL. Leave the redirect URI empty for now — deploy.sh prints
-     the exact value to add once the service URL exists.
+  1. Create the app's OAuth client (Console → Google Auth Platform → Clients →
+     Create client → Web application). Set the Audience to INTERNAL, which keeps
+     sign-in to your Workspace domain and needs no verification. INTERNAL is only
+     offered when the project belongs to an organization; without one you get
+     EXTERNAL and must add each tester as an allowed test user. Leave the redirect
+     URI empty for now — deploy.sh prints the exact value to add once the service
+     URL exists.
 
   2. Store its client secret (the value is read from stdin, never echoed):
        gcloud secrets create competence-google-client-secret \\

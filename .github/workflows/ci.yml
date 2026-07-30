@@ -17,6 +17,10 @@ jobs:
         with:
           node-version: 22
       # No npm cache: it keys off package-lock.json, which is gitignored in this repo.
+      # setup-node's automatic cache also stays off by itself, because it only activates when
+      # package.json declares `packageManager` / `devEngines.packageManager` and none of ours do.
+      # Adding such a field would silently switch caching on here — pass
+      # `package-manager-cache: false` if that ever happens.
       - name: Install dependencies
         run: npm install
       - name: Lint
