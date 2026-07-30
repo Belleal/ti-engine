@@ -278,8 +278,15 @@ docker run -d --name competence \
 A hosted environment that costs approximately nothing when idle: one Cloud Run
 service holding the app plus a `redis:8-alpine` sidecar, with Redis snapshotting
 to a mounted Cloud Storage bucket so data survives scale-to-zero. Fronted by
-Identity-Aware Proxy with an email allowlist. Scripts live in
-[`deploy/gcp/`](deploy/gcp/README.md); run them in Cloud Shell:
+Identity-Aware Proxy with an email allowlist.
+
+> **First-time setup:** follow [`deploy/gcp/WALKTHROUGH.md`](deploy/gcp/WALKTHROUGH.md),
+> a guided nine-phase run through both the Google Cloud and GitHub sides. It covers the
+> ordering that must be respected (Google Cloud before GitHub), the two steps that fail
+> by design on a first deploy, and the post-deploy checks. The summary below is the
+> reference form.
+
+Scripts live in [`deploy/gcp/`](deploy/gcp/README.md); run them in Cloud Shell:
 
 ```bash
 cd packages/competence/deploy/gcp
