@@ -74,7 +74,10 @@ describe( "repository — resolve(path)", () => {
         post( "gated", "/gated/", { visibility: "authenticated" } ),
         post( "deny", "/deny/", { visibility: "role:__none__" } ),
         post( "draft", "/draft/", { status: "draft" } ),
-        post( "aliased", "/canonical/", { aliases: [ "/old-path/" ] } )
+        post( "aliased", "/canonical/", { aliases: [ "/old-path/" ] } ),
+        post( "draftAliased", "/draft-canonical/", { status: "draft", aliases: [ "/draft-old/" ] } ),
+        post( "denyAliased", "/deny-canonical/", { visibility: "role:__none__", aliases: [ "/deny-old/" ] } ),
+        post( "gatedAliased", "/gated-canonical/", { visibility: "authenticated", aliases: [ "/gated-old/" ] } )
     ] ) );
 
     it( "returns a visible hit for a public record", () => {
@@ -93,6 +96,15 @@ describe( "repository — resolve(path)", () => {
 
     it( "301s an alias to the canonical path", () => {
         assert.deepEqual( repo.resolve( "/old-path/", ANON ), { outcome: "alias", redirectTo: "/canonical/" } );
+    } );
+
+    it( "misses an alias whose target is a draft or hidden — redirecting would confirm the record exists and disclose its canonical path", () => {
+        assert.equal( repo.resolve( "/draft-old/", ADMIN ).outcome, "miss" );
+        assert.equal( repo.resolve( "/deny-old/", ADMIN ).outcome, "miss" );
+    } );
+
+    it( "still 301s an alias whose target is merely gated — the target renders its own gate", () => {
+        assert.deepEqual( repo.resolve( "/gated-old/", ANON ), { outcome: "alias", redirectTo: "/gated-canonical/" } );
     } );
 
     it( "misses an unknown path", () => {

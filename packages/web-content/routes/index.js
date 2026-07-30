@@ -30,7 +30,9 @@ const feeds = require( "#feeds" );
 const { contentHandler } = require( "#content-routes" );
 
 // Public-by-default: everything except the admin area bypasses the framework's authentication gate.
-const PUBLIC_EXCEPT_ADMIN = /^\/(?!admin\/).*$/;
+// The lookahead must accept BOTH `/admin/...` and the bare `/admin` — matching only `admin/` would leave
+// `/admin` itself declared unprotected, since the negative lookahead succeeds when the slash is absent.
+const PUBLIC_EXCEPT_ADMIN = /^\/(?!admin(?:\/|$)).*$/;
 
 /**
  * Inverts the framework's protect-by-default stance for a public content site.
@@ -64,7 +66,8 @@ function mountContentRoutes( server, options ) {
 
     server.registerRoute( "get", "/rss.xml", ( request, response ) => {
         response.set( "Cache-Control", "public, max-age=0, s-maxage=3600" );
-        response.type( "application/rss+xml" ).send( feeds.renderRss( feeds.rssItems( repository, { type: "post", limit: feedOptions.limit || 20 } ), {
+        // `??` not `||`, so a configured `limit: 0` means zero items rather than falling back to 20:
+        response.type( "application/rss+xml" ).send( feeds.renderRss( feeds.rssItems( repository, { type: "post", limit: feedOptions.limit ?? 20 } ), {
             baseUrl: baseUrl,
             title: feedOptions.title,
             description: feedOptions.description,
