@@ -142,7 +142,7 @@ describe( "content-routes — catch-all resolution", () => {
         assert.deepEqual( modes, [ "teaser", "full" ] );
     } );
 
-    it( "renders a markdown body through the markdown renderer in the fallback page", () => {
+    it( "renders a markdown body through the markdown renderer", () => {
         const repo = new ContentRepository( buildIndex( [
             post( "md", "/md/", { body: "Hello *there*.", bodyFormat: "markdown" } )
         ] ) );

@@ -26,8 +26,16 @@
  * per-record visibility. Two independent layers, and the content one is authoritative.
  */
 
+const fs = require( "node:fs" );
+const path = require( "node:path" );
 const feeds = require( "#feeds" );
 const { contentHandler } = require( "#content-routes" );
+
+// The site behaviour script ships with the package. It is read once at mount rather than per request, and served
+// under /static/ so it sits alongside the theme's own assets. The framework's express.static for /static runs first,
+// so a consumer that drops its own file at this path overrides the packaged one.
+const SITE_SCRIPT_PATH = "/static/web-content.js";
+const SITE_SCRIPT_FILE = path.join( __dirname, "..", "static", "web-content.js" );
 
 // Public-by-default: everything except the admin area bypasses the framework's authentication gate.
 // The lookahead must accept BOTH `/admin/...` and the bare `/admin` — matching only `admin/` would leave
@@ -50,7 +58,8 @@ function defineContentUnprotectedRoutes( server, options ) {
  * Mounts the feed routes and, LAST, the catch-all content resolver.
  *
  * @param {Object} server  A TiWebServer instance (>= 1.17.0).
- * @param {{ repository: Object, baseUrl?: string, renderPage?: Function, feed?: Object, allowIndexing?: boolean }} options
+ * @param {{ repository: Object, baseUrl?: string, renderPage?: Function, feed?: Object, allowIndexing?: boolean,
+ *           site?: Object, labels?: Object, assets?: Object, taxonomy?: Object, serveSiteScript?: boolean }} options
  * @returns {Object} The server, for chaining.
  */
 function mountContentRoutes( server, options ) {
@@ -79,9 +88,24 @@ function mountContentRoutes( server, options ) {
         response.type( "text/plain" ).send( feeds.renderRobots( { baseUrl: baseUrl, allowIndexing: opts.allowIndexing } ) );
     } );
 
+    if ( opts.serveSiteScript !== false ) {
+        const script = fs.readFileSync( SITE_SCRIPT_FILE, "utf8" );
+        server.registerRoute( "get", SITE_SCRIPT_PATH, ( request, response ) => {
+            response.set( "Cache-Control", "public, max-age=31536000, immutable" );
+            response.type( "application/javascript" ).send( script );
+        } );
+    }
+
     // Registered last: every other content URL resolves through the path index. Still ahead of the framework's own
     // `*splat` 404 handler, which is installed after defineWebApplicationRoutes() returns.
-    server.registerRoute( "get", /.*/, contentHandler( repository, { baseUrl: baseUrl, renderPage: opts.renderPage } ) );
+    server.registerRoute( "get", /.*/, contentHandler( repository, {
+        baseUrl: baseUrl,
+        renderPage: opts.renderPage,
+        site: opts.site,
+        labels: opts.labels,
+        assets: opts.assets,
+        taxonomy: opts.taxonomy
+    } ) );
 
     return server;
 }

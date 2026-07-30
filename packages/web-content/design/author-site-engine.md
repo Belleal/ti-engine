@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Active — P0–P2, P3a/P3b, P4 complete + editorial markdown extensions — 212 tests green; theme + self-hosted fonts landed in `Site/`. Next: P3c (document assembly + site script), then the fixture acceptance diff |
+| **Status** | Active — P0–P2, P3a/P3b, P4 complete + editorial markdown + P3c document assembly — 237 tests green; theme + self-hosted fonts landed in `Site/`. Next: P5 page templates against real content, then the migration URL inventory |
 | **Created** | 2026-07-24 |
-| **Last updated** | 2026-07-30 (rev 2) |
+| **Last updated** | 2026-07-30 (rev 3) |
 | **Owner** | Boris Kostadinov |
 | **Scope** | New package `@ti-engine/web-content` (reusable engine) + a small enabling change in `@ti-engine/web-framework` (route seams) + the private `anarandaris` `Site/` app (content, theme, wiring) |
 | **Relates to** | Realises the three `Site/docs/` specs — `build-spec.md`, `content-schemas.md`, `token-contract.md` — which remain the source of truth for *what*. This doc records *how it lands as a package* and **supersedes `build-spec.md` §2 on module placement** (framework column → `web-content`). |
@@ -26,7 +26,7 @@ How this design lands in code — update as each step is committed (branch `curr
 | **P3a** — `render/html.js` (escaping + `raw()`) + `render/document.js` (head/JSON-LD/hreflang) | ✅ 19 tests | `9ad6bf1` | 2026-07-24 |
 | **P3b** — `render/sections.js` (registry + mechanical dispatch) + all 15 editorial components | ✅ 53 tests | — | 2026-07-30 |
 | **P2c** — editorial markdown extensions (attrs · bracketed-spans · containers · footnotes) | ✅ 20 tests | — | 2026-07-30 |
-| **P3c** — full document assembly (shell · topbar · footer · gate · 404) + the vanilla site script | ☐ next | — | — |
+| **P3c** — document assembly (shell · topbar · footer · gate · 404) + the vanilla site script | ✅ 25 tests + doc acceptance check | — | 2026-07-30 |
 | **P4** — `routes/content-routes.js` (catch-all resolver + alias 301 + cache policy) · `routes/feeds.js` (sitemap/rss/robots) · `routes/index.js` mount helpers | ✅ 23 tests + e2e smoke | — | 2026-07-24 |
 | **P5** — `render/editorial/*` components + page templates (showcase first) — Track B meets Track A here | ☐ pending | — | — |
 | **P6** — `capture/store.js` + `capture/admin.js` (behind `role:admin`) | ☐ pending | — | — |
@@ -283,6 +283,16 @@ The `build-spec.md` §8 list — the failures that don't throw — become the fi
 > `bodyFormat: "html"` is **kept but dormant** (ratified): the field stays as an escape hatch should a page ever resist the section vocabulary, but no importer sanitises it, so **every** renderer withholds it. That fixed a real inconsistency introduced in P3b — `renderProse` emitted it via `raw()` while the fallback page withheld it, a live XSS vector for any record carrying the field. A dormant path has to be dormant on every route, not merely on the one written first. `Site/CLAUDE.md` rule 8 now records that markdown output is the only live `raw()` source.
 >
 > Migration (P7) changes shape but not order: the **URL inventory, uploads copy and alias map are unchanged and still non-negotiable**, and are now doubly urgent because the inventory is the only thing that sizes the re-authoring work and proves whether 15 section types cover every page. The WordPress REST export survives as **draft source material** — converted to markdown as a starting point for hand-finishing, never as a shipped body.
+
+> **P3c note (2026-07-30):** the rendering path is complete — a URL now produces a real page, not a placeholder. `render/shell.js` (noise layer · skip link · topbar · footer · language selector), `render/templates.js` (article · composed record · gate · state panel) and `render/page.js` (full document assembly) replace the fallback document, and `contentHandler` now defaults to `renderDocument`. The vanilla site script ships at `static/web-content.js` and is served by `mountContentRoutes` under `/static/`, so a consumer can override it by placing its own file at that path.
+>
+> **Everything site-specific is configuration.** The shell renders from `context.site` — title, logo, languages, nav, footer columns, social, sign-in paths — and an unconfigured site renders an empty shell rather than inventing content. Nothing in this package names the site.
+>
+> Details worth keeping: (1) **every `<script>` carries the nonce, including the JSON-LD block** — the framework's CSP uses `'strict-dynamic'`, under which a nonce-less script simply never executes, and a structured-data block silently dropped is exactly the failure nobody notices; (2) the language control emits an **inert option that says why** when `translationOf` is null, because hiding it makes a bilingual site look monolingual and linking it produces a 404; (3) the 404 copy is asserted not to mention draft/hidden/private — the resolver falls through identically for hidden, unpublished and unknown, and naming which one would leak what deny-by-default hides; (4) the audio progress percentage is written to the `--audio-progress` custom property, the token route the contract prescribes for a runtime value, never an inline width.
+>
+> **Acceptance check:** three full documents (article with every prose primitive, gated teaser, 404) rendered and diffed against `anarand.css` — **76 classes emitted, zero style attributes, every script and stylesheet nonced, no gated body in the teaser document**, and the only undefined class is the deliberate `post-nav-prev` marker.
+>
+> **Gap raised for a decision:** the contract promises the reveal choreography is "never a visibility gate", but the CSS only forces `.reveal` visible under `prefers-reduced-motion`. For everyone else a blocked or errored script leaves that content invisible permanently. The script falls back when `IntersectionObserver` is missing, but cannot fall back when it never runs. Two small fixes are recorded in the contract's *Reveal choreography* section; both touch the theme's motion architecture, so neither was applied unilaterally.
 ---
 
 ## 11. Phased plan (maps to the implementation log)
