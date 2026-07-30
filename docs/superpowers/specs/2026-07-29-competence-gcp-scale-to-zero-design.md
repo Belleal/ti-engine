@@ -325,6 +325,6 @@ Split honestly by what can be proven where — the assistant has no `gcloud` and
 ## 11. Delivery
 
 - **YouTrack:** [`CA-94`](https://belleal.youtrack.cloud/issue/CA-94) as a subtask of `CA-11`, referenced in every commit; log time; close as `Verified` / `Done` once the user's round-trip passes.
-- **Commits:** thematic and few, per house convention — expect roughly three (`feat(web-framework)` for the override, `build(competence)` for the deploy artifacts + `.dockerignore` + CD step, `docs(competence)` for INSTALL.md), plus the version/changelog bump commit.
+- **Commits:** the implementation plan is authoritative — **one commit per plan task**, scoped to the package it touches (`feat(web-framework)` for the override, `build(competence)` for the manifest/scripts/CD, `docs(competence)` for INSTALL.md, `build(release)` for the version bumps), plus a `fix(...)` commit per review round. That is the same "thematic and few" house rule applied at task granularity; do not split a task's work across commits.
 - **Versions:** web-framework `1.18.0`, competence `3.16.0`, each with its `CHANGELOG.md` entry in house style (intro paragraph, bullets, closing `build(release)` bullet). No root bump.
 - **Branch:** `current`, PR to `master`, following `finishing-a-development-branch`.

@@ -331,10 +331,13 @@ reaches it once `deploy.sh` is re-run.
 - **Locked out?** `local` auth is disabled, so a broken OAuth client locks
   everyone out of the app. Re-enable it temporarily — safe, because IAP still
   fronts the service (the `^:^` prefix changes the delimiter so the comma is part
-  of the value):
+  of the value). **Pass `--project` explicitly**: without it `gcloud` targets
+  whatever the active configuration points at, which is the last thing you want
+  from a command run under pressure.
 
   ```bash
   gcloud run services update competence --region europe-west1 \
+    --project <your-project-id> \
     --update-env-vars ^:^TI_WEB_AUTH_METHODS=local,openid-google
   ```
 
@@ -344,6 +347,7 @@ reaches it once `deploy.sh` is re-run.
 
   ```bash
   gcloud run services update competence --region europe-west1 \
+    --project <your-project-id> \
     --update-env-vars TI_WEB_AUTH_METHODS=openid-google
   ```
 

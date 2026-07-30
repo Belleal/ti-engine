@@ -22,7 +22,7 @@
 - Shell scripts must stay **LF**; `.gitattributes` already enforces `*.sh text eol=lf` — do not add a BOM and do not convert.
 - Tests are Node's built-in runner: `node --test`. No external test framework.
 - Conventional Commits, scoped to the package, with the YouTrack ID from Task 1 appended: `feat(web-framework): … (CA-94)`.
-- **Bundle commits thematically — fewer is better.** This plan's tasks each end in exactly one commit; do not split further.
+- **Bundle commits thematically — fewer is better.** This plan's tasks each end in exactly one commit; do not split further. This is the authoritative commit structure for this work (the spec's §11 delivery note defers to it), with one additional `fix(...)` commit per review round.
 - All new shell scripts support `DRY_RUN=1`, which prints every mutating command and executes none. This is what makes them testable without cloud access.
 
 ---
@@ -1057,7 +1057,7 @@ Expected: the new steps sit at the same indentation as their siblings (6 spaces 
 
 ```bash
 git add .github/workflows/cd.yml
-git commit -m "build(deps): publish the competence image to Artifact Registry via Workload Identity Federation (CA-94)"
+git commit -m "build(competence): publish the image to Artifact Registry via Workload Identity Federation (CA-94)"
 ```
 
 > **Honest limitation:** this workflow triggers only on pushes to `master` and `competence-v*` tags, so it cannot be exercised from the `current` branch. It is verified for real on the first push to `master` after merge (Task 9, user step 8). Do not report it as verified before then.
