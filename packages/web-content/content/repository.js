@@ -19,7 +19,16 @@
  *               in no surface; a direct path 404s. Enforced here as defense-in-depth even though schema + loader
  *               already exclude a no-visibility record.
  *
- * Drafts (`status !== "published"`) are excluded from every public surface; editorial preview is deferred.
+ * Drafts (`status !== "published"`) are excluded from every LISTING surface without exception -- no draft ever
+ * appears in a listing, an archive, a feed, the sitemap, a curated list, or prev/next. A viewer granted the
+ * `preview` capability may open one BY ITS PATH, and only that.
+ *
+ * Keeping drafts out of listings is not timidity: a listing is the surface most likely to be rendered once and
+ * cached, and a draft leaking through a cached listing would be invisible until someone saw it in the wild. Direct
+ * path access is the one surface where the request is unambiguously "show me this record".
+ *
+ * The repository does NOT decide who may preview -- it honours a capability the caller grants, exactly as it honours
+ * the roles the caller supplies. Deciding who is an administrator belongs to the application, not here.
  */
 
 // The reserved role name that encodes deny-all (Site/docs/content-schemas.md §1 uses `role:__none__`).
@@ -58,11 +67,19 @@ class ContentRepository {
     resolve( path, viewer ) {
         const record = this.#index.byPath.get( path );
         if ( record ) {
-            if ( ContentRepository.#isPublished( record ) === false ) {
+            const draft = ContentRepository.#isPublished( record ) === false;
+            if ( draft && ContentRepository.canPreview( viewer ) === false ) {
                 return { outcome: "miss" };
             }
             const verdict = ContentRepository.resolveVisibility( record, viewer );
-            return verdict === "hidden" ? { outcome: "miss" } : { outcome: verdict, record: record };
+            if ( verdict === "hidden" ) {
+                return { outcome: "miss" };
+            }
+            // `preview` travels with the result so the caller can mark the response noindex and refuse to let it
+            // be cached. A draft served with public cache headers is the one way a preview reaches the public.
+            return draft
+                ? { outcome: verdict, record: record, preview: true }
+                : { outcome: verdict, record: record };
         }
         // An alias must clear the same gate as a direct hit. Redirecting to an unpublished or hidden record would
         // confirm it exists and disclose its canonical path -- the leak this class exists to prevent. A *gated*
@@ -192,6 +209,20 @@ class ContentRepository {
     }
 
     /* Static interface */
+
+    /**
+     * Whether this viewer may open an unpublished record by its path. A capability the application grants; the
+     * repository never works out who deserves it.
+     *
+     * @method
+     * @static
+     * @param {Viewer} [viewer]
+     * @returns {boolean}
+     * @public
+     */
+    static canPreview( viewer ) {
+        return !!( viewer && viewer.preview === true );
+    }
 
     /**
      * Resolves a record's visibility for a viewer based solely on the `visibility` field: "visible" | "gated" |

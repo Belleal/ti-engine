@@ -23,6 +23,9 @@
 const { renderDocument } = require( "#page" );
 const { buildPageContext } = require( "#context" );
 
+// Matches the framework's own admin role name.
+const ADMIN_ROLE = "admin";
+
 const PUBLIC_CACHE_CONTROL = "public, max-age=0, s-maxage=600, stale-while-revalidate=86400";
 const PRIVATE_CACHE_CONTROL = "private, no-store";
 
@@ -33,7 +36,11 @@ const PRIVATE_CACHE_CONTROL = "private, no-store";
  * @returns {Object<string, string>}
  */
 function cacheHeadersFor( record ) {
-    if ( record && record.visibility === "public" ) {
+    // A draft is never edge-cacheable, however public its `visibility` says it is. Without this a previewed
+    // draft with `visibility: public` would be handed to the CDN and served to anyone -- which is exactly how
+    // an unfinished page reaches the world.
+    const published = !!record && record.status === "published";
+    if ( published && record.visibility === "public" ) {
         return { "Cache-Control": PUBLIC_CACHE_CONTROL };
     }
     return { "Cache-Control": PRIVATE_CACHE_CONTROL, "Vary": "Cookie" };
@@ -50,7 +57,10 @@ function viewerFromRequest( request ) {
     if ( !user ) {
         return { authenticated: false, roles: [] };
     }
-    return { authenticated: true, roles: Array.isArray( user.roles ) ? user.roles : [] };
+    const roles = Array.isArray( user.roles ) ? user.roles : [];
+    // Preview is a capability the application grants, not something the repository works out. An administrator
+    // may open an unpublished record by its path; nobody else can, and it appears in no listing regardless.
+    return { authenticated: true, roles: roles, preview: roles.indexOf( ADMIN_ROLE ) !== -1 };
 }
 
 /**
@@ -93,6 +103,7 @@ function contentHandler( repository, options ) {
 
         const record = result.record;
         const mode = ( result.outcome === "gated" ) ? "teaser" : "full";
+        const preview = result.preview === true;
         const counterpart = record.translationOf ? repository.getById( record.translationOf, viewer ) : null;
         const context = {
             mode: mode,
@@ -110,7 +121,8 @@ function contentHandler( repository, options ) {
             site: opts.site,
             labels: opts.labels,
             assets: opts.assets,
-            taxonomy: opts.taxonomy
+            taxonomy: opts.taxonomy,
+            preview: preview
         };
 
         // Everything the templates need beyond the record itself: eyebrow, meta, terms, breadcrumb, prev/next.

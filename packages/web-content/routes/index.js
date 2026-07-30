@@ -33,6 +33,7 @@ const feeds = require( "#feeds" );
 const { contentHandler } = require( "#content-routes" );
 const { renderStateDocument } = require( "#page" );
 const { mountMediaRoutes } = require( "#media" );
+const logger = require( "@ti-engine/core/logger" );
 
 // The site behaviour script ships with the package. It is read once at mount rather than per request, and served
 // under /static/ so it sits alongside the theme's own assets. The framework's express.static for /static runs first,
@@ -112,6 +113,41 @@ function notFoundHandler( context, config ) {
 }
 
 /**
+ * Registers the configured redirects.
+ *
+ * An ALIAS points at a record's own path, which is what lets the visibility gate apply to it -- the target is a
+ * record, so it can be checked. That is deliberately narrow, and it cannot express three things a migration needs:
+ * a target carrying a query string, a target that is a route rather than a record (`/rss.xml`), or any destination
+ * outside the content index.
+ *
+ * This is the escape hatch for exactly those, kept separate so `alias` keeps its meaning instead of decaying into a
+ * general redirect table. Targets must be site-relative: an absolute one would make this an open redirect, which is
+ * the primitive a phishing link wants.
+ *
+ * @param {Object} server
+ * @param {Array<{ from: string, to: string, status?: number }>} redirects
+ * @returns {Object} The server, for chaining.
+ */
+function mountRedirects( server, redirects ) {
+    for ( const rule of ( Array.isArray( redirects ) ? redirects : [] ) ) {
+        if ( !rule || typeof rule.from !== "string" || typeof rule.to !== "string" ) {
+            continue;
+        }
+        const from = rule.from;
+        const to = rule.to;
+        if ( from.indexOf( "/" ) !== 0 || to.indexOf( "/" ) !== 0 || to.indexOf( "//" ) === 0 ) {
+            logger.log( `Ignored redirect '${ from }' -> '${ to }': both must be rooted, site-relative paths.`, logger.logSeverity.ERROR );
+            continue;
+        }
+        const status = ( rule.status === 302 || rule.status === 307 || rule.status === 308 ) ? rule.status : 301;
+        server.registerRoute( "get", from, ( request, response ) => {
+            response.redirect( status, to );
+        } );
+    }
+    return server;
+}
+
+/**
  * Claims `/` for the content resolver.
  *
  * MUST be called BEFORE `super.defineWebApplicationRoutes()`. The framework binds `/` to its own SPA-shell handler,
@@ -135,7 +171,8 @@ function mountHomeRoute( server, options ) {
  * @param {Object} server  A TiWebServer instance (>= 1.17.0).
  * @param {{ repository: Object, baseUrl?: string, renderPage?: Function, feed?: Object, allowIndexing?: boolean,
  *           site?: Object, labels?: Object, assets?: Object, taxonomy?: Object, serveSiteScript?: boolean,
- *           notFound?: (Object|false), media?: { root: string, prefixes: string[], maxAge?: string } }} options
+ *           notFound?: (Object|false), media?: { root: string, prefixes: string[], maxAge?: string },
+ *           redirects?: Array<{ from: string, to: string, status?: number }> }} options
  * @returns {Object} The server, for chaining.
  */
 function mountContentRoutes( server, options ) {
@@ -172,6 +209,9 @@ function mountContentRoutes( server, options ) {
         } );
     }
 
+    // Both of these must precede the content catch-all, or it claims the paths first.
+    mountRedirects( server, opts.redirects );
+
     // Legacy media keeps its original URLs, so these must be reachable before the content catch-all claims them.
     if ( opts.media ) {
         mountMediaRoutes( server, opts.media );
@@ -192,6 +232,7 @@ module.exports = {
     mountContentRoutes: mountContentRoutes,
     notFoundHandler: notFoundHandler,
     mountHomeRoute: mountHomeRoute,
+    mountRedirects: mountRedirects,
     defineContentUnprotectedRoutes: defineContentUnprotectedRoutes,
     PUBLIC_EXCEPT_ADMIN: PUBLIC_EXCEPT_ADMIN
 };

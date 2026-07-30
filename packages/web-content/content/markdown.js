@@ -169,7 +169,10 @@ function applyFootnoteMarkup( md ) {
     md.renderer.rules.footnote_close = () => "</span></li>\n";
     md.renderer.rules.footnote_anchor = ( tokens, idx ) => {
         const number = String( tokens[ idx ].meta.id + 1 );
-        return ` <a class="footnote-backref" href="#fnref-${ number }">↩</a>`;
+        // Up arrow rather than the conventional U+21A9: no self-hosted face carries that codepoint, and it has an
+        // emoji presentation variant, so some platforms render it as a coloured glyph in the middle of a footnote.
+        // U+2191 is present in every face the site ships.
+        return ` <a class="footnote-backref" href="#fnref-${ number }">↑</a>`;
     };
     // The plugin's separator rule has no place in the contract's markup.
     md.renderer.rules.footnote_anchor_name = () => "";

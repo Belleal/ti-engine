@@ -36,3 +36,7 @@ Initial scaffold of the content-publishing engine for the standalone author's si
 * feat(web-content): `content/archives.js` — term-archive page records generated from the vocabulary once at load, with per-language paths from configuration
 * fix(web-content): expand parent terms inside `repository.list()` — querying a parent term now returns records tagged with its children, at the one place every surface passes through. Optional and backward compatible
 * fix(web-content): read `?page=N` from the request — paginated listings were always rendering page one
+* feat(web-content): draft preview — a viewer granted the `preview` capability may open an unpublished record **by its path**, and only that. Drafts stay out of every listing, feed, sitemap and curated list regardless; the response is `private, no-store`, `noindex`, and carries a visible banner
+* feat(web-content): `mountRedirects` — the escape hatch for redirects an alias cannot express (a query-string target, or a route rather than a record). Targets must be site-relative, so it cannot become an open redirect
+* fix(web-content): a draft is never edge-cacheable and never indexable, whatever its `visibility` claims — a previewed draft handed to a CDN is how an unfinished page reaches the public
+* fix(web-content): footnote back-references use `↑` (U+2191) rather than `↩` (U+21A9), which no self-hosted face carries and which has an emoji presentation variant

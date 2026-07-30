@@ -62,6 +62,11 @@ function shouldNoindex( record, mode ) {
     if ( record && record.seo && record.seo.noindex === true ) {
         return true;
     }
+    // An unpublished record is never indexable, whatever its visibility or render mode. A draft that reached the
+    // index would outlive the draft itself.
+    if ( record && record.status && record.status !== "published" ) {
+        return true;
+    }
     if ( mode === "teaser" ) {
         return false;
     }
