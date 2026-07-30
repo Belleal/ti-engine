@@ -90,6 +90,8 @@ function contentHandler( repository, options ) {
             nonce: response.locals ? response.locals.nonce : undefined,
             csrfToken: request.session ? request.session.csrfToken : undefined,
             path: request.path,
+            // Set by the capture endpoint's POST-Redirect-GET, so the outcome survives without JavaScript.
+            captureStatus: ( request.query || {} ).capture,
             site: opts.site,
             labels: opts.labels,
             assets: opts.assets,

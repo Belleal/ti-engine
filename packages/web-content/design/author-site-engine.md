@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Active — P0–P2, P3a/P3b, P4 complete + editorial markdown + P3c document assembly — 246 tests green; **the site boots and serves**; theme + self-hosted fonts landed in `Site/`. Next: P6 capture, the migration URL inventory, and serving /wp-content/uploads/ |
+| **Status** | Active — P0–P2, P3a/P3b, P4 + P6 complete + editorial markdown + P3c document assembly — 277 tests green; **the site boots and serves**; theme + self-hosted fonts landed in `Site/`. Next: the migration URL inventory, and serving /wp-content/uploads/ |
 | **Created** | 2026-07-24 |
-| **Last updated** | 2026-07-30 (rev 4) |
+| **Last updated** | 2026-07-30 (rev 5) |
 | **Owner** | Boris Kostadinov |
 | **Scope** | New package `@ti-engine/web-content` (reusable engine) + a small enabling change in `@ti-engine/web-framework` (route seams) + the private `anarandaris` `Site/` app (content, theme, wiring) |
 | **Relates to** | Realises the three `Site/docs/` specs — `build-spec.md`, `content-schemas.md`, `token-contract.md` — which remain the source of truth for *what*. This doc records *how it lands as a package* and **supersedes `build-spec.md` §2 on module placement** (framework column → `web-content`). |
@@ -29,7 +29,7 @@ How this design lands in code — update as each step is committed (branch `curr
 | **P3c** — document assembly (shell · topbar · footer · gate · 404) + the vanilla site script | ✅ 25 tests + doc acceptance check | — | 2026-07-30 |
 | **P4** — `routes/content-routes.js` (catch-all resolver + alias 301 + cache policy) · `routes/feeds.js` (sitemap/rss/robots) · `routes/index.js` mount helpers | ✅ 23 tests + e2e smoke | — | 2026-07-24 |
 | **P5** — `render/editorial/*` components + page templates (showcase first) — Track B meets Track A here | ☐ pending | — | — |
-| **P6** — `capture/store.js` + `capture/admin.js` (behind `role:admin`) | ☐ pending | — | — |
+| **P6** — `capture/store.js` · `capture/admin.js` · `capture/routes.js` (admin behind the `admin` role) | ✅ 31 tests + live verification | — | 2026-07-30 |
 | **P7** — Migration tooling (URL inventory → WP REST export → uploads copy → redirect map) | ☐ pending | — | — |
 | **P8a** — `Site/app` standup (`TiWebServer`/`TiWebAppManager` subclasses, content loader, config) — **boots and serves** | ✅ verified live | — | 2026-07-30 |
 | **P8b** — Dockerfile → staging → redirect diff → cutover | ☐ pending | — | — |
@@ -300,6 +300,17 @@ The `build-spec.md` §8 list — the failures that don't throw — become the fi
 > **The boot found a defect no test could: a soft 404.** An unknown URL reached the framework's `invalidRouteHandler`, which redirects to `/not-found` — and that page answers **200**. Harmless for an authenticated app; wrong for a public site, where a crawler then records a success for a URL that does not exist, polluting the index and hiding broken links from every report that would surface them. `mountContentRoutes` now registers a terminal 404 that renders the state document with **status 404** and `private, no-store`. It is **GET-only on purpose** — the framework mounts `POST /service/:version/:name` *after* `defineWebApplicationRoutes()` returns, so a catch-all covering every method would shadow it. Switchable off via `notFound: false`.
 >
 > Two environment notes for whoever runs this next: the framework's cache needs **RedisJSON**, so plain `redis:7` is not enough — the local container is `redis/redis-stack-server`, and it runs on **6380** because another project already holds 6379. Paths in `web-server.json` and `.env` resolve from the working directory, which is `Site/app`.
+
+> **P6 note (2026-07-30) — capture.** The only module holding personal data, so its rules are stricter than the rest of the engine and are stated in the file itself: **no IP is ever stored** (the handler never reads one, so there is nothing to leak or erase), **`consentAt` is stamped server-side** and a client-supplied timestamp is discarded (consent evidence the client can write is not evidence), **only the schema's fields are persisted** (copied field by field, never merged, so an extra POST field cannot ride along), dedupe is on **(email, purpose)** case-insensitively, and **erasure is by email across every purpose** — a person asking to be forgotten is asking about themselves, not about whichever lists they remember joining.
+>
+> Three boundaries worth keeping in mind, each silent when wrong:
+> - **The admin endpoints fail closed.** An absent `requireAdmin` selects the built-in guard, never no guard — these routes list, export and erase every stored address, so a forgotten option must refuse rather than expose. The framework's `authorization` module is not exported from its package, so the check is reimplemented against the same session shape and the same `admin` role name.
+> - **CSV export is a security boundary.** A spreadsheet executes a cell beginning with an equals, plus, minus or at sign, and `source` arrives from a query string — so every field is neutralised against formula interpretation as well as CSV-escaped.
+> - **The post-submit redirect is validated against the content index.** `returnTo` is attacker-controlled; honouring it unchecked is an open redirect, exactly the primitive a phishing link wants. Only a path that resolves to a record is used; anything else falls back to `/`.
+>
+> **Bug found by running it, not by testing it:** RedisJSON refuses to create a nested path in a document that does not exist (`ERR new objects must be created at the root`), so the **first capture on a fresh deployment always failed** — and only there, since it works in dev the moment anything has seeded the key. The store now writes the whole map on the first record and edits a single path thereafter. The test fake was over-forgiving and hid this; it now models the refusal, and a regression test asserts the first record on a genuinely empty store succeeds.
+>
+> Verified live against Redis: first signup on a cleared store succeeds, the same address in different case with trailing space is a duplicate, the same address on a different purpose is accepted, missing consent and a malformed address are refused, a hostile `returnTo` still captures but redirects to `/`, a missing CSRF token is rejected 403 by the framework, erasure removes both of one address's records and leaves the others, and no stored record carries an IP field.
 ---
 
 ## 11. Phased plan (maps to the implementation log)

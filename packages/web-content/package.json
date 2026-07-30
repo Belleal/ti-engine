@@ -31,7 +31,10 @@
     "./feeds": "./routes/feeds.js",
     "./shell": "./render/shell.js",
     "./templates": "./render/templates.js",
-    "./page": "./render/page.js"
+    "./page": "./render/page.js",
+    "./capture": "./capture/store.js",
+    "./capture-admin": "./capture/admin.js",
+    "./capture-routes": "./capture/routes.js"
   },
   "imports": {
     "#schema": "./content/schema.js",
@@ -50,7 +53,10 @@
     "#content-routes": "./routes/content-routes.js",
     "#shell": "./render/shell.js",
     "#templates": "./render/templates.js",
-    "#page": "./render/page.js"
+    "#page": "./render/page.js",
+    "#capture": "./capture/store.js",
+    "#capture-admin": "./capture/admin.js",
+    "#capture-routes": "./capture/routes.js"
   },
   "dependencies": {
     "@ti-engine/core": "*",

@@ -51,6 +51,11 @@ function renderCapture( section, context ) {
 
     // Hidden fields, only emitted when they carry a value -- an empty hidden input is noise in the record.
     const hidden = [];
+    if ( context && context.path ) {
+        // Where to return after POST-Redirect-GET. Validated server-side against the content index before use, so a
+        // tampered value cannot turn this into an open redirect.
+        hidden.push( html`<input type="hidden" name="returnTo" value="${ context.path }">` );
+    }
     if ( context && context.csrfToken ) {
         hidden.push( html`<input type="hidden" name="csrfToken" value="${ context.csrfToken }">` );
     }
@@ -65,7 +70,11 @@ function renderCapture( section, context ) {
     }
     hidden.push( html`<input type="hidden" name="locale" value="${ ( context && context.lang ) || "en" }">` );
 
-    const status = section.status ? renderFormStatus( section.status, section.statusTitle, section.statusBody ) : raw( "" );
+    // An explicit section status wins; otherwise the outcome of a just-submitted form, carried back in the query.
+    const outcome = section.status || ( context && context.captureStatus );
+    const statusTitle = section.statusTitle || labels[ "captureStatus" + capitalise( outcome ) + "Title" ];
+    const statusBody = section.statusBody || labels[ "captureStatus" + capitalise( outcome ) + "Body" ];
+    const status = outcome ? renderFormStatus( outcome, statusTitle, statusBody ) : raw( "" );
     const intro = section.body ? html`<p class="capture-intro">${ section.body }</p>` : raw( "" );
 
     return html`${ intro }${ status }<form class="capture-form" method="post" action="${ section.action || "/capture" }">${ hidden }<div class="${ fieldClasses }"><label class="field-label" for="${ emailId }">${ section.emailLabel || labels.emailLabel || "Email address" }</label><input class="field-input" id="${ emailId }" type="email" name="email" autocomplete="email" required${ describedBy }>${ hint }${ error }</div><div class="field field-consent"><input class="field-checkbox" id="${ consentId }" type="checkbox" name="consent" value="1" required><label class="field-consent-text" for="${ consentId }">${ section.consentText || labels.consentText || "" }</label></div><button class="btn btn-accept" type="submit">${ section.submitLabel || labels.submitLabel || "Sign up" }</button></form>`;
@@ -86,6 +95,17 @@ function renderFormStatus( kind, title, body ) {
     }
     const heading = title ? html`<span class="form-status-title">${ title }</span>` : raw( "" );
     return html`<div class="form-status form-status-${ kind }"><span class="form-status-mark" aria-hidden="true">◆</span><span>${ heading }${ body || "" }</span></div>`;
+}
+
+/**
+ * Capitalises the first letter, for building a label key from a status name.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+function capitalise( value ) {
+    const text = String( value || "" );
+    return text.charAt( 0 ).toUpperCase() + text.slice( 1 );
 }
 
 module.exports = {
