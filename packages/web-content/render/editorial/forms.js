@@ -57,6 +57,13 @@ function renderCapture( section, context ) {
         hidden.push( html`<input type="hidden" name="returnTo" value="${ context.path }">` );
     }
     if ( context && context.csrfToken ) {
+        // Emitting the token makes this response PER-SESSION, so it can no longer be shared-cached: a CDN would
+        // otherwise store one visitor's token and hand it to everybody, breaking every other visitor's submission
+        // with a 403 and making the token -- whose whole security value is that only its own session knows it --
+        // public. Telling the caller is what keeps the two facts in sync.
+        if ( typeof context.markPerSession === "function" ) {
+            context.markPerSession();
+        }
         hidden.push( html`<input type="hidden" name="csrfToken" value="${ context.csrfToken }">` );
     }
     if ( section.purpose ) {

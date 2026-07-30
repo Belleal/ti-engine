@@ -43,6 +43,60 @@ function renderSkipLink( labels ) {
 }
 
 /**
+ * The account menu -- a profile trigger in the topbar that opens a sign-in dropdown.
+ *
+ * THE MARKUP IS DELIBERATELY IDENTICAL FOR EVERY VIEWER, signed in or not. The topbar renders on every page,
+ * including the public ones a CDN keeps for `s-maxage`, so anything viewer-dependent here would be cached from
+ * whoever happened to miss first and served to everyone after them. The signed-in panel is therefore always present
+ * and always `hidden`; the client swaps the panels after asking `/session`, which is the one uncacheable request.
+ *
+ * Which METHODS exist is site configuration, not viewer state, so it is safe to render server-side.
+ *
+ * There is no CSRF token in this form for the same reason -- a per-session value baked into a shared-cached page is
+ * both a leak and a guaranteed 403 for every other visitor. The client reads it from the `ti-xsrf-token` cookie at
+ * submit time. That makes the local form JS-only: a no-JS submit posts an empty token and is refused, which is a
+ * visible failure rather than a silent one. Acceptable here because this is an operator's control, not site content.
+ *
+ * @param {Object} context  Uses `auth.methods` and `labels`.
+ * @returns {import("./html.js").SafeString}
+ */
+function renderAccountMenu( context ) {
+    const auth = ( context && context.auth ) || {};
+    const methods = Array.isArray( auth.methods ) ? auth.methods : [];
+    if ( methods.length === 0 ) {
+        // No sign-in method is enabled, so the control would be decoration that cannot work.
+        return raw( "" );
+    }
+
+    const labels = ( context && context.labels ) || {};
+    const signIn = labels.signIn || "Sign in";
+
+    const local = methods.indexOf( "local" ) !== -1
+        ? html`<form class="account-form" method="post" action="/login/local">
+<input type="hidden" name="csrfToken" value="">
+<label class="field"><span class="field-label">${ labels.username || "Username" }</span><input class="field-input" type="text" name="username" autocomplete="username" required></label>
+<label class="field"><span class="field-label">${ labels.password || "Password" }</span><input class="field-input" type="password" name="password" autocomplete="current-password" required></label>
+<button class="account-submit" type="submit">${ signIn }</button>
+</form>`
+        : raw( "" );
+
+    // An OpenID method is a plain link: the framework's GET route starts the redirect dance, so it needs no token
+    // and keeps working with scripting disabled.
+    const federated = methods.filter( ( method ) => method.indexOf( "openid-" ) === 0 ).map( ( method ) => {
+        const name = labels[ method ] || method.slice( "openid-".length );
+        return html`<a class="account-federated" href="/login/${ method }">${ signIn } — ${ name }</a>`;
+    } );
+
+    return html`<div class="account-menu">
+<button class="account-trigger" type="button" aria-expanded="false" aria-label="${ labels.account || "Account" }"><span class="account-icon" aria-hidden="true">◆</span></button>
+<div class="account-panel">
+<div class="account-signed-out">${ local }${ federated }<p class="account-error" hidden></p></div>
+<div class="account-signed-in" hidden><p class="account-identity"></p><form class="account-logout" method="post" action="/logout"><input type="hidden" name="csrfToken" value=""><button class="account-submit" type="submit">${ labels.signOut || "Sign out" }</button></form></div>
+</div>
+</div>`;
+}
+
+/**
  * The language selector. Emits one option per configured language: a link when that language has a counterpart (or
  * is the current page), an inert span with a note when it does not.
  *
@@ -102,7 +156,7 @@ function renderTopbar( context ) {
         ? html`<nav class="topbar-nav" aria-label="${ labels.primaryNav || "Primary" }">${ links }</nav><button class="topbar-toggle" type="button">${ labels.menu || "Menu" }</button>`
         : raw( "" );
 
-    return html`<header class="topbar"><div class="topbar-inner"><div class="topbar-brand">${ logo }${ title }</div>${ nav }${ renderLangSelect( context ) }</div></header>`;
+    return html`<header class="topbar"><div class="topbar-inner"><div class="topbar-brand">${ logo }${ title }</div>${ nav }${ renderAccountMenu( context ) }${ renderLangSelect( context ) }</div></header>`;
 }
 
 /**
@@ -163,6 +217,7 @@ module.exports = {
     renderSkipLink: renderSkipLink,
     renderLangSelect: renderLangSelect,
     renderTopbar: renderTopbar,
+    renderAccountMenu: renderAccountMenu,
     renderFooter: renderFooter,
     isCurrentPath: isCurrentPath
 };

@@ -122,6 +122,9 @@ function contentHandler( repository, options ) {
             labels: opts.labels,
             assets: opts.assets,
             taxonomy: opts.taxonomy,
+            // Which sign-in methods exist is site configuration, not viewer state -- safe to render into a
+            // shared-cached page, unlike anything about WHO is asking.
+            auth: opts.auth,
             preview: preview
         };
 
@@ -135,12 +138,23 @@ function contentHandler( repository, options ) {
             viewer: viewer
         } ) );
 
-        const headers = cacheHeadersFor( record );
+        // Render BEFORE the headers are chosen. Whether a page is shareable is not knowable from the record alone:
+        // a section may embed the session's CSRF token, and a response carrying one is per-session however public
+        // the record is. Rendering first lets the renderer say so.
+        let perSession = false;
+        context.markPerSession = function () {
+            perSession = true;
+        };
+        const body = String( renderPage( record, context ) );
+
+        const headers = perSession
+            ? { "Cache-Control": PRIVATE_CACHE_CONTROL, "Vary": "Cookie" }
+            : cacheHeadersFor( record );
         for ( const name of Object.keys( headers ) ) {
             response.set( name, headers[ name ] );
         }
 
-        response.status( 200 ).type( "html" ).send( String( renderPage( record, context ) ) );
+        response.status( 200 ).type( "html" ).send( body );
     };
 }
 

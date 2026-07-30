@@ -30,7 +30,7 @@
 const fs = require( "node:fs" );
 const path = require( "node:path" );
 const feeds = require( "#feeds" );
-const { contentHandler } = require( "#content-routes" );
+const { contentHandler, viewerFromRequest } = require( "#content-routes" );
 const { renderStateDocument } = require( "#page" );
 const { mountMediaRoutes } = require( "#media" );
 const logger = require( "@ti-engine/core/logger" );
@@ -71,7 +71,8 @@ function handlerOptions( opts ) {
         site: opts.site,
         labels: opts.labels,
         assets: opts.assets,
-        taxonomy: opts.taxonomy
+        taxonomy: opts.taxonomy,
+        auth: opts.auth
     };
 }
 
@@ -175,6 +176,33 @@ function mountHomeRoute( server, options ) {
  *           redirects?: Array<{ from: string, to: string, status?: number }> }} options
  * @returns {Object} The server, for chaining.
  */
+/**
+ * `GET /session` -- who the current viewer is, for the topbar account menu.
+ *
+ * This exists so that NOTHING ELSE has to vary by viewer. Every page can then be rendered identically for everyone
+ * and left shared-cacheable, with this one small response carrying the only per-viewer fact. It is therefore the one
+ * response that must never be stored: `no-store` plus `Vary: Cookie`, or a CDN would answer it for the wrong person.
+ *
+ * Deliberately minimal. It reports whether you are signed in, the name to greet you by, and whether you hold the
+ * preview capability -- not the role list, and nothing about what exists that you cannot see.
+ *
+ * @param {Object} server
+ * @returns {Object} The server, for chaining.
+ */
+function mountSessionRoute( server ) {
+    return server.registerRoute( "get", "/session", ( request, response ) => {
+        const viewer = viewerFromRequest( request );
+        const user = ( request && request.session ) ? request.session.user : null;
+        response.set( "Cache-Control", "private, no-store" );
+        response.set( "Vary", "Cookie" );
+        response.json( {
+            authenticated: viewer.authenticated === true,
+            name: ( user && ( user.username || user.email || user.userID ) ) || null,
+            preview: viewer.preview === true
+        } );
+    } );
+}
+
 function mountContentRoutes( server, options ) {
     const opts = options || {};
     const repository = opts.repository;
@@ -204,10 +232,15 @@ function mountContentRoutes( server, options ) {
     if ( opts.serveSiteScript !== false ) {
         const script = fs.readFileSync( SITE_SCRIPT_FILE, "utf8" );
         server.registerRoute( "get", SITE_SCRIPT_PATH, ( request, response ) => {
-            response.set( "Cache-Control", "public, max-age=31536000, immutable" );
+            // NOT `immutable`. This URL is stable across releases, so `immutable` would promise something untrue --
+            // and browsers keep that promise through a manual reload, so a shipped fix would never reach anyone who
+            // had already loaded the old script. Express attaches an ETag to send(), making revalidation a 304.
+            response.set( "Cache-Control", "public, max-age=0, must-revalidate" );
             response.type( "application/javascript" ).send( script );
         } );
     }
+
+    mountSessionRoute( server );
 
     // Both of these must precede the content catch-all, or it claims the paths first.
     mountRedirects( server, opts.redirects );
@@ -233,6 +266,7 @@ module.exports = {
     notFoundHandler: notFoundHandler,
     mountHomeRoute: mountHomeRoute,
     mountRedirects: mountRedirects,
+    mountSessionRoute: mountSessionRoute,
     defineContentUnprotectedRoutes: defineContentUnprotectedRoutes,
     PUBLIC_EXCEPT_ADMIN: PUBLIC_EXCEPT_ADMIN
 };

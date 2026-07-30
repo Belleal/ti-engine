@@ -104,6 +104,162 @@
         } );
     }
 
+    /* --------------------------------------------------------- account menu */
+
+    /**
+     * Reads a cookie by name. The CSRF token is deliberately taken from the cookie rather than from the markup:
+     * the topbar is on every page, including the ones a CDN shares, so a token baked into the HTML would be handed
+     * to every other visitor -- breaking their submissions and publishing a value only their own session should know.
+     */
+    function readCookie( name ) {
+        const match = document.cookie.match( new RegExp( "(?:^|; )" + name.replace( /[.*+?^${}()|[\]\\]/g, "\\$&" ) + "=([^;]*)" ) );
+        return match ? decodeURIComponent( match[ 1 ] ) : "";
+    }
+
+    /**
+     * Posts a form to its own action with the CSRF token attached, and reports the HTTP status. Uses the form's own
+     * fields, so the markup stays the single description of what is sent.
+     */
+    function submitForm( form ) {
+        const body = new URLSearchParams( new FormData( form ) );
+        body.set( "csrfToken", readCookie( "ti-xsrf-token" ) );
+        return fetch( form.getAttribute( "action" ), {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "content-type": "application/x-www-form-urlencoded" },
+            body: body.toString()
+        } );
+    }
+
+    function initAccountMenu( root ) {
+        const menu = root.querySelector( ".account-menu" );
+        if ( !menu ) {
+            return;
+        }
+        const trigger = menu.querySelector( ".account-trigger" );
+        const panel = menu.querySelector( ".account-panel" );
+        if ( !trigger || !panel ) {
+            return;
+        }
+
+        const signedOut = menu.querySelector( ".account-signed-out" );
+        const signedIn = menu.querySelector( ".account-signed-in" );
+        const identity = menu.querySelector( ".account-identity" );
+        const error = menu.querySelector( ".account-error" );
+        const loginForm = menu.querySelector( ".account-form" );
+        const logoutForm = menu.querySelector( ".account-logout" );
+        let loaded = false;
+
+        function close() {
+            trigger.setAttribute( "aria-expanded", "false" );
+            panel.classList.remove( "account-panel-open" );
+        }
+
+        function showError( message ) {
+            if ( error ) {
+                error.textContent = message;
+                error.hidden = !message;
+            }
+        }
+
+        /*
+         * The session is fetched on FIRST OPEN, not on load. The markup ships identical for everyone precisely so
+         * pages stay shared-cacheable, which means the state has to come from somewhere -- but a public site is
+         * almost entirely anonymous readers who will never touch this control, and making all of them pay an
+         * uncacheable request on every page view to render a button they do not use is the wrong trade.
+         */
+        function loadSession() {
+            if ( loaded ) {
+                return;
+            }
+            loaded = true;
+            fetch( "/session", { credentials: "same-origin", headers: { accept: "application/json" } } )
+                .then( function ( response ) { return response.ok ? response.json() : null; } )
+                .then( function ( session ) {
+                    const authenticated = !!( session && session.authenticated );
+                    if ( signedIn ) {
+                        signedIn.hidden = !authenticated;
+                    }
+                    if ( signedOut ) {
+                        signedOut.hidden = authenticated;
+                    }
+                    if ( authenticated ) {
+                        menu.classList.add( "account-menu-authenticated" );
+                        if ( identity ) {
+                            identity.textContent = session.name || "";
+                        }
+                    }
+                } )
+                .catch( function () {
+                    // Leave the sign-in form showing: offering the form to someone already signed in is a harmless
+                    // wrong guess, whereas hiding it from someone signed out strands them.
+                    loaded = false;
+                } );
+        }
+
+        trigger.addEventListener( "click", function ( event ) {
+            event.stopPropagation();
+            const open = trigger.getAttribute( "aria-expanded" ) === "true";
+            trigger.setAttribute( "aria-expanded", open ? "false" : "true" );
+            panel.classList.toggle( "account-panel-open", !open );
+            if ( !open ) {
+                loadSession();
+            }
+        } );
+        panel.addEventListener( "click", function ( event ) { event.stopPropagation(); } );
+        document.addEventListener( "click", function ( event ) {
+            if ( !menu.contains( event.target ) ) {
+                close();
+            }
+        } );
+        document.addEventListener( "keydown", function ( event ) {
+            if ( event.key === "Escape" ) {
+                close();
+            }
+        } );
+
+        if ( loginForm ) {
+            loginForm.addEventListener( "submit", function ( event ) {
+                event.preventDefault();
+                showError( "" );
+                const button = loginForm.querySelector( ".account-submit" );
+                if ( button ) {
+                    button.disabled = true;
+                }
+                submitForm( loginForm ).then( function ( response ) {
+                    if ( response.ok || response.redirected ) {
+                        // Reload rather than update in place: what a signed-in viewer may SEE is decided server-side,
+                        // so the page has to be rendered again to show it.
+                        window.location.reload();
+                        return;
+                    }
+                    // Deliberately one message for every failure. Saying which of the two was wrong tells an
+                    // attacker which usernames exist.
+                    showError( menu.getAttribute( "data-error" ) || "Sign-in failed. Check your details and try again." );
+                    if ( button ) {
+                        button.disabled = false;
+                    }
+                } ).catch( function () {
+                    showError( menu.getAttribute( "data-error" ) || "Sign-in failed. Check your details and try again." );
+                    if ( button ) {
+                        button.disabled = false;
+                    }
+                } );
+            } );
+        }
+
+        if ( logoutForm ) {
+            logoutForm.addEventListener( "submit", function ( event ) {
+                event.preventDefault();
+                submitForm( logoutForm ).then( function () {
+                    window.location.reload();
+                } ).catch( function () {
+                    window.location.reload();
+                } );
+            } );
+        }
+    }
+
     /* ----------------------------------------------------------- dictionary */
 
     function initDictionary( root ) {
@@ -242,6 +398,7 @@
         initReveal( root );
         initTopbar( root );
         initLangSelect( root );
+        initAccountMenu( root );
         initDictionary( root );
         initAudio( root );
     }

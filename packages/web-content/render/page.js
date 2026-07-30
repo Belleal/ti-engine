@@ -54,11 +54,15 @@ function renderDocument( record, context ) {
  * @returns {string}
  */
 function renderStateDocument( state, context ) {
-    const ctx = context || {};
-    const site = ctx.site || {};
+    const base = context || {};
+    const site = base.site || {};
     const opts = state || {};
+    // The shell reads `lang` for the language selector, and a state document has no record to take it from. Without
+    // this the selector renders with an empty label on every 404 -- the topbar is shared with real pages, so it must
+    // be given the same facts they carry.
+    const ctx = base.lang ? base : Object.assign( {}, base, { lang: site.defaultLanguage || "en" } );
     return assemble( {
-        lang: ctx.lang || site.defaultLanguage || "en",
+        lang: ctx.lang,
         head: html`<title>${ opts.title || "" }</title>
 <meta name="robots" content="noindex,follow">`,
         body: html`<div class="section bg-abyss"><div class="wrap-page">${ templates.renderStatePanel( opts ) }</div></div>`,
