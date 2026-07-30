@@ -413,6 +413,12 @@ WIF_POOL="${WIF_POOL:-github}"
 WIF_PROVIDER="${WIF_PROVIDER:-github-oidc}"
 REDIS_IMAGE="${REDIS_IMAGE:-redis:8-alpine}"
 BUDGET_AMOUNT="${BUDGET_AMOUNT:-5EUR}"
+# Set SKIP_BUDGET=1 if you already manage a budget for this project yourself, or point
+# BUDGET_NAME at its display name so the existence check below recognises it. Without
+# one of those, a differently-named existing budget is not matched and a second one is
+# created, which means duplicate alerts on the same project.
+BUDGET_NAME="${BUDGET_NAME:-competence-test}"
+SKIP_BUDGET="${SKIP_BUDGET:-}"
 
 if [[ -n "${DRY_RUN}" ]]; then
     PROJECT_ID="${PROJECT_ID:-dry-run-project}"
@@ -640,19 +646,21 @@ BILLING_ACCOUNT=""
 if [[ -z "${DRY_RUN}" ]]; then
     BILLING_ACCOUNT="$( gcloud billing projects describe "${PROJECT_ID}" --format='value(billingAccountName)' 2>/dev/null || true )"
 fi
-if [[ -n "${DRY_RUN}" ]]; then
-    printf '    [dry-run] gcloud billing budgets create --billing-account=<account> --display-name=competence-test --budget-amount=%s --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0 --filter-projects=projects/%s\n' "${BUDGET_AMOUNT}" "${PROJECT_NUMBER}"
+if [[ -n "${SKIP_BUDGET}" ]]; then
+    echo "    SKIPPED by request (SKIP_BUDGET is set) — you are managing the budget yourself."
+elif [[ -n "${DRY_RUN}" ]]; then
+    printf '    [dry-run] gcloud billing budgets create --billing-account=<account> --display-name=%s --budget-amount=%s --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0 --filter-projects=projects/%s\n' "${BUDGET_NAME}" "${BUDGET_AMOUNT}" "${PROJECT_NUMBER}"
 elif [[ -z "${BILLING_ACCOUNT}" ]]; then
     echo "    SKIPPED: could not read the billing account (needs billing permissions)."
     echo "    Create it by hand: Console → Billing → Budgets & alerts → Create budget (${BUDGET_AMOUNT}/month)."
 else
-    EXISTING_BUDGET="$( gcloud billing budgets list --billing-account="${BILLING_ACCOUNT##*/}" --filter="displayName=competence-test" --format='value(name)' 2>/dev/null || true )"
+    EXISTING_BUDGET="$( gcloud billing budgets list --billing-account="${BILLING_ACCOUNT##*/}" --filter="displayName=${BUDGET_NAME}" --format='value(name)' 2>/dev/null || true )"
     if [[ -n "${EXISTING_BUDGET}" ]]; then
-        echo "    budget competence-test already exists — left untouched"
+        echo "    budget ${BUDGET_NAME} already exists — left untouched"
     else
         gcloud billing budgets create \
             --billing-account="${BILLING_ACCOUNT##*/}" \
-            --display-name="competence-test" \
+            --display-name="${BUDGET_NAME}" \
             --budget-amount="${BUDGET_AMOUNT}" \
             --threshold-rule=percent=0.5 \
             --threshold-rule=percent=0.9 \

@@ -110,6 +110,18 @@ What it creates:
 values needed in phase 4. Re-running the script prints it again, so nothing is lost — it is safe to
 re-run, because every step checks for existing state first.
 
+**Already have a budget for this project?** The existence check matches on the display name
+`competence-test`, so a budget of your own with a different name is not recognised and you would end
+up with two budgets alerting on the same project. Either skip the step or point it at yours:
+
+```bash
+SKIP_BUDGET=1 ./bootstrap.sh                         # you manage the budget yourself
+BUDGET_NAME="<your budget's display name>" ./bootstrap.sh   # recognise the existing one
+```
+
+To see what yours is called: `gcloud billing budgets list --billing-account=<account-id>
+--format="table(displayName,amount.specifiedAmount)"`.
+
 ## Phase 3 — Create the app's Google sign-in client
 
 **Where: GCP Console, then Cloud Shell**
@@ -139,6 +151,26 @@ twice, which is normal and usually one click the second time.
       Paste the secret, press **Enter**, then **Ctrl-D**.
 - [ ] Re-run `./bootstrap.sh` so the runtime service account is granted read access to it. It will
       report what already exists and add only the missing binding.
+
+### Reusing an OAuth client you already have
+
+The script never creates the client, so reuse means skipping the first bullet above — but **not** the
+secret one. Three things still apply:
+
+- **Store its secret under the expected name.** `service.yaml` mounts
+  `competence-google-client-secret`, so the existing client's secret has to go into Secret Manager
+  under exactly that name. Retrieve it from Google Auth Platform → **Clients** → your client; if the
+  value is no longer displayable, add an additional secret to that client rather than creating a new
+  client.
+- **Add the redirect URI, do not replace it.** A client can hold several authorised redirect URIs, so
+  append the one `deploy.sh` prints in phase 7 and leave any existing entries alone.
+- **Know what you are sharing.** A client reused across deployments shares one consent screen and one
+  secret: rotating the secret for one deployment breaks the other. If the client lives in a different
+  GCP project that is fine — Google validates the client, not the project — but its branding and
+  Audience belong to that other project.
+
+Pass the existing client's ID as `GOOGLE_CLIENT_ID` in phase 6, and IAP is unaffected either way: it
+provisions its own OAuth client when you enable it in phase 7.
 
 ## Phase 4 — Give GitHub the three variables
 
