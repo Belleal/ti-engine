@@ -629,7 +629,10 @@ class TiWebServer extends ServiceConsumer {
 
     /**
      * Normalizes an HTTP method to a lower-case Express routing verb, or returns null if it is not a supported,
-     * registrable verb. Pure and static; exposed for unit testing — not part of the customization surface.
+     * registrable verb. Anything that is not a string is rejected outright rather than coerced — otherwise a value
+     * whose `toString()` happens to yield a verb (`[ "get" ]`, `new String( "get" )`) would register a route and
+     * bypass the `E_GEN_INVALID_ARGUMENT_TYPE` that {@link TiWebServer#registerRoute} raises for a bad method.
+     * Pure and static; exposed for unit testing — not part of the customization surface.
      *
      * @method
      * @static
@@ -638,7 +641,10 @@ class TiWebServer extends ServiceConsumer {
      * @public
      */
     static normalizeRegistrableMethod( method ) {
-        const verb = String( method || "" ).trim().toLowerCase();
+        if ( typeof method !== "string" ) {
+            return null;
+        }
+        const verb = method.trim().toLowerCase();
         return TiWebServer.#REGISTRABLE_METHODS.has( verb ) ? verb : null;
     }
 
