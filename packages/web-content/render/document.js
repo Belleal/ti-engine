@@ -26,7 +26,15 @@ const OG_TYPE = { post: "article", book: "book", release: "music.album", page: "
  * @returns {string}
  */
 function joinUrl( baseUrl, path ) {
-    const base = String( baseUrl || "" ).replace( /\/+$/, "" );
+    // Trailing slashes are trimmed with a character walk rather than `/\/+$/`: an unbounded `+` in front of an end
+    // anchor backtracks across every start position of a long slash run, which is the polynomial-ReDoS shape CodeQL
+    // flags. This stays linear regardless of input.
+    const raw = String( baseUrl || "" );
+    let end = raw.length;
+    while ( end > 0 && raw.charAt( end - 1 ) === "/" ) {
+        end--;
+    }
+    const base = raw.slice( 0, end );
     const suffix = String( path || "" );
     return base + ( suffix.charAt( 0 ) === "/" ? suffix : "/" + suffix );
 }
@@ -138,6 +146,7 @@ ${ description ? html`<meta property="og:description" content="${ description }"
 }
 
 module.exports = {
+    joinUrl: joinUrl,
     canonicalUrl: canonicalUrl,
     shouldNoindex: shouldNoindex,
     hreflangLinks: hreflangLinks,

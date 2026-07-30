@@ -1,0 +1,60 @@
+# This workflow will run tests using node and then publish a package to GitHub Packages when a release is created
+# For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
+
+name: Node.js Package on Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      # These jobs run npm lifecycle scripts and hold a publish token, so they give up
+      # anything they do not need: the checkout credential (nothing here pushes) and
+      # setup-node's automatic dependency cache.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Prepare Environment - Install
+        run: npm install
+      - name: Prepare Environment - CI
+        run: npm ci
+      - name: Test Package "Core"
+        run: npm test --workspace=@ti-engine/core
+
+  publish-npm:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+          registry-url: https://registry.npmjs.org/
+      - name: Prepare Environment - Install
+        run: npm install
+      - name: Prepare Environment - CI
+        run: npm ci
+      - name: Publish Package "Core"
+        run: npm publish --workspace=@ti-engine/core --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish Package "Tester"
+        run: npm publish --workspace=@ti-engine/tester --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

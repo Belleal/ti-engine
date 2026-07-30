@@ -54,6 +54,7 @@ function resolvePath( root, path ) {
     let cursor = root;
     for ( let i = 0; i < parts.length; i++ ) {
         const part = parts[ i ];
+        if ( part === "__proto__" || part === "constructor" || part === "prototype" ) return undefined;
         // Wildcard segment (e.g. `*.<evaluationID>`): search every value of the current object for the remaining
         // path and return the first match — matching Redis-JSON `$.*.<key>` semantics as used by fetchEvaluation.
         if ( part === "*" ) {
@@ -124,6 +125,9 @@ class InMemoryCache {
         const parent = parentPath.length ? resolvePath( this.storage[ key ], parentPath ) : this.storage[ key ];
         if ( !parent || typeof parent !== "object" ) {
             return Promise.reject( new Error( `in-memory-cache setJSON: parent path does not exist for key "${ key }" (path ${ JSON.stringify( path ) })` ) );
+        }
+        if ( parent === Object.prototype || parent === Function.prototype ) {
+            return Promise.reject( new Error( `in-memory-cache setJSON: unsafe parent object for key "${ key }" (path ${ JSON.stringify( path ) })` ) );
         }
         const leafExists = Object.prototype.hasOwnProperty.call( parent, leaf );
         if ( ( overrideMode === 1 && leafExists ) || ( overrideMode === 2 && !leafExists ) ) {

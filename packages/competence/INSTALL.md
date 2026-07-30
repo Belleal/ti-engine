@@ -3,7 +3,7 @@
 **Audience:** system administrators deploying the **competence** HR appraisal application.
 **Scope:** installing, configuring, running, upgrading, and troubleshooting the app as a container. Application usage (running appraisal cycles, etc.) is out of scope.
 
-> **Package versions this guide targets:** competence `3.13.3`, `@ti-engine/web-framework` `1.16.0`, `@ti-engine/core` `1.7.1`. Container image: `ghcr.io/belleal/ti-engine-competence`.
+> **Package versions this guide targets:** competence `3.16.0`, `@ti-engine/web-framework` `1.18.1`, `@ti-engine/core` `1.7.1`. Container image: `ghcr.io/belleal/ti-engine-competence`.
 
 ---
 
@@ -55,11 +55,11 @@ There are no other required services. (The framework can call peer ti-engine ser
 
 - **Name:** `ghcr.io/belleal/ti-engine-competence`
 - **Tags:**
-  - `:X.Y.Z` — a released version (e.g. `:3.13.3`), published from a `competence-v*` git tag. **Use a pinned version tag in production.**
+  - `:X.Y.Z` — a released version (e.g. `:3.16.0`), published from a `competence-v*` git tag. **Use a pinned version tag in production.**
   - `:latest` — the most recent released version.
   - `:edge` — the tip of `master` (pre-release; for staging only).
 - **Base:** `node:22-alpine`, non-root (`node` user), `NODE_ENV=production`.
-- **Pulling:** if the package is public, `docker pull ghcr.io/belleal/ti-engine-competence:3.13.3`. If private, authenticate to GHCR first:
+- **Pulling:** if the package is public, `docker pull ghcr.io/belleal/ti-engine-competence:3.16.0`. If private, authenticate to GHCR first:
   ```bash
   echo "$GITHUB_TOKEN" | docker login ghcr.io -u <your-username> --password-stdin
   ```
@@ -156,6 +156,8 @@ Azure is enabled by default (`TI_WEB_AUTH_METHODS=openid-azure`), so **you must 
 
 > Which methods are offered is controlled by `TI_WEB_AUTH_METHODS` (see *Authentication methods* above) — it cleanly overrides the web-server config's `auth.enabledMethods`. Callback URLs must match what you register with the provider and resolve against your public host.
 
+**Callback URL form.** A callback variable accepts either the full absolute URL (`https://your-host/login/azure-callback`) or just the path (`/login/azure-callback`); the server listens on the path either way. The absolute form is the safer default — it is sent to the provider as the `redirect_uri` verbatim, so it always matches your registration. With the path form the redirect URI is assembled from the request's `X-Forwarded-Proto` / `X-Forwarded-Host` headers instead, so your reverse proxy must set them correctly or the provider will reject the sign-in (Azure `AADSTS50011`). Either way the **path** must be the one the app actually receives — if your proxy strips a path prefix before forwarding, use the stripped path.
+
 ---
 
 ## 8. Secrets management
@@ -214,7 +216,7 @@ services:
     restart: unless-stopped
 
   competence:
-    image: ghcr.io/belleal/ti-engine-competence:3.13.3
+    image: ghcr.io/belleal/ti-engine-competence:3.16.0
     depends_on:
       redis:
         condition: service_healthy
@@ -261,7 +263,7 @@ docker run -d --name competence \
   -e COMPETENCE_TEST_USER_ENABLED=false \
   -e TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY=<strong-random> \
   -e TI_WEB_COOKIE_SECRET=<strong-random> \
-  ghcr.io/belleal/ti-engine-competence:3.13.3
+  ghcr.io/belleal/ti-engine-competence:3.16.0
 ```
 
 ### Method C — Kubernetes (pointers)
@@ -276,8 +278,15 @@ docker run -d --name competence \
 A hosted environment that costs approximately nothing when idle: one Cloud Run
 service holding the app plus a `redis:8-alpine` sidecar, with Redis snapshotting
 to a mounted Cloud Storage bucket so data survives scale-to-zero. Fronted by
-Identity-Aware Proxy with an email allowlist. Scripts live in
-[`deploy/gcp/`](deploy/gcp/README.md); run them in Cloud Shell:
+Identity-Aware Proxy with an email allowlist.
+
+> **First-time setup:** follow [`deploy/gcp/WALKTHROUGH.md`](deploy/gcp/WALKTHROUGH.md),
+> a guided nine-phase run through both the Google Cloud and GitHub sides. It covers the
+> ordering that must be respected (Google Cloud before GitHub), the two steps that fail
+> by design on a first deploy, and the post-deploy checks. The summary below is the
+> reference form.
+
+Scripts live in [`deploy/gcp/`](deploy/gcp/README.md); run them in Cloud Shell:
 
 ```bash
 cd packages/competence/deploy/gcp
@@ -329,18 +338,26 @@ reaches it once `deploy.sh` is re-run.
 - **Locked out?** `local` auth is disabled, so a broken OAuth client locks
   everyone out of the app. Re-enable it temporarily — safe, because IAP still
   fronts the service (the `^:^` prefix changes the delimiter so the comma is part
-  of the value):
+  of the value). **Pass `--project` explicitly**: without it `gcloud` targets
+  whatever the active configuration points at, which is the last thing you want
+  from a command run under pressure.
+
   ```bash
   gcloud run services update competence --region europe-west1 \
+    --project <your-project-id> \
     --update-env-vars ^:^TI_WEB_AUTH_METHODS=local,openid-google
   ```
+
   **Revert as soon as sign-in works again** — hardcoded `admin`/`admin`
   credentials should never stay enabled longer than it takes to fix the OAuth
   client:
+
   ```bash
   gcloud run services update competence --region europe-west1 \
+    --project <your-project-id> \
     --update-env-vars TI_WEB_AUTH_METHODS=openid-google
   ```
+
 
 ---
 

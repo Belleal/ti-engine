@@ -10,6 +10,8 @@
 
 **Spec:** [`docs/superpowers/specs/2026-07-29-competence-gcp-scale-to-zero-design.md`](../specs/2026-07-29-competence-gcp-scale-to-zero-design.md) — read §3, §4 and §7 before starting. Section references below (§N) point at it.
 
+**Tracking:** YouTrack [`CA-94`](https://belleal.youtrack.cloud/issue/CA-94) (subtask of `CA-11`); follow-ups `CA-95` (map OIDC identities to employee records) and `CA-96` (single-revision deploy + conditional CD auth).
+
 ## Global Constraints
 
 - **Node `>=20.19.0`**, **CommonJS** (`require` / `module.exports`) everywhere. No ESM.
@@ -19,8 +21,8 @@
 - Region is **`europe-west1`** everywhere; secret replication is user-managed and pinned to that region (EU data residency).
 - Shell scripts must stay **LF**; `.gitattributes` already enforces `*.sh text eol=lf` — do not add a BOM and do not convert.
 - Tests are Node's built-in runner: `node --test`. No external test framework.
-- Conventional Commits, scoped to the package, with the YouTrack ID from Task 1 appended: `feat(web-framework): … (CA-###)`.
-- **Bundle commits thematically — fewer is better.** This plan's tasks each end in exactly one commit; do not split further.
+- Conventional Commits, scoped to the package, with the YouTrack ID from Task 1 appended: `feat(web-framework): … (CA-94)`.
+- **Bundle commits thematically — fewer is better.** This plan's tasks each end in exactly one commit; do not split further. This is the authoritative commit structure for this work (the spec's §11 delivery note defers to it), with one additional `fix(...)` commit per review round.
 - All new shell scripts support `DRY_RUN=1`, which prints every mutating command and executes none. This is what makes them testable without cloud access.
 
 ---
@@ -30,7 +32,7 @@
 **Files:** none (tracker only).
 
 **Interfaces:**
-- Produces: the `CA-###` issue ID that every later commit message in this plan must reference.
+- Produces: the YouTrack issue ID that every later commit message in this plan must reference. **Outcome: `CA-94`** — already created, so the commit examples below name it directly.
 
 - [ ] **Step 1: Find the parent epic**
 
@@ -47,7 +49,7 @@ Use `mcp__youtrack__create_issue` with:
 
 - [ ] **Step 3: Record the ID**
 
-Write the returned ID into this plan's header area as `CA card: CA-###` and use it in every commit message below. **Do not proceed without it** — commits without the ID break the GitHub↔YouTrack link.
+Write the returned ID into this plan's header area and use it in every commit message below. **Do not proceed without it** — commits without the ID break the GitHub↔YouTrack link. Outcome: **`CA-94`**, created as a subtask of `CA-11`.
 
 ---
 
@@ -154,7 +156,7 @@ TI_WEB_AUTH_ADMINS=
 
 ```bash
 git add packages/web-framework/components/web-config-env.js packages/web-framework/test/web-server-env-overrides.test.js packages/web-framework/README.md .env.example
-git commit -m "feat(web-framework): add TI_WEB_AUTH_ADMINS env override for the admin allowlist (CA-###)"
+git commit -m "feat(web-framework): add TI_WEB_AUTH_ADMINS env override for the admin allowlist (CA-94)"
 ```
 
 ---
@@ -361,7 +363,7 @@ Expected: every hit is either a `secretKeyRef` **name** (`competence-cookie-secr
 
 ```bash
 git add packages/competence/deploy/gcp/service.yaml .dockerignore
-git commit -m "build(competence): add the Cloud Run service manifest for the GCP test deployment (CA-###)"
+git commit -m "build(competence): add the Cloud Run service manifest for the GCP test deployment (CA-94)"
 ```
 
 > YAML syntax is validated for real in Task 9 (Cloud Shell has `python3` + `yaml`); there is no YAML parser in this repo's dependency tree, so it cannot be checked locally. Do not claim it is validated before that step runs.
@@ -411,6 +413,12 @@ WIF_POOL="${WIF_POOL:-github}"
 WIF_PROVIDER="${WIF_PROVIDER:-github-oidc}"
 REDIS_IMAGE="${REDIS_IMAGE:-redis:8-alpine}"
 BUDGET_AMOUNT="${BUDGET_AMOUNT:-5EUR}"
+# Set SKIP_BUDGET=1 if you already manage a budget for this project yourself, or point
+# BUDGET_NAME at its display name so the existence check below recognises it. Without
+# one of those, a differently-named existing budget is not matched and a second one is
+# created, which means duplicate alerts on the same project.
+BUDGET_NAME="${BUDGET_NAME:-competence-test}"
+SKIP_BUDGET="${SKIP_BUDGET:-}"
 
 if [[ -n "${DRY_RUN}" ]]; then
     PROJECT_ID="${PROJECT_ID:-dry-run-project}"
@@ -555,7 +563,7 @@ fi
 
 # Bucket-scoped, not project-wide.
 run gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
-    --member="serviceAccount:${RUNTIME_SA}" --role="roles/storage.objectAdmin" --project "${PROJECT_ID}"
+    --member="serviceAccount:${RUNTIME_SA}" --role="roles/storage.objectUser" --project "${PROJECT_ID}"
 
 step "6/7 Secrets (values are generated here and never printed)"
 create_random_secret() {
@@ -638,19 +646,21 @@ BILLING_ACCOUNT=""
 if [[ -z "${DRY_RUN}" ]]; then
     BILLING_ACCOUNT="$( gcloud billing projects describe "${PROJECT_ID}" --format='value(billingAccountName)' 2>/dev/null || true )"
 fi
-if [[ -n "${DRY_RUN}" ]]; then
-    printf '    [dry-run] gcloud billing budgets create --billing-account=<account> --display-name=competence-test --budget-amount=%s --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0 --filter-projects=projects/%s\n' "${BUDGET_AMOUNT}" "${PROJECT_NUMBER}"
+if [[ -n "${SKIP_BUDGET}" ]]; then
+    echo "    SKIPPED by request (SKIP_BUDGET is set) — you are managing the budget yourself."
+elif [[ -n "${DRY_RUN}" ]]; then
+    printf '    [dry-run] gcloud billing budgets create --billing-account=<account> --display-name=%s --budget-amount=%s --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0 --filter-projects=projects/%s\n' "${BUDGET_NAME}" "${BUDGET_AMOUNT}" "${PROJECT_NUMBER}"
 elif [[ -z "${BILLING_ACCOUNT}" ]]; then
     echo "    SKIPPED: could not read the billing account (needs billing permissions)."
     echo "    Create it by hand: Console → Billing → Budgets & alerts → Create budget (${BUDGET_AMOUNT}/month)."
 else
-    EXISTING_BUDGET="$( gcloud billing budgets list --billing-account="${BILLING_ACCOUNT##*/}" --filter="displayName=competence-test" --format='value(name)' 2>/dev/null || true )"
+    EXISTING_BUDGET="$( gcloud billing budgets list --billing-account="${BILLING_ACCOUNT##*/}" --filter="displayName=${BUDGET_NAME}" --format='value(name)' 2>/dev/null || true )"
     if [[ -n "${EXISTING_BUDGET}" ]]; then
-        echo "    budget competence-test already exists — left untouched"
+        echo "    budget ${BUDGET_NAME} already exists — left untouched"
     else
         gcloud billing budgets create \
             --billing-account="${BILLING_ACCOUNT##*/}" \
-            --display-name="competence-test" \
+            --display-name="${BUDGET_NAME}" \
             --budget-amount="${BUDGET_AMOUNT}" \
             --threshold-rule=percent=0.5 \
             --threshold-rule=percent=0.9 \
@@ -667,16 +677,22 @@ cat <<EOF
 
 ==> DONE. Manual steps that cannot be scripted (spec §7.4):
 
-  1. Create the app's OAuth client (Console → APIs & Services → Credentials →
-     Create credentials → OAuth client ID → Web application). Consent screen
-     must be INTERNAL. Leave the redirect URI empty for now — deploy.sh prints
-     the exact value to add once the service URL exists.
+  1. Create the app's OAuth client (Console → Google Auth Platform → Clients →
+     Create client → Web application). Set the Audience to INTERNAL, which keeps
+     sign-in to your Workspace domain and needs no verification. INTERNAL is only
+     offered when the project belongs to an organization; without one you get
+     EXTERNAL and must add each tester as an allowed test user. Leave the redirect
+     URI empty for now — deploy.sh prints the exact value to add once the service
+     URL exists.
 
-  2. Store its client secret (the value is read from stdin, never echoed):
-       gcloud secrets create competence-google-client-secret \\
+  2. Store its client secret. Read it into a variable first — --data-file=- stores
+     stdin byte for byte, so typing the secret in and pressing Enter would store a
+     trailing newline, which Google rejects as invalid_client on every sign-in:
+       read -rsp 'Paste the client secret, then press Enter: ' SECRET && echo
+       printf %s "\$SECRET" | gcloud secrets create competence-google-client-secret \\
          --data-file=- --replication-policy=user-managed --locations=${REGION} \\
          --project ${PROJECT_ID}
-       # paste the secret, then press Ctrl-D
+       unset SECRET
      Then re-run this script so the runtime account gets read access to it.
 
   3. Deploy:  GOOGLE_CLIENT_ID=<client-id> ADMIN_EMAILS=<your-email> ./deploy.sh
@@ -686,6 +702,8 @@ cat <<EOF
   4. Enable IAP on the service (Console → Cloud Run → competence → Security →
      Require authentication → Identity-Aware Proxy). First-time enablement must
      happen in the Console; it cannot be done from the CLI.
+     IAP creates its OWN OAuth client (it appears as IAP-<project>-app), including
+     for projects with no organization — do not pre-create one for it.
 
   5. Grant each tester roles/iap.httpsResourceAccessor on the service.
 
@@ -737,7 +755,7 @@ Expected: `text: set` and `eol: lf`.
 
 ```bash
 git add packages/competence/deploy/gcp/bootstrap.sh
-git commit -m "build(competence): add the idempotent GCP bootstrap script (CA-###)"
+git commit -m "build(competence): add the idempotent GCP bootstrap script (CA-94)"
 ```
 
 ---
@@ -850,15 +868,31 @@ step "2/6 Applying the service"
 # redeploy while nobody is testing.
 run gcloud run services replace "${RENDERED}" --region "${REGION}" --project "${PROJECT_ID}"
 
-step "3/6 Asserting --no-allow-unauthenticated"
+step "3/6 Ensuring the service is not publicly invocable"
 # `services replace` above rewrites the whole service, dropping the
 # service-level IAP annotation with it — the access gate is down the instant
-# the replace lands. Assert this immediately, before touching env vars or
+# the replace lands. Close it immediately, before touching env vars or
 # printing anything, so the service is never open, not even for the few
 # seconds the rest of this script takes to run. IAP itself is re-asserted
 # last, in step 6 below — see there for why it moved.
-run gcloud run services update "${SERVICE}" --region "${REGION}" \
-    --project "${PROJECT_ID}" --no-allow-unauthenticated
+#
+# NOTE: `services update` has NO --no-allow-unauthenticated flag; that one
+# belongs to `run deploy`. Public access is an IAM binding (allUsers holding
+# roles/run.invoker), not a field on the service, so it is managed here.
+# Removing a binding that is not present fails, hence the check first.
+if [[ -n "${DRY_RUN}" ]]; then
+    printf '    [dry-run] gcloud run services get-iam-policy %s → remove the allUsers/roles/run.invoker binding if present\n' "${SERVICE}"
+elif gcloud run services get-iam-policy "${SERVICE}" --region "${REGION}" --project "${PROJECT_ID}" \
+        --flatten="bindings[].members" \
+        --filter="bindings.role:roles/run.invoker AND bindings.members:allUsers" \
+        --format="value(bindings.members)" 2>/dev/null | grep -q "allUsers"; then
+    echo "    allUsers can invoke this service — removing that binding"
+    gcloud run services remove-iam-policy-binding "${SERVICE}" \
+        --region "${REGION}" --project "${PROJECT_ID}" \
+        --member="allUsers" --role="roles/run.invoker"
+else
+    echo "    no allUsers binding — the service is not publicly invocable"
+fi
 
 step "4/6 Patching the URL-dependent settings"
 if [[ -n "${DRY_RUN}" ]]; then
@@ -952,7 +986,7 @@ Expected: exit 0, and the output must show:
 - all six `==>` steps
 - `rendered …/service.yaml -> /tmp/… (image tag edge)` with **no** unsubstituted-placeholder error — this proves Task 3's placeholder set and this script's `sed` list agree, which is the one thing that silently breaks the deploy
 - `[dry-run] gcloud run services replace …`
-- `[dry-run] gcloud run services update competence … --no-allow-unauthenticated` on its own (step 3), asserted before the URL patch
+- `[dry-run] gcloud run services get-iam-policy competence → remove the allUsers/roles/run.invoker binding if present` on its own (step 3), closing public access before the URL patch
 - the patch step (step 4) carrying `--container app` and both `TI_WEB_TRUSTED_ORIGINS=` and `TI_GCLOUD_AUTH_CALLBACK_URL=…/login/google-callback`
 - the operator guidance block (step 5) printing the redirect URI and both halves of the gate-verification command — printed *before* the final step, so it still appears even when that step is expected to fail on a first run
 - `[dry-run] gcloud run services update competence … --iap` as the last step (step 6)
@@ -973,7 +1007,7 @@ Expected: `ERROR: unsubstituted placeholders remain:` listing `__BUCKET_TYPO__`,
 
 ```bash
 git add packages/competence/deploy/gcp/deploy.sh
-git commit -m "build(competence): add the Cloud Run deploy script with two-phase URL patching (CA-###)"
+git commit -m "build(competence): add the Cloud Run deploy script with two-phase URL patching (CA-94)"
 ```
 
 ---
@@ -1055,7 +1089,7 @@ Expected: the new steps sit at the same indentation as their siblings (6 spaces 
 
 ```bash
 git add .github/workflows/cd.yml
-git commit -m "build(deps): publish the competence image to Artifact Registry via Workload Identity Federation (CA-###)"
+git commit -m "build(competence): publish the image to Artifact Registry via Workload Identity Federation (CA-94)"
 ```
 
 > **Honest limitation:** this workflow triggers only on pushes to `master` and `competence-v*` tags, so it cannot be exercised from the `current` branch. It is verified for real on the first push to `master` after merge (Task 9, user step 8). Do not report it as verified before then.
@@ -1183,7 +1217,7 @@ Expected: every flag and variable name appearing here also appears in `deploy.sh
 
 ```bash
 git add packages/competence/deploy/gcp/README.md packages/competence/INSTALL.md
-git commit -m "docs(competence): document the Cloud Run scale-to-zero deployment as Method D (CA-###)"
+git commit -m "docs(competence): document the Cloud Run scale-to-zero deployment as Method D (CA-94)"
 ```
 
 ---
@@ -1251,7 +1285,7 @@ Expected: `web-framework 1.18.0`, `competence 3.16.0`, and the diff touching onl
 
 ```bash
 git add packages/web-framework/package.json packages/web-framework/CHANGELOG.md packages/competence/package.json packages/competence/CHANGELOG.md packages/competence/bin/static/fragments/guide/
-git commit -m "build(release): bump web-framework to 1.18.0 and competence to 3.16.0 (CA-###)"
+git commit -m "build(release): bump web-framework to 1.18.0 and competence to 3.16.0 (CA-94)"
 ```
 
 ---
@@ -1321,7 +1355,7 @@ Report the static results from Steps 1–4 with their actual output, then state 
 - [ ] **Step 6: Update YouTrack**
 
 Once the user reports the round-trip result:
-- `mcp__youtrack__add_issue_comment` on `CA-###` summarizing what shipped and the round-trip outcome.
+- `mcp__youtrack__add_issue_comment` on `CA-94` summarizing what shipped and the round-trip outcome.
 - `mcp__youtrack__log_work` with the time spent.
 - `mcp__youtrack__update_issue` → `Stage: Test` while the user verifies; `State: Verified` / `Stage: Done` only after they confirm step 7 passed. Set `Version` to `v3.16.0` and `Shipped` to the verification date **+1 day** (the MCP stores date fields one day early).
 
@@ -1339,5 +1373,5 @@ Use the `superpowers:finishing-a-development-branch` skill: 8 commits on `curren
 
 - **The riskiest assumption is Redis-on-gcsfuse** (spec §9.1). Nothing in Tasks 3–8 proves it. If Task 9 step 7 fails, the fix is not to patch the manifest repeatedly — it is the documented `e2-micro` fallback.
 - **Fractional per-container CPU** (`600m` + `400m` = 1 vCPU) may be rejected by Cloud Run in a multi-container service (spec §9.4). If `deploy.sh` step 2 fails with a resource error, set both containers to `cpu: "1"` (a 2-vCPU instance, still inside the free tier) and note the change in the INSTALL.md Method D properties list.
-- **IAP after `services replace`** is re-asserted by `deploy.sh` step 6 — deliberately the *last* step, not the first thing after the replace — because a full replace rewrites the service and drops the service-level IAP annotation with it. `--no-allow-unauthenticated` is re-asserted separately and immediately, in step 3, so the service is never open even during the window before step 6 runs. If step 6 fails on a service where IAP was never enabled, enable it once in the Console, then re-run — do not remove the re-assert step; without it a redeploy could silently drop the only access gate.
+- **IAP after `services replace`** is re-asserted by `deploy.sh` step 6 — deliberately the *last* step, not the first thing after the replace — because a full replace rewrites the service and drops the service-level IAP annotation with it. Public access is closed separately and immediately, in step 3, so the service is never open during the window before step 6 runs — and note it is closed by removing the `allUsers` / `roles/run.invoker` IAM binding, because `services update` has no `--no-allow-unauthenticated` flag (that one is `run deploy`-only). If step 6 fails on a service where IAP was never enabled, enable it once in the Console, then re-run — do not remove the re-assert step; without it a redeploy could silently drop the only access gate.
 - **Do not enable `COMPETENCE_TEST_USER_ENABLED` anywhere IAP is not in front.** It is the documented hard coupling in spec §9.6.

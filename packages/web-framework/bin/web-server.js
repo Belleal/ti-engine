@@ -516,12 +516,18 @@ class TiWebServer extends ServiceConsumer {
         this.#webServer.post( "/logout", webHandlers.logoutHandler() );
         this.#webServer.get( "/health", webHandlers.healthHandler() );
         this.#webServer.get( "/me", webHandlers.userInformationHandler() );
-        if ( this.#authManager.isAuthEnabled( authMethod.OPENID_GOOGLE ) ) {
-            this.#webServer.get( this.#authManager.getOAuth2CallbackUrl( authMethod.OPENID_GOOGLE ), webHandlers.authorizedOAuth2CallbackHandler( this, authMethod.OPENID_GOOGLE ) );
-        }
-        if ( this.#authManager.isAuthEnabled( authMethod.OPENID_AZURE ) ) {
-            this.#webServer.get( this.#authManager.getOAuth2CallbackUrl( authMethod.OPENID_AZURE ), webHandlers.authorizedOAuth2CallbackHandler( this, authMethod.OPENID_AZURE ) );
-        }
+        // NOTE: A callback is registered by its path, never by the configured value verbatim — that value is commonly
+        // the absolute URL registered with the identity provider, which Express cannot parse as a route pattern.
+        [ authMethod.OPENID_GOOGLE, authMethod.OPENID_AZURE ].forEach( ( method ) => {
+            if ( this.#authManager.isAuthEnabled( method ) === true ) {
+                const callbackPath = this.#authManager.getOAuth2CallbackPath( method );
+                if ( callbackPath ) {
+                    this.#webServer.get( callbackPath, webHandlers.authorizedOAuth2CallbackHandler( this, method ) );
+                } else {
+                    logger.log( `Authentication method '${ method }' is enabled but its callback URL yields no usable route path; its callback endpoint was not registered and sign-in through it will fail.`, logger.logSeverity.WARNING );
+                }
+            }
+        } );
 
         // Admin configuration-management API. Gated by the admin role; these paths are not in the unprotected-routes
         // list, so they also inherit the server's global authentication + CSRF middleware.
@@ -623,7 +629,10 @@ class TiWebServer extends ServiceConsumer {
 
     /**
      * Normalizes an HTTP method to a lower-case Express routing verb, or returns null if it is not a supported,
-     * registrable verb. Pure and static; exposed for unit testing — not part of the customization surface.
+     * registrable verb. Anything that is not a string is rejected outright rather than coerced — otherwise a value
+     * whose `toString()` happens to yield a verb (`[ "get" ]`, `new String( "get" )`) would register a route and
+     * bypass the `E_GEN_INVALID_ARGUMENT_TYPE` that {@link TiWebServer#registerRoute} raises for a bad method.
+     * Pure and static; exposed for unit testing — not part of the customization surface.
      *
      * @method
      * @static
@@ -632,7 +641,10 @@ class TiWebServer extends ServiceConsumer {
      * @public
      */
     static normalizeRegistrableMethod( method ) {
-        const verb = String( method || "" ).trim().toLowerCase();
+        if ( typeof method !== "string" ) {
+            return null;
+        }
+        const verb = method.trim().toLowerCase();
         return TiWebServer.#REGISTRABLE_METHODS.has( verb ) ? verb : null;
     }
 

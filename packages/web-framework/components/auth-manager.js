@@ -226,6 +226,51 @@ class AuthManager {
         }
     }
 
+    /**
+     * Used to get the local route path of the callback for the specified OAuth2 authentication method.
+     * <br/>
+     * A callback can legitimately be configured either as a path or as the full absolute URL registered with the
+     * identity provider. The absolute form is what the provider expects as the redirect URI, but it is not a usable
+     * Express route pattern, so this reduces whatever is configured to the path the server must actually listen on.
+     *
+     * @method
+     * @param {TiAuthMethod} authMethod
+     * @returns {string|null} The route path, or null if the configured callback yields no usable path.
+     * @throws {TiException.E_SEC_UNRECOGNIZED_AUTH_METHOD} If the requested OAuth2 method is not recognized or enabled.
+     * @public
+     */
+    getOAuth2CallbackPath( authMethod ) {
+        return AuthManager.toCallbackPath( this.getOAuth2CallbackUrl( authMethod ) );
+    }
+
+    /**
+     * Reduces a configured OAuth2 callback value to the local route path it corresponds to. Accepts an absolute URL
+     * ('https://host/login/azure-callback'), a protocol-relative URL, or a path with or without its leading slash,
+     * and strips any query string or fragment. Pure and static; exposed for unit testing.
+     * <br/>
+     * NOTE: This exists because Express 5 parses a route pattern with path-to-regexp v8, where ':' opens a parameter
+     * name — so an absolute URL used verbatim as a route path throws 'Missing parameter name' at startup.
+     *
+     * @method
+     * @static
+     * @param {string} callbackUrl
+     * @returns {string|null} The route path, or null if no usable path can be derived.
+     * @public
+     */
+    static toCallbackPath( callbackUrl ) {
+        const value = String( callbackUrl || "" ).trim();
+        if ( value === "" ) {
+            return null;
+        }
+        try {
+            // The base is only a parsing anchor — an absolute or protocol-relative value overrides it, while a
+            // path or bare relative value resolves against it. Either way only the pathname is used.
+            return new URL( value, "http://localhost" ).pathname;
+        } catch {
+            return null;
+        }
+    }
+
     /* Private interface */
 
     /**

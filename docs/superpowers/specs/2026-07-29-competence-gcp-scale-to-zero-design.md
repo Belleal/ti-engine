@@ -7,7 +7,7 @@
 | **Status** | Approved (brainstorming) — pending spec review |
 | **Version targets** | web-framework `1.17.0` → `1.18.0` (minor); competence `3.15.0` → `3.16.0` (minor); root **no bump** (repo-level CI change, per the CA-90 precedent) |
 | **Author** | Boris Kostadinov (with Claude) |
-| **Tracking** | YouTrack `CA-###` (to be created as a subtask of `CA-11` Platform & Quality, where `CA-90` sits) |
+| **Tracking** | YouTrack [`CA-94`](https://belleal.youtrack.cloud/issue/CA-94) (subtask of `CA-11` Platform & Quality, where `CA-90` sits); follow-ups `CA-95`, `CA-96` |
 
 ---
 
@@ -215,7 +215,7 @@ A dedicated runtime service account, `competence-run@PROJECT.iam.gserviceaccount
 
 | Role | Scope |
 |---|---|
-| `roles/storage.objectAdmin` | the one Redis-state bucket (resource-scoped, not project-wide) |
+| `roles/storage.objectUser` | the one Redis-state bucket (resource-scoped, not project-wide). Not `objectAdmin`, which additionally grants object `getIamPolicy`/`setIamPolicy` that a gcsfuse read-write mount never needs |
 | `roles/secretmanager.secretAccessor` | the three secrets individually |
 
 Nothing else. The IAP service agent separately holds `roles/run.invoker`, granted automatically on IAP enablement.
@@ -249,7 +249,7 @@ A separate post-push step is explicitly *not* the approach: it would either rebu
 
 The `permissions:` block gains `id-token: write` (required for WIF). Project ID and provider path come from repository **variables**, not secrets — they are not sensitive, and nothing in this step can leak a credential.
 
-`bootstrap.sh` also mirrors `redis:8-alpine` into the same repository once, pinned by digest, since Cloud Run cannot pull from Docker Hub (§4.9). An Artifact Registry **cleanup policy keeps the last 3 versions** of the app image against the 0.5 GB free allowance.
+`bootstrap.sh` also mirrors `redis:8-alpine` into the same repository, since Cloud Run cannot pull from Docker Hub (§4.9). It mirrors **by tag, not by digest** — the manifest consumes `…/competence/redis:8-alpine`. The mirror step is guarded by an existence check, so it runs once and is never re-pulled: after the first bootstrap the mirrored tag is effectively frozen, and upstream movement cannot reach the deployment without someone deleting the mirrored image. That is weaker than a digest reference, which would make the sidecar reproducible from the manifest alone; tightening it is tracked as a follow-up (see §10). An Artifact Registry **cleanup policy keeps the last 3 versions** of the app image against the 0.5 GB free allowance.
 
 ### 7.10 Scripts
 
@@ -319,10 +319,12 @@ Split honestly by what can be proven where — the assistant has no `gcloud` and
 - **Map OIDC identities to employee records** in `augmentSession` (employees already carry an `email` field), which would let `COMPETENCE_TEST_USER_ENABLED` be turned off and remove the risk in §9.6. Own card, worth doing.
 - Custom domain + managed certificate, if testers dislike the `run.app` URL.
 - Marking the session cookie `secure` (`web-server.json` sets `httpOnly` and `sameSite` but not `secure`); harmless behind Cloud Run's HTTPS, but it is a one-line hardening.
+- **Pin the mirrored Redis sidecar by digest** rather than by tag (§7.9), so the sidecar is reproducible from the manifest alone. Needs `bootstrap.sh` to resolve and report the digest and the manifest to carry it as a placeholder — a two-phase dependency the current single-pass render does not have.
+- **Pin the GitHub Actions used by CI/CD to commit SHAs.** `zizmor`'s blanket policy flags every floating tag reference (`actions/checkout@v4`, `docker/build-push-action@v6`, `google-github-actions/auth@v2`, …). This is a repo-wide convention change, not something to do for two newly-added steps in isolation.
 
 ## 11. Delivery
 
-- **YouTrack:** create `CA-###` as a subtask of `CA-11`, reference it in every commit, log time, close as `Verified` / `Done` once the user's round-trip passes.
-- **Commits:** thematic and few, per house convention — expect roughly three (`feat(web-framework)` for the override, `build(competence)` for the deploy artifacts + `.dockerignore` + CD step, `docs(competence)` for INSTALL.md), plus the version/changelog bump commit.
+- **YouTrack:** [`CA-94`](https://belleal.youtrack.cloud/issue/CA-94) as a subtask of `CA-11`, referenced in every commit; log time; close as `Verified` / `Done` once the user's round-trip passes.
+- **Commits:** the implementation plan is authoritative — **one commit per plan task**, scoped to the package it touches (`feat(web-framework)` for the override, `build(competence)` for the manifest/scripts/CD, `docs(competence)` for INSTALL.md, `build(release)` for the version bumps), plus a `fix(...)` commit per review round. That is the same "thematic and few" house rule applied at task granularity; do not split a task's work across commits.
 - **Versions:** web-framework `1.18.0`, competence `3.16.0`, each with its `CHANGELOG.md` entry in house style (intro paragraph, bullets, closing `build(release)` bullet). No root bump.
 - **Branch:** `current`, PR to `master`, following `finishing-a-development-branch`.

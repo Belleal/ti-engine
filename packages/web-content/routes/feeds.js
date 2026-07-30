@@ -20,7 +20,7 @@
  */
 
 const { escapeHtml } = require( "#html" );
-const { canonicalUrl } = require( "#document" );
+const { canonicalUrl, joinUrl } = require( "#document" );
 
 // Feed membership is always decided as an anonymous visitor would see the site.
 const ANONYMOUS = { authenticated: false, roles: [] };
@@ -113,7 +113,8 @@ function renderRobots( options ) {
     }
     const disallow = Array.isArray( opts.disallow ) ? opts.disallow : [ "/admin/" ];
     const rules = disallow.map( ( rule ) => `Disallow: ${ rule }` ).join( "\n" );
-    return `User-agent: *\n${ rules }\n\nSitemap: ${ String( opts.baseUrl || "" ).replace( /\/+$/, "" ) }/sitemap.xml\n`;
+    // joinUrl, rather than a local `/\/+$/` trim, so the trailing-slash handling lives in one linear place:
+    return `User-agent: *\n${ rules }\n\nSitemap: ${ joinUrl( opts.baseUrl, "/sitemap.xml" ) }\n`;
 }
 
 module.exports = {

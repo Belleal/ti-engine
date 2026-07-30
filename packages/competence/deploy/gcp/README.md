@@ -1,8 +1,14 @@
 # competence on Google Cloud Run — scale-to-zero test environment
 
-Two scripts and one manifest. Nothing runs, and nothing is billed, while nobody
-is testing; data survives idle periods because Redis snapshots onto a Cloud
-Storage bucket.
+Two scripts and one manifest. While nobody is testing, no Cloud Run instance runs
+and no compute is billed — only the stored image, the Redis snapshot and the
+secrets persist, for a few cents a month. Data survives idle periods because Redis
+snapshots onto a Cloud Storage bucket.
+
+**Setting this up for the first time?** Follow **[WALKTHROUGH.md](WALKTHROUGH.md)** —
+a guided, nine-phase run through both the Google Cloud and GitHub sides, including
+the ordering that trips people up and the two steps that fail by design on a first
+deploy. The rest of this file is the short reference.
 
 | File | Purpose |
 |---|---|
@@ -31,8 +37,9 @@ inputs change.
 `GCP_DEPLOY_SA`) must already be set, or the CD workflow's publish job fails —
 see the CD precondition in **[INSTALL.md](../../INSTALL.md), Method D**.
 
-Full walkthrough, cost model, and the recovery procedure for a locked-out
-sign-in: **[INSTALL.md](../../INSTALL.md), Method D**.
+Guided first-time setup: **[WALKTHROUGH.md](WALKTHROUGH.md)**. Cost model and the
+recovery procedure for a locked-out sign-in: **[INSTALL.md](../../INSTALL.md),
+Method D**.
 
 Design rationale: `docs/superpowers/specs/2026-07-29-competence-gcp-scale-to-zero-design.md`.
 

@@ -24,6 +24,12 @@ WIF_POOL="${WIF_POOL:-github}"
 WIF_PROVIDER="${WIF_PROVIDER:-github-oidc}"
 REDIS_IMAGE="${REDIS_IMAGE:-redis:8-alpine}"
 BUDGET_AMOUNT="${BUDGET_AMOUNT:-5EUR}"
+# Set SKIP_BUDGET=1 if you already manage a budget for this project yourself, or point
+# BUDGET_NAME at its display name so the existence check below recognises it. Without
+# one of those, a differently-named existing budget is not matched and a second one is
+# created, which means duplicate alerts on the same project.
+BUDGET_NAME="${BUDGET_NAME:-competence-test}"
+SKIP_BUDGET="${SKIP_BUDGET:-}"
 
 if [[ -n "${DRY_RUN}" ]]; then
     PROJECT_ID="${PROJECT_ID:-dry-run-project}"
@@ -168,7 +174,7 @@ fi
 
 # Bucket-scoped, not project-wide.
 run gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
-    --member="serviceAccount:${RUNTIME_SA}" --role="roles/storage.objectAdmin" --project "${PROJECT_ID}"
+    --member="serviceAccount:${RUNTIME_SA}" --role="roles/storage.objectUser" --project "${PROJECT_ID}"
 
 step "6/7 Secrets (values are generated here and never printed)"
 create_random_secret() {
@@ -251,19 +257,21 @@ BILLING_ACCOUNT=""
 if [[ -z "${DRY_RUN}" ]]; then
     BILLING_ACCOUNT="$( gcloud billing projects describe "${PROJECT_ID}" --format='value(billingAccountName)' 2>/dev/null || true )"
 fi
-if [[ -n "${DRY_RUN}" ]]; then
-    printf '    [dry-run] gcloud billing budgets create --billing-account=<account> --display-name=competence-test --budget-amount=%s --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0 --filter-projects=projects/%s\n' "${BUDGET_AMOUNT}" "${PROJECT_NUMBER}"
+if [[ -n "${SKIP_BUDGET}" ]]; then
+    echo "    SKIPPED by request (SKIP_BUDGET is set) — you are managing the budget yourself."
+elif [[ -n "${DRY_RUN}" ]]; then
+    printf '    [dry-run] gcloud billing budgets create --billing-account=<account> --display-name=%s --budget-amount=%s --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0 --filter-projects=projects/%s\n' "${BUDGET_NAME}" "${BUDGET_AMOUNT}" "${PROJECT_NUMBER}"
 elif [[ -z "${BILLING_ACCOUNT}" ]]; then
     echo "    SKIPPED: could not read the billing account (needs billing permissions)."
     echo "    Create it by hand: Console → Billing → Budgets & alerts → Create budget (${BUDGET_AMOUNT}/month)."
 else
-    EXISTING_BUDGET="$( gcloud billing budgets list --billing-account="${BILLING_ACCOUNT##*/}" --filter="displayName=competence-test" --format='value(name)' 2>/dev/null || true )"
+    EXISTING_BUDGET="$( gcloud billing budgets list --billing-account="${BILLING_ACCOUNT##*/}" --filter="displayName=${BUDGET_NAME}" --format='value(name)' 2>/dev/null || true )"
     if [[ -n "${EXISTING_BUDGET}" ]]; then
-        echo "    budget competence-test already exists — left untouched"
+        echo "    budget ${BUDGET_NAME} already exists — left untouched"
     else
         gcloud billing budgets create \
             --billing-account="${BILLING_ACCOUNT##*/}" \
-            --display-name="competence-test" \
+            --display-name="${BUDGET_NAME}" \
             --budget-amount="${BUDGET_AMOUNT}" \
             --threshold-rule=percent=0.5 \
             --threshold-rule=percent=0.9 \
@@ -280,16 +288,22 @@ cat <<EOF
 
 ==> DONE. Manual steps that cannot be scripted (spec §7.4):
 
-  1. Create the app's OAuth client (Console → APIs & Services → Credentials →
-     Create credentials → OAuth client ID → Web application). Consent screen
-     must be INTERNAL. Leave the redirect URI empty for now — deploy.sh prints
-     the exact value to add once the service URL exists.
+  1. Create the app's OAuth client (Console → Google Auth Platform → Clients →
+     Create client → Web application). Set the Audience to INTERNAL, which keeps
+     sign-in to your Workspace domain and needs no verification. INTERNAL is only
+     offered when the project belongs to an organization; without one you get
+     EXTERNAL and must add each tester as an allowed test user. Leave the redirect
+     URI empty for now — deploy.sh prints the exact value to add once the service
+     URL exists.
 
-  2. Store its client secret (the value is read from stdin, never echoed):
-       gcloud secrets create competence-google-client-secret \\
+  2. Store its client secret. Read it into a variable first — --data-file=- stores
+     stdin byte for byte, so typing the secret in and pressing Enter would store a
+     trailing newline, which Google rejects as invalid_client on every sign-in:
+       read -rsp 'Paste the client secret, then press Enter: ' SECRET && echo
+       printf %s "\$SECRET" | gcloud secrets create competence-google-client-secret \\
          --data-file=- --replication-policy=user-managed --locations=${REGION} \\
          --project ${PROJECT_ID}
-       # paste the secret, then press Ctrl-D
+       unset SECRET
      Then re-run this script so the runtime account gets read access to it.
 
   3. Deploy:  GOOGLE_CLIENT_ID=<client-id> ADMIN_EMAILS=<your-email> ./deploy.sh
@@ -299,6 +313,8 @@ cat <<EOF
   4. Enable IAP on the service (Console → Cloud Run → competence → Security →
      Require authentication → Identity-Aware Proxy). First-time enablement must
      happen in the Console; it cannot be done from the CLI.
+     IAP creates its OWN OAuth client (it appears as IAP-<project>-app), including
+     for projects with no organization — do not pre-create one for it.
 
   5. Grant each tester roles/iap.httpsResourceAccessor on the service.
 

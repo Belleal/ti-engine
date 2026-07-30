@@ -60,6 +60,7 @@
     "render/",
     "routes/",
     "capture/",
+    "design/",
     "package.json",
     "README.md",
     "CHANGELOG.md"

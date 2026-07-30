@@ -63,7 +63,10 @@ function slugify( text ) {
     const romanised = transliterate( text ).toLowerCase();
     const withoutApostrophes = romanised.replace( APOSTROPHES, "" );
     const hyphenated = withoutApostrophes.replace( /[^a-z0-9]+/g, "-" );
-    return hyphenated.replace( /^-+/, "" ).replace( /-+$/, "" );
+    // The collapse above already reduced every run of non-alphanumerics to a SINGLE hyphen, so at most one hyphen
+    // can sit at either end. Matching one instead of `-+` keeps these linear: an unbounded `-+$` backtracks over
+    // every start position on a long hyphen run, which is the polynomial-ReDoS shape CodeQL flags.
+    return hyphenated.replace( /^-/, "" ).replace( /-$/, "" );
 }
 
 module.exports = {

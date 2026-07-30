@@ -51,6 +51,15 @@ describe( "TiWebServer.normalizeRegistrableMethod (registerRoute verb allowlist)
         assert.equal( TiWebServer.normalizeRegistrableMethod( 123 ), null );
     } );
 
+    it( "rejects a non-string whose toString() yields a valid verb, rather than coercing it", () => {
+        // These all stringify to "get". Coercing them would register a route and quietly bypass the
+        // E_GEN_INVALID_ARGUMENT_TYPE that registerRoute raises for a method it does not accept.
+        assert.equal( TiWebServer.normalizeRegistrableMethod( [ "get" ] ), null );
+        assert.equal( TiWebServer.normalizeRegistrableMethod( { toString: () => "get" } ), null );
+        assert.equal( TiWebServer.normalizeRegistrableMethod( { toString: () => " GET " } ), null );
+        assert.equal( TiWebServer.normalizeRegistrableMethod( new String( "get" ) ), null );
+    } );
+
 } );
 
 describe( "TiWebServer.isRouteInList (addUnprotectedRoute matching)", () => {

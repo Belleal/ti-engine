@@ -2,26 +2,35 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.18.1
+
+Enabling Azure SSO took the instance down at startup: the OAuth2 callback was registered by handing the configured callback value straight to Express as a route path, and the installation docs tell operators to set that value to the full absolute URL registered with the identity provider. Express 5 parses route patterns with path-to-regexp v8, where `:` opens a parameter name — so `https://host/login/azure-callback` throws `Missing parameter name at index 6` and the web server never starts. Google was affected identically, which also made this a prerequisite for the competence Cloud Run deployment, whose `deploy.sh` patches in an absolute callback URL (CA-97).
+
+* fix(web-framework): register an OAuth2 callback by its **path** rather than by the configured value verbatim, so a callback given as the absolute URL registered with the provider no longer crashes startup; a callback that yields no usable path now logs a WARNING and skips that provider's endpoint instead of taking the instance down, matching how an enabled-but-unconfigured provider is already handled
+* feat(web-framework): add `AuthManager.getOAuth2CallbackPath( authMethod )` and the pure, unit-tested `AuthManager.toCallbackPath( callbackUrl )` — reduces an absolute, protocol-relative, path or bare relative callback to its route path (query string and fragment stripped), or `null` when no usable path can be derived. The `redirect_uri` sent to the provider is deliberately left as configured, so an absolute callback keeps matching the provider registration exactly instead of depending on the forwarded protocol/host being correct
+* docs(web-framework): document the OpenID Connect provider variables in the README, and state in the README, the competence `INSTALL.md` and `.env.example` that a callback URL may be given as either the absolute registered URL or a path — including what each implies for the `redirect_uri`, and that the path must be the one the app actually receives when a proxy strips a prefix
+* build(release): bump package version from `1.18.0` to `1.18.1`
+
 ## Version 1.18.0
 
 Every web-server setting a container deployment needs could be supplied per environment except one: the admin allowlist. `auth.admins` was readable only from the config file baked into the image, so a containerized deployment had no way to name an administrator — leaving the admin configuration screens unreachable, or forcing a real identity to be committed to the repository. This closes that gap in the existing `TI_WEB_*` override set (CA-94).
 
 * feat(web-framework): add the `TI_WEB_AUTH_ADMINS` environment override — comma-separated, **replaces** `auth.admins` (matched against the session user's user ID, username or email), so the admin allowlist is configurable per environment like every other web setting; an explicitly empty value means no admins
 * docs(web-framework): document `TI_WEB_AUTH_METHODS` and `TI_WEB_TRUSTED_ORIGINS` in the README's environment-variable list, which had never listed them
-* build(release): bump package version from `1.17.0` to `1.18.0`
+* build(release): bump package version from `1.17.1` to `1.18.0`
 
 ## Version 1.17.1
 
 A validator that needs to compare its own config document against its previously committed state had no way to do so: `applyEdits`'s cross-document context resolves `getConfig` to the *pending* value for any document inside the current edit batch — by design, so a validator can check a sibling document's post-edit state — but a document is always part of its own edit batch, so calling `getConfig` on itself just hands back the same incoming value already passed as the validator's argument, never its prior state. This silently defeated the competence `research-consent` config's version-bump guard (CA-93).
 
 * feat(web-framework): add `getStoredConfig(key)` to the `applyEdits` validator context (`ConfigService`) — always resolves the current *committed* value from the store, even for the document currently under validation, so a validator comparing its own document against its previous state has a way to do it; purely additive — `getConfig`'s existing cross-document (pending-value) semantics are unchanged
-* build(release): bump package version from `1.16.0` to `1.17.0`
+* build(release): bump package version from `1.17.0` to `1.17.1`
 
 ## Version 1.17.0
 
 Route-registration seams so an application subclass can add its own Express routes and unprotected-route patterns — enabling public, content-driven sites (the first consumer being the standalone author's site) to layer a catch-all content resolver over the framework without reaching into private state.
 
-* feat(web-server): add `TiWebServer.registerRoute( method, path, ...handlers )` — registers a custom route on the underlying Express app from a `defineWebApplicationRoutes()` override (after `super()`), so a catch-all resolver can be mounted after the framework's own routes but before its `*splat` 404 handler. Limited to route-scoped verbs (get/post/put/patch/delete/options/head/all); raises `E_GEN_INVALID_ARGUMENT_TYPE` for any other method and `E_GEN_NOT_INITIALIZED` if called before the Express app exists
+* feat(web-server): add `TiWebServer.registerRoute( method, path, ...handlers )` — registers a custom route on the underlying Express app from a `defineWebApplicationRoutes()` override (after `super()`), so a catch-all resolver can be mounted after the framework's own routes but before its `*splat` 404 handler. Limited to route-scoped verbs (get/post/put/patch/delete/options/head/all); raises `E_GEN_INVALID_ARGUMENT_TYPE` for any other method and `E_GEN_NOT_INITIALIZED` if called before the Express app exists. The method must be a **string** — a non-string is rejected outright rather than coerced, so a value whose `toString()` happens to yield a verb (`[ "get" ]`, `new String( "get" )`) cannot slip past the allowlist and register a route
 * feat(web-server): add `TiWebServer.addUnprotectedRoute( pattern )` — appends a string (exact-match) or RegExp (tested) pattern to the unprotected-routes list from a `defineUnprotectedRoutes()` override, so a public-by-default site can invert the framework's protect-by-default stance; non-string/non-RegExp values are ignored with a warning
 * refactor(web-server): extract the unprotected-route matching loop from `isUnprotectedRoute()` into the pure, unit-tested `isRouteInList()` helper (behavior unchanged, including the defensive `lastIndex` reset), and add the `normalizeRegistrableMethod()` helper — both exported for testing alongside the existing `RE_*` matcher constants
 * build(release): bump package version from `1.16.0` to `1.17.0`

@@ -62,8 +62,11 @@ class ContentRepository {
             const verdict = ContentRepository.resolveVisibility( record, viewer );
             return verdict === "hidden" ? { outcome: "miss" } : { outcome: verdict, record: record };
         }
+        // An alias must clear the same gate as a direct hit. Redirecting to an unpublished or hidden record would
+        // confirm it exists and disclose its canonical path -- the leak this class exists to prevent. A *gated*
+        // target still redirects, because the target then renders its own gate.
         const aliased = this.#index.byAlias.get( path );
-        if ( aliased ) {
+        if ( aliased && ContentRepository.#servedItem( aliased, viewer ) ) {
             return { outcome: "alias", redirectTo: aliased.path };
         }
         return { outcome: "miss" };
