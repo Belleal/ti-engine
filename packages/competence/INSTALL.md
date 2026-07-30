@@ -330,17 +330,21 @@ reaches it once `deploy.sh` is re-run.
   everyone out of the app. Re-enable it temporarily — safe, because IAP still
   fronts the service (the `^:^` prefix changes the delimiter so the comma is part
   of the value):
+
   ```bash
   gcloud run services update competence --region europe-west1 \
     --update-env-vars ^:^TI_WEB_AUTH_METHODS=local,openid-google
   ```
+
   **Revert as soon as sign-in works again** — hardcoded `admin`/`admin`
   credentials should never stay enabled longer than it takes to fix the OAuth
   client:
+
   ```bash
   gcloud run services update competence --region europe-west1 \
     --update-env-vars TI_WEB_AUTH_METHODS=openid-google
   ```
+
 
 ---
 

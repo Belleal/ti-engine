@@ -168,7 +168,7 @@ fi
 
 # Bucket-scoped, not project-wide.
 run gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
-    --member="serviceAccount:${RUNTIME_SA}" --role="roles/storage.objectAdmin" --project "${PROJECT_ID}"
+    --member="serviceAccount:${RUNTIME_SA}" --role="roles/storage.objectUser" --project "${PROJECT_ID}"
 
 step "6/7 Secrets (values are generated here and never printed)"
 create_random_secret() {

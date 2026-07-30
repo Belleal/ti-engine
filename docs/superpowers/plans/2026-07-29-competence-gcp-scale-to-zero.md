@@ -10,6 +10,8 @@
 
 **Spec:** [`docs/superpowers/specs/2026-07-29-competence-gcp-scale-to-zero-design.md`](../specs/2026-07-29-competence-gcp-scale-to-zero-design.md) — read §3, §4 and §7 before starting. Section references below (§N) point at it.
 
+**Tracking:** YouTrack [`CA-94`](https://belleal.youtrack.cloud/issue/CA-94) (subtask of `CA-11`); follow-ups `CA-95` (map OIDC identities to employee records) and `CA-96` (single-revision deploy + conditional CD auth).
+
 ## Global Constraints
 
 - **Node `>=20.19.0`**, **CommonJS** (`require` / `module.exports`) everywhere. No ESM.
@@ -19,7 +21,7 @@
 - Region is **`europe-west1`** everywhere; secret replication is user-managed and pinned to that region (EU data residency).
 - Shell scripts must stay **LF**; `.gitattributes` already enforces `*.sh text eol=lf` — do not add a BOM and do not convert.
 - Tests are Node's built-in runner: `node --test`. No external test framework.
-- Conventional Commits, scoped to the package, with the YouTrack ID from Task 1 appended: `feat(web-framework): … (CA-###)`.
+- Conventional Commits, scoped to the package, with the YouTrack ID from Task 1 appended: `feat(web-framework): … (CA-94)`.
 - **Bundle commits thematically — fewer is better.** This plan's tasks each end in exactly one commit; do not split further.
 - All new shell scripts support `DRY_RUN=1`, which prints every mutating command and executes none. This is what makes them testable without cloud access.
 
@@ -30,7 +32,7 @@
 **Files:** none (tracker only).
 
 **Interfaces:**
-- Produces: the `CA-###` issue ID that every later commit message in this plan must reference.
+- Produces: the YouTrack issue ID that every later commit message in this plan must reference. **Outcome: `CA-94`** — already created, so the commit examples below name it directly.
 
 - [ ] **Step 1: Find the parent epic**
 
@@ -47,7 +49,7 @@ Use `mcp__youtrack__create_issue` with:
 
 - [ ] **Step 3: Record the ID**
 
-Write the returned ID into this plan's header area as `CA card: CA-###` and use it in every commit message below. **Do not proceed without it** — commits without the ID break the GitHub↔YouTrack link.
+Write the returned ID into this plan's header area and use it in every commit message below. **Do not proceed without it** — commits without the ID break the GitHub↔YouTrack link. Outcome: **`CA-94`**, created as a subtask of `CA-11`.
 
 ---
 
@@ -154,7 +156,7 @@ TI_WEB_AUTH_ADMINS=
 
 ```bash
 git add packages/web-framework/components/web-config-env.js packages/web-framework/test/web-server-env-overrides.test.js packages/web-framework/README.md .env.example
-git commit -m "feat(web-framework): add TI_WEB_AUTH_ADMINS env override for the admin allowlist (CA-###)"
+git commit -m "feat(web-framework): add TI_WEB_AUTH_ADMINS env override for the admin allowlist (CA-94)"
 ```
 
 ---
@@ -361,7 +363,7 @@ Expected: every hit is either a `secretKeyRef` **name** (`competence-cookie-secr
 
 ```bash
 git add packages/competence/deploy/gcp/service.yaml .dockerignore
-git commit -m "build(competence): add the Cloud Run service manifest for the GCP test deployment (CA-###)"
+git commit -m "build(competence): add the Cloud Run service manifest for the GCP test deployment (CA-94)"
 ```
 
 > YAML syntax is validated for real in Task 9 (Cloud Shell has `python3` + `yaml`); there is no YAML parser in this repo's dependency tree, so it cannot be checked locally. Do not claim it is validated before that step runs.
@@ -555,7 +557,7 @@ fi
 
 # Bucket-scoped, not project-wide.
 run gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
-    --member="serviceAccount:${RUNTIME_SA}" --role="roles/storage.objectAdmin" --project "${PROJECT_ID}"
+    --member="serviceAccount:${RUNTIME_SA}" --role="roles/storage.objectUser" --project "${PROJECT_ID}"
 
 step "6/7 Secrets (values are generated here and never printed)"
 create_random_secret() {
@@ -737,7 +739,7 @@ Expected: `text: set` and `eol: lf`.
 
 ```bash
 git add packages/competence/deploy/gcp/bootstrap.sh
-git commit -m "build(competence): add the idempotent GCP bootstrap script (CA-###)"
+git commit -m "build(competence): add the idempotent GCP bootstrap script (CA-94)"
 ```
 
 ---
@@ -973,7 +975,7 @@ Expected: `ERROR: unsubstituted placeholders remain:` listing `__BUCKET_TYPO__`,
 
 ```bash
 git add packages/competence/deploy/gcp/deploy.sh
-git commit -m "build(competence): add the Cloud Run deploy script with two-phase URL patching (CA-###)"
+git commit -m "build(competence): add the Cloud Run deploy script with two-phase URL patching (CA-94)"
 ```
 
 ---
@@ -1055,7 +1057,7 @@ Expected: the new steps sit at the same indentation as their siblings (6 spaces 
 
 ```bash
 git add .github/workflows/cd.yml
-git commit -m "build(deps): publish the competence image to Artifact Registry via Workload Identity Federation (CA-###)"
+git commit -m "build(deps): publish the competence image to Artifact Registry via Workload Identity Federation (CA-94)"
 ```
 
 > **Honest limitation:** this workflow triggers only on pushes to `master` and `competence-v*` tags, so it cannot be exercised from the `current` branch. It is verified for real on the first push to `master` after merge (Task 9, user step 8). Do not report it as verified before then.
@@ -1183,7 +1185,7 @@ Expected: every flag and variable name appearing here also appears in `deploy.sh
 
 ```bash
 git add packages/competence/deploy/gcp/README.md packages/competence/INSTALL.md
-git commit -m "docs(competence): document the Cloud Run scale-to-zero deployment as Method D (CA-###)"
+git commit -m "docs(competence): document the Cloud Run scale-to-zero deployment as Method D (CA-94)"
 ```
 
 ---
@@ -1251,7 +1253,7 @@ Expected: `web-framework 1.18.0`, `competence 3.16.0`, and the diff touching onl
 
 ```bash
 git add packages/web-framework/package.json packages/web-framework/CHANGELOG.md packages/competence/package.json packages/competence/CHANGELOG.md packages/competence/bin/static/fragments/guide/
-git commit -m "build(release): bump web-framework to 1.18.0 and competence to 3.16.0 (CA-###)"
+git commit -m "build(release): bump web-framework to 1.18.0 and competence to 3.16.0 (CA-94)"
 ```
 
 ---
@@ -1321,7 +1323,7 @@ Report the static results from Steps 1–4 with their actual output, then state 
 - [ ] **Step 6: Update YouTrack**
 
 Once the user reports the round-trip result:
-- `mcp__youtrack__add_issue_comment` on `CA-###` summarizing what shipped and the round-trip outcome.
+- `mcp__youtrack__add_issue_comment` on `CA-94` summarizing what shipped and the round-trip outcome.
 - `mcp__youtrack__log_work` with the time spent.
 - `mcp__youtrack__update_issue` → `Stage: Test` while the user verifies; `State: Verified` / `Stage: Done` only after they confirm step 7 passed. Set `Version` to `v3.16.0` and `Shipped` to the verification date **+1 day** (the MCP stores date fields one day early).
 
