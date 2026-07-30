@@ -868,15 +868,31 @@ step "2/6 Applying the service"
 # redeploy while nobody is testing.
 run gcloud run services replace "${RENDERED}" --region "${REGION}" --project "${PROJECT_ID}"
 
-step "3/6 Asserting --no-allow-unauthenticated"
+step "3/6 Ensuring the service is not publicly invocable"
 # `services replace` above rewrites the whole service, dropping the
 # service-level IAP annotation with it — the access gate is down the instant
-# the replace lands. Assert this immediately, before touching env vars or
+# the replace lands. Close it immediately, before touching env vars or
 # printing anything, so the service is never open, not even for the few
 # seconds the rest of this script takes to run. IAP itself is re-asserted
 # last, in step 6 below — see there for why it moved.
-run gcloud run services update "${SERVICE}" --region "${REGION}" \
-    --project "${PROJECT_ID}" --no-allow-unauthenticated
+#
+# NOTE: `services update` has NO --no-allow-unauthenticated flag; that one
+# belongs to `run deploy`. Public access is an IAM binding (allUsers holding
+# roles/run.invoker), not a field on the service, so it is managed here.
+# Removing a binding that is not present fails, hence the check first.
+if [[ -n "${DRY_RUN}" ]]; then
+    printf '    [dry-run] gcloud run services get-iam-policy %s → remove the allUsers/roles/run.invoker binding if present\n' "${SERVICE}"
+elif gcloud run services get-iam-policy "${SERVICE}" --region "${REGION}" --project "${PROJECT_ID}" \
+        --flatten="bindings[].members" \
+        --filter="bindings.role:roles/run.invoker AND bindings.members:allUsers" \
+        --format="value(bindings.members)" 2>/dev/null | grep -q "allUsers"; then
+    echo "    allUsers can invoke this service — removing that binding"
+    gcloud run services remove-iam-policy-binding "${SERVICE}" \
+        --region "${REGION}" --project "${PROJECT_ID}" \
+        --member="allUsers" --role="roles/run.invoker"
+else
+    echo "    no allUsers binding — the service is not publicly invocable"
+fi
 
 step "4/6 Patching the URL-dependent settings"
 if [[ -n "${DRY_RUN}" ]]; then
@@ -970,7 +986,7 @@ Expected: exit 0, and the output must show:
 - all six `==>` steps
 - `rendered …/service.yaml -> /tmp/… (image tag edge)` with **no** unsubstituted-placeholder error — this proves Task 3's placeholder set and this script's `sed` list agree, which is the one thing that silently breaks the deploy
 - `[dry-run] gcloud run services replace …`
-- `[dry-run] gcloud run services update competence … --no-allow-unauthenticated` on its own (step 3), asserted before the URL patch
+- `[dry-run] gcloud run services get-iam-policy competence → remove the allUsers/roles/run.invoker binding if present` on its own (step 3), closing public access before the URL patch
 - the patch step (step 4) carrying `--container app` and both `TI_WEB_TRUSTED_ORIGINS=` and `TI_GCLOUD_AUTH_CALLBACK_URL=…/login/google-callback`
 - the operator guidance block (step 5) printing the redirect URI and both halves of the gate-verification command — printed *before* the final step, so it still appears even when that step is expected to fail on a first run
 - `[dry-run] gcloud run services update competence … --iap` as the last step (step 6)
@@ -1357,5 +1373,5 @@ Use the `superpowers:finishing-a-development-branch` skill: 8 commits on `curren
 
 - **The riskiest assumption is Redis-on-gcsfuse** (spec §9.1). Nothing in Tasks 3–8 proves it. If Task 9 step 7 fails, the fix is not to patch the manifest repeatedly — it is the documented `e2-micro` fallback.
 - **Fractional per-container CPU** (`600m` + `400m` = 1 vCPU) may be rejected by Cloud Run in a multi-container service (spec §9.4). If `deploy.sh` step 2 fails with a resource error, set both containers to `cpu: "1"` (a 2-vCPU instance, still inside the free tier) and note the change in the INSTALL.md Method D properties list.
-- **IAP after `services replace`** is re-asserted by `deploy.sh` step 6 — deliberately the *last* step, not the first thing after the replace — because a full replace rewrites the service and drops the service-level IAP annotation with it. `--no-allow-unauthenticated` is re-asserted separately and immediately, in step 3, so the service is never open even during the window before step 6 runs. If step 6 fails on a service where IAP was never enabled, enable it once in the Console, then re-run — do not remove the re-assert step; without it a redeploy could silently drop the only access gate.
+- **IAP after `services replace`** is re-asserted by `deploy.sh` step 6 — deliberately the *last* step, not the first thing after the replace — because a full replace rewrites the service and drops the service-level IAP annotation with it. Public access is closed separately and immediately, in step 3, so the service is never open during the window before step 6 runs — and note it is closed by removing the `allUsers` / `roles/run.invoker` IAM binding, because `services update` has no `--no-allow-unauthenticated` flag (that one is `run deploy`-only). If step 6 fails on a service where IAP was never enabled, enable it once in the Console, then re-run — do not remove the re-assert step; without it a redeploy could silently drop the only access gate.
 - **Do not enable `COMPETENCE_TEST_USER_ENABLED` anywhere IAP is not in front.** It is the documented hard coupling in spec §9.6.

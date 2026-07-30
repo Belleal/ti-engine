@@ -89,15 +89,31 @@ step "2/6 Applying the service"
 # redeploy while nobody is testing.
 run gcloud run services replace "${RENDERED}" --region "${REGION}" --project "${PROJECT_ID}"
 
-step "3/6 Asserting --no-allow-unauthenticated"
+step "3/6 Ensuring the service is not publicly invocable"
 # `services replace` above rewrites the whole service, dropping the
 # service-level IAP annotation with it — the access gate is down the instant
-# the replace lands. Assert this immediately, before touching env vars or
+# the replace lands. Close it immediately, before touching env vars or
 # printing anything, so the service is never open, not even for the few
 # seconds the rest of this script takes to run. IAP itself is re-asserted
 # last, in step 6 below — see there for why it moved.
-run gcloud run services update "${SERVICE}" --region "${REGION}" \
-    --project "${PROJECT_ID}" --no-allow-unauthenticated
+#
+# NOTE: `services update` has NO --no-allow-unauthenticated flag; that one
+# belongs to `run deploy`. Public access is an IAM binding (allUsers holding
+# roles/run.invoker), not a field on the service, so it is managed here.
+# Removing a binding that is not present fails, hence the check first.
+if [[ -n "${DRY_RUN}" ]]; then
+    printf '    [dry-run] gcloud run services get-iam-policy %s → remove the allUsers/roles/run.invoker binding if present\n' "${SERVICE}"
+elif gcloud run services get-iam-policy "${SERVICE}" --region "${REGION}" --project "${PROJECT_ID}" \
+        --flatten="bindings[].members" \
+        --filter="bindings.role:roles/run.invoker AND bindings.members:allUsers" \
+        --format="value(bindings.members)" 2>/dev/null | grep -q "allUsers"; then
+    echo "    allUsers can invoke this service — removing that binding"
+    gcloud run services remove-iam-policy-binding "${SERVICE}" \
+        --region "${REGION}" --project "${PROJECT_ID}" \
+        --member="allUsers" --role="roles/run.invoker"
+else
+    echo "    no allUsers binding — the service is not publicly invocable"
+fi
 
 step "4/6 Patching the URL-dependent settings"
 if [[ -n "${DRY_RUN}" ]]; then
