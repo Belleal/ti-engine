@@ -86,7 +86,10 @@ const typeExtensions = {
             teaser: { type: [ "string", "null" ] },
             sections: { type: "array" }
         },
-        required: [ "world", "form" ]
+        // `form` is required -- everything written has a form. `world` is NOT: a blog entry about an
+        // award belongs to no story world, and forcing one on it would put it in an archive it has no
+        // business in. A post without a world simply appears in no world archive, which is correct.
+        required: [ "form" ]
     },
     page: {
         properties: {
