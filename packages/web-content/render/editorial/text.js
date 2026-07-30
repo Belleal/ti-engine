@@ -26,8 +26,26 @@ const markdown = require( "#markdown" );
  */
 function renderProse( section ) {
     const classes = section.variant === "excerpt" ? "prose prose-excerpt" : "prose";
-    const body = ( section.bodyFormat === "html" ) ? raw( section.body || "" ) : markdown.render( section.body );
-    return html`<div class="${ classes }">${ body }</div>`;
+    return html`<div class="${ classes }">${ renderBody( section ) }</div>`;
+}
+
+/**
+ * Renders a prose body, or withholds it.
+ *
+ * `bodyFormat: "html"` is DORMANT and deliberately not rendered. The field is kept as an escape hatch should a page
+ * ever resist the section vocabulary, but its safety rests on being sanitised once at import -- and no importer
+ * exists, since every page is authored in this framework rather than imported. Emitting it would put unsanitised
+ * markup on the page, so it is withheld here exactly as `routes/content-routes.js` withholds it: a dormant path has
+ * to be dormant on every route, not merely on the one that was written first.
+ *
+ * @param {Object} section
+ * @returns {import("../html.js").SafeString}
+ */
+function renderBody( section ) {
+    if ( !section.body || section.bodyFormat === "html" ) {
+        return raw( "" );
+    }
+    return markdown.render( section.body );
 }
 
 /**

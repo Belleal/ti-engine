@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Active — P0–P2, P3a/P3b, P4 complete — 181 tests green; theme + self-hosted fonts landed in `Site/`. Next: P3c (document assembly + site script), then the fixture acceptance diff |
+| **Status** | Active — P0–P2, P3a/P3b, P4 complete + editorial markdown extensions — 212 tests green; theme + self-hosted fonts landed in `Site/`. Next: P3c (document assembly + site script), then the fixture acceptance diff |
 | **Created** | 2026-07-24 |
-| **Last updated** | 2026-07-30 |
+| **Last updated** | 2026-07-30 (rev 2) |
 | **Owner** | Boris Kostadinov |
 | **Scope** | New package `@ti-engine/web-content` (reusable engine) + a small enabling change in `@ti-engine/web-framework` (route seams) + the private `anarandaris` `Site/` app (content, theme, wiring) |
 | **Relates to** | Realises the three `Site/docs/` specs — `build-spec.md`, `content-schemas.md`, `token-contract.md` — which remain the source of truth for *what*. This doc records *how it lands as a package* and **supersedes `build-spec.md` §2 on module placement** (framework column → `web-content`). |
@@ -25,6 +25,7 @@ How this design lands in code — update as each step is committed (branch `curr
 | **P2b** — `content/markdown.js` (markdown-it, `html:false`) + `content/sources.js` (front-matter/YAML reader, no directory scanning) | ✅ 22 tests | — | 2026-07-24 |
 | **P3a** — `render/html.js` (escaping + `raw()`) + `render/document.js` (head/JSON-LD/hreflang) | ✅ 19 tests | `9ad6bf1` | 2026-07-24 |
 | **P3b** — `render/sections.js` (registry + mechanical dispatch) + all 15 editorial components | ✅ 53 tests | — | 2026-07-30 |
+| **P2c** — editorial markdown extensions (attrs · bracketed-spans · containers · footnotes) | ✅ 20 tests | — | 2026-07-30 |
 | **P3c** — full document assembly (shell · topbar · footer · gate · 404) + the vanilla site script | ☐ next | — | — |
 | **P4** — `routes/content-routes.js` (catch-all resolver + alias 301 + cache policy) · `routes/feeds.js` (sitemap/rss/robots) · `routes/index.js` mount helpers | ✅ 23 tests + e2e smoke | — | 2026-07-24 |
 | **P5** — `render/editorial/*` components + page templates (showcase first) — Track B meets Track A here | ☐ pending | — | — |
@@ -274,6 +275,14 @@ The `build-spec.md` §8 list — the failures that don't throw — become the fi
 > Decisions worth recording: (1) `featured` and `postList` resolve through `repository.resolveIds()` / `list()`, so a curated id list inherits visibility filtering — a gated item shows its `teaser` and **never** its `summary`, since a summary may be derived from the withheld body; (2) the capture form emits the framework's `csrfToken` hidden input, without which every submission 403s; (3) era/phase/accent modifiers are validated against allow-lists so a record value cannot inject a class name; (4) the contract's table said `.section-language` for `languageExample` while its stated rule derives `.section-language-example` — the table was aligned to the rule (neither was styled, so nothing broke).
 >
 > **Gap raised, not papered over:** `verse.attribution`, `audio.subtitle`, and `languageExample[].note` are declared in `content-schemas.md` §3 but have no rule in `anarand.css`. The renderer emits `.verse-attribution` / `.audio-subtitle` / `.language-note` so styling can land without touching markup, and the contract now records them under *Pending theme coverage* — either style them or drop the fields; leaving both is the state that rots.
+
+> **Legacy-HTML decision + editorial markdown (2026-07-30):** boriskhan.com will be **re-authored page by page in this framework** rather than imported as legacy HTML. That removes the markup escape hatch, which raises the bar on the authoring layer: a prose primitive markdown cannot express is a primitive nobody can use. Four plugins close the gap in `content/markdown.js` — `markdown-it-attrs` (classes on any block/inline), `markdown-it-bracketed-spans` (inline `[text]{.anarandian-inline}`), `markdown-it-container` (pull-quote · chapter-opener · language-example · figure, with **positional auto-classing** so the common case needs no annotation), and `markdown-it-footnote` remapped onto the contract's classes and `fn-N`/`fnref-N` ids. The syntax is documented for authors in `Site/docs/markup-contract.md` § *Authoring syntax*.
+>
+> **The attribute allowlist is a security boundary, not a convenience.** Unrestricted, `markdown-it-attrs` would let authored content write a `style` or `onclick` attribute straight into the page — breaching the contract's hardest rule from inside content. Only `class` and `id` are permitted, and that is the first thing the test file asserts.
+>
+> `bodyFormat: "html"` is **kept but dormant** (ratified): the field stays as an escape hatch should a page ever resist the section vocabulary, but no importer sanitises it, so **every** renderer withholds it. That fixed a real inconsistency introduced in P3b — `renderProse` emitted it via `raw()` while the fallback page withheld it, a live XSS vector for any record carrying the field. A dormant path has to be dormant on every route, not merely on the one written first. `Site/CLAUDE.md` rule 8 now records that markdown output is the only live `raw()` source.
+>
+> Migration (P7) changes shape but not order: the **URL inventory, uploads copy and alias map are unchanged and still non-negotiable**, and are now doubly urgent because the inventory is the only thing that sizes the re-authoring work and proves whether 15 section types cover every page. The WordPress REST export survives as **draft source material** — converted to markdown as a starting point for hand-finishing, never as a shipped body.
 ---
 
 ## 11. Phased plan (maps to the implementation log)

@@ -51,9 +51,12 @@ describe( "editorial — prose and verse", () => {
         assert.ok( editorial.renderProse( { body: "x", variant: "excerpt" } ).toString().startsWith( "<div class=\"prose prose-excerpt\">" ) );
     } );
 
-    it( "emits pre-sanitised legacy HTML as-is when bodyFormat is html", () => {
-        const out = editorial.renderProse( { body: "<p>legacy</p>", bodyFormat: "html" } ).toString();
-        assert.ok( out.includes( "<p>legacy</p>" ) );
+    it( "withholds a dormant html body rather than emitting unsanitised markup", () => {
+        // bodyFormat "html" is kept as an escape hatch but never rendered: no importer sanitises it, and a dormant
+        // path must be dormant on every route -- content-routes.js withholds it identically.
+        const out = editorial.renderProse( { body: "<p onclick=\"evil()\">legacy</p>", bodyFormat: "html" } ).toString();
+        assert.equal( out, "<div class=\"prose\"></div>" );
+        assert.ok( !out.includes( "onclick" ) );
     } );
 
     it( "marks the last verse line and breaks the rest", () => {
