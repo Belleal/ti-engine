@@ -14,10 +14,16 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@main
-      - uses: actions/setup-node@main
+      # These jobs run npm lifecycle scripts and hold a publish token, so they give up
+      # anything they do not need: the checkout credential (nothing here pushes) and
+      # setup-node's automatic dependency cache.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
+          package-manager-cache: false
       - name: Prepare Environment - Install
         run: npm install
       - name: Prepare Environment - CI
@@ -32,10 +38,13 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@main
-      - uses: actions/setup-node@main
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
+          package-manager-cache: false
           registry-url: https://registry.npmjs.org/
       - name: Prepare Environment - Install
         run: npm install
