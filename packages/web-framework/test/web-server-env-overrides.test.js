@@ -89,4 +89,29 @@ describe( "applyWebConfigEnvOverrides", () => {
         assert.equal( applyWebConfigEnvOverrides( null, { TI_WEB_HOST: "0.0.0.0" } ), null );
     } );
 
+    it( "replaces auth.admins from a comma-separated TI_WEB_AUTH_ADMINS (trimmed, empties dropped)", () => {
+        const config = { auth: { enabledMethods: [ "openid-google" ], admins: [ "old@example.com" ] } };
+        applyWebConfigEnvOverrides( config, { TI_WEB_AUTH_ADMINS: " one@example.com , two@example.com ,, " } );
+        assert.deepEqual( config.auth.admins, [ "one@example.com", "two@example.com" ] );
+        assert.deepEqual( config.auth.enabledMethods, [ "openid-google" ], "other auth settings are preserved" );
+    } );
+
+    it( "creates the auth object when TI_WEB_AUTH_ADMINS is set on a config without one", () => {
+        const config = { host: "127.0.0.1" };
+        applyWebConfigEnvOverrides( config, { TI_WEB_AUTH_ADMINS: "admin@example.com" } );
+        assert.deepEqual( config.auth.admins, [ "admin@example.com" ] );
+    } );
+
+    it( "leaves a configured auth.admins untouched when TI_WEB_AUTH_ADMINS is absent", () => {
+        const config = { auth: { admins: [ "keep@example.com" ] } };
+        applyWebConfigEnvOverrides( config, {} );
+        assert.deepEqual( config.auth.admins, [ "keep@example.com" ] );
+    } );
+
+    it( "clears auth.admins when TI_WEB_AUTH_ADMINS is set to an empty string", () => {
+        const config = { auth: { admins: [ "gone@example.com" ] } };
+        applyWebConfigEnvOverrides( config, { TI_WEB_AUTH_ADMINS: "" } );
+        assert.deepEqual( config.auth.admins, [], "an explicitly empty value means no admins, not 'keep the default'" );
+    } );
+
 } );

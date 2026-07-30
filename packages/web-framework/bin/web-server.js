@@ -493,21 +493,7 @@ class TiWebServer extends ServiceConsumer {
      */
     isUnprotectedRoute( route ) {
         const pathOnly = String( route || "" ).split( "?" )[ 0 ];
-        let result = false;
-        for ( let idx = 0; idx < this.#unprotectedRoutes.length; idx++ ) {
-            const pattern = this.#unprotectedRoutes[ idx ];
-            if ( _.isRegExp( pattern ) ) {
-                // Avoid stateful RegExp behavior when 'g' or 'y' flags are present:
-                pattern.lastIndex = 0;
-                result = pattern.test( pathOnly );
-            } else {
-                result = ( pattern === pathOnly );
-            }
-            if ( result ) {
-                break;
-            }
-        }
-        return result;
+        return TiWebServer.isRouteInList( this.#unprotectedRoutes, pathOnly );
     }
 
     /**
@@ -530,12 +516,18 @@ class TiWebServer extends ServiceConsumer {
         this.#webServer.post( "/logout", webHandlers.logoutHandler() );
         this.#webServer.get( "/health", webHandlers.healthHandler() );
         this.#webServer.get( "/me", webHandlers.userInformationHandler() );
-        if ( this.#authManager.isAuthEnabled( authMethod.OPENID_GOOGLE ) ) {
-            this.#webServer.get( this.#authManager.getOAuth2CallbackUrl( authMethod.OPENID_GOOGLE ), webHandlers.authorizedOAuth2CallbackHandler( this, authMethod.OPENID_GOOGLE ) );
-        }
-        if ( this.#authManager.isAuthEnabled( authMethod.OPENID_AZURE ) ) {
-            this.#webServer.get( this.#authManager.getOAuth2CallbackUrl( authMethod.OPENID_AZURE ), webHandlers.authorizedOAuth2CallbackHandler( this, authMethod.OPENID_AZURE ) );
-        }
+        // NOTE: A callback is registered by its path, never by the configured value verbatim — that value is commonly
+        // the absolute URL registered with the identity provider, which Express cannot parse as a route pattern.
+        [ authMethod.OPENID_GOOGLE, authMethod.OPENID_AZURE ].forEach( ( method ) => {
+            if ( this.#authManager.isAuthEnabled( method ) === true ) {
+                const callbackPath = this.#authManager.getOAuth2CallbackPath( method );
+                if ( callbackPath ) {
+                    this.#webServer.get( callbackPath, webHandlers.authorizedOAuth2CallbackHandler( this, method ) );
+                } else {
+                    logger.log( `Authentication method '${ method }' is enabled but its callback URL yields no usable route path; its callback endpoint was not registered and sign-in through it will fail.`, logger.logSeverity.WARNING );
+                }
+            }
+        } );
 
         // Admin configuration-management API. Gated by the admin role; these paths are not in the unprotected-routes
         // list, so they also inherit the server's global authentication + CSRF middleware.
@@ -572,6 +564,119 @@ class TiWebServer extends ServiceConsumer {
         this.#unprotectedRoutes.push( "/health" );
         this.#unprotectedRoutes.push( RE_STATIC_UNPROTECTED );
         this.#unprotectedRoutes.push( RE_WELL_KNOWN_UNPROTECTED );
+    }
+
+    /**
+     * Registers a custom application route on the underlying Express app.
+     * <br/>
+     * NOTE: Call this from a {@link TiWebServer#defineWebApplicationRoutes} override AFTER invoking the base method,
+     * so the framework's own routes keep priority and any catch-all route you add resolves last (it will still be
+     * registered before the framework's own `*splat` 404 handler). It is only valid once the Express app exists —
+     * i.e., from within {@link TiWebServer#defineWebApplicationRoutes}, which {@link TiWebServer#onStart} invokes.
+     *
+     * @method
+     * @param {string} method One of the supported routing verbs: get, post, put, patch, delete, options, head, all.
+     * @param {string|RegExp} path The route path or pattern.
+     * @param {...Function} handlers One or more Express route handlers/middleware.
+     * @returns {TiWebServer} This instance, to allow chaining.
+     * @public
+     */
+    registerRoute( method, path, ...handlers ) {
+        const verb = TiWebServer.normalizeRegistrableMethod( method );
+        if ( verb === null ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, { method: method } );
+        }
+        if ( !this.#webServer ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_NOT_INITIALIZED, { detail: "registerRoute() called before the Express app was created; call it from a defineWebApplicationRoutes() override." } );
+        }
+        this.#webServer[ verb ]( path, ...handlers );
+        return this;
+    }
+
+    /**
+     * Adds a pattern to the unprotected-routes list — routes that bypass the authentication gate. A string is
+     * matched exactly against the request path; a RegExp is tested against it. Consulted at request time by
+     * {@link TiWebServer#isUnprotectedRoute}.
+     * <br/>
+     * NOTE: Call this from a {@link TiWebServer#defineUnprotectedRoutes} override AFTER invoking the base method, to
+     * extend (rather than replace) the defaults.
+     *
+     * @method
+     * @param {string|RegExp} pattern The exact path (string) or path matcher (RegExp) to treat as unprotected.
+     * @returns {TiWebServer} This instance, to allow chaining.
+     * @public
+     */
+    addUnprotectedRoute( pattern ) {
+        if ( _.isString( pattern ) || _.isRegExp( pattern ) ) {
+            this.#unprotectedRoutes.push( pattern );
+        } else {
+            logger.log( `Ignored an invalid unprotected-route pattern of type '${ typeof pattern }'; expected a string or RegExp.`, logger.logSeverity.WARNING );
+        }
+        return this;
+    }
+
+    /* Static interface */
+
+    /**
+     * The Express routing verbs that {@link TiWebServer#registerRoute} will register. Deliberately limited to
+     * route-scoped methods — `use` (global middleware mounting) is intentionally excluded; add a dedicated seam if
+     * middleware mounting is ever needed.
+     *
+     * @type {Set<string>}
+     * @private
+     */
+    static #REGISTRABLE_METHODS = new Set( [ "get", "post", "put", "patch", "delete", "options", "head", "all" ] );
+
+    /**
+     * Normalizes an HTTP method to a lower-case Express routing verb, or returns null if it is not a supported,
+     * registrable verb. Anything that is not a string is rejected outright rather than coerced — otherwise a value
+     * whose `toString()` happens to yield a verb (`[ "get" ]`, `new String( "get" )`) would register a route and
+     * bypass the `E_GEN_INVALID_ARGUMENT_TYPE` that {@link TiWebServer#registerRoute} raises for a bad method.
+     * Pure and static; exposed for unit testing — not part of the customization surface.
+     *
+     * @method
+     * @static
+     * @param {string} method
+     * @returns {string|null}
+     * @public
+     */
+    static normalizeRegistrableMethod( method ) {
+        if ( typeof method !== "string" ) {
+            return null;
+        }
+        const verb = method.trim().toLowerCase();
+        return TiWebServer.#REGISTRABLE_METHODS.has( verb ) ? verb : null;
+    }
+
+    /**
+     * Tests a request path against a list of unprotected-route patterns (string exact-match or RegExp test),
+     * returning true on the first match. A RegExp's `lastIndex` is reset defensively so a stateful 'g'/'y' flag
+     * cannot cause a match to be skipped. Pure and static; shared by {@link TiWebServer#isUnprotectedRoute} and
+     * exposed for unit testing — not part of the customization surface.
+     *
+     * @method
+     * @static
+     * @param {Array<string|RegExp>} patterns
+     * @param {string} pathOnly The request path with any query string already stripped.
+     * @returns {boolean}
+     * @public
+     */
+    static isRouteInList( patterns, pathOnly ) {
+        for ( let idx = 0; idx < patterns.length; idx++ ) {
+            const pattern = patterns[ idx ];
+            let matched;
+            if ( _.isRegExp( pattern ) ) {
+                // Avoid stateful RegExp behavior when 'g' or 'y' flags are present:
+                pattern.lastIndex = 0;
+                matched = pattern.test( pathOnly );
+            } else {
+                matched = ( pattern === pathOnly );
+            }
+            if ( matched === true ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /* Private interface */
