@@ -76,19 +76,26 @@ installed and already signed in as you. Nothing to install locally.
 
 - [ ] In the Console top bar, click the terminal icon (**Activate Cloud Shell**) and wait for a prompt.
 - [ ] Point it at your project:
+
     ```bash
     gcloud config set project <PROJECT_ID>
     ```
+
 - [ ] Clone the repository and enter the deploy directory:
+
     ```bash
     git clone https://github.com/Belleal/ti-engine.git
     cd ti-engine/packages/competence/deploy/gcp
     ```
+
 - [ ] **Preview first.** This prints every command the script would run and executes none of them:
+
     ```bash
     DRY_RUN=1 ./bootstrap.sh
     ```
+
 - [ ] Run it for real:
+
     ```bash
     ./bootstrap.sh
     ```
@@ -164,6 +171,7 @@ twice when you first open the service, which is normal and usually one click the
 - [ ] That is the only client to create. **Do not make one for IAP** — phase 7 provisions it.
 - [ ] Store the secret. Read it into a variable first — `read -rs` does not echo it and it never
     reaches your shell history, and `printf %s` writes it **without a trailing newline**:
+
     ```bash
     read -rsp 'Paste the client secret, then press Enter: ' SECRET && echo
     printf %s "$SECRET" | gcloud secrets create competence-google-client-secret \
@@ -171,6 +179,7 @@ twice when you first open the service, which is normal and usually one click the
       --project <PROJECT_ID>
     unset SECRET
     ```
+
     **The trailing newline matters.** `--data-file=-` stores stdin byte for byte, so typing the secret
     straight into the command and pressing Enter before Ctrl-D would store `<secret>\n` — and Google
     rejects that with `invalid_client`, which surfaces much later as a `/?error=1000` bounce on sign-in.
@@ -241,10 +250,12 @@ That publishes `:<version>` and `:latest` alongside `:edge`, to both registries 
 Tag only a version whose changelog entry is in place — the tag is what the release is named after.
 
 - [ ] Watch the run go green, then confirm the image arrived:
+
     ```bash
     gcloud artifacts docker images list \
       europe-west1-docker.pkg.dev/<PROJECT_ID>/competence --include-tags
     ```
+
     You should see `ti-engine-competence` and the mirrored `redis`. Note the tag you want to deploy.
 
 ## Phase 6 — Deploy the service
@@ -252,11 +263,14 @@ Tag only a version whose changelog entry is in place — the tag is what the rel
 **Where: Cloud Shell**
 
 - [ ] Optional preview:
+
     ```bash
     DRY_RUN=1 GOOGLE_CLIENT_ID=<client-id> ./deploy.sh
     ```
+
 - [ ] Deploy. `ADMIN_EMAILS` is your own Google address — without it the admin configuration screens
     stay unreachable, because the allowlist is empty:
+
     ```bash
     GOOGLE_CLIENT_ID=<client-id> \
     ADMIN_EMAILS=<your-google-address> \
@@ -284,25 +298,31 @@ origin and the OAuth callback.
 
 - [ ] **Register the redirect URI.** Google Auth Platform → **Clients** → your client → under
     *Authorised redirect URIs*, add the exact value `deploy.sh` printed:
+
     ```text
     https://competence-<hash>-<region>.a.run.app/login/google-callback
     ```
+
     Sign-in fails with a redirect-mismatch error until this matches character for character.
 - [ ] **Cloud Run gives the service two URLs, and only one of them is configured.** Check both:
+
     ```bash
     gcloud run services describe competence --region europe-west1 --project <PROJECT_ID> \
       --format="value(status.url, metadata.annotations['run.googleapis.com/urls'])"
     ```
+
     You will see a legacy `https://competence-<hash>-<region>.a.run.app` and a newer
     `https://competence-<project-number>.<region>.run.app`. **Both reach this same service**, but
     `deploy.sh` configures only `status.url`, so a tester who opens the other one fails both the CSRF
     origin check and the OAuth callback. Either circulate just the configured URL, or register the
     callback for both hosts and trust both:
+
     ```bash
     gcloud run services update competence --region europe-west1 --project <PROJECT_ID> \
       --container app \
       --update-env-vars '^|^TI_WEB_TRUSTED_ORIGINS=https://<url-one>,https://<url-two>'
     ```
+
     Note the delimiter is `^|^`, **not** the `^:^` used elsewhere in this guide — these values contain
     `:` in `https://`, so a colon delimiter would split them. Pick a character the value cannot contain.
 - [ ] **Enable IAP.** Cloud Run → `competence` → **Security** tab → **Require authentication** →
@@ -329,6 +349,7 @@ origin and the OAuth callback.
 - [ ] Re-run the deploy so its final IAP assertion passes and the script finishes clean.
 - [ ] **Prove the gate is on** before sharing anything. The first command must show
     `iap-enabled: 'true'`; the second must **not** list `allUsers`:
+
     ```bash
     gcloud run services describe competence --region europe-west1 \
       --project <PROJECT_ID> --format='yaml(metadata.annotations)'
@@ -342,10 +363,12 @@ origin and the OAuth callback.
 **Where: Cloud Shell, then a browser**
 
 - [ ] Turn the seed on:
+
     ```bash
     gcloud run services update competence --region europe-west1 \
       --project <PROJECT_ID> --update-env-vars COMPETENCE_PRELOAD_DATA=true
     ```
+
 - [ ] Open the service URL. Expect **5–15 seconds** for the first load — that is the cold start, and
     it recurs after each idle period. Sign in with Google (IAP), then again on the app's own login
     screen.
@@ -363,6 +386,7 @@ origin and the OAuth callback.
     that testers can select in the panel above.
 - [ ] **Turn the seed back off.** While it stays on, the seed is re-applied on every boot and will
     resurrect records a tester deleted:
+
     ```bash
     gcloud run services update competence --region europe-west1 \
       --project <PROJECT_ID> --update-env-vars COMPETENCE_PRELOAD_DATA=false
@@ -380,6 +404,7 @@ not trust the environment with anything a tester would be annoyed to lose.
 - [ ] Leave it alone for **~20 minutes** so Cloud Run shuts the instance down. Do not reload.
 - [ ] Reload, sign in, and confirm what you created is still there.
 - [ ] Confirm the snapshot was written — the timestamp must be **later** than your change:
+
     ```bash
     gcloud storage ls -l gs://<PROJECT_ID>-competence-redis/dump.rdb
     ```

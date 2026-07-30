@@ -48,6 +48,10 @@ function buildArchiveRecords( taxonomy, config ) {
             continue;
         }
         for ( const facet of facets ) {
+            const termPath = termPathFor( archive.termPath, facet );
+            if ( !termPath ) {
+                continue;
+            }
             for ( const term of taxonomy.terms( facet ) ) {
                 const slug = slugFor( term, lang, options.defaultLanguage );
                 if ( !slug ) {
@@ -56,7 +60,7 @@ function buildArchiveRecords( taxonomy, config ) {
                 records.push( {
                     id: "archive-" + lang + "-" + facet + "-" + term.id,
                     type: "page",
-                    path: String( archive.termPath ).replace( "{slug}", slug ),
+                    path: termPath.replace( "{slug}", slug ),
                     lang: lang,
                     title: labelFor( term, lang ),
                     visibility: "public",
@@ -80,6 +84,31 @@ function buildArchiveRecords( taxonomy, config ) {
     }
 
     return records;
+}
+
+/**
+ * The path pattern for one facet.
+ *
+ * `termPath` is a single string when every facet shares a URL namespace -- which is a deliberate choice, not an
+ * oversight: a flat `/writings/{slug}/` reads better than `/writings/world/{slug}/` and is usually what a migration
+ * has to preserve. The cost is that a world term and a form term sharing a slug generate the SAME path, and the
+ * loader then reports a conflict and drops one archive to a 404.
+ *
+ * So the pattern may also be given per facet, `{ world: "...", form: "..." }`, which is the escape hatch when two
+ * vocabularies do collide -- without forcing every site to namespace URLs it does not need to.
+ *
+ * @param {string|Object} termPath
+ * @param {string} facet
+ * @returns {string|null}
+ */
+function termPathFor( termPath, facet ) {
+    if ( typeof termPath === "string" ) {
+        return termPath;
+    }
+    if ( termPath && typeof termPath === "object" && typeof termPath[ facet ] === "string" ) {
+        return termPath[ facet ];
+    }
+    return null;
 }
 
 /**

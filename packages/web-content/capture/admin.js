@@ -28,15 +28,14 @@ const EXPORT_COLUMNS = [ "email", "purpose", "edition", "source", "locale", "con
  * @returns {{ total: number, byPurpose: Object<string, number>, byEdition: Object<string, number>, uniqueEmails: number }}
  */
 function summarise( records ) {
-    const list = Array.isArray( records ) ? records : [];
+    // Filtered up front so `total` counts exactly what the breakdowns count. Skipping falsy entries inside the loop
+    // while still reporting `list.length` gives an admin summary whose parts do not add up to its total.
+    const list = ( Array.isArray( records ) ? records : [] ).filter( Boolean );
     const byPurpose = {};
     const byEdition = {};
     const emails = new Set();
 
     for ( const record of list ) {
-        if ( !record ) {
-            continue;
-        }
         const purpose = record.purpose || "(none)";
         byPurpose[ purpose ] = ( byPurpose[ purpose ] || 0 ) + 1;
         if ( record.edition ) {

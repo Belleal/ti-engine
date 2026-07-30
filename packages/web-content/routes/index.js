@@ -113,6 +113,33 @@ function notFoundHandler( context, config ) {
     };
 }
 
+// An origin no real deployment can hold, used only to resolve a candidate target against.
+const PROBE_ORIGIN = "https://ti-engine.invalid";
+
+/**
+ * Whether a redirect target stays on this site.
+ *
+ * Decided by RESOLVING the target and checking the origin did not move, rather than by pattern-matching for the
+ * shapes that escape. Enumerating those is a losing game: the obvious `//host` was covered, but `/\host` was not --
+ * browsers fold a backslash into a slash while a `indexOf( "//" )` test does not, so `/\evil.example` reads as
+ * site-relative here and resolves to `https://evil.example/` in the address bar. Percent-encoded and mixed variants
+ * behave the same way. Handing the question to the URL parser answers all of them at once, and keeps answering them
+ * when a new one is discovered.
+ *
+ * @param {string} to
+ * @returns {boolean}
+ */
+function isSiteRelative( to ) {
+    if ( typeof to !== "string" || to.indexOf( "/" ) !== 0 ) {
+        return false;
+    }
+    try {
+        return new URL( to, PROBE_ORIGIN ).origin === PROBE_ORIGIN;
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Registers the configured redirects.
  *
@@ -136,7 +163,7 @@ function mountRedirects( server, redirects ) {
         }
         const from = rule.from;
         const to = rule.to;
-        if ( from.indexOf( "/" ) !== 0 || to.indexOf( "/" ) !== 0 || to.indexOf( "//" ) === 0 ) {
+        if ( from.indexOf( "/" ) !== 0 || isSiteRelative( to ) === false ) {
             logger.log( `Ignored redirect '${ from }' -> '${ to }': both must be rooted, site-relative paths.`, logger.logSeverity.ERROR );
             continue;
         }

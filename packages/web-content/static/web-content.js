@@ -348,7 +348,12 @@
                 return;
             }
 
-            const audio = new Audio( source );
+            const audio = new Audio();
+            // `preload = "none"` BEFORE the src, or the browser starts fetching the moment the source is set. The
+            // site ships tens of megabytes of audio; without this, every visit to a page with a player pulls at
+            // least metadata for each track before anyone has pressed play.
+            audio.preload = "none";
+            audio.src = source;
             const originalLabel = button.getAttribute( "aria-label" ) || "Play";
 
             button.addEventListener( "click", function () {

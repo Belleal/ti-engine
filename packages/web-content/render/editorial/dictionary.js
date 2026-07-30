@@ -149,8 +149,11 @@ function renderForms( forms ) {
 
     const body = forms.rows.map( ( row ) => {
         const header = row.header ? html`<th scope="row">${ row.header }</th>` : raw( "" );
+        // `data-label` is what the stacked mobile layout shows in place of the column header, so an empty one leaves
+        // a value with nothing saying which form it is. With no configured columns the position is at least a
+        // truthful label -- less useful than a name, but not a mystery.
         const cells = ( Array.isArray( row.cells ) ? row.cells : [] ).map( ( cell, index ) =>
-            html`<td data-label="${ columns[ index ] || "" }">${ cell }</td>` );
+            html`<td data-label="${ columns[ index ] || String( index + 1 ) }">${ cell }</td>` );
         return html`<tr>${ header }${ cells }</tr>`;
     } );
 

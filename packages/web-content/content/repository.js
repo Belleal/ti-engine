@@ -48,6 +48,9 @@ class ContentRepository {
 
     /**
      * @param {import("./loader.js").ContentIndex} index  The index built by the loader; defaults to empty.
+     * @param {{ taxonomy?: Object }} [options]  `taxonomy` lets a facet criterion expand to a term's children, so
+     *        querying a parent term matches records tagged with any of its descendants. Without it a facet matches
+     *        only itself, which makes a parent-term archive silently under-report rather than fail.
      */
     constructor( index, options ) {
         this.#index = index || EMPTY_INDEX;
@@ -61,8 +64,11 @@ class ContentRepository {
      *
      * @param {string} path
      * @param {Viewer} [viewer]
-     * @returns {{ outcome: string, record?: Object, redirectTo?: string }} outcome is
+     * @returns {{ outcome: string, record?: Object, redirectTo?: string, preview?: boolean }} outcome is
      *          "visible" | "gated" (a hit, with `record`), "alias" (with `redirectTo`), or "miss".
+     *          `preview: true` marks a hit on an UNPUBLISHED record, opened because the viewer holds the preview
+     *          capability. The caller MUST honour it: such a response has to be `no-store` and `noindex`, or a
+     *          draft reaches a CDN or a search index and outlives the preview.
      */
     resolve( path, viewer ) {
         const record = this.#index.byPath.get( path );

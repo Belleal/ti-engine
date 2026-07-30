@@ -213,6 +213,7 @@ function validateCapture( record ) {
 
 module.exports = {
     CONTENT_TYPES: CONTENT_TYPES,
+    RELEASE_STATES: RELEASE_STATES,
     SECTION_TYPES: SECTION_TYPES,
     VISIBILITY_PATTERN: VISIBILITY_PATTERN,
     validateRecord: validateRecord,

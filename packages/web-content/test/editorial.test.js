@@ -249,8 +249,28 @@ describe( "editorial — capture form", () => {
         const out = editorial.renderCapture( { invalid: true, errorMessage: "Bad address" }, {} ).toString();
         assert.ok( out.includes( "class=\"field field-invalid\"" ) );
         assert.ok( out.includes( "aria-invalid=\"true\"" ) );
-        assert.ok( out.includes( "aria-describedby=\"capture-email-msg\"" ) );
-        assert.ok( out.includes( "<span class=\"field-error\" id=\"capture-email-msg\">" ) );
+        // Asserted as a RELATIONSHIP, not a literal id: what matters is that the input points at the error element
+        // that actually exists, whatever it ends up being called.
+        const described = out.match( /aria-describedby="([^"]+)"/ );
+        assert.ok( described, "the invalid input must reference its error" );
+        assert.ok( out.includes( `<span class="field-error" id="${ described[ 1 ] }">` ), "aria-describedby must name a real element" );
+    } );
+
+    it( "gives two unnamed capture forms on one page distinct ids", () => {
+        // Sharing an id makes every label and aria-describedby point at the first form, so clicking the second
+        // form's label focuses the first form's input.
+        const context = {};
+        const first = editorial.renderCapture( {}, context ).toString();
+        const second = editorial.renderCapture( {}, context ).toString();
+        const idOf = ( out ) => ( out.match( /id="(capture[^"]*-email)"/ ) || [] )[ 1 ];
+        assert.ok( idOf( first ) );
+        assert.notEqual( idOf( first ), idOf( second ) );
+    } );
+
+    it( "restarts the numbering for each page, so the same page renders identically twice", () => {
+        // A module-level counter would make two renders of one page differ, which is what breaks a shared cache.
+        const render = () => editorial.renderCapture( {}, {} ).toString();
+        assert.equal( render(), render() );
     } );
 
     it( "renders a duplicate status distinctly from an error", () => {

@@ -66,7 +66,9 @@ const MAX_REVEAL_DELAY = 3;
 
 // A section may belong to one release state only. The theme hides the non-matching ones, so a
 // pre-order call to action cannot survive into the released page.
-const RELEASE_STATES = new Set( [ "announced", "prerelease", "released" ] );
+// Taken from the schema rather than restated: these values are also a CSS contract (`state-*` / `on-*`), so a
+// copy that drifted would silently stop matching the stylesheet and sections would quietly never show.
+const RELEASE_STATES = new Set( require( "#schema" ).RELEASE_STATES );
 
 /**
  * Derives a section's wrapper class from its type: camelCase -> kebab-case, prefixed `section-`.

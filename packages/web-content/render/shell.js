@@ -174,7 +174,12 @@ function isCurrentPath( href, path ) {
     if ( href === path ) {
         return true;
     }
-    return href !== "/" && path.indexOf( href ) === 0;
+    if ( href === "/" || path.indexOf( href ) !== 0 ) {
+        return false;
+    }
+    // The prefix must end on a segment boundary. Without this, `/writings` marks `/writings-about-craft/` as the
+    // current page -- a sibling section highlighted as if you were inside it.
+    return href.charAt( href.length - 1 ) === "/" || path.charAt( href.length ) === "/";
 }
 
 /**

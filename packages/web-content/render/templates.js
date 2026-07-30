@@ -23,7 +23,9 @@ const markdown = require( "#markdown" );
 const { renderSection } = require( "#sections" );
 
 // The three states a book or release can be in. Validated so a record value cannot inject a class name.
-const RELEASE_STATES = new Set( [ "announced", "prerelease", "released" ] );
+// Taken from the schema rather than restated: these values are also a CSS contract (`state-*` / `on-*`), so a
+// copy that drifted would silently stop matching the stylesheet and sections would quietly never show.
+const RELEASE_STATES = new Set( require( "#schema" ).RELEASE_STATES );
 
 /**
  * Renders a record's <main> content for its type.

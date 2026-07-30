@@ -319,3 +319,60 @@ describe( "capture routes — the admin endpoints fail closed", () => {
     } );
 
 } );
+
+/*
+ * An unreachable store is not an empty store.
+ *
+ * These cover the failure that produced no error anywhere: `#readAll` used to turn any read failure into `{}`, and
+ * every mutating method treats what it reads as authoritative before writing the whole document back. So a Redis
+ * blip meant a submit could replace the entire list with one record, and an erasure could report success without
+ * erasing. Both paths returned a cheerful 200.
+ */
+describe( "capture store — a read failure is never mistaken for an empty store", () => {
+
+    function brokenCache( existing ) {
+        return {
+            data: existing,
+            written: null,
+            getJSON() { return Promise.reject( new Error( "ECONNREFUSED" ) ); },
+            setJSON( key, value ) { this.written = value; return Promise.resolve( true ); },
+            editJSON( key, value, path ) { this.written = { [ path[ 0 ] ]: value }; return Promise.resolve( true ); }
+        };
+    }
+
+    it( "reports an error from submit rather than overwriting everything that was already stored", async () => {
+        const broken = brokenCache( { existing: { email: "prior@example.com" } } );
+        const result = await new CaptureStore( { cache: broken } ).submit( { email: "new@example.com", purpose: "newsletter", consent: true } );
+        assert.equal( result.status, "error" );
+        assert.equal( broken.written, null, "nothing may be written when the current contents are unknown" );
+    } );
+
+    it( "refuses to answer an erasure request it could not carry out", async () => {
+        // `{ erased: 0 }` here would tell an operator a right-to-be-forgotten request was honoured when the data
+        // was never even read.
+        const broken = brokenCache( {} );
+        await assert.rejects( new CaptureStore( { cache: broken } ).eraseByEmail( "someone@example.com" ) );
+        assert.equal( broken.written, null );
+    } );
+
+    it( "refuses to report a delete it could not carry out", async () => {
+        const broken = brokenCache( {} );
+        await assert.rejects( new CaptureStore( { cache: broken } ).delete( "some-id" ) );
+    } );
+
+    it( "still reads an absent document as empty — that one really is empty", async () => {
+        const empty = { getJSON() { return Promise.resolve( [] ); }, setJSON() { return Promise.resolve( true ); }, editJSON() { return Promise.resolve( true ); } };
+        assert.deepEqual( await new CaptureStore( { cache: empty } ).list(), [] );
+    } );
+
+} );
+
+describe( "capture routes — a missing store is a misconfiguration, not a no-op", () => {
+
+    it( "throws at mount rather than leaving the form to POST into a 404", () => {
+        const server = { registerRoute() { return this; } };
+        assert.throws( () => mountCaptureRoutes( server, {} ), /requires a store/ );
+        assert.throws( () => mountCaptureRoutes( server, undefined ), /requires a store/ );
+    } );
+
+} );

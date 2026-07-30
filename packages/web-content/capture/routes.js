@@ -121,7 +121,9 @@ function mountCaptureRoutes( server, options ) {
     const opts = options || {};
     const store = opts.store;
     if ( !store ) {
-        return server;
+        // Loudly, at boot. Mounting nothing leaves the form POSTing into the 404 handler, so the misconfiguration
+        // surfaces weeks later as "the newsletter box stopped working" with no signal pointing back to here.
+        throw new Error( "mountCaptureRoutes requires a store; refusing to mount the capture endpoints without one." );
     }
     // Never unguarded: an absent guard means the built-in one, not none. These endpoints expose every stored
     // address, so the failure mode of a forgotten option must be "refused", not "public".

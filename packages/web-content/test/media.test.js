@@ -19,6 +19,7 @@ const { describe, it, before, after } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 const express = require( "express" );
 const fs = require( "node:fs" );
+const http = require( "node:http" );
 const os = require( "node:os" );
 const path = require( "node:path" );
 const { mountMediaRoutes, normalizePrefix } = require( "#media" );
@@ -26,7 +27,6 @@ const { mountMediaRoutes, normalizePrefix } = require( "#media" );
 const tempDir = fs.mkdtempSync( path.join( os.tmpdir(), "ti-media-" ) );
 const mediaRoot = path.join( tempDir, "public" );
 let listener;
-let base;
 
 before( async () => {
     // The on-disk tree mirrors the URL: /wp-content/uploads/x.webp -> <root>/wp-content/uploads/x.webp
@@ -45,7 +45,6 @@ before( async () => {
     await new Promise( ( resolve ) => {
         listener = app.listen( 0, "127.0.0.1", resolve );
     } );
-    base = "http://127.0.0.1:" + listener.address().port;
 } );
 
 after( () => {
@@ -55,9 +54,33 @@ after( () => {
     fs.rmSync( tempDir, { recursive: true, force: true } );
 } );
 
-const get = async ( requestPath ) => {
-    const response = await fetch( base + requestPath, { redirect: "manual" } );
-    return { status: response.status, body: await response.text(), cacheControl: response.headers.get( "cache-control" ) };
+/*
+ * Raw `http.request`, NOT `fetch`. A traversal test is only a test if the hostile path reaches the server: fetch
+ * builds a URL object and resolves dot-segments client-side, so `/wp-content/../outside.txt` leaves as
+ * `/outside.txt` and never touches the media mount at all. The assertion below then passes because nothing was
+ * tested -- the worst kind of green. Writing the path straight onto the request line is what puts it on the wire.
+ */
+const get = ( requestPath ) => {
+    return new Promise( ( resolve, reject ) => {
+        const request = http.request( {
+            hostname: "127.0.0.1",
+            port: listener.address().port,
+            method: "GET",
+            path: requestPath
+        }, ( response ) => {
+            let body = "";
+            response.setEncoding( "utf8" );
+            response.on( "data", ( chunk ) => { body += chunk; } );
+            response.on( "end", () => resolve( {
+                status: response.statusCode,
+                body: body,
+                location: response.headers.location,
+                cacheControl: response.headers[ "cache-control" ]
+            } ) );
+        } );
+        request.on( "error", reject );
+        request.end();
+    } );
 };
 
 describe( "media — serving legacy paths unchanged", () => {
@@ -106,6 +129,9 @@ describe( "media — the boundaries that matter", () => {
         ] ) {
             const result = await get( hostile );
             assert.ok( !result.body.includes( "SHOULD NEVER BE SERVED" ), `traversal succeeded via ${ hostile }` );
+            // Not just "the bytes did not appear" -- a 200 for any of these means the mount resolved something
+            // outside its root, and the next file up the tree might not be a decoy.
+            assert.notEqual( result.status, 200, `traversal resolved to a 200 via ${ hostile }` );
         }
     } );
 

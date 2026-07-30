@@ -143,6 +143,21 @@ describe( "redirects — the escape hatch an alias cannot be", () => {
         assert.deepEqual( collect( [ { from: "/a/", to: "//evil.example" } ] ), [] );
     } );
 
+    it( "refuses the shapes that only LOOK site-relative", () => {
+        // A browser folds a backslash into a slash, so `/\evil.example` resolves to https://evil.example/ while a
+        // naive `indexOf( "//" )` check reads it as a rooted path. Validation resolves the target instead of
+        // pattern-matching, so every variant of this fails at once.
+        for ( const hostile of [ "/\\evil.example", "/\\\\evil.example", "/\\/evil.example", "https:/\\evil.example" ] ) {
+            assert.deepEqual( collect( [ { from: "/a/", to: hostile } ] ), [], `accepted hostile target ${ JSON.stringify( hostile ) }` );
+        }
+    } );
+
+    it( "still accepts the ordinary site-relative targets", () => {
+        for ( const good of [ "/rss.xml", "/writings/?page=2", "/a/b/c/", "/a#frag" ] ) {
+            assert.equal( collect( [ { from: "/x/", to: good } ] ).length, 1, `rejected valid target ${ good }` );
+        }
+    } );
+
     it( "refuses a source that is not a rooted path, and tolerates junk", () => {
         assert.deepEqual( collect( [ { from: "a/", to: "/b/" } ] ), [] );
         assert.deepEqual( collect( [ null, {}, { from: "/a/" }, { to: "/b/" } ] ), [] );

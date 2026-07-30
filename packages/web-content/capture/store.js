@@ -101,6 +101,11 @@ class CaptureStore {
                 ? this.#cache.setJSON( this.#key, { [ id ]: record } )
                 : this.#cache.editJSON( this.#key, record, [ id ] );
             return Promise.resolve( write ).then( () => ( { status: "success", record: record } ) );
+        } ).catch( ( error ) => {
+            // Reported rather than thrown, because every other outcome of submit() is a status the caller renders.
+            // What must never happen is a read failure reaching the whole-document write above: "empty" would then
+            // mean "first capture on a fresh deployment" and the existing list would be replaced by this one record.
+            return { status: "error", errors: [ String( ( error && error.message ) || error ) ] };
         } );
     }
 
@@ -212,13 +217,23 @@ class CaptureStore {
     /* Private interface */
 
     /**
-     * @returns {Promise<Object>}  The record map, or an empty map when nothing has been stored yet.
+     * The record map, or an empty map when nothing has been stored yet.
+     *
+     * A FAILURE TO READ IS NOT AN EMPTY MAP, and this used to swallow the difference. Every mutating method treats
+     * what comes back as authoritative and then writes the whole document, so a transient Redis outage read as `{}`
+     * meant: `submit` took its first-write branch and replaced every stored capture with one record, and
+     * `eraseByEmail` found nothing to erase and answered `0` to a right-to-be-forgotten request it never carried
+     * out. Both are silent -- the caller sees a success either way.
+     *
+     * So only a document that genuinely is not there resolves empty; anything else rejects and the caller decides.
+     *
+     * @returns {Promise<Object>}
      */
     #readAll() {
         return Promise.resolve( this.#cache.getJSON( this.#key, "$" ) ).then( ( result ) => {
             const source = ( result instanceof Array ) ? result[ 0 ] : result;
             return ( source && typeof source === "object" ) ? source : {};
-        } ).catch( () => ( {} ) );
+        } );
     }
 }
 

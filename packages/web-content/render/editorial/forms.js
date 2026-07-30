@@ -22,8 +22,25 @@
  */
 
 const { html, raw } = require( "#html" );
+const logger = require( "@ti-engine/core/logger" );
 
 const STATUS_KINDS = new Set( [ "success", "duplicate", "error" ] );
+
+/**
+ * The next ordinal for an unnamed capture form on this page. Counted on the render context so it restarts for every
+ * document -- a module-level counter would keep climbing across requests and make the markup differ between two
+ * renders of the same page, which is exactly what breaks a shared cache.
+ *
+ * @param {Object} context
+ * @returns {number}
+ */
+function nextFormOrdinal( context ) {
+    if ( !context || typeof context !== "object" ) {
+        return 1;
+    }
+    context.formOrdinal = ( context.formOrdinal || 0 ) + 1;
+    return context.formOrdinal;
+}
 
 /**
  * `capture` -- the email capture form. Hidden `purpose` / `edition` / `source` / `locale` inputs mirror the capture
@@ -35,7 +52,10 @@ const STATUS_KINDS = new Set( [ "success", "duplicate", "error" ] );
  */
 function renderCapture( section, context ) {
     const labels = ( context && context.labels ) || {};
-    const idBase = section.formId || "capture";
+    // Two capture sections on one page (a newsletter box and a preorder box, say) would otherwise both fall back to
+    // "capture" and emit duplicate ids -- at which point every `for=` and `aria-describedby` points at the first
+    // one, so clicking the second form's label focuses the first form's input.
+    const idBase = section.formId || ( "capture-" + nextFormOrdinal( context ) );
     const emailId = idBase + "-email";
     const consentId = idBase + "-consent";
     const errorId = emailId + "-msg";
@@ -65,6 +85,11 @@ function renderCapture( section, context ) {
             context.markPerSession();
         }
         hidden.push( html`<input type="hidden" name="csrfToken" value="${ context.csrfToken }">` );
+    } else {
+        // Silently omitting it renders a form that looks perfect and 403s on every submit, with nothing anywhere
+        // saying why. The form is still emitted -- withholding it would break the page over a wiring mistake -- but
+        // the reason is now written down where whoever is debugging the 403 will find it.
+        logger.log( "Capture form rendered without a CSRF token; every submission will be rejected. The render context is missing `csrfToken`.", logger.logSeverity.ERROR );
     }
     if ( section.purpose ) {
         hidden.push( html`<input type="hidden" name="purpose" value="${ section.purpose }">` );

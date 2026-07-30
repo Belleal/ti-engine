@@ -85,6 +85,9 @@ describe( "shell — topbar and footer are configured, never hard-coded", () => 
     it( "keeps a section marked while reading a page beneath it", () => {
         assert.equal( shell.isCurrentPath( "/writings/", "/writings/some-post/" ), true );
         assert.equal( shell.isCurrentPath( "/", "/writings/" ), false, "root must not match everything" );
+        // The prefix has to end on a segment boundary, or a sibling section is highlighted as if you were inside it.
+        assert.equal( shell.isCurrentPath( "/writings", "/writings-about-craft/" ), false, "a sibling section is not the current one" );
+        assert.equal( shell.isCurrentPath( "/writings", "/writings/some-post/" ), true, "a slashless href still matches its own section" );
     } );
 
     it( "renders an empty shell for an unconfigured site rather than inventing content", () => {
@@ -269,7 +272,9 @@ describe( "page — document assembly", () => {
     } );
 
     it( "nonces the JSON-LD block too — a data block CSP might otherwise drop silently", () => {
-        const scripts = out.match( /<script[^>]*>/g ) || [];
+        // Case-insensitive on purpose: this assertion is the guarantee that no script escapes the nonce, and a
+        // case-sensitive match would quietly stop guaranteeing it the moment a tag was emitted as <SCRIPT>.
+        const scripts = out.match( /<script[^>]*>/gi ) || [];
         assert.ok( scripts.length >= 2, "expected the site script and the JSON-LD block" );
         assert.ok( scripts.every( ( tag ) => tag.includes( "nonce=\"NONCE123\"" ) ), "every script tag must carry the nonce" );
     } );

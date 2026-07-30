@@ -91,7 +91,14 @@ function normalizePrefix( prefix ) {
     if ( value.indexOf( "/" ) !== 0 || value.indexOf( "//" ) === 0 ) {
         return null;
     }
-    const trimmed = value.replace( /\/+$/, "" );
+    // Trailing slashes come off with a character walk rather than `/\/+$/`: an unbounded `+` in front of an end
+    // anchor backtracks across every start position of a long slash run, which is the polynomial-ReDoS shape CodeQL
+    // flags. This stays linear regardless of input. Same reasoning as `joinUrl` in render/document.js.
+    let end = value.length;
+    while ( end > 0 && value.charAt( end - 1 ) === "/" ) {
+        end--;
+    }
+    const trimmed = value.slice( 0, end );
     return trimmed === "" ? null : trimmed;
 }
 
