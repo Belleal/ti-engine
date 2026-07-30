@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Active — P0–P2, P3a/P3b, P4 + P6 complete + editorial markdown + P3c document assembly — 277 tests green; **the site boots and serves**; theme + self-hosted fonts landed in `Site/`. Next: the migration URL inventory |
+| **Status** | Active — P0–P2, P3a/P3b, P4 + P6 complete + editorial markdown + P3c document assembly + P7 migration + draft preview + the account menu — **364 tests green**; the site boots and serves; theme + self-hosted fonts landed in `Site/`. Next: the editorial pass over the 27 registered drafts |
 | **Created** | 2026-07-24 |
 | **Last updated** | 2026-07-30 (rev 7) |
 | **Owner** | Boris Kostadinov |
@@ -34,6 +34,8 @@ How this design lands in code — update as each step is committed (branch `curr
 | **P8a** — `Site/app` standup (`TiWebServer`/`TiWebAppManager` subclasses, content loader, config) — **boots and serves** | ✅ verified live | — | 2026-07-30 |
 | **P8b** — Dockerfile → staging → redirect diff → cutover | ☐ pending | — | — |
 | **Track B** (parallel, no code dep) — tokens → `anarand.css`; ten new editorial components; port existing components | ☐ pending | — | — |
+
+> **On the per-phase test counts above.** They sum to 281, which is the web-content suite at the end of P6 — P0 is not in that figure because its tests live in `web-framework`, not here. The status line reports the suite as it stands today, which has grown past 281 with the review fixes, draft preview and the account menu. The two numbers count different things on purpose; neither is a running total of the other.
 
 **Agreed framing (this conversation):**
 - **Placement:** the generic engine is a **new sibling package `@ti-engine/web-content`** depending on `core` + `web-framework` — *not* folded into `web-framework` (which would turn a lean app server into an app-server-plus-CMS and force a second render path + markdown dependency onto every consumer, incl. `competence`). Mirrors how `competence` layers on top.

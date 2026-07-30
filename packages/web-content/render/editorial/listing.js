@@ -19,7 +19,7 @@
  */
 
 const { html, raw } = require( "#html" );
-const { formatDate } = require( "#context" );
+const { formatDate, localeFor } = require( "#context" );
 
 /**
  * The blurb a card may show for a record, given the viewer's verdict for it.
@@ -84,7 +84,7 @@ function renderPostCard( item, context, featured ) {
     const excerpt = excerptFor( item );
     const body = excerpt ? html`<p class="post-card-excerpt">${ excerpt }</p>` : raw( "" );
     const date = record.publishedAt
-        ? html`<span class="post-card-date">${ formatDate( record.publishedAt, record.lang ) }</span>`
+        ? html`<span class="post-card-date">${ formatDate( record.publishedAt, localeFor( record.lang, context.site ) ) }</span>`
         : raw( "" );
     const more = context.labels && context.labels.readMore
         ? html`<span class="post-card-more">${ context.labels.readMore }</span>`

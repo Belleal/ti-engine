@@ -42,6 +42,9 @@ const VOCABULARY = {
 const SITE = {
     defaultLanguage: "en",
     languages: [ "en", "bg" ],
+    // A REGION has to be configured to get one. Without this the engine formats with the bare language tag, which
+    // for English means the American order -- correct for "en", just not what a British-English site wants.
+    locales: { en: "en-GB", bg: "bg-BG" },
     archives: {
         en: { homePath: "/", homeLabel: "Home", root: "/writings/", label: "Writings", termPath: "/writings/{slug}/" },
         bg: { homePath: "/bg/", homeLabel: "Начало", root: "/bg/writings/", label: "Писания", termPath: "/bg/writings/{slug}/" }
@@ -259,6 +262,46 @@ describe( "pagination parameter", () => {
         for ( const hostile of [ undefined, "", "0", "-4", "abc", "1e9", "999999999", {}, [] ] ) {
             assert.equal( parsePageParam( hostile ), 1, `${ JSON.stringify( hostile ) } should fall back` );
         }
+    } );
+
+} );
+
+/*
+ * The engine must not know which regions a site uses. It used to: `lang === "bg" ? "bg-BG" : "en-GB"` encoded one
+ * site's two languages as a fact about the package, and quietly gave British formatting to every other language it
+ * was ever handed.
+ */
+describe( "page context — the locale comes from configuration, not from the engine", () => {
+
+    const dated = ( lang, site ) => buildPageContext(
+        Object.assign( post( "d" ), { lang: lang, publishedAt: "2026-03-01T09:00:00.000Z" } ),
+        { site: site }
+    ).meta[ 0 ];
+
+    it( "uses a configured region", () => {
+        assert.equal( dated( "en", { locales: { en: "en-GB" } } ), "1 March 2026" );
+        assert.equal( dated( "en", { locales: { en: "en-US" } } ), "March 1, 2026" );
+    } );
+
+    it( "falls back to the language itself rather than to somebody else's region", () => {
+        // A bare tag is a valid locale and formats that language correctly. Defaulting to en-GB instead would give
+        // a French page British date order -- wrong in a way that looks deliberate.
+        assert.equal( dated( "fr", {} ), "1 mars 2026" );
+        assert.equal( dated( "bg", {} ), "1 март 2026 г." );
+    } );
+
+    it( "formats the date and the word count in the same locale", () => {
+        // 25 000 rather than 2 500 on purpose: bg-BG does not group a four-digit number, so the smaller value is
+        // identical in both locales and would prove nothing.
+        const count = ( locale ) => buildPageContext(
+            Object.assign( post( "d" ), { lang: "bg", publishedAt: "2026-03-01T09:00:00.000Z", body: "дума ".repeat( 25000 ) } ),
+            { site: { locales: { bg: locale } } }
+        ).meta.slice( -1 )[ 0 ];
+        // Resolved once, so a line cannot carry a Bulgarian date beside an English-grouped number.
+        // The separator is written as an escape: bg-BG groups with U+00A0, and a literal one here is invisible in
+        // a diff and indistinguishable from a plain space to anyone reading the test.
+        assert.match( count( "bg-BG" ), /25\u00a0000/, "the configured locale must reach the word count too" );
+        assert.match( count( "en-GB" ), /25,000/ );
     } );
 
 } );

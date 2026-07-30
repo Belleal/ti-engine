@@ -27,16 +27,38 @@ const ARCHIVE_FACETS = [ "world", "form" ];
 /**
  * Formats an ISO date for display in the record's own language.
  *
+ * Takes a resolved BCP-47 LOCALE, not a language tag -- see {@link localeFor}. A bare tag still works, so a caller
+ * that has no site config is not broken by it, but it then bypasses any configured region.
+ *
  * @param {string} iso
- * @param {string} [lang]
+ * @param {string} [locale]
  * @returns {string}
  */
-function formatDate( iso, lang ) {
+function formatDate( iso, locale ) {
     const date = new Date( iso );
     if ( isNaN( date.getTime() ) ) {
         return "";
     }
-    return date.toLocaleDateString( lang === "bg" ? "bg-BG" : "en-GB", { day: "numeric", month: "long", year: "numeric" } );
+    return date.toLocaleDateString( locale || "en", { day: "numeric", month: "long", year: "numeric" } );
+}
+
+/**
+ * The BCP-47 locale to format dates and numbers in for a language.
+ *
+ * Taken from `site.locales`, because this package is generic and must contain nothing site-specific: a hard-coded
+ * `lang === "bg" ? "bg-BG" : "en-GB"` encodes one site's two languages as a fact about the engine, and every other
+ * language it is ever given then silently formats as British English -- a wrong date order that looks deliberate.
+ *
+ * The fallback is the language tag itself rather than a default region. `toLocaleDateString( "bg" )` already
+ * formats Bulgarian correctly; a configured entry is only needed to pin a particular REGION.
+ *
+ * @param {string} lang
+ * @param {Object} site
+ * @returns {string}
+ */
+function localeFor( lang, site ) {
+    const locales = ( site && site.locales ) || {};
+    return locales[ lang ] || lang || "en";
 }
 
 /**
@@ -146,6 +168,9 @@ function buildPageContext( record, options ) {
     const site = opts.site || {};
     const taxonomy = opts.taxonomy;
     const lang = record.lang || site.defaultLanguage || "en";
+    // Resolved ONCE and passed to both formatters, so a date and a word count on the same line can never disagree
+    // about which locale the page is in.
+    const locale = localeFor( lang, site );
     const context = {};
 
     if ( record.type !== "post" ) {
@@ -165,7 +190,7 @@ function buildPageContext( record, options ) {
 
     const meta = [];
     if ( record.publishedAt ) {
-        meta.push( formatDate( record.publishedAt, lang ) );
+        meta.push( formatDate( record.publishedAt, locale ) );
     }
     if ( formTerm || record.form ) {
         meta.push( formTerm ? termLabel( formTerm, lang ) : record.form );
@@ -173,7 +198,7 @@ function buildPageContext( record, options ) {
     const words = wordCount( record.body );
     if ( words >= 100 ) {
         // Below a hundred words the figure says nothing useful and just adds noise to the line.
-        meta.push( words.toLocaleString( lang === "bg" ? "bg-BG" : "en-GB" ) + " " + ( ( opts.labels && opts.labels.words ) || "words" ) );
+        meta.push( words.toLocaleString( locale ) + " " + ( ( opts.labels && opts.labels.words ) || "words" ) );
     }
     if ( meta.filter( Boolean ).length ) {
         context.meta = meta.filter( Boolean );
@@ -227,6 +252,7 @@ module.exports = {
     archiveHref: archiveHref,
     termLabel: termLabel,
     formatDate: formatDate,
+    localeFor: localeFor,
     wordCount: wordCount,
     ARCHIVE_FACETS: ARCHIVE_FACETS
 };
