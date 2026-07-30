@@ -699,11 +699,8 @@ cat <<EOF
   4. Enable IAP on the service (Console → Cloud Run → competence → Security →
      Require authentication → Identity-Aware Proxy). First-time enablement must
      happen in the Console; it cannot be done from the CLI.
-     NO ORGANIZATION? IAP then needs its OWN OAuth client — the Google-managed one
-     is organization-only. Create a second Web application client (separate from the
-     app's sign-in client in step 1) whose authorised redirect URI is
-     https://iap.googleapis.com/v1/oauth/clientIds/<IAP_CLIENT_ID>:handleRedirect
-     and hand IAP that client's ID and secret. You own and store those credentials.
+     IAP creates its OWN OAuth client (it appears as IAP-<project>-app), including
+     for projects with no organization — do not pre-create one for it.
 
   5. Grant each tester roles/iap.httpsResourceAccessor on the service.
 
