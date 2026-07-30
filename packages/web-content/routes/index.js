@@ -31,6 +31,7 @@ const fs = require( "node:fs" );
 const path = require( "node:path" );
 const feeds = require( "#feeds" );
 const { contentHandler } = require( "#content-routes" );
+const { renderStateDocument } = require( "#page" );
 
 // The site behaviour script ships with the package. It is read once at mount rather than per request, and served
 // under /static/ so it sits alongside the theme's own assets. The framework's express.static for /static runs first,
@@ -73,6 +74,43 @@ function handlerOptions( opts ) {
 }
 
 /**
+ * The terminal 404 for a content site.
+ *
+ * Without this, an unknown URL reaches the framework's `invalidRouteHandler`, which redirects to `/not-found` — and
+ * that page answers **200**. For an authenticated app behind a login that is harmless; for a public site it is a
+ * SOFT 404: a crawler records a successful response for a URL that does not exist, which pollutes the index and
+ * hides broken links from every report that would otherwise surface them.
+ *
+ * Registered for GET only, deliberately. The framework mounts its service-proxy route (`POST /service/:version/:name`)
+ * *after* `defineWebApplicationRoutes()` returns, so a catch-all covering every method would shadow it.
+ *
+ * The copy must not distinguish hidden, unpublished and unknown — the resolver falls through identically for all
+ * three, and saying which one it was would leak exactly what deny-by-default exists to hide.
+ *
+ * @param {Object} context  The render context (site, labels, assets…).
+ * @param {Object} [config]  Optional copy overrides: { title, body, mark, actions }.
+ * @returns {function(Object, Object): void}
+ */
+function notFoundHandler( context, config ) {
+    const copy = ( config && typeof config === "object" ) ? config : {};
+    return function ( request, response ) {
+        const labels = context.labels || {};
+        const state = {
+            mark: copy.mark || "◆",
+            title: copy.title || labels.notFoundTitle || "Not found",
+            body: copy.body || labels.notFoundBody || "",
+            actions: copy.actions || [ { href: "/", label: labels.notFoundAction || "Back to the beginning" } ]
+        };
+        const ctx = Object.assign( {}, context, {
+            nonce: response.locals ? response.locals.nonce : undefined,
+            path: request.path
+        } );
+        response.set( "Cache-Control", "private, no-store" );
+        response.status( 404 ).type( "html" ).send( String( renderStateDocument( state, ctx ) ) );
+    };
+}
+
+/**
  * Claims `/` for the content resolver.
  *
  * MUST be called BEFORE `super.defineWebApplicationRoutes()`. The framework binds `/` to its own SPA-shell handler,
@@ -95,7 +133,8 @@ function mountHomeRoute( server, options ) {
  *
  * @param {Object} server  A TiWebServer instance (>= 1.17.0).
  * @param {{ repository: Object, baseUrl?: string, renderPage?: Function, feed?: Object, allowIndexing?: boolean,
- *           site?: Object, labels?: Object, assets?: Object, taxonomy?: Object, serveSiteScript?: boolean }} options
+ *           site?: Object, labels?: Object, assets?: Object, taxonomy?: Object, serveSiteScript?: boolean,
+ *           notFound?: (Object|false) }} options
  * @returns {Object} The server, for chaining.
  */
 function mountContentRoutes( server, options ) {
@@ -136,11 +175,16 @@ function mountContentRoutes( server, options ) {
     // `*splat` 404 handler, which is installed after defineWebApplicationRoutes() returns.
     server.registerRoute( "get", /.*/, contentHandler( repository, handlerOptions( opts ) ) );
 
+    if ( opts.notFound !== false ) {
+        server.registerRoute( "get", "*splat", notFoundHandler( handlerOptions( opts ), opts.notFound ) );
+    }
+
     return server;
 }
 
 module.exports = {
     mountContentRoutes: mountContentRoutes,
+    notFoundHandler: notFoundHandler,
     mountHomeRoute: mountHomeRoute,
     defineContentUnprotectedRoutes: defineContentUnprotectedRoutes,
     PUBLIC_EXCEPT_ADMIN: PUBLIC_EXCEPT_ADMIN

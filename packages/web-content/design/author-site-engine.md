@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Active — P0–P2, P3a/P3b, P4 complete + editorial markdown + P3c document assembly — 237 tests green; theme + self-hosted fonts landed in `Site/`. Next: P5 page templates against real content, then the migration URL inventory |
+| **Status** | Active — P0–P2, P3a/P3b, P4 complete + editorial markdown + P3c document assembly — 246 tests green; **the site boots and serves**; theme + self-hosted fonts landed in `Site/`. Next: P6 capture, the migration URL inventory, and serving /wp-content/uploads/ |
 | **Created** | 2026-07-24 |
-| **Last updated** | 2026-07-30 (rev 3) |
+| **Last updated** | 2026-07-30 (rev 4) |
 | **Owner** | Boris Kostadinov |
 | **Scope** | New package `@ti-engine/web-content` (reusable engine) + a small enabling change in `@ti-engine/web-framework` (route seams) + the private `anarandaris` `Site/` app (content, theme, wiring) |
 | **Relates to** | Realises the three `Site/docs/` specs — `build-spec.md`, `content-schemas.md`, `token-contract.md` — which remain the source of truth for *what*. This doc records *how it lands as a package* and **supersedes `build-spec.md` §2 on module placement** (framework column → `web-content`). |
@@ -31,7 +31,8 @@ How this design lands in code — update as each step is committed (branch `curr
 | **P5** — `render/editorial/*` components + page templates (showcase first) — Track B meets Track A here | ☐ pending | — | — |
 | **P6** — `capture/store.js` + `capture/admin.js` (behind `role:admin`) | ☐ pending | — | — |
 | **P7** — Migration tooling (URL inventory → WP REST export → uploads copy → redirect map) | ☐ pending | — | — |
-| **P8** — `Site/app` standup (`TiWebServer`/`TiWebAppManager` subclasses, config, Dockerfile) → staging → redirect diff → cutover | ☐ pending | — | — |
+| **P8a** — `Site/app` standup (`TiWebServer`/`TiWebAppManager` subclasses, content loader, config) — **boots and serves** | ✅ verified live | — | 2026-07-30 |
+| **P8b** — Dockerfile → staging → redirect diff → cutover | ☐ pending | — | — |
 | **Track B** (parallel, no code dep) — tokens → `anarand.css`; ten new editorial components; port existing components | ☐ pending | — | — |
 
 **Agreed framing (this conversation):**
@@ -293,6 +294,12 @@ The `build-spec.md` §8 list — the failures that don't throw — become the fi
 > **Acceptance check:** three full documents (article with every prose primitive, gated teaser, 404) rendered and diffed against `anarand.css` — **76 classes emitted, zero style attributes, every script and stylesheet nonced, no gated body in the teaser document**, and the only undefined class is the deliberate `post-nav-prev` marker.
 >
 > **Gap raised for a decision:** the contract promises the reveal choreography is "never a visibility gate", but the CSS only forces `.reveal` visible under `prefers-reduced-motion`. For everyone else a blocked or errored script leaves that content invisible permanently. The script falls back when `IntersectionObserver` is missing, but cannot fall back when it never runs. Two small fixes are recorded in the contract's *Reveal choreography* section; both touch the theme's motion architecture, so neither was applied unilaterally.
+
+> **Standup note (2026-07-30) — the site boots.** `Site/app` runs against a real broker and socket: content loaded (2 records, 0 invalid, 0 conflicts), Redis connected, web server listening. Verified in a real browser as well as over HTTP — body renders on `--bg-abyss` in **Spectral**, the hero in **Cormorant Unicase**, all four self-hosted families reporting `loaded`, `<html class="js">` set by the boot script, **zero style attributes in the live DOM**, and no console or CSP errors.
+>
+> **The boot found a defect no test could: a soft 404.** An unknown URL reached the framework's `invalidRouteHandler`, which redirects to `/not-found` — and that page answers **200**. Harmless for an authenticated app; wrong for a public site, where a crawler then records a success for a URL that does not exist, polluting the index and hiding broken links from every report that would surface them. `mountContentRoutes` now registers a terminal 404 that renders the state document with **status 404** and `private, no-store`. It is **GET-only on purpose** — the framework mounts `POST /service/:version/:name` *after* `defineWebApplicationRoutes()` returns, so a catch-all covering every method would shadow it. Switchable off via `notFound: false`.
+>
+> Two environment notes for whoever runs this next: the framework's cache needs **RedisJSON**, so plain `redis:7` is not enough — the local container is `redis/redis-stack-server`, and it runs on **6380** because another project already holds 6379. Paths in `web-server.json` and `.env` resolve from the working directory, which is `Site/app`.
 ---
 
 ## 11. Phased plan (maps to the implementation log)
