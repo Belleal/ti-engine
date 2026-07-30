@@ -32,6 +32,7 @@ const path = require( "node:path" );
 const feeds = require( "#feeds" );
 const { contentHandler } = require( "#content-routes" );
 const { renderStateDocument } = require( "#page" );
+const { mountMediaRoutes } = require( "#media" );
 
 // The site behaviour script ships with the package. It is read once at mount rather than per request, and served
 // under /static/ so it sits alongside the theme's own assets. The framework's express.static for /static runs first,
@@ -134,7 +135,7 @@ function mountHomeRoute( server, options ) {
  * @param {Object} server  A TiWebServer instance (>= 1.17.0).
  * @param {{ repository: Object, baseUrl?: string, renderPage?: Function, feed?: Object, allowIndexing?: boolean,
  *           site?: Object, labels?: Object, assets?: Object, taxonomy?: Object, serveSiteScript?: boolean,
- *           notFound?: (Object|false) }} options
+ *           notFound?: (Object|false), media?: { root: string, prefixes: string[], maxAge?: string } }} options
  * @returns {Object} The server, for chaining.
  */
 function mountContentRoutes( server, options ) {
@@ -169,6 +170,11 @@ function mountContentRoutes( server, options ) {
             response.set( "Cache-Control", "public, max-age=31536000, immutable" );
             response.type( "application/javascript" ).send( script );
         } );
+    }
+
+    // Legacy media keeps its original URLs, so these must be reachable before the content catch-all claims them.
+    if ( opts.media ) {
+        mountMediaRoutes( server, opts.media );
     }
 
     // Registered last: every other content URL resolves through the path index. Still ahead of the framework's own

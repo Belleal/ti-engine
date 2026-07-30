@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Active — P0–P2, P3a/P3b, P4 + P6 complete + editorial markdown + P3c document assembly — 277 tests green; **the site boots and serves**; theme + self-hosted fonts landed in `Site/`. Next: the migration URL inventory, and serving /wp-content/uploads/ |
+| **Status** | Active — P0–P2, P3a/P3b, P4 + P6 complete + editorial markdown + P3c document assembly — 277 tests green; **the site boots and serves**; theme + self-hosted fonts landed in `Site/`. Next: the migration URL inventory |
 | **Created** | 2026-07-24 |
-| **Last updated** | 2026-07-30 (rev 5) |
+| **Last updated** | 2026-07-30 (rev 6) |
 | **Owner** | Boris Kostadinov |
 | **Scope** | New package `@ti-engine/web-content` (reusable engine) + a small enabling change in `@ti-engine/web-framework` (route seams) + the private `anarandaris` `Site/` app (content, theme, wiring) |
 | **Relates to** | Realises the three `Site/docs/` specs — `build-spec.md`, `content-schemas.md`, `token-contract.md` — which remain the source of truth for *what*. This doc records *how it lands as a package* and **supersedes `build-spec.md` §2 on module placement** (framework column → `web-content`). |
@@ -95,6 +95,7 @@ packages/web-content/
   routes/
     content-routes.js catch-all resolver, alias 301s, archives, pagination (?page=N)
     feeds.js          sitemap.xml, rss.xml, robots.txt
+    media.js          legacy media at its ORIGINAL URLs (/wp-content/uploads/...)
     index.js          mountContentRoutes() + defineContentUnprotectedRoutes() helpers
   capture/
     store.js          email-capture records (dedupe on (email,purpose); no IP)
@@ -311,6 +312,16 @@ The `build-spec.md` §8 list — the failures that don't throw — become the fi
 > **Bug found by running it, not by testing it:** RedisJSON refuses to create a nested path in a document that does not exist (`ERR new objects must be created at the root`), so the **first capture on a fresh deployment always failed** — and only there, since it works in dev the moment anything has seeded the key. The store now writes the whole map on the first record and edits a single path thereafter. The test fake was over-forgiving and hid this; it now models the refusal, and a regression test asserts the first record on a genuinely empty store succeeds.
 >
 > Verified live against Redis: first signup on a cleared store succeeds, the same address in different case with trailing space is a duplicate, the same address on a different purpose is accepted, missing consent and a malformed address are refused, a hostile `returnTo` still captures but redirects to `/`, a missing CSRF token is rejected 403 by the framework, erasure removes both of one address's records and leaves the others, and no stored record carries an IP field.
+
+> **Legacy media note (2026-07-30).** The framework mounts an application's public directory at `/static` only, but a migrated site's media is referenced by its original absolute paths from imported content, from other people's links, and from search results. **An inbound link on someone else's page cannot be rewritten**, so `/wp-content/uploads/...` has to keep resolving. `routes/media.js` registers a configured set of URL prefixes served from a media root whose **on-disk tree mirrors the URL** — which is what the migration plan's "copied verbatim, identical paths" means, and why the mount does no URL rewriting at all.
+>
+> Chosen over adding a `registerMiddleware` seam to the framework: a prefixed GET route with a wildcard reaches `express.static` just as well, so this needed no new framework surface. `fallthrough: true` sends a miss to the content resolver, which answers a **proper 404** rather than a bare one. `dotfiles: "deny"` and `index: false` mean a stray `.env` under the root cannot be served and a directory URL lists nothing; traversal protection comes from `send` itself.
+>
+> **The cache is deliberately not `immutable`.** A media library is not content-addressed — the same filename can be re-uploaded with different bytes — so a year-long unrevalidatable cache turns a corrected image into a year-long support problem. Thirty days, configurable.
+>
+> Verified live: a file serves at its original URL with the right content type, a missing one reaches the proper 404, four traversal attempts (including percent-encoded) leak nothing, a directory URL lists nothing, and the theme still serves from `/static`. Twelve tests, the security ones over real HTTP against a real Express app rather than a stub — a hand-rolled fake would prove nothing about traversal.
+>
+> **Open for the site to settle:** whether the migrated library is committed to git or fetched at deploy time. Recorded in `Site/public/README.md`; worth deciding before the copy step, since moving it afterwards means changing URLs, and never changing the URLs is the entire point.
 ---
 
 ## 11. Phased plan (maps to the implementation log)
