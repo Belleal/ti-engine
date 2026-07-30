@@ -304,15 +304,21 @@ origin and the OAuth callback.
     **It should not ask you for anything.** IAP creates its own OAuth client, which appears in
     Google Auth Platform → Clients as `IAP-<project>-app`. This holds for projects with no
     organization too, despite what the IAP docs imply. If it *does* ask, see the note in phase 3.
-- [ ] **Add your testers** — same Security tab, or the IAP page — each as a principal with the role
-    **IAP-secured Web App User**. The CLI equivalent, one per person:
-    ```bash
-    gcloud run services add-iam-policy-binding competence \
-      --region europe-west1 --project <PROJECT_ID> \
-      --member="user:<colleague-google-address>" \
-      --role="roles/iap.httpsResourceAccessor"
-    ```
-    Add yourself too, or you will lock yourself out.
+- [ ] **Add your testers — on the IAP page, not the Security tab.** The Cloud Run Security tab only
+    *enables* IAP; access is a policy on a separate IAP resource
+    (`projects/<number>/iap_web/cloud_run-<region>/services/competence`), so the grant lives elsewhere:
+
+    1. Open **Security → Identity-Aware Proxy** ([console.cloud.google.com/security/iap](https://console.cloud.google.com/security/iap)).
+    2. Tick the `competence` Cloud Run service.
+    3. In the **info panel on the right**, add the person's email as a principal.
+    4. Give them the role **IAP-secured Web App User** (`roles/iap.httpsResourceAccessor`) and click
+       **Add**.
+
+    Add yourself too, or you will lock yourself out. For the CLI equivalent, check
+    `gcloud iap web add-iam-policy-binding --help` for the resource-type flags your gcloud version
+    accepts — and note that granting this role with `gcloud run services add-iam-policy-binding`
+    puts it on the *Cloud Run* resource, which is not where IAP reads its policy, so it would appear
+    to succeed while changing nothing.
 - [ ] Re-run the deploy so its final IAP assertion passes and the script finishes clean.
 - [ ] **Prove the gate is on** before sharing anything. The first command must show
     `iap-enabled: 'true'`; the second must **not** list `allUsers`:
@@ -338,6 +344,16 @@ origin and the OAuth callback.
     screen.
 - [ ] On the login screen pick an identity from the **Test user** panel — `#22` holds all three roles
     and is the best starting point — and confirm the dashboard renders with demo data.
+
+    **This is how every tester chooses who they are.** The app does not yet map a Google identity to
+    an employee record, so signing in tells it *that* you are authenticated, not *who* you are: without
+    a pick it falls back to employee `20` for everyone. The choice is stored in a cookie in each
+    person's own browser, so testers do not collide — each picks independently. Retiring this in favour
+    of real identity mapping is tracked as CA-95.
+- [ ] Need an employee who is not in the seeded org chart? The app has its own **Employee Management**
+    screen (visible to a Manager or Supervisor — pick `#22`), which creates and edits employee records.
+    Note that adding a record still does not give that person a login of their own; it adds an identity
+    that testers can select in the panel above.
 - [ ] **Turn the seed back off.** While it stays on, the seed is re-applied on every boot and will
     resurrect records a tester deleted:
     ```bash
