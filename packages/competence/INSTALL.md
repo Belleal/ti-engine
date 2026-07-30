@@ -156,6 +156,8 @@ Azure is enabled by default (`TI_WEB_AUTH_METHODS=openid-azure`), so **you must 
 
 > Which methods are offered is controlled by `TI_WEB_AUTH_METHODS` (see *Authentication methods* above) — it cleanly overrides the web-server config's `auth.enabledMethods`. Callback URLs must match what you register with the provider and resolve against your public host.
 
+**Callback URL form.** A callback variable accepts either the full absolute URL (`https://your-host/login/azure-callback`) or just the path (`/login/azure-callback`); the server listens on the path either way. The absolute form is the safer default — it is sent to the provider as the `redirect_uri` verbatim, so it always matches your registration. With the path form the redirect URI is assembled from the request's `X-Forwarded-Proto` / `X-Forwarded-Host` headers instead, so your reverse proxy must set them correctly or the provider will reject the sign-in (Azure `AADSTS50011`). Either way the **path** must be the one the app actually receives — if your proxy strips a path prefix before forwarding, use the stripped path.
+
 ---
 
 ## 8. Secrets management

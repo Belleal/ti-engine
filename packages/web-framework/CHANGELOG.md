@@ -2,6 +2,15 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.18.1
+
+Enabling Azure SSO took the instance down at startup: the OAuth2 callback was registered by handing the configured callback value straight to Express as a route path, and the installation docs tell operators to set that value to the full absolute URL registered with the identity provider. Express 5 parses route patterns with path-to-regexp v8, where `:` opens a parameter name — so `https://host/login/azure-callback` throws `Missing parameter name at index 6` and the web server never starts. Google was affected identically, which also made this a prerequisite for the competence Cloud Run deployment, whose `deploy.sh` patches in an absolute callback URL (CA-97).
+
+* fix(web-framework): register an OAuth2 callback by its **path** rather than by the configured value verbatim, so a callback given as the absolute URL registered with the provider no longer crashes startup; a callback that yields no usable path now logs a WARNING and skips that provider's endpoint instead of taking the instance down, matching how an enabled-but-unconfigured provider is already handled
+* feat(web-framework): add `AuthManager.getOAuth2CallbackPath( authMethod )` and the pure, unit-tested `AuthManager.toCallbackPath( callbackUrl )` — reduces an absolute, protocol-relative, path or bare relative callback to its route path (query string and fragment stripped), or `null` when no usable path can be derived. The `redirect_uri` sent to the provider is deliberately left as configured, so an absolute callback keeps matching the provider registration exactly instead of depending on the forwarded protocol/host being correct
+* docs(web-framework): document the OpenID Connect provider variables in the README, and state in the README, the competence `INSTALL.md` and `.env.example` that a callback URL may be given as either the absolute registered URL or a path — including what each implies for the `redirect_uri`, and that the path must be the one the app actually receives when a proxy strips a prefix
+* build(release): bump package version from `1.18.0` to `1.18.1`
+
 ## Version 1.18.0
 
 Every web-server setting a container deployment needs could be supplied per environment except one: the admin allowlist. `auth.admins` was readable only from the config file baked into the image, so a containerized deployment had no way to name an administrator — leaving the admin configuration screens unreachable, or forcing a real identity to be committed to the repository. This closes that gap in the existing `TI_WEB_*` override set (CA-94).
