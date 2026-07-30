@@ -446,6 +446,7 @@ service, the bucket, the Artifact Registry repository and the three secrets.
 | `deploy.sh`: unsubstituted placeholders remain | A guard doing its job; the manifest and script disagree. Re-clone rather than hand-editing. |
 | `deploy.sh`: the final `--iap` step fails | Expected on a first deploy. Enable IAP in the Console, then re-run (phase 7). |
 | Sign-in: `redirect_uri_mismatch` | The callback is not registered on the OAuth client, or does not match exactly (phase 7). |
+| Sign-in bounces back to `/?error=1000` | `1000` is `E_GEN_JS_INTERNAL_ERROR`, the framework's wrapper around any raw JS error — it identifies nothing on its own. The real error **is** logged, but at `DEBUG` (100), which this deployment's `TI_AUDITING_LOG_MIN_LEVEL=300` filters out. Lower it, reproduce, read, put it back — see below. The usual cause is a client secret that belongs to a different OAuth client than `TI_GCLOUD_AUTH_CLIENT_ID`. |
 | "No sign-in method is configured" | The client ID never reached the service. Re-run `deploy.sh` with `GOOGLE_CLIENT_ID` set. |
 | A Google error before the app appears at all | IAP refusing you. Your account needs *IAP-secured Web App User* (phase 7). |
 | IAP setup asks for an OAuth client ID and secret | Not expected — IAP normally creates its own `IAP-<project>-app` client, including without an organization. If it asks, see the note in phase 3. |
@@ -457,6 +458,26 @@ service, the bucket, the Artifact Registry repository and the three secrets.
 **Where to look:** Cloud Run → `competence` → **Logs** shows both containers. A healthy boot shows
 Redis connecting, then `Web server started at address 'http://0.0.0.0:8080'`, then
 `Instance '…' started successfully`.
+
+**Seeing why a request failed.** Request exceptions are logged at `DEBUG` (severity 100), and this
+deployment runs at `TI_AUDITING_LOG_MIN_LEVEL=300` to keep log volume down — so the detail behind a
+`/?error=<code>` bounce is filtered out by default. Turn it on, reproduce, read, turn it back:
+
+```bash
+gcloud run services update competence --region europe-west1 --project <PROJECT_ID> \
+  --container app --update-env-vars TI_AUDITING_LOG_MIN_LEVEL=0
+
+# reproduce the failure in the browser, then:
+gcloud logging read \
+  'resource.type="cloud_run_revision" AND resource.labels.service_name="competence"' \
+  --project <PROJECT_ID> --limit 50 --freshness=10m --format='value(textPayload)'
+
+gcloud run services update competence --region europe-west1 --project <PROJECT_ID> \
+  --container app --update-env-vars TI_AUDITING_LOG_MIN_LEVEL=300
+```
+
+Each of those updates creates a new revision and so a cold start; the log level is not worth leaving
+at `0`, because DEBUG is where the per-request chatter lives.
 
 ---
 
