@@ -19,6 +19,7 @@
  */
 
 const { html, raw } = require( "#html" );
+const { formatDate } = require( "#context" );
 
 /**
  * The blurb a card may show for a record, given the viewer's verdict for it.
@@ -90,22 +91,6 @@ function renderPostCard( item, context, featured ) {
         : raw( "" );
 
     return html`<article class="${ classes }">${ media }<div class="post-card-body">${ term }<h3 class="post-card-title"><a href="${ record.path }">${ record.title }</a></h3>${ body }<div class="post-card-foot">${ date }${ more }</div></div></article>`;
-}
-
-/**
- * Formats an ISO date for display. Deliberately simple and locale-aware only to the extent the site needs: the
- * record's own language decides the month name.
- *
- * @param {string} iso
- * @param {string} [lang]
- * @returns {string}
- */
-function formatDate( iso, lang ) {
-    const date = new Date( iso );
-    if ( isNaN( date.getTime() ) ) {
-        return "";
-    }
-    return date.toLocaleDateString( lang === "bg" ? "bg-BG" : "en-GB", { day: "numeric", month: "long", year: "numeric" } );
 }
 
 /**

@@ -21,6 +21,7 @@
  */
 
 const { renderDocument } = require( "#page" );
+const { buildPageContext } = require( "#context" );
 
 const PUBLIC_CACHE_CONTROL = "public, max-age=0, s-maxage=600, stale-while-revalidate=86400";
 const PRIVATE_CACHE_CONTROL = "private, no-store";
@@ -50,6 +51,19 @@ function viewerFromRequest( request ) {
         return { authenticated: false, roles: [] };
     }
     return { authenticated: true, roles: Array.isArray( user.roles ) ? user.roles : [] };
+}
+
+/**
+ * Reads the `?page=N` parameter. Anything that is not a positive integer is page one -- a listing must not be
+ * blanked by a malformed or hostile value, and pagination is by query parameter precisely so no index entry is
+ * needed per page.
+ *
+ * @param {*} value
+ * @returns {number}
+ */
+function parsePageParam( value ) {
+    const page = Number.parseInt( value, 10 );
+    return ( Number.isInteger( page ) && page > 0 && page <= 10000 ) ? page : 1;
 }
 
 /**
@@ -92,11 +106,22 @@ function contentHandler( repository, options ) {
             path: request.path,
             // Set by the capture endpoint's POST-Redirect-GET, so the outcome survives without JavaScript.
             captureStatus: ( request.query || {} ).capture,
+            page: parsePageParam( ( request.query || {} ).page ),
             site: opts.site,
             labels: opts.labels,
             assets: opts.assets,
             taxonomy: opts.taxonomy
         };
+
+        // Everything the templates need beyond the record itself: eyebrow, meta, terms, breadcrumb, prev/next.
+        // Built for THIS viewer, so adjacent-post links can never point at a record the repository would withhold.
+        Object.assign( context, buildPageContext( record, {
+            repository: repository,
+            taxonomy: opts.taxonomy,
+            site: opts.site,
+            labels: opts.labels,
+            viewer: viewer
+        } ) );
 
         const headers = cacheHeadersFor( record );
         for ( const name of Object.keys( headers ) ) {
@@ -110,5 +135,6 @@ function contentHandler( repository, options ) {
 module.exports = {
     cacheHeadersFor: cacheHeadersFor,
     viewerFromRequest: viewerFromRequest,
+    parsePageParam: parsePageParam,
     contentHandler: contentHandler
 };

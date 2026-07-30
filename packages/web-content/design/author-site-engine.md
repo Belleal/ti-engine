@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | Active — P0–P2, P3a/P3b, P4 + P6 complete + editorial markdown + P3c document assembly — 277 tests green; **the site boots and serves**; theme + self-hosted fonts landed in `Site/`. Next: the migration URL inventory |
 | **Created** | 2026-07-24 |
-| **Last updated** | 2026-07-30 (rev 6) |
+| **Last updated** | 2026-07-30 (rev 7) |
 | **Owner** | Boris Kostadinov |
 | **Scope** | New package `@ti-engine/web-content` (reusable engine) + a small enabling change in `@ti-engine/web-framework` (route seams) + the private `anarandaris` `Site/` app (content, theme, wiring) |
 | **Relates to** | Realises the three `Site/docs/` specs — `build-spec.md`, `content-schemas.md`, `token-contract.md` — which remain the source of truth for *what*. This doc records *how it lands as a package* and **supersedes `build-spec.md` §2 on module placement** (framework column → `web-content`). |
@@ -28,7 +28,7 @@ How this design lands in code — update as each step is committed (branch `curr
 | **P2c** — editorial markdown extensions (attrs · bracketed-spans · containers · footnotes) | ✅ 20 tests | — | 2026-07-30 |
 | **P3c** — document assembly (shell · topbar · footer · gate · 404) + the vanilla site script | ✅ 25 tests + doc acceptance check | — | 2026-07-30 |
 | **P4** — `routes/content-routes.js` (catch-all resolver + alias 301 + cache policy) · `routes/feeds.js` (sitemap/rss/robots) · `routes/index.js` mount helpers | ✅ 23 tests + e2e smoke | — | 2026-07-24 |
-| **P5** — `render/editorial/*` components + page templates (showcase first) — Track B meets Track A here | ☐ pending | — | — |
+| **P5** — page context (eyebrow · meta · terms · breadcrumb · prev/next) · taxonomy-expanded queries · `?page=N` · generated term archives | ✅ 27 tests + live verification | — | 2026-07-30 |
 | **P6** — `capture/store.js` · `capture/admin.js` · `capture/routes.js` (admin behind the `admin` role) | ✅ 31 tests + live verification | — | 2026-07-30 |
 | **P7** — Migration tooling (URL inventory → WP REST export → uploads copy → redirect map) | ☐ pending | — | — |
 | **P8a** — `Site/app` standup (`TiWebServer`/`TiWebAppManager` subclasses, content loader, config) — **boots and serves** | ✅ verified live | — | 2026-07-30 |
@@ -78,11 +78,13 @@ packages/web-content/
     loader.js         validates records, builds indexes, reports conflicts
     repository.js     THE query layer — all visibility filtering lives here
     taxonomy.js       vocabulary load, one-level parent expansion, term resolution
+    archives.js       term-archive page records generated from the vocabulary, once, at load
     markdown.js       markdown-it wrapper, html:false
     transliterate.js  Streamlined System (BG 2009), slug generation
   render/
     html.js           escaping tagged template + raw()
     document.js       full document: head, meta, JSON-LD, shell, cache headers
+    context.js        the page context templates need: eyebrow · meta · terms · breadcrumb · prev/next
     sections.js       section-type registry, shared chrome, mechanical type→class dispatch
     editorial/        the 15 section bodies, grouped by kind (generic, token-driven):
                         text.js       prose · verse · closing · languageExample
@@ -322,6 +324,17 @@ The `build-spec.md` §8 list — the failures that don't throw — become the fi
 > Verified live: a file serves at its original URL with the right content type, a missing one reaches the proper 404, four traversal attempts (including percent-encoded) leak nothing, a directory URL lists nothing, and the theme still serves from `/static`. Twelve tests, the security ones over real HTTP against a real Express app rather than a stub — a hand-rolled fake would prove nothing about traversal.
 >
 > **Open for the site to settle:** whether the migrated library is committed to git or fetched at deploy time. Recorded in `Site/public/README.md`; worth deciding before the copy step, since moving it afterwards means changing URLs, and never changing the URLs is the entire point.
+
+> **P5 note (2026-07-30) — closing the gap between a page that renders and a page that reads right.** P3c built the templates; nothing populated them. A live article rendered as title plus body: no breadcrumb, no meta line, no term pills, no adjacent-post navigation, and listings ignored `?page=N`. The templates render nothing when context is absent, which is precisely why the omission was invisible — an article with no breadcrumb looks identical to one with no trail to show.
+>
+> Three fixes, in the order they matter:
+> - **Taxonomy expansion moved into `repository.list()`.** The §8 invariant — querying `dark-intent` returns posts tagged `alexander-dark` — was proven at the graph level in P2 and **never wired to queries**. It lives at the repository now, the one place every surface passes through, so an archive cannot silently under-report. Optional and backward compatible: without a taxonomy the match stays exact, and a term the vocabulary does not know still matches itself rather than vanishing.
+> - **`render/context.js`** builds eyebrow, meta line (date · form · reading length), term pills, breadcrumb and adjacent posts. **Adjacent posts resolve through the repository for the same viewer as the page** — computing them from the raw index would let prev/next point at a record the repository would have withheld, which is the one way a navigation control discloses gated work.
+> - **`content/archives.js`** generates a term-archive record per (language, facet, term). Not a contradiction of "content is never discovered": the vocabulary *is* the explicit register. Not a contradiction of "path is data" either — paths are computed **once, at load**, and stored on ordinary records the path index resolves like any other. The site's own `/writings/` stays authored, since the specs call for curation over a listing, which is content rather than a query.
+>
+> Per-language archive schemes are configuration: the engine knows a language has a pattern, never that this site keeps Bulgarian archives under `/bg/writings/`.
+>
+> Verified live with a second post tagged with a **child** term: `/writings/dark-intent/` lists it under the parent, `/writings/anarandaris/` does not, prev/next reads in the right direction (previous = older), breadcrumb reaches the most specific term, both term pills resolve 200, and `?page=9` applies its offset instead of being ignored.
 ---
 
 ## 11. Phased plan (maps to the implementation log)

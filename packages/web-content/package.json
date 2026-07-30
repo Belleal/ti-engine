@@ -35,7 +35,9 @@
     "./capture": "./capture/store.js",
     "./capture-admin": "./capture/admin.js",
     "./capture-routes": "./capture/routes.js",
-    "./media": "./routes/media.js"
+    "./media": "./routes/media.js",
+    "./context": "./render/context.js",
+    "./archives": "./content/archives.js"
   },
   "imports": {
     "#schema": "./content/schema.js",
@@ -58,7 +60,9 @@
     "#capture": "./capture/store.js",
     "#capture-admin": "./capture/admin.js",
     "#capture-routes": "./capture/routes.js",
-    "#media": "./routes/media.js"
+    "#media": "./routes/media.js",
+    "#context": "./render/context.js",
+    "#archives": "./content/archives.js"
   },
   "dependencies": {
     "@ti-engine/core": "*",

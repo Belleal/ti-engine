@@ -35,12 +35,14 @@ const EMPTY_INDEX = { byId: new Map(), byPath: new Map(), byAlias: new Map(), by
 class ContentRepository {
 
     #index;
+    #taxonomy;
 
     /**
      * @param {import("./loader.js").ContentIndex} index  The index built by the loader; defaults to empty.
      */
-    constructor( index ) {
+    constructor( index, options ) {
         this.#index = index || EMPTY_INDEX;
+        this.#taxonomy = ( options && options.taxonomy ) || null;
     }
 
     /* Public interface */
@@ -89,11 +91,17 @@ class ContentRepository {
         } else {
             records = this.#index.all.slice();
         }
+        // Facet criteria expand through the taxonomy, so querying a parent term matches records tagged with any of
+        // its children. Done HERE rather than at each call site: this is the one place every surface passes through,
+        // and an archive that silently under-reports is exactly the kind of failure nobody notices.
+        const worlds = c.world ? this.#expandTerm( "world", c.world ) : null;
+        const forms = c.form ? this.#expandTerm( "form", c.form ) : null;
+
         records = records.filter( ( record ) => {
-            if ( c.world && record.world !== c.world ) {
+            if ( worlds && worlds.has( record.world ) === false ) {
                 return false;
             }
-            if ( c.form && record.form !== c.form ) {
+            if ( forms && forms.has( record.form ) === false ) {
                 return false;
             }
             if ( c.lang && record.lang !== c.lang ) {
@@ -162,6 +170,25 @@ class ContentRepository {
             }
         }
         return items;
+    }
+
+    /**
+     * The set of term ids a facet criterion should match: the term itself plus its children when a taxonomy is
+     * available, or just the term when it is not. An unknown term still matches itself, so a record tagged with a
+     * term absent from the vocabulary stays findable rather than disappearing.
+     *
+     * @method
+     * @param {string} facet
+     * @param {string} id
+     * @returns {Set<string>}
+     * @private
+     */
+    #expandTerm( facet, id ) {
+        if ( !this.#taxonomy || typeof this.#taxonomy.expand !== "function" ) {
+            return new Set( [ id ] );
+        }
+        const expanded = this.#taxonomy.expand( facet, id );
+        return new Set( ( expanded && expanded.length ) ? expanded : [ id ] );
     }
 
     /* Static interface */
