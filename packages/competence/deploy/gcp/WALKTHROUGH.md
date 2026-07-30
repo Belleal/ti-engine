@@ -57,12 +57,12 @@ Two more things that look like faults but are not:
 **Where: GCP Console**
 
 - [ ] Open [console.cloud.google.com](https://console.cloud.google.com/) and use the project picker
-      to create a project (e.g. `competence-test`) or select an existing one.
+    to create a project (e.g. `competence-test`) or select an existing one.
 - [ ] **Write down the project *ID*, not the display name.** It is the lowercase-with-digits string
-      such as `competence-test-431807`, shown under *Project info*. Everything below calls it
-      `<PROJECT_ID>`.
+    such as `competence-test-431807`, shown under *Project info*. Everything below calls it
+    `<PROJECT_ID>`.
 - [ ] Under **Billing**, confirm a billing account is linked. Cloud Run and Artifact Registry refuse
-      to work without one even when your usage sits inside the free tier.
+    to work without one even when your usage sits inside the free tier.
 
 A dedicated project is worth it: it keeps this environment's cost, permissions and audit trail
 separate, and teardown becomes "delete the project".
@@ -76,22 +76,22 @@ installed and already signed in as you. Nothing to install locally.
 
 - [ ] In the Console top bar, click the terminal icon (**Activate Cloud Shell**) and wait for a prompt.
 - [ ] Point it at your project:
-      ```bash
-      gcloud config set project <PROJECT_ID>
-      ```
+    ```bash
+    gcloud config set project <PROJECT_ID>
+    ```
 - [ ] Clone the repository and enter the deploy directory:
-      ```bash
-      git clone https://github.com/Belleal/ti-engine.git
-      cd ti-engine/packages/competence/deploy/gcp
-      ```
+    ```bash
+    git clone https://github.com/Belleal/ti-engine.git
+    cd ti-engine/packages/competence/deploy/gcp
+    ```
 - [ ] **Preview first.** This prints every command the script would run and executes none of them:
-      ```bash
-      DRY_RUN=1 ./bootstrap.sh
-      ```
+    ```bash
+    DRY_RUN=1 ./bootstrap.sh
+    ```
 - [ ] Run it for real:
-      ```bash
-      ./bootstrap.sh
-      ```
+    ```bash
+    ./bootstrap.sh
+    ```
 
 What it creates:
 
@@ -122,40 +122,74 @@ BUDGET_NAME="<your budget's display name>" ./bootstrap.sh   # recognise the exis
 To see what yours is called: `gcloud billing budgets list --billing-account=<account-id>
 --format="table(displayName,amount.specifiedAmount)"`.
 
-## Phase 3 — Create the app's Google sign-in client
+## Phase 3 — Create the OAuth client, or two
 
 **Where: GCP Console, then Cloud Shell**
 
-This is the sign-in *the app itself* shows, separate from the IAP gate in phase 7. You will sign in
-twice, which is normal and usually one click the second time.
+**How many clients you need depends on the project:**
+
+| | Clients required |
+|---|---|
+| Project **in** a Google Cloud organization | **One** — the app's sign-in client. IAP uses a Google-managed client of its own. |
+| Project **not** in an organization | **Two** — the app's sign-in client, plus a custom client for IAP, because the Google-managed one is organization-only. |
+
+Create both here while you are on the Clients page; phase 7 then only has to hand IAP the credentials.
+The two are deliberately separate: different redirect URIs, different consumers, and one shared secret
+would mean rotating it breaks both.
+
+The app's client is the sign-in *the app itself* shows, separate from the IAP gate. You will sign in
+twice when you first open the service, which is normal and usually one click the second time.
 
 > The script's output says *APIs & Services → Credentials*. Google has since moved this under
 > **Google Auth Platform**, with *Branding*, *Audience* and *Clients* sections. If your menu differs,
 > search the Console for "Google Auth Platform".
 
 - [ ] Open **Google Auth Platform**. If prompted to configure the app, fill in *Branding* — an app
-      name and support email are enough.
-- [ ] Under **Audience**, choose **Internal**. That restricts sign-in to your Workspace domain and
-      avoids Google's verification process. (Internal is only offered when the project belongs to an
-      organization; otherwise you get *External* and must add each tester as a test user.)
-- [ ] **Clients → Create client**, type **Web application**, name it e.g. `competence app sign-in`.
-      **Leave the redirect URI empty** — phase 7 fills it in.
+    name and support email are enough.
+- [ ] Set the **Audience**. Which option you get depends on the project:
+    - **Internal** — only offered when the project belongs to a Google Cloud organization. Restricts
+      sign-in to your Workspace domain and needs no further decisions.
+    - **External** — the only option for a project with no organization. Then pick a publishing
+      status: leave it **Testing** and add each tester under *Test users* (capped at 100), or set it
+      to **In production**, which removes the cap. Either way **no Google verification is required
+      here**, because the app requests only the non-sensitive `openid email profile` scopes — so
+      testers see no "unverified app" warning and their grants do not expire after seven days.
+    - With External, anyone with a Google account could in principle complete this sign-in. That is
+      acceptable only because IAP decides who reaches the app at all — see phase 7, and do not skip it.
+- [ ] **The app's client.** Clients → **Create client**, type **Web application**, name it e.g.
+    `competence app sign-in`. **Leave the redirect URI empty** — phase 7 fills it in, once the
+    service URL exists.
 - [ ] Copy both values. The **Client ID** ends in `.apps.googleusercontent.com` and is not sensitive.
-      The **Client secret** is — do not put it in a file, a chat, or a commit.
+    The **Client secret** is — do not put it in a file, a chat, or a commit.
+- [ ] **IAP's client — only if the project has no organization.** Create a *second* **Web
+    application** client, named e.g. `competence IAP`. Then reopen it and add this authorised
+    redirect URI, which contains **that client's own ID**, so it can only be filled in after the
+    client exists:
+
+    ```text
+    https://iap.googleapis.com/v1/oauth/clientIds/<IAP_CLIENT_ID>:handleRedirect
+    ```
+
+    Keep its ID and secret to hand — phase 7 asks for them. You own these credentials; Google will
+    not manage or rotate them for you, so store the secret wherever you keep such things.
 - [ ] Store the secret. This reads from your keyboard, so nothing lands in shell history:
-      ```bash
-      gcloud secrets create competence-google-client-secret \
-        --data-file=- --replication-policy=user-managed --locations=europe-west1 \
-        --project <PROJECT_ID>
-      ```
-      Paste the secret, press **Enter**, then **Ctrl-D**.
+    ```bash
+    gcloud secrets create competence-google-client-secret \
+      --data-file=- --replication-policy=user-managed --locations=europe-west1 \
+      --project <PROJECT_ID>
+    ```
+    Paste the secret, press **Enter**, then **Ctrl-D**.
 - [ ] Re-run `./bootstrap.sh` so the runtime service account is granted read access to it. It will
-      report what already exists and add only the missing binding.
+    report what already exists and add only the missing binding.
 
 ### Reusing an OAuth client you already have
 
-The script never creates the client, so reuse means skipping the first bullet above — but **not** the
-secret one. Three things still apply:
+This applies to the **app's sign-in client only**. Reusing one does not remove the need for IAP's
+client: if the project has no organization you still have to create that second client, because there
+is no Google-managed one to fall back on. Reuse saves you the first client, never the second.
+
+The script never creates either client, so reuse means skipping the app-client bullet above — but
+**not** the secret one. Three things still apply:
 
 - **Store its secret under the expected name.** `service.yaml` mounts
   `competence-google-client-secret`, so the existing client's secret has to go into Secret Manager
@@ -169,8 +203,9 @@ secret one. Three things still apply:
   GCP project that is fine — Google validates the client, not the project — but its branding and
   Audience belong to that other project.
 
-Pass the existing client's ID as `GOOGLE_CLIENT_ID` in phase 6, and IAP is unaffected either way: it
-provisions its own OAuth client when you enable it in phase 7.
+Pass the existing client's ID as `GOOGLE_CLIENT_ID` in phase 6. What IAP needs is unchanged by any of
+this: a Google-managed client if the project is in an organization, otherwise the custom client from
+the step above.
 
 ## Phase 4 — Give GitHub the three variables
 
@@ -211,28 +246,28 @@ That publishes `:<version>` and `:latest` alongside `:edge`, to both registries 
 Tag only a version whose changelog entry is in place — the tag is what the release is named after.
 
 - [ ] Watch the run go green, then confirm the image arrived:
-      ```bash
-      gcloud artifacts docker images list \
-        europe-west1-docker.pkg.dev/<PROJECT_ID>/competence --include-tags
-      ```
-      You should see `ti-engine-competence` and the mirrored `redis`. Note the tag you want to deploy.
+    ```bash
+    gcloud artifacts docker images list \
+      europe-west1-docker.pkg.dev/<PROJECT_ID>/competence --include-tags
+    ```
+    You should see `ti-engine-competence` and the mirrored `redis`. Note the tag you want to deploy.
 
 ## Phase 6 — Deploy the service
 
 **Where: Cloud Shell**
 
 - [ ] Optional preview:
-      ```bash
-      DRY_RUN=1 GOOGLE_CLIENT_ID=<client-id> ./deploy.sh
-      ```
+    ```bash
+    DRY_RUN=1 GOOGLE_CLIENT_ID=<client-id> ./deploy.sh
+    ```
 - [ ] Deploy. `ADMIN_EMAILS` is your own Google address — without it the admin configuration screens
-      stay unreachable, because the allowlist is empty:
-      ```bash
-      GOOGLE_CLIENT_ID=<client-id> \
-      ADMIN_EMAILS=you@yourdomain.com \
-      IMAGE_TAG=edge \
-      ./deploy.sh
-      ```
+    stay unreachable, because the allowlist is empty:
+    ```bash
+    GOOGLE_CLIENT_ID=<client-id> \
+    ADMIN_EMAILS=you@yourdomain.com \
+    IMAGE_TAG=edge \
+    ./deploy.sh
+    ```
 
 > **The last step will fail on a first deploy, and that is expected.** IAP has to be enabled in the
 > Console once before the CLI can assert it. Everything before that step succeeded; phase 7 enables
@@ -253,53 +288,59 @@ origin and the OAuth callback.
 > Supervisor included. IAP is the only thing preventing that.
 
 - [ ] **Register the redirect URI.** Google Auth Platform → **Clients** → your client → under
-      *Authorised redirect URIs*, add the exact value `deploy.sh` printed:
-      ```text
-      https://competence-<number>.europe-west1.run.app/login/google-callback
-      ```
-      Sign-in fails with a redirect-mismatch error until this matches character for character.
+    *Authorised redirect URIs*, add the exact value `deploy.sh` printed:
+    ```text
+    https://competence-<number>.europe-west1.run.app/login/google-callback
+    ```
+    Sign-in fails with a redirect-mismatch error until this matches character for character.
 - [ ] **Enable IAP.** Cloud Run → `competence` → **Security** tab → **Require authentication** →
-      **Identity-Aware Proxy**. Accept the prompt granting IAP permission to invoke the service.
+    **Identity-Aware Proxy**. Accept the prompt granting IAP permission to invoke the service.
+
+    **Without an organization it will ask for an OAuth client** — that is the second client you
+    created in phase 3. Give it that client's ID and secret. (If you skipped it: create a **Web
+    application** client now, then reopen it and add the redirect URI
+    `https://iap.googleapis.com/v1/oauth/clientIds/<IAP_CLIENT_ID>:handleRedirect`, using its own
+    ID.) With an organization, IAP uses a Google-managed client and asks for nothing.
 - [ ] **Add your testers** — same Security tab, or the IAP page — each as a principal with the role
-      **IAP-secured Web App User**. The CLI equivalent, one per person:
-      ```bash
-      gcloud run services add-iam-policy-binding competence \
-        --region europe-west1 --project <PROJECT_ID> \
-        --member="user:colleague@yourdomain.com" \
-        --role="roles/iap.httpsResourceAccessor"
-      ```
-      Add yourself too, or you will lock yourself out.
+    **IAP-secured Web App User**. The CLI equivalent, one per person:
+    ```bash
+    gcloud run services add-iam-policy-binding competence \
+      --region europe-west1 --project <PROJECT_ID> \
+      --member="user:colleague@yourdomain.com" \
+      --role="roles/iap.httpsResourceAccessor"
+    ```
+    Add yourself too, or you will lock yourself out.
 - [ ] Re-run the deploy so its final IAP assertion passes and the script finishes clean.
 - [ ] **Prove the gate is on** before sharing anything. The first command must show
-      `iap-enabled: 'true'`; the second must **not** list `allUsers`:
-      ```bash
-      gcloud run services describe competence --region europe-west1 \
-        --project <PROJECT_ID> --format='yaml(metadata.annotations)'
+    `iap-enabled: 'true'`; the second must **not** list `allUsers`:
+    ```bash
+    gcloud run services describe competence --region europe-west1 \
+      --project <PROJECT_ID> --format='yaml(metadata.annotations)'
 
-      gcloud run services get-iam-policy competence --region europe-west1 \
-        --project <PROJECT_ID>
-      ```
+    gcloud run services get-iam-policy competence --region europe-west1 \
+      --project <PROJECT_ID>
+    ```
 
 ## Phase 8 — Seed the demo data and sign in
 
 **Where: Cloud Shell, then a browser**
 
 - [ ] Turn the seed on:
-      ```bash
-      gcloud run services update competence --region europe-west1 \
-        --project <PROJECT_ID> --update-env-vars COMPETENCE_PRELOAD_DATA=true
-      ```
+    ```bash
+    gcloud run services update competence --region europe-west1 \
+      --project <PROJECT_ID> --update-env-vars COMPETENCE_PRELOAD_DATA=true
+    ```
 - [ ] Open the service URL. Expect **5–15 seconds** for the first load — that is the cold start, and
-      it recurs after each idle period. Sign in with Google (IAP), then again on the app's own login
-      screen.
+    it recurs after each idle period. Sign in with Google (IAP), then again on the app's own login
+    screen.
 - [ ] On the login screen pick an identity from the **Test user** panel — `#22` holds all three roles
-      and is the best starting point — and confirm the dashboard renders with demo data.
+    and is the best starting point — and confirm the dashboard renders with demo data.
 - [ ] **Turn the seed back off.** While it stays on, the seed is re-applied on every boot and will
-      resurrect records a tester deleted:
-      ```bash
-      gcloud run services update competence --region europe-west1 \
-        --project <PROJECT_ID> --update-env-vars COMPETENCE_PRELOAD_DATA=false
-      ```
+    resurrect records a tester deleted:
+    ```bash
+    gcloud run services update competence --region europe-west1 \
+      --project <PROJECT_ID> --update-env-vars COMPETENCE_PRELOAD_DATA=false
+    ```
 
 ## Phase 9 — The one test that actually matters
 
@@ -313,9 +354,9 @@ not trust the environment with anything a tester would be annoyed to lose.
 - [ ] Leave it alone for **~20 minutes** so Cloud Run shuts the instance down. Do not reload.
 - [ ] Reload, sign in, and confirm what you created is still there.
 - [ ] Confirm the snapshot was written — the timestamp must be **later** than your change:
-      ```bash
-      gcloud storage ls -l gs://<PROJECT_ID>-competence-redis/dump.rdb
-      ```
+    ```bash
+    gcloud storage ls -l gs://<PROJECT_ID>-competence-redis/dump.rdb
+    ```
 
 **If the data is gone or `dump.rdb` is missing, stop.** That is the documented fallback trigger:
 Redis moves to an Always-Free `e2-micro` VM reached over a private address, which needs **no
@@ -388,6 +429,8 @@ service, the bucket, the Artifact Registry repository and the three secrets.
 | Sign-in: `redirect_uri_mismatch` | The callback is not registered on the OAuth client, or does not match exactly (phase 7). |
 | "No sign-in method is configured" | The client ID never reached the service. Re-run `deploy.sh` with `GOOGLE_CLIENT_ID` set. |
 | A Google error before the app appears at all | IAP refusing you. Your account needs *IAP-secured Web App User* (phase 7). |
+| IAP setup asks for an OAuth client ID and secret | Expected in a project with no organization — the Google-managed client is organization-only. Create IAP its own client (phase 7). |
+| Sign-in blocked with "access blocked" or an app-not-verified screen | An External consent screen still in *Testing* with your account not listed under *Test users*, or a client whose type is not *Web application* (phase 3). |
 | Admin screens missing for you | `ADMIN_EMAILS` was empty or a different address. Re-run `deploy.sh` with it set. |
 | First page load takes ages | Cold start, 5–15 seconds, by design — the service was scaled to zero and cost nothing while idle. |
 | Writes start failing under heavy use | Redis hit its memory ceiling and refuses writes rather than silently dropping them. Check the logs; raise the sidecar's `--maxmemory` if this is real usage. |
