@@ -179,9 +179,56 @@ describe( "templates — composed records", () => {
             theme: "scarlet-requiem", releaseState: "prerelease",
             sections: [ { type: "prose", body: "Body." }, { type: "closing", text: "End." } ] };
         const out = templates.renderComposed( record, BASE_CONTEXT ).toString();
-        assert.ok( out.includes( "<article class=\"theme-scarlet-requiem\" data-release-state=\"prerelease\">" ) );
+        assert.ok( out.includes( "<article class=\"theme-scarlet-requiem state-prerelease\">" ) );
         assert.ok( out.includes( "section section-prose" ) );
         assert.ok( out.includes( "section section-closing" ) );
+    } );
+
+} );
+
+describe( "templates — release states", () => {
+
+    function release( extra ) {
+        return Object.assign( {
+            id: "r", type: "release", path: "/r/", lang: "en", title: "R",
+            visibility: "public", status: "published", releaseState: "prerelease",
+            sections: [ { type: "prose", body: "Always shown." } ]
+        }, extra || {} );
+    }
+
+    it( "puts the state on the article as a CLASS — a data attribute leaves the theme inert", () => {
+        // The theme drives this with `.state-prerelease .on-announced { display: none }`. As a data
+        // attribute nothing is ever hidden, and copy that only makes sense before release survives it.
+        const out = templates.renderComposed( release(), BASE_CONTEXT ).toString();
+        assert.match( out, /^<article class="[^"]*state-prerelease/ );
+    } );
+
+    it( "carries the per-release palette alongside the state", () => {
+        const out = templates.renderComposed( release( { theme: "scarlet-requiem" } ), BASE_CONTEXT ).toString();
+        assert.ok( out.startsWith( "<article class=\"theme-scarlet-requiem state-prerelease\">" ) );
+    } );
+
+    it( "scopes a section to one state so a pre-order call cannot outlive the release", () => {
+        const record = release( { sections: [
+            { type: "prose", body: "Always." },
+            { type: "capture", purpose: "preorder:x", showWhen: "prerelease" },
+            { type: "prose", body: "After release.", showWhen: "released" }
+        ] } );
+        const out = templates.renderComposed( record, BASE_CONTEXT ).toString();
+        assert.ok( out.includes( "section section-capture on-prerelease" ) );
+        assert.ok( out.includes( "on-released" ) );
+    } );
+
+    it( "ignores an unrecognised state rather than injecting a class name", () => {
+        const out = templates.renderComposed( release( { releaseState: "evil\" onload=x" } ), BASE_CONTEXT ).toString();
+        assert.ok( !out.includes( "onload" ) );
+        assert.ok( !/class="[^"]*state-/.test( out ) );
+    } );
+
+    it( "emits no state class for a record that has no release state", () => {
+        const page = { id: "p", type: "page", path: "/p/", lang: "en", title: "P",
+            visibility: "public", status: "published", sections: [ { type: "prose", body: "x" } ] };
+        assert.ok( templates.renderComposed( page, BASE_CONTEXT ).toString().startsWith( "<article>" ) );
     } );
 
 } );

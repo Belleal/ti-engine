@@ -22,6 +22,9 @@ const { html, raw } = require( "#html" );
 const markdown = require( "#markdown" );
 const { renderSection } = require( "#sections" );
 
+// The three states a book or release can be in. Validated so a record value cannot inject a class name.
+const RELEASE_STATES = new Set( [ "announced", "prerelease", "released" ] );
+
 /**
  * Renders a record's <main> content for its type.
  *
@@ -72,10 +75,21 @@ function renderComposed( record, context ) {
         return html`<article class="section bg-abyss"><div class="wrap-page">${ renderPostHeader( record, context ) }${ renderGate( record, context ) }</div></article>`;
     }
     const sections = Array.isArray( record.sections ) ? record.sections : [];
-    // A per-release palette scopes on the outermost element that should carry it.
-    const themeClass = record.theme ? html` class="theme-${ record.theme }"` : raw( "" );
-    const stateClass = record.releaseState ? html` data-release-state="${ record.releaseState }"` : raw( "" );
-    return html`<article${ themeClass }${ stateClass }>${ sections.map( ( section ) => renderSection( section, context ) ) }</article>`;
+
+    // Two classes, both scoped on the outermost element: a per-release palette, and the release state.
+    //
+    // The state MUST be a class, not a data attribute: the theme drives it with `.state-prerelease
+    // .on-announced { display: none }`, so a data attribute leaves the whole mechanism inert and copy
+    // that only makes sense before release stays visible after it.
+    const classes = [];
+    if ( record.theme ) {
+        classes.push( "theme-" + record.theme );
+    }
+    if ( RELEASE_STATES.has( record.releaseState ) ) {
+        classes.push( "state-" + record.releaseState );
+    }
+    const attr = classes.length ? html` class="${ classes.join( " " ) }"` : raw( "" );
+    return html`<article${ attr }>${ sections.map( ( section ) => renderSection( section, context ) ) }</article>`;
 }
 
 /**

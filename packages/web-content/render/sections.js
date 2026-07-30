@@ -64,6 +64,10 @@ const ALLOWED_WRAPS = new Set( [ "wrap-page", "wrap-wide", "wrap-prose" ] );
 const ALLOWED_BACKGROUNDS = new Set( [ "abyss", "deep", "mid", "surface", "elevated" ] );
 const MAX_REVEAL_DELAY = 3;
 
+// A section may belong to one release state only. The theme hides the non-matching ones, so a
+// pre-order call to action cannot survive into the released page.
+const RELEASE_STATES = new Set( [ "announced", "prerelease", "released" ] );
+
 /**
  * Derives a section's wrapper class from its type: camelCase -> kebab-case, prefixed `section-`.
  *
@@ -105,6 +109,9 @@ function renderSection( section, context ) {
     }
     if ( section.background && ALLOWED_BACKGROUNDS.has( section.background ) ) {
         classes.push( "bg-" + section.background );
+    }
+    if ( RELEASE_STATES.has( section.showWhen ) ) {
+        classes.push( "on-" + section.showWhen );
     }
     if ( section.reveal === true ) {
         classes.push( "reveal" );
