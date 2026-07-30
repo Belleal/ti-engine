@@ -142,6 +142,48 @@ describe( "content-routes — catch-all resolution", () => {
         assert.deepEqual( modes, [ "teaser", "full" ] );
     } );
 
+    it( "renders a markdown body through the markdown renderer in the fallback page", () => {
+        const repo = new ContentRepository( buildIndex( [
+            post( "md", "/md/", { body: "Hello *there*.", bodyFormat: "markdown" } )
+        ] ) );
+        const res = fakeResponse();
+        contentHandler( repo, { baseUrl: "https://anarandaris.com" } )( fakeRequest( "/md/" ), res, () => assert.fail( "should not fall through" ) );
+        assert.ok( String( res.body ).includes( "<em>there</em>" ), "markdown should be rendered, not dropped or escaped" );
+    } );
+
+    it( "escapes raw HTML embedded in a markdown body (the renderer runs with html:false)", () => {
+        const repo = new ContentRepository( buildIndex( [
+            post( "md", "/md/", { body: "before <script>alert(1)</script> after", bodyFormat: "markdown" } )
+        ] ) );
+        const res = fakeResponse();
+        contentHandler( repo, { baseUrl: "https://anarandaris.com" } )( fakeRequest( "/md/" ), res, () => assert.fail( "should not fall through" ) );
+        assert.ok( !String( res.body ).includes( "<script>" ), "raw HTML in markdown must not reach the page" );
+        assert.ok( String( res.body ).includes( "&lt;script&gt;" ) );
+    } );
+
+    it( "does NOT emit a bodyFormat:'html' body — its sanitiser runs at import, and the importer does not exist yet", () => {
+        const repo = new ContentRepository( buildIndex( [
+            post( "legacy", "/legacy/", { body: "<p>legacy</p><script>alert(1)</script>", bodyFormat: "html" } )
+        ] ) );
+        const res = fakeResponse();
+        contentHandler( repo, { baseUrl: "https://anarandaris.com" } )( fakeRequest( "/legacy/" ), res, () => assert.fail( "should not fall through" ) );
+        const body = String( res.body );
+        assert.equal( res.statusCode, 200, "the record still serves" );
+        assert.ok( !body.includes( "<script>" ), "unsanitised legacy markup must not be emitted" );
+        assert.ok( !body.includes( "<p>legacy</p>" ), "the html body is withheld entirely, not partially rendered" );
+    } );
+
+    it( "leaves teaser mode showing the teaser, never the body", () => {
+        const repo = new ContentRepository( buildIndex( [
+            post( "g", "/g/", { visibility: "authenticated", teaser: "A glimpse.", body: "Full secret text.", bodyFormat: "markdown" } )
+        ] ) );
+        const res = fakeResponse();
+        contentHandler( repo, { baseUrl: "https://anarandaris.com" } )( fakeRequest( "/g/" ), res, () => assert.fail( "should not fall through" ) );
+        const body = String( res.body );
+        assert.ok( body.includes( "A glimpse." ) );
+        assert.ok( !body.includes( "Full secret text." ), "a gated teaser must not leak the body" );
+    } );
+
     it( "gives the render function the resolved record and repository", () => {
         let seen = null;
         const spyHandler = contentHandler( repository, {

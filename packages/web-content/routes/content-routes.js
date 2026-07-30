@@ -21,7 +21,8 @@
  */
 
 const { composeHead } = require( "#document" );
-const { html } = require( "#html" );
+const { html, raw } = require( "#html" );
+const markdown = require( "#markdown" );
 
 const PUBLIC_CACHE_CONTROL = "public, max-age=0, s-maxage=600, stale-while-revalidate=86400";
 const PRIVATE_CACHE_CONTROL = "private, no-store";
@@ -54,6 +55,25 @@ function viewerFromRequest( request ) {
 }
 
 /**
+ * The body of a fully-visible record, for the fallback page only.
+ *
+ * Markdown goes through the markdown renderer, which is configured `html: false` (so raw HTML in authored markdown is
+ * escaped) and is a sanctioned `raw()` source. `bodyFormat: "html"` is deliberately NOT rendered here: that path is
+ * legacy imported content whose safety rests on being sanitised once at import, and the importer (`capture/`) does not
+ * exist yet — emitting it now would put unsanitised markup on the page. Such a record renders as its title alone until
+ * either the importer or the editorial templates land.
+ *
+ * @param {Object} record
+ * @returns {import("../render/html.js").SafeString}
+ */
+function renderBody( record ) {
+    if ( !record.body || record.bodyFormat === "html" ) {
+        return raw( "" );
+    }
+    return markdown.render( record.body );
+}
+
+/**
  * A minimal fallback document -- enough to serve and verify a resolved record before the editorial templates land
  * (P5). The real templates are injected via `options.renderPage`.
  *
@@ -65,7 +85,7 @@ function renderFallbackPage( record, context ) {
     const head = composeHead( record, { baseUrl: context.baseUrl, mode: context.mode, counterpart: context.counterpart } );
     const body = ( context.mode === "teaser" )
         ? html`<article><h1>${ record.title }</h1><p>${ record.teaser || "" }</p><p><a href="/login/local">Sign in to read</a></p></article>`
-        : html`<article><h1>${ record.title }</h1></article>`;
+        : html`<article><h1>${ record.title }</h1>${ renderBody( record ) }</article>`;
     return `<!DOCTYPE html>\n<html lang="${ record.lang || "en" }">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n${ head.toString() }\n</head>\n<body>\n${ body.toString() }\n</body>\n</html>\n`;
 }
 
