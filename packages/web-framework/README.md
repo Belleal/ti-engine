@@ -20,8 +20,41 @@ The web server configuration (host, port, TLS, cookies, etc.) is normally provid
 * `TI_WEB_AUTH_METHODS` (comma-separated) **replaces** the enabled authentication methods (`auth.enabledMethods`), e.g. `openid-google` or `local,openid-google`.
 * `TI_WEB_AUTH_ADMINS` (comma-separated) **replaces** the admin allowlist (`auth.admins`). Entries are matched against the session user's user ID, username or email, so an OpenID deployment lists emails. An explicitly empty value means *no admins*.
 * `TI_WEB_TRUSTED_ORIGINS` (comma-separated) **replaces** the trusted request origins (`trustedOrigins`) — needed behind proxies that do not present the real external origin.
+* `TI_WEB_STATIC_MAX_AGE` (whole seconds) overrides `staticCache.maxAge`. See [Static asset caching](#static-asset-caching).
+* `TI_WEB_STATIC_IMMUTABLE` (`true`/`false`) overrides `staticCache.immutable`.
+* `TI_WEB_STATIC_IMMUTABLE_PATHS` (comma-separated) **replaces** `staticCache.immutablePaths`. An explicitly empty value means *no long-lived paths*.
 
 OpenID Connect providers are configured with their own variables — `TI_AZURE_AUTH_CLIENT_ID` / `TI_AZURE_AUTH_CLIENT_SECRET` / `TI_AZURE_AUTH_CALLBACK_URL` / `TI_AZURE_AUTH_DISCOVERY_URL`, and the `TI_GCLOUD_AUTH_*` equivalents. A callback URL may be given either as the full absolute URL registered with the provider (`https://your-host/login/azure-callback`) or as a path (`/login/azure-callback`): the server always listens on the path, while the `redirect_uri` sent to the provider is the absolute value verbatim if one was configured, and otherwise assembled from the request's forwarded protocol/host.
+
+## Static asset caching
+
+Everything under `/static` is served with a `Cache-Control` policy configured by the `staticCache` block:
+
+```json
+{
+  "staticCache": {
+    "maxAge": 0,
+    "immutable": false,
+    "immutablePaths": [ "/fonts/" ]
+  }
+}
+```
+
+* `maxAge` — the `max-age` in **whole seconds** (not an express-style `"1y"` duration string; one is rejected with a warning rather than reinterpreted as milliseconds). `0`, the default, emits `public, max-age=0, must-revalidate`.
+* `immutable` — adds the `immutable` directive. Defaults to `false`, and is **ignored with a warning when `maxAge` is 0**, since a response that is stale on arrival cannot also promise never to change.
+* `immutablePaths` — path prefixes under `/static` (matched case-sensitively, on a path-segment boundary) served `public, max-age=31536000, immutable` regardless of the two settings above. Defaults to `[ "/fonts/" ]`. This **replaces** rather than merges, so `[]` means no long-lived paths.
+
+**The default revalidates, and that is deliberate.** `immutable` tells a browser the bytes behind a URL will never change, and browsers honour it so completely that not even a manual reload revalidates. On a stable filename — which is what the framework's own assets use (`/static/scripts/ti-framework.js`, the theme sheets) — the promise is false, and a deployed CSS or JS fix simply never reaches anyone who has already visited, for up to a year, with no way to tell them otherwise. Revalidating costs a conditional request per asset, answered with a `304` from the `ETag`/`Last-Modified` that `express.static` still attaches — headers, no body.
+
+**Opt back into `immutable` once your filenames are content-addressed.** If your build emits `app.a1b2c3.css`, or your application appends a content hash to each asset URL, the promise becomes true and there is real value in making it:
+
+```json
+{
+  "staticCache": { "maxAge": 31536000, "immutable": true }
+}
+```
+
+Fonts are the default exception because a released `.woff2` is an artifact rather than something edited in place, and its filename already carries the family, weight and style. If that is not how a given deployment manages its fonts, clear the list.
 
 ## Configure HTTPS for development
 

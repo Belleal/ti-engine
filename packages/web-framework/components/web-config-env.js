@@ -15,8 +15,8 @@ const tools = require( "@ti-engine/core/tools" );
  * Each override is applied ONLY when its environment variable is defined, so an absent variable leaves the
  * configured/default value untouched (fully backward compatible). This gives ti-engine web servers 12-factor,
  * container-friendly control over network binding, TLS, the session cookie secret, the enabled authentication
- * methods, the admin allowlist, and the trusted request origins without editing config files. Note `TI_WEB_AUTH_METHODS`,
- * `TI_WEB_AUTH_ADMINS`, and `TI_WEB_TRUSTED_ORIGINS` fully REPLACE their config arrays (`auth.enabledMethods` / `auth.admins` / `trustedOrigins`) rather than
+ * methods, the admin allowlist, the trusted request origins, and the `/static` cache policy without editing config files. Note `TI_WEB_AUTH_METHODS`,
+ * `TI_WEB_AUTH_ADMINS`, `TI_WEB_TRUSTED_ORIGINS`, and `TI_WEB_STATIC_IMMUTABLE_PATHS` fully REPLACE their config arrays (`auth.enabledMethods` / `auth.admins` / `trustedOrigins` / `staticCache.immutablePaths`) rather than
  * merging — the config-file merge is by-index and cannot cleanly override an array.
  *
  * @method
@@ -61,6 +61,23 @@ function applyWebConfigEnvOverrides( config, env = process.env ) {
     }
     if ( env.TI_WEB_TRUSTED_ORIGINS !== undefined ) {
         config.trustedOrigins = env.TI_WEB_TRUSTED_ORIGINS.split( "," ).map( ( origin ) => origin.trim() ).filter( ( origin ) => origin.length > 0 );
+    }
+    if ( env.TI_WEB_STATIC_MAX_AGE !== undefined ) {
+        // Seconds, matching the `Cache-Control` directive itself. A non-integer is left to the config value rather
+        // than coerced, exactly as TI_WEB_PORT is — `TiWebServer.resolveStaticCachePolicy` reports the bad value.
+        const maxAge = Number( env.TI_WEB_STATIC_MAX_AGE );
+        if ( Number.isInteger( maxAge ) && maxAge >= 0 ) {
+            config.staticCache = config.staticCache || {};
+            config.staticCache.maxAge = maxAge;
+        }
+    }
+    if ( env.TI_WEB_STATIC_IMMUTABLE !== undefined ) {
+        config.staticCache = config.staticCache || {};
+        config.staticCache.immutable = tools.toBool( env.TI_WEB_STATIC_IMMUTABLE );
+    }
+    if ( env.TI_WEB_STATIC_IMMUTABLE_PATHS !== undefined ) {
+        config.staticCache = config.staticCache || {};
+        config.staticCache.immutablePaths = env.TI_WEB_STATIC_IMMUTABLE_PATHS.split( "," ).map( ( prefix ) => prefix.trim() ).filter( ( prefix ) => prefix.length > 0 );
     }
     return config;
 }
