@@ -122,12 +122,23 @@ BUDGET_NAME="<your budget's display name>" ./bootstrap.sh   # recognise the exis
 To see what yours is called: `gcloud billing budgets list --billing-account=<account-id>
 --format="table(displayName,amount.specifiedAmount)"`.
 
-## Phase 3 — Create the app's Google sign-in client
+## Phase 3 — Create the OAuth client, or two
 
 **Where: GCP Console, then Cloud Shell**
 
-This is the sign-in *the app itself* shows, separate from the IAP gate in phase 7. You will sign in
-twice, which is normal and usually one click the second time.
+**How many clients you need depends on the project:**
+
+| | Clients required |
+|---|---|
+| Project **in** a Google Cloud organization | **One** — the app's sign-in client. IAP uses a Google-managed client of its own. |
+| Project **not** in an organization | **Two** — the app's sign-in client, plus a custom client for IAP, because the Google-managed one is organization-only. |
+
+Create both here while you are on the Clients page; phase 7 then only has to hand IAP the credentials.
+The two are deliberately separate: different redirect URIs, different consumers, and one shared secret
+would mean rotating it breaks both.
+
+The app's client is the sign-in *the app itself* shows, separate from the IAP gate. You will sign in
+twice when you first open the service, which is normal and usually one click the second time.
 
 > The script's output says *APIs & Services → Credentials*. Google has since moved this under
 > **Google Auth Platform**, with *Branding*, *Audience* and *Clients* sections. If your menu differs,
@@ -145,10 +156,22 @@ twice, which is normal and usually one click the second time.
         testers see no "unverified app" warning and their grants do not expire after seven days.
       - With External, anyone with a Google account could in principle complete this sign-in. That is
         acceptable only because IAP decides who reaches the app at all — see phase 7, and do not skip it.
-- [ ] **Clients → Create client**, type **Web application**, name it e.g. `competence app sign-in`.
-      **Leave the redirect URI empty** — phase 7 fills it in.
+- [ ] **The app's client.** Clients → **Create client**, type **Web application**, name it e.g.
+      `competence app sign-in`. **Leave the redirect URI empty** — phase 7 fills it in, once the
+      service URL exists.
 - [ ] Copy both values. The **Client ID** ends in `.apps.googleusercontent.com` and is not sensitive.
       The **Client secret** is — do not put it in a file, a chat, or a commit.
+- [ ] **IAP's client — only if the project has no organization.** Create a *second* **Web
+      application** client, named e.g. `competence IAP`. Then reopen it and add this authorised
+      redirect URI, which contains **that client's own ID**, so it can only be filled in after the
+      client exists:
+
+      ```text
+      https://iap.googleapis.com/v1/oauth/clientIds/<IAP_CLIENT_ID>:handleRedirect
+      ```
+
+      Keep its ID and secret to hand — phase 7 asks for them. You own these credentials; Google will
+      not manage or rotate them for you, so store the secret wherever you keep such things.
 - [ ] Store the secret. This reads from your keyboard, so nothing lands in shell history:
       ```bash
       gcloud secrets create competence-google-client-secret \
@@ -268,21 +291,11 @@ origin and the OAuth callback.
 - [ ] **Enable IAP.** Cloud Run → `competence` → **Security** tab → **Require authentication** →
       **Identity-Aware Proxy**. Accept the prompt granting IAP permission to invoke the service.
 
-      **If the project has no organization, IAP needs its own OAuth client first** — the
-      Google-managed one is only available to organization-backed projects. This is a *second* client,
-      separate from the app's sign-in client in phase 3:
-
-      1. Google Auth Platform → **Clients** → **Create client** → **Web application**, named e.g.
-         `competence IAP`.
-      2. Add this authorised redirect URI, substituting that new client's own ID:
-         ```text
-         https://iap.googleapis.com/v1/oauth/clientIds/<IAP_CLIENT_ID>:handleRedirect
-         ```
-      3. Supply that client's ID and secret when the IAP setup asks for them. You own these
-         credentials — store the secret somewhere safe, because Google will not manage it for you.
-
-      Do not merge this with the app's client. They have different redirect URIs and different
-      owners, and sharing one secret between them means rotating it breaks both.
+      **Without an organization it will ask for an OAuth client** — that is the second client you
+      created in phase 3. Give it that client's ID and secret. (If you skipped it: create a **Web
+      application** client now, then reopen it and add the redirect URI
+      `https://iap.googleapis.com/v1/oauth/clientIds/<IAP_CLIENT_ID>:handleRedirect`, using its own
+      ID.) With an organization, IAP uses a Google-managed client and asks for nothing.
 - [ ] **Add your testers** — same Security tab, or the IAP page — each as a principal with the role
       **IAP-secured Web App User**. The CLI equivalent, one per person:
       ```bash
