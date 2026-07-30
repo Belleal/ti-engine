@@ -135,9 +135,16 @@ twice, which is normal and usually one click the second time.
 
 - [ ] Open **Google Auth Platform**. If prompted to configure the app, fill in *Branding* — an app
       name and support email are enough.
-- [ ] Under **Audience**, choose **Internal**. That restricts sign-in to your Workspace domain and
-      avoids Google's verification process. (Internal is only offered when the project belongs to an
-      organization; otherwise you get *External* and must add each tester as a test user.)
+- [ ] Set the **Audience**. Which option you get depends on the project:
+      - **Internal** — only offered when the project belongs to a Google Cloud organization. Restricts
+        sign-in to your Workspace domain and needs no further decisions.
+      - **External** — the only option for a project with no organization. Then pick a publishing
+        status: leave it **Testing** and add each tester under *Test users* (capped at 100), or set it
+        to **In production**, which removes the cap. Either way **no Google verification is required
+        here**, because the app requests only the non-sensitive `openid email profile` scopes — so
+        testers see no "unverified app" warning and their grants do not expire after seven days.
+      - With External, anyone with a Google account could in principle complete this sign-in. That is
+        acceptable only because IAP decides who reaches the app at all — see phase 7, and do not skip it.
 - [ ] **Clients → Create client**, type **Web application**, name it e.g. `competence app sign-in`.
       **Leave the redirect URI empty** — phase 7 fills it in.
 - [ ] Copy both values. The **Client ID** ends in `.apps.googleusercontent.com` and is not sensitive.
@@ -260,6 +267,22 @@ origin and the OAuth callback.
       Sign-in fails with a redirect-mismatch error until this matches character for character.
 - [ ] **Enable IAP.** Cloud Run → `competence` → **Security** tab → **Require authentication** →
       **Identity-Aware Proxy**. Accept the prompt granting IAP permission to invoke the service.
+
+      **If the project has no organization, IAP needs its own OAuth client first** — the
+      Google-managed one is only available to organization-backed projects. This is a *second* client,
+      separate from the app's sign-in client in phase 3:
+
+      1. Google Auth Platform → **Clients** → **Create client** → **Web application**, named e.g.
+         `competence IAP`.
+      2. Add this authorised redirect URI, substituting that new client's own ID:
+         ```text
+         https://iap.googleapis.com/v1/oauth/clientIds/<IAP_CLIENT_ID>:handleRedirect
+         ```
+      3. Supply that client's ID and secret when the IAP setup asks for them. You own these
+         credentials — store the secret somewhere safe, because Google will not manage it for you.
+
+      Do not merge this with the app's client. They have different redirect URIs and different
+      owners, and sharing one secret between them means rotating it breaks both.
 - [ ] **Add your testers** — same Security tab, or the IAP page — each as a principal with the role
       **IAP-secured Web App User**. The CLI equivalent, one per person:
       ```bash
@@ -388,6 +411,8 @@ service, the bucket, the Artifact Registry repository and the three secrets.
 | Sign-in: `redirect_uri_mismatch` | The callback is not registered on the OAuth client, or does not match exactly (phase 7). |
 | "No sign-in method is configured" | The client ID never reached the service. Re-run `deploy.sh` with `GOOGLE_CLIENT_ID` set. |
 | A Google error before the app appears at all | IAP refusing you. Your account needs *IAP-secured Web App User* (phase 7). |
+| IAP setup asks for an OAuth client ID and secret | Expected in a project with no organization — the Google-managed client is organization-only. Create IAP its own client (phase 7). |
+| Sign-in blocked with "access blocked" or an app-not-verified screen | An External consent screen still in *Testing* with your account not listed under *Test users*, or a client whose type is not *Web application* (phase 3). |
 | Admin screens missing for you | `ADMIN_EMAILS` was empty or a different address. Re-run `deploy.sh` with it set. |
 | First page load takes ages | Cold start, 5–15 seconds, by design — the service was scaled to zero and cost nothing while idle. |
 | Writes start failing under heavy use | Redis hit its memory ceiling and refuses writes rather than silently dropping them. Check the logs; raise the sidecar's `--maxmemory` if this is real usage. |
