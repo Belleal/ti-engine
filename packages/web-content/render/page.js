@@ -68,6 +68,27 @@ function renderStateDocument( state, context ) {
 }
 
 /**
+ * The boot script: marks the document as script-capable before anything paints.
+ *
+ * The theme gates its hidden reveal state on `.js`, so this is what keeps the reveal choreography an enhancement
+ * rather than a visibility gate. `opacity: 0` with no script to lift it hides content permanently, and a blocked,
+ * disabled or errored script must never be able to do that. It is emitted FIRST in <head> and runs synchronously so
+ * the class is set before first paint -- deferring it would show a flash of the un-revealed state.
+ *
+ * Rendered only when a nonce is available, because under `strict-dynamic` a nonce-less inline script would not
+ * execute anyway, and emitting a dead script tag is worse than emitting none.
+ *
+ * @param {string} [nonce]
+ * @returns {import("./html.js").SafeString}
+ */
+function renderBootScript( nonce ) {
+    if ( !nonce ) {
+        return raw( "" );
+    }
+    return html`<script nonce="${ nonce }">document.documentElement.classList.add("js")</script>`;
+}
+
+/**
  * The common document skeleton.
  *
  * @param {{ lang: string, head: Object, body: Object, context: Object, bodyClass: (string|null) }} parts
@@ -94,7 +115,7 @@ function assemble( parts ) {
 
     const bodyAttr = parts.bodyClass ? html` class="${ parts.bodyClass }"` : raw( "" );
 
-    return "<!DOCTYPE html>\n" + html`<html lang="${ parts.lang }"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${ parts.head }${ preloads }${ stylesheets }</head><body${ bodyAttr }>${ shell.renderNoiseLayer() }${ shell.renderSkipLink( ctx.labels ) }${ shell.renderTopbar( ctx ) }<main id="content">${ parts.body }</main>${ shell.renderFooter( ctx ) }${ scripts }</body></html>`.toString() + "\n";
+    return "<!DOCTYPE html>\n" + html`<html lang="${ parts.lang }"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${ renderBootScript( nonce ) }${ parts.head }${ preloads }${ stylesheets }</head><body${ bodyAttr }>${ shell.renderNoiseLayer() }${ shell.renderSkipLink( ctx.labels ) }${ shell.renderTopbar( ctx ) }<main id="content">${ parts.body }</main>${ shell.renderFooter( ctx ) }${ scripts }</body></html>`.toString() + "\n";
 }
 
 module.exports = {

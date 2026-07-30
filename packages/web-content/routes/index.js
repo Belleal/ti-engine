@@ -18,8 +18,9 @@
  *     }
  *
  *     defineWebApplicationRoutes() {
+ *         mountHomeRoute( this, contentOptions );        // before super: "/" is a content record
  *         super.defineWebApplicationRoutes();
- *         mountContentRoutes( this, { repository, baseUrl } );
+ *         mountContentRoutes( this, contentOptions );    // after super: framework routes keep priority
  *     }
  *
  * Route-level access is NOT the content gate. It merely opens the door to the resolver; the repository applies
@@ -52,6 +53,41 @@ const PUBLIC_EXCEPT_ADMIN = /^\/(?!admin(?:\/|$)).*$/;
 function defineContentUnprotectedRoutes( server, options ) {
     const opts = options || {};
     return server.addUnprotectedRoute( opts.pattern || PUBLIC_EXCEPT_ADMIN );
+}
+
+/**
+ * Builds the options the content handler needs from the mount options.
+ *
+ * @param {Object} opts
+ * @returns {Object}
+ */
+function handlerOptions( opts ) {
+    return {
+        baseUrl: opts.baseUrl || "",
+        renderPage: opts.renderPage,
+        site: opts.site,
+        labels: opts.labels,
+        assets: opts.assets,
+        taxonomy: opts.taxonomy
+    };
+}
+
+/**
+ * Claims `/` for the content resolver.
+ *
+ * MUST be called BEFORE `super.defineWebApplicationRoutes()`. The framework binds `/` to its own SPA-shell handler,
+ * and Express matches in registration order — so on a content site, where the home page is an ordinary record, the
+ * shell would otherwise win and the home record would be unreachable. Registering first is safe in both directions:
+ * the resolver calls `next()` when no record owns `/`, so a site without a home record still gets the framework's
+ * handler.
+ *
+ * @param {Object} server  A TiWebServer instance (>= 1.17.0).
+ * @param {Object} options  Same shape as {@link mountContentRoutes}.
+ * @returns {Object} The server, for chaining.
+ */
+function mountHomeRoute( server, options ) {
+    const opts = options || {};
+    return server.registerRoute( "get", "/", contentHandler( opts.repository, handlerOptions( opts ) ) );
 }
 
 /**
@@ -98,20 +134,14 @@ function mountContentRoutes( server, options ) {
 
     // Registered last: every other content URL resolves through the path index. Still ahead of the framework's own
     // `*splat` 404 handler, which is installed after defineWebApplicationRoutes() returns.
-    server.registerRoute( "get", /.*/, contentHandler( repository, {
-        baseUrl: baseUrl,
-        renderPage: opts.renderPage,
-        site: opts.site,
-        labels: opts.labels,
-        assets: opts.assets,
-        taxonomy: opts.taxonomy
-    } ) );
+    server.registerRoute( "get", /.*/, contentHandler( repository, handlerOptions( opts ) ) );
 
     return server;
 }
 
 module.exports = {
     mountContentRoutes: mountContentRoutes,
+    mountHomeRoute: mountHomeRoute,
     defineContentUnprotectedRoutes: defineContentUnprotectedRoutes,
     PUBLIC_EXCEPT_ADMIN: PUBLIC_EXCEPT_ADMIN
 };

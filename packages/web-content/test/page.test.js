@@ -210,6 +210,17 @@ describe( "page — document assembly", () => {
         assert.ok( out.includes( "<link rel=\"stylesheet\" href=\"/static/anarand.css\" nonce=\"NONCE123\">" ) );
     } );
 
+    it( "emits the boot script first in head, so nothing flashes un-revealed", () => {
+        // The theme gates its hidden `.reveal` state on `.js`; without this, a blocked script hides content forever.
+        assert.ok( out.includes( "<script nonce=\"NONCE123\">document.documentElement.classList.add(\"js\")</script>" ) );
+        assert.ok( out.indexOf( "classList.add" ) < out.indexOf( "<title>" ), "the boot script must precede the rest of head" );
+    } );
+
+    it( "omits the boot script when no nonce is available, rather than emitting a dead tag", () => {
+        const withoutNonce = renderDocument( post(), Object.assign( {}, BASE_CONTEXT, { assets: {} } ) );
+        assert.ok( !withoutNonce.includes( "classList.add" ) );
+    } );
+
     it( "nonces the JSON-LD block too — a data block CSP might otherwise drop silently", () => {
         const scripts = out.match( /<script[^>]*>/g ) || [];
         assert.ok( scripts.length >= 2, "expected the site script and the JSON-LD block" );
