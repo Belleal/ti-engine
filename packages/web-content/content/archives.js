@@ -21,6 +21,8 @@
  * curation over a listing, which is authored content, not a query.
  */
 
+const { termLabel, termPathPattern, termArchivePath } = require( "#terms" );
+
 const DEFAULT_LIMIT = 12;
 
 /**
@@ -48,28 +50,29 @@ function buildArchiveRecords( taxonomy, config ) {
             continue;
         }
         for ( const facet of facets ) {
-            const termPath = termPathFor( archive.termPath, facet );
+            const termPath = termPathPattern( archive.termPath, facet );
             if ( !termPath ) {
                 continue;
             }
             for ( const term of taxonomy.terms( facet ) ) {
-                const slug = slugFor( term, lang, options.defaultLanguage );
-                if ( !slug ) {
+                // The same helper the renderer links with, so a generated path and a rendered href cannot disagree.
+                const path = termArchivePath( termPath, term, lang, options.defaultLanguage );
+                if ( !path ) {
                     continue;
                 }
                 records.push( {
                     id: "archive-" + lang + "-" + facet + "-" + term.id,
                     type: "page",
-                    path: termPath.replace( "{slug}", slug ),
+                    path: path,
                     lang: lang,
-                    title: labelFor( term, lang ),
+                    title: termLabel( term, lang ),
                     visibility: "public",
                     status: "published",
                     seo: { description: describeArchive( term, lang, archive ) },
                     sections: [ {
                         type: "postList",
                         // The section chrome carries the heading, so the archive reads as a place rather than a list.
-                        title: labelFor( term, lang ),
+                        title: termLabel( term, lang ),
                         background: "abyss",
                         recordType: "post",
                         [ facet ]: term.id,
@@ -87,60 +90,13 @@ function buildArchiveRecords( taxonomy, config ) {
 }
 
 /**
- * The path pattern for one facet.
- *
- * `termPath` is a single string when every facet shares a URL namespace -- which is a deliberate choice, not an
- * oversight: a flat `/writings/{slug}/` reads better than `/writings/world/{slug}/` and is usually what a migration
- * has to preserve. The cost is that a world term and a form term sharing a slug generate the SAME path, and the
- * loader then reports a conflict and drops one archive to a 404.
- *
- * So the pattern may also be given per facet, `{ world: "...", form: "..." }`, which is the escape hatch when two
- * vocabularies do collide -- without forcing every site to namespace URLs it does not need to.
- *
- * @param {string|Object} termPath
- * @param {string} facet
- * @returns {string|null}
- */
-function termPathFor( termPath, facet ) {
-    if ( typeof termPath === "string" ) {
-        return termPath;
-    }
-    if ( termPath && typeof termPath === "object" && typeof termPath[ facet ] === "string" ) {
-        return termPath[ facet ];
-    }
-    return null;
-}
-
-/**
- * @param {Object} term
- * @param {string} lang
- * @param {string} [defaultLanguage]
- * @returns {string|null}
- */
-function slugFor( term, lang, defaultLanguage ) {
-    if ( !term || !term.slug ) {
-        return term && term.id ? term.id : null;
-    }
-    return term.slug[ lang ] || term.slug[ defaultLanguage || "en" ] || term.id || null;
-}
-
-/**
- * @param {Object} term
- * @param {string} lang
- * @returns {string}
- */
-function labelFor( term, lang ) {
-    return ( term.label && ( term.label[ lang ] || term.label.en ) ) || term.id;
-}
-
-/**
  * @param {Object} term
  * @param {string} lang
  * @param {Object} archive
  * @returns {string}
  */
 function describeArchive( term, lang, archive ) {
-    const label = labelFor( term, lang );
+    const label = termLabel( term, lang );
     return archive.descriptionPattern
         ? String( archive.descriptionPattern ).replace( "{term}", label )
         : label;

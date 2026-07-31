@@ -22,6 +22,8 @@
  * archives under `/bg/writings/` -- it only knows that a language has a pattern.
  */
 
+const { termLabel, termPathPattern, termArchivePath } = require( "#terms" );
+
 const ARCHIVE_FACETS = [ "world", "form" ];
 
 /**
@@ -100,32 +102,22 @@ function archiveConfigFor( site, lang ) {
 /**
  * The archive URL for a term, or null when the language has no archive scheme or the term has no slug.
  *
- * @param {Object} term
- * @param {string} lang
- * @param {Object} site
- * @returns {string|null}
- */
-function archiveHref( term, lang, site ) {
-    const config = archiveConfigFor( site, lang );
-    if ( !config || !config.termPath || !term ) {
-        return null;
-    }
-    const slug = ( term.slug && ( term.slug[ lang ] || term.slug[ ( site && site.defaultLanguage ) || "en" ] ) ) || term.id;
-    return slug ? String( config.termPath ).replace( "{slug}", slug ) : null;
-}
-
-/**
- * The display label for a term in a language, falling back to the raw id so an unlabelled term is still legible.
+ * Resolved through the same helper the archive records are GENERATED with, so this href and that record's `path` are
+ * the same string by construction rather than by two implementations agreeing. They did not agree: the per-facet
+ * `termPath` form was understood only by the generator, and this produced `[object Object]` for every term pill on a
+ * site that used it.
  *
  * @param {Object} term
  * @param {string} lang
- * @returns {string}
+ * @param {Object} site
+ * @param {string} [facet]  Needed only for a per-facet `termPath`; omitting it there yields null rather than a link to
+ *        whichever archive happened to be listed first.
+ * @returns {string|null}
  */
-function termLabel( term, lang ) {
-    if ( !term ) {
-        return "";
-    }
-    return ( term.label && ( term.label[ lang ] || term.label.en ) ) || term.id;
+function archiveHref( term, lang, site, facet ) {
+    const config = archiveConfigFor( site, lang );
+    const pattern = config ? termPathPattern( config.termPath, facet ) : null;
+    return pattern ? termArchivePath( pattern, term, lang, ( site && site.defaultLanguage ) || "en" ) : null;
 }
 
 /**
@@ -207,7 +199,7 @@ function buildPageContext( record, options ) {
     const terms = [];
     for ( const facet of ARCHIVE_FACETS ) {
         const term = ( facet === "world" ) ? worldTerm : formTerm;
-        const href = archiveHref( term, lang, site );
+        const href = archiveHref( term, lang, site, facet );
         if ( term && href ) {
             terms.push( { label: termLabel( term, lang ), href: href } );
         }
@@ -226,7 +218,7 @@ function buildPageContext( record, options ) {
             trail.push( { label: archive.label || "Writings", href: archive.root } );
         }
         // The world archive, when the post has one -- the most specific step before the post itself.
-        const worldHref = archiveHref( worldTerm, lang, site );
+        const worldHref = archiveHref( worldTerm, lang, site, "world" );
         if ( worldTerm && worldHref ) {
             trail.push( { label: termLabel( worldTerm, lang ), href: worldHref } );
         }

@@ -24,8 +24,9 @@ const { buildIndex } = require( "#loader" );
 const ContentRepository = require( "#repository" );
 const Taxonomy = require( "#taxonomy" );
 const { validateRecord } = require( "#schema" );
-const { buildPageContext, adjacentPosts, wordCount, archiveHref } = require( "#context" );
+const { buildPageContext, adjacentPosts, wordCount, archiveHref, ARCHIVE_FACETS } = require( "#context" );
 const { buildArchiveRecords } = require( "#archives" );
+const { termArchivePath, termLabel } = require( "#terms" );
 const { parsePageParam } = require( "#content-routes" );
 
 const ANON = { authenticated: false, roles: [] };
@@ -247,6 +248,81 @@ describe( "generated archive records", () => {
     it( "generates nothing without an archive scheme", () => {
         assert.deepEqual( buildArchiveRecords( taxonomy, { archives: {} } ), [] );
         assert.deepEqual( buildArchiveRecords( null, { archives: SITE.archives } ), [] );
+    } );
+
+} );
+
+/*
+ * One term-resolution helper, consumed by generation and by rendering.
+ *
+ * A generated archive record's `path` IS the URL a reader lands on; a rendered pill's `href` has to be that same
+ * string or the link 404s. Two private copies of "which slug, in which language, falling back to what" is a
+ * broken-link generator with a delay fuse -- and it had already gone off: the per-facet `termPath` form was
+ * understood only by the generator, so rendering emitted `[object Object]` for every pill on a site using it.
+ *
+ * These assert the agreement itself rather than either side's output, which is the only assertion that keeps holding
+ * when the fallback chain is next changed.
+ */
+describe( "term resolution — a generated archive path and a rendered href are the same string", () => {
+
+    // The escape hatch for two vocabularies that share a slug: a namespace per facet rather than one flat one.
+    const FACETED = {
+        defaultLanguage: "en",
+        archives: {
+            en: { root: "/writings/", termPath: { world: "/writings/worlds/{slug}/", form: "/writings/forms/{slug}/" } }
+        }
+    };
+
+    function generatedPaths( site, lang ) {
+        const records = buildArchiveRecords( taxonomy, {
+            archives: site.archives, languages: [ lang ], defaultLanguage: site.defaultLanguage
+        } );
+        return new Map( records.map( ( record ) => [ record.id, record.path ] ) );
+    }
+
+    it( "agrees on every term of every facet in every language, for a shared namespace", () => {
+        for ( const lang of [ "en", "bg" ] ) {
+            const paths = generatedPaths( SITE, lang );
+            for ( const facet of ARCHIVE_FACETS ) {
+                for ( const term of taxonomy.terms( facet ) ) {
+                    const generated = paths.get( "archive-" + lang + "-" + facet + "-" + term.id );
+                    assert.equal( archiveHref( term, lang, SITE, facet ), generated, `${ facet }/${ term.id } (${ lang })` );
+                }
+            }
+        }
+    } );
+
+    it( "agrees when the namespace is per facet — the form only the generator used to understand", () => {
+        const paths = generatedPaths( FACETED, "en" );
+        assert.ok( paths.size, "the faceted fixture must generate something to compare against" );
+        for ( const facet of ARCHIVE_FACETS ) {
+            for ( const term of taxonomy.terms( facet ) ) {
+                const href = archiveHref( term, "en", FACETED, facet );
+                assert.equal( href, paths.get( "archive-en-" + facet + "-" + term.id ), `${ facet }/${ term.id }` );
+                assert.doesNotMatch( String( href ), /\[object/, "a stringified config object is not a URL" );
+            }
+        }
+    } );
+
+    it( "yields no href rather than a link to the wrong archive when the facet is unknown", () => {
+        assert.equal( archiveHref( { id: "x" }, "en", FACETED ), null );
+        assert.equal( archiveHref( { id: "x" }, "en", FACETED, "genre" ), null );
+    } );
+
+    it( "falls back to the default-language slug, then to the raw id, so a term stays reachable", () => {
+        const partial = { id: "untranslated", slug: { en: "untranslated" }, label: { en: "Untranslated" } };
+        assert.equal( termArchivePath( "/writings/{slug}/", partial, "bg", "en" ), "/writings/untranslated/" );
+        assert.equal( termArchivePath( "/writings/{slug}/", { id: "bare" }, "bg", "en" ), "/writings/bare/" );
+        assert.equal( archiveHref( partial, "bg", SITE ), "/bg/writings/untranslated/" );
+    } );
+
+    it( "labels a term the same way on both sides, down to the id fallback", () => {
+        const records = buildArchiveRecords( taxonomy, { archives: SITE.archives, languages: [ "bg" ], defaultLanguage: "en" } );
+        const archive = records.find( ( record ) => record.id === "archive-bg-world-alexander-dark" );
+        const term = taxonomy.resolve( "world", "alexander-dark" );
+        assert.equal( archive.title, termLabel( term, "bg" ) );
+        assert.equal( termLabel( { id: "unlabelled" }, "bg" ), "unlabelled" );
+        assert.equal( termLabel( null, "bg" ), "" );
     } );
 
 } );
