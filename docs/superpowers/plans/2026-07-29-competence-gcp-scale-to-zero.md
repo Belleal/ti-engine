@@ -685,11 +685,14 @@ cat <<EOF
      URI empty for now — deploy.sh prints the exact value to add once the service
      URL exists.
 
-  2. Store its client secret (the value is read from stdin, never echoed):
-       gcloud secrets create competence-google-client-secret \\
+  2. Store its client secret. Read it into a variable first — --data-file=- stores
+     stdin byte for byte, so typing the secret in and pressing Enter would store a
+     trailing newline, which Google rejects as invalid_client on every sign-in:
+       read -rsp 'Paste the client secret, then press Enter: ' SECRET && echo
+       printf %s "\$SECRET" | gcloud secrets create competence-google-client-secret \\
          --data-file=- --replication-policy=user-managed --locations=${REGION} \\
          --project ${PROJECT_ID}
-       # paste the secret, then press Ctrl-D
+       unset SECRET
      Then re-run this script so the runtime account gets read access to it.
 
   3. Deploy:  GOOGLE_CLIENT_ID=<client-id> ADMIN_EMAILS=<your-email> ./deploy.sh
@@ -699,11 +702,8 @@ cat <<EOF
   4. Enable IAP on the service (Console → Cloud Run → competence → Security →
      Require authentication → Identity-Aware Proxy). First-time enablement must
      happen in the Console; it cannot be done from the CLI.
-     NO ORGANIZATION? IAP then needs its OWN OAuth client — the Google-managed one
-     is organization-only. Create a second Web application client (separate from the
-     app's sign-in client in step 1) whose authorised redirect URI is
-     https://iap.googleapis.com/v1/oauth/clientIds/<IAP_CLIENT_ID>:handleRedirect
-     and hand IAP that client's ID and secret. You own and store those credentials.
+     IAP creates its OWN OAuth client (it appears as IAP-<project>-app), including
+     for projects with no organization — do not pre-create one for it.
 
   5. Grant each tester roles/iap.httpsResourceAccessor on the service.
 

@@ -114,4 +114,51 @@ describe( "applyWebConfigEnvOverrides", () => {
         assert.deepEqual( config.auth.admins, [], "an explicitly empty value means no admins, not 'keep the default'" );
     } );
 
+    it( "overrides the static cache maxAge (as Number) and immutable (as bool), creating staticCache if absent", () => {
+        const config = baseConfig();
+        applyWebConfigEnvOverrides( config, { TI_WEB_STATIC_MAX_AGE: "31536000", TI_WEB_STATIC_IMMUTABLE: "true" } );
+        assert.equal( config.staticCache.maxAge, 31536000 );
+        assert.equal( typeof config.staticCache.maxAge, "number" );
+        assert.equal( config.staticCache.immutable, true );
+    } );
+
+    it( "ignores a non-integer or negative TI_WEB_STATIC_MAX_AGE, leaving the configured value", () => {
+        const config = { staticCache: { maxAge: 600 } };
+        applyWebConfigEnvOverrides( config, { TI_WEB_STATIC_MAX_AGE: "1y" } );
+        assert.equal( config.staticCache.maxAge, 600 );
+        applyWebConfigEnvOverrides( config, { TI_WEB_STATIC_MAX_AGE: "-1" } );
+        assert.equal( config.staticCache.maxAge, 600 );
+    } );
+
+    it( "accepts TI_WEB_STATIC_MAX_AGE=0 as an explicit revalidate-every-use", () => {
+        const config = { staticCache: { maxAge: 31536000 } };
+        applyWebConfigEnvOverrides( config, { TI_WEB_STATIC_MAX_AGE: "0" } );
+        assert.equal( config.staticCache.maxAge, 0 );
+    } );
+
+    it( "turns immutable back off via TI_WEB_STATIC_IMMUTABLE=false", () => {
+        const config = { staticCache: { maxAge: 31536000, immutable: true } };
+        applyWebConfigEnvOverrides( config, { TI_WEB_STATIC_IMMUTABLE: "false" } );
+        assert.equal( config.staticCache.immutable, false );
+        assert.equal( config.staticCache.maxAge, 31536000, "other static cache settings are preserved" );
+    } );
+
+    it( "replaces staticCache.immutablePaths from a comma-separated TI_WEB_STATIC_IMMUTABLE_PATHS (trimmed, empties dropped)", () => {
+        const config = { staticCache: { immutablePaths: [ "/fonts/" ] } };
+        applyWebConfigEnvOverrides( config, { TI_WEB_STATIC_IMMUTABLE_PATHS: " /fonts/ , /vendor/ ,, " } );
+        assert.deepEqual( config.staticCache.immutablePaths, [ "/fonts/", "/vendor/" ] );
+    } );
+
+    it( "clears staticCache.immutablePaths when TI_WEB_STATIC_IMMUTABLE_PATHS is set to an empty string", () => {
+        const config = { staticCache: { immutablePaths: [ "/fonts/" ] } };
+        applyWebConfigEnvOverrides( config, { TI_WEB_STATIC_IMMUTABLE_PATHS: "" } );
+        assert.deepEqual( config.staticCache.immutablePaths, [], "an explicitly empty value means no long-lived paths" );
+    } );
+
+    it( "leaves staticCache untouched when no TI_WEB_STATIC_* vars are set", () => {
+        const config = baseConfig();
+        applyWebConfigEnvOverrides( config, {} );
+        assert.equal( config.staticCache, undefined );
+    } );
+
 } );

@@ -76,19 +76,26 @@ installed and already signed in as you. Nothing to install locally.
 
 - [ ] In the Console top bar, click the terminal icon (**Activate Cloud Shell**) and wait for a prompt.
 - [ ] Point it at your project:
+
     ```bash
     gcloud config set project <PROJECT_ID>
     ```
+
 - [ ] Clone the repository and enter the deploy directory:
+
     ```bash
     git clone https://github.com/Belleal/ti-engine.git
     cd ti-engine/packages/competence/deploy/gcp
     ```
+
 - [ ] **Preview first.** This prints every command the script would run and executes none of them:
+
     ```bash
     DRY_RUN=1 ./bootstrap.sh
     ```
+
 - [ ] Run it for real:
+
     ```bash
     ./bootstrap.sh
     ```
@@ -122,20 +129,20 @@ BUDGET_NAME="<your budget's display name>" ./bootstrap.sh   # recognise the exis
 To see what yours is called: `gcloud billing budgets list --billing-account=<account-id>
 --format="table(displayName,amount.specifiedAmount)"`.
 
-## Phase 3 — Create the OAuth client, or two
+## Phase 3 — Create the app's OAuth client
 
 **Where: GCP Console, then Cloud Shell**
 
-**How many clients you need depends on the project:**
+**You create one client here: the app's own sign-in client.** IAP does not need you to make one —
+enabling it directly on a Cloud Run service provisions its own, named `IAP-<project>-app`, and it does
+this **even for a project with no organization** (verified on one).
 
-| | Clients required |
-|---|---|
-| Project **in** a Google Cloud organization | **One** — the app's sign-in client. IAP uses a Google-managed client of its own. |
-| Project **not** in an organization | **Two** — the app's sign-in client, plus a custom client for IAP, because the Google-managed one is organization-only. |
-
-Create both here while you are on the Clients page; phase 7 then only has to hand IAP the credentials.
-The two are deliberately separate: different redirect URIs, different consumers, and one shared secret
-would mean rotating it breaks both.
+> Google's IAP documentation says a *custom* OAuth client is required for "web applications that are
+> in projects that aren't in a Google Cloud organization". That predates the direct-on-Cloud-Run
+> integration and does not match its behaviour. Do not pre-create a client for IAP. If the Console
+> ever does ask you for a client ID and secret, create a **Web application** client, then reopen it and
+> add the redirect URI `https://iap.googleapis.com/v1/oauth/clientIds/<IAP_CLIENT_ID>:handleRedirect`
+> using its own ID — but expect not to need this.
 
 The app's client is the sign-in *the app itself* shows, separate from the IAP gate. You will sign in
 twice when you first open the service, which is normal and usually one click the second time.
@@ -161,35 +168,33 @@ twice when you first open the service, which is normal and usually one click the
     service URL exists.
 - [ ] Copy both values. The **Client ID** ends in `.apps.googleusercontent.com` and is not sensitive.
     The **Client secret** is — do not put it in a file, a chat, or a commit.
-- [ ] **IAP's client — only if the project has no organization.** Create a *second* **Web
-    application** client, named e.g. `competence IAP`. Then reopen it and add this authorised
-    redirect URI, which contains **that client's own ID**, so it can only be filled in after the
-    client exists:
+- [ ] That is the only client to create. **Do not make one for IAP** — phase 7 provisions it.
+- [ ] Store the secret. Read it into a variable first — `read -rs` does not echo it and it never
+    reaches your shell history, and `printf %s` writes it **without a trailing newline**:
 
-    ```text
-    https://iap.googleapis.com/v1/oauth/clientIds/<IAP_CLIENT_ID>:handleRedirect
-    ```
-
-    Keep its ID and secret to hand — phase 7 asks for them. You own these credentials; Google will
-    not manage or rotate them for you, so store the secret wherever you keep such things.
-- [ ] Store the secret. This reads from your keyboard, so nothing lands in shell history:
     ```bash
-    gcloud secrets create competence-google-client-secret \
+    read -rsp 'Paste the client secret, then press Enter: ' SECRET && echo
+    printf %s "$SECRET" | gcloud secrets create competence-google-client-secret \
       --data-file=- --replication-policy=user-managed --locations=europe-west1 \
       --project <PROJECT_ID>
+    unset SECRET
     ```
-    Paste the secret, press **Enter**, then **Ctrl-D**.
+
+    **The trailing newline matters.** `--data-file=-` stores stdin byte for byte, so typing the secret
+    straight into the command and pressing Enter before Ctrl-D would store `<secret>\n` — and Google
+    rejects that with `invalid_client`, which surfaces much later as a `/?error=1000` bounce on sign-in.
+    A Google client secret is 35 bytes (`GOCSPX-` plus 28); if `gcloud secrets versions access latest
+    --secret=competence-google-client-secret | wc -c` says 36, that newline is your problem.
 - [ ] Re-run `./bootstrap.sh` so the runtime service account is granted read access to it. It will
     report what already exists and add only the missing binding.
 
 ### Reusing an OAuth client you already have
 
-This applies to the **app's sign-in client only**. Reusing one does not remove the need for IAP's
-client: if the project has no organization you still have to create that second client, because there
-is no Google-managed one to fall back on. Reuse saves you the first client, never the second.
+This applies to the **app's sign-in client**. IAP is unaffected — it provisions its own client either
+way, so reuse has no bearing on it.
 
-The script never creates either client, so reuse means skipping the app-client bullet above — but
-**not** the secret one. Three things still apply:
+The script never creates the client, so reuse means skipping the create bullet above — but **not** the
+secret one. Three things still apply:
 
 - **Store its secret under the expected name.** `service.yaml` mounts
   `competence-google-client-secret`, so the existing client's secret has to go into Secret Manager
@@ -203,9 +208,8 @@ The script never creates either client, so reuse means skipping the app-client b
   GCP project that is fine — Google validates the client, not the project — but its branding and
   Audience belong to that other project.
 
-Pass the existing client's ID as `GOOGLE_CLIENT_ID` in phase 6. What IAP needs is unchanged by any of
-this: a Google-managed client if the project is in an organization, otherwise the custom client from
-the step above.
+Pass the existing client's ID as `GOOGLE_CLIENT_ID` in phase 6. IAP is untouched by any of this — it
+provisions and manages its own client.
 
 ## Phase 4 — Give GitHub the three variables
 
@@ -246,10 +250,12 @@ That publishes `:<version>` and `:latest` alongside `:edge`, to both registries 
 Tag only a version whose changelog entry is in place — the tag is what the release is named after.
 
 - [ ] Watch the run go green, then confirm the image arrived:
+
     ```bash
     gcloud artifacts docker images list \
       europe-west1-docker.pkg.dev/<PROJECT_ID>/competence --include-tags
     ```
+
     You should see `ti-engine-competence` and the mirrored `redis`. Note the tag you want to deploy.
 
 ## Phase 6 — Deploy the service
@@ -257,14 +263,17 @@ Tag only a version whose changelog entry is in place — the tag is what the rel
 **Where: Cloud Shell**
 
 - [ ] Optional preview:
+
     ```bash
     DRY_RUN=1 GOOGLE_CLIENT_ID=<client-id> ./deploy.sh
     ```
+
 - [ ] Deploy. `ADMIN_EMAILS` is your own Google address — without it the admin configuration screens
     stay unreachable, because the allowlist is empty:
+
     ```bash
     GOOGLE_CLIENT_ID=<client-id> \
-    ADMIN_EMAILS=you@yourdomain.com \
+    ADMIN_EMAILS=<your-google-address> \
     IMAGE_TAG=edge \
     ./deploy.sh
     ```
@@ -289,30 +298,58 @@ origin and the OAuth callback.
 
 - [ ] **Register the redirect URI.** Google Auth Platform → **Clients** → your client → under
     *Authorised redirect URIs*, add the exact value `deploy.sh` printed:
+
     ```text
-    https://competence-<number>.europe-west1.run.app/login/google-callback
+    https://competence-<hash>-<region>.a.run.app/login/google-callback
     ```
+
     Sign-in fails with a redirect-mismatch error until this matches character for character.
+- [ ] **Cloud Run gives the service two URLs, and only one of them is configured.** Check both:
+
+    ```bash
+    gcloud run services describe competence --region europe-west1 --project <PROJECT_ID> \
+      --format="value(status.url, metadata.annotations['run.googleapis.com/urls'])"
+    ```
+
+    You will see a legacy `https://competence-<hash>-<region>.a.run.app` and a newer
+    `https://competence-<project-number>.<region>.run.app`. **Both reach this same service**, but
+    `deploy.sh` configures only `status.url`, so a tester who opens the other one fails both the CSRF
+    origin check and the OAuth callback. Either circulate just the configured URL, or register the
+    callback for both hosts and trust both:
+
+    ```bash
+    gcloud run services update competence --region europe-west1 --project <PROJECT_ID> \
+      --container app \
+      --update-env-vars '^|^TI_WEB_TRUSTED_ORIGINS=https://<url-one>,https://<url-two>'
+    ```
+
+    Note the delimiter is `^|^`, **not** the `^:^` used elsewhere in this guide — these values contain
+    `:` in `https://`, so a colon delimiter would split them. Pick a character the value cannot contain.
 - [ ] **Enable IAP.** Cloud Run → `competence` → **Security** tab → **Require authentication** →
     **Identity-Aware Proxy**. Accept the prompt granting IAP permission to invoke the service.
 
-    **Without an organization it will ask for an OAuth client** — that is the second client you
-    created in phase 3. Give it that client's ID and secret. (If you skipped it: create a **Web
-    application** client now, then reopen it and add the redirect URI
-    `https://iap.googleapis.com/v1/oauth/clientIds/<IAP_CLIENT_ID>:handleRedirect`, using its own
-    ID.) With an organization, IAP uses a Google-managed client and asks for nothing.
-- [ ] **Add your testers** — same Security tab, or the IAP page — each as a principal with the role
-    **IAP-secured Web App User**. The CLI equivalent, one per person:
-    ```bash
-    gcloud run services add-iam-policy-binding competence \
-      --region europe-west1 --project <PROJECT_ID> \
-      --member="user:colleague@yourdomain.com" \
-      --role="roles/iap.httpsResourceAccessor"
-    ```
-    Add yourself too, or you will lock yourself out.
+    **It should not ask you for anything.** IAP creates its own OAuth client, which appears in
+    Google Auth Platform → Clients as `IAP-<project>-app`. This holds for projects with no
+    organization too, despite what the IAP docs imply. If it *does* ask, see the note in phase 3.
+- [ ] **Add your testers — on the IAP page, not the Security tab.** The Cloud Run Security tab only
+    *enables* IAP; access is a policy on a separate IAP resource
+    (`projects/<number>/iap_web/cloud_run-<region>/services/competence`), so the grant lives elsewhere:
+
+    1. Open **Security → Identity-Aware Proxy** ([console.cloud.google.com/security/iap](https://console.cloud.google.com/security/iap)).
+    2. Tick the `competence` Cloud Run service.
+    3. In the **info panel on the right**, add the person's email as a principal.
+    4. Give them the role **IAP-secured Web App User** (`roles/iap.httpsResourceAccessor`) and click
+       **Add**.
+
+    Add yourself too, or you will lock yourself out. For the CLI equivalent, check
+    `gcloud iap web add-iam-policy-binding --help` for the resource-type flags your gcloud version
+    accepts — and note that granting this role with `gcloud run services add-iam-policy-binding`
+    puts it on the *Cloud Run* resource, which is not where IAP reads its policy, so it would appear
+    to succeed while changing nothing.
 - [ ] Re-run the deploy so its final IAP assertion passes and the script finishes clean.
 - [ ] **Prove the gate is on** before sharing anything. The first command must show
     `iap-enabled: 'true'`; the second must **not** list `allUsers`:
+
     ```bash
     gcloud run services describe competence --region europe-west1 \
       --project <PROJECT_ID> --format='yaml(metadata.annotations)'
@@ -326,17 +363,30 @@ origin and the OAuth callback.
 **Where: Cloud Shell, then a browser**
 
 - [ ] Turn the seed on:
+
     ```bash
     gcloud run services update competence --region europe-west1 \
       --project <PROJECT_ID> --update-env-vars COMPETENCE_PRELOAD_DATA=true
     ```
+
 - [ ] Open the service URL. Expect **5–15 seconds** for the first load — that is the cold start, and
     it recurs after each idle period. Sign in with Google (IAP), then again on the app's own login
     screen.
 - [ ] On the login screen pick an identity from the **Test user** panel — `#22` holds all three roles
     and is the best starting point — and confirm the dashboard renders with demo data.
+
+    **This is how every tester chooses who they are.** The app does not yet map a Google identity to
+    an employee record, so signing in tells it *that* you are authenticated, not *who* you are: without
+    a pick it falls back to employee `20` for everyone. The choice is stored in a cookie in each
+    person's own browser, so testers do not collide — each picks independently. Retiring this in favour
+    of real identity mapping is tracked as CA-95.
+- [ ] Need an employee who is not in the seeded org chart? The app has its own **Employee Management**
+    screen (visible to a Manager or Supervisor — pick `#22`), which creates and edits employee records.
+    Note that adding a record still does not give that person a login of their own; it adds an identity
+    that testers can select in the panel above.
 - [ ] **Turn the seed back off.** While it stays on, the seed is re-applied on every boot and will
     resurrect records a tester deleted:
+
     ```bash
     gcloud run services update competence --region europe-west1 \
       --project <PROJECT_ID> --update-env-vars COMPETENCE_PRELOAD_DATA=false
@@ -354,6 +404,7 @@ not trust the environment with anything a tester would be annoyed to lose.
 - [ ] Leave it alone for **~20 minutes** so Cloud Run shuts the instance down. Do not reload.
 - [ ] Reload, sign in, and confirm what you created is still there.
 - [ ] Confirm the snapshot was written — the timestamp must be **later** than your change:
+
     ```bash
     gcloud storage ls -l gs://<PROJECT_ID>-competence-redis/dump.rdb
     ```
@@ -383,7 +434,7 @@ Re-run the deploy to pick it up:
 ```bash
 cd ~/ti-engine && git pull
 cd packages/competence/deploy/gcp
-GOOGLE_CLIENT_ID=<client-id> ADMIN_EMAILS=you@yourdomain.com IMAGE_TAG=edge ./deploy.sh
+GOOGLE_CLIENT_ID=<client-id> ADMIN_EMAILS=<your-google-address> IMAGE_TAG=edge ./deploy.sh
 ```
 
 Redeploy while the service is **idle**. A deploy briefly creates two revisions, and if someone is
@@ -427,9 +478,10 @@ service, the bucket, the Artifact Registry repository and the three secrets.
 | `deploy.sh`: unsubstituted placeholders remain | A guard doing its job; the manifest and script disagree. Re-clone rather than hand-editing. |
 | `deploy.sh`: the final `--iap` step fails | Expected on a first deploy. Enable IAP in the Console, then re-run (phase 7). |
 | Sign-in: `redirect_uri_mismatch` | The callback is not registered on the OAuth client, or does not match exactly (phase 7). |
+| Sign-in bounces back to `/?error=1000` | `1000` is `E_GEN_JS_INTERNAL_ERROR`, the framework's wrapper around any raw JS error — it identifies nothing on its own. The real error **is** logged, but at `DEBUG` (100), which this deployment's `TI_AUDITING_LOG_MIN_LEVEL=300` filters out. Lower it, reproduce, read, put it back — see below. The usual cause is a client secret that belongs to a different OAuth client than `TI_GCLOUD_AUTH_CLIENT_ID`. |
 | "No sign-in method is configured" | The client ID never reached the service. Re-run `deploy.sh` with `GOOGLE_CLIENT_ID` set. |
 | A Google error before the app appears at all | IAP refusing you. Your account needs *IAP-secured Web App User* (phase 7). |
-| IAP setup asks for an OAuth client ID and secret | Expected in a project with no organization — the Google-managed client is organization-only. Create IAP its own client (phase 7). |
+| IAP setup asks for an OAuth client ID and secret | Not expected — IAP normally creates its own `IAP-<project>-app` client, including without an organization. If it asks, see the note in phase 3. |
 | Sign-in blocked with "access blocked" or an app-not-verified screen | An External consent screen still in *Testing* with your account not listed under *Test users*, or a client whose type is not *Web application* (phase 3). |
 | Admin screens missing for you | `ADMIN_EMAILS` was empty or a different address. Re-run `deploy.sh` with it set. |
 | First page load takes ages | Cold start, 5–15 seconds, by design — the service was scaled to zero and cost nothing while idle. |
@@ -438,6 +490,26 @@ service, the bucket, the Artifact Registry repository and the three secrets.
 **Where to look:** Cloud Run → `competence` → **Logs** shows both containers. A healthy boot shows
 Redis connecting, then `Web server started at address 'http://0.0.0.0:8080'`, then
 `Instance '…' started successfully`.
+
+**Seeing why a request failed.** Request exceptions are logged at `DEBUG` (severity 100), and this
+deployment runs at `TI_AUDITING_LOG_MIN_LEVEL=300` to keep log volume down — so the detail behind a
+`/?error=<code>` bounce is filtered out by default. Turn it on, reproduce, read, turn it back:
+
+```bash
+gcloud run services update competence --region europe-west1 --project <PROJECT_ID> \
+  --container app --update-env-vars TI_AUDITING_LOG_MIN_LEVEL=0
+
+# reproduce the failure in the browser, then:
+gcloud logging read \
+  'resource.type="cloud_run_revision" AND resource.labels.service_name="competence"' \
+  --project <PROJECT_ID> --limit 50 --freshness=10m --format='value(textPayload)'
+
+gcloud run services update competence --region europe-west1 --project <PROJECT_ID> \
+  --container app --update-env-vars TI_AUDITING_LOG_MIN_LEVEL=300
+```
+
+Each of those updates creates a new revision and so a cold start; the log level is not worth leaving
+at `0`, because DEBUG is where the per-request chatter lives.
 
 ---
 

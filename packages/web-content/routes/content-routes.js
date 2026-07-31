@@ -20,9 +20,11 @@
  * served to an anonymous visitor is the single most likely way gated content leaks (CLAUDE.md 9).
  */
 
-const { composeHead } = require( "#document" );
-const { html, raw } = require( "#html" );
-const markdown = require( "#markdown" );
+const { renderDocument } = require( "#page" );
+const { buildPageContext } = require( "#context" );
+
+// Matches the framework's own admin role name.
+const ADMIN_ROLE = "admin";
 
 const PUBLIC_CACHE_CONTROL = "public, max-age=0, s-maxage=600, stale-while-revalidate=86400";
 const PRIVATE_CACHE_CONTROL = "private, no-store";
@@ -34,7 +36,11 @@ const PRIVATE_CACHE_CONTROL = "private, no-store";
  * @returns {Object<string, string>}
  */
 function cacheHeadersFor( record ) {
-    if ( record && record.visibility === "public" ) {
+    // A draft is never edge-cacheable, however public its `visibility` says it is. Without this a previewed
+    // draft with `visibility: public` would be handed to the CDN and served to anyone -- which is exactly how
+    // an unfinished page reaches the world.
+    const published = !!record && record.status === "published";
+    if ( published && record.visibility === "public" ) {
         return { "Cache-Control": PUBLIC_CACHE_CONTROL };
     }
     return { "Cache-Control": PRIVATE_CACHE_CONTROL, "Vary": "Cookie" };
@@ -51,54 +57,35 @@ function viewerFromRequest( request ) {
     if ( !user ) {
         return { authenticated: false, roles: [] };
     }
-    return { authenticated: true, roles: Array.isArray( user.roles ) ? user.roles : [] };
+    const roles = Array.isArray( user.roles ) ? user.roles : [];
+    // Preview is a capability the application grants, not something the repository works out. An administrator
+    // may open an unpublished record by its path; nobody else can, and it appears in no listing regardless.
+    return { authenticated: true, roles: roles, preview: roles.indexOf( ADMIN_ROLE ) !== -1 };
 }
 
 /**
- * The body of a fully-visible record, for the fallback page only.
+ * Reads the `?page=N` parameter. Anything that is not a positive integer is page one -- a listing must not be
+ * blanked by a malformed or hostile value, and pagination is by query parameter precisely so no index entry is
+ * needed per page.
  *
- * Markdown goes through the markdown renderer, which is configured `html: false` (so raw HTML in authored markdown is
- * escaped) and is a sanctioned `raw()` source. `bodyFormat: "html"` is deliberately NOT rendered here: that path is
- * legacy imported content whose safety rests on being sanitised once at import, and the importer (`capture/`) does not
- * exist yet — emitting it now would put unsanitised markup on the page. Such a record renders as its title alone until
- * either the importer or the editorial templates land.
- *
- * @param {Object} record
- * @returns {import("../render/html.js").SafeString}
+ * @param {*} value
+ * @returns {number}
  */
-function renderBody( record ) {
-    if ( !record.body || record.bodyFormat === "html" ) {
-        return raw( "" );
-    }
-    return markdown.render( record.body );
-}
-
-/**
- * A minimal fallback document -- enough to serve and verify a resolved record before the editorial templates land
- * (P5). The real templates are injected via `options.renderPage`.
- *
- * @param {Object} record
- * @param {Object} context
- * @returns {string}
- */
-function renderFallbackPage( record, context ) {
-    const head = composeHead( record, { baseUrl: context.baseUrl, mode: context.mode, counterpart: context.counterpart } );
-    const body = ( context.mode === "teaser" )
-        ? html`<article><h1>${ record.title }</h1><p>${ record.teaser || "" }</p><p><a href="/login/local">Sign in to read</a></p></article>`
-        : html`<article><h1>${ record.title }</h1>${ renderBody( record ) }</article>`;
-    return `<!DOCTYPE html>\n<html lang="${ record.lang || "en" }">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n${ head.toString() }\n</head>\n<body>\n${ body.toString() }\n</body>\n</html>\n`;
+function parsePageParam( value ) {
+    const page = Number.parseInt( value, 10 );
+    return ( Number.isInteger( page ) && page > 0 && page <= 10000 ) ? page : 1;
 }
 
 /**
  * Builds the catch-all Express handler that resolves a request path against the content index.
  *
  * @param {import("../content/repository.js")} repository
- * @param {{ baseUrl?: string, renderPage?: function(Object, Object): (string|Object) }} [options]
+ * @param {{ baseUrl?: string, renderPage?: function(Object, Object): (string|Object), site?: Object, labels?: Object, assets?: Object }} [options]
  * @returns {function(Object, Object, Function): void}
  */
 function contentHandler( repository, options ) {
     const opts = options || {};
-    const renderPage = ( typeof opts.renderPage === "function" ) ? opts.renderPage : renderFallbackPage;
+    const renderPage = ( typeof opts.renderPage === "function" ) ? opts.renderPage : renderDocument;
 
     return function ( request, response, next ) {
         const viewer = viewerFromRequest( request );
@@ -116,6 +103,7 @@ function contentHandler( repository, options ) {
 
         const record = result.record;
         const mode = ( result.outcome === "gated" ) ? "teaser" : "full";
+        const preview = result.preview === true;
         const counterpart = record.translationOf ? repository.getById( record.translationOf, viewer ) : null;
         const context = {
             mode: mode,
@@ -124,21 +112,55 @@ function contentHandler( repository, options ) {
             baseUrl: opts.baseUrl || "",
             lang: record.lang,
             counterpart: counterpart ? counterpart.record : null,
-            nonce: response.locals ? response.locals.nonce : undefined
+            nonce: response.locals ? response.locals.nonce : undefined,
+            csrfToken: request.session ? request.session.csrfToken : undefined,
+            path: request.path,
+            // Set by the capture endpoint's POST-Redirect-GET, so the outcome survives without JavaScript.
+            captureStatus: ( request.query || {} ).capture,
+            page: parsePageParam( ( request.query || {} ).page ),
+            site: opts.site,
+            labels: opts.labels,
+            assets: opts.assets,
+            taxonomy: opts.taxonomy,
+            // Which sign-in methods exist is site configuration, not viewer state -- safe to render into a
+            // shared-cached page, unlike anything about WHO is asking.
+            auth: opts.auth,
+            preview: preview
         };
 
-        const headers = cacheHeadersFor( record );
+        // Everything the templates need beyond the record itself: eyebrow, meta, terms, breadcrumb, prev/next.
+        // Built for THIS viewer, so adjacent-post links can never point at a record the repository would withhold.
+        Object.assign( context, buildPageContext( record, {
+            repository: repository,
+            taxonomy: opts.taxonomy,
+            site: opts.site,
+            labels: opts.labels,
+            viewer: viewer
+        } ) );
+
+        // Render BEFORE the headers are chosen. Whether a page is shareable is not knowable from the record alone:
+        // a section may embed the session's CSRF token, and a response carrying one is per-session however public
+        // the record is. Rendering first lets the renderer say so.
+        let perSession = false;
+        context.markPerSession = function () {
+            perSession = true;
+        };
+        const body = String( renderPage( record, context ) );
+
+        const headers = perSession
+            ? { "Cache-Control": PRIVATE_CACHE_CONTROL, "Vary": "Cookie" }
+            : cacheHeadersFor( record );
         for ( const name of Object.keys( headers ) ) {
             response.set( name, headers[ name ] );
         }
 
-        response.status( 200 ).type( "html" ).send( String( renderPage( record, context ) ) );
+        response.status( 200 ).type( "html" ).send( body );
     };
 }
 
 module.exports = {
     cacheHeadersFor: cacheHeadersFor,
     viewerFromRequest: viewerFromRequest,
-    renderFallbackPage: renderFallbackPage,
+    parsePageParam: parsePageParam,
     contentHandler: contentHandler
 };

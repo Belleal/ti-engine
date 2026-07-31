@@ -18,16 +18,28 @@
  *     }
  *
  *     defineWebApplicationRoutes() {
+ *         mountHomeRoute( this, contentOptions );        // before super: "/" is a content record
  *         super.defineWebApplicationRoutes();
- *         mountContentRoutes( this, { repository, baseUrl } );
+ *         mountContentRoutes( this, contentOptions );    // after super: framework routes keep priority
  *     }
  *
  * Route-level access is NOT the content gate. It merely opens the door to the resolver; the repository applies
  * per-record visibility. Two independent layers, and the content one is authoritative.
  */
 
+const fs = require( "node:fs" );
+const path = require( "node:path" );
 const feeds = require( "#feeds" );
-const { contentHandler } = require( "#content-routes" );
+const { contentHandler, viewerFromRequest } = require( "#content-routes" );
+const { renderStateDocument } = require( "#page" );
+const { mountMediaRoutes } = require( "#media" );
+const logger = require( "@ti-engine/core/logger" );
+
+// The site behaviour script ships with the package. It is read once at mount rather than per request, and served
+// under /static/ so it sits alongside the theme's own assets. The framework's express.static for /static runs first,
+// so a consumer that drops its own file at this path overrides the packaged one.
+const SITE_SCRIPT_PATH = "/static/web-content.js";
+const SITE_SCRIPT_FILE = path.join( __dirname, "..", "static", "web-content.js" );
 
 // Public-by-default: everything except the admin area bypasses the framework's authentication gate.
 // The lookahead must accept BOTH `/admin/...` and the bare `/admin` — matching only `admin/` would leave
@@ -47,12 +59,177 @@ function defineContentUnprotectedRoutes( server, options ) {
 }
 
 /**
+ * Builds the options the content handler needs from the mount options.
+ *
+ * @param {Object} opts
+ * @returns {Object}
+ */
+function handlerOptions( opts ) {
+    return {
+        baseUrl: opts.baseUrl || "",
+        renderPage: opts.renderPage,
+        site: opts.site,
+        labels: opts.labels,
+        assets: opts.assets,
+        taxonomy: opts.taxonomy,
+        auth: opts.auth
+    };
+}
+
+/**
+ * The terminal 404 for a content site.
+ *
+ * Without this, an unknown URL reaches the framework's `invalidRouteHandler`, which redirects to `/not-found` — and
+ * that page answers **200**. For an authenticated app behind a login that is harmless; for a public site it is a
+ * SOFT 404: a crawler records a successful response for a URL that does not exist, which pollutes the index and
+ * hides broken links from every report that would otherwise surface them.
+ *
+ * Registered for GET only, deliberately. The framework mounts its service-proxy route (`POST /service/:version/:name`)
+ * *after* `defineWebApplicationRoutes()` returns, so a catch-all covering every method would shadow it.
+ *
+ * The copy must not distinguish hidden, unpublished and unknown — the resolver falls through identically for all
+ * three, and saying which one it was would leak exactly what deny-by-default exists to hide.
+ *
+ * @param {Object} context  The render context (site, labels, assets…).
+ * @param {Object} [config]  Optional copy overrides: { title, body, mark, actions }.
+ * @returns {function(Object, Object): void}
+ */
+function notFoundHandler( context, config ) {
+    const copy = ( config && typeof config === "object" ) ? config : {};
+    return function ( request, response ) {
+        const labels = context.labels || {};
+        const state = {
+            mark: copy.mark || "◆",
+            title: copy.title || labels.notFoundTitle || "Not found",
+            body: copy.body || labels.notFoundBody || "",
+            actions: copy.actions || [ { href: "/", label: labels.notFoundAction || "Back to the beginning" } ]
+        };
+        const ctx = Object.assign( {}, context, {
+            nonce: response.locals ? response.locals.nonce : undefined,
+            path: request.path
+        } );
+        response.set( "Cache-Control", "private, no-store" );
+        response.status( 404 ).type( "html" ).send( String( renderStateDocument( state, ctx ) ) );
+    };
+}
+
+// An origin no real deployment can hold, used only to resolve a candidate target against.
+const PROBE_ORIGIN = "https://ti-engine.invalid";
+
+/**
+ * Whether a redirect target stays on this site.
+ *
+ * Decided by RESOLVING the target and checking the origin did not move, rather than by pattern-matching for the
+ * shapes that escape. Enumerating those is a losing game: the obvious `//host` was covered, but `/\host` was not --
+ * browsers fold a backslash into a slash while a `indexOf( "//" )` test does not, so `/\evil.example` reads as
+ * site-relative here and resolves to `https://evil.example/` in the address bar. Percent-encoded and mixed variants
+ * behave the same way. Handing the question to the URL parser answers all of them at once, and keeps answering them
+ * when a new one is discovered.
+ *
+ * @param {string} to
+ * @returns {boolean}
+ */
+function isSiteRelative( to ) {
+    if ( typeof to !== "string" || to.indexOf( "/" ) !== 0 ) {
+        return false;
+    }
+    try {
+        return new URL( to, PROBE_ORIGIN ).origin === PROBE_ORIGIN;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Registers the configured redirects.
+ *
+ * An ALIAS points at a record's own path, which is what lets the visibility gate apply to it -- the target is a
+ * record, so it can be checked. That is deliberately narrow, and it cannot express three things a migration needs:
+ * a target carrying a query string, a target that is a route rather than a record (`/rss.xml`), or any destination
+ * outside the content index.
+ *
+ * This is the escape hatch for exactly those, kept separate so `alias` keeps its meaning instead of decaying into a
+ * general redirect table. Targets must be site-relative: an absolute one would make this an open redirect, which is
+ * the primitive a phishing link wants.
+ *
+ * @param {Object} server
+ * @param {Array<{ from: string, to: string, status?: number }>} redirects
+ * @returns {Object} The server, for chaining.
+ */
+function mountRedirects( server, redirects ) {
+    for ( const rule of ( Array.isArray( redirects ) ? redirects : [] ) ) {
+        if ( !rule || typeof rule.from !== "string" || typeof rule.to !== "string" ) {
+            continue;
+        }
+        const from = rule.from;
+        const to = rule.to;
+        if ( from.indexOf( "/" ) !== 0 || isSiteRelative( to ) === false ) {
+            logger.log( `Ignored redirect '${ from }' -> '${ to }': both must be rooted, site-relative paths.`, logger.logSeverity.ERROR );
+            continue;
+        }
+        const status = ( rule.status === 302 || rule.status === 307 || rule.status === 308 ) ? rule.status : 301;
+        server.registerRoute( "get", from, ( request, response ) => {
+            response.redirect( status, to );
+        } );
+    }
+    return server;
+}
+
+/**
+ * Claims `/` for the content resolver.
+ *
+ * MUST be called BEFORE `super.defineWebApplicationRoutes()`. The framework binds `/` to its own SPA-shell handler,
+ * and Express matches in registration order — so on a content site, where the home page is an ordinary record, the
+ * shell would otherwise win and the home record would be unreachable. Registering first is safe in both directions:
+ * the resolver calls `next()` when no record owns `/`, so a site without a home record still gets the framework's
+ * handler.
+ *
+ * @param {Object} server  A TiWebServer instance (>= 1.17.0).
+ * @param {Object} options  Same shape as {@link mountContentRoutes}.
+ * @returns {Object} The server, for chaining.
+ */
+function mountHomeRoute( server, options ) {
+    const opts = options || {};
+    return server.registerRoute( "get", "/", contentHandler( opts.repository, handlerOptions( opts ) ) );
+}
+
+/**
  * Mounts the feed routes and, LAST, the catch-all content resolver.
  *
  * @param {Object} server  A TiWebServer instance (>= 1.17.0).
- * @param {{ repository: Object, baseUrl?: string, renderPage?: Function, feed?: Object, allowIndexing?: boolean }} options
+ * @param {{ repository: Object, baseUrl?: string, renderPage?: Function, feed?: Object, allowIndexing?: boolean,
+ *           site?: Object, labels?: Object, assets?: Object, taxonomy?: Object, serveSiteScript?: boolean,
+ *           notFound?: (Object|false), media?: { root: string, prefixes: string[], maxAge?: string },
+ *           redirects?: Array<{ from: string, to: string, status?: number }> }} options
  * @returns {Object} The server, for chaining.
  */
+/**
+ * `GET /session` -- who the current viewer is, for the topbar account menu.
+ *
+ * This exists so that NOTHING ELSE has to vary by viewer. Every page can then be rendered identically for everyone
+ * and left shared-cacheable, with this one small response carrying the only per-viewer fact. It is therefore the one
+ * response that must never be stored: `no-store` plus `Vary: Cookie`, or a CDN would answer it for the wrong person.
+ *
+ * Deliberately minimal. It reports whether you are signed in, the name to greet you by, and whether you hold the
+ * preview capability -- not the role list, and nothing about what exists that you cannot see.
+ *
+ * @param {Object} server
+ * @returns {Object} The server, for chaining.
+ */
+function mountSessionRoute( server ) {
+    return server.registerRoute( "get", "/session", ( request, response ) => {
+        const viewer = viewerFromRequest( request );
+        const user = ( request && request.session ) ? request.session.user : null;
+        response.set( "Cache-Control", "private, no-store" );
+        response.set( "Vary", "Cookie" );
+        response.json( {
+            authenticated: viewer.authenticated === true,
+            name: ( user && ( user.username || user.email || user.userID ) ) || null,
+            preview: viewer.preview === true
+        } );
+    } );
+}
+
 function mountContentRoutes( server, options ) {
     const opts = options || {};
     const repository = opts.repository;
@@ -79,15 +256,44 @@ function mountContentRoutes( server, options ) {
         response.type( "text/plain" ).send( feeds.renderRobots( { baseUrl: baseUrl, allowIndexing: opts.allowIndexing } ) );
     } );
 
+    if ( opts.serveSiteScript !== false ) {
+        const script = fs.readFileSync( SITE_SCRIPT_FILE, "utf8" );
+        server.registerRoute( "get", SITE_SCRIPT_PATH, ( request, response ) => {
+            // NOT `immutable`. This URL is stable across releases, so `immutable` would promise something untrue --
+            // and browsers keep that promise through a manual reload, so a shipped fix would never reach anyone who
+            // had already loaded the old script. Express attaches an ETag to send(), making revalidation a 304.
+            response.set( "Cache-Control", "public, max-age=0, must-revalidate" );
+            response.type( "application/javascript" ).send( script );
+        } );
+    }
+
+    mountSessionRoute( server );
+
+    // Both of these must precede the content catch-all, or it claims the paths first.
+    mountRedirects( server, opts.redirects );
+
+    // Legacy media keeps its original URLs, so these must be reachable before the content catch-all claims them.
+    if ( opts.media ) {
+        mountMediaRoutes( server, opts.media );
+    }
+
     // Registered last: every other content URL resolves through the path index. Still ahead of the framework's own
     // `*splat` 404 handler, which is installed after defineWebApplicationRoutes() returns.
-    server.registerRoute( "get", /.*/, contentHandler( repository, { baseUrl: baseUrl, renderPage: opts.renderPage } ) );
+    server.registerRoute( "get", /.*/, contentHandler( repository, handlerOptions( opts ) ) );
+
+    if ( opts.notFound !== false ) {
+        server.registerRoute( "get", "*splat", notFoundHandler( handlerOptions( opts ), opts.notFound ) );
+    }
 
     return server;
 }
 
 module.exports = {
     mountContentRoutes: mountContentRoutes,
+    notFoundHandler: notFoundHandler,
+    mountHomeRoute: mountHomeRoute,
+    mountRedirects: mountRedirects,
+    mountSessionRoute: mountSessionRoute,
     defineContentUnprotectedRoutes: defineContentUnprotectedRoutes,
     PUBLIC_EXCEPT_ADMIN: PUBLIC_EXCEPT_ADMIN
 };

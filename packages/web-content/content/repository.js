@@ -19,7 +19,16 @@
  *               in no surface; a direct path 404s. Enforced here as defense-in-depth even though schema + loader
  *               already exclude a no-visibility record.
  *
- * Drafts (`status !== "published"`) are excluded from every public surface; editorial preview is deferred.
+ * Drafts (`status !== "published"`) are excluded from every LISTING surface without exception -- no draft ever
+ * appears in a listing, an archive, a feed, the sitemap, a curated list, or prev/next. A viewer granted the
+ * `preview` capability may open one BY ITS PATH, and only that.
+ *
+ * Keeping drafts out of listings is not timidity: a listing is the surface most likely to be rendered once and
+ * cached, and a draft leaking through a cached listing would be invisible until someone saw it in the wild. Direct
+ * path access is the one surface where the request is unambiguously "show me this record".
+ *
+ * The repository does NOT decide who may preview -- it honours a capability the caller grants, exactly as it honours
+ * the roles the caller supplies. Deciding who is an administrator belongs to the application, not here.
  */
 
 // The reserved role name that encodes deny-all (Site/docs/content-schemas.md §1 uses `role:__none__`).
@@ -35,12 +44,17 @@ const EMPTY_INDEX = { byId: new Map(), byPath: new Map(), byAlias: new Map(), by
 class ContentRepository {
 
     #index;
+    #taxonomy;
 
     /**
      * @param {import("./loader.js").ContentIndex} index  The index built by the loader; defaults to empty.
+     * @param {{ taxonomy?: Object }} [options]  `taxonomy` lets a facet criterion expand to a term's children, so
+     *        querying a parent term matches records tagged with any of its descendants. Without it a facet matches
+     *        only itself, which makes a parent-term archive silently under-report rather than fail.
      */
-    constructor( index ) {
+    constructor( index, options ) {
         this.#index = index || EMPTY_INDEX;
+        this.#taxonomy = ( options && options.taxonomy ) || null;
     }
 
     /* Public interface */
@@ -50,17 +64,28 @@ class ContentRepository {
      *
      * @param {string} path
      * @param {Viewer} [viewer]
-     * @returns {{ outcome: string, record?: Object, redirectTo?: string }} outcome is
+     * @returns {{ outcome: string, record?: Object, redirectTo?: string, preview?: boolean }} outcome is
      *          "visible" | "gated" (a hit, with `record`), "alias" (with `redirectTo`), or "miss".
+     *          `preview: true` marks a hit on an UNPUBLISHED record, opened because the viewer holds the preview
+     *          capability. The caller MUST honour it: such a response has to be `no-store` and `noindex`, or a
+     *          draft reaches a CDN or a search index and outlives the preview.
      */
     resolve( path, viewer ) {
         const record = this.#index.byPath.get( path );
         if ( record ) {
-            if ( ContentRepository.#isPublished( record ) === false ) {
+            const draft = ContentRepository.#isPublished( record ) === false;
+            if ( draft && ContentRepository.canPreview( viewer ) === false ) {
                 return { outcome: "miss" };
             }
             const verdict = ContentRepository.resolveVisibility( record, viewer );
-            return verdict === "hidden" ? { outcome: "miss" } : { outcome: verdict, record: record };
+            if ( verdict === "hidden" ) {
+                return { outcome: "miss" };
+            }
+            // `preview` travels with the result so the caller can mark the response noindex and refuse to let it
+            // be cached. A draft served with public cache headers is the one way a preview reaches the public.
+            return draft
+                ? { outcome: verdict, record: record, preview: true }
+                : { outcome: verdict, record: record };
         }
         // An alias must clear the same gate as a direct hit. Redirecting to an unpublished or hidden record would
         // confirm it exists and disclose its canonical path -- the leak this class exists to prevent. A *gated*
@@ -89,11 +114,17 @@ class ContentRepository {
         } else {
             records = this.#index.all.slice();
         }
+        // Facet criteria expand through the taxonomy, so querying a parent term matches records tagged with any of
+        // its children. Done HERE rather than at each call site: this is the one place every surface passes through,
+        // and an archive that silently under-reports is exactly the kind of failure nobody notices.
+        const worlds = c.world ? this.#expandTerm( "world", c.world ) : null;
+        const forms = c.form ? this.#expandTerm( "form", c.form ) : null;
+
         records = records.filter( ( record ) => {
-            if ( c.world && record.world !== c.world ) {
+            if ( worlds && worlds.has( record.world ) === false ) {
                 return false;
             }
-            if ( c.form && record.form !== c.form ) {
+            if ( forms && forms.has( record.form ) === false ) {
                 return false;
             }
             if ( c.lang && record.lang !== c.lang ) {
@@ -164,7 +195,40 @@ class ContentRepository {
         return items;
     }
 
+    /**
+     * The set of term ids a facet criterion should match: the term itself plus its children when a taxonomy is
+     * available, or just the term when it is not. An unknown term still matches itself, so a record tagged with a
+     * term absent from the vocabulary stays findable rather than disappearing.
+     *
+     * @method
+     * @param {string} facet
+     * @param {string} id
+     * @returns {Set<string>}
+     * @private
+     */
+    #expandTerm( facet, id ) {
+        if ( !this.#taxonomy || typeof this.#taxonomy.expand !== "function" ) {
+            return new Set( [ id ] );
+        }
+        const expanded = this.#taxonomy.expand( facet, id );
+        return new Set( ( expanded && expanded.length ) ? expanded : [ id ] );
+    }
+
     /* Static interface */
+
+    /**
+     * Whether this viewer may open an unpublished record by its path. A capability the application grants; the
+     * repository never works out who deserves it.
+     *
+     * @method
+     * @static
+     * @param {Viewer} [viewer]
+     * @returns {boolean}
+     * @public
+     */
+    static canPreview( viewer ) {
+        return !!( viewer && viewer.preview === true );
+    }
 
     /**
      * Resolves a record's visibility for a viewer based solely on the `visibility` field: "visible" | "gated" |

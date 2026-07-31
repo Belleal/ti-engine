@@ -62,6 +62,11 @@ function shouldNoindex( record, mode ) {
     if ( record && record.seo && record.seo.noindex === true ) {
         return true;
     }
+    // An unpublished record is never indexable, whatever its visibility or render mode. A draft that reached the
+    // index would outlive the draft itself.
+    if ( record && record.status && record.status !== "published" ) {
+        return true;
+    }
     if ( mode === "teaser" ) {
         return false;
     }
@@ -119,7 +124,11 @@ function jsonLd( record, context ) {
  * the html`` template; the JSON-LD `<` characters are neutralised so a title cannot break out of the script tag.
  *
  * @param {Object} record
- * @param {{ baseUrl?: string, mode?: string, counterpart?: Object, author?: string }} [context]
+ * The JSON-LD block carries the nonce when one is available. It is a data block rather than executable script, but
+ * whether a strict CSP treats it that way is implementation-dependent, and a structured-data block silently dropped
+ * by CSP is exactly the kind of failure nobody notices -- the page looks fine and the rich result quietly stops.
+ *
+ * @param {{ baseUrl?: string, mode?: string, counterpart?: Object, author?: string, nonce?: string }} [context]
  * @returns {import("./html.js").SafeString}
  */
 function composeHead( record, context ) {
@@ -142,7 +151,7 @@ ${ alternates.map( ( alternate ) => html`<link rel="alternate" hreflang="${ alte
 <meta property="og:url" content="${ canonical }">
 ${ description ? html`<meta property="og:description" content="${ description }">` : raw( "" ) }
 <meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">${ raw( ldJson ) }</script>`;
+<script type="application/ld+json"${ ctx.nonce ? html` nonce="${ ctx.nonce }"` : raw( "" ) }>${ raw( ldJson ) }</script>`;
 }
 
 module.exports = {

@@ -35,11 +35,13 @@ const CONTENT_TYPES = [ "post", "page", "book", "release" ];
 const VISIBILITY_PATTERN = "^(public|authenticated|role:[a-z0-9_-]+)$";
 
 /**
- * Section types a `page` may compose (Site/docs/content-schemas.md §3).
+ * Section types a `page` may compose (Site/docs/content-schemas.md §3, extended by
+ * Site/docs/markup-contract.md). `dictionary` is a lexicon rendered as a section on a `page`, not a fifth content
+ * type -- CONTENT_TYPES is deliberately unchanged.
  *
  * @type {string[]}
  */
-const SECTION_TYPES = [ "hero", "prose", "verse", "characterCards", "audio", "languageExample", "agePanels", "timeStrip", "timeline", "gallery", "capture", "featured", "postList", "closing" ];
+const SECTION_TYPES = [ "hero", "prose", "verse", "characterCards", "audio", "languageExample", "agePanels", "timeStrip", "timeline", "gallery", "capture", "featured", "postList", "closing", "dictionary" ];
 
 const RELEASE_STATES = [ "announced", "prerelease", "released" ];
 
@@ -84,7 +86,10 @@ const typeExtensions = {
             teaser: { type: [ "string", "null" ] },
             sections: { type: "array" }
         },
-        required: [ "world", "form" ]
+        // `form` is required -- everything written has a form. `world` is NOT: a blog entry about an
+        // award belongs to no story world, and forcing one on it would put it in an archive it has no
+        // business in. A post without a world simply appears in no world archive, which is correct.
+        required: [ "form" ]
     },
     page: {
         properties: {
@@ -208,6 +213,7 @@ function validateCapture( record ) {
 
 module.exports = {
     CONTENT_TYPES: CONTENT_TYPES,
+    RELEASE_STATES: RELEASE_STATES,
     SECTION_TYPES: SECTION_TYPES,
     VISIBILITY_PATTERN: VISIBILITY_PATTERN,
     validateRecord: validateRecord,

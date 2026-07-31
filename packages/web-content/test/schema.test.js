@@ -133,13 +133,18 @@ describe( "content schema — type and envelope integrity", () => {
 
 describe( "content schema — per-type requirements", () => {
 
-    it( "requires a post to carry its world and form taxonomy", () => {
-        const noWorld = basePost();
-        delete noWorld.world;
-        assert.equal( validateRecord( noWorld ).valid, false );
+    it( "requires a post to carry a form, since everything written has one", () => {
         const noForm = basePost();
         delete noForm.form;
         assert.equal( validateRecord( noForm ).valid, false );
+    } );
+
+    it( "allows a post with no world — a blog entry belongs to no story world", () => {
+        // Forcing a world on it would file it in an archive it has no business in. Without one it
+        // simply appears in no world archive, which is the correct outcome.
+        const blogEntry = basePost( { form: "blog" } );
+        delete blogEntry.world;
+        assert.equal( validateRecord( blogEntry ).valid, true );
     } );
 
     it( "requires a page's sections to declare a recognised section type", () => {

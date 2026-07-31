@@ -39,6 +39,7 @@ const applyWebConfigEnvOverrides = require( "#web-config-env" );
  * @property {number} port
  * @property {string} publicPath
  * @property {number} requestTimeout
+ * @property {SettingsStaticCache} staticCache
  * @property {string} tlsCertPath
  * @property {string} tlsKeyPath
  * @property {boolean} useTLS
@@ -73,6 +74,13 @@ const applyWebConfigEnvOverrides = require( "#web-config-env" );
  * @property {string} [discoveryUrl]
  * @property {boolean} [isPublic]
  * @property {TiTokenEndpointAuthMethod} [tokenEndpointAuthMethod]
+ */
+
+/**
+ * @typedef {Object} SettingsStaticCache
+ * @property {number} maxAge The `max-age` for `/static` responses, in SECONDS (not a duration string). `0` means every use is revalidated.
+ * @property {boolean} immutable Whether to add `immutable`. Only correct when the `/static` filenames are content-addressed.
+ * @property {string[]} immutablePaths Path prefixes under `/static` that are served long-lived and `immutable` regardless of the two settings above.
  */
 
 /**
@@ -310,8 +318,20 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.use( "/.well-known", express.static( path.join( this.#staticContentPaths[ 0 ], ".well-known" ), { dotfiles: "allow" } ) );
 
                 // Static content routes are registered in reverse order to ensure that custom assets can override the default ones and be served first:
+                const staticCachePolicy = TiWebServer.resolveStaticCachePolicy( this.serviceConfig.staticCache );
+                staticCachePolicy.warnings.forEach( ( warning ) => logger.log( warning, logger.logSeverity.WARNING ) );
                 _.forEachRight( this.#staticContentPaths, ( staticContentPath ) => {
-                    this.#webServer.use( "/static", express.static( staticContentPath, { maxAge: "1y", immutable: true } ) );
+                    // `Cache-Control` is written per file rather than through express.static's `maxAge`/`immutable`
+                    // options, because the policy is not uniform across the tree (see resolveStaticCachePolicy). A
+                    // header set here wins: `send` emits its "headers" event BEFORE its own `Cache-Control` block,
+                    // which then skips a header that is already present. `ETag`/`Last-Modified` are still added by
+                    // `send`, so the revalidating default costs a conditional request answered with a 304, not a
+                    // re-download.
+                    this.#webServer.use( "/static", express.static( staticContentPath, {
+                        setHeaders: ( response, filePath ) => {
+                            response.setHeader( "Cache-Control", TiWebServer.staticCacheControlFor( staticContentPath, filePath, staticCachePolicy ) );
+                        }
+                    } ) );
                 } );
 
                 // Set up the web application routes:
@@ -626,6 +646,178 @@ class TiWebServer extends ServiceConsumer {
      * @private
      */
     static #REGISTRABLE_METHODS = new Set( [ "get", "post", "put", "patch", "delete", "options", "head", "all" ] );
+
+    /**
+     * The default `/static` cache policy: revalidate every use, with a long-lived exception for web fonts.
+     * <br/>
+     * The default used to be `max-age=1y, immutable`, which was wrong for every consumer that does not hash its asset
+     * filenames — and none of them do by default, since the framework's own assets ship under stable names
+     * (`/static/scripts/ti-framework.js`, the theme sheets, …). `immutable` promises that the bytes behind THIS URL
+     * will never change, and browsers honour it so completely that not even a manual reload revalidates: a deployed
+     * CSS or JS fix would simply never reach anyone who had already visited, for up to a year, with no way to tell
+     * them otherwise. Revalidating is the only default that is true for a stable filename; `send` still attaches an
+     * `ETag`/`Last-Modified`, so the cost is a conditional request answered with a 304, not a re-download.
+     * <br/>
+     * A consumer that fingerprints its filenames (`app.a1b2c3.css`) makes the promise true and should opt back in via
+     * `staticCache: { maxAge: 31536000, immutable: true }`.
+     * <br/>
+     * NOTE: These defaults deliberately live here rather than in `web-server.json`, because the constructor merges the
+     * service config with `_.merge`, which merges arrays BY INDEX — a consumer's `immutablePaths: []` could then never
+     * clear a default entry. Absent from the config file, an explicitly empty array means exactly that.
+     *
+     * @type {Object}
+     * @private
+     */
+    static #STATIC_CACHE_DEFAULTS = Object.freeze( {
+        maxAge: 0,
+        immutable: false,
+        // Fonts are the one genuinely content-addressed-in-practice class under `/static`: a released `.woff2` is an
+        // artifact, not something that gets edited in place, and its filename already carries the family, weight and
+        // style. Configurable, because that is a statement about how a given deployment manages its font files.
+        immutablePaths: Object.freeze( [ "/fonts/" ] )
+    } );
+
+    /**
+     * The `max-age` applied to a path matched by `staticCache.immutablePaths`, in seconds (one year — the longest
+     * value any cache treats as meaningful, and the conventional pairing for `immutable`).
+     *
+     * @type {number}
+     * @private
+     */
+    static #IMMUTABLE_MAX_AGE = 31536000;
+
+    /**
+     * Normalizes an `immutablePaths` entry to a rooted, slash-terminated prefix (`fonts` -> `/fonts/`), or null when
+     * it is not usable. The trailing slash is what keeps `/fonts` from also matching `/fonts-legacy/a.woff2`.
+     *
+     * @method
+     * @static
+     * @param {string} entry
+     * @returns {string|null}
+     * @private
+     */
+    static #normalizeImmutablePath( entry ) {
+        if ( typeof entry !== "string" || entry.trim() === "" ) {
+            return null;
+        }
+        const trimmed = entry.trim();
+        const rooted = trimmed.startsWith( "/" ) ? trimmed : "/" + trimmed;
+        return rooted.endsWith( "/" ) ? rooted : rooted + "/";
+    }
+
+    /**
+     * Derives the served path of a static file (the part after the `/static` mount, always slash-separated) from the
+     * directory it is served out of and its absolute location on disk. A file resolving outside the root yields a
+     * `/../`-prefixed path, which matches no normalized prefix and therefore falls back to the default policy.
+     *
+     * @method
+     * @static
+     * @param {string} rootPath
+     * @param {string} filePath
+     * @returns {string}
+     * @private
+     */
+    static #toServedPath( rootPath, filePath ) {
+        // Split on the platform separator only: on POSIX a backslash is a legal filename character, not a delimiter.
+        return "/" + path.relative( String( rootPath || "" ), String( filePath || "" ) ).split( path.sep ).join( "/" );
+    }
+
+    /**
+     * Resolves a `staticCache` configuration block into the policy the `/static` mounts apply, filling in
+     * {@link TiWebServer.#STATIC_CACHE_DEFAULTS} per key and rejecting values that cannot be honored. Pure: problems
+     * are returned as `warnings` rather than logged, so the caller decides how to surface them and a test can assert
+     * on them. Static and exposed for unit testing — not part of the customization surface.
+     * <br/>
+     * `maxAge` is a whole number of SECONDS, mapping 1:1 onto the `Cache-Control` directive — express's `"1y"`-style
+     * duration strings are NOT accepted, and are reported rather than silently reinterpreted as milliseconds.
+     * <br/>
+     * `immutable` is dropped (with a warning) when `maxAge` is 0, because a response that is stale on arrival yet
+     * promises never to change is a contradiction. Dropping it fails safe: the misconfiguration costs a revalidation,
+     * not a year of unreachable assets.
+     *
+     * @method
+     * @static
+     * @param {SettingsStaticCache} [staticCache] The configured block, if any.
+     * @returns {{maxAge: number, immutable: boolean, immutablePaths: string[], warnings: string[]}}
+     * @public
+     */
+    static resolveStaticCachePolicy( staticCache ) {
+        const defaults = TiWebServer.#STATIC_CACHE_DEFAULTS;
+        const config = _.isObjectLike( staticCache ) ? staticCache : {};
+        const warnings = [];
+
+        let maxAge = defaults.maxAge;
+        if ( config.maxAge !== undefined ) {
+            if ( Number.isInteger( config.maxAge ) && config.maxAge >= 0 ) {
+                maxAge = config.maxAge;
+            } else {
+                warnings.push( `Ignored an invalid 'staticCache.maxAge' value of '${ config.maxAge }'; it must be a whole, non-negative number of seconds (a duration string such as '1y' is not accepted). Using ${ defaults.maxAge } instead.` );
+            }
+        }
+
+        let immutable = defaults.immutable;
+        if ( config.immutable !== undefined ) {
+            if ( typeof config.immutable === "boolean" ) {
+                immutable = config.immutable;
+            } else {
+                warnings.push( `Ignored a non-boolean 'staticCache.immutable' value of '${ config.immutable }'. Using ${ defaults.immutable } instead.` );
+            }
+        }
+        if ( immutable === true && maxAge === 0 ) {
+            warnings.push( `Ignored 'staticCache.immutable' because 'staticCache.maxAge' is 0 — a response that is stale on arrival cannot also promise never to change. Set a positive 'staticCache.maxAge' (and hash your asset filenames) to serve '/static' as immutable.` );
+            immutable = false;
+        }
+
+        let immutablePaths = defaults.immutablePaths.slice();
+        if ( config.immutablePaths !== undefined ) {
+            if ( Array.isArray( config.immutablePaths ) ) {
+                immutablePaths = [];
+                config.immutablePaths.forEach( ( entry ) => {
+                    const normalized = TiWebServer.#normalizeImmutablePath( entry );
+                    if ( normalized === null ) {
+                        warnings.push( `Ignored an invalid 'staticCache.immutablePaths' entry of type '${ typeof entry }'; expected a non-empty path prefix such as '/fonts/'.` );
+                    } else {
+                        immutablePaths.push( normalized );
+                    }
+                } );
+            } else {
+                warnings.push( `Ignored a non-array 'staticCache.immutablePaths' value of type '${ typeof config.immutablePaths }'. Using the default [ ${ defaults.immutablePaths.join( ", " ) } ] instead.` );
+            }
+        }
+
+        return { maxAge: maxAge, immutable: immutable, immutablePaths: immutablePaths, warnings: warnings };
+    }
+
+    /**
+     * Builds the `Cache-Control` value for one static file: the long-lived immutable policy when its served path sits
+     * under a configured `immutablePaths` prefix (matched case-sensitively, so a case mismatch falls back to the safe
+     * side), otherwise the policy's own `maxAge`/`immutable`. A `maxAge` of 0 is emitted as an explicit
+     * `must-revalidate` rather than a bare `max-age=0`, matching what the sibling `web-content` package serves.
+     * Pure and static; exposed for unit testing — not part of the customization surface.
+     *
+     * @method
+     * @static
+     * @param {string} rootPath The directory this `/static` mount serves.
+     * @param {string} filePath The absolute path of the file being served.
+     * @param {Object} policy A policy as returned by {@link TiWebServer.resolveStaticCachePolicy}.
+     * @returns {string}
+     * @public
+     */
+    static staticCacheControlFor( rootPath, filePath, policy ) {
+        const resolved = _.isObjectLike( policy ) ? policy : {};
+        const immutablePaths = Array.isArray( resolved.immutablePaths ) ? resolved.immutablePaths : [];
+        const servedPath = TiWebServer.#toServedPath( rootPath, filePath );
+
+        if ( immutablePaths.some( ( prefix ) => servedPath.startsWith( prefix ) ) === true ) {
+            return `public, max-age=${ TiWebServer.#IMMUTABLE_MAX_AGE }, immutable`;
+        }
+
+        const maxAge = ( Number.isInteger( resolved.maxAge ) && resolved.maxAge >= 0 ) ? resolved.maxAge : 0;
+        if ( maxAge === 0 ) {
+            return "public, max-age=0, must-revalidate";
+        }
+        return ( resolved.immutable === true ) ? `public, max-age=${ maxAge }, immutable` : `public, max-age=${ maxAge }`;
+    }
 
     /**
      * Normalizes an HTTP method to a lower-case Express routing verb, or returns null if it is not a supported,

@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Active — P0–P2, P3a, P4 complete — 128 tests green + an end-to-end smoke test serving real content files. Next: P3b/P5 (sections, editorial components, templates) and Track B (theme) |
+| **Status** | Active — P0–P2, P3a/P3b, P4 + P6 complete + editorial markdown + P3c document assembly + P7 migration + draft preview + the account menu — **364 tests green**; the site boots and serves; theme + self-hosted fonts landed in `Site/`. Next: the editorial pass over the 27 registered drafts |
 | **Created** | 2026-07-24 |
-| **Last updated** | 2026-07-24 |
+| **Last updated** | 2026-07-30 (rev 7) |
 | **Owner** | Boris Kostadinov |
 | **Scope** | New package `@ti-engine/web-content` (reusable engine) + a small enabling change in `@ti-engine/web-framework` (route seams) + the private `anarandaris` `Site/` app (content, theme, wiring) |
 | **Relates to** | Realises the three `Site/docs/` specs — `build-spec.md`, `content-schemas.md`, `token-contract.md` — which remain the source of truth for *what*. This doc records *how it lands as a package* and **supersedes `build-spec.md` §2 on module placement** (framework column → `web-content`). |
@@ -24,13 +24,18 @@ How this design lands in code — update as each step is committed (branch `curr
 | **P2a** — `transliterate.js` + `taxonomy.js` graph (dep-free) | ✅ 20 tests | `b4aebe4` | 2026-07-24 |
 | **P2b** — `content/markdown.js` (markdown-it, `html:false`) + `content/sources.js` (front-matter/YAML reader, no directory scanning) | ✅ 22 tests | — | 2026-07-24 |
 | **P3a** — `render/html.js` (escaping + `raw()`) + `render/document.js` (head/JSON-LD/hreflang) | ✅ 19 tests | `9ad6bf1` | 2026-07-24 |
-| **P3b** — `render/sections.js` + editorial components + full-body/teaser document assembly | ☐ pending (with P5) | — | — |
+| **P3b** — `render/sections.js` (registry + mechanical dispatch) + all 15 editorial components | ✅ 53 tests | — | 2026-07-30 |
+| **P2c** — editorial markdown extensions (attrs · bracketed-spans · containers · footnotes) | ✅ 20 tests | — | 2026-07-30 |
+| **P3c** — document assembly (shell · topbar · footer · gate · 404) + the vanilla site script | ✅ 25 tests + doc acceptance check | — | 2026-07-30 |
 | **P4** — `routes/content-routes.js` (catch-all resolver + alias 301 + cache policy) · `routes/feeds.js` (sitemap/rss/robots) · `routes/index.js` mount helpers | ✅ 23 tests + e2e smoke | — | 2026-07-24 |
-| **P5** — `render/editorial/*` components + page templates (showcase first) — Track B meets Track A here | ☐ pending | — | — |
-| **P6** — `capture/store.js` + `capture/admin.js` (behind `role:admin`) | ☐ pending | — | — |
+| **P5** — page context (eyebrow · meta · terms · breadcrumb · prev/next) · taxonomy-expanded queries · `?page=N` · generated term archives | ✅ 27 tests + live verification | — | 2026-07-30 |
+| **P6** — `capture/store.js` · `capture/admin.js` · `capture/routes.js` (admin behind the `admin` role) | ✅ 31 tests + live verification | — | 2026-07-30 |
 | **P7** — Migration tooling (URL inventory → WP REST export → uploads copy → redirect map) | ☐ pending | — | — |
-| **P8** — `Site/app` standup (`TiWebServer`/`TiWebAppManager` subclasses, config, Dockerfile) → staging → redirect diff → cutover | ☐ pending | — | — |
+| **P8a** — `Site/app` standup (`TiWebServer`/`TiWebAppManager` subclasses, content loader, config) — **boots and serves** | ✅ verified live | — | 2026-07-30 |
+| **P8b** — Dockerfile → staging → redirect diff → cutover | ☐ pending | — | — |
 | **Track B** (parallel, no code dep) — tokens → `anarand.css`; ten new editorial components; port existing components | ☐ pending | — | — |
+
+> **On the per-phase test counts above.** They sum to 281, which is the web-content suite at the end of P6 — P0 is not in that figure because its tests live in `web-framework`, not here. The status line reports the suite as it stands today, which has grown past 281 with the review fixes, draft preview and the account menu. The two numbers count different things on purpose; neither is a running total of the other.
 
 **Agreed framing (this conversation):**
 - **Placement:** the generic engine is a **new sibling package `@ti-engine/web-content`** depending on `core` + `web-framework` — *not* folded into `web-framework` (which would turn a lean app server into an app-server-plus-CMS and force a second render path + markdown dependency onto every consumer, incl. `competence`). Mirrors how `competence` layers on top.
@@ -75,18 +80,26 @@ packages/web-content/
     loader.js         validates records, builds indexes, reports conflicts
     repository.js     THE query layer — all visibility filtering lives here
     taxonomy.js       vocabulary load, one-level parent expansion, term resolution
+    archives.js       term-archive page records generated from the vocabulary, once, at load
     markdown.js       markdown-it wrapper, html:false
     transliterate.js  Streamlined System (BG 2009), slug generation
   render/
     html.js           escaping tagged template + raw()
     document.js       full document: head, meta, JSON-LD, shell, cache headers
-    sections.js       section-type registry and dispatch
-    editorial/        prose · verse · characterCards · languageExample · audio ·
-                      agePanels · timeStrip · timeline · gallery · capture ·
-                      featured · postList · closing · hero  (generic, token-driven)
+    context.js        the page context templates need: eyebrow · meta · terms · breadcrumb · prev/next
+    sections.js       section-type registry, shared chrome, mechanical type→class dispatch
+    editorial/        the 15 section bodies, grouped by kind (generic, token-driven):
+                        text.js       prose · verse · closing · languageExample
+                        media.js      hero · gallery · audio
+                        lore.js       characterCards · agePanels · timeStrip · timeline
+                        listing.js    featured · postList (+ post card, pagination)
+                        forms.js      capture (+ form status)
+                        dictionary.js dictionary
+                        index.js      aggregator bound into the registry
   routes/
     content-routes.js catch-all resolver, alias 301s, archives, pagination (?page=N)
     feeds.js          sitemap.xml, rss.xml, robots.txt
+    media.js          legacy media at its ORIGINAL URLs (/wp-content/uploads/...)
     index.js          mountContentRoutes() + defineContentUnprotectedRoutes() helpers
   capture/
     store.js          email-capture records (dedupe on (email,purpose); no IP)
@@ -260,6 +273,70 @@ The `build-spec.md` §8 list — the failures that don't throw — become the fi
 >
 > **Bug caught by the smoke test, not by the unit tests:** YAML silently parses an unquoted ISO timestamp (`publishedAt: 2026-03-20T00:00:00Z`) into a **Date object**, which failed the schema's string constraint and *silently excluded* an otherwise valid post from the site -- precisely the class of failure this project exists to prevent. Fixed by normalising Dates to ISO strings at the source boundary (`normalizeDates`, recursive, covering nested structures), so authors never have to remember to quote a date. Three regression tests added. Worth remembering: unit tests built on hand-written fixtures cannot catch format-boundary bugs -- only real files can.
 
+
+> **P3b note (2026-07-30):** the section layer is in, built against the ratified `Site/docs/markup-contract.md`. `render/sections.js` holds the registry, the shared wrapper/chrome, and the **mechanical** type -> class derivation (`characterCards` -> `.section-character-cards`); the full 15-type map is pinned in a test, because a CSS rule written against a class the renderer never emits is a silent no-op. All 15 bodies live in `render/editorial/`, grouped by kind (text · media · lore · listing · forms · dictionary) rather than one file per component. 53 tests.
+>
+> Verified by rendering all 17 section variants and diffing every emitted class against `anarand.css`: **161 classes emitted, zero style attributes**, and the only undefined ones are the deliberate mechanical `section-*` hooks plus three genuine gaps (below).
+>
+> Decisions worth recording: (1) `featured` and `postList` resolve through `repository.resolveIds()` / `list()`, so a curated id list inherits visibility filtering — a gated item shows its `teaser` and **never** its `summary`, since a summary may be derived from the withheld body; (2) the capture form emits the framework's `csrfToken` hidden input, without which every submission 403s; (3) era/phase/accent modifiers are validated against allow-lists so a record value cannot inject a class name; (4) the contract's table said `.section-language` for `languageExample` while its stated rule derives `.section-language-example` — the table was aligned to the rule (neither was styled, so nothing broke).
+>
+> **Gap raised, not papered over:** `verse.attribution`, `audio.subtitle`, and `languageExample[].note` are declared in `content-schemas.md` §3 but have no rule in `anarand.css`. The renderer emits `.verse-attribution` / `.audio-subtitle` / `.language-note` so styling can land without touching markup, and the contract now records them under *Pending theme coverage* — either style them or drop the fields; leaving both is the state that rots.
+
+> **Legacy-HTML decision + editorial markdown (2026-07-30):** boriskhan.com will be **re-authored page by page in this framework** rather than imported as legacy HTML. That removes the markup escape hatch, which raises the bar on the authoring layer: a prose primitive markdown cannot express is a primitive nobody can use. Four plugins close the gap in `content/markdown.js` — `markdown-it-attrs` (classes on any block/inline), `markdown-it-bracketed-spans` (inline `[text]{.anarandian-inline}`), `markdown-it-container` (pull-quote · chapter-opener · language-example · figure, with **positional auto-classing** so the common case needs no annotation), and `markdown-it-footnote` remapped onto the contract's classes and `fn-N`/`fnref-N` ids. The syntax is documented for authors in `Site/docs/markup-contract.md` § *Authoring syntax*.
+>
+> **The attribute allowlist is a security boundary, not a convenience.** Unrestricted, `markdown-it-attrs` would let authored content write a `style` or `onclick` attribute straight into the page — breaching the contract's hardest rule from inside content. Only `class` and `id` are permitted, and that is the first thing the test file asserts.
+>
+> `bodyFormat: "html"` is **kept but dormant** (ratified): the field stays as an escape hatch should a page ever resist the section vocabulary, but no importer sanitises it, so **every** renderer withholds it. That fixed a real inconsistency introduced in P3b — `renderProse` emitted it via `raw()` while the fallback page withheld it, a live XSS vector for any record carrying the field. A dormant path has to be dormant on every route, not merely on the one written first. `Site/CLAUDE.md` rule 8 now records that markdown output is the only live `raw()` source.
+>
+> Migration (P7) changes shape but not order: the **URL inventory, uploads copy and alias map are unchanged and still non-negotiable**, and are now doubly urgent because the inventory is the only thing that sizes the re-authoring work and proves whether 15 section types cover every page. The WordPress REST export survives as **draft source material** — converted to markdown as a starting point for hand-finishing, never as a shipped body.
+
+> **P3c note (2026-07-30):** the rendering path is complete — a URL now produces a real page, not a placeholder. `render/shell.js` (noise layer · skip link · topbar · footer · language selector), `render/templates.js` (article · composed record · gate · state panel) and `render/page.js` (full document assembly) replace the fallback document, and `contentHandler` now defaults to `renderDocument`. The vanilla site script ships at `static/web-content.js` and is served by `mountContentRoutes` under `/static/`, so a consumer can override it by placing its own file at that path.
+>
+> **Everything site-specific is configuration.** The shell renders from `context.site` — title, logo, languages, nav, footer columns, social, sign-in paths — and an unconfigured site renders an empty shell rather than inventing content. Nothing in this package names the site.
+>
+> Details worth keeping: (1) **every `<script>` carries the nonce, including the JSON-LD block** — the framework's CSP uses `'strict-dynamic'`, under which a nonce-less script simply never executes, and a structured-data block silently dropped is exactly the failure nobody notices; (2) the language control emits an **inert option that says why** when `translationOf` is null, because hiding it makes a bilingual site look monolingual and linking it produces a 404; (3) the 404 copy is asserted not to mention draft/hidden/private — the resolver falls through identically for hidden, unpublished and unknown, and naming which one would leak what deny-by-default hides; (4) the audio progress percentage is written to the `--audio-progress` custom property, the token route the contract prescribes for a runtime value, never an inline width.
+>
+> **Acceptance check:** three full documents (article with every prose primitive, gated teaser, 404) rendered and diffed against `anarand.css` — **76 classes emitted, zero style attributes, every script and stylesheet nonced, no gated body in the teaser document**, and the only undefined class is the deliberate `post-nav-prev` marker.
+>
+> **Gap raised for a decision — since resolved.** The contract promised the reveal choreography is "never a visibility gate", but the CSS only forced `.reveal` visible under `prefers-reduced-motion`; for everyone else a blocked or errored script left that content invisible permanently. The script falls back when `IntersectionObserver` is missing, but cannot fall back when it never runs. The hidden state is now scoped to `:where(.js) .reveal`, so it applies only once the boot script has marked the document script-capable — and `:where()` contributes **zero specificity**, which is the point: a plain `.js .reveal` would outrank `.reveal-in` and leave revealed elements invisible, turning the fix into the very bug it removes. Content with no working script is now simply visible.
+
+> **Standup note (2026-07-30) — the site boots.** `Site/app` runs against a real broker and socket: content loaded (2 records, 0 invalid, 0 conflicts), Redis connected, web server listening. Verified in a real browser as well as over HTTP — body renders on `--bg-abyss` in **Spectral**, the hero in **Cormorant Unicase**, all four self-hosted families reporting `loaded`, `<html class="js">` set by the boot script, **zero style attributes in the live DOM**, and no console or CSP errors.
+>
+> **The boot found a defect no test could: a soft 404.** An unknown URL reached the framework's `invalidRouteHandler`, which redirects to `/not-found` — and that page answers **200**. Harmless for an authenticated app; wrong for a public site, where a crawler then records a success for a URL that does not exist, polluting the index and hiding broken links from every report that would surface them. `mountContentRoutes` now registers a terminal 404 that renders the state document with **status 404** and `private, no-store`. It is **GET-only on purpose** — the framework mounts `POST /service/:version/:name` *after* `defineWebApplicationRoutes()` returns, so a catch-all covering every method would shadow it. Switchable off via `notFound: false`.
+>
+> Two environment notes for whoever runs this next: the framework's cache needs **RedisJSON**, so plain `redis:7` is not enough — the local container is `redis/redis-stack-server`, and it runs on **6380** because another project already holds 6379. Paths in `web-server.json` and `.env` resolve from the working directory, which is `Site/app`.
+
+> **P6 note (2026-07-30) — capture.** The only module holding personal data, so its rules are stricter than the rest of the engine and are stated in the file itself: **no IP is ever stored** (the handler never reads one, so there is nothing to leak or erase), **`consentAt` is stamped server-side** and a client-supplied timestamp is discarded (consent evidence the client can write is not evidence), **only the schema's fields are persisted** (copied field by field, never merged, so an extra POST field cannot ride along), dedupe is on **(email, purpose)** case-insensitively, and **erasure is by email across every purpose** — a person asking to be forgotten is asking about themselves, not about whichever lists they remember joining.
+>
+> Three boundaries worth keeping in mind, each silent when wrong:
+> - **The admin endpoints fail closed.** An absent `requireAdmin` selects the built-in guard, never no guard — these routes list, export and erase every stored address, so a forgotten option must refuse rather than expose. The framework's `authorization` module is not exported from its package, so the check is reimplemented against the same session shape and the same `admin` role name.
+> - **CSV export is a security boundary.** A spreadsheet executes a cell beginning with an equals, plus, minus or at sign, and `source` arrives from a query string — so every field is neutralised against formula interpretation as well as CSV-escaped.
+> - **The post-submit redirect is validated against the content index.** `returnTo` is attacker-controlled; honouring it unchecked is an open redirect, exactly the primitive a phishing link wants. Only a path that resolves to a record is used; anything else falls back to `/`.
+>
+> **Bug found by running it, not by testing it:** RedisJSON refuses to create a nested path in a document that does not exist (`ERR new objects must be created at the root`), so the **first capture on a fresh deployment always failed** — and only there, since it works in dev the moment anything has seeded the key. The store now writes the whole map on the first record and edits a single path thereafter. The test fake was over-forgiving and hid this; it now models the refusal, and a regression test asserts the first record on a genuinely empty store succeeds.
+>
+> Verified live against Redis: first signup on a cleared store succeeds, the same address in different case with trailing space is a duplicate, the same address on a different purpose is accepted, missing consent and a malformed address are refused, a hostile `returnTo` still captures but redirects to `/`, a missing CSRF token is rejected 403 by the framework, erasure removes both of one address's records and leaves the others, and no stored record carries an IP field.
+
+> **Legacy media note (2026-07-30).** The framework mounts an application's public directory at `/static` only, but a migrated site's media is referenced by its original absolute paths from imported content, from other people's links, and from search results. **An inbound link on someone else's page cannot be rewritten**, so `/wp-content/uploads/...` has to keep resolving. `routes/media.js` registers a configured set of URL prefixes served from a media root whose **on-disk tree mirrors the URL** — which is what the migration plan's "copied verbatim, identical paths" means, and why the mount does no URL rewriting at all.
+>
+> Chosen over adding a `registerMiddleware` seam to the framework: a prefixed GET route with a wildcard reaches `express.static` just as well, so this needed no new framework surface. `fallthrough: true` sends a miss to the content resolver, which answers a **proper 404** rather than a bare one. `dotfiles: "deny"` and `index: false` mean a stray `.env` under the root cannot be served and a directory URL lists nothing; traversal protection comes from `send` itself.
+>
+> **The cache is deliberately not `immutable`.** A media library is not content-addressed — the same filename can be re-uploaded with different bytes — so a year-long unrevalidatable cache turns a corrected image into a year-long support problem. Thirty days, configurable.
+>
+> Verified live: a file serves at its original URL with the right content type, a missing one reaches the proper 404, four traversal attempts (including percent-encoded) leak nothing, a directory URL lists nothing, and the theme still serves from `/static`. Twelve tests, the security ones over real HTTP against a real Express app rather than a stub — a hand-rolled fake would prove nothing about traversal.
+>
+> **Open for the site to settle:** whether the migrated library is committed to git or fetched at deploy time. Recorded in `Site/public/README.md`; worth deciding before the copy step, since moving it afterwards means changing URLs, and never changing the URLs is the entire point.
+
+> **P5 note (2026-07-30) — closing the gap between a page that renders and a page that reads right.** P3c built the templates; nothing populated them. A live article rendered as title plus body: no breadcrumb, no meta line, no term pills, no adjacent-post navigation, and listings ignored `?page=N`. The templates render nothing when context is absent, which is precisely why the omission was invisible — an article with no breadcrumb looks identical to one with no trail to show.
+>
+> Three fixes, in the order they matter:
+> - **Taxonomy expansion moved into `repository.list()`.** The §8 invariant — querying `dark-intent` returns posts tagged `alexander-dark` — was proven at the graph level in P2 and **never wired to queries**. It lives at the repository now, the one place every surface passes through, so an archive cannot silently under-report. Optional and backward compatible: without a taxonomy the match stays exact, and a term the vocabulary does not know still matches itself rather than vanishing.
+> - **`render/context.js`** builds eyebrow, meta line (date · form · reading length), term pills, breadcrumb and adjacent posts. **Adjacent posts resolve through the repository for the same viewer as the page** — computing them from the raw index would let prev/next point at a record the repository would have withheld, which is the one way a navigation control discloses gated work.
+> - **`content/archives.js`** generates a term-archive record per (language, facet, term). Not a contradiction of "content is never discovered": the vocabulary *is* the explicit register. Not a contradiction of "path is data" either — paths are computed **once, at load**, and stored on ordinary records the path index resolves like any other. The site's own `/writings/` stays authored, since the specs call for curation over a listing, which is content rather than a query.
+>
+> Per-language archive schemes are configuration: the engine knows a language has a pattern, never that this site keeps Bulgarian archives under `/bg/writings/`.
+>
+> Verified live with a second post tagged with a **child** term: `/writings/dark-intent/` lists it under the parent, `/writings/anarandaris/` does not, prev/next reads in the right direction (previous = older), breadcrumb reaches the most specific term, both term pills resolve 200, and `?page=9` applies its offset instead of being ignored.
 ---
 
 ## 11. Phased plan (maps to the implementation log)

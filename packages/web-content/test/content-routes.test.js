@@ -72,16 +72,19 @@ describe( "content-routes — viewerFromRequest", () => {
 
     it( "maps an anonymous request to an unauthenticated viewer with no roles", () => {
         assert.deepEqual( viewerFromRequest( fakeRequest( "/" ) ), { authenticated: false, roles: [] } );
+        assert.notEqual( viewerFromRequest( fakeRequest( "/" ) ).preview, true, "anonymous can never preview" );
     } );
 
     it( "maps a session user to an authenticated viewer carrying their roles", () => {
         const viewer = viewerFromRequest( fakeRequest( "/", { user: { roles: [ "admin", "beta" ] } } ) );
         assert.equal( viewer.authenticated, true );
         assert.deepEqual( viewer.roles, [ "admin", "beta" ] );
+        assert.equal( viewer.preview, true, "an administrator may preview a draft" );
+        assert.equal( viewerFromRequest( fakeRequest( "/", { user: { roles: [ "beta" ] } } ) ).preview, false );
     } );
 
     it( "tolerates a session user with no roles array", () => {
-        assert.deepEqual( viewerFromRequest( fakeRequest( "/", { user: {} } ) ), { authenticated: true, roles: [] } );
+        assert.deepEqual( viewerFromRequest( fakeRequest( "/", { user: {} } ) ), { authenticated: true, roles: [], preview: false } );
     } );
 
 } );
@@ -142,7 +145,7 @@ describe( "content-routes — catch-all resolution", () => {
         assert.deepEqual( modes, [ "teaser", "full" ] );
     } );
 
-    it( "renders a markdown body through the markdown renderer in the fallback page", () => {
+    it( "renders a markdown body through the markdown renderer", () => {
         const repo = new ContentRepository( buildIndex( [
             post( "md", "/md/", { body: "Hello *there*.", bodyFormat: "markdown" } )
         ] ) );
