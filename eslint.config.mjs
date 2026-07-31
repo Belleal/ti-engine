@@ -1,26 +1,23 @@
 import { defineConfig } from "eslint/config";
 import globals from "globals";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import js from "@eslint/js";
-import { FlatCompat } from "@eslint/eslintrc";
-
-const __filename = fileURLToPath( import.meta.url );
-const __dirname = path.dirname( __filename );
-const compat = new FlatCompat( {
-    baseDirectory: __dirname,
-    recommendedConfig: js.configs.recommended,
-    allConfig: js.configs.all
-} );
 
 export default defineConfig( [ {
     ignores: [
         "**/*.min.js",
         "packages/*/bin/static/scripts/lib/**",
         "eslint.config.mjs",
+        // Tooling scratch, not source, and neither is shipped by any package. `.claude` also holds agent git
+        // worktrees -- each a full checkout carrying its own eslint.config.mjs, which ESLint discovers while
+        // traversing and loads, so one stale worktree failed the whole run with an error from a config that is not
+        // this one. `.superpowers` holds archived generated scripts, one of which does not even parse.
+        ".claude/**",
+        ".superpowers/**",
     ],
 }, {
-    extends: compat.extends( "eslint:recommended" ),
+    // The flat-config form. This used to go through `FlatCompat`, whose entire job was translating the legacy string
+    // "eslint:recommended" into the very object it was handed as `recommendedConfig` -- a shim around a no-op.
+    extends: [ js.configs.recommended ],
 
     languageOptions: {
         globals: {

@@ -20,7 +20,6 @@
     "test": "npm test --workspaces --if-present"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^0.1.0",
     "@eslint/js": "^10.0.1",
     "@eslint/json": "^1.0.0",
     "eslint": "^10.0.0",
