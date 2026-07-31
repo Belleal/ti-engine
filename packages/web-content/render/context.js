@@ -26,11 +26,43 @@ const { termLabel, termPathPattern, termArchivePath } = require( "#terms" );
 
 const ARCHIVE_FACETS = [ "world", "form" ];
 
+// The last resort when a configured locale is unusable and the language tag is no better. English is not a preference
+// here, it is the one tag guaranteed to format.
+const DEFAULT_LOCALE = "en";
+
+/**
+ * Whether a value is a locale `Intl` will actually accept.
+ *
+ * `Intl` answers a malformed tag by THROWING -- `"en-G"`, `"en_GB"` and `""` are each a RangeError, not a fallback --
+ * and the tags here come from site configuration, where a plausible typo in a region subtag is one keystroke away.
+ * Unguarded, that typo does not produce an odd-looking date: it takes down the render of every page and every post
+ * card in that language with a 500. So the tag is proven usable before it is used.
+ *
+ * Structural validity is shared across the `Intl` constructors, so one check covers dates and numbers both. A tag
+ * that is well-formed but unsupported (`zz-ZZ`) does not throw and is left alone -- that is `Intl`'s fallback to
+ * honour, not ours to second-guess.
+ *
+ * @param {*} locale
+ * @returns {boolean}
+ */
+function isUsableLocale( locale ) {
+    if ( typeof locale !== "string" || locale.trim() === "" ) {
+        return false;
+    }
+    try {
+        Intl.DateTimeFormat.supportedLocalesOf( locale );
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Formats an ISO date for display in the record's own language.
  *
  * Takes a resolved BCP-47 LOCALE, not a language tag -- see {@link localeFor}. A bare tag still works, so a caller
- * that has no site config is not broken by it, but it then bypasses any configured region.
+ * that has no site config is not broken by it, but it then bypasses any configured region. An unusable one formats in
+ * English rather than throwing: a date in the wrong language is a blemish, a thrown RangeError is a blank page.
  *
  * @param {string} iso
  * @param {string} [locale]
@@ -41,7 +73,8 @@ function formatDate( iso, locale ) {
     if ( isNaN( date.getTime() ) ) {
         return "";
     }
-    return date.toLocaleDateString( locale || "en", { day: "numeric", month: "long", year: "numeric" } );
+    const usable = isUsableLocale( locale ) ? locale : DEFAULT_LOCALE;
+    return date.toLocaleDateString( usable, { day: "numeric", month: "long", year: "numeric" } );
 }
 
 /**
@@ -54,13 +87,20 @@ function formatDate( iso, locale ) {
  * The fallback is the language tag itself rather than a default region. `toLocaleDateString( "bg" )` already
  * formats Bulgarian correctly; a configured entry is only needed to pin a particular REGION.
  *
+ * A configured value that `Intl` would reject falls through that same chain, so a mistyped `bg-B` still formats
+ * Bulgarian by its bare tag instead of demoting the whole language to English. Only when the tag itself is unusable
+ * too is English reached -- see {@link isUsableLocale} for why an unchecked value cannot be passed on.
+ *
  * @param {string} lang
  * @param {Object} site
- * @returns {string}
+ * @returns {string}  Always a locale `Intl` accepts.
  */
 function localeFor( lang, site ) {
     const locales = ( site && site.locales ) || {};
-    return locales[ lang ] || lang || "en";
+    if ( isUsableLocale( locales[ lang ] ) ) {
+        return locales[ lang ];
+    }
+    return isUsableLocale( lang ) ? lang : DEFAULT_LOCALE;
 }
 
 /**
@@ -161,7 +201,8 @@ function buildPageContext( record, options ) {
     const taxonomy = opts.taxonomy;
     const lang = record.lang || site.defaultLanguage || "en";
     // Resolved ONCE and passed to both formatters, so a date and a word count on the same line can never disagree
-    // about which locale the page is in.
+    // about which locale the page is in -- and validated there, which is why the number below needs no guard of its
+    // own: `toLocaleString` rejects a malformed tag exactly as loudly as `toLocaleDateString` does.
     const locale = localeFor( lang, site );
     const context = {};
 

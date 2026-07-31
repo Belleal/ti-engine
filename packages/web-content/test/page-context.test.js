@@ -24,7 +24,7 @@ const { buildIndex } = require( "#loader" );
 const ContentRepository = require( "#repository" );
 const Taxonomy = require( "#taxonomy" );
 const { validateRecord } = require( "#schema" );
-const { buildPageContext, adjacentPosts, wordCount, archiveHref, ARCHIVE_FACETS } = require( "#context" );
+const { buildPageContext, adjacentPosts, wordCount, archiveHref, ARCHIVE_FACETS, formatDate, localeFor } = require( "#context" );
 const { buildArchiveRecords } = require( "#archives" );
 const { termArchivePath, termLabel } = require( "#terms" );
 const { parsePageParam } = require( "#content-routes" );
@@ -198,6 +198,59 @@ describe( "page context", () => {
 
     it( "yields no archive href when the language has no scheme", () => {
         assert.equal( archiveHref( { id: "x" }, "fr", { archives: {} } ), null );
+    } );
+
+} );
+
+/*
+ * A mistyped locale must not take the page down.
+ *
+ * `Intl` answers a malformed tag by throwing -- "en-G" is a RangeError, not a fallback -- and these tags come from
+ * site configuration, where a typo in a region subtag is one keystroke away. Unguarded it is not a cosmetic problem:
+ * every page and every post card in that language renders as a 500.
+ */
+describe( "locale resolution — a malformed configured locale never reaches Intl", () => {
+
+    const MALFORMED = [ "en-G", "en_GB", "en-GB-x", "", " ", 42, {}, [ "en-GB" ] ];
+
+    it( "honours a valid configured locale, region and all", () => {
+        assert.equal( localeFor( "en", SITE ), "en-GB" );
+        assert.equal( localeFor( "bg", SITE ), "bg-BG" );
+    } );
+
+    it( "falls back to the bare language tag rather than demoting the language to English", () => {
+        // A typo in the REGION is not a reason to start formatting Bulgarian dates in English: `bg` alone is correct.
+        assert.equal( localeFor( "bg", { locales: { bg: "bg-B" } } ), "bg" );
+        assert.equal( formatDate( "2026-03-01T00:00:00Z", localeFor( "bg", { locales: { bg: "bg-B" } } ) ), "1 март 2026 г." );
+    } );
+
+    it( "reaches English only when the language tag is unusable too", () => {
+        assert.equal( localeFor( "q", { locales: { q: "q-QQ" } } ), "en" );
+        assert.equal( localeFor( "", {} ), "en" );
+        assert.equal( localeFor( undefined, undefined ), "en" );
+    } );
+
+    it( "always answers with something Intl accepts, whatever the configuration says", () => {
+        for ( const hostile of MALFORMED ) {
+            const resolved = localeFor( "en", { locales: { en: hostile } } );
+            assert.doesNotThrow( () => new Date().toLocaleDateString( resolved ), `date: ${ JSON.stringify( hostile ) }` );
+            assert.doesNotThrow( () => ( 250 ).toLocaleString( resolved ), `number: ${ JSON.stringify( hostile ) }` );
+        }
+    } );
+
+    it( "formats a date in English rather than throwing when handed an unusable locale directly", () => {
+        for ( const hostile of MALFORMED ) {
+            assert.equal( formatDate( "2026-03-01T00:00:00Z", hostile ), "March 1, 2026", JSON.stringify( hostile ) );
+        }
+        assert.equal( formatDate( "not-a-date", "en-G" ), "" );
+    } );
+
+    it( "renders the whole page context — date and word count both — on a mistyped configuration", () => {
+        const broken = Object.assign( {}, SITE, { locales: { en: "en-G", bg: "bg_BG" } } );
+        const record = post( "a", { publishedAt: "2026-03-01T00:00:00Z", body: "word ".repeat( 250 ) } );
+        const context = buildPageContext( record, { taxonomy: taxonomy, site: broken } );
+        assert.equal( context.meta[ 0 ], "March 1, 2026" );
+        assert.match( context.meta[ 2 ], /^250 words$/ );
     } );
 
 } );
