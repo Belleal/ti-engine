@@ -72,7 +72,7 @@
     "ajv": "^8.20.0",
     "express": "^5.2.1",
     "gray-matter": "^4.0.3",
-    "markdown-it": "^14.1.0",
+    "markdown-it": "^15.0.0",
     "markdown-it-attrs": "^5.0.1",
     "markdown-it-bracketed-spans": "^1.0.3",
     "markdown-it-container": "^4.0.0",
