@@ -30,7 +30,7 @@
 const fs = require( "node:fs" );
 const path = require( "node:path" );
 const feeds = require( "#feeds" );
-const { contentHandler, viewerFromRequest } = require( "#content-routes" );
+const { contentHandler, viewerFromRequest, decodePath } = require( "#content-routes" );
 const { renderStateDocument } = require( "#page" );
 const { mountMediaRoutes } = require( "#media" );
 const logger = require( "@ti-engine/core/logger" );
@@ -157,6 +157,7 @@ function isSiteRelative( to ) {
  * @returns {Object} The server, for chaining.
  */
 function mountRedirects( server, redirects ) {
+    const table = new Map();
     for ( const rule of ( Array.isArray( redirects ) ? redirects : [] ) ) {
         if ( !rule || typeof rule.from !== "string" || typeof rule.to !== "string" ) {
             continue;
@@ -167,11 +168,29 @@ function mountRedirects( server, redirects ) {
             logger.log( `Ignored redirect '${ from }' -> '${ to }': both must be rooted, site-relative paths.`, logger.logSeverity.ERROR );
             continue;
         }
-        const status = ( rule.status === 302 || rule.status === 307 || rule.status === 308 ) ? rule.status : 301;
-        server.registerRoute( "get", from, ( request, response ) => {
-            response.redirect( status, to );
-        } );
+        table.set( from, { to: to, status: ( rule.status === 302 || rule.status === 307 || rule.status === 308 ) ? rule.status : 301 } );
     }
+    if ( table.size === 0 ) {
+        return server;
+    }
+
+    /*
+     * ONE route with a table lookup, rather than one Express route per rule.
+     *
+     * Registering `/category/блог-blog/` as a route path cannot work: Express matches routes against the raw request
+     * path, which arrives percent-encoded, so a literal non-ASCII route never fires. Storing the encoded form instead
+     * only moves the problem, because the hex case is the client's choice. Decoding the request once and looking it
+     * up is the same fix `contentHandler` applies, for the same reason -- and it makes the redirect table O(1)
+     * instead of N routes deep.
+     */
+    server.registerRoute( "get", /.*/, ( request, response, next ) => {
+        const rule = table.get( decodePath( request.path ) );
+        if ( !rule ) {
+            next();
+            return;
+        }
+        response.redirect( rule.status, rule.to );
+    } );
     return server;
 }
 
@@ -294,6 +313,9 @@ module.exports = {
     mountHomeRoute: mountHomeRoute,
     mountRedirects: mountRedirects,
     mountSessionRoute: mountSessionRoute,
+    // Re-exported because a consumer testing its own URLs has to model the request pipeline exactly as the handler
+    // runs it -- checking an undecoded path would exercise a layer the request never meets.
+    decodePath: decodePath,
     defineContentUnprotectedRoutes: defineContentUnprotectedRoutes,
     PUBLIC_EXCEPT_ADMIN: PUBLIC_EXCEPT_ADMIN
 };
