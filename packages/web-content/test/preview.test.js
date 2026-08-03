@@ -105,11 +105,21 @@ describe( "draft preview — the response cannot leak", () => {
         assert.equal( shouldNoindex( draft, "teaser" ), true, "a teaser of a draft is still a draft" );
     } );
 
-    it( "shows a banner so a preview cannot be mistaken for the live page", () => {
+    it( "shows a marker so a preview cannot be mistaken for the live page", () => {
         const out = renderDocument( page( "draft", { status: "draft" } ), { preview: true, baseUrl: "https://x.test", site: {} } );
-        assert.ok( out.includes( "status-pill-label\">Draft preview" ) );
+        assert.match( out, /class="draft-ribbon" role="status"/ );
+        assert.match( out, /draft-ribbon-label">Draft preview/ );
         assert.ok( out.includes( "noindex" ) );
-        assert.ok( !renderDocument( page( "live" ), { baseUrl: "https://x.test", site: {} } ).includes( "Draft preview" ) );
+        assert.ok( !renderDocument( page( "live" ), { baseUrl: "https://x.test", site: {} } ).includes( "draft-ribbon" ) );
+    } );
+
+    it( "keeps the marker out of <main>, so it cannot shift the layout being reviewed", () => {
+        // Inside <main> it was a section in the page's vertical rhythm, pushing every draft down by its own height:
+        // the author reviewed a layout no reader would ever see.
+        const out = renderDocument( page( "draft", { status: "draft" } ), { preview: true, baseUrl: "https://x.test", site: {} } );
+        assert.ok( out.indexOf( "draft-ribbon" ) < out.indexOf( "<main id=\"content\">" ), "the ribbon must precede <main>" );
+        const main = out.slice( out.indexOf( "<main id=\"content\">" ) );
+        assert.equal( main.indexOf( "draft-ribbon" ), -1, "nothing about the preview may sit inside the content" );
     } );
 
 } );
