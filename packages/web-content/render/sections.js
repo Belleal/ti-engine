@@ -23,7 +23,7 @@
  * layers per page is the design ceiling. No component ever emits a style attribute.
  */
 
-const { html, raw } = require( "#html" );
+const { html, raw, accentedTitle } = require( "#html" );
 const editorial = require( "#editorial" );
 
 // Body renderers keyed by section type. Each takes ( section, context ) and returns the section BODY only; the
@@ -139,8 +139,10 @@ function renderSection( section, context ) {
  * a small-caps `.section-header` and once as the large `.hero-title` directly beneath it. Nothing errored; the page
  * simply had two headings, and the author is left wondering why their layout does not match the design.
  *
- * `eyebrow` and `divider` are not in the exemption: neither renderer emits them, so the chrome is still the only
- * thing that can.
+ * `divider` goes with them for a different reason: the chrome draws its rule ABOVE the section body, which on a hero
+ * is above the image -- never where a design wants it. The hero draws its own, between the title and the foot.
+ *
+ * `eyebrow` stays with the chrome, because no renderer here emits one.
  */
 const OWN_HEADING = new Set( [ "hero", "audio" ] );
 
@@ -158,13 +160,12 @@ function renderChrome( section ) {
         parts.push( html`<p class="section-eyebrow">${ section.eyebrow }</p>` );
     }
     if ( !ownsHeading && ( section.title || section.titleAccent ) ) {
-        const accent = section.titleAccent ? html` <span class="accent">${ section.titleAccent }</span>` : raw( "" );
-        parts.push( html`<h2 class="section-header">${ section.title || "" }${ accent }</h2>` );
+        parts.push( html`<h2 class="section-header">${ accentedTitle( section.title, section.titleAccent ) }</h2>` );
     }
     if ( !ownsHeading && section.subtitle ) {
         parts.push( html`<p class="section-subtitle">${ section.subtitle }</p>` );
     }
-    if ( section.divider ) {
+    if ( !ownsHeading && section.divider ) {
         // The scarlet rule is reserved for drama; gold is the default editorial divider.
         const tone = ( section.divider === "scarlet" ) ? "divider-scarlet" : "divider-gold";
         parts.push( html`<hr class="${ tone } divider-short">` );

@@ -398,3 +398,59 @@ describe( "sections — a type that owns its heading is not given a second one",
     } );
 
 } );
+
+/*
+ * The accent may land on ANY word of a title.
+ *
+ * It used to be appended unconditionally, so `<span class="accent">Welcome</span> to my Page` — a first-word accent,
+ * which is what the design actually uses — could not be expressed at all. The author is left with the accent on the
+ * wrong word and no field that would move it.
+ */
+describe( "titles — the accent is placed where it appears", () => {
+
+    const { accentedTitle } = require( "#html" );
+
+    it( "wraps the accented run in place, wherever it sits", () => {
+        assert.equal( String( accentedTitle( "Welcome to my Page", "Welcome" ) ), "<span class=\"accent\">Welcome</span> to my Page" );
+        assert.equal( String( accentedTitle( "The Scarlet Requiem", "Scarlet" ) ), "The <span class=\"accent\">Scarlet</span> Requiem" );
+    } );
+
+    it( "appends when the accent is not part of the title — the long-standing behaviour", () => {
+        assert.equal( String( accentedTitle( "The", "Scarlet" ) ), "The <span class=\"accent\">Scarlet</span>" );
+    } );
+
+    it( "escapes both halves of the split, so only the span is markup", () => {
+        const out = String( accentedTitle( "a <b> c & d", "<b>" ) );
+        assert.equal( out, "a <span class=\"accent\">&lt;b&gt;</span> c &amp; d" );
+    } );
+
+    it( "handles an absent accent and an empty title", () => {
+        assert.equal( String( accentedTitle( "Plain", "" ) ), "Plain" );
+        assert.equal( String( accentedTitle( "", "Only" ) ), "<span class=\"accent\">Only</span>" );
+        assert.equal( String( accentedTitle( null, null ) ), "" );
+    } );
+
+    it( "reaches the hero and the section chrome alike", () => {
+        const hero = String( renderSection( { type: "hero", primary: true, title: "Welcome to my Page", titleAccent: "Welcome" }, {} ) );
+        assert.match( hero, /<h1 class="hero-title"><span class="accent">Welcome<\/span> to my Page<\/h1>/ );
+        const prose = String( renderSection( { type: "prose", title: "Latest writings", titleAccent: "Latest", body: "x" }, {} ) );
+        assert.match( prose, /<h2 class="section-header"><span class="accent">Latest<\/span> writings<\/h2>/ );
+    } );
+
+} );
+
+describe( "hero — the divider belongs between the title and the foot", () => {
+
+    it( "draws its own rule there, not above the image", () => {
+        const out = String( renderSection( { type: "hero", title: "T", divider: "scarlet", scrollHint: "Descend ↓", background: "/i.webp" }, {} ) );
+        const rule = out.indexOf( "divider-scarlet" );
+        assert.ok( rule > out.indexOf( "hero-content" ), "the rule must follow the title" );
+        assert.ok( rule < out.indexOf( "hero-foot" ), "and precede the foot" );
+        assert.ok( rule > out.indexOf( "hero-media" ), "and never sit above the image" );
+    } );
+
+    it( "emits no rule at all when the section does not ask for one", () => {
+        assert.doesNotMatch( String( renderSection( { type: "hero", title: "T" }, {} ) ), /divider-/ );
+    } );
+
+} );
