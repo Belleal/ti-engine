@@ -138,3 +138,37 @@ describe( "sections — reveal choreography", () => {
     } );
 
 } );
+
+/*
+ * The authoring guide cannot fall behind the code.
+ *
+ * A reference that silently omits a section type is worse than none: the author reads the list, concludes the type
+ * does not exist, and works around something that was there all along. So the guide has to account for EVERY type
+ * the schema accepts — either with its own section, or by name in the not-yet-documented list.
+ */
+describe( "the authoring guide accounts for every section type", () => {
+
+    const fs = require( "node:fs" );
+    const path = require( "node:path" );
+    const { SECTION_TYPES } = require( "#schema" );
+    const GUIDE = path.join( __dirname, "..", "design", "authoring-guide.md" );
+
+    const read = () => fs.readFileSync( GUIDE, "utf8" );
+    const documentedIn = ( guide ) => [ ...guide.matchAll( /^### `([a-zA-Z]+)`$/gm ) ].map( ( m ) => m[ 1 ] );
+    const deferredBlock = ( guide ) => guide.slice( guide.indexOf( "### Types not yet documented here" ) );
+
+    it( "documents or explicitly defers each one", () => {
+        const guide = read();
+        const documented = new Set( documentedIn( guide ) );
+        const deferred = new Set( [ ...deferredBlock( guide ).matchAll( /`([a-zA-Z]+)`/g ) ].map( ( m ) => m[ 1 ] ) );
+        const unaccounted = SECTION_TYPES.filter( ( type ) => !documented.has( type ) && !deferred.has( type ) );
+        assert.deepEqual( unaccounted, [], "section types the authoring guide never mentions" );
+    } );
+
+    it( "does not still defer a type it has since documented", () => {
+        const guide = read();
+        const stale = documentedIn( guide ).filter( ( type ) => deferredBlock( guide ).includes( "`" + type + "`" ) );
+        assert.deepEqual( stale, [], "types listed as pending that already have a section — remove them from the list" );
+    } );
+
+} );
