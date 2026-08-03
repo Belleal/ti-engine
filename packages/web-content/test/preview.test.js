@@ -105,17 +105,30 @@ describe( "draft preview — the response cannot leak", () => {
         assert.equal( shouldNoindex( draft, "teaser" ), true, "a teaser of a draft is still a draft" );
     } );
 
-    it( "shows a banner so a preview cannot be mistaken for the live page", () => {
+    it( "shows a marker so a preview cannot be mistaken for the live page", () => {
         const out = renderDocument( page( "draft", { status: "draft" } ), { preview: true, baseUrl: "https://x.test", site: {} } );
-        assert.ok( out.includes( "status-pill-label\">Draft preview" ) );
+        assert.match( out, /class="draft-ribbon" role="status"/ );
+        assert.match( out, /draft-ribbon-label">Draft preview/ );
         assert.ok( out.includes( "noindex" ) );
-        assert.ok( !renderDocument( page( "live" ), { baseUrl: "https://x.test", site: {} } ).includes( "Draft preview" ) );
+        assert.ok( !renderDocument( page( "live" ), { baseUrl: "https://x.test", site: {} } ).includes( "draft-ribbon" ) );
+    } );
+
+    it( "keeps the marker out of <main>, so it cannot shift the layout being reviewed", () => {
+        // Inside <main> it was a section in the page's vertical rhythm, pushing every draft down by its own height:
+        // the author reviewed a layout no reader would ever see.
+        const out = renderDocument( page( "draft", { status: "draft" } ), { preview: true, baseUrl: "https://x.test", site: {} } );
+        assert.ok( out.indexOf( "draft-ribbon" ) < out.indexOf( "<main id=\"content\">" ), "the ribbon must precede <main>" );
+        const main = out.slice( out.indexOf( "<main id=\"content\">" ) );
+        assert.equal( main.indexOf( "draft-ribbon" ), -1, "nothing about the preview may sit inside the content" );
     } );
 
 } );
 
 describe( "redirects — the escape hatch an alias cannot be", () => {
 
+    // Redirects mount as ONE decode-aware route with a table behind it, not one Express route per rule -- a literal
+    // non-ASCII route path can never match the encoded request Express receives. So the tests drive it the way
+    // Express does: give the handler a request path and see what comes back.
     function collect( redirects ) {
         const routes = [];
         const server = { registerRoute( method, path, handler ) { routes.push( { method, path, handler } ); return this; } };
@@ -123,19 +136,40 @@ describe( "redirects — the escape hatch an alias cannot be", () => {
         return routes;
     }
 
-    it( "registers a rule and answers 301 by default", () => {
-        const routes = collect( [ { from: "/feed/", to: "/rss.xml" } ] );
-        assert.equal( routes.length, 1 );
+    function follow( redirects, requestPath ) {
+        const routes = collect( redirects );
+        if ( routes.length === 0 ) {
+            return null;
+        }
         let captured = null;
-        routes[ 0 ].handler( {}, { redirect( status, url ) { captured = { status, url }; } } );
-        assert.deepEqual( captured, { status: 301, url: "/rss.xml" } );
+        let fellThrough = false;
+        routes[ 0 ].handler(
+            { path: requestPath },
+            { redirect( status, url ) { captured = { status: status, url: url }; } },
+            () => { fellThrough = true; }
+        );
+        return fellThrough ? null : captured;
+    }
+
+    it( "registers a rule and answers 301 by default", () => {
+        assert.deepEqual( follow( [ { from: "/feed/", to: "/rss.xml" } ], "/feed/" ), { status: 301, url: "/rss.xml" } );
+    } );
+
+    it( "falls through for a path with no rule, instead of claiming it", () => {
+        // It is registered as a catch-all, so anything it does not own has to reach the content resolver behind it.
+        assert.equal( follow( [ { from: "/feed/", to: "/rss.xml" } ], "/something-else/" ), null );
+    } );
+
+    it( "fires for a Cyrillic source, which an Express route path cannot", () => {
+        // The request arrives percent-encoded. Registering `/категория/` as a route would never match it, and
+        // storing the encoded form matches only the hex case the client happens to send.
+        const rule = [ { from: "/категория/", to: "/writings/" } ];
+        assert.deepEqual( follow( rule, "/%D0%BA%D0%B0%D1%82%D0%B5%D0%B3%D0%BE%D1%80%D0%B8%D1%8F/" ), { status: 301, url: "/writings/" } );
+        assert.deepEqual( follow( rule, "/%d0%ba%d0%b0%d1%82%d0%b5%d0%b3%d0%be%d1%80%d0%b8%d1%8f/" ), { status: 301, url: "/writings/" } );
     } );
 
     it( "carries a query string, which an alias cannot", () => {
-        const routes = collect( [ { from: "/writings/page/2/", to: "/writings/?page=2" } ] );
-        let captured = null;
-        routes[ 0 ].handler( {}, { redirect( status, url ) { captured = url; } } );
-        assert.equal( captured, "/writings/?page=2" );
+        assert.equal( follow( [ { from: "/writings/page/2/", to: "/writings/?page=2" } ], "/writings/page/2/" ).url, "/writings/?page=2" );
     } );
 
     it( "refuses an absolute or protocol-relative target — that would be an open redirect", () => {
@@ -165,12 +199,100 @@ describe( "redirects — the escape hatch an alias cannot be", () => {
     } );
 
     it( "honours an explicit permanent-or-temporary status", () => {
-        const routes = collect( [ { from: "/a/", to: "/b/", status: 302 }, { from: "/c/", to: "/d/", status: 999 } ] );
-        let first = null, second = null;
-        routes[ 0 ].handler( {}, { redirect: ( s ) => { first = s; } } );
-        routes[ 1 ].handler( {}, { redirect: ( s ) => { second = s; } } );
-        assert.equal( first, 302 );
-        assert.equal( second, 301, "an unrecognised status falls back to a permanent redirect" );
+        const rules = [ { from: "/a/", to: "/b/", status: 302 }, { from: "/c/", to: "/d/", status: 999 } ];
+        assert.equal( follow( rules, "/a/" ).status, 302 );
+        assert.equal( follow( rules, "/c/" ).status, 301, "an unrecognised status falls back to a permanent redirect" );
+    } );
+
+} );
+
+/*
+ * A percent-encoded request path.
+ *
+ * Express hands the handler the raw path, so a browser asking for a Cyrillic URL arrives as `%D0%BD…`. The index is
+ * an exact Map lookup against literal characters, so before this the alias could not match -- silently, since the
+ * content file looks correct and nothing throws.
+ */
+describe( "request paths arrive percent-encoded", () => {
+
+    const { decodePath } = require( "#content-routes" );
+
+    it( "decodes a non-ASCII path to the form records are authored in", () => {
+        assert.equal( decodePath( "/bg/%D0%BD%D0%B0%D1%87%D0%B0%D0%BB%D0%BE/" ), "/bg/начало/" );
+    } );
+
+    it( "decodes either hex case, because the client chooses it", () => {
+        // Yoast emitted lowercase, browsers send uppercase. Storing one encoded form would match only one of them.
+        assert.equal( decodePath( "/%D0%B1%D0%BB%D0%BE%D0%B3/" ), decodePath( "/%d0%b1%d0%bb%d0%be%d0%b3/" ) );
+    } );
+
+    it( "leaves an encoded slash alone, so a slug cannot address a different record", () => {
+        // decodeURIComponent would turn this into "/a/b/" and change which path is being asked for.
+        assert.equal( decodePath( "/a%2Fb/" ), "/a%2Fb/" );
+    } );
+
+    it( "returns a malformed sequence unchanged rather than throwing", () => {
+        // decodeURI raises URIError on these; uncaught, a hostile request would be a 500 instead of a 404.
+        assert.doesNotThrow( () => decodePath( "/%E0%A4%A" ) );
+        assert.equal( decodePath( "/%E0%A4%A" ), "/%E0%A4%A" );
+    } );
+
+    it( "leaves an ordinary ASCII path untouched", () => {
+        assert.equal( decodePath( "/writings/some-post/" ), "/writings/some-post/" );
+    } );
+
+} );
+
+/*
+ * The home route.
+ *
+ * The failure this covers is the loudest-looking silent one on the whole site: with no published record at `/`, the
+ * root used to fall through to the framework's application shell, which answers 200 with a login screen. A reader
+ * sees a foreign page where the home page belongs, and a crawler records a successful response for the single most
+ * important URL on the site.
+ */
+describe( "the home route claims / for content", () => {
+
+    const { mountHomeRoute } = require( "#routes" );
+
+    function request( repository, options ) {
+        const routes = [];
+        const server = { registerRoute( method, path, handler ) { routes.push( handler ); return this; } };
+        mountHomeRoute( server, Object.assign( { repository: repository, site: {}, labels: {} }, options || {} ) );
+        let status = null, body = "", fellThrough = false;
+        routes[ 0 ](
+            { path: "/", query: {}, session: {} },
+            {
+                locals: {}, set() { return this; }, type() { return this; },
+                status( code ) { status = code; return this; },
+                send( out ) { body = String( out ); return this; }
+            },
+            () => { fellThrough = true; }
+        );
+        return { status: status, body: body, fellThrough: fellThrough };
+    }
+
+    const published = new ContentRepository( buildIndex( [ page( "home", { path: "/" } ) ] ) );
+    const draftOnly = new ContentRepository( buildIndex( [ page( "home", { path: "/", status: "draft" } ) ] ) );
+
+    it( "serves the home record when one is published", () => {
+        const result = request( published );
+        assert.equal( result.status, 200 );
+        assert.equal( result.fellThrough, false );
+    } );
+
+    it( "answers its own 404 when the home record is a draft, not the application shell", () => {
+        const result = request( draftOnly );
+        assert.equal( result.status, 404, "the site root must not answer 200 with somebody else's page" );
+        assert.equal( result.fellThrough, false );
+    } );
+
+    it( "answers 404 when no record claims / at all", () => {
+        assert.equal( request( new ContentRepository( buildIndex( [] ) ) ).status, 404 );
+    } );
+
+    it( "still falls through for a genuine hybrid that opts out", () => {
+        assert.equal( request( draftOnly, { notFound: false } ).fellThrough, true );
     } );
 
 } );

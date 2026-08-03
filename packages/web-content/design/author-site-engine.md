@@ -13,27 +13,27 @@
 
 How this design lands in code — update as each step is committed (branch `current`).
 
-| Phase / step | Status | Commit | Date |
-|---|---|---|---|
-| Design ratified (placement · name · seams · render model · deps · on-disk format · defer search) | ✅ ratified | — | 2026-07-24 |
-| **P0** — Framework route seams (`registerRoute` + `addUnprotectedRoute`) + tests → web-framework `1.17.0` | ✅ committed | `d01dc6a` | 2026-07-24 |
-| **P1a** — `web-content` package inception (package.json, CHANGELOG, README) | ✅ committed | `abfb51a` | 2026-07-24 |
-| **P1b** — `content/schema.js` (ajv envelope + per-type) + **invariant tests written first** | ✅ 16 tests | `abfb51a` | 2026-07-24 |
-| **P1c** — `content/loader.js` (validate records → indexes + conflict reporting) | ✅ 8 tests | `62e5f87` | 2026-07-24 |
-| **P1d** — `content/repository.js` — THE visibility-filtered query layer | ✅ 17 tests | `5fe75b8` | 2026-07-24 |
-| **P2a** — `transliterate.js` + `taxonomy.js` graph (dep-free) | ✅ 20 tests | `b4aebe4` | 2026-07-24 |
-| **P2b** — `content/markdown.js` (markdown-it, `html:false`) + `content/sources.js` (front-matter/YAML reader, no directory scanning) | ✅ 22 tests | — | 2026-07-24 |
-| **P3a** — `render/html.js` (escaping + `raw()`) + `render/document.js` (head/JSON-LD/hreflang) | ✅ 19 tests | `9ad6bf1` | 2026-07-24 |
-| **P3b** — `render/sections.js` (registry + mechanical dispatch) + all 15 editorial components | ✅ 53 tests | — | 2026-07-30 |
-| **P2c** — editorial markdown extensions (attrs · bracketed-spans · containers · footnotes) | ✅ 20 tests | — | 2026-07-30 |
-| **P3c** — document assembly (shell · topbar · footer · gate · 404) + the vanilla site script | ✅ 25 tests + doc acceptance check | — | 2026-07-30 |
-| **P4** — `routes/content-routes.js` (catch-all resolver + alias 301 + cache policy) · `routes/feeds.js` (sitemap/rss/robots) · `routes/index.js` mount helpers | ✅ 23 tests + e2e smoke | — | 2026-07-24 |
-| **P5** — page context (eyebrow · meta · terms · breadcrumb · prev/next) · taxonomy-expanded queries · `?page=N` · generated term archives | ✅ 27 tests + live verification | — | 2026-07-30 |
-| **P6** — `capture/store.js` · `capture/admin.js` · `capture/routes.js` (admin behind the `admin` role) | ✅ 31 tests + live verification | — | 2026-07-30 |
-| **P7** — Migration tooling (URL inventory → WP REST export → uploads copy → redirect map) | ☐ pending | — | — |
-| **P8a** — `Site/app` standup (`TiWebServer`/`TiWebAppManager` subclasses, content loader, config) — **boots and serves** | ✅ verified live | — | 2026-07-30 |
-| **P8b** — Dockerfile → staging → redirect diff → cutover | ☐ pending | — | — |
-| **Track B** (parallel, no code dep) — tokens → `anarand.css`; ten new editorial components; port existing components | ☐ pending | — | — |
+| Phase / step                                                                                                                                                   | Status                             | Commit    | Date       |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------|-----------|------------|
+| Design ratified (placement · name · seams · render model · deps · on-disk format · defer search)                                                               | ✅ ratified                        | —         | 2026-07-24 |
+| **P0** — Framework route seams (`registerRoute` + `addUnprotectedRoute`) + tests → web-framework `1.17.0`                                                      | ✅ committed                       | `d01dc6a` | 2026-07-24 |
+| **P1a** — `web-content` package inception (package.json, CHANGELOG, README)                                                                                    | ✅ committed                       | `abfb51a` | 2026-07-24 |
+| **P1b** — `content/schema.js` (ajv envelope + per-type) + **invariant tests written first**                                                                    | ✅ 16 tests                        | `abfb51a` | 2026-07-24 |
+| **P1c** — `content/loader.js` (validate records → indexes + conflict reporting)                                                                                | ✅ 8 tests                         | `62e5f87` | 2026-07-24 |
+| **P1d** — `content/repository.js` — THE visibility-filtered query layer                                                                                        | ✅ 17 tests                        | `5fe75b8` | 2026-07-24 |
+| **P2a** — `transliterate.js` + `taxonomy.js` graph (dep-free)                                                                                                  | ✅ 20 tests                        | `b4aebe4` | 2026-07-24 |
+| **P2b** — `content/markdown.js` (markdown-it, `html:false`) + `content/sources.js` (front-matter/YAML reader, no directory scanning)                           | ✅ 22 tests                        | —         | 2026-07-24 |
+| **P3a** — `render/html.js` (escaping + `raw()`) + `render/document.js` (head/JSON-LD/hreflang)                                                                 | ✅ 19 tests                        | `9ad6bf1` | 2026-07-24 |
+| **P3b** — `render/sections.js` (registry + mechanical dispatch) + all 15 editorial components                                                                  | ✅ 53 tests                        | —         | 2026-07-30 |
+| **P2c** — editorial markdown extensions (attrs · bracketed-spans · containers · footnotes)                                                                     | ✅ 20 tests                        | —         | 2026-07-30 |
+| **P3c** — document assembly (shell · topbar · footer · gate · 404) + the vanilla site script                                                                   | ✅ 25 tests + doc acceptance check | —         | 2026-07-30 |
+| **P4** — `routes/content-routes.js` (catch-all resolver + alias 301 + cache policy) · `routes/feeds.js` (sitemap/rss/robots) · `routes/index.js` mount helpers | ✅ 23 tests + e2e smoke            | —         | 2026-07-24 |
+| **P5** — page context (eyebrow · meta · terms · breadcrumb · prev/next) · taxonomy-expanded queries · `?page=N` · generated term archives                      | ✅ 27 tests + live verification    | —         | 2026-07-30 |
+| **P6** — `capture/store.js` · `capture/admin.js` · `capture/routes.js` (admin behind the `admin` role)                                                         | ✅ 31 tests + live verification    | —         | 2026-07-30 |
+| **P7** — Migration tooling (URL inventory → WP REST export → uploads copy → redirect map)                                                                      | ☐ pending                         | —         | —          |
+| **P8a** — `Site/app` standup (`TiWebServer`/`TiWebAppManager` subclasses, content loader, config) — **boots and serves**                                       | ✅ verified live                   | —         | 2026-07-30 |
+| **P8b** — Dockerfile → staging → redirect diff → cutover                                                                                                       | ☐ pending                         | —         | —          |
+| **Track B** (parallel, no code dep) — tokens → `anarand.css`; ten new editorial components; port existing components                                           | ☐ pending                         | —         | —          |
 
 > **On the per-phase test counts above.** They sum to 281, which is the web-content suite at the end of P6 — P0 is not in that figure because its tests live in `web-framework`, not here. The status line reports the suite as it stands today, which has grown past 281 with the review fixes, draft preview and the account menu. The two numbers count different things on purpose; neither is a running total of the other.
 
@@ -217,11 +217,11 @@ The escaping tagged template (`render/html.js`) is the one primitive small and g
 
 The specs pin the *schema* but not the *authoring format*. Proposed:
 
-| Type | Format | Why |
-|---|---|---|
-| `post` | Markdown file with YAML **front-matter** | Long-form prose is the body; envelope fields sit in front-matter. Ergonomic for writing. |
-| `page` · `book` · `release` | YAML file | Structured records (section trees, editions, tracks). Prose-bearing fields (`blurb`, `teaser`, section `body`) hold Markdown strings the renderer runs through `markdown.js`. |
-| `taxonomies.yml` | YAML | Already specified (`content-schemas.md` §7). |
+| Type                        | Format                                   | Why                                                                                                                                                                           |
+|-----------------------------|------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `post`                      | Markdown file with YAML **front-matter** | Long-form prose is the body; envelope fields sit in front-matter. Ergonomic for writing.                                                                                      |
+| `page` · `book` · `release` | YAML file                                | Structured records (section trees, editions, tracks). Prose-bearing fields (`blurb`, `teaser`, section `body`) hold Markdown strings the renderer runs through `markdown.js`. |
+| `taxonomies.yml`            | YAML                                     | Already specified (`content-schemas.md` §7).                                                                                                                                  |
 
 `gray-matter` parses both front-matter Markdown and pure-YAML. Records validate against the ajv schemas in `schema.js` at load; a validation failure is a hard load error, never a silent skip (`CLAUDE.md` 5).
 

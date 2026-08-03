@@ -127,8 +127,27 @@
             method: "POST",
             credentials: "same-origin",
             headers: { "content-type": "application/x-www-form-urlencoded" },
-            body: body.toString()
+            body: body.toString(),
+            // NOT followed. The framework answers a successful sign-in with a 303, and following it makes the
+            // outcome depend on whatever the target happens to return -- including failing outright, which is what
+            // happens when the CSP carries `upgrade-insecure-requests` and the site is being served over plain HTTP:
+            // the POST lands and creates the session, the redirect leg fails, fetch rejects, and the form reports an
+            // error for a sign-in that actually worked. The user then presses F5 and finds themselves logged in.
+            redirect: "manual"
         } );
+    }
+
+    /**
+     * Whether the browser is signed in, according to the server.
+     *
+     * The authoritative question, asked directly, instead of inferring an answer from the status code of a redirect
+     * chain. Sign-in is a session fact; the shape of the response that created it is a framework detail.
+     */
+    function isSignedIn() {
+        return fetch( "/session", { credentials: "same-origin", headers: { accept: "application/json" } } )
+            .then( function ( response ) { return response.ok ? response.json() : null; } )
+            .then( function ( session ) { return !!( session && session.authenticated ); } )
+            .catch( function () { return false; } );
     }
 
     function initAccountMenu( root ) {
@@ -226,8 +245,10 @@
                 if ( button ) {
                     button.disabled = true;
                 }
-                submitForm( loginForm ).then( function ( response ) {
-                    if ( response.ok || response.redirected ) {
+                // The POST's own outcome is deliberately ignored -- `.catch` folds a failed redirect leg into the
+                // same path as a refused credential, and then the server is asked what actually happened.
+                submitForm( loginForm ).catch( function () { /* answered by isSignedIn below */ } ).then( isSignedIn ).then( function ( signedIn ) {
+                    if ( signedIn ) {
                         // Reload rather than update in place: what a signed-in viewer may SEE is decided server-side,
                         // so the page has to be rendered again to show it.
                         window.location.reload();
@@ -239,11 +260,6 @@
                     if ( button ) {
                         button.disabled = false;
                     }
-                } ).catch( function () {
-                    showError( menu.getAttribute( "data-error" ) || "Sign-in failed. Check your details and try again." );
-                    if ( button ) {
-                        button.disabled = false;
-                    }
                 } );
             } );
         }
@@ -251,9 +267,9 @@
         if ( logoutForm ) {
             logoutForm.addEventListener( "submit", function ( event ) {
                 event.preventDefault();
-                submitForm( logoutForm ).then( function () {
-                    window.location.reload();
-                } ).catch( function () {
+                // Reloaded either way: signing out is the one outcome where being wrong is safe, because the reload
+                // renders whatever the session actually is now.
+                submitForm( logoutForm ).catch( function () { /* the reload settles it */ } ).then( function () {
                     window.location.reload();
                 } );
             } );

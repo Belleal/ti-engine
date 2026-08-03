@@ -122,11 +122,17 @@ function assemble( parts ) {
     // A preview must never be mistakable for the live page. The banner is the visible half of the guarantee; the
     // response is also `private, no-store` and noindex, so this cannot be the only thing standing between an
     // unfinished page and the public -- but it is the half a human notices.
+    // Its own element rather than a `.section`, and OUTSIDE <main>. A section participates in the page's vertical
+    // rhythm, so the banner pushed every draft down by its own height and the author reviewed a layout nobody else
+    // would ever see. This is an annotation ABOUT the page, not part of it: the theme lifts it out of flow entirely.
+    //
+    // `role="status"` rather than `alert`: it is a standing condition of the page, not an event, and an alert would
+    // interrupt a screen reader mid-sentence on every navigation.
     const previewBanner = ctx.preview
-        ? html`<div class="section section-tight bg-mid"><div class="wrap-page"><span class="status-pill"><span class="status-pill-inner"><span class="status-pill-dot" aria-hidden="true"></span><span class="status-pill-label">${ ( ctx.labels && ctx.labels.draftPreview ) || "Draft preview" }</span><span class="status-pill-sep" aria-hidden="true">·</span><span class="status-pill-date">${ ( ctx.labels && ctx.labels.draftPreviewNote ) || "not published, not indexed" }</span></span></span></div></div>`
+        ? html`<div class="draft-ribbon" role="status"><span class="draft-ribbon-dot" aria-hidden="true"></span><span class="draft-ribbon-label">${ ( ctx.labels && ctx.labels.draftPreview ) || "Draft preview" }</span><span class="draft-ribbon-note">${ ( ctx.labels && ctx.labels.draftPreviewNote ) || "not published, not indexed" }</span></div>`
         : raw( "" );
 
-    return "<!DOCTYPE html>\n" + html`<html lang="${ parts.lang }"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${ renderBootScript( nonce ) }${ parts.head }${ preloads }${ stylesheets }</head><body${ bodyAttr }>${ shell.renderNoiseLayer() }${ shell.renderSkipLink( ctx.labels ) }${ shell.renderTopbar( ctx ) }<main id="content">${ previewBanner }${ parts.body }</main>${ shell.renderFooter( ctx ) }${ scripts }</body></html>`.toString() + "\n";
+    return "<!DOCTYPE html>\n" + html`<html lang="${ parts.lang }"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${ renderBootScript( nonce ) }${ parts.head }${ preloads }${ stylesheets }</head><body${ bodyAttr }>${ shell.renderNoiseLayer() }${ shell.renderSkipLink( ctx.labels ) }${ shell.renderTopbar( ctx ) }${ previewBanner }<main id="content">${ parts.body }</main>${ shell.renderFooter( ctx ) }${ scripts }</body></html>`.toString() + "\n";
 }
 
 module.exports = {
