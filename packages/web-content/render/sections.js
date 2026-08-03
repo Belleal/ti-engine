@@ -131,6 +131,19 @@ function renderSection( section, context ) {
     return html`<section class="${ classes.join( " " ) }"${ section.screenLabel ? html` data-screen-label="${ section.screenLabel }"` : raw( "" ) }><div class="${ wrap }">${ renderChrome( section ) }${ body }</div></section>`;
 }
 
+/*
+ * Types whose own renderer draws the heading, so the generic chrome must not draw it again.
+ *
+ * `hero` emits `.hero-title` / `.hero-subtitle` and `audio` emits `.audio-title` / `.audio-subtitle`, both from the
+ * SAME `title` and `subtitle` fields the chrome reads. Without this, every hero rendered its title twice -- once as
+ * a small-caps `.section-header` and once as the large `.hero-title` directly beneath it. Nothing errored; the page
+ * simply had two headings, and the author is left wondering why their layout does not match the design.
+ *
+ * `eyebrow` and `divider` are not in the exemption: neither renderer emits them, so the chrome is still the only
+ * thing that can.
+ */
+const OWN_HEADING = new Set( [ "hero", "audio" ] );
+
 /**
  * The optional eyebrow / header / subtitle / divider block above a section body. Each element is emitted only when
  * the record carries it, so an absent field leaves no empty node behind.
@@ -140,14 +153,15 @@ function renderSection( section, context ) {
  */
 function renderChrome( section ) {
     const parts = [];
+    const ownsHeading = OWN_HEADING.has( section.type );
     if ( section.eyebrow ) {
         parts.push( html`<p class="section-eyebrow">${ section.eyebrow }</p>` );
     }
-    if ( section.title || section.titleAccent ) {
+    if ( !ownsHeading && ( section.title || section.titleAccent ) ) {
         const accent = section.titleAccent ? html` <span class="accent">${ section.titleAccent }</span>` : raw( "" );
         parts.push( html`<h2 class="section-header">${ section.title || "" }${ accent }</h2>` );
     }
-    if ( section.subtitle ) {
+    if ( !ownsHeading && section.subtitle ) {
         parts.push( html`<p class="section-subtitle">${ section.subtitle }</p>` );
     }
     if ( section.divider ) {

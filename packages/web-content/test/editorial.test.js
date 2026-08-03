@@ -352,3 +352,49 @@ describe( "editorial — no component emits a style attribute", () => {
     } );
 
 } );
+
+/*
+ * A section type whose renderer draws its own heading must not also get the generic chrome heading.
+ *
+ * `hero` and `audio` read the SAME `title`/`subtitle` fields the chrome reads, so before this every hero rendered
+ * its title twice — a small-caps `.section-header` sitting directly above the large `.hero-title`. Nothing errored.
+ * The page simply had two headings, and the author is left comparing it to a design it will never match.
+ */
+describe( "sections — a type that owns its heading is not given a second one", () => {
+
+    const { renderSection } = require( "#sections" );
+
+    it( "renders a hero title once, as the hero title", () => {
+        const out = String( renderSection( { type: "hero", primary: true, title: "Welcome to my Page" }, {} ) );
+        assert.equal( out.split( "Welcome to my Page" ).length - 1, 1, "the title must appear exactly once" );
+        assert.match( out, /<h1 class="hero-title">Welcome to my Page<\/h1>/ );
+        assert.doesNotMatch( out, /section-header/ );
+    } );
+
+    it( "renders a hero subtitle once", () => {
+        const out = String( renderSection( { type: "hero", title: "T", subtitle: "S" }, {} ) );
+        assert.equal( out.split( ">S<" ).length - 1, 1 );
+        assert.match( out, /hero-subtitle/ );
+        assert.doesNotMatch( out, /section-subtitle/ );
+    } );
+
+    it( "does the same for audio, which also draws its own title", () => {
+        const out = String( renderSection( { type: "audio", title: "A Track", subtitle: "S" }, {} ) );
+        assert.equal( out.split( "A Track" ).length - 1, 1 );
+        assert.match( out, /audio-title/ );
+        assert.doesNotMatch( out, /section-header/ );
+    } );
+
+    it( "still gives them an eyebrow and a divider, which no renderer emits itself", () => {
+        const out = String( renderSection( { type: "hero", title: "T", eyebrow: "E", divider: "scarlet" }, {} ) );
+        assert.match( out, /section-eyebrow">E</ );
+        assert.match( out, /divider-scarlet/ );
+    } );
+
+    it( "leaves an ordinary section's chrome alone", () => {
+        const out = String( renderSection( { type: "prose", title: "Heading", subtitle: "Sub", body: "x" }, {} ) );
+        assert.match( out, /<h2 class="section-header">Heading<\/h2>/ );
+        assert.match( out, /section-subtitle">Sub</ );
+    } );
+
+} );
