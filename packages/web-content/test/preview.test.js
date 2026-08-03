@@ -232,3 +232,57 @@ describe( "request paths arrive percent-encoded", () => {
     } );
 
 } );
+
+/*
+ * The home route.
+ *
+ * The failure this covers is the loudest-looking silent one on the whole site: with no published record at `/`, the
+ * root used to fall through to the framework's application shell, which answers 200 with a login screen. A reader
+ * sees a foreign page where the home page belongs, and a crawler records a successful response for the single most
+ * important URL on the site.
+ */
+describe( "the home route claims / for content", () => {
+
+    const { mountHomeRoute } = require( "#routes" );
+
+    function request( repository, options ) {
+        const routes = [];
+        const server = { registerRoute( method, path, handler ) { routes.push( handler ); return this; } };
+        mountHomeRoute( server, Object.assign( { repository: repository, site: {}, labels: {} }, options || {} ) );
+        let status = null, body = "", fellThrough = false;
+        routes[ 0 ](
+            { path: "/", query: {}, session: {} },
+            {
+                locals: {}, set() { return this; }, type() { return this; },
+                status( code ) { status = code; return this; },
+                send( out ) { body = String( out ); return this; }
+            },
+            () => { fellThrough = true; }
+        );
+        return { status: status, body: body, fellThrough: fellThrough };
+    }
+
+    const published = new ContentRepository( buildIndex( [ page( "home", { path: "/" } ) ] ) );
+    const draftOnly = new ContentRepository( buildIndex( [ page( "home", { path: "/", status: "draft" } ) ] ) );
+
+    it( "serves the home record when one is published", () => {
+        const result = request( published );
+        assert.equal( result.status, 200 );
+        assert.equal( result.fellThrough, false );
+    } );
+
+    it( "answers its own 404 when the home record is a draft, not the application shell", () => {
+        const result = request( draftOnly );
+        assert.equal( result.status, 404, "the site root must not answer 200 with somebody else's page" );
+        assert.equal( result.fellThrough, false );
+    } );
+
+    it( "answers 404 when no record claims / at all", () => {
+        assert.equal( request( new ContentRepository( buildIndex( [] ) ) ).status, 404 );
+    } );
+
+    it( "still falls through for a genuine hybrid that opts out", () => {
+        assert.equal( request( draftOnly, { notFound: false } ).fellThrough, true );
+    } );
+
+} );

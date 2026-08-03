@@ -199,9 +199,16 @@ function mountRedirects( server, redirects ) {
  *
  * MUST be called BEFORE `super.defineWebApplicationRoutes()`. The framework binds `/` to its own SPA-shell handler,
  * and Express matches in registration order — so on a content site, where the home page is an ordinary record, the
- * shell would otherwise win and the home record would be unreachable. Registering first is safe in both directions:
- * the resolver calls `next()` when no record owns `/`, so a site without a home record still gets the framework's
- * handler.
+ * shell would otherwise win and the home record would be unreachable.
+ *
+ * A MISS TERMINATES HERE. This used to call `next()`, on the reasoning that a site with no home record should still
+ * get the framework's handler -- but the effect on a content site is that the moment the home record is missing or
+ * left unpublished, the site root answers **200 with the application's login shell**. To a reader that is a foreign
+ * screen where their home page should be; to a crawler it is a soft 404 on the single most important URL of the
+ * site. Calling this function is the declaration that `/` belongs to content, so a miss is the site's own 404,
+ * exactly as it is for every other unknown path.
+ *
+ * Pass `notFound: false` for a genuine hybrid, where the application really does own `/` when no record claims it.
  *
  * @param {Object} server  A TiWebServer instance (>= 1.17.0).
  * @param {Object} options  Same shape as {@link mountContentRoutes}.
@@ -209,7 +216,21 @@ function mountRedirects( server, redirects ) {
  */
 function mountHomeRoute( server, options ) {
     const opts = options || {};
-    return server.registerRoute( "get", "/", contentHandler( opts.repository, handlerOptions( opts ) ) );
+    const resolve = contentHandler( opts.repository, handlerOptions( opts ) );
+    const terminal = ( opts.notFound === false )
+        ? null
+        : notFoundHandler( handlerOptions( opts ), opts.notFound );
+
+    return server.registerRoute( "get", "/", ( request, response, next ) => {
+        resolve( request, response, () => {
+            if ( terminal ) {
+                logger.log( "No published record claims '/'; the home page is missing or still a draft. Serving the content 404 rather than falling through to the application shell.", logger.logSeverity.WARNING );
+                terminal( request, response );
+                return;
+            }
+            next();
+        } );
+    } );
 }
 
 /**

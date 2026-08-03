@@ -22,6 +22,7 @@
 
 const { renderDocument } = require( "#page" );
 const { buildPageContext } = require( "#context" );
+const logger = require( "@ti-engine/core/logger" );
 
 // Matches the framework's own admin role name.
 const ADMIN_ROLE = "admin";
@@ -175,6 +176,10 @@ function contentHandler( repository, options ) {
         let perSession = false;
         context.markPerSession = function () {
             perSession = true;
+        };
+        // The render layer stays free of infrastructure: it reports, this layer logs.
+        context.reportProblem = function ( message ) {
+            logger.log( `${ message } (while rendering '${ record.path }')`, logger.logSeverity.ERROR );
         };
         const body = String( renderPage( record, context ) );
 
