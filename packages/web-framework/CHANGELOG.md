@@ -2,6 +2,28 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.20.0
+
+TypeScript declarations now ship with the package, verified against a consumer type-checking with `skipLibCheck: false`
+before they can be committed. See `@ti-engine/core` 1.9.0 for why the previous attempt was withdrawn.
+
+* feat(types): generate and publish `.d.ts` declarations for every module, wired through `types` conditions in both
+  `exports` and `imports`
+* feat(definitions): expose the shared type definitions as `@ti-engine/web-framework/definitions`
+* fix(session-store)!: the store's `set`, `get` and `touch` are typed against `express-session`'s `SessionData`, which
+  is what the `Store` contract hands them — not `TiSession`, which additionally requires `id`, `save`, `regenerate` and
+  `destroy`. The implementation only ever reads `cookie.maxAge`, so the annotation was describing a stricter input than
+  the base class can supply and than the code needs. Documentation only; no behaviour changes
+* fix(web-handlers): `ExpressResponse` referred to `import("express").res`, which express does not export. It is
+  `Response`
+* refactor(exports): the extras hung off `module.exports` after a class assignment — `instance`, `authMethod`,
+  `applyAuthMethodVisibility`, the static route matchers — are assigned to the class itself. `module.exports` *is* the
+  class, so this is the same object with the same properties at runtime; as a declaration it is the difference between
+  a namespace merge and an export assignment colliding with named exports, which is not valid TypeScript
+* fix(types): the same closure-style `{function(...)}` and `@private`-on-`#member` corrections as `core` 1.9.0
+* build(deps): add `@types/express`, `@types/express-session` and `@types/node`. The published declarations name types
+  from all three
+
 ## Version 1.19.1
 
 Documentation and packaging only — no functional change.

@@ -35,6 +35,12 @@ jobs:
         run: npm test --workspaces --if-present
       - name: JSON config validation
         run: npm run test:json -w @ti-engine/competence
+      # Rebuilds the published declarations, fails if the committed output is stale, and type-checks
+      # both the declarations and a consumer that imports every public subpath — all with
+      # `skipLibCheck: false`, which is TypeScript's default and the setting under which the
+      # declarations are actually read.
+      - name: Type declarations
+        run: npm run check:types
 
   docker-build:
     runs-on: ubuntu-latest

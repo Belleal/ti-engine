@@ -1,7 +1,7 @@
 {
   "name": "ti-engine",
-  "version": "1.2.8",
-  "description": "The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.",
+  "version": "1.2.9",
+  "description": "The ti-engine is an open source, free to use\u2014both for personal and commercial projects\u2014framework for the creation of microservice-based solutions using node.js.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "private": true,
@@ -17,14 +17,17 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "test": "npm test --workspaces --if-present"
+    "test": "npm test --workspaces --if-present",
+    "build:types": "npm run build:types --workspaces --if-present",
+    "check:types": "node .github/scripts/check-types.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@eslint/json": "^2.0.1",
     "eslint": "^10.0.0",
     "globals": "^17.3.0",
-    "prettier": "^3.8.1"
+    "prettier": "^3.8.1",
+    "typescript": "^7.0.2"
   },
   "allowScripts": {
     "zeromq@6.5.0": true
