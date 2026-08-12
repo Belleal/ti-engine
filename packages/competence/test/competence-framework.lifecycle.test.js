@@ -107,7 +107,7 @@ describe( "CompetenceFramework — cycle lifecycle state machine", () => {
 
 describe( "CompetenceFramework — lockCycle normalizes empty specializations", () => {
 
-    // Seeded 2026-H2: SE/BA/PM carry a baseline only (every specialization absent); QE/XD/DA/IO/MC/PD are excluded.
+    // Seeded 2026-H2: SE/BA/PM/QE carry a baseline only (every specialization absent); XD/DA/IO/MC/PD are excluded.
     it( "marks every empty specialization of an included family as intentionally empty ([])", async () => {
         const beforeBA = await dataManager.instance.getActiveCompetencySetsForFamily( "BA", "2026-H2" );
         assert.deepEqual( Object.keys( beforeBA ).sort(), [ "baseline" ], "BA specializations start absent (baseline only)" );
@@ -137,8 +137,8 @@ describe( "CompetenceFramework — lockCycle normalizes empty specializations", 
 
     it( "does not touch excluded families' specializations", async () => {
         await competenceFramework.instance.lockCycle( "2026-H2", "20" );
-        const afterQE = await dataManager.instance.getActiveCompetencySetsForFamily( "QE", "2026-H2" );
-        assert.deepEqual( Object.keys( afterQE ), [], "excluded family specializations stay absent (never auto-marked)" );
+        const afterXD = await dataManager.instance.getActiveCompetencySetsForFamily( "XD", "2026-H2" );
+        assert.deepEqual( Object.keys( afterXD ), [], "excluded family specializations stay absent (never auto-marked)" );
     } );
 
     it( "normalizes specializations from the stored role-family source, even when it diverges from static config", async () => {

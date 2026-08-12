@@ -1,23 +1,24 @@
 # Competency Master Index — Assembled Final State
 
-Authoritative code → name → applicability reference for the rebuilt competency model. Full descriptions and six-level scope anchors live in `competency-definitions-final.md`; this index is the map. Three families are defined (SE, BA, PM); the remaining six role families (QE, XD, DA, IO, MC, PD) are not yet populated.
+Authoritative code → name → applicability reference for the rebuilt competency model. Full descriptions and six-level scope anchors live in `competency-definitions-final.md`; this index is the map. Four families are populated (SE, BA, PM, QE); the remaining five role families (XD, DA, IO, MC, PD) are not yet populated. Increments after the v1.0 baseline are tracked in `competency-change-log.md`.
 
 ## Code scheme (Option A)
 
 - **Flat, globally-unique codes** within each category/subcategory (`E1-n`, `E2-n`, `E3-n`, `I1-n`, `I2-n`, `I3-n`, `C1-n`, `C2-n`, `C3-n`). No namespacing.
 - **No collisions.** Families occupy distinct numeric ranges in E1/E2/E3; I1 was renumbered clean (1–7); the shared sets are single sequences.
 - **Gaps are intentional and retained.** Dropped/merged competencies leave their old numbers vacant rather than triggering a renumber. This keeps surviving codes stable and traceable to the pilot data held in the separate analysis DB.
-- **Applicability** (which family uses a competency) is **not** encoded in the code. It lives in `config.competency-relevancy.json` (the per-family pool + weights) and `config.active-competency-sets.json` (the per-cycle selection). Family-specific competencies belong to exactly one family; shared canonical competencies are available to all.
+- **Applicability** (which family uses a competency) is **not** encoded in the code. It lives in `config.role-family-competencies.json` (the per-family pool — the applicability universe) and `config.active-competency-sets.json` (the per-cycle selection). Family-specific competencies belong to exactly one family; shared canonical competencies are available to all. Relevancy weights are separate and **global per competency**, held as archetype curves in `config.relevancy-archetypes.json`; all three are generated from the design docs and should not be hand-edited.
 
 ## Totals
 
 | Group | E1 | E2 | E3 | I1 | I2 | I3 | C1 | C2 | C3 | Total |
 |---|---|---|---|---|---|---|---|---|---|---|
 | SE family-specific | 9 | 14 | 5 | 3 | — | — | — | — | — | 31 |
-| BA family-specific | 8 | 9 | 3 | 2 | — | — | — | — | — | 22 |
+| BA family-specific | 7 | 9 | 3 | 2 | — | — | — | — | — | 21 |
 | PM family-specific | 12 | 8 | 3 | 2 | — | — | — | — | — | 25 |
-| Shared canonical | — | — | 3 | — | 6 | 3 | 8 | 5 | 5 | 30 |
-| **Distinct total** | | | | | | | | | | **108** |
+| QE family-specific | 10 | 10 | 3 | 3 | — | — | — | — | — | 26 |
+| Shared canonical | 1 | — | 3 | — | 6 | 3 | 8 | 5 | 5 | 31 |
+| **Distinct total** | | | | | | | | | | **134** |
 
 Each family, in practice, draws its own Expertise + I1 plus whichever shared canonical competencies HR selects → roughly 55–60 competencies available per family before the per-cycle cap (default 30) is applied.
 
@@ -76,10 +77,11 @@ Each family, in practice, draws its own Expertise + I1 plus whichever shared can
 
 ## BA — Business Analysis (family-specific)
 
+*`E1-10 Business and IT domain knowledge` was promoted to Shared Canonical in the QE increment; BA continues to reference it from there.*
+
 **E1 — Theoretical knowledge**
 | Code | Name |
 |---|---|
-| E1-10 | Business and IT domain knowledge |
 | E1-11 | Requirements specification and expression |
 | E1-13 | Analysis and modelling techniques |
 | E1-15 | Elicitation techniques |
@@ -161,9 +163,62 @@ Each family, in practice, draws its own Expertise + I1 plus whichever shared can
 
 ---
 
+## QE — Quality Engineering (family-specific)
+
+*Added in Increment 1. Baseline only — the MANUAL / AUTOMATION / PERFORMANCE / SECURITY specializations are not yet drafted; an employee without a specialization is evaluated on the baseline alone.*
+
+**E1 — Theoretical knowledge**
+| Code | Name |
+|---|---|
+| E1-48 | Software testing principles and levels |
+| E1-49 | Test design techniques |
+| E1-50 | Software quality models and characteristics |
+| E1-51 | Risk-based testing |
+| E1-52 | Defect management and root cause analysis |
+| E1-53 | Analysing requirements for testability |
+| E1-54 | Test data management |
+| E1-55 | Test automation concepts and architecture |
+| E1-56 | Non-functional testing concepts |
+| E1-57 | Quality assurance across the software lifecycle |
+
+**E2 — Applied skills**
+| Code | Name |
+|---|---|
+| E2-42 | Test planning and strategy |
+| E2-43 | Designing and writing test cases |
+| E2-44 | Executing tests and reporting results |
+| E2-45 | Exploratory testing |
+| E2-46 | Defect reporting and triage |
+| E2-47 | Regression testing and suite maintenance |
+| E2-48 | API and integration testing |
+| E2-49 | Database and data validation testing |
+| E2-50 | Test environment setup and troubleshooting |
+| E2-51 | Quality metrics and status reporting |
+
+**E3 — Practical experience**
+| Code | Name |
+|---|---|
+| E3-28 | Applying accumulated quality engineering experience |
+| E3-29 | Knowledge and use of quality engineering tools |
+| E3-30 | Investigating and diagnosing complex defects |
+
+**I1 — Processes**
+| Code | Name |
+|---|---|
+| I1-8 | Adhering to the internal QA and testing process |
+| I1-9 | Participating in requirement and design reviews |
+| I1-10 | Adhering to test documentation and artifact standards |
+
+---
+
 ## Shared Canonical (available to all families)
 
 *Referenced by every family that needs them; selected into a family's active set per cycle by HR. Written once, family-agnostic.*
+
+**E1 (cross-cutting) — Theoretical knowledge**
+| Code | Name |
+|---|---|
+| E1-10 | Business and IT domain knowledge |
 
 **E3 (cross-cutting) — Practical experience**
 | Code | Name |
@@ -235,10 +290,10 @@ These old codes are intentionally vacant in the new scheme; their content was dr
 
 ---
 
-## Deferred to follow-up (NOT in the rebuild prompt)
+## Deferred to follow-up (from the v1.0 rebuild)
 
-The rebuild establishes the competency **definitions and structure in English**. Three things are explicitly out of scope and flagged as separate tasks:
+The rebuild established the competency **definitions and structure in English**. Three things were out of scope at the time; their current status is recorded against each:
 
-1. **Bulgarian translations of new/changed content.** English-first was the agreed approach. Retained-as-is SE competencies keep their existing `bg`; all new and changed competencies (all of PM, BA, shared, and the SE changes) will have `en` only until a translation pass is done. The rebuild seeds `bg` placeholders for these so the schema stays valid.
-2. **Relevancy weight calibration.** Per-stage-level numeric weights per family are a separate work session (as agreed). The rebuild preserves existing SE weights where the competency is unchanged and seeds a sensible default weight curve for new/changed competencies, flagged for calibration before the next real evaluation cycle.
-3. **Per-cycle active-competency-set selection.** Which competencies HR selects (within the cap) for cycle 2026-H2 is done through the cycle-setup UI. The rebuild seeds a reasonable default baseline per family so the app is runnable, but the real selection is an HR action.
+1. **Bulgarian translations of new/changed content.** ✅ **Resolved.** `competency-bg-translations.md` carries full `bg` for every new or changed competency, and `test/competency-content-integrity.test.js` now enforces non-empty `en`+`bg` name, description and all six anchors for every competency in the catalog — so `bg` placeholders are no longer possible. Each increment translates its own content in the same increment.
+2. **Relevancy weight calibration.** ✅ **Superseded.** Per-family numeric weight tables were replaced by the archetype model: seven curves in `competency-relevancy-model.md`, one archetype assigned per competency, expanded by `bin/build/build-competency-relevancy.js`. Relevancy is global per competency. Per-*family* divergence of the same competency's curve remains deferred and would need a per-family weight file reintroduced.
+3. **Per-cycle active-competency-set selection.** ⏳ **Still an HR action.** The config seeds a reasonable default baseline per family so the app is runnable; the real selection is made through the cycle-setup UI.

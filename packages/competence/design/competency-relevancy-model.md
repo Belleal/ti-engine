@@ -1,6 +1,6 @@
 # Competency Relevancy Model — Archetypes & Assignments
 
-Defines the per-stage-level relevancy weights for every competency, via a small set of **curve archetypes**. This is the reviewable specification; the Claude Code rebuild expands it mechanically into `config.competency-relevancy.json`.
+Defines the per-stage-level relevancy weights for every competency, via a small set of **curve archetypes**. This is the reviewable specification; `bin/build/build-competency-relevancy.js` expands it mechanically into the generated config (see *Materialization* at the end).
 
 ## Conceptual model
 
@@ -37,6 +37,7 @@ Because selection handles family relevance, **relevancy curves are assigned once
 
 | Code | Name | Archetype | Note |
 |---|---|---|---|
+| E1-10 | Business & IT domain knowledge | B | deeper command at senior; canonical since the QE increment |
 | E3-22 | Facilitation | B | interpersonal, rises with level |
 | E3-23 | Leadership and influencing | G | manager track is the peak |
 | E3-25 | Negotiation and conflict resolution | B | |
@@ -108,7 +109,6 @@ Because selection handles family relevance, **relevancy curves are assigned once
 
 | Code | Name | Archetype | Note |
 |---|---|---|---|
-| E1-10 | Business & IT domain knowledge | B | deeper command at senior |
 | E1-15 | Elicitation techniques | E | |
 | E1-13 | Analysis & modelling techniques | E | |
 | E1-11 | Requirements specification & expression | E | |
@@ -161,6 +161,37 @@ Because selection handles family relevance, **relevancy curves are assigned once
 | I1-6 | Adhering to project-delivery process | C | |
 | I1-7 | Change management within projects | B | |
 
+## Assignments — QE family-specific
+
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E1-48 | Software testing principles & levels | A | fundamental from day one, stays important |
+| E1-49 | Test design techniques | E | core discipline technique, peaks R/S |
+| E1-50 | Software quality models & characteristics | B | deeper command at senior |
+| E1-51 | Risk-based testing | B | risk judgment grows with level |
+| E1-52 | Defect management & root cause analysis | B | RCA depth leans senior |
+| E1-53 | Analysing requirements for testability | E | analytical core, peaks R/S |
+| E1-54 | Test data management | E | |
+| E1-55 | Test automation concepts & architecture | F | architecture judgment, expert-leaning |
+| E1-56 | Non-functional testing concepts | B | breadth grows with level |
+| E1-57 | Quality assurance across the lifecycle | B | lifecycle/strategic view, senior |
+| E2-42 | Test planning & strategy | B | planning leans senior |
+| E2-43 | Designing & writing test cases | E | core "doing" competency |
+| E2-44 | Executing tests & reporting results | D | everyday mechanic, assumed later |
+| E2-45 | Exploratory testing | E | |
+| E2-46 | Defect reporting & triage | C | reporting discipline, steady at all levels |
+| E2-47 | Regression testing & suite maintenance | E | |
+| E2-48 | API & integration testing | E | |
+| E2-49 | Database & data validation testing | E | |
+| E2-50 | Test environment setup & troubleshooting | E | |
+| E2-51 | Quality metrics & status reporting | E | measurement & reporting, peaks R/S |
+| E3-28 | Accumulated quality engineering experience | B | experiential, rises by definition |
+| E3-29 | Quality engineering tools | A | used daily at all levels |
+| E3-30 | Investigating & diagnosing complex defects | F | deep diagnostic, expert-leaning |
+| I1-8 | Adhering to the internal QA & testing process | C | |
+| I1-9 | Participating in requirement & design reviews | B | review responsibility grows |
+| I1-10 | Adhering to test documentation & artifact standards | C | auditability stays live at senior |
+
 ---
 
 ## Distribution check
@@ -168,30 +199,36 @@ Because selection handles family relevance, **relevancy curves are assigned once
 | Archetype | Count |
 |---|---|
 | A — Foundational-plateau | 14 |
-| B — Rising-with-seniority | 40 |
-| C — Steady-high | 21 |
+| B — Rising-with-seniority | 44 |
+| C — Steady-high | 22 |
 | D — Early-emphasis-then-assumed | 5 |
-| E — Mid-weighted | 22 |
-| F — Rising, expert-leaning | 6 |
-| G — Rising, manager-leaning | 5 |
-| **Total** | **113** |
+| E — Mid-weighted | 38 |
+| F — Rising, expert-leaning | 7 |
+| G — Rising, manager-leaning | 4 |
+| **Total** | **134** |
 
-*113 = 30 shared + 31 SE + 22 BA + 25 PM − 5 (shared E3-22/23/25 counted once but referenced by all three families) … note: the table above lists each competency once; the per-family materialized file repeats shared competencies under each family. The distribution is dominated by B (rising) and E (mid-weighted), which is expected for a professional competency model — most capabilities either grow with seniority or peak in the productive middle.*
+*134 = 31 shared + 31 SE + 21 BA + 25 PM + 26 QE — each competency listed exactly once, which is what the table counts. The distribution is dominated by B (rising) and E (mid-weighted), which is expected for a professional competency model: most capabilities either grow with seniority or peak in the productive middle.*
 
-## Materialization (for the rebuild)
+*Correction note (QE increment): the previous version of this table read A 14 · B 40 · C 21 · D 5 · E 22 · F 6 · G 5 = 113, which did not match the assignment tables above it on any row and reconciled against a family split that no longer held. The counts here are derived mechanically from the assignment tables and should be re-derived, not hand-adjusted, whenever an increment lands.*
 
-`config.competency-relevancy.json` is keyed by family. For each family, emit every competency in that family's active pool (its family-specific competencies **plus** the shared competencies it draws on), with the 12 weights from the competency's assigned archetype. Shared competencies carry the **same** curve in every family. Example fragment:
+## Materialization
 
-```json
-{
-  "SE": {
-    "E1-1": { "N1":6,"J1":7,"J2":7,"J3":8,"R1":8,"R2":8,"R3":9,"S1":9,"S2":9,"S3":9,"X1":9,"T1":9 },
-    "E1-8": { "N1":2,"J1":3,"J2":4,"J3":5,"R1":6,"R2":7,"R3":8,"S1":8,"S2":9,"S3":9,"X1":10,"T1":7 },
-    "C1-4": { "N1":7,"J1":7,"J2":8,"J3":8,"R1":8,"R2":8,"R3":8,"S1":9,"S2":9,"S3":9,"X1":9,"T1":9 }
-  },
-  "BA": { "...": "..." },
-  "PM": { "...": "..." }
-}
+This document is the **source**; `bin/build/build-competency-relevancy.js` is the generator. Run it after editing the curves or any assignment table:
+
+```bash
+node bin/build/build-competency-relevancy.js
 ```
 
-**Deferred (post-cycle-1 calibration):** any individual family's curve for any competency may later be tuned away from its archetype default based on real evaluation data, without structural change. The archetype defaults are the sensible starting point, not a permanent constraint.
+It writes three things, and none of them should be hand-edited:
+
+| Output | Content |
+|---|---|
+| `config.relevancy-archetypes.json` | The curve table above, as `{ <id>: { weights: { N1…T1 } } }` |
+| `config.competencies.json` | A `relevancyArchetype` pointer stamped on every dictionary entry |
+| `config.role-family-competencies.json` | The per-family competency **pool** — each family's `## Assignments — <family> family-specific` section plus every row in `## Assignments — Shared competencies` |
+
+The effective per-stage-level weight is resolved at evaluation-snapshot time from a competency's archetype, so relevancy is **global per competency** — the same curve wherever the competency is used. There is no per-family weight file; an earlier `config.competency-relevancy.json` was materialized that way and was retired when the archetype model landed.
+
+Because the pool is derived from section membership, **moving a competency between a family section and the shared section is how it is promoted or demoted** — that single move is what put E1-10 into all nine family pools in the QE increment.
+
+**Deferred (post-cycle-1 calibration):** any individual competency's curve may later be tuned away from its archetype default based on real evaluation data — by assigning it a new archetype, or by adding an archetype — without structural change. The archetype defaults are the sensible starting point, not a permanent constraint. Per-*family* divergence of the same competency's curve would require reintroducing a per-family weight file and is deliberately not supported today.

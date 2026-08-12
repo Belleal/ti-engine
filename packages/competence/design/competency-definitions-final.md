@@ -23,8 +23,14 @@ Each competency has three parts:
 
 ## Canonicalization policy
 
-- **Family-specific:** E1, E2, and *discipline-specific* E3 (accumulated domain experience, domain-specific tools, domain documentation), plus I1 (Processes), since these genuinely differ by family.
-- **Shared (canonical, written once, referenced by all families that use them):** the *cross-cutting* E3 interpersonal capabilities — facilitation, leadership & influencing, negotiation & conflict resolution — plus I2 (Planning), I3 (Estimation), C1 (Responsibility), C2 (Communication), C3 (Mentorship).
+**The governing principle:** a competency is **shared (canonical)** when its *meaning* is identical across families, even where the context of application differs. It is **family-specific** when the underlying content genuinely differs by discipline.
+
+Applying that principle:
+
+- **Shared (written once, referenced by every family that uses them):** cross-cutting E1 (business and IT domain knowledge), cross-cutting E3 (facilitation, leadership & influencing, negotiation & conflict resolution), I2 (Planning), I3 (Estimation), C1 (Responsibility), C2 (Communication), C3 (Mentorship).
+- **Family-specific:** discipline-bound E1 and E2, discipline-specific E3 (accumulated domain experience, domain tools, domain documentation), and I1 (Processes), since the process itself differs by family.
+
+*This policy has been refined twice as families were added — first to admit cross-cutting E3, then cross-cutting E1. The category-based rule ("all E is family-specific") proved too blunt; the meaning-identity test above is the operative one. Expect to apply it again as the remaining families are built.*
 
 ## Status
 
@@ -33,7 +39,8 @@ Each competency has three parts:
 | PM Expertise | ✅ drafted | ✅ drafted | ✅ drafted | ✅ drafted | — |
 | BA Expertise | ✅ drafted | ✅ drafted | ✅ drafted | ✅ drafted | — |
 | SE Expertise (review) | ✅ refined | ✅ refined | ✅ refined | ✅ rebuilt | — |
-| Shared core | — | — | ✅ E3 cross-cutting | — | ✅ I2/I3/C1/C2/C3 (+C1-8 escalation) |
+| **QE Expertise** | **✅ drafted** | **✅ drafted** | **✅ drafted** | **✅ drafted** | — |
+| Shared core | ✅ E1 cross-cutting | — | ✅ E3 cross-cutting | — | ✅ I2/I3/C1/C2/C3 (+C1-8 escalation) |
 
 *Codes: kept competencies retain their existing code for traceability; merged competencies take the lowest contributing code; new competencies get the next free code in the subcategory. Final renumbering (if any) is decided at assembly time.*
 
@@ -315,6 +322,21 @@ Each competency has three parts:
 # Shared Competencies
 
 *Canonical competencies referenced by all families that need them — written once, family-agnostic. Codes shown are the working canonical codes; retired duplicates are noted for traceability. At assembly, each family's active set remaps to these codes (e.g., PM's former I2-6 → I2-1, I3-4 → I3-1, C2-6 → C2-1; BA's former E3-12/13/15 → the shared E3 below).*
+
+## E1 (cross-cutting) — Theoretical knowledge
+
+*Domain knowledge whose meaning is identical across disciplines; only the context of application differs. Promoted from BA-specific when QE was added.*
+
+### E1-10 · Business and IT domain knowledge *(canonical; formerly BA-specific)*
+
+**Description:** Encompasses understanding of the business domains the organization serves and the IT landscape that supports them — industry context, business models, organizational processes, and how technology enables them. This understanding allows work to be judged against real business purpose rather than performed purely to specification, whatever the discipline.
+
+- **N:** Has basic awareness of the organization's business and IT context and applies it to simple tasks under guidance.
+- **J:** Understands the main business and IT concepts relevant to straightforward work and applies them with some supervision.
+- **R:** Has solid working knowledge of the relevant business domains and IT landscape and applies it independently to typical work.
+- **S:** Commands deep domain and IT knowledge across complex areas, connects business and technology insightfully, and mentors others.
+- **X:** Recognized domain authority; advises the organization on business-technology fit for strategic initiatives.
+- **T:** Ensures the team builds and applies strong domain and IT knowledge and aligns the team's work with business context and goals.
 
 ## E3 (cross-cutting) — Practical experience
 
@@ -676,16 +698,7 @@ Each competency has three parts:
 
 ## E1 — Theoretical knowledge
 
-### E1-10 · Business and IT domain knowledge
-
-**Description:** Encompasses understanding of the business domains the organization serves and the IT landscape that supports them — industry context, business models, organizational processes, and how technology enables them — sufficient to frame problems correctly and propose solutions that fit the business reality.
-
-- **N:** Has basic awareness of the organization's business and IT context and applies it to simple tasks under guidance.
-- **J:** Understands the main business and IT concepts relevant to straightforward work and applies them with some supervision.
-- **R:** Has solid working knowledge of the relevant business domains and IT landscape and applies it independently to typical analysis.
-- **S:** Commands deep domain and IT knowledge across complex areas, connects business and technology insightfully, and mentors others.
-- **X:** Recognized domain authority; advises the organization on business-technology fit for strategic initiatives.
-- **T:** Ensures the team builds and applies strong domain and IT knowledge and aligns analysis with business context and goals.
+*Note: `E1-10 Business and IT domain knowledge` was promoted to the Shared Competencies section (E1 cross-cutting) when QE was added — its meaning is identical across families even though the context of application differs. BA continues to reference it.*
 
 ### E1-15 · Elicitation techniques *(consolidates former E1-15 Document Analysis, E1-25 Workshops)*
 
@@ -1089,3 +1102,307 @@ Each competency has three parts:
 **Grand totals:** SE 31 · BA 22 · PM 25 family-specific competencies + 30 shared canonical = **108 distinct competencies** across the three families (each family resolves to roughly 55–60 available competencies once it adds the shared core).
 
 *Final step: **assembly + the Claude Code prompt.** Assembly reconciles the final code numbering (resolving the historical cross-family code overlaps in E3 and I1), produces a master index of all competencies with their canonical codes and family applicability, and specifies how the rebuild handles the retained-as-is SE content. The Claude Code prompt then rebuilds `config.competencies.json`, `config.competency-relevancy.json`, `config.active-competency-sets.json`, `config.role-families.json`, and `competence-labels.json` from this document, discarding the old config.*
+
+---
+
+# QE — Quality Engineering
+
+*Built from a blank slate. Baseline draws on the 30 shared canonical competencies plus the family-specific set below. Codes continue the flat scheme: E1-48+, E2-42+, E3-28+, I1-8+.*
+
+## E1 — Theoretical knowledge
+
+### E1-48 · Software testing principles and levels
+
+**Description:** Encompasses understanding of the fundamental principles of software testing and the levels at which it operates — unit, integration, system, and acceptance — including the purpose and appropriate scope of each level, the distinction between verification and validation, and why exhaustive testing is impossible and coverage must therefore be a deliberate choice.
+
+- **N:** Knows the basic testing levels and can describe what each is for. Applies a prescribed approach at a single level under guidance.
+- **J:** Understands how the levels fit together and works competently at system or acceptance level on straightforward features with supervision.
+- **R:** Independently determines which level is appropriate for a given concern and applies testing principles correctly across typical work.
+- **S:** Applies testing principles rigorously across complex, multi-component systems, resolves questions of level and scope, and mentors others.
+- **X:** Recognized authority on testing principles; shapes how testing levels and coverage are approached across the organization.
+- **T:** Ensures the team applies testing levels and principles consistently and aligns test scope with delivery and quality goals.
+
+### E1-49 · Test design techniques
+
+**Description:** Encompasses knowledge of systematic techniques for deriving test cases — equivalence partitioning, boundary value analysis, decision tables, state transition testing, pairwise combination, and exploratory charters — and knowing which technique yields the best coverage for a given kind of logic or risk.
+
+- **N:** Knows one or two basic techniques and applies a prescribed one to simple cases under guidance.
+- **J:** Understands the common techniques and selects among them for straightforward functionality with some supervision.
+- **R:** Independently selects and applies appropriate techniques for typical features, producing efficient coverage without redundant cases.
+- **S:** Applies advanced and combined techniques to complex logic, optimizes coverage against effort, and mentors others in technique selection.
+- **X:** Recognized authority on test design; defines technique standards and raises design practice across the organization.
+- **T:** Ensures the team applies systematic test design rather than ad-hoc case writing, and aligns technique use with risk and coverage goals.
+
+### E1-50 · Software quality models and characteristics
+
+**Description:** Encompasses knowledge of recognized software quality models and the characteristics they define — functional suitability, reliability, performance efficiency, usability, security, compatibility, maintainability, and portability — and understanding how these attributes are specified, traded off against one another, and made measurable.
+
+- **N:** Aware that quality has multiple dimensions beyond correctness and can name the main ones under guidance.
+- **J:** Understands the principal quality characteristics and recognizes which apply to straightforward work with supervision.
+- **R:** Independently identifies the quality characteristics relevant to typical work and how they should be evidenced.
+- **S:** Reasons about quality attribute trade-offs on complex systems, makes them explicit and measurable, and mentors others.
+- **X:** Recognized authority on quality models; defines the organization's quality characteristics and how they are specified.
+- **T:** Ensures the team reasons about quality beyond functional correctness and aligns quality attributes with organizational standards.
+
+### E1-51 · Risk-based testing
+
+**Description:** Encompasses knowledge of identifying and prioritizing product risk — by likelihood and impact — and allocating testing effort accordingly, so that limited time is spent where failure would be most costly. This includes knowing how to justify what will *not* be tested.
+
+- **N:** Understands that some areas matter more than others and follows a given prioritization under guidance.
+- **J:** Identifies obvious risk areas in straightforward work and adjusts effort with supervision.
+- **R:** Independently assesses product risk for typical work, prioritizes testing accordingly, and explains coverage decisions.
+- **S:** Performs structured risk analysis on complex or high-stakes releases, defends difficult coverage trade-offs, and mentors others.
+- **X:** Recognized authority on risk-based testing; defines risk assessment practice across the organization.
+- **T:** Ensures the team allocates testing effort by risk rather than habit and aligns coverage decisions with organizational risk appetite.
+
+### E1-52 · Defect management and root cause analysis
+
+**Description:** Encompasses knowledge of the defect lifecycle — reporting, triage, prioritization, resolution, verification, and closure — including the distinction between severity and priority, and techniques for identifying the underlying cause of a defect rather than its symptom so that classes of defect can be prevented.
+
+- **N:** Understands the basic defect lifecycle and records defects following a given process under guidance.
+- **J:** Manages straightforward defects through the lifecycle with supervision and distinguishes severity from priority with prompting.
+- **R:** Independently manages defects end to end for typical work and investigates underlying causes rather than stopping at symptoms.
+- **S:** Handles complex or contested defect situations, drives root cause analysis that prevents recurrence, and mentors others.
+- **X:** Recognized authority on defect management; shapes triage and root cause practice across the organization.
+- **T:** Ensures the team manages defects rigorously and uses root cause findings to improve upstream quality.
+
+### E1-53 · Analysing requirements for testability
+
+**Description:** Encompasses knowledge of examining requirements, user stories, and specifications to derive test conditions and to identify ambiguity, incompleteness, contradiction, or untestable statements before implementation begins. This is the analytical foundation of shift-left quality practice.
+
+- **N:** Reads requirements and identifies obviously missing information under guidance.
+- **J:** Derives basic test conditions from straightforward requirements and raises obvious ambiguities with supervision.
+- **R:** Independently analyses typical requirements for testability, derives complete test conditions, and raises defects in the requirements themselves.
+- **S:** Analyses complex or ambiguous specifications, exposes hidden assumptions and contradictions, and mentors others in requirement analysis.
+- **X:** Recognized authority; shapes how the organization specifies requirements so they are testable by design.
+- **T:** Ensures the team analyses requirements before implementation and aligns testability expectations with analysis and delivery practice.
+
+### E1-54 · Test data management
+
+**Description:** Encompasses knowledge of designing, generating, and maintaining test data — including data that exercises boundary and negative conditions — and of masking, anonymizing, or synthesizing production-derived data so that testing does not expose personal or sensitive information.
+
+- **N:** Uses provided test data and understands that production data cannot be used freely; follows given handling rules under guidance.
+- **J:** Prepares simple test data for straightforward cases with supervision and applies basic masking rules.
+- **R:** Independently designs and maintains test data covering typical and edge conditions, applying anonymization requirements correctly.
+- **S:** Designs test data strategies for complex systems and data dependencies, ensures compliant handling, and mentors others.
+- **X:** Recognized authority on test data; defines data management and anonymization standards across the organization.
+- **T:** Ensures the team manages test data effectively and compliantly, and aligns practice with data protection obligations.
+
+### E1-55 · Test automation concepts and architecture
+
+**Description:** Encompasses understanding of what test automation is for and how it is structured — framework patterns, layering across unit, service, and interface levels, the maintainability and flakiness trade-offs, and the judgment of what is worth automating versus what is better tested manually. *(Concepts are baseline for all quality engineers; hands-on implementation belongs to the AUTOMATION specialization.)*
+
+- **N:** Aware of what automated tests are and can run an existing suite and read its results under guidance.
+- **J:** Understands the main automation concepts and interprets suite results on straightforward work with supervision.
+- **R:** Independently reasons about what should and should not be automated for typical work and understands the structure of the team's suite.
+- **S:** Evaluates automation architecture and coverage on complex systems, identifies maintainability risks, and mentors others on automation strategy.
+- **X:** Recognized authority on automation architecture; defines automation strategy and standards across the organization.
+- **T:** Ensures the team makes sound automation decisions and aligns automation investment with quality and delivery goals.
+
+### E1-56 · Non-functional testing concepts
+
+**Description:** Encompasses knowledge of the purpose, approach, and interpretation of non-functional testing — performance and load, security, accessibility, usability, and compatibility — sufficient to recognize when each is needed, to interpret results, and to know when specialist involvement is required. *(Concepts are baseline; deep execution belongs to the PERFORMANCE and SECURITY specializations.)*
+
+- **N:** Aware that non-functional qualities are tested differently from functionality and can describe the main types under guidance.
+- **J:** Understands the purpose of the main non-functional test types and interprets straightforward results with supervision.
+- **R:** Independently recognizes which non-functional concerns apply to typical work, interprets results, and escalates to specialists appropriately.
+- **S:** Reasons about non-functional risk across complex systems, scopes non-functional testing, and mentors others.
+- **X:** Recognized authority; shapes how the organization approaches non-functional quality across its systems.
+- **T:** Ensures the team accounts for non-functional quality rather than functionality alone, and aligns coverage with organizational standards.
+
+### E1-57 · Quality assurance across the software lifecycle
+
+**Description:** Encompasses understanding of quality as a lifecycle concern rather than a phase — where quality activities belong at each stage, the purpose of quality gates and definitions of done, the economics of finding defects early, and the principle of shifting quality activity leftward toward specification and design.
+
+- **N:** Understands that quality activity extends beyond a testing phase and follows established gates under guidance.
+- **J:** Understands where quality activities fit in the lifecycle and participates in them on straightforward work with supervision.
+- **R:** Independently contributes quality activity throughout the lifecycle for typical work rather than only at the testing stage.
+- **S:** Embeds quality practice across the lifecycle on complex initiatives, strengthens gates and definitions of done, and mentors others.
+- **X:** Recognized authority on lifecycle quality; shapes quality practice and gate design across the organization.
+- **T:** Ensures the team treats quality as a lifecycle responsibility and aligns quality gates with organizational delivery standards.
+
+## E2 — Applied skills
+
+### E2-42 · Test planning and strategy
+
+**Description:** Encompasses the applied skill of producing a test plan for a release or feature — defining scope and approach, entry and exit criteria, environments and data needs, effort and schedule, and the risk-based prioritisation that determines where testing effort goes. This includes stating explicitly what will not be tested and why.
+
+- **N:** Contributes parts of a test plan from a provided template under guidance and follows the plan set by others.
+- **J:** Produces a basic test plan for a straightforward feature with supervision, though criteria and risk prioritisation need correction.
+- **R:** Independently produces a complete, realistic test plan for typical work, with defensible scope, criteria, and prioritisation.
+- **S:** Develops test strategy for complex or multi-team releases, balances coverage against constraint, and mentors others in planning.
+- **X:** Defines test planning standards and templates across the organization and advises on strategy for high-risk releases.
+- **T:** Ensures the team plans testing consistently and aligns test scope and criteria with delivery and quality goals.
+
+### E2-43 · Designing and writing test cases
+
+**Description:** Encompasses the applied skill of turning test conditions into clear, executable test cases — with unambiguous preconditions, steps, and expected results, at a granularity that is useful to run and economical to maintain. This includes avoiding redundancy and writing cases another person can execute without asking questions.
+
+- **N:** Writes simple test cases from a template under guidance; cases may be incomplete or ambiguous.
+- **J:** Writes cases for straightforward functionality with supervision, though granularity and redundancy need correction.
+- **R:** Independently writes clear, complete, non-redundant cases for typical features that others can execute unaided.
+- **S:** Designs coherent case suites for complex functionality, ensures maintainability as the product changes, and mentors others.
+- **X:** Defines case design and documentation standards across the organization.
+- **T:** Ensures the team writes consistent, high-quality cases and aligns case design with coverage standards.
+
+### E2-44 · Executing tests and reporting results
+
+**Description:** Encompasses the applied skill of running tests systematically, recording outcomes accurately and honestly, and reporting results in a form that supports a release decision — conveying not only what passed and failed but what the results mean for readiness.
+
+- **N:** Executes given test cases and records pass or fail outcomes under guidance.
+- **J:** Executes test runs on straightforward work with supervision and reports basic results.
+- **R:** Independently plans and executes test runs for typical work and reports results clearly, with the context needed to interpret them.
+- **S:** Manages execution across complex releases, reports in terms that support go/no-go decisions, and mentors others.
+- **X:** Defines execution and reporting standards across the organization and reports on the most critical releases.
+- **T:** Ensures the team executes and reports consistently and aligns reporting with release governance.
+
+### E2-45 · Exploratory testing
+
+**Description:** Encompasses the applied skill of unscripted but disciplined investigation — using charters, heuristics, and domain insight to design, execute, and learn simultaneously, in order to find defects that scripted cases were never going to catch. This is structured exploration, distinct from unstructured trial and error.
+
+- **N:** Performs basic unguided checking under supervision and finds obvious problems, without a systematic approach.
+- **J:** Conducts simple exploratory sessions against a provided charter with supervision, and records what was covered.
+- **R:** Independently runs charter-based exploratory sessions for typical features, applies heuristics, and documents findings usefully.
+- **S:** Conducts deep exploratory testing on complex or high-risk areas, applies advanced heuristics and modelling, and mentors others.
+- **X:** Recognized expert; defines exploratory practice and charter design across the organization.
+- **T:** Ensures the team applies structured exploratory testing rather than ad-hoc investigation, and allocates time for it deliberately.
+
+### E2-46 · Defect reporting and triage
+
+**Description:** Encompasses the applied skill of writing defect reports that are reproducible, specific, and actionable — clear steps, actual versus expected behaviour, evidence, and environment — and of participating in triage to assess severity, priority, and disposition.
+
+- **N:** Reports obvious defects using a template under guidance; reports often lack detail needed to reproduce.
+- **J:** Writes adequate reports for straightforward defects with supervision and attends triage.
+- **R:** Independently writes clear, reproducible, well-evidenced reports and contributes effectively to triage decisions.
+- **S:** Investigates and reports complex or intermittent defects, drives triage on contested cases, and mentors others in report quality.
+- **X:** Defines defect reporting and triage standards across the organization.
+- **T:** Ensures the team reports defects to a high standard and aligns triage outcomes with delivery priorities.
+
+### E2-47 · Regression testing and suite maintenance
+
+**Description:** Encompasses the applied skill of determining what must be re-tested after a change and maintaining the regression suite over time — selecting regression scope by risk and impact, keeping cases current as the product evolves, and pruning obsolete or low-value cases so the suite stays affordable.
+
+- **N:** Executes a given regression suite and reports results under guidance.
+- **J:** Executes regression runs and updates simple cases with supervision.
+- **R:** Independently selects appropriate regression scope for typical changes and keeps the suite accurate and current.
+- **S:** Manages regression strategy for complex systems, controls suite growth and execution cost, and mentors others.
+- **X:** Defines regression strategy and suite governance across the organization.
+- **T:** Ensures the team maintains effective, affordable regression coverage and aligns it with release cadence.
+
+### E2-48 · API and integration testing
+
+**Description:** Encompasses the applied skill of testing at service and integration boundaries — validating requests and responses, contract adherence, error and failure handling, and the behaviour of components integrating with each other and with external systems.
+
+- **N:** Executes provided API tests using given tools under guidance.
+- **J:** Tests simple endpoints and straightforward integrations with supervision.
+- **R:** Independently designs and executes API and integration tests for typical services, including error paths.
+- **S:** Tests complex integration landscapes, covers contract and failure scenarios thoroughly, and mentors others.
+- **X:** Defines API and integration testing practice across the organization.
+- **T:** Ensures the team covers integration boundaries adequately rather than testing only through the interface.
+
+### E2-49 · Database and data validation testing
+
+**Description:** Encompasses the applied skill of verifying data correctness, integrity, and transformation — querying data stores directly, confirming that what was submitted is what was persisted, and validating migrations, calculations, and data flows rather than inferring correctness from the interface.
+
+- **N:** Runs provided queries to check simple data under guidance.
+- **J:** Writes basic queries to validate straightforward data with supervision.
+- **R:** Independently validates data correctness and integrity for typical work, including transformations and calculations.
+- **S:** Validates complex data flows, migrations, and reconciliations, and mentors others in data-level verification.
+- **X:** Defines data validation practice and standards across the organization.
+- **T:** Ensures the team verifies data directly rather than relying on interface behaviour alone.
+
+### E2-50 · Test environment setup and troubleshooting
+
+**Description:** Encompasses the applied skill of preparing, configuring, and troubleshooting test environments — deployments, configuration, dependencies, and integrations — and of reliably distinguishing an environment problem from a genuine product defect.
+
+- **N:** Uses a prepared environment and reports problems under guidance; cannot yet distinguish environment issues from defects.
+- **J:** Performs simple environment setup with supervision, though environment issues are sometimes misreported as defects.
+- **R:** Independently configures and troubleshoots environments for typical work and reliably tells environment problems from product defects.
+- **S:** Manages complex environment configurations and dependency chains, resolves difficult environment failures, and mentors others.
+- **X:** Defines test environment standards and practices across the organization.
+- **T:** Ensures the team has reliable environments and aligns environment practice with infrastructure and delivery.
+
+### E2-51 · Quality metrics and status reporting
+
+**Description:** Encompasses the applied skill of selecting, producing, and interpreting quality metrics — coverage, defect density and trends, pass rates, escape rates — and reporting quality status so that it informs decisions rather than merely describing activity.
+
+- **N:** Records simple metrics into a provided format under guidance.
+- **J:** Produces basic quality reports for straightforward work with supervision but interprets them only superficially.
+- **R:** Independently selects and reports appropriate metrics for typical work and interprets trends meaningfully.
+- **S:** Designs metric sets for complex programmes, interprets them to inform release decisions, and mentors others.
+- **X:** Defines the organization's quality metrics framework and advises on measurement strategy.
+- **T:** Ensures the team reports quality meaningfully rather than mechanically, and aligns reporting with governance needs.
+
+## E3 — Practical experience *(discipline-specific; cross-cutting facilitation/leadership/negotiation are the shared E3-22/23/25)*
+
+### E3-28 · Applying accumulated quality engineering experience
+
+**Description:** Encompasses the practical judgment that accumulates from testing real systems over time — knowing where defects tend to cluster, which changes carry hidden risk, and which areas of a product historically break — and using that instinct to direct attention where scripted coverage would not have looked.
+
+- **N:** Has limited testing experience and applies lessons from training or a single product under guidance.
+- **J:** Draws on experience from a few features or releases to handle familiar situations, but relies on guidance when unfamiliar.
+- **R:** Applies experience across a range of work to anticipate likely problem areas independently and directs effort accordingly.
+- **S:** Draws on deep, varied experience to assess risk in complex or unfamiliar systems, anticipates failure modes early, and mentors others with concrete examples.
+- **X:** Recognized for exceptional quality judgment; advises across the organization on risk in difficult systems and codifies experience into reusable guidance.
+- **T:** Applies and shares accumulated experience to direct the team's testing effort and aligns risk judgment with organizational lessons.
+
+### E3-29 · Knowledge and use of quality engineering tools
+
+**Description:** Encompasses the practical ability to use the quality tooling the organization relies on — test management systems, defect trackers, API clients, database clients, and CI dashboards — to plan, execute, record, and report testing work efficiently, choosing the right tool and features for the task.
+
+- **N:** Uses basic features of the standard tools for simple tasks under guidance.
+- **J:** Uses the main features of the standard tools on straightforward work with supervision, though not always efficiently.
+- **R:** Independently uses the quality toolchain effectively for typical work, applying the right features for planning, execution, and reporting.
+- **S:** Exploits advanced tool capabilities on complex work, configures and optimizes usage, and mentors others in effective tooling.
+- **X:** Recognized authority on quality tooling; evaluates and introduces tools and defines toolchain standards across the organization.
+- **T:** Ensures consistent, effective use of the quality toolchain across the team and aligns tooling practice with organizational standards.
+
+### E3-30 · Investigating and diagnosing complex defects
+
+**Description:** Encompasses the practical ability to investigate defects that do not reproduce readily — intermittent, timing-dependent, environment-specific, or data-specific failures — by isolating variables, narrowing reproduction conditions, and gathering the evidence needed for a developer to act. This is the difference between reporting that something failed and establishing why.
+
+- **N:** Reports failures as observed under guidance, without systematic investigation.
+- **J:** Investigates straightforward failures with supervision and gathers basic evidence, but struggles when reproduction is inconsistent.
+- **R:** Independently investigates typical defects, isolates conditions, establishes reliable reproduction steps, and gathers sufficient evidence.
+- **S:** Diagnoses complex, intermittent, or environment-specific failures, narrows causes systematically under pressure, and mentors others in investigation technique.
+- **X:** Recognized authority in defect diagnosis; called on for the most intractable failures and shapes investigation practice across the organization.
+- **T:** Ensures the team investigates rather than merely reports, develops diagnostic capability in others, and aligns investigation effort with delivery impact.
+
+## I1 — Processes
+
+### I1-8 · Adhering to the internal QA and testing process
+
+**Description:** Encompasses the commitment and ability to follow the organization's internal quality assurance and testing process — its stages, quality gates, entry and exit criteria, hand-offs, and the quality engineer's defined role within the wider SDLC — so that testing is predictable, traceable, and properly integrated with delivery.
+
+- **N:** Follows the main QA process steps with guidance and reminders.
+- **J:** Follows the QA and testing process on routine work with occasional correction.
+- **R:** Independently adheres to the full QA process and the quality role's place in the SDLC for typical work.
+- **S:** Applies the QA process rigorously on complex work, identifies process gaps, and mentors others in correct process use.
+- **X:** Shapes and improves the QA and testing process across the organization.
+- **T:** Ensures the team adheres consistently to the QA process and aligns process use with organizational standards.
+
+### I1-9 · Participating in requirement and design reviews
+
+**Description:** Encompasses the discipline of taking part in reviews of requirements, designs, and specifications before implementation begins — raising testability concerns, ambiguities, and risks early, when they are cheapest to fix. *(This is the process participation; the analytical skill of examining requirements for testability is E1-53.)*
+
+- **N:** Attends reviews under guidance and observes, contributing occasional obvious points.
+- **J:** Participates in reviews of straightforward work with supervision and raises basic concerns.
+- **R:** Independently participates in reviews for typical work, consistently raising testability and risk concerns before implementation.
+- **S:** Contributes authoritatively to reviews of complex work, surfaces subtle risks early, and mentors others in effective review participation.
+- **X:** Shapes how quality perspectives are brought into requirement and design review across the organization.
+- **T:** Ensures the team participates in reviews consistently and aligns early quality involvement with delivery practice.
+
+### I1-10 · Adhering to test documentation and artifact standards
+
+**Description:** Encompasses the commitment to follow the organization's standards for test artifacts — plans, cases, runs, defect records, and traceability between requirements and coverage — so that testing work is auditable, transferable between people, and demonstrable to stakeholders and auditors.
+
+- **N:** Follows basic documentation standards with guidance and reminders.
+- **J:** Follows artifact standards on routine work with occasional correction, though traceability may be incomplete.
+- **R:** Independently and consistently follows documentation and traceability standards for typical work.
+- **S:** Applies and refines artifact standards on complex work, ensures auditability, and mentors others.
+- **X:** Defines test documentation and traceability standards across the organization.
+- **T:** Ensures the team adheres to artifact standards and aligns documentation practice with organizational and audit requirements.
+
+---
+
+**QE baseline complete** — E1 (10) · E2 (10) · E3 (3) · I1 (3) = **26 family-specific competencies**, plus the 30 shared canonical (including cross-cutting E1-10 and E3-22/23/25). Specializations MANUAL / AUTOMATION / PERFORMANCE / SECURITY still to build.

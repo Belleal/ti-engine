@@ -100,24 +100,24 @@ describe( "CompetenceFramework.validateCycleForLock — validation rules in pass
     // ----- Rule 4: No empty baseline -----
 
     it( "rule 4 (no empty baseline): rejects a family that has specialization data but an empty baseline", async () => {
-        // The seed excludes QE; include it, then give it a specialization but no baseline.
+        // The seed excludes XD (an unpopulated family); include it, then give it a specialization but no baseline.
         const cycle = await dataManager.instance.getCycle( "2026-H2" );
-        await dataManager.instance.setCycleExcludedFamilies( "2026-H2", cycle.excludedFamilies.filter( ( f ) => f !== "QE" ) );
-        await dataManager.instance.setActiveCompetencySet( "QE", "AUTOMATION", "2026-H2", [ "E2-1" ] );
+        await dataManager.instance.setCycleExcludedFamilies( "2026-H2", cycle.excludedFamilies.filter( ( f ) => f !== "XD" ) );
+        await dataManager.instance.setActiveCompetencySet( "XD", "VISUAL", "2026-H2", [ "C1-4" ] );
         const result = await competenceFramework.instance.validateCycleForLock( "2026-H2" );
-        const ruleErrors = result.errors.filter( ( e ) => e.rule === "no-empty-baseline" && e.family === "QE" );
+        const ruleErrors = result.errors.filter( ( e ) => e.rule === "no-empty-baseline" && e.family === "XD" );
         assert.equal( ruleErrors.length, 1 );
     } );
 
     // ----- Rule 6: inclusion (excluded families are skipped; an included empty family blocks the lock) -----
 
     it( "rule 6 (inclusion): an included family with no competencies blocks the lock", async () => {
-        // Include QE (the seed excludes it) without configuring anything — it must now block the lock.
+        // Include XD (the seed excludes it) without configuring anything — it must now block the lock.
         const cycle = await dataManager.instance.getCycle( "2026-H2" );
-        await dataManager.instance.setCycleExcludedFamilies( "2026-H2", cycle.excludedFamilies.filter( ( f ) => f !== "QE" ) );
+        await dataManager.instance.setCycleExcludedFamilies( "2026-H2", cycle.excludedFamilies.filter( ( f ) => f !== "XD" ) );
         const result = await competenceFramework.instance.validateCycleForLock( "2026-H2" );
         assert.equal( result.valid, false );
-        const notConfigured = result.errors.filter( ( e ) => e.rule === "family-not-configured" && e.family === "QE" );
+        const notConfigured = result.errors.filter( ( e ) => e.rule === "family-not-configured" && e.family === "XD" );
         assert.equal( notConfigured.length, 1 );
     } );
 
