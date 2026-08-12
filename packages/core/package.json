@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/core",
-  "version": "1.9.0",
+  "version": "1.8.1",
   "description": "Microservice framework for Node.js: a Redis-backed message exchange with end-to-end call tracing, retries and tamper-evident message envelopes.",
   "keywords": [
     "microservices",
@@ -17,51 +17,19 @@
   "license": "GPL-3.0-or-later",
   "main": "./bin/start-instance.js",
   "type": "commonjs",
-  "types": "./types/bin/start-instance.d.ts",
   "exports": {
-    ".": {
-      "types": "./types/bin/start-instance.d.ts",
-      "default": "./bin/start-instance.js"
-    },
-    "./cache": {
-      "types": "./types/utils/cache.d.ts",
-      "default": "./utils/cache.js"
-    },
-    "./exceptions": {
-      "types": "./types/utils/exceptions.d.ts",
-      "default": "./utils/exceptions.js"
-    },
-    "./localization": {
-      "types": "./types/utils/localization.d.ts",
-      "default": "./utils/localization.js"
-    },
-    "./logger": {
-      "types": "./types/utils/logger.d.ts",
-      "default": "./utils/logger.js"
-    },
-    "./service-consumer": {
-      "types": "./types/components/service-consumer.d.ts",
-      "default": "./components/service-consumer.js"
-    },
-    "./service-instance": {
-      "types": "./types/components/service-instance.d.ts",
-      "default": "./components/service-instance.js"
-    },
-    "./service-provider": {
-      "types": "./types/components/service-provider.d.ts",
-      "default": "./components/service-provider.js"
-    },
-    "./tools": {
-      "types": "./types/utils/tools.d.ts",
-      "default": "./utils/tools.js"
-    }
+    ".": "./bin/start-instance.js",
+    "./cache": "./utils/cache.js",
+    "./exceptions": "./utils/exceptions.js",
+    "./localization": "./utils/localization.js",
+    "./logger": "./utils/logger.js",
+    "./service-consumer": "./components/service-consumer.js",
+    "./service-instance": "./components/service-instance.js",
+    "./service-provider": "./components/service-provider.js",
+    "./tools": "./utils/tools.js"
   },
   "scripts": {
-    "test": "node --test",
-    "build:types": "tsc -p tsconfig.types.json"
-  },
-  "devDependencies": {
-    "typescript": "^7.0.2"
+    "test": "node --test"
   },
   "imports": {
     "#auditing": "./components/auditing.js",
@@ -97,14 +65,12 @@
     "lodash": "^4.18.1",
     "node-schedule": "^2.1.1"
   },
-  "optionalDependencies": {
-  },
+  "optionalDependencies": {},
   "files": [
     "bin/",
     "components/",
     "integrations/",
     "utils/",
-    "types/",
     "package.json",
     "README.md",
     "CHANGELOG.md",

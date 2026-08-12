@@ -2,15 +2,13 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
-## Version 1.20.0
+## Version 1.19.1
 
-The framework now ships TypeScript declarations, generated from the JSDoc already in the sources. Nothing is compiled — `emitDeclarationOnly` means the `.js` files ship exactly as written and only `.d.ts` files are added, so this is additive for every existing consumer and the package stays CommonJS. `bin/static` is excluded from the build: those are browser assets served to a page, not part of the module API.
+Documentation and packaging only — no functional change.
 
-Getting a clean emit required fixing one JSDoc defect, and it was a real one rather than a tooling quirk. The `SemanticValidator` typedef was written as `function(Object, ValidatorContext): (ConfigValidationIssue[]|Promise<ConfigValidationIssue[]>)`, whose parenthesised return type inside the Closure `function(...)` form TypeScript's JSDoc parser cannot read — it aborted the declaration emit for the whole file. The same defect existed in `core`'s `TiEnum` typedef and is corrected the same way, with arrow syntax.
+The `SemanticValidator` fix was found while attempting to generate TypeScript declarations from the framework's JSDoc. That work is **deferred to a later release**, but this correction stands on its own: the typedef was written as `function(Object, ValidatorContext): (ConfigValidationIssue[]|Promise<ConfigValidationIssue[]>)`, whose parenthesised return type inside the Closure form no parser can read. It described the validator contract correctly to a human reader and not at all to a machine.
 
-* feat(types): ship generated `.d.ts` declarations for `config-management`, `web-application` and `web-server`, wired through per-subpath `types` conditions in the `exports` map
-* feat(build): add `npm run build:types` (`tsconfig.types.json`). The output is committed rather than generated at publish time, because the publish job deliberately installs nothing and runs no lifecycle scripts; CI regenerates it and fails if the committed declarations have drifted
-* fix(config-registry): rewrite the `SemanticValidator` typedef in arrow syntax. It described the validator contract correctly to a human reader and not at all to a parser
+* fix(config-registry): rewrite the `SemanticValidator` typedef in arrow syntax
 * feat(package): declare `keywords`, which the package had none of — the terms npm search matches against
 
 ## Version 1.19.0

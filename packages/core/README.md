@@ -10,7 +10,7 @@
 
 Flexible framework for the creation of microservices with [node.js](https://nodejs.org/).
 
-Every release is published from CI with a [provenance attestation](https://docs.npmjs.com/generating-provenance-statements), so the tarball on npm is verifiably built from the commit it names. TypeScript declarations ship with the package — generated from the framework's own JSDoc, so editors give you signatures and documentation without a `@types` install. The framework itself remains plain CommonJS JavaScript; nothing is compiled.
+Every release is published from CI with a [provenance attestation](https://docs.npmjs.com/generating-provenance-statements), so the tarball on npm is verifiably built from the commit it names.
 
 ```shell
 npm install @ti-engine/core

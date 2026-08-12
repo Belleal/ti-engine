@@ -2,14 +2,9 @@
 
 This document contains the list of changes made to the ti-engine monorepo. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
-## Version 1.2.9
-
-* feat(ci): extend the type-declaration drift guard to `web-framework` and `web-content`, which now ship declarations alongside `core`. It loops the three packages and reports every stale one in a single run rather than stopping at the first, so a contributor who missed two regenerations learns about both at once
-* build(release): bump package version from `1.2.8` to `1.2.9`
-
 ## Version 1.2.8
 
-* feat(ci): fail the build when `core`'s committed type declarations have drifted from the sources they are generated from. The declarations are committed rather than generated at publish time, because the publish job deliberately installs nothing and runs no lifecycle scripts — which only stays honest if something checks. CI regenerates them and fails on any difference, naming the command to run
+* fix(ci): restrict the CI workflow's `GITHUB_TOKEN` to `contents: read`. Nothing in it writes — it lints, tests and builds an image without pushing — but `npm install` runs dependency lifecycle scripts, and those had the repository's default token permissions available to them (CodeRabbit, #117)
 * build(release): bump package version from `1.2.7` to `1.2.8`
 
 ## Version 1.2.7
