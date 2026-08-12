@@ -60,8 +60,10 @@ function readPackageManifest( directory ) {
  */
 async function fetchPublishedVersions( packageName ) {
     // The abbreviated packument is a fraction of the size of the full document and still carries
-    // both the version map and the dist-tags.
-    const url = `${ REGISTRY_URL }/${ packageName.replace( "/", "%2F" ) }`;
+    // both the version map and the dist-tags. The whole name is one path segment, so it is encoded
+    // as one — `encodeURIComponent` rather than a hand-rolled swap of the scope separator, which
+    // only ever escaped the first `/` and nothing else.
+    const url = `${ REGISTRY_URL }/${ encodeURIComponent( packageName ) }`;
     const headers = { accept: "application/vnd.npm.install-v1+json" };
     let lastError;
 

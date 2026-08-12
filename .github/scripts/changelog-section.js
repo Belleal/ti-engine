@@ -21,6 +21,22 @@ const path = require( "node:path" );
 const REPOSITORY_ROOT = path.resolve( __dirname, "..", ".." );
 
 /**
+ * Returns the version a `## Version X.Y.Z` heading names, or null for any other line.
+ *
+ * The pattern is fixed and the version it captures is compared as a string, rather than the version
+ * being interpolated into a pattern: an argument spliced into a regular expression is an injection
+ * whatever it is escaped with, and escaping only `.` would have left a version carrying any other
+ * metacharacter matching the wrong section or throwing.
+ *
+ * @param {string} line
+ * @returns {string|null}
+ */
+function headingVersion( line ) {
+    const match = /^##\s+Version\s+(\S+)\s*$/.exec( line );
+    return match ? match[ 1 ] : null;
+}
+
+/**
  * Extracts the lines belonging to one version's section.
  *
  * @param {string} changelog - the full changelog text
@@ -29,8 +45,7 @@ const REPOSITORY_ROOT = path.resolve( __dirname, "..", ".." );
  */
 function extractSection( changelog, version ) {
     const lines = changelog.split( /\r?\n/ );
-    const heading = new RegExp( `^##\\s+Version\\s+${ version.replace( /\./g, "\\." ) }\\s*$` );
-    const start = lines.findIndex( line => heading.test( line ) );
+    const start = lines.findIndex( line => headingVersion( line ) === version );
 
     if ( start < 0 ) {
         return null;
