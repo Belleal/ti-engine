@@ -1,19 +1,43 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+# Dependabot version updates. For all configuration options see:
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
 version: 2
 updates:
+  # One entry, and the root one. With npm workspaces Dependabot already traverses every workspace
+  # manifest from the root, so `/` covers `packages/*/package.json` as well as the root's own
+  # devDependencies — pull request #109 bumped `ioredis` in `packages/core` from this entry alone.
+  # Listing the packages separately as well is what produced two identical pull requests for that
+  # one bump (#109 and #111). The `/core` and `/tester` entries this replaced were dead paths from
+  # before the move to `packages/`, matching nothing.
   - package-ecosystem: "npm"
     directory: "/"
+    # Dependency bumps are development work, so they land where development lands and reach master
+    # through the usual release pull request, rather than pushing the release branch ahead of
+    # `current` and forcing a back-merge for every bump. Note this governs VERSION updates only:
+    # Dependabot security updates always target the default branch, so an advisory-driven fix still
+    # arrives on `master` directly — which is where an urgent fix wants to be anyway.
+    target-branch: "current"
     schedule:
       interval: "daily"
-  - package-ecosystem: "npm"
-    directory: "/core"
+    groups:
+      # Bundling the routine moves keeps a daily scan from becoming a daily pile of pull requests,
+      # and leaves majors on their own, which is where the changelog is worth reading — `ioredis`
+      # 5 to 6 under core's messaging layer is exactly the kind of thing that should arrive alone.
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # The workflows pin their actions to commit SHAs, so this is what keeps the pins from going stale.
+  # Weekly: actions move far more slowly than npm packages.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "current"
     schedule:
-      interval: "daily"
-  - package-ecosystem: "npm"
-    directory: "/tester"
-    schedule:
-      interval: "daily"
+      interval: "weekly"
+    groups:
+      actions:
+        patterns:
+          - "*"

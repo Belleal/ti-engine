@@ -2,6 +2,12 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.7.2
+
+No functional change — the framework code is what `1.7.1` shipped. The version exists to exercise the automated npm publish that replaced the release-triggered workflow, and to prove this package's own trusted publisher configuration on npmjs.com: OIDC trust is granted per package, so it is only ever validated by an actual publish of that package.
+
+* build(release): bump package version from `1.7.1` to `1.7.2`
+
 ## Version 1.7.1
 
 * fix(exchange): preserve a configured-but-falsy `securityHashKey` — only a truly absent (`null`/`undefined`) value falls back to the empty key, so a configured `0`/`false` is no longer silently downgraded to the insecure empty-key path (PR #83, CodeRabbit)

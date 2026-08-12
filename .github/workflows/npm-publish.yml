@@ -1,60 +1,171 @@
-# This workflow will run tests using node and then publish a package to GitHub Packages when a release is created
-# For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
+# Publishes the framework packages to npm when a pull request lands on master.
+#
+# The trigger is the merge itself, and the decision of what to publish is made by comparing each
+# package's declared version against the registry — so a merge that bumps nothing publishes nothing,
+# and a merge that bumps two packages publishes both. Bumping `version` in a package's package.json
+# (with its CHANGELOG.md section) is the whole release ritual; this workflow is the rest of it.
+#
+# A release is the version on the registry AND the tag and GitHub release pointing at the commit it
+# came from. Those are two systems and only the npm half cannot be undone, so the plan is computed
+# from both: a version that published but never got its tag stays in the plan until it has one.
+#
+# Authentication is npm trusted publishing (OIDC): no NPM_TOKEN, and provenance attestations are
+# generated automatically because this is a public repository. Each package needs a trusted
+# publisher configured once on npmjs.com — Settings -> Trusted Publisher -> GitHub Actions, with
+# organization `Belleal`, repository `ti-engine`, workflow filename `npm-publish.yml`, no
+# environment. RENAMING THIS FILE BREAKS PUBLISHING until those entries are updated to match.
 
-name: Node.js Package on Release
+name: Publish to npm
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [ master ]
+  # Lets a failed run be retried by hand. The plan is recomputed from the registry and the tags, so
+  # a retry re-publishes nothing that already landed and finishes anything left half-released.
+  workflow_dispatch:
+
+concurrency:
+  group: npm-publish
+  # Never cancel: an interrupted publish is worse than a queued one.
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  plan:
+    name: Plan
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
+    outputs:
+      packages: ${{ steps.plan.outputs.packages }}
+      any: ${{ steps.plan.outputs.any }}
     steps:
-      # These jobs run npm lifecycle scripts and hold a publish token, so they give up
-      # anything they do not need: the checkout credential (nothing here pushes) and
-      # setup-node's automatic dependency cache.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
+          # The planner reads the existing tags to tell a finished release from one that published
+          # but never got tagged. Checkout does not fetch tags by default, and an empty tag list
+          # would read as "nothing is released yet".
+          fetch-tags: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           package-manager-cache: false
-      - name: Prepare Environment - Install
-        run: npm install
-      - name: Prepare Environment - CI
-        run: npm ci
-      - name: Test Package "Core"
-        run: npm test --workspace=@ti-engine/core
+      # The planner has no dependencies of its own, so there is nothing to install.
+      - name: Work out what needs publishing
+        id: plan
+        run: node .github/scripts/npm-publish-plan.js
 
-  publish-npm:
-    needs: build
+  verify:
+    name: Lint and test
+    needs: plan
+    if: needs.plan.outputs.any == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           package-manager-cache: false
-          registry-url: https://registry.npmjs.org/
-      - name: Prepare Environment - Install
+      # No npm cache here for the same reason as in ci.yml: it keys off package-lock.json, which is
+      # gitignored in this repository.
+      - name: Install dependencies
         run: npm install
-      - name: Prepare Environment - CI
-        run: npm ci
-      - name: Publish Package "Core"
-        run: npm publish --workspace=@ti-engine/core --provenance --access public
+      - name: Lint
+        run: npx eslint .
+      # The whole workspace, not just the packages being published: competence consumes core and
+      # web-framework, so its suite is the regression net for a breaking change in either.
+      - name: Unit tests
+        run: npm test --workspaces --if-present
+
+  publish:
+    name: Publish ${{ matrix.package.name }}
+    needs: [ plan, verify ]
+    if: needs.plan.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      # Trusted publishing mints the registry credential from this identity.
+      id-token: write
+      # For the git tag and the GitHub release created after a successful publish.
+      contents: write
+    strategy:
+      # One at a time and in the order the planner emitted, which is dependency order: core, then
+      # web-framework, then web-content. A failure on one package must not cancel the others.
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON( needs.plan.outputs.packages ) }}
+    steps:
+      # This job holds the publishing identity and a write token, so it runs no third-party code:
+      # none of these packages define a `prepare`/`prepack` script, and `npm publish` only packs the
+      # directory it is run in, so there is deliberately no `npm install` step here.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm >= 11.5.1, and the npm bundled with Node 24 is already well
+      # past it (24.19.0 ships 11.17.0). So nothing is installed here: a global install of a
+      # floating `npm@latest` in the job that holds the publishing identity is an unpinned
+      # dependency bought for no benefit, and pinning it instead just goes stale. Assert the floor
+      # rather than reaching for it, so a regression in the runner image fails here — with the
+      # reason — instead of at `npm publish` with an authentication error.
+      - name: Check npm meets the trusted-publishing floor
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Publish Package "Tester"
-        run: npm publish --workspace=@ti-engine/tester --provenance --access public
+          REQUIRED: "11.5.1"
+        run: |
+          actual="$( npm --version )"
+          if [ "$( printf '%s\n%s\n' "$REQUIRED" "$actual" | sort --version-sort | head -n 1 )" != "$REQUIRED" ]; then
+            echo "::error::npm $actual is below the $REQUIRED that trusted publishing requires."
+            exit 1
+          fi
+          echo "npm $actual satisfies the $REQUIRED floor."
+
+      # Guards a manual re-run after a partial failure: the registry, not the plan, has the last
+      # word on whether this exact version is already out there.
+      - name: Re-check the registry
+        id: state
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DIRECTORY: ${{ matrix.package.directory }}
+        run: node .github/scripts/npm-publish-plan.js --package "$DIRECTORY"
+
+      - name: Publish
+        if: steps.state.outputs.published != 'true'
+        # Run from the package directory rather than `--workspace=<name>` from the root: the tarball
+        # is byte-identical either way, and this keeps workspace resolution out of a step whose
+        # credential is minted for one specific package name. `--access public` is a no-op for these
+        # four — a scoped package only defaults to restricted on its first ever publish — but it is
+        # what makes a new package public rather than private by accident.
+        # No --provenance flag: publishing through OIDC from a public repository attaches a
+        # provenance attestation on its own.
+        working-directory: packages/${{ matrix.package.directory }}
+        run: npm publish --access public
+
+      - name: Tag the version and write the release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ matrix.package.tag }}
+          PACKAGE: ${{ matrix.package.name }}
+          DIRECTORY: ${{ matrix.package.directory }}
+          VERSION: ${{ matrix.package.version }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG already exists — leaving it alone."
+            exit 0
+          fi
+          node .github/scripts/changelog-section.js "$DIRECTORY" "$VERSION" > "$RUNNER_TEMP/notes.md"
+          printf '\n\n---\n\nOn npm: https://www.npmjs.com/package/%s/v/%s\n' "$PACKAGE" "$VERSION" >> "$RUNNER_TEMP/notes.md"
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "$PACKAGE $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md"
