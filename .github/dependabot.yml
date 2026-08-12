@@ -3,23 +3,26 @@
 
 version: 2
 updates:
-  # `directories` accepts globs, so one entry covers the workspace root and every package, and a new
-  # package under `packages/` is picked up without editing this file. The root entry is still needed
-  # alongside it: with npm workspaces Dependabot updates the manifest in the directory it is pointed
-  # at, so `/packages/*` reaches the packages' dependencies and `/` reaches the root devDependencies
-  # (eslint, prettier). The previous configuration pointed at `/core` and `/tester` — paths from
-  # before everything moved under `packages/` — so neither of those was ever actually scanned.
+  # One entry, and the root one. With npm workspaces Dependabot already traverses every workspace
+  # manifest from the root, so `/` covers `packages/*/package.json` as well as the root's own
+  # devDependencies — pull request #109 bumped `ioredis` in `packages/core` from this entry alone.
+  # Listing the packages separately as well is what produced two identical pull requests for that
+  # one bump (#109 and #111). The `/core` and `/tester` entries this replaced were dead paths from
+  # before the move to `packages/`, matching nothing.
   - package-ecosystem: "npm"
-    directories:
-      - "/"
-      - "/packages/*"
+    directory: "/"
+    # Dependency bumps are development work, so they land where development lands and reach master
+    # through the usual release pull request, rather than pushing the release branch ahead of
+    # `current` and forcing a back-merge for every bump. Note this governs VERSION updates only:
+    # Dependabot security updates always target the default branch, so an advisory-driven fix still
+    # arrives on `master` directly — which is where an urgent fix wants to be anyway.
+    target-branch: "current"
     schedule:
       interval: "daily"
     groups:
-      # Five manifests scanned daily is a lot of individual pull requests. Bundling the routine
-      # moves keeps that manageable and leaves majors on their own, which is where the changelog is
-      # worth reading anyway — `core` 1.7.0 dropping dotenvx is the kind of thing that should not
-      # arrive in a batch.
+      # Bundling the routine moves keeps a daily scan from becoming a daily pile of pull requests,
+      # and leaves majors on their own, which is where the changelog is worth reading — `ioredis`
+      # 5 to 6 under core's messaging layer is exactly the kind of thing that should arrive alone.
       minor-and-patch:
         patterns:
           - "*"
@@ -27,10 +30,11 @@ updates:
           - "minor"
           - "patch"
 
-  # The workflows pin their actions to major tags, so this is what surfaces the next major of
-  # checkout/setup-node/build-push and friends. Weekly: they move far more slowly than npm packages.
+  # The workflows pin their actions to commit SHAs, so this is what keeps the pins from going stale.
+  # Weekly: actions move far more slowly than npm packages.
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "current"
     schedule:
       interval: "weekly"
     groups:
