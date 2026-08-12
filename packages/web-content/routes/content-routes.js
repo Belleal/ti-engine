@@ -108,8 +108,8 @@ function parsePageParam( value ) {
  * Builds the catch-all Express handler that resolves a request path against the content index.
  *
  * @param {import("../content/repository.js")} repository
- * @param {{ baseUrl?: string, renderPage?: function(Object, Object): (string|Object), site?: Object, labels?: Object, assets?: Object }} [options]
- * @returns {function(Object, Object, Function): void}
+ * @param {{ baseUrl?: string, renderPage?: (record: Object, context: Object) => (string|Object), site?: Object, labels?: Object, assets?: Object }} [options]
+ * @returns {(request: Object, response: Object, next: Function) => void}
  */
 function contentHandler( repository, options ) {
     const opts = options || {};

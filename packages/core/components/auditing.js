@@ -13,6 +13,8 @@ const logger = require( "#logger" );
 const config = require( "#config" );
 const ServiceInstance = require( "#service-instance" );
 
+/** @import { TiLogSeverity } from "#logger" */
+
 /**
  * Used to create and/or return an Auditing System singleton instance.
  *
@@ -77,7 +79,6 @@ class Auditing {
      * @param {string} message
      * @param {Object} data
      * @returns {TiLogEntry}
-     * @private
      */
     static #createLogEntry( severity, thread, message, data ) {
         let currentDate = new Date();
@@ -104,7 +105,6 @@ class Auditing {
      *
      * @method
      * @param {TiLogEntry} logEntry
-     * @private
      */
     static #logToConsole( logEntry ) {
         if ( config.getSetting( config.setting.AUDITING_LOG_USES_JSON ) === true ) {
@@ -127,7 +127,6 @@ class Auditing {
      * @method
      * @param {TiLogEntry} logEntry
      * @returns {string}
-     * @private
      */
     static #formatConsoleMessage( logEntry ) {
         let logDate = new Date( logEntry.timestamp );
@@ -144,7 +143,6 @@ class Auditing {
      * @param {number} [maxDepth=5]
      * @param {Set} [visited=new Set()]
      * @returns {string}
-     * @private
      */
     static #formatConsoleData( data, prefix = "", currentDepth = 0, maxDepth = 5, visited = new Set() ) {
         if ( data === null || data === undefined || !_.isObjectLike( data ) ) {

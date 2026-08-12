@@ -1,0 +1,11 @@
+export declare var listEditors: (service: ConfigService) => ExpressHandler;
+export declare var composeView: (service: any) => (request: any, response: any, next: any) => void;
+export declare var saveEditorEdit: (service: any) => (request: any, response: any, next: any) => void;
+export declare var getCurrent: (service: any) => (request: any, response: any, next: any) => void;
+export declare var getHistory: (service: any) => (request: any, response: any, next: any) => void;
+export declare var listChanges: (service: any) => (request: any, response: any, next: any) => void;
+export declare var getChange: (service: any) => (request: any, response: any, next: any) => void;
+export declare var restoreChangeSet: (service: any) => (request: any, response: any, next: any) => void;
+export declare var exportBundle: (service: any) => (request: any, response: any, next: any) => void;
+import type ConfigService from "#config-service";
+import type { ExpressHandler } from "#web-handlers";

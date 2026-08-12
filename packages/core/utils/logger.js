@@ -11,6 +11,8 @@ const tools = require( "#tools" );
 const exceptions = require( "#exceptions" );
 const localization = require( "#localization" );
 
+/** @import { TiException } from "#exceptions" */
+
 /**
  * Enum for specifying the log entry severity. This is based on the Google Stackdriver severity levels.
  *

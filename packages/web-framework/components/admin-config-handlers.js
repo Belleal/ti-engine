@@ -19,6 +19,9 @@
 
 const exceptions = require( "@ti-engine/core/exceptions" );
 
+/** @import ConfigService from "#config-service" */
+/** @import { ExpressHandler } from "#web-handlers" */
+
 function sendData( response, data ) {
     response.set( "Cache-Control", "no-store" );
     response.set( "Content-Type", "application/json; charset=utf-8" );

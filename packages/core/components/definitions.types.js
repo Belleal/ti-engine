@@ -6,6 +6,11 @@
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @import { TiException } from "#exceptions" */
+/** @import { TiLocalizationLanguage } from "#localization" */
+/** @import { TiLogSeverity } from "#logger" */
+/** @import { ServiceHandlerMethod } from "#service-executor" */
+
 // Configuration Definitions:
 
 /**
@@ -124,6 +129,16 @@
  */
 
 /**
+ * The shape `tools.enum()` produces for a given seed. Every key of the seed is carried over as an enum
+ * member, so a typo is a compile error rather than `undefined` at runtime, and the lookup helpers of
+ * {@link TiEnum} come along with it. Members are typed as the value they hold, not as the
+ * `[ value, name, description ]` tuple the seed declares them with.
+ *
+ * @template {Record<string,*>} T
+ * @typedef {{ [K in keyof T]: number|string } & TiEnum} TiEnumOf
+ */
+
+/**
  * @typedef {Object} TiLogEntry
  * @property {string} _id Unique identifier that can be used to identify the document in a NoSQL database.
  * @property {TiLogSeverity} severity The log severity level.
@@ -151,13 +166,13 @@
 /**
  * The key of this object is the language code, and the value is the textual representation of the label.
  *
- * @typedef {Object<TiLocalizationLanguage, string>} TiLocalizedLabel
+ * @typedef {Record<TiLocalizationLanguage, string>} TiLocalizedLabel
  */
 
 /**
  * A nested labels tree where intermediate nodes are objects and leaf nodes are language-to-text maps.
  *
- * @typedef {Object<string, TiLocalizedLabel | TiLabelsTree>} TiLabelsTree
+ * @typedef {{ [label: string]: TiLocalizedLabel | TiLabelsTree }} TiLabelsTree
  */
 
 // Service Bus Definitions:
@@ -209,11 +224,11 @@
  */
 
 /**
- * @typedef {Object.<string, ServiceInterfaceVersion>} ServiceInterface
+ * @typedef {Record<string, ServiceInterfaceVersion>} ServiceInterface
  */
 
 /**
- * @typedef {Object.<number, ServiceHandlerMethod>} ServiceInterfaceVersion
+ * @typedef {Record<number, ServiceHandlerMethod>} ServiceInterfaceVersion
  */
 
 /**

@@ -2,6 +2,16 @@
 
 This document contains the list of changes made to the ti-engine monorepo. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.2.9
+
+* feat(ci): add `npm run check:types` and run it in CI. It rebuilds the published declarations and fails on stale
+  committed output, then type-checks both the declarations and a generated consumer that imports all 37 public
+  subpaths — everything with `skipLibCheck: false`, which is TypeScript's default and the setting under which a
+  consumer actually reads them. The declarations are checked one package at a time, because a parse error anywhere in
+  a program suppresses the whole semantic pass: measured together, three packages carrying 251 errors reported 7
+* build(deps-dev): add `typescript` at the workspace root for the declaration build
+* build(release): bump package version from `1.2.8` to `1.2.9`
+
 ## Version 1.2.8
 
 * fix(ci): restrict the CI workflow's `GITHUB_TOKEN` to `contents: read`. Nothing in it writes — it lints, tests and builds an image without pushing — but `npm install` runs dependency lifecycle scripts, and those had the repository's default token permissions available to them (CodeRabbit, #117)

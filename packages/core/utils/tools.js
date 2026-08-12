@@ -9,6 +9,8 @@
 const _ = require( "lodash" );
 const crypto = require( "node:crypto" );
 
+/** @import { TiEnum, TiEnumOf } from "#definitions" */
+
 /**
  * Used to generate and return new UUID.
  *
@@ -45,8 +47,9 @@ module.exports.deepFreeze = ( object, seen = new WeakSet() ) => {
  * Used to create a custom Enum list.
  *
  * @method
- * @param {Object} seed
- * @returns {Object} This is a {@link TiEnum} object. Setting the proper reference here would unfortunately break IDE support.
+ * @template {Record<string,*>} T
+ * @param {T} seed
+ * @returns {TiEnumOf<T>}
  * @public
  */
 // Declared as a named constant and exported below rather than assigned straight onto `module.exports`:
@@ -285,7 +288,7 @@ module.exports.getUTCTimeString = ( date, useMilliseconds = false ) => {
  *
  * @method
  * @param {Object} object
- * @param {function( Object ): Object} [replacer]
+ * @param {(value: Object) => Object} [replacer]
  * @returns {Object}
  * @public
  */
@@ -555,7 +558,7 @@ class RetryPolicy {
      *
      * @method
      * @param {Object} context The context in which the operation will be executed (i.e., this reference).
-     * @param {function( ...* ): Promise<*>} operation Operation to be executed; must return a Promise.
+     * @param {(...args: *[]) => Promise<*>} operation Operation to be executed; must return a Promise.
      * @param {Array<*>} [params=[]] The arguments to be provided to the operation upon execution.
      * @returns {Promise}
      * @public
@@ -568,7 +571,7 @@ class RetryPolicy {
      * Used to register a method that will be automatically called on a failed execution attempt.
      *
      * @method
-     * @param {function( Error )} action The execution error will be provided as an argument.
+     * @param {(error: Error) => void} action The execution error will be provided as an argument.
      * @public
      */
     onFailedAttempt( action ) {
@@ -581,7 +584,7 @@ class RetryPolicy {
      * Used to register a method that will be automatically called on each execution retry (after the initial one).
      *
      * @method
-     * @param {function( number, (Error|undefined) )} action The current attempt and last error are provided.
+     * @param {(attempt: number, lastError: Error|undefined) => void} action The current attempt and last error are provided.
      * @public
      */
     onRetry( action ) {
@@ -597,12 +600,11 @@ class RetryPolicy {
      *
      * @method
      * @param {Object} context
-     * @param {function( ...* ): Promise<*>} operation Operation to be executed; must return a Promise.
+     * @param {(...args: *[]) => Promise<*>} operation Operation to be executed; must return a Promise.
      * @param {Array<*>} params The arguments to be provided to the operation upon execution.
      * @param {number} attempt
      * @param {Error} error
      * @returns {Promise}
-     * @private
      */
     #retry( context, operation, params, attempt, error ) {
         if ( attempt > this.#maxAttempts ) {

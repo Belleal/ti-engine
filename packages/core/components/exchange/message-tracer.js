@@ -13,6 +13,8 @@ const logger = require( "#logger" );
 const exceptions = require( "#exceptions" );
 const cache = require( "#cache" );
 
+/** @import { Message } from "#definitions" */
+
 const traceRoot = {
     trace: []
 };
@@ -174,7 +176,6 @@ class MessageTracer {
      * @method
      * @param {TiTraceEntry} traceEntry The trace entry to log.
      * @param {TiLogSeverity} severity The log entry severity.
-     * @private
      */
     static #createLogEntry( traceEntry, severity ) {
         logger.log( MessageTracer.#formatLogEntry( traceEntry ), severity, traceEntry );
@@ -186,7 +187,6 @@ class MessageTracer {
      * @method
      * @param {TiTraceEntry} traceEntry
      * @return {string} Prepared trace info.
-     * @private
      */
     static #formatLogEntry( traceEntry ) {
         return `Message(${ traceEntry.chainID || traceEntry.messageID }) Trace: '${ traceEntry.messageType } ${ traceEntry.dispatchEvent } ${ traceEntry.messageState }' From: '${ traceEntry.fromAddress }' To: '${ traceEntry.toAddress }'`;
@@ -198,7 +198,6 @@ class MessageTracer {
      * @method
      * @param {Message} message
      * @returns {Message}
-     * @private
      */
     static #obscureSensitiveData( message ) {
         /** @type Message */

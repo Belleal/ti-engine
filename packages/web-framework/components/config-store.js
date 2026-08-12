@@ -222,7 +222,6 @@ class ConfigStore {
      * @method
      * @param {string} key
      * @returns {Promise<Object|null>}
-     * @private
      */
     #readJSON( key ) {
         return cache.instance.getJSON( key ).then( ( result ) => ( Array.isArray( result ) ? ( result[ 0 ] ?? null ) : ( result ?? null ) ) );
@@ -233,7 +232,6 @@ class ConfigStore {
      * @param {string} key
      * @param {Object} value
      * @returns {Promise}
-     * @private
      */
     #writeJSON( key, value ) {
         return cache.instance.setJSON( key, value );
@@ -243,4 +241,4 @@ class ConfigStore {
 
 const instance = new ConfigStore();
 module.exports = ConfigStore;
-module.exports.instance = Object.freeze( instance );
+ConfigStore.instance = Object.freeze( instance );

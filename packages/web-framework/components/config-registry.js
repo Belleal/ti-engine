@@ -45,11 +45,11 @@ const instancePathToDataPath = ( instancePath ) => {
  * {@link ConfigService#applyEdits} call.
  *
  * @typedef {Object} ValidatorContext
- * @property {function(string): Promise<*>} getConfig Resolves the *pending* value of `key` when it is part of the
+ * @property {(key: string) => Promise<*>} getConfig Resolves the *pending* value of `key` when it is part of the
  *      current edit batch, otherwise its current committed value. Lets a validator check a sibling document's
  *      post-edit state — but calling this for the document being validated itself just returns the same incoming
  *      value already passed as the validator's first argument, not its prior state.
- * @property {function(string): Promise<*>} getStoredConfig Always resolves the current committed value of `key`,
+ * @property {(key: string) => Promise<*>} getStoredConfig Always resolves the current committed value of `key`,
  *      even when `key` is the document currently under validation. Use this to compare a document against its own
  *      previous state (e.g. detecting an edit that should have bumped a version marker).
  */
@@ -214,7 +214,6 @@ class ConfigRegistry {
      * @method
      * @param {Object} registration
      * @returns {Function} The compiled (and cached) ajv validate function for the document's schema.
-     * @private
      */
     #schemaValidator( registration ) {
         if ( !registration.compiled ) {
@@ -229,7 +228,6 @@ class ConfigRegistry {
      * @method
      * @param {Object} schema
      * @returns {Object} A shallow copy without the ajv-6-incompatible Draft-2020-12 `$schema` annotation.
-     * @private
      */
     #stripUnsupportedMeta( schema ) {
         if ( schema && schema.$schema && String( schema.$schema ).includes( "draft/2020-12" ) ) {
@@ -244,7 +242,6 @@ class ConfigRegistry {
      * @method
      * @param {ConfigValidationIssue|string} issue
      * @returns {ConfigValidationIssue}
-     * @private
      */
     #normalizeIssue( issue ) {
         if ( typeof issue === "string" ) {
@@ -257,4 +254,4 @@ class ConfigRegistry {
 
 const instance = new ConfigRegistry();
 module.exports = ConfigRegistry;
-module.exports.instance = instance;
+ConfigRegistry.instance = instance;

@@ -12,6 +12,8 @@ const config = require( "#config" );
 const exceptions = require( "#exceptions" );
 const memoryCache = require( "#message-memory-cache" );
 
+/** @import { Message } from "#definitions" */
+
 /**
  * The default {@link MessageSender} behavior for the Ti Engine using Redis for message exchange.
  *

@@ -10,6 +10,8 @@ const ServiceInstance = require( "#service-instance" );
 const exceptions = require( "#exceptions" );
 const messageDispatcher = require( "#message-dispatcher" );
 
+/** @import { ServiceAddress, ServiceCallResult, ServiceConfiguration, ServiceExecContext } from "#definitions" */
+
 /**
  * Abstract class used to define a Service Consumer behavior.
  * <br/>

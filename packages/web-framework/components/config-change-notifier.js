@@ -70,8 +70,8 @@ class ConfigChangeNotifier {
      * Subscribes a listener to configuration-change events.
      *
      * @method
-     * @param {function(ConfigChangeEvent): void} listener
-     * @returns {function(): void} An unsubscribe function.
+     * @param {(event: ConfigChangeEvent) => void} listener
+     * @returns {() => void} An unsubscribe function.
      * @public
      */
     subscribe( listener ) {
@@ -94,5 +94,5 @@ class ConfigChangeNotifier {
 
 const instance = new ConfigChangeNotifier();
 module.exports = ConfigChangeNotifier;
-module.exports.instance = instance;
-module.exports.CONFIG_CHANGED = CONFIG_CHANGED;
+ConfigChangeNotifier.instance = instance;
+ConfigChangeNotifier.CONFIG_CHANGED = CONFIG_CHANGED;

@@ -58,3 +58,21 @@ Initial scaffold of the content-publishing engine for the standalone author's si
 * feat(web-content): `titleAccent` is placed **where it appears** in the title rather than always appended, so the design's accented first word is expressible — it could previously only ever land on the end of a heading, putting the gold on the wrong word with no other field able to move it. Text that is not part of the title is still appended, so existing records are unaffected; both halves of the split are interpolated rather than concatenated as markup, so the title is escaped exactly as before and only the span is structural. The hero also draws its own divider, between the title and the foot: the generic chrome emits its rule above the section body, which on a hero means above the image
 * docs(web-content): the authoring guide — the envelope, the section vocabulary, and what each field emits — ships in `design/` with the engine it documents, rather than in a consuming site one repository away from the code it describes and out of reach of every other consumer. The guard moves with it: a section type present in the schema and absent from both the documented and the deferred lists fails this package's suite
 * fix(web-content): `renderCapture` no longer throws when called with no render context. Every other context read in it is guarded, but the branch reporting a missing CSRF token was not, so a direct call — it is an exported function — died with a `TypeError` while reaching for the callback that reports the problem. `renderSection` passes `context || {}`, which is what kept this off the page and out of sight
+
+## Version 0.3.0
+
+TypeScript declarations now ship with the package, verified against a consumer type-checking with `skipLibCheck: false`
+before they can be committed. See `@ti-engine/core` 1.9.0 for why the previous attempt was withdrawn.
+
+* feat(types): generate and publish `.d.ts` declarations for every module, wired through `types` conditions in both
+  `exports` and `imports`
+* refactor(html)!: the module's exports are assigned individually rather than as an object literal. An object literal
+  emits as an anonymous const, which makes `SafeString` unreachable as a type — every one of the 72 references to it
+  across the rendering modules failed to resolve. Same keys, same values, same module shape at runtime
+* refactor(capture): `PERSISTED_FIELDS` is assigned to `CaptureStore` rather than to `module.exports`, which is the
+  same object; as a declaration the previous form produced an export assignment alongside a named export
+* refactor(capture): the domain separator in the capture-token hash is written `\u0000` rather than as a literal NUL
+  byte in the source. The same character and the same hash — but a literal NUL makes the whole file binary to git and
+  grep, so it produced no diffs and matched no searches
+* fix(types): `renderPage`'s inline closure-style annotation in `contentHandler`'s options, and the two route factories
+  returning `function(Object, Object)`, are written in arrow syntax — the closure form emits a parameter with no name

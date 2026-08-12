@@ -10,6 +10,8 @@ const ConnectionObserver = require( "#connection-observer" );
 const _ = require( "lodash" );
 const exceptions = require( "#exceptions" );
 
+/** @import { Message } from "#definitions" */
+
 /**
  * An abstract class that allows the child class to observe and take action on message events.
  * <br/>

@@ -98,6 +98,12 @@ const applyWebConfigEnvOverrides = require( "#web-config-env" );
 
 const webServerConfig = require( "#web-server-config" );
 
+/** @import { TiAuthMethod, TiTokenEndpointAuthMethod } from "#auth-manager" */
+/** @import { TiSession } from "#definitions" */
+/** @import User from "#user" */
+/** @import TiWebAppManager from "#web-app-manager" */
+/** @import { ServiceAddress, ServiceConfiguration } from "@ti-engine/core/definitions" */
+
 /**
  * Default unprotected static-asset route matchers. The path segments are matched with `(?:[^/]+\/)*` rather than
  * `(?:.+\/)*`: the inner `[^/]+` cannot also consume the "/" delimiter, so the pattern is unambiguous and matches
@@ -643,7 +649,6 @@ class TiWebServer extends ServiceConsumer {
      * middleware mounting is ever needed.
      *
      * @type {Set<string>}
-     * @private
      */
     static #REGISTRABLE_METHODS = new Set( [ "get", "post", "put", "patch", "delete", "options", "head", "all" ] );
 
@@ -666,7 +671,6 @@ class TiWebServer extends ServiceConsumer {
      * clear a default entry. Absent from the config file, an explicitly empty array means exactly that.
      *
      * @type {Object}
-     * @private
      */
     static #STATIC_CACHE_DEFAULTS = Object.freeze( {
         maxAge: 0,
@@ -682,7 +686,6 @@ class TiWebServer extends ServiceConsumer {
      * value any cache treats as meaningful, and the conventional pairing for `immutable`).
      *
      * @type {number}
-     * @private
      */
     static #IMMUTABLE_MAX_AGE = 31536000;
 
@@ -694,7 +697,6 @@ class TiWebServer extends ServiceConsumer {
      * @static
      * @param {string} entry
      * @returns {string|null}
-     * @private
      */
     static #normalizeImmutablePath( entry ) {
         if ( typeof entry !== "string" || entry.trim() === "" ) {
@@ -715,7 +717,6 @@ class TiWebServer extends ServiceConsumer {
      * @param {string} rootPath
      * @param {string} filePath
      * @returns {string}
-     * @private
      */
     static #toServedPath( rootPath, filePath ) {
         // Split on the platform separator only: on POSIX a backslash is a legal filename character, not a delimiter.
@@ -881,7 +882,6 @@ class TiWebServer extends ServiceConsumer {
      * @param {number} port The port to listen on.
      * @param {string} host The host to listen on.
      * @returns {Promise<NodeServer>}
-     * @private
      */
     #beginListening( server, port, host ) {
         return new Promise( ( resolve, reject ) => {
@@ -901,7 +901,6 @@ class TiWebServer extends ServiceConsumer {
      * @method
      * @param {NodeServer} server The server instance to stop listening on.
      * @returns {Promise}
-     * @private
      */
     #endListening( server ) {
         return new Promise( ( resolve, reject ) => {
@@ -933,5 +932,5 @@ class TiWebServer extends ServiceConsumer {
 
 module.exports = TiWebServer;
 // Exported for unit testing of the ReDoS-hardened matchers; not part of the customization surface.
-module.exports.RE_STATIC_UNPROTECTED = RE_STATIC_UNPROTECTED;
-module.exports.RE_WELL_KNOWN_UNPROTECTED = RE_WELL_KNOWN_UNPROTECTED;
+TiWebServer.RE_STATIC_UNPROTECTED = RE_STATIC_UNPROTECTED;
+TiWebServer.RE_WELL_KNOWN_UNPROTECTED = RE_WELL_KNOWN_UNPROTECTED;

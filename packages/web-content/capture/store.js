@@ -209,7 +209,7 @@ class CaptureStore {
      */
     static recordId( email, purpose ) {
         return createHash( "sha256" )
-            .update( CaptureStore.normalizeEmail( email ) + " " + String( purpose || "" ) )
+            .update( CaptureStore.normalizeEmail( email ) + "\u0000" + String( purpose || "" ) )
             .digest( "hex" )
             .slice( 0, 32 );
     }
@@ -238,4 +238,4 @@ class CaptureStore {
 }
 
 module.exports = CaptureStore;
-module.exports.PERSISTED_FIELDS = PERSISTED_FIELDS;
+CaptureStore.PERSISTED_FIELDS = PERSISTED_FIELDS;

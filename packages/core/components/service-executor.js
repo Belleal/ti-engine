@@ -15,11 +15,13 @@ const config = require( "#config" );
 const cache = require( "#cache" );
 const messageDispatcher = require( "#message-dispatcher" );
 
+/** @import { ServiceAddress, ServiceCall, ServiceDefinition, ServiceExecContext, ServiceInterface } from "#definitions" */
+
 /**
  * @callback VerifyAccessMethod
  * @param {string} authToken
  * @param {ServiceAddress} serviceAddress
- * @returns {Promise}
+ * @returns {Promise<*>}
  */
 
 /**
@@ -181,7 +183,6 @@ class ServiceExecutor extends MessageObserver {
      * @method
      * @param {ServiceCall} serviceCall
      * @returns {ServiceExecContext}
-     * @private
      */
     static #assembleServiceExecContext( serviceCall ) {
         return {
@@ -206,7 +207,6 @@ class ServiceExecutor extends MessageObserver {
      * @method
      * @param {string} serviceAlias
      * @returns {Promise}
-     * @private
      */
     #registerServiceToCatalog( serviceAlias ) {
         return new Promise( ( resolve, reject ) => {
@@ -226,7 +226,6 @@ class ServiceExecutor extends MessageObserver {
      * @method
      * @param {ServiceCall} serviceCall
      * @returns {Promise<ServiceCall>}
-     * @private
      */
     #processServiceCall( serviceCall ) {
         return new Promise( ( resolve ) => {
@@ -252,7 +251,6 @@ class ServiceExecutor extends MessageObserver {
      * @method
      * @param {ServiceAddress} serviceAddress
      * @returns {Promise<ServiceHandlerMethod>}
-     * @private
      */
     #identifyService( serviceAddress ) {
         return new Promise( ( resolve, reject ) => {

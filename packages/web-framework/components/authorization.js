@@ -108,7 +108,7 @@ function isAccessAllowed( requiredRoles, userRoles ) {
  * Responds `401` when unauthenticated (no session user) and `403` when authenticated but lacking the role.
  *
  * @param {...(string|number)} roles
- * @returns {function(Object, Object, Function): void}
+ * @returns {(request: Object, response: Object, next: Function) => void}
  */
 function requireRole( ...roles ) {
     return ( request, response, next ) => {
@@ -128,7 +128,7 @@ function requireRole( ...roles ) {
 /**
  * Express middleware that admits only `admin`-role users.
  *
- * @type {function(Object, Object, Function): void}
+ * @type {(request: Object, response: Object, next: Function) => void}
  */
 const requireAdmin = requireRole( ADMIN_ROLE );
 

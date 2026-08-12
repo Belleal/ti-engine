@@ -11,6 +11,10 @@ const _ = require( "lodash" );
 const exceptions = require( "#exceptions" );
 const messageTracer = require( "#message-tracer" );
 
+/** @import { Message } from "#definitions" */
+/** @import MessageReceiver from "#message-receiver" */
+/** @import MessageSender from "#message-sender" */
+
 /**
  * An abstract class that defines a message exchange behavior.
  * <br/>

@@ -12,3 +12,6 @@ packages/*/.run/*.run.xml
 # Local environment files (root, for docker compose) — keep the template
 .env
 !.env.example
+
+# Scratch directory for the generated type-check consumer and its tsconfigs.
+/.types-check/

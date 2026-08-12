@@ -10,6 +10,8 @@ const MessageHandler = require( "#message-handler" );
 const exceptions = require( "#exceptions" );
 const config = require( "#config" );
 
+/** @import { Message } from "#definitions" */
+
 /**
  * An abstract class that defines a basic message sender behavior.
  *
@@ -113,7 +115,6 @@ class MessageSender extends MessageHandler {
      * @method
      * @param {Message} message
      * @returns {Promise<Message>}
-     * @private
      */
     #preSend( message ) {
         if ( this.isAvailable === true ) {
@@ -132,7 +133,6 @@ class MessageSender extends MessageHandler {
      *
      * @method
      * @returns {Promise}
-     * @private
      */
     #postSend() {
         return Promise.resolve();

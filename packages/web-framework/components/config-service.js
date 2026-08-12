@@ -8,6 +8,10 @@
 
 const exceptions = require( "@ti-engine/core/exceptions" );
 
+/** @import ConfigChangeNotifier from "#config-change-notifier" */
+/** @import ConfigRegistry from "#config-registry" */
+/** @import ConfigStore from "#config-store" */
+
 /**
  * Orchestrates validated, versioned configuration edits on top of {@link ConfigStore} and {@link ConfigRegistry}.
  *
@@ -115,8 +119,8 @@ class ConfigService {
      * @param {string} editorKey
      * @param {Object} definition
      * @param {string[]} definition.documents The configKeys this editor spans.
-     * @param {function(Object): *} definition.compose Maps `{ [configKey]: value }` → a view for the UI.
-     * @param {function(*, Object): Object<string, Object>} definition.decompose Maps `(editedView, currentDocs)` → the
+     * @param {(configs: Object) => *} definition.compose Maps `{ [configKey]: value }` → a view for the UI.
+     * @param {(editedView: *, currentDocs: Object) => Object.<string, Object>} definition.decompose Maps `(editedView, currentDocs)` → the
      *        full new values for the documents that changed (`{ [configKey]: newValue }`).
      * @param {Object} [definition.metadata]
      * @returns {ConfigService} this (chainable)
@@ -321,8 +325,8 @@ class ConfigService {
      * Subscribes a listener to `config:changed` events (delegates to the change notifier). Returns an unsubscribe fn.
      *
      * @method
-     * @param {function(Object): void} listener
-     * @returns {function(): void}
+     * @param {(configs: Object) => void} listener
+     * @returns {() => void}
      * @public
      */
     onConfigChanged( listener ) {
@@ -335,7 +339,6 @@ class ConfigService {
      * @method
      * @param {string[]} keys
      * @returns {Promise<{docs: Object<string, Object>, versions: Object<string, number>}>}
-     * @private
      */
     #loadDocuments( keys ) {
         return Promise.all( keys.map( ( key ) => this.#store.getCurrent( key ) ) ).then( ( currents ) => {
@@ -357,4 +360,4 @@ function clone( value ) {
 
 const instance = new ConfigService();
 module.exports = ConfigService;
-module.exports.instance = instance;
+ConfigService.instance = instance;

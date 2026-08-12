@@ -758,7 +758,6 @@ class CommonMemoryCache extends ConnectionObserver {
      * @method
      * @param {string|string[]} path
      * @returns {string}
-     * @private
      */
     #normalizeJSONPath( path ) {
         if ( Array.isArray( path ) ) {

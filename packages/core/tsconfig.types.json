@@ -1,0 +1,29 @@
+{
+  "//": [
+    "Generates the published type declarations from the JSDoc already in the sources.",
+    "Nothing here is compiled: `emitDeclarationOnly` means the .js files ship exactly as written",
+    "and only .d.ts files are produced. `checkJs` stays off deliberately — this build exists to",
+    "describe the framework to consumers, not to type-check it, and turning it on would make every",
+    "loose annotation in 7000 lines of JSDoc a release blocker.",
+    "Run with `npm run build:types -w @ti-engine/core`. The output is committed, because the publish",
+    "job deliberately runs no install and no lifecycle scripts."
+  ],
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "module": "node16",
+    "moduleResolution": "node16",
+    "target": "es2022",
+    "rootDir": ".",
+    "outDir": "types",
+    "skipLibCheck": true
+  },
+  "include": [
+    "bin/**/*.js",
+    "components/**/*.js",
+    "integrations/**/*.js",
+    "utils/**/*.js"
+  ]
+}

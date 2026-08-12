@@ -307,6 +307,8 @@ class TiException {
  * @returns {TiException}
  * @public
  */
+module.exports.TiException = TiException;
+
 module.exports.raise = ( source, data, exceptionID = undefined, httpCode = undefined ) => {
     /** @type TiException */
     let exception;

@@ -13,6 +13,9 @@ const exceptions = require( "#exceptions" );
 const logger = require( "#logger" );
 const messageDispatcher = require( "#message-dispatcher" );
 
+/** @import { ServiceAddress, ServiceConfiguration, ServiceDefinition } from "#definitions" */
+/** @import { ServiceHandlerMethod } from "#service-executor" */
+
 /**
  * Abstract class used to define a Service Provider behavior.
  * <br/>

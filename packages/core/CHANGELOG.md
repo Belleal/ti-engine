@@ -2,6 +2,43 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.9.0
+
+TypeScript declarations now ship with the package. The previous attempt was withdrawn in 1.8.1 because the generated
+declarations did not type-check for a consumer using TypeScript's default settings; this one is verified under those
+settings before it can be committed, by a check that runs in CI.
+
+What made the first attempt look finished was the verification, not the output: it ran with `skipLibCheck: true`, which
+suppresses errors *inside* `.d.ts` files — precisely the class of error declaration emit produces. The real number was
+larger than the 45 that measurement eventually admitted to. A parse error anywhere in a program suppresses the whole
+semantic pass, so the malformed declarations in one package were hiding every unresolved name in the other two: the
+first honest measurement across all three was **251** errors, not 7.
+
+* feat(types): generate and publish `.d.ts` declarations for every module, wired into `exports` and `imports` through
+  `types` conditions so both a consumer's import and the framework's own `#` specifiers resolve to them
+* feat(exceptions): export the `TiException` class. It is named in the signature of everything that raises or inspects
+  an exception and was never exported, so no consumer could name the type it was being handed
+* feat(tools): `tools.enum()` now returns a type carrying the seed's own members. Every enum was previously documented
+  as returning `Object`, on which TypeScript permits no property access at all — `exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS`
+  did not type-check, and neither did any other enum member in the framework. A misspelled member is now a compile
+  error rather than `undefined` at runtime
+* feat(definitions): expose the shared type definitions as `@ti-engine/core/definitions`. The types in it appear
+  throughout the public API and the module declaring them was not exported
+* fix(types)!: rewrite every closure-style `{function(...)}` JSDoc annotation in arrow syntax. The declaration emitter
+  reduces that form to a nameless `: Function` and leaks the remainder of the annotation into the doc comment, which is
+  a syntax error in the emitted declaration — so the annotations documenting a callback were the ones destroying it
+* fix(types): stop marking `#`-named members `@private`. The emitter combines the two into `private #name`, which
+  TypeScript rejects outright; the `#private` brand each class already emits carries the same meaning
+* fix(exchange): `onConnectionDisrupted`, `onConnectionRecovered` and `onConnectionLost` are no longer marked
+  `@private` in `MessageHandler`. They override public methods of `ConnectionObserver` and their own documentation
+  tells you to override them, so the tag contradicted both the base class and the instruction directly above it
+* fix(types): `Object.<K,V>` in a standalone `@typedef` emits as the non-generic `Object<K,V>`; the map typedefs are
+  now `Record<K,V>`, and `TiLabelsTree` an index signature, since a self-referential `Record` alias is circular
+* refactor(exchange): the lazy `require` inside `addMessageObserver` binds under a distinct name. As `MessageObserver`
+  it shadowed the file-level type import, leaving the documented parameter type unresolvable
+* build(deps): add `@types/node`. The published declarations name `NodeJS.Process`, so a consumer cannot read them
+  without it
+
 ## Version 1.8.1
 
 Presentation and documentation only — no functional change. The npm page is the first thing a prospective user sees, and it was working against the package.

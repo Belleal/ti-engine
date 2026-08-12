@@ -84,7 +84,7 @@ function safeReturnPath( returnTo, repository ) {
  *
  * @param {Object} store
  * @param {Object} repository
- * @returns {function(Object, Object): void}
+ * @returns {(request: Object, response: Object) => void}
  */
 function captureHandler( store, repository ) {
     return function ( request, response ) {

@@ -6,6 +6,8 @@
  * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @import { TiLocalizationLanguage } from "@ti-engine/core/localization" */
+
 /**
  * @callback TiSessionCallback
  * @param {Error|null} [error]
@@ -20,7 +22,7 @@
  * @property {Object} [cookie]
  * @property {Object} [oidc]
  * @property {string} [csrfToken]
- * @property {function(TiSessionCallback): TiSession} regenerate
- * @property {function(TiSessionCallback): TiSession} destroy
- * @property {function(TiSessionCallback=): TiSession} save
+ * @property {(callback: TiSessionCallback) => TiSession} regenerate
+ * @property {(callback: TiSessionCallback) => TiSession} destroy
+ * @property {(callback?: TiSessionCallback) => TiSession} save
  */

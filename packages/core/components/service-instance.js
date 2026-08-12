@@ -15,6 +15,8 @@ const exceptions = require( "#exceptions" );
 const cache = require( "#cache" );
 const messageDispatcher = require( "#message-dispatcher" );
 
+/** @import { ServiceConfiguration } from "#definitions" */
+
 /**
  * Abstract class used to define a Service Instance behavior.
  * <br/>
@@ -244,7 +246,6 @@ class ServiceInstance {
      *
      * @method
      * @returns {Promise}
-     * @private
      */
     #preStart() {
         return new Promise( ( resolve ) => {
@@ -260,7 +261,6 @@ class ServiceInstance {
      *
      * @method
      * @returns {Promise}
-     * @private
      */
     #postStart() {
         return new Promise( ( resolve ) => {
@@ -285,7 +285,6 @@ class ServiceInstance {
      *
      * @method
      * @returns {Promise}
-     * @private
      */
     #preStop() {
         return new Promise( ( resolve ) => {
@@ -303,7 +302,6 @@ class ServiceInstance {
      *
      * @method
      * @returns {Promise}
-     * @private
      */
     #postStop() {
         return new Promise( ( resolve ) => {

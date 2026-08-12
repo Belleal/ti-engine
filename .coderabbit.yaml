@@ -1,0 +1,22 @@
+# CodeRabbit configuration.
+#
+# This file takes precedence over the repository's settings in the CodeRabbit UI, so the profile is
+# restated here rather than left to be inherited.
+#
+# The generated type declarations under `packages/*/types/` are excluded from review. They are
+# compiler output, regenerated from the JSDoc on every build and verified by `npm run check:types`,
+# which type-checks them as a consumer does and fails on any drift from a fresh build. Reviewing
+# them line by line reports defects at the wrong layer: the fix for anything wrong in a `.d.ts` is
+# always an edit to the `.js` source that produced it, which is reviewed. They also crowd out the
+# hand-written changes — a release shipping declarations puts 71 generated files in the diff, which
+# on its own pushed one pull request past the 100-file review limit and skipped the review entirely.
+reviews:
+  profile: assertive
+  path_filters:
+    - "!packages/*/types/**"
+  finishing_touches:
+    # Carried over from the CodeRabbit UI settings this file supersedes — it was the only value
+    # customised there. Tests in this repository are written against `node --test` alongside the
+    # code they cover, not generated onto a branch.
+    unit_tests:
+      enabled: false

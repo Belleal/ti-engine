@@ -11,6 +11,10 @@ const exceptions = require( "#exceptions" );
 const logger = require( "#logger" );
 const messageTracer = require( "#message-tracer" );
 
+/** @import { Message } from "#definitions" */
+/** @import MessageExchange from "#message-exchange" */
+/** @import MessageObserver from "#message-observer" */
+
 /**
  * Used to create and/or return a Message Dispatcher singleton instance.
  * This class handles the internal message dispatching between the microservices.

@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/web-content",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A content-publishing engine for ti-engine sites: path-index routing, deny-by-default content visibility, SEO document rendering, feeds, and email capture, layered on @ti-engine/web-framework. NOTICE: This is a work in progress and the full architecture, design, and functionality are not yet available!",
   "keywords": [
     "cms",
@@ -16,55 +16,196 @@
   "license": "GPL-3.0-or-later",
   "type": "commonjs",
   "exports": {
-    "./schema": "./content/schema.js",
-    "./loader": "./content/loader.js",
-    "./repository": "./content/repository.js",
-    "./transliterate": "./content/transliterate.js",
-    "./taxonomy": "./content/taxonomy.js",
-    "./terms": "./content/terms.js",
-    "./markdown": "./content/markdown.js",
-    "./sources": "./content/sources.js",
-    "./html": "./render/html.js",
-    "./render": "./render/document.js",
-    "./sections": "./render/sections.js",
-    "./editorial": "./render/editorial/index.js",
-    "./routes": "./routes/index.js",
-    "./feeds": "./routes/feeds.js",
-    "./shell": "./render/shell.js",
-    "./templates": "./render/templates.js",
-    "./page": "./render/page.js",
-    "./capture": "./capture/store.js",
-    "./capture-admin": "./capture/admin.js",
-    "./capture-routes": "./capture/routes.js",
-    "./media": "./routes/media.js",
-    "./context": "./render/context.js",
-    "./archives": "./content/archives.js"
+    "./schema": {
+      "types": "./types/content/schema.d.ts",
+      "default": "./content/schema.js"
+    },
+    "./loader": {
+      "types": "./types/content/loader.d.ts",
+      "default": "./content/loader.js"
+    },
+    "./repository": {
+      "types": "./types/content/repository.d.ts",
+      "default": "./content/repository.js"
+    },
+    "./transliterate": {
+      "types": "./types/content/transliterate.d.ts",
+      "default": "./content/transliterate.js"
+    },
+    "./taxonomy": {
+      "types": "./types/content/taxonomy.d.ts",
+      "default": "./content/taxonomy.js"
+    },
+    "./terms": {
+      "types": "./types/content/terms.d.ts",
+      "default": "./content/terms.js"
+    },
+    "./markdown": {
+      "types": "./types/content/markdown.d.ts",
+      "default": "./content/markdown.js"
+    },
+    "./sources": {
+      "types": "./types/content/sources.d.ts",
+      "default": "./content/sources.js"
+    },
+    "./html": {
+      "types": "./types/render/html.d.ts",
+      "default": "./render/html.js"
+    },
+    "./render": {
+      "types": "./types/render/document.d.ts",
+      "default": "./render/document.js"
+    },
+    "./sections": {
+      "types": "./types/render/sections.d.ts",
+      "default": "./render/sections.js"
+    },
+    "./editorial": {
+      "types": "./types/render/editorial/index.d.ts",
+      "default": "./render/editorial/index.js"
+    },
+    "./routes": {
+      "types": "./types/routes/index.d.ts",
+      "default": "./routes/index.js"
+    },
+    "./feeds": {
+      "types": "./types/routes/feeds.d.ts",
+      "default": "./routes/feeds.js"
+    },
+    "./shell": {
+      "types": "./types/render/shell.d.ts",
+      "default": "./render/shell.js"
+    },
+    "./templates": {
+      "types": "./types/render/templates.d.ts",
+      "default": "./render/templates.js"
+    },
+    "./page": {
+      "types": "./types/render/page.d.ts",
+      "default": "./render/page.js"
+    },
+    "./capture": {
+      "types": "./types/capture/store.d.ts",
+      "default": "./capture/store.js"
+    },
+    "./capture-admin": {
+      "types": "./types/capture/admin.d.ts",
+      "default": "./capture/admin.js"
+    },
+    "./capture-routes": {
+      "types": "./types/capture/routes.d.ts",
+      "default": "./capture/routes.js"
+    },
+    "./media": {
+      "types": "./types/routes/media.d.ts",
+      "default": "./routes/media.js"
+    },
+    "./context": {
+      "types": "./types/render/context.d.ts",
+      "default": "./render/context.js"
+    },
+    "./archives": {
+      "types": "./types/content/archives.d.ts",
+      "default": "./content/archives.js"
+    }
   },
   "imports": {
-    "#schema": "./content/schema.js",
-    "#loader": "./content/loader.js",
-    "#repository": "./content/repository.js",
-    "#transliterate": "./content/transliterate.js",
-    "#taxonomy": "./content/taxonomy.js",
-    "#terms": "./content/terms.js",
-    "#markdown": "./content/markdown.js",
-    "#sources": "./content/sources.js",
-    "#html": "./render/html.js",
-    "#document": "./render/document.js",
-    "#sections": "./render/sections.js",
-    "#editorial": "./render/editorial/index.js",
-    "#routes": "./routes/index.js",
-    "#feeds": "./routes/feeds.js",
-    "#content-routes": "./routes/content-routes.js",
-    "#shell": "./render/shell.js",
-    "#templates": "./render/templates.js",
-    "#page": "./render/page.js",
-    "#capture": "./capture/store.js",
-    "#capture-admin": "./capture/admin.js",
-    "#capture-routes": "./capture/routes.js",
-    "#media": "./routes/media.js",
-    "#context": "./render/context.js",
-    "#archives": "./content/archives.js"
+    "#schema": {
+      "types": "./types/content/schema.d.ts",
+      "default": "./content/schema.js"
+    },
+    "#loader": {
+      "types": "./types/content/loader.d.ts",
+      "default": "./content/loader.js"
+    },
+    "#repository": {
+      "types": "./types/content/repository.d.ts",
+      "default": "./content/repository.js"
+    },
+    "#transliterate": {
+      "types": "./types/content/transliterate.d.ts",
+      "default": "./content/transliterate.js"
+    },
+    "#taxonomy": {
+      "types": "./types/content/taxonomy.d.ts",
+      "default": "./content/taxonomy.js"
+    },
+    "#terms": {
+      "types": "./types/content/terms.d.ts",
+      "default": "./content/terms.js"
+    },
+    "#markdown": {
+      "types": "./types/content/markdown.d.ts",
+      "default": "./content/markdown.js"
+    },
+    "#sources": {
+      "types": "./types/content/sources.d.ts",
+      "default": "./content/sources.js"
+    },
+    "#html": {
+      "types": "./types/render/html.d.ts",
+      "default": "./render/html.js"
+    },
+    "#document": {
+      "types": "./types/render/document.d.ts",
+      "default": "./render/document.js"
+    },
+    "#sections": {
+      "types": "./types/render/sections.d.ts",
+      "default": "./render/sections.js"
+    },
+    "#editorial": {
+      "types": "./types/render/editorial/index.d.ts",
+      "default": "./render/editorial/index.js"
+    },
+    "#routes": {
+      "types": "./types/routes/index.d.ts",
+      "default": "./routes/index.js"
+    },
+    "#feeds": {
+      "types": "./types/routes/feeds.d.ts",
+      "default": "./routes/feeds.js"
+    },
+    "#content-routes": {
+      "types": "./types/routes/content-routes.d.ts",
+      "default": "./routes/content-routes.js"
+    },
+    "#shell": {
+      "types": "./types/render/shell.d.ts",
+      "default": "./render/shell.js"
+    },
+    "#templates": {
+      "types": "./types/render/templates.d.ts",
+      "default": "./render/templates.js"
+    },
+    "#page": {
+      "types": "./types/render/page.d.ts",
+      "default": "./render/page.js"
+    },
+    "#capture": {
+      "types": "./types/capture/store.d.ts",
+      "default": "./capture/store.js"
+    },
+    "#capture-admin": {
+      "types": "./types/capture/admin.d.ts",
+      "default": "./capture/admin.js"
+    },
+    "#capture-routes": {
+      "types": "./types/capture/routes.d.ts",
+      "default": "./capture/routes.js"
+    },
+    "#media": {
+      "types": "./types/routes/media.d.ts",
+      "default": "./routes/media.js"
+    },
+    "#context": {
+      "types": "./types/render/context.d.ts",
+      "default": "./render/context.js"
+    },
+    "#archives": {
+      "types": "./types/content/archives.d.ts",
+      "default": "./content/archives.js"
+    }
   },
   "dependencies": {
     "@ti-engine/core": "*",
@@ -84,6 +225,7 @@
     "routes/",
     "static/",
     "capture/",
+    "types/",
     "design/",
     "package.json",
     "README.md",
@@ -102,6 +244,10 @@
     "node": ">=20.12.0"
   },
   "scripts": {
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "build:types": "tsc -p tsconfig.types.json"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
   }
 }
