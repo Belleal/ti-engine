@@ -71,5 +71,8 @@ before they can be committed. See `@ti-engine/core` 1.9.0 for why the previous a
   across the rendering modules failed to resolve. Same keys, same values, same module shape at runtime
 * refactor(capture): `PERSISTED_FIELDS` is assigned to `CaptureStore` rather than to `module.exports`, which is the
   same object; as a declaration the previous form produced an export assignment alongside a named export
+* refactor(capture): the domain separator in the capture-token hash is written `\u0000` rather than as a literal NUL
+  byte in the source. The same character and the same hash — but a literal NUL makes the whole file binary to git and
+  grep, so it produced no diffs and matched no searches
 * fix(types): `renderPage`'s inline closure-style annotation in `contentHandler`'s options, and the two route factories
   returning `function(Object, Object)`, are written in arrow syntax — the closure form emits a parameter with no name

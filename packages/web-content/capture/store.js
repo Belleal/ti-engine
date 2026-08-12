@@ -209,7 +209,7 @@ class CaptureStore {
      */
     static recordId( email, purpose ) {
         return createHash( "sha256" )
-            .update( CaptureStore.normalizeEmail( email ) + " " + String( purpose || "" ) )
+            .update( CaptureStore.normalizeEmail( email ) + "\u0000" + String( purpose || "" ) )
             .digest( "hex" )
             .slice( 0, 32 );
     }
