@@ -84,7 +84,7 @@ function renderCapture( section, context ) {
             context.markPerSession();
         }
         hidden.push( html`<input type="hidden" name="csrfToken" value="${ context.csrfToken }">` );
-    } else if ( typeof context.reportProblem === "function" ) {
+    } else if ( context && typeof context.reportProblem === "function" ) {
         // Silently omitting it renders a form that looks perfect and 403s on every submit, with nothing anywhere
         // saying why. The form is still emitted -- withholding it would break the page over a wiring mistake -- but
         // the caller is told, and decides how to say so.

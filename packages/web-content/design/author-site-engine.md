@@ -223,7 +223,7 @@ The specs pin the *schema* but not the *authoring format*. Proposed:
 | `page` · `book` · `release` | YAML file                                | Structured records (section trees, editions, tracks). Prose-bearing fields (`blurb`, `teaser`, section `body`) hold Markdown strings the renderer runs through `markdown.js`. |
 | `taxonomies.yml`            | YAML                                     | Already specified (`content-schemas.md` §7).                                                                                                                                  |
 
-`gray-matter` parses both front-matter Markdown and pure-YAML. Records validate against the ajv schemas in `schema.js` at load; a validation failure is a hard load error, never a silent skip (`CLAUDE.md` 5).
+`gray-matter` parses both front-matter Markdown and pure-YAML. Records validate against the ajv schemas in `schema.js` at load; a validation failure is **never a silent skip** (`CLAUDE.md` 5). It is not fatal either: `loader.buildIndex` excludes the failing record from every index and returns it in `index.invalid` (id + errors), alongside `index.conflicts` for duplicate ids, paths and aliases. So one malformed record costs its own page and is named in the boot log, rather than taking the whole site down — but it is never served and never passes unreported.
 
 ---
 

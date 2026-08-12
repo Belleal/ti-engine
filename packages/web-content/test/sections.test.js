@@ -153,22 +153,53 @@ describe( "the authoring guide accounts for every section type", () => {
     const { SECTION_TYPES } = require( "#schema" );
     const GUIDE = path.join( __dirname, "..", "design", "authoring-guide.md" );
 
+    const DEFERRED_HEADING = "### Types not yet documented here";
+
     const read = () => fs.readFileSync( GUIDE, "utf8" );
     const documentedIn = ( guide ) => [ ...guide.matchAll( /^### `([a-zA-Z]+)`$/gm ) ].map( ( m ) => m[ 1 ] );
-    const deferredBlock = ( guide ) => guide.slice( guide.indexOf( "### Types not yet documented here" ) );
+
+    /*
+     * ONLY the deferred list, bounded at the next heading or rule -- not everything after its heading.
+     *
+     * A slice to the end of the file sweeps in every later section, so a type named in passing anywhere below would
+     * count as deferred: it would satisfy the coverage test without appearing in the list, and it would fail the
+     * stale test for a type that IS documented and IS absent from the list, sending the author to delete something
+     * that is not there.
+     */
+    const deferredTypesIn = ( guide ) => {
+        const start = guide.indexOf( DEFERRED_HEADING );
+        if ( start < 0 ) {
+            return new Set();
+        }
+        const rest = guide.slice( start + DEFERRED_HEADING.length );
+        const end = rest.search( /^(?:#{1,6} |---\s*$)/m );
+        const block = ( end < 0 ) ? rest : rest.slice( 0, end );
+        return new Set( [ ...block.matchAll( /`([a-zA-Z]+)`/g ) ].map( ( m ) => m[ 1 ] ) );
+    };
 
     it( "documents or explicitly defers each one", () => {
         const guide = read();
         const documented = new Set( documentedIn( guide ) );
-        const deferred = new Set( [ ...deferredBlock( guide ).matchAll( /`([a-zA-Z]+)`/g ) ].map( ( m ) => m[ 1 ] ) );
+        const deferred = deferredTypesIn( guide );
         const unaccounted = SECTION_TYPES.filter( ( type ) => !documented.has( type ) && !deferred.has( type ) );
         assert.deepEqual( unaccounted, [], "section types the authoring guide never mentions" );
     } );
 
     it( "does not still defer a type it has since documented", () => {
         const guide = read();
-        const stale = documentedIn( guide ).filter( ( type ) => deferredBlock( guide ).includes( "`" + type + "`" ) );
+        const deferred = deferredTypesIn( guide );
+        const stale = documentedIn( guide ).filter( ( type ) => deferred.has( type ) );
         assert.deepEqual( stale, [], "types listed as pending that already have a section — remove them from the list" );
+    } );
+
+    it( "reads the deferred list itself, not the sections that follow it", () => {
+        const synthetic = [
+            "### `verse`", "", "Documented.", "",
+            DEFERRED_HEADING, "", "`prose` · `audio`", "",
+            "---", "", "## 5. When a record does not appear", "",
+            "A `gallery` mentioned in passing here is not a deferred type."
+        ].join( "\n" );
+        assert.deepEqual( [ ...deferredTypesIn( synthetic ) ].sort(), [ "audio", "prose" ] );
     } );
 
 } );
