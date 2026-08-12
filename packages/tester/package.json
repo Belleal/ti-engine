@@ -1,12 +1,25 @@
 {
   "name": "@ti-engine/tester",
-  "version": "1.3.3",
-  "description": "The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.",
+  "version": "1.3.4",
+  "description": "Runnable reference microservice for @ti-engine/core — a working ServiceProvider with cross-service calls, used to smoke-test a framework setup.",
+  "keywords": [
+    "ti-engine",
+    "microservices",
+    "example",
+    "reference-implementation",
+    "smoke-test"
+  ],
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "dependencies": {
     "@ti-engine/core": "*"
   },
+  "files": [
+    "bin/",
+    "package.json",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Belleal/ti-engine.git",

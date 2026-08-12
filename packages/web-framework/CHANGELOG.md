@@ -2,6 +2,15 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.19.1
+
+Documentation and packaging only — no functional change.
+
+The `SemanticValidator` fix was found while attempting to generate TypeScript declarations from the framework's JSDoc. That work is **deferred to a later release**, but this correction stands on its own: the typedef was written as `function(Object, ValidatorContext): (ConfigValidationIssue[]|Promise<ConfigValidationIssue[]>)`, whose parenthesised return type inside the Closure form no parser can read. It described the validator contract correctly to a human reader and not at all to a machine.
+
+* fix(config-registry): rewrite the `SemanticValidator` typedef in arrow syntax
+* feat(package): declare `keywords`, which the package had none of — the terms npm search matches against
+
 ## Version 1.19.0
 
 `/static` was served with `max-age=1y, immutable` for every consumer of the framework. `immutable` is a promise that the bytes behind a URL will never change, and browsers honour it so completely that not even a manual reload revalidates — so the promise is only true for a content-addressed URL (`app.a1b2c3.css`). None of the framework's own assets are named that way (`/static/scripts/ti-framework.js`, the theme sheets), which made this an unsafe default that shipped to npm: a deployed CSS or JS fix would never reach anyone who had already visited, for up to a year, with no way to tell them otherwise. The standalone author's site had worked around it privately by fingerprinting its own asset URLs; every other consumer still inherited the bug.

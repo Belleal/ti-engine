@@ -2,6 +2,11 @@
 
 This document contains the list of changes made to the ti-engine monorepo. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.2.8
+
+* fix(ci): restrict the CI workflow's `GITHUB_TOKEN` to `contents: read`. Nothing in it writes — it lints, tests and builds an image without pushing — but `npm install` runs dependency lifecycle scripts, and those had the repository's default token permissions available to them (CodeRabbit, #117)
+* build(release): bump package version from `1.2.7` to `1.2.8`
+
 ## Version 1.2.7
 
 * build(deps-dev): update `@eslint/json` from ^1.0.0 to ^2.0.1. Lint-only and confined to the workspace root — no package ships it, and `eslint .` reports the same 25 pre-existing warnings and no errors on the major

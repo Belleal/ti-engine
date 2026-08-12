@@ -2,6 +2,21 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.8.1
+
+Presentation and documentation only — no functional change. The npm page is the first thing a prospective user sees, and it was working against the package.
+
+The two JSDoc corrections here were found while attempting to generate TypeScript declarations from the framework's JSDoc. That work is **deferred to a later release**: the generated declarations did not type-check for a consumer using TypeScript's default settings, and fixing that properly means rewiring the cross-file typedef graph rather than patching the output. These two fixes stand on their own regardless, because the JSDoc was wrong.
+
+* fix(types): correct the `TiEnum` typedef's function-property annotations. `function( (number|string), [string] ): (string|undefined)` cannot be parsed — the JSDoc-optional bracket inside a function type is not readable — so `name`, `description` and `contains` were described as unnamed `Function` members. Documentation that reads correctly to a person and not at all to a parser
+* refactor(tools): declare the enum factory as a named constant and export it as `module.exports.enum = createEnum`. Identical export name, arguments and behaviour; a direct assignment to a reserved word emits invalid syntax in a generated declaration, so this removes the obstacle ahead of the deferred work
+* fix(docs): remove the CodeRabbit badge, which rendered as `provider or repo not found` — an error message sitting in the first line of the package page
+* fix(docs): remove the `npms.io` popularity and quality badges. They were not broken; they worked, and published `popularity 4%` and `quality 47%` about this package on its own front page. Popularity is a restatement of the download count, which no niche framework wins, and there is no reason to advertise either
+* feat(docs): show `npm version`, monthly downloads, the supported Node range, the licence and CI status instead — facts that stay true on their own, sourced from npm and GitHub rather than a third-party scoring service. Provenance needs no badge: npm renders it natively beside the version
+* feat(docs): open the README with the install command and a minimal working service — the class and the handler — so the first screenful shows what using the framework looks like rather than three paragraphs about it
+* fix(package): replace the description, which was the generic monorepo blurb shared verbatim with `tester`, with one that says what this package is. It is the line npm shows in search results
+* fix(package): drop the `pubsub` keyword and add `message-queue`, `ioredis` and `microservice-framework`. The framework does not use Redis pub/sub at all — its exchange is built on lists, hashes and RedisJSON — so that keyword advertised something it does not do
+
 ## Version 1.8.0
 
 `ioredis` 6 makes RESP3 its default wire protocol. The framework does not set the `protocol` option, so this changes how every `core` connection talks to Redis without a line of framework code changing — and the suite here never touches a live Redis, so a green test run says nothing about it either way. It was checked against a real server rather than assumed: for every command the framework issues — `hgetall`, `smembers`, `hget`, `get`, `brpop`, the same commands through the generic `call()` path used for RedisJSON, and again inside `multi` — RESP3 and RESP2 return **identical** JavaScript values, because `ioredis` maps the new protocol's map and set types back to the objects and arrays it always returned. No consumer code changes.

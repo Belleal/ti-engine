@@ -55,7 +55,7 @@ const instancePathToDataPath = ( instancePath ) => {
  */
 
 /**
- * @typedef {function(Object, ValidatorContext): (ConfigValidationIssue[]|Promise<ConfigValidationIssue[]>)} SemanticValidator
+ * @typedef {(value: Object, context: ValidatorContext) => ConfigValidationIssue[]|Promise<ConfigValidationIssue[]>} SemanticValidator
  * A semantic validator receives the candidate value and a {@link ValidatorContext} and returns the issues it found
  * (empty array = OK). May be async.
  */

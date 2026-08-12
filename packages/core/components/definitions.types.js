@@ -117,10 +117,10 @@
 
 /**
  * @typedef {Object} TiEnum
- * @property {Object.<number|string,TiEnumValue>} properties
- * @property {function( (number|string), [string] ): (string|undefined)} name
- * @property {function( (number|string), [string] ): (string|undefined)} description
- * @property {function( (number|string) ): boolean} contains
+ * @property {Object.<string,TiEnumValue>} properties
+ * @property {(enumValue: number|string, placeholder?: string) => string|undefined} name
+ * @property {(enumValue: number|string, placeholder?: string) => string|undefined} description
+ * @property {(enumValue: number|string) => boolean} contains
  */
 
 /**

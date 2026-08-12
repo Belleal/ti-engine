@@ -1,7 +1,17 @@
 {
   "name": "@ti-engine/web-framework",
-  "version": "1.19.0",
+  "version": "1.19.1",
   "description": "A web-framework based on the ti-engine. It provides a customizable ready-to-use web-server microservice and a set of tools for creating web applications. NOTICE: This is still a work in progress and the full architecture, design, and functionality are not available!",
+  "keywords": [
+    "ti-engine",
+    "web-framework",
+    "express",
+    "microservices",
+    "htmx",
+    "alpinejs",
+    "openid-connect",
+    "csp"
+  ],
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "exports": {
@@ -37,8 +47,7 @@
     "lodash": "^4.18.1",
     "openid-client": "^6.8.4"
   },
-  "devDependencies": {
-  },
+  "devDependencies": {},
   "files": [
     "bin/",
     "!bin/tls/**/*",

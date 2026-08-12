@@ -49,7 +49,11 @@ module.exports.deepFreeze = ( object, seen = new WeakSet() ) => {
  * @returns {Object} This is a {@link TiEnum} object. Setting the proper reference here would unfortunately break IDE support.
  * @public
  */
-module.exports.enum = ( seed ) => {
+// Declared as a named constant and exported below rather than assigned straight onto `module.exports`:
+// `enum` is a reserved word in TypeScript, and a direct assignment makes the generated declaration
+// `export declare var enum`, which is a syntax error. Named and re-exported, it emits the aliased
+// form instead. The runtime export is unchanged — this is still `tools.enum( ... )`.
+const createEnum = ( seed ) => {
     const enumObject = Object.create( null );
     const properties = Object.create( null );
     const reserved = new Set( [ "properties", "name", "description", "contains", "__proto__", "prototype", "constructor" ] );
@@ -147,6 +151,7 @@ module.exports.enum = ( seed ) => {
 
     return enumObject;
 };
+module.exports.enum = createEnum;
 
 /**
  * Used to get the name of an {@link TiEnum} value if such exists.

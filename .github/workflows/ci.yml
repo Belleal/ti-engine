@@ -6,6 +6,12 @@ on:
   push:
     branches: [ current, master ]
 
+# Nothing here writes: it lints, tests and builds an image without pushing. `npm install` runs
+# dependency lifecycle scripts, so the token those scripts could reach is held to read-only rather
+# than left at the repository default.
+permissions:
+  contents: read
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
