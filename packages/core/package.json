@@ -1,14 +1,16 @@
 {
   "name": "@ti-engine/core",
-  "version": "1.8.0",
-  "description": "The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.",
+  "version": "1.8.1",
+  "description": "Microservice framework for Node.js: a Redis-backed message exchange with end-to-end call tracing, retries and tamper-evident message envelopes.",
   "keywords": [
     "microservices",
+    "microservice-framework",
     "framework",
     "node",
     "redis",
+    "ioredis",
     "messaging",
-    "pubsub",
+    "message-queue",
     "distributed-systems"
   ],
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",

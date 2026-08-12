@@ -1,14 +1,44 @@
 # ti-engine core
 
-![GitHub top language](https://img.shields.io/github/languages/top/Belleal/ti-engine)
-![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Belleal/ti-engine)
-![npms.io (scoped package)](https://img.shields.io/npms-io/maintenance-score/%40ti-engine/core)
-![npms.io (scoped package)](https://img.shields.io/npms-io/popularity-score/%40ti-engine/core)
-![npms.io (scoped package)](https://img.shields.io/npms-io/quality-score/%40ti-engine/core)
+[![npm version](https://img.shields.io/npm/v/%40ti-engine/core)](https://www.npmjs.com/package/@ti-engine/core)
+[![npm downloads](https://img.shields.io/npm/dm/%40ti-engine/core)](https://www.npmjs.com/package/@ti-engine/core)
+[![node](https://img.shields.io/node/v/%40ti-engine/core)](https://nodejs.org/)
+[![license](https://img.shields.io/npm/l/%40ti-engine/core)](https://github.com/Belleal/ti-engine/blob/master/LICENSE.md)
+[![CI](https://github.com/Belleal/ti-engine/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Belleal/ti-engine/actions/workflows/ci.yml)
 
 ![Logo](https://raw.githubusercontent.com/Belleal/ti-engine/master/packages/core/docs/ti-engine-icon.ico)
 
 Flexible framework for the creation of microservices with [node.js](https://nodejs.org/).
+
+Every release is published from CI with a [provenance attestation](https://docs.npmjs.com/generating-provenance-statements), so the tarball on npm is verifiably built from the commit it names.
+
+```shell
+npm install @ti-engine/core
+```
+
+A service is a class and a handler. The class declares the lifecycle; the handler is the business logic:
+
+```javascript
+// my-service.js — the instance
+const ServiceProvider = require( "@ti-engine/core/service-provider" );
+
+class MyService extends ServiceProvider {
+    onStart() {
+        return Promise.resolve();
+    }
+}
+
+module.exports = MyService;
+```
+
+```javascript
+// services/v1/greet.js — one service, registered in the service registry JSON
+module.exports.service = ( serviceDefinition, serviceParams, serviceCallContext ) => {
+    return Promise.resolve( { greeting: `hello, ${ serviceParams.name }` } );
+};
+```
+
+Point `TI_INSTANCE_CLASS` at the class, `TI_INSTANCE_NAME` at the service domain, and start it with `node ./node_modules/@ti-engine/core/bin/start-instance.js`. Calls between instances travel over Redis as an envelope plus a payload, traced end to end. The rest of this document covers that machinery in detail — start with [Prerequisites & installation](#prerequisites--installation).
 
 ## Introduction
 
