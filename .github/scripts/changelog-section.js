@@ -1,0 +1,110 @@
+"use strict";
+
+/**
+ * Prints the `## Version <x.y.z>` section of a package changelog, which the publish workflow uses
+ * as the body of the GitHub release it creates for that version.
+ *
+ * The section is located by its heading rather than by position, because the changelogs in this
+ * repository are not consistently ordered — `core` lists the newest version first, `web-content`
+ * the oldest.
+ *
+ * Usage: node .github/scripts/changelog-section.js <package-directory> <version>
+ *
+ * A missing file or missing section is reported on stderr and replaced with a one-line fallback
+ * body. This runs after `npm publish`, where the version is already on the registry and failing
+ * would abandon the tag and the release without un-publishing anything — a release carrying a
+ * pointer to the changelog beats no release at all. The gap is caught before it gets that far:
+ * `npm-publish-plan.js` requires a section for every version it plans, in the job that runs before
+ * anything is published, where failing is free and the fix is a changelog edit.
+ */
+
+const fs = require( "node:fs" );
+const path = require( "node:path" );
+
+const REPOSITORY_ROOT = path.resolve( __dirname, "..", ".." );
+
+/**
+ * Returns the version a `## Version X.Y.Z` heading names, or null for any other line.
+ *
+ * The pattern is fixed and the version it captures is compared as a string, rather than the version
+ * being interpolated into a pattern: an argument spliced into a regular expression is an injection
+ * whatever it is escaped with, and escaping only `.` would have left a version carrying any other
+ * metacharacter matching the wrong section or throwing.
+ *
+ * @param {string} line
+ * @returns {string|null}
+ */
+function headingVersion( line ) {
+    const match = /^##\s+Version\s+(\S+)\s*$/.exec( line );
+    return match ? match[ 1 ] : null;
+}
+
+/**
+ * Extracts the lines belonging to one version's section.
+ *
+ * @param {string} changelog - the full changelog text
+ * @param {string} version - the version whose section to return
+ * @returns {string|null} the section body, or null when there is no heading for that version
+ */
+function extractSection( changelog, version ) {
+    const lines = changelog.split( /\r?\n/ );
+    const start = lines.findIndex( line => headingVersion( line ) === version );
+
+    if ( start < 0 ) {
+        return null;
+    }
+
+    // Any following level-two heading closes the section — that is the next version, whichever
+    // direction the file happens to be ordered in.
+    const rest = lines.slice( start + 1 );
+    const end = rest.findIndex( line => /^##\s/.test( line ) );
+    const body = ( end < 0 ? rest : rest.slice( 0, end ) ).join( "\n" ).trim();
+
+    return body.length > 0 ? body : null;
+}
+
+/**
+ * Reads one version's section out of a package's changelog.
+ *
+ * @param {string} directory - the package directory under `packages/`
+ * @param {string} version - the version whose section to return
+ * @returns {string|null} the section body, or null when the file or the section is missing
+ */
+function readSection( directory, version ) {
+    const changelogPath = path.join( REPOSITORY_ROOT, "packages", directory, "CHANGELOG.md" );
+
+    if ( !fs.existsSync( changelogPath ) ) {
+        return null;
+    }
+
+    return extractSection( fs.readFileSync( changelogPath, "utf8" ), version );
+}
+
+/**
+ * Prints the requested section on stdout, falling back to a pointer at the changelog.
+ */
+function main() {
+    const [ directory, version ] = process.argv.slice( 2 );
+
+    if ( !directory || !version ) {
+        console.error( "::error::Usage: changelog-section.js <package-directory> <version>" );
+        process.exit( 1 );
+    }
+
+    let section = readSection( directory, version );
+
+    if ( section === null ) {
+        console.error( `::warning::No "## Version ${ version }" section in packages/${ directory }/CHANGELOG.md.` );
+        section = `See \`packages/${ directory }/CHANGELOG.md\` for the changes in this version.`;
+    }
+
+    console.log( section );
+}
+
+module.exports.extractSection = extractSection;
+module.exports.readSection = readSection;
+
+// Only when run as a command — the planner requires this module for `readSection`.
+if ( require.main === module ) {
+    main();
+}
