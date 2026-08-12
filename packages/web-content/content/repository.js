@@ -204,7 +204,6 @@ class ContentRepository {
      * @param {string} facet
      * @param {string} id
      * @returns {Set<string>}
-     * @private
      */
     #expandTerm( facet, id ) {
         if ( !this.#taxonomy || typeof this.#taxonomy.expand !== "function" ) {

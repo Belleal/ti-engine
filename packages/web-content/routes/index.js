@@ -92,7 +92,7 @@ function handlerOptions( opts ) {
  *
  * @param {Object} context  The render context (site, labels, assets…).
  * @param {Object} [config]  Optional copy overrides: { title, body, mark, actions }.
- * @returns {function(Object, Object): void}
+ * @returns {(request: Object, response: Object) => void}
  */
 function notFoundHandler( context, config ) {
     const copy = ( config && typeof config === "object" ) ? config : {};

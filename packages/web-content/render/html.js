@@ -133,10 +133,10 @@ function accentedTitle( title, accentText ) {
     return html`${ text.slice( 0, at ) }<span class="accent">${ accent }</span>${ text.slice( at + accent.length ) }`;
 }
 
-module.exports = {
-    html: html,
-    raw: raw,
-    escapeHtml: escapeHtml,
-    accentedTitle: accentedTitle,
-    SafeString: SafeString
-};
+// Assigned individually rather than as an object literal: a `module.exports = { ... }` literal is emitted as an
+// anonymous const, which makes `SafeString` unreachable as a type for anything importing it.
+module.exports.html = html;
+module.exports.raw = raw;
+module.exports.escapeHtml = escapeHtml;
+module.exports.accentedTitle = accentedTitle;
+module.exports.SafeString = SafeString;

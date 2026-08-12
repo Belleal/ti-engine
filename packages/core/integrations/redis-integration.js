@@ -282,7 +282,7 @@ class RedisClient {
      *
      * @method
      * @param {string} channel Unique identifier of the channel to subscribe to.
-     * @param {function( Object )} messageHandler Will execute this handler every time a new message is received.
+     * @param {(message: Object) => void} messageHandler Will execute this handler every time a new message is received.
      * @returns {Promise}
      * @public
      */
@@ -428,7 +428,6 @@ class RedisClient {
      * @param {number} [retryMaxIntervalMs=1000] Optional max backoff interval.
      * @param {number|undefined} [retryMaxAttempts=undefined] Optional max (re)connection attempts before abort.
      * @returns {Promise}
-     * @private
      */
     #setupClient( host, port, authKey, user, defaultDB, retryMaxIntervalMs, retryMaxAttempts ) {
         return new Promise( ( resolve, reject ) => {
@@ -510,7 +509,6 @@ class RedisClient {
      * Used to notify all connection observers about the current connection state.
      *
      * @method
-     * @private
      */
     #notifyConnectionObservers() {
         // Notify all connection observers about the event:
@@ -530,7 +528,6 @@ class RedisClient {
      *
      * @method
      * @returns {Promise}
-     * @private
      */
     #fetchServerInfo() {
         return new Promise( ( resolve, reject ) => {
@@ -570,7 +567,6 @@ class RedisClient {
      *
      * @method
      * @returns {Promise<number>}
-     * @private
      */
     #getClientID() {
         let commandArguments = [ "client", "id" ];

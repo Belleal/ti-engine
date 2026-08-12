@@ -233,6 +233,8 @@ module.exports.localizationLanguage = localizationLanguageEnum;
 /** @type {TiLabelsTree} */
 const labels = require( "#labels" );
 
+/** @import { TiLabelsTree } from "#definitions" */
+
 // Load any custom labels defined in the configuration:
 const labelsPaths = config.getSetting( config.setting.LOCALIZATION_LABELS_PATH );
 if ( labelsPaths && _.isArray( labelsPaths ) && labelsPaths.length > 0 ) {

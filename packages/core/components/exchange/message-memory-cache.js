@@ -11,6 +11,9 @@ const tools = require( "#tools" );
 const exceptions = require( "#exceptions" );
 const redis = require( "#redis-integration" );
 
+/** @import ConnectionObserver from "#connection-observer" */
+/** @import { Message } from "#definitions" */
+
 /**
  * Used to create a Redis Cache client wrapped in a specialized message memory cache interface.
  *

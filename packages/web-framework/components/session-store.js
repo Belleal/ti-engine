@@ -12,6 +12,9 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const _ = require( "lodash" );
 const session = require( "express-session" );
 
+/** @import { SessionData } from "express-session" */
+/** @import { TiException } from "@ti-engine/core/exceptions" */
+
 // The name of the session store in the cache:
 const sessionStoreName = "ti:web:sessions";
 
@@ -37,8 +40,8 @@ class SessionStore extends session.Store {
      *
      * @method
      * @param {string} sessionID
-     * @param {TiSession} session
-     * @param {function( (Error|TiException|null)= )} callback
+     * @param {SessionData} session
+     * @param {(error?: Error|TiException|null) => void} callback
      * @public
      */
     set( sessionID, session, callback ) {
@@ -58,7 +61,7 @@ class SessionStore extends session.Store {
      *
      * @method
      * @param {string} sessionID
-     * @param {function( (Error|TiException|null)=, (TiSession)= )} callback
+     * @param {(error?: Error|TiException|null, session?: SessionData|null) => void} callback
      * @public
      */
     get( sessionID, callback ) {
@@ -75,7 +78,7 @@ class SessionStore extends session.Store {
      *
      * @method
      * @param {string} sessionID
-     * @param {function( (Error|TiException|null)= )} callback
+     * @param {(error?: Error|TiException|null) => void} callback
      * @public
      */
     destroy( sessionID, callback ) {
@@ -92,8 +95,8 @@ class SessionStore extends session.Store {
      *
      * @method
      * @param {string} sessionID
-     * @param {TiSession} session
-     * @param {function( (Error|TiException|null)= )} callback
+     * @param {SessionData} session
+     * @param {(error?: Error|TiException|null) => void} callback
      * @public
      */
     touch( sessionID, session, callback ) {

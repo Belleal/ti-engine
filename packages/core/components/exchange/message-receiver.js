@@ -12,6 +12,8 @@ const exceptions = require( "#exceptions" );
 const config = require( "#config" );
 const tools = require( "#tools" );
 
+/** @import { Message } from "#definitions" */
+
 /**
  * An abstract class that defines a basic message receiver behavior.
  *
@@ -154,7 +156,6 @@ class MessageReceiver extends MessageHandler {
      * @method
      * @param {Message} message
      * @returns {Promise<Message>}
-     * @private
      */
     #postReceive( message ) {
         return new Promise( ( resolve, reject ) => {

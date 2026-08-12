@@ -238,4 +238,4 @@ class CaptureStore {
 }
 
 module.exports = CaptureStore;
-module.exports.PERSISTED_FIELDS = PERSISTED_FIELDS;
+CaptureStore.PERSISTED_FIELDS = PERSISTED_FIELDS;

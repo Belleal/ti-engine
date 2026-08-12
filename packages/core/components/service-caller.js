@@ -14,6 +14,8 @@ const config = require( "#config" );
 const cache = require( "#cache" );
 const messageDispatcher = require( "#message-dispatcher" );
 
+/** @import { ServiceAddress, ServiceCall, ServiceCallResult, ServiceExecContext } from "#definitions" */
+
 /**
  * Used to assemble and prepare a new {@link ServiceCall} object.
  *
@@ -182,7 +184,6 @@ class ServiceCallProcessor {
      *
      * @method
      * @returns {Promise<ServiceCallResult>}
-     * @private
      */
     #execute() {
         return new Promise( ( resolve, reject ) => {
@@ -207,7 +208,6 @@ class ServiceCallProcessor {
      *
      * @method
      * @returns {Promise<ServiceCallResult>}
-     * @private
      */
     #timeout() {
         return new Promise( ( resolve, reject ) => {
@@ -335,7 +335,6 @@ class ServiceCaller extends MessageObserver {
      * @method
      * @param {string} messageID
      * @param {ServiceCallProcessor} processor
-     * @private
      */
     #addProcessor( messageID, processor ) {
         this.#serviceCallProcessors[ messageID ] = processor;
@@ -347,7 +346,6 @@ class ServiceCaller extends MessageObserver {
      * @method
      * @param {string} messageID
      * @returns {ServiceCallProcessor}
-     * @private
      */
     #getProcessor( messageID ) {
         return this.#serviceCallProcessors[ messageID ];
@@ -358,7 +356,6 @@ class ServiceCaller extends MessageObserver {
      *
      * @method
      * @param {string} messageID
-     * @private
      */
     #removeProcessor( messageID ) {
         if ( this.#serviceCallProcessors[ messageID ] ) {

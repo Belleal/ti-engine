@@ -17,8 +17,11 @@ const cache = require( "@ti-engine/core/cache" );
 const authMethod = require( "#auth-manager" ).authMethod;
 const authorization = require( "#authorization" );
 
+/** @import { TiAuthMethod } from "#auth-manager" */
+/** @import TiWebServer from "#web-server" */
+
 /** @typedef {import("express").Request} ExpressRequest */
-/** @typedef {import("express").res} ExpressResponse */
+/** @typedef {import("express").Response} ExpressResponse */
 
 /**
  * Express middleware callback.
@@ -26,7 +29,7 @@ const authorization = require( "#authorization" );
  * @callback ExpressHandler
  * @param {ExpressRequest} request
  * @param {ExpressResponse} response
- * @param {function( Error | null )} next
+ * @param {(error: Error|null) => void} next
  * @returns {void}
  */
 
@@ -37,7 +40,7 @@ const authorization = require( "#authorization" );
  * @param {Error} error
  * @param {ExpressRequest} request
  * @param {ExpressResponse} response
- * @param {function( Error | null )} next
+ * @param {(error: Error|null) => void} next
  * @returns {void}
  */
 
@@ -154,7 +157,7 @@ let getRequestOrigin = ( request ) => {
  * @method
  * @param {ExpressRequest} request
  * @param {string} redirectTo
- * @param {function( TiSession ): TiSession} modifier
+ * @param {(session: TiSession) => TiSession} modifier
  * @returns {Promise<string>}
  * @private
  */

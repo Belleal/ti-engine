@@ -15,6 +15,8 @@ const configRegistry = require( "#config-registry" );
 const configService = require( "#config-service" );
 const authorization = require( "#authorization" );
 
+/** @import { TiSession } from "#definitions" */
+
 const RE_NONCE_ATTR = /\{ti-nonce-placeholder}/g;
 const RE_CSRF_ATTR = /\{ti-csrf-placeholder}/g;
 const RE_HTMX_CONFIG = /\{ti-htmx-config-placeholder}/g;
@@ -462,7 +464,6 @@ class TiWebAppManager {
      * @param {boolean} [options.isHome] Optional flag to indicate whether the requested route is the home page.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
      * @returns {Promise<string>}
-     * @private
      */
     #getHtmlFragment( session, staticContentPaths, fragment, options = {} ) {
         return new Promise( ( resolve, reject ) => {
@@ -487,7 +488,6 @@ class TiWebAppManager {
      * @param {string[]} staticContentPaths A list of directories to search for static content. If sent as expected by the web server, the first item in the array should be the system default path.
      * @param {string} filePath Relative path to the static file to locate.
      * @returns {Promise<string>}
-     * @private
      */
     #locateStaticFile( staticContentPaths, filePath ) {
         return new Promise( ( resolve, reject ) => {
@@ -530,7 +530,6 @@ class TiWebAppManager {
      * @param {string[]} staticContentPaths
      * @param {Array<string>} components
      * @returns {Promise<string>}
-     * @private
      */
     #replaceComponentPlaceholders( html, staticContentPaths, components ) {
         return new Promise( ( resolve, reject ) => {
@@ -573,7 +572,6 @@ class TiWebAppManager {
      * @param {string} tagName
      * @param {string} replacement
      * @returns {string}
-     * @private
      */
     #replacePlaceholderElement( html, tagName, replacement ) {
         const start = html.indexOf( `<${ tagName }` );
@@ -643,7 +641,6 @@ class TiWebAppManager {
      * @method
      * @param {string} openingTag The full opening tag text, e.g. `<ti-foo-placeholder bar="baz">`.
      * @returns {Object<string, string>}
-     * @private
      */
     #parsePlaceholderAttributes( openingTag ) {
         const attributes = {};
@@ -660,4 +657,4 @@ class TiWebAppManager {
 }
 
 module.exports = TiWebAppManager;
-module.exports.applyAuthMethodVisibility = applyAuthMethodVisibility;
+TiWebAppManager.applyAuthMethodVisibility = applyAuthMethodVisibility;

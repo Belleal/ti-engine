@@ -14,6 +14,9 @@ const logger = require( "#logger" );
 const tools = require( "#tools" );
 const config = require( "#config" );
 
+/** @import { Message } from "#definitions" */
+/** @import MessageObserver from "#message-observer" */
+
 const OLD_DEFAULT_HASH_KEY = "23e7bdc7-a793-41f9-856e-6760332f0c73";
 let keyWarningEmitted = false;
 
@@ -145,8 +148,10 @@ class MessageHandler extends ConnectionObserver {
      * @public
      */
     addMessageObserver( messageObserver ) {
-        const MessageObserver = require( "#message-observer" );
-        if ( messageObserver instanceof MessageObserver ) {
+        // Bound under a distinct name: `MessageObserver` at method scope would shadow the file-level type
+        // import, leaving the documented parameter type unresolvable in the generated declarations.
+        const MessageObserverClass = require( "#message-observer" );
+        if ( messageObserver instanceof MessageObserverClass ) {
             this.#messageObservers.push( messageObserver );
             this.#messageObservers = _.orderBy( this.#messageObservers, [ "priority" ], [ "desc" ] );
         } else {
@@ -180,7 +185,6 @@ class MessageHandler extends ConnectionObserver {
      * @method
      * @param {string} identifier The identifier of the observed connection.
      * @override
-     * @private
      */
     onConnectionRecovered( identifier ) {
         if ( this.#isAvailable === false && identifier === this.#connectionIdentifier ) {
@@ -200,7 +204,6 @@ class MessageHandler extends ConnectionObserver {
      * @method
      * @param {string} identifier The identifier of the observed connection.
      * @override
-     * @private
      */
     onConnectionDisrupted( identifier ) {
         if ( this.#isAvailable === true && identifier === this.#connectionIdentifier ) {
@@ -220,7 +223,6 @@ class MessageHandler extends ConnectionObserver {
      * @method
      * @param {string} identifier The identifier of the observed connection.
      * @override
-     * @private
      */
     onConnectionLost( identifier ) {
         if ( identifier === this.#connectionIdentifier ) {

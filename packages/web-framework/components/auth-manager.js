@@ -13,6 +13,8 @@ const { randomBytes } = require( "node:crypto" );
 const openidClient = require( "openid-client" );
 const User = require( "#user" );
 
+/** @import { SettingsAuth } from "#web-server" */
+
 /**
  * Enum for specifying the authentication method.
  *
@@ -281,7 +283,6 @@ class AuthManager {
      * unavailable so a sign-in attempt against it is rejected per-request instead of taking down startup.
      *
      * @method
-     * @private
      */
     #dropUnconfiguredOpenIDProviders() {
         const providers = [
@@ -302,7 +303,6 @@ class AuthManager {
      * @method
      * @param {SettingsOAuth2Client} [oauth2] The provider's OAuth2 settings.
      * @returns {boolean}
-     * @private
      */
     #isOpenIDConfigured( oauth2 ) {
         return !!( oauth2 && typeof oauth2.clientID === "string" && oauth2.clientID.trim() !== "" );
@@ -318,7 +318,6 @@ class AuthManager {
      * @method
      * @param {SettingsOAuth2Client} oauth2
      * @returns {Promise<openidClient.Configuration>}
-     * @private
      */
     #initializeOpenIDClient( oauth2 ) {
         return new Promise( ( resolve, reject ) => {
@@ -362,7 +361,6 @@ class AuthManager {
      * @param {string} username
      * @param {string} password
      * @returns {Promise}
-     * @private
      */
     #authenticateLocal( username, password ) {
         return new Promise( ( resolve, reject ) => {
@@ -383,7 +381,6 @@ class AuthManager {
      * @param {SettingsOAuth2Client} oauth2
      * @param {openidClient.Configuration} clientConfig
      * @returns {Promise<Object>}
-     * @private
      */
     #authenticateOpenID( baseUrl, oauth2, clientConfig ) {
         return new Promise( ( resolve, reject ) => {
@@ -416,7 +413,6 @@ class AuthManager {
      * @param {Object} oidc
      * @param {openidClient.Configuration} clientConfig
      * @returns {Promise<User>}
-     * @private
      */
     #authorizeOpenID( currentUrl, oidc, clientConfig ) {
         return new Promise( ( resolve, reject ) => {
@@ -439,4 +435,4 @@ class AuthManager {
 }
 
 module.exports = AuthManager;
-module.exports.authMethod = authMethodEnum;
+AuthManager.authMethod = authMethodEnum;
