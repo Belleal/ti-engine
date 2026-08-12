@@ -2,6 +2,23 @@
 
 This document contains the list of changes made to the ti-engine monorepo. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.2.6
+
+The Dependabot change in 1.2.5 rested on a wrong reading and made things worse. Its claim that no package's
+dependencies were being watched was false: with npm workspaces Dependabot already traverses every workspace manifest
+from the root, so the long-standing `/` entry had always covered `packages/*/package.json` — pull request #109 bumped
+`ioredis` inside `packages/core` from that entry alone. The `/core` and `/tester` entries really were dead paths from
+before the move to `packages/`, but they were harmless noise rather than a gap. Adding `/packages/*` alongside the
+root is what turned one bump into two identical pull requests (#109 and #111).
+
+* fix(ci): scan from the workspace root only. The root entry reaches every workspace manifest on its own, so listing
+  the packages as well produced a duplicate pull request for every dependency the root and a package share
+* feat(ci): point Dependabot's version updates at `current` rather than `master`, so dependency bumps flow through the
+  usual release pull request instead of pushing the release branch ahead of the development branch and forcing a
+  back-merge per bump. Security updates are unaffected — they always target the default branch, which is where an
+  advisory-driven fix belongs anyway
+* build(release): bump package version from `1.2.5` to `1.2.6`
+
 ## Version 1.2.5
 
 Publishing to npm was tied to a manually created GitHub release and covered only `core` and `tester`, so
