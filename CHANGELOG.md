@@ -2,6 +2,18 @@
 
 This document contains the list of changes made to the ti-engine monorepo. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.2.10
+
+* fix(ci): stop pinning `types` and `typeRoots` in the type-check gate. Setting them put Node's
+  types in scope for the check and for nothing else, so the gate passed on declarations that a real
+  consumer could not compile — the exact shape of failure it exists to prevent. It now runs with
+  nothing configured, and that unpinned run is what caught the missing reference released in
+  `core` 1.9.0
+* feat(ci): add `.github/scripts/build-types.js`, so the declaration build is a step with a name
+  rather than three `tsc` invocations, and so the Node types reference is added as part of it. The
+  gate builds through the same script, which is what keeps the drift check honest
+* build(release): bump package version from `1.2.9` to `1.2.10`
+
 ## Version 1.2.9
 
 * feat(ci): add `npm run check:types` and run it in CI. It rebuilds the published declarations and fails on stale

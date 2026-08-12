@@ -2,6 +2,23 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.9.1
+
+The declarations published in 1.9.0 type-check only for a consumer who has separately configured
+Node's types. One who has not — even with `@types/node` installed, which this package depends on —
+gets `TS2503: Cannot find namespace 'NodeJS'` from inside `definitions.types.d.ts`.
+
+The gate added in 1.9.0 did not catch it because it pinned `types: ["node"]` in its own compiler
+options, putting Node's types in scope for the check and for nothing else. It reported zero errors
+against declarations that gave a real consumer two. That pin is gone: the check now runs with
+nothing configured, which is what a consumer's compiler does.
+
+* fix(types): emit `/// <reference types="node" />` into declarations that name a Node global.
+  TypeScript emits no such reference on its own — not from the directive written in the JavaScript
+  source, and not from `types` set in the emit configuration; both were tried — so the declaration
+  build adds it
+* build(release): bump package version from `1.9.0` to `1.9.1`
+
 ## Version 1.9.0
 
 TypeScript declarations now ship with the package. The previous attempt was withdrawn in 1.8.1 because the generated

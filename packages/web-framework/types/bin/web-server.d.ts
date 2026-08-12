@@ -1,3 +1,4 @@
+/// <reference types="node" />
 export = TiWebServer;
 import ServiceConsumer = require("@ti-engine/core/service-consumer");
 export type NodeServer = import("node:http").Server;
