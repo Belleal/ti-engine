@@ -68,9 +68,9 @@ describe( "CompetenceFramework.getActiveCompetencySet — resolution semantics",
 
     it( "throws when the baseline for the family + cycle is missing or empty", async () => {
         await assert.rejects(
-            async () => competenceFramework.instance.getActiveCompetencySet( "QE", null, "2026-H2" ),
+            async () => competenceFramework.instance.getActiveCompetencySet( "XD", null, "2026-H2" ),
             ( err ) => /baseline/i.test( err?.data?.details || err?.message || "" ),
-            "Expected a missing-baseline error for family QE in cycle 2026-H2"
+            "Expected a missing-baseline error for family XD in cycle 2026-H2"
         );
     } );
 

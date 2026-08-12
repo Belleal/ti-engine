@@ -421,6 +421,110 @@
         "en": "Change management within projects",
         "bg": "Управление на промени в рамките на проектите"
       },
+      "E1-48": {
+        "en": "Software testing principles and levels",
+        "bg": "Принципи и нива на тестването на софтуер"
+      },
+      "E1-49": {
+        "en": "Test design techniques",
+        "bg": "Техники за проектиране на тестове"
+      },
+      "E1-50": {
+        "en": "Software quality models and characteristics",
+        "bg": "Модели и характеристики на качеството на софтуера"
+      },
+      "E1-51": {
+        "en": "Risk-based testing",
+        "bg": "Рисково базирано тестване"
+      },
+      "E1-52": {
+        "en": "Defect management and root cause analysis",
+        "bg": "Управление на дефекти и анализ на първопричините"
+      },
+      "E1-53": {
+        "en": "Analysing requirements for testability",
+        "bg": "Анализ на изискванията за тестируемост"
+      },
+      "E1-54": {
+        "en": "Test data management",
+        "bg": "Управление на тестовите данни"
+      },
+      "E1-55": {
+        "en": "Test automation concepts and architecture",
+        "bg": "Концепции и архитектура на автоматизацията на тестването"
+      },
+      "E1-56": {
+        "en": "Non-functional testing concepts",
+        "bg": "Концепции за нефункционално тестване"
+      },
+      "E1-57": {
+        "en": "Quality assurance across the software lifecycle",
+        "bg": "Осигуряване на качеството през целия жизнен цикъл на софтуера"
+      },
+      "E2-42": {
+        "en": "Test planning and strategy",
+        "bg": "Планиране и стратегия на тестването"
+      },
+      "E2-43": {
+        "en": "Designing and writing test cases",
+        "bg": "Проектиране и писане на тестови случаи"
+      },
+      "E2-44": {
+        "en": "Executing tests and reporting results",
+        "bg": "Изпълнение на тестове и докладване на резултатите"
+      },
+      "E2-45": {
+        "en": "Exploratory testing",
+        "bg": "Проучвателно тестване"
+      },
+      "E2-46": {
+        "en": "Defect reporting and triage",
+        "bg": "Докладване и триаж на дефекти"
+      },
+      "E2-47": {
+        "en": "Regression testing and suite maintenance",
+        "bg": "Регресионно тестване и поддръжка на набора от тестове"
+      },
+      "E2-48": {
+        "en": "API and integration testing",
+        "bg": "Тестване на API и интеграции"
+      },
+      "E2-49": {
+        "en": "Database and data validation testing",
+        "bg": "Тестване на бази данни и валидиране на данни"
+      },
+      "E2-50": {
+        "en": "Test environment setup and troubleshooting",
+        "bg": "Подготовка и отстраняване на проблеми в тестовите среди"
+      },
+      "E2-51": {
+        "en": "Quality metrics and status reporting",
+        "bg": "Метрики за качество и докладване на състоянието"
+      },
+      "E3-28": {
+        "en": "Applying accumulated quality engineering experience",
+        "bg": "Прилагане на натрупания опит в инженерството на качеството"
+      },
+      "E3-29": {
+        "en": "Knowledge and use of quality engineering tools",
+        "bg": "Познаване и използване на инструментите за инженерство на качеството"
+      },
+      "E3-30": {
+        "en": "Investigating and diagnosing complex defects",
+        "bg": "Изследване и диагностициране на сложни дефекти"
+      },
+      "I1-8": {
+        "en": "Adhering to the internal QA and testing process",
+        "bg": "Спазване на вътрешния процес за осигуряване на качеството и тестване"
+      },
+      "I1-9": {
+        "en": "Participating in requirement and design reviews",
+        "bg": "Участие в прегледи на изисквания и дизайн"
+      },
+      "I1-10": {
+        "en": "Adhering to test documentation and artifact standards",
+        "bg": "Спазване на стандартите за тестова документация и артефакти"
+      },
       "E3-22": {
         "en": "Facilitation",
         "bg": "Подпомагане на взаимодействията (фасилитация)"
@@ -668,8 +772,8 @@
         "bg": "Обхваща ангажираността за следване на установените конвенции за писане на код и правилата за документиране на промени на организацията — стандарти за стил и структура на кода и конвенции за комити като conventional commits — така че кодовата база и нейната история да остават чисти, последователни и четими."
       },
       "E1-10": {
-        "en": "Encompasses understanding of the business domains the organization serves and the IT landscape that supports them — industry context, business models, organizational processes, and how technology enables them — sufficient to frame problems correctly and propose solutions that fit the business reality.",
-        "bg": "Обхваща разбирането на бизнес областите, които организацията обслужва, и IT средата, която ги поддържа — индустриален контекст, бизнес модели, организационни процеси и как технологията ги обезпечава — достатъчно за коректно формулиране на проблемите и предлагане на решения, които съответстват на бизнес реалността."
+        "en": "Encompasses understanding of the business domains the organization serves and the IT landscape that supports them — industry context, business models, organizational processes, and how technology enables them. This understanding allows work to be judged against real business purpose rather than performed purely to specification, whatever the discipline.",
+        "bg": "Обхваща разбирането на бизнес областите, които организацията обслужва, и IT средата, която ги поддържа — индустриален контекст, бизнес модели, организационни процеси и как технологията ги обезпечава. Това разбиране позволява работата да бъде преценявана спрямо реалната бизнес цел, а не да се изпълнява само по спецификация, независимо от дисциплината."
       },
       "E1-11": {
         "en": "Encompasses knowledge of techniques for specifying and expressing requirements precisely and unambiguously — acceptance and evaluation criteria, business rules, user stories and prototypes, use cases and scenarios — and selecting the most effective form for the audience, solution approach, and lifecycle.",
@@ -854,6 +958,110 @@
       "I1-7": {
         "en": "Encompasses the discipline of managing change across a project holistically — adhering to the organization's change-management process and managing the organizational transition and adoption that change brings for affected stakeholders and institutions. *(Distinct from the integrated change-**control** mechanism in E2-31, which assesses and authorizes changes to scope, schedule, and cost: this competency concerns following the change-management discipline and managing the human and organizational side of change — especially relevant in public-sector transitions.)*",
         "bg": "Обхваща дисциплината за цялостно управление на промяната в проекта — спазване на процеса за управление на промени на организацията и управление на организационния преход и възприемане, които промяната носи за засегнатите заинтересовани страни и институции. *(За разлика от механизма за интегриран контрол на промените в E2-31, който оценява и оторизира промени в обхвата, графика и разходите: тази компетенция се отнася до следване на дисциплината за управление на промени и управление на човешката и организационната страна на промяната — особено относимо при преходи в публичния сектор.)*"
+      },
+      "E1-48": {
+        "en": "Encompasses understanding of the fundamental principles of software testing and the levels at which it operates — unit, integration, system, and acceptance — including the purpose and appropriate scope of each level, the distinction between verification and validation, and why exhaustive testing is impossible and coverage must therefore be a deliberate choice.",
+        "bg": "Обхваща разбирането на фундаменталните принципи на тестването на софтуер и нивата, на които то се извършва — компонентно (unit), интеграционно, системно и приемно — включително целта и подходящия обхват на всяко ниво, разликата между верификация и валидация и защо изчерпателното тестване е невъзможно и поради това покритието трябва да бъде съзнателен избор."
+      },
+      "E1-49": {
+        "en": "Encompasses knowledge of systematic techniques for deriving test cases — equivalence partitioning, boundary value analysis, decision tables, state transition testing, pairwise combination, and exploratory charters — and knowing which technique yields the best coverage for a given kind of logic or risk.",
+        "bg": "Обхваща познанието на систематични техники за извеждане на тестови случаи — разделяне на класове на еквивалентност, анализ на гранични стойности, таблици на решенията, тестване на преходи между състояния, комбиниране по двойки (pairwise) и харти за проучвателно тестване — и познаването коя техника дава най-добро покритие за даден вид логика или риск."
+      },
+      "E1-50": {
+        "en": "Encompasses knowledge of recognized software quality models and the characteristics they define — functional suitability, reliability, performance efficiency, usability, security, compatibility, maintainability, and portability — and understanding how these attributes are specified, traded off against one another, and made measurable.",
+        "bg": "Обхваща познанието на утвърдените модели за качество на софтуера и характеристиките, които те дефинират — функционална пригодност, надеждност, ефективност на производителността, използваемост, сигурност, съвместимост, поддържаемост и преносимост — и разбирането как тези атрибути се специфицират, балансират един спрямо друг и се правят измерими."
+      },
+      "E1-51": {
+        "en": "Encompasses knowledge of identifying and prioritizing product risk — by likelihood and impact — and allocating testing effort accordingly, so that limited time is spent where failure would be most costly. This includes knowing how to justify what will *not* be tested.",
+        "bg": "Обхваща познанието за идентифициране и приоритизиране на продуктовия риск — по вероятност и въздействие — и за разпределяне на усилието по тестване съобразно него, така че ограниченото време да се насочва там, където отказът би бил най-скъп. Това включва умението да се обоснове какво **няма** да бъде тествано."
+      },
+      "E1-52": {
+        "en": "Encompasses knowledge of the defect lifecycle — reporting, triage, prioritization, resolution, verification, and closure — including the distinction between severity and priority, and techniques for identifying the underlying cause of a defect rather than its symptom so that classes of defect can be prevented.",
+        "bg": "Обхваща познанието на жизнения цикъл на дефекта — докладване, триаж, приоритизиране, отстраняване, верифициране и закриване — включително разликата между тежест и приоритет, както и техники за откриване на основната причина за дефекта вместо на неговия симптом, така че цели класове дефекти да могат да бъдат предотвратявани."
+      },
+      "E1-53": {
+        "en": "Encompasses knowledge of examining requirements, user stories, and specifications to derive test conditions and to identify ambiguity, incompleteness, contradiction, or untestable statements before implementation begins. This is the analytical foundation of shift-left quality practice.",
+        "bg": "Обхваща познанието за разглеждане на изисквания, потребителски истории и спецификации с цел извеждане на тестови условия и откриване на двусмислие, непълнота, противоречие или нетестируеми твърдения, преди да започне реализацията. Това е аналитичната основа на практиката за ранно осигуряване на качеството."
+      },
+      "E1-54": {
+        "en": "Encompasses knowledge of designing, generating, and maintaining test data — including data that exercises boundary and negative conditions — and of masking, anonymizing, or synthesizing production-derived data so that testing does not expose personal or sensitive information.",
+        "bg": "Обхваща познанието за проектиране, генериране и поддържане на тестови данни — включително данни, които покриват гранични и негативни условия — както и за маскиране, анонимизиране или синтезиране на данни с произход от продукционна среда, така че тестването да не разкрива лични или чувствителни данни."
+      },
+      "E1-55": {
+        "en": "Encompasses understanding of what test automation is for and how it is structured — framework patterns, layering across unit, service, and interface levels, the maintainability and flakiness trade-offs, and the judgment of what is worth automating versus what is better tested manually. *(Concepts are baseline for all quality engineers; hands-on implementation belongs to the AUTOMATION specialization.)*",
+        "bg": "Обхваща разбирането за какво служи автоматизацията на тестването и как се структурира — модели на рамки (frameworks), разслояване по нивата на компонент, услуга и интерфейс, компромисите между поддържаемост и нестабилност на тестовете, както и преценката какво си струва да бъде автоматизирано и какво е по-добре да се тества ръчно. *(Концепциите са базови за всички инженери по качеството; практическата реализация принадлежи към специализацията AUTOMATION.)*"
+      },
+      "E1-56": {
+        "en": "Encompasses knowledge of the purpose, approach, and interpretation of non-functional testing — performance and load, security, accessibility, usability, and compatibility — sufficient to recognize when each is needed, to interpret results, and to know when specialist involvement is required. *(Concepts are baseline; deep execution belongs to the PERFORMANCE and SECURITY specializations.)*",
+        "bg": "Обхваща познанието за целта, подхода и интерпретацията на нефункционалното тестване — производителност и натоварване, сигурност, достъпност, използваемост и съвместимост — достатъчно за разпознаване кога всяко от тях е необходимо, за интерпретиране на резултатите и за преценка кога е нужно участие на специалист. *(Концепциите са базови; задълбоченото изпълнение принадлежи към специализациите PERFORMANCE и SECURITY.)*"
+      },
+      "E1-57": {
+        "en": "Encompasses understanding of quality as a lifecycle concern rather than a phase — where quality activities belong at each stage, the purpose of quality gates and definitions of done, the economics of finding defects early, and the principle of shifting quality activity leftward toward specification and design.",
+        "bg": "Обхваща разбирането на качеството като грижа през целия жизнен цикъл, а не като отделен етап — къде принадлежат дейностите по качеството на всеки етап, целта на контролните точки за качество и дефинициите за завършеност, икономиката на ранното откриване на дефекти и принципът за изместване на дейностите по качеството към спецификацията и проектирането."
+      },
+      "E2-42": {
+        "en": "Encompasses the applied skill of producing a test plan for a release or feature — defining scope and approach, entry and exit criteria, environments and data needs, effort and schedule, and the risk-based prioritisation that determines where testing effort goes. This includes stating explicitly what will not be tested and why.",
+        "bg": "Обхваща приложното умение за изготвяне на план за тестване на издание или функционалност — дефиниране на обхват и подход, критерии за вход и изход, нужди от среди и данни, усилие и график, както и рисково базираната приоритизация, която определя къде отива усилието по тестване. Това включва изричното посочване какво няма да бъде тествано и защо."
+      },
+      "E2-43": {
+        "en": "Encompasses the applied skill of turning test conditions into clear, executable test cases — with unambiguous preconditions, steps, and expected results, at a granularity that is useful to run and economical to maintain. This includes avoiding redundancy and writing cases another person can execute without asking questions.",
+        "bg": "Обхваща приложното умение за превръщане на тестовите условия в ясни, изпълними тестови случаи — с недвусмислени предусловия, стъпки и очаквани резултати, с гранулярност, която е полезна за изпълнение и икономична за поддръжка. Това включва избягване на дублиране и писане на случаи, които друг човек може да изпълни без допълнителни въпроси."
+      },
+      "E2-44": {
+        "en": "Encompasses the applied skill of running tests systematically, recording outcomes accurately and honestly, and reporting results in a form that supports a release decision — conveying not only what passed and failed but what the results mean for readiness.",
+        "bg": "Обхваща приложното умение за систематично изпълнение на тестове, точно и честно записване на резултатите и докладването им във вид, който подпомага решението за издаване — предавайки не само какво е преминало и какво не, но и какво означават резултатите за готовността."
+      },
+      "E2-45": {
+        "en": "Encompasses the applied skill of unscripted but disciplined investigation — using charters, heuristics, and domain insight to design, execute, and learn simultaneously, in order to find defects that scripted cases were never going to catch. This is structured exploration, distinct from unstructured trial and error.",
+        "bg": "Обхваща приложното умение за несценарийно, но дисциплинирано изследване — използване на харти, евристики и познание за областта, за да се проектира, изпълнява и учи едновременно, с цел откриване на дефекти, които сценарийните случаи не биха уловили. Това е структурирано проучване, различно от неструктурирания метод на проба и грешка."
+      },
+      "E2-46": {
+        "en": "Encompasses the applied skill of writing defect reports that are reproducible, specific, and actionable — clear steps, actual versus expected behaviour, evidence, and environment — and of participating in triage to assess severity, priority, and disposition.",
+        "bg": "Обхваща приложното умение за писане на доклади за дефекти, които са възпроизводими, конкретни и приложими — ясни стъпки, действително спрямо очаквано поведение, доказателства и среда — както и за участие в триажа при определяне на тежест, приоритет и разпореждане."
+      },
+      "E2-47": {
+        "en": "Encompasses the applied skill of determining what must be re-tested after a change and maintaining the regression suite over time — selecting regression scope by risk and impact, keeping cases current as the product evolves, and pruning obsolete or low-value cases so the suite stays affordable.",
+        "bg": "Обхваща приложното умение за определяне какво трябва да бъде претествано след промяна и за поддържане на регресионния набор във времето — избор на регресионен обхват според риска и въздействието, поддържане на случаите актуални с развитието на продукта и премахване на остарели или нискостойностни случаи, така че наборът да остане приемлив по разходи."
+      },
+      "E2-48": {
+        "en": "Encompasses the applied skill of testing at service and integration boundaries — validating requests and responses, contract adherence, error and failure handling, and the behaviour of components integrating with each other and with external systems.",
+        "bg": "Обхваща приложното умение за тестване на границите между услуги и интеграции — валидиране на заявки и отговори, спазване на контрактите, обработка на грешки и откази, както и поведението на компонентите при интегриране помежду им и с външни системи."
+      },
+      "E2-49": {
+        "en": "Encompasses the applied skill of verifying data correctness, integrity, and transformation — querying data stores directly, confirming that what was submitted is what was persisted, and validating migrations, calculations, and data flows rather than inferring correctness from the interface.",
+        "bg": "Обхваща приложното умение за проверка на коректността, целостта и трансформацията на данните — директно заявяване към хранилищата на данни, потвърждаване, че подаденото е това, което е записано, и валидиране на миграции, изчисления и потоци от данни, вместо коректността да се предполага от интерфейса."
+      },
+      "E2-50": {
+        "en": "Encompasses the applied skill of preparing, configuring, and troubleshooting test environments — deployments, configuration, dependencies, and integrations — and of reliably distinguishing an environment problem from a genuine product defect.",
+        "bg": "Обхваща приложното умение за подготовка, конфигуриране и отстраняване на проблеми в тестовите среди — внедрявания, конфигурация, зависимости и интеграции — както и за надеждно разграничаване на проблем в средата от действителен дефект в продукта."
+      },
+      "E2-51": {
+        "en": "Encompasses the applied skill of selecting, producing, and interpreting quality metrics — coverage, defect density and trends, pass rates, escape rates — and reporting quality status so that it informs decisions rather than merely describing activity.",
+        "bg": "Обхваща приложното умение за избор, изготвяне и интерпретиране на метрики за качество — покритие, плътност и тенденции на дефектите, процент на успешните тестове, процент на пропуснатите дефекти — и за докладване на състоянието на качеството така, че то да подпомага решения, а не просто да описва дейност."
+      },
+      "E3-28": {
+        "en": "Encompasses the practical judgment that accumulates from testing real systems over time — knowing where defects tend to cluster, which changes carry hidden risk, and which areas of a product historically break — and using that instinct to direct attention where scripted coverage would not have looked.",
+        "bg": "Обхваща практическата преценка, която се натрупва от тестването на реални системи във времето — знанието къде дефектите обикновено се струпват, кои промени носят скрит риск и кои области на продукта исторически се чупят — и използването на този усет за насочване на вниманието там, където сценарийното покритие не би погледнало."
+      },
+      "E3-29": {
+        "en": "Encompasses the practical ability to use the quality tooling the organization relies on — test management systems, defect trackers, API clients, database clients, and CI dashboards — to plan, execute, record, and report testing work efficiently, choosing the right tool and features for the task.",
+        "bg": "Обхваща практическата способност за използване на инструментите за качество, на които организацията разчита — системи за управление на тестове, системи за проследяване на дефекти, API клиенти, клиенти за бази данни и CI табла — за ефективно планиране, изпълнение, записване и докладване на работата по тестване, избирайки подходящия инструмент и функции за задачата."
+      },
+      "E3-30": {
+        "en": "Encompasses the practical ability to investigate defects that do not reproduce readily — intermittent, timing-dependent, environment-specific, or data-specific failures — by isolating variables, narrowing reproduction conditions, and gathering the evidence needed for a developer to act. This is the difference between reporting that something failed and establishing why.",
+        "bg": "Обхваща практическата способност за изследване на дефекти, които не се възпроизвеждат лесно — периодично проявяващи се, зависими от времеви условия, от средата или от данните откази — чрез изолиране на променливи, стесняване на условията за възпроизвеждане и събиране на доказателствата, необходими на разработчика, за да действа. Това е разликата между докладването, че нещо се е счупило, и установяването защо."
+      },
+      "I1-8": {
+        "en": "Encompasses the commitment and ability to follow the organization's internal quality assurance and testing process — its stages, quality gates, entry and exit criteria, hand-offs, and the quality engineer's defined role within the wider SDLC — so that testing is predictable, traceable, and properly integrated with delivery.",
+        "bg": "Обхваща ангажираността и способността за следване на вътрешния процес за осигуряване на качеството и тестване на организацията — неговите етапи, контролни точки за качество, критерии за вход и изход, предавания и дефинираната роля на инженера по качеството в рамките на по-широкия SDLC — така че тестването да е предвидимо, проследимо и правилно интегрирано с доставянето."
+      },
+      "I1-9": {
+        "en": "Encompasses the discipline of taking part in reviews of requirements, designs, and specifications before implementation begins — raising testability concerns, ambiguities, and risks early, when they are cheapest to fix. *(This is the process participation; the analytical skill of examining requirements for testability is E1-53.)*",
+        "bg": "Обхваща дисциплината за участие в прегледи на изисквания, дизайн и спецификации, преди да започне реализацията — повдигане на въпроси за тестируемост, двусмислия и рискове рано, когато отстраняването им е най-евтино. *(Това е участието в процеса; аналитичното умение за разглеждане на изискванията за тестируемост е E1-53.)*"
+      },
+      "I1-10": {
+        "en": "Encompasses the commitment to follow the organization's standards for test artifacts — plans, cases, runs, defect records, and traceability between requirements and coverage — so that testing work is auditable, transferable between people, and demonstrable to stakeholders and auditors.",
+        "bg": "Обхваща ангажираността за следване на стандартите на организацията за тестови артефакти — планове, тестови случаи, изпълнения, записи за дефекти и проследимост между изисквания и покритие — така че работата по тестване да е одитируема, прехвърляема между хора и доказуема пред заинтересованите страни и одиторите."
       },
       "E3-22": {
         "en": "Encompasses the practical ability to facilitate group interactions — workshops, planning sessions, retrospectives, and decision-making meetings — guiding participants toward productive outcomes, ensuring balanced participation, and helping groups reach clarity and agreement. This includes structuring sessions and managing group dynamics.",
@@ -1793,8 +2001,8 @@
           "bg": "Разбира основните бизнес и IT концепции, относими към несложна работа, и ги прилага с известен надзор."
         },
         "R": {
-          "en": "Has solid working knowledge of the relevant business domains and IT landscape and applies it independently to typical analysis.",
-          "bg": "Има солидно работно познание на относимите бизнес области и IT средата и го прилага самостоятелно към типичен анализ."
+          "en": "Has solid working knowledge of the relevant business domains and IT landscape and applies it independently to typical work.",
+          "bg": "Има солидно работно познание на относимите бизнес области и IT средата и го прилага самостоятелно към типична работа."
         },
         "S": {
           "en": "Commands deep domain and IT knowledge across complex areas, connects business and technology insightfully, and mentors others.",
@@ -1805,8 +2013,8 @@
           "bg": "Признат авторитет в областта; консултира организацията относно съответствието между бизнес и технология за стратегически начинания."
         },
         "T": {
-          "en": "Ensures the team builds and applies strong domain and IT knowledge and aligns analysis with business context and goals.",
-          "bg": "Осигурява изграждането и прилагането на силно познание на областта и IT от екипа и уеднаквява анализа с бизнес контекста и целите."
+          "en": "Ensures the team builds and applies strong domain and IT knowledge and aligns the team's work with business context and goals.",
+          "bg": "Осигурява изграждането и прилагането на силно познание на областта и IT от екипа и уеднаквява работата на екипа с бизнес контекста и целите."
         }
       },
       "E1-11": {
@@ -3003,6 +3211,682 @@
         "T": {
           "en": "Ensures the team manages project change and transition well and aligns it with organizational change practice.",
           "bg": "Осигурява доброто управление на проектните промени и преход от екипа и го уеднаквява с организационната практика за промени."
+        }
+      },
+      "E1-48": {
+        "N": {
+          "en": "Knows the basic testing levels and can describe what each is for. Applies a prescribed approach at a single level under guidance.",
+          "bg": "Познава основните нива на тестване и може да опише за какво служи всяко от тях. Прилага предписан подход на едно ниво под ръководство."
+        },
+        "J": {
+          "en": "Understands how the levels fit together and works competently at system or acceptance level on straightforward features with supervision.",
+          "bg": "Разбира как нивата се съчетават и работи компетентно на системно или приемно ниво върху несложни функционалности с надзор."
+        },
+        "R": {
+          "en": "Independently determines which level is appropriate for a given concern and applies testing principles correctly across typical work.",
+          "bg": "Самостоятелно определя кое ниво е подходящо за даден въпрос и прилага коректно принципите на тестването при типична работа."
+        },
+        "S": {
+          "en": "Applies testing principles rigorously across complex, multi-component systems, resolves questions of level and scope, and mentors others.",
+          "bg": "Прилага принципите на тестването прецизно в сложни, многокомпонентни системи, решава въпросите за ниво и обхват и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority on testing principles; shapes how testing levels and coverage are approached across the organization.",
+          "bg": "Признат авторитет по принципите на тестването; оформя подхода към нивата на тестване и покритието в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team applies testing levels and principles consistently and aligns test scope with delivery and quality goals.",
+          "bg": "Осигурява последователното прилагане на нивата и принципите на тестването от екипа и уеднаквява обхвата на тестване с целите за доставяне и качество."
+        }
+      },
+      "E1-49": {
+        "N": {
+          "en": "Knows one or two basic techniques and applies a prescribed one to simple cases under guidance.",
+          "bg": "Познава една-две базови техники и прилага предписана техника към прости случаи под ръководство."
+        },
+        "J": {
+          "en": "Understands the common techniques and selects among them for straightforward functionality with some supervision.",
+          "bg": "Разбира често срещаните техники и избира измежду тях за несложна функционалност с известен надзор."
+        },
+        "R": {
+          "en": "Independently selects and applies appropriate techniques for typical features, producing efficient coverage without redundant cases.",
+          "bg": "Самостоятелно избира и прилага подходящи техники за типични функционалности, постигайки ефективно покритие без излишни тестови случаи."
+        },
+        "S": {
+          "en": "Applies advanced and combined techniques to complex logic, optimizes coverage against effort, and mentors others in technique selection.",
+          "bg": "Прилага усъвършенствани и комбинирани техники към сложна логика, оптимизира покритието спрямо усилието и напътства други в избора на техника."
+        },
+        "X": {
+          "en": "Recognized authority on test design; defines technique standards and raises design practice across the organization.",
+          "bg": "Признат авторитет по проектирането на тестове; дефинира стандартите за техниките и повишава практиката по проектиране в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team applies systematic test design rather than ad-hoc case writing, and aligns technique use with risk and coverage goals.",
+          "bg": "Осигурява прилагането на систематично проектиране на тестове вместо ad-hoc писане на тестови случаи и уеднаквява използването на техниките с целите за риск и покритие."
+        }
+      },
+      "E1-50": {
+        "N": {
+          "en": "Aware that quality has multiple dimensions beyond correctness and can name the main ones under guidance.",
+          "bg": "Осведомен е, че качеството има измерения отвъд коректността, и може да назове основните под ръководство."
+        },
+        "J": {
+          "en": "Understands the principal quality characteristics and recognizes which apply to straightforward work with supervision.",
+          "bg": "Разбира главните характеристики на качеството и разпознава кои са относими към несложна работа с надзор."
+        },
+        "R": {
+          "en": "Independently identifies the quality characteristics relevant to typical work and how they should be evidenced.",
+          "bg": "Самостоятелно определя относимите към типична работа характеристики на качеството и начина, по който те следва да бъдат доказани."
+        },
+        "S": {
+          "en": "Reasons about quality attribute trade-offs on complex systems, makes them explicit and measurable, and mentors others.",
+          "bg": "Разсъждава за компромисите между атрибутите на качеството в сложни системи, прави ги явни и измерими и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority on quality models; defines the organization's quality characteristics and how they are specified.",
+          "bg": "Признат авторитет по моделите за качество; дефинира характеристиките на качеството на организацията и начина на тяхното специфициране."
+        },
+        "T": {
+          "en": "Ensures the team reasons about quality beyond functional correctness and aligns quality attributes with organizational standards.",
+          "bg": "Осигурява разсъждаването на екипа за качеството отвъд функционалната коректност и уеднаквява атрибутите на качеството с организационните стандарти."
+        }
+      },
+      "E1-51": {
+        "N": {
+          "en": "Understands that some areas matter more than others and follows a given prioritization under guidance.",
+          "bg": "Разбира, че някои области са по-важни от други, и следва зададена приоритизация под ръководство."
+        },
+        "J": {
+          "en": "Identifies obvious risk areas in straightforward work and adjusts effort with supervision.",
+          "bg": "Идентифицира очевидните рискови области в несложна работа и коригира усилието с надзор."
+        },
+        "R": {
+          "en": "Independently assesses product risk for typical work, prioritizes testing accordingly, and explains coverage decisions.",
+          "bg": "Самостоятелно оценява продуктовия риск при типична работа, приоритизира тестването съобразно него и обосновава решенията за покритие."
+        },
+        "S": {
+          "en": "Performs structured risk analysis on complex or high-stakes releases, defends difficult coverage trade-offs, and mentors others.",
+          "bg": "Извършва структуриран анализ на риска за сложни или високорискови издания, защитава трудни компромиси за покритието и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority on risk-based testing; defines risk assessment practice across the organization.",
+          "bg": "Признат авторитет по рисково базираното тестване; дефинира практиката за оценка на риска в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team allocates testing effort by risk rather than habit and aligns coverage decisions with organizational risk appetite.",
+          "bg": "Осигурява разпределянето на усилието по тестване според риска, а не по навик, и уеднаквява решенията за покритие с рисковия апетит на организацията."
+        }
+      },
+      "E1-52": {
+        "N": {
+          "en": "Understands the basic defect lifecycle and records defects following a given process under guidance.",
+          "bg": "Разбира базовия жизнен цикъл на дефекта и регистрира дефекти по зададен процес под ръководство."
+        },
+        "J": {
+          "en": "Manages straightforward defects through the lifecycle with supervision and distinguishes severity from priority with prompting.",
+          "bg": "Управлява несложни дефекти през жизнения цикъл с надзор и различава тежест от приоритет при подсещане."
+        },
+        "R": {
+          "en": "Independently manages defects end to end for typical work and investigates underlying causes rather than stopping at symptoms.",
+          "bg": "Самостоятелно управлява дефекти от край до край при типична работа и изследва основните причини, вместо да спира при симптомите."
+        },
+        "S": {
+          "en": "Handles complex or contested defect situations, drives root cause analysis that prevents recurrence, and mentors others.",
+          "bg": "Справя се със сложни или оспорвани случаи с дефекти, води анализ на първопричините, който предотвратява повторение, и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority on defect management; shapes triage and root cause practice across the organization.",
+          "bg": "Признат авторитет по управлението на дефекти; оформя практиката за триаж и анализ на първопричините в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team manages defects rigorously and uses root cause findings to improve upstream quality.",
+          "bg": "Осигурява прецизното управление на дефектите от екипа и използва изводите от първопричините за подобряване на качеството в по-ранните етапи."
+        }
+      },
+      "E1-53": {
+        "N": {
+          "en": "Reads requirements and identifies obviously missing information under guidance.",
+          "bg": "Чете изисквания и открива очевидно липсваща информация под ръководство."
+        },
+        "J": {
+          "en": "Derives basic test conditions from straightforward requirements and raises obvious ambiguities with supervision.",
+          "bg": "Извежда базови тестови условия от несложни изисквания и повдига очевидни двусмислия с надзор."
+        },
+        "R": {
+          "en": "Independently analyses typical requirements for testability, derives complete test conditions, and raises defects in the requirements themselves.",
+          "bg": "Самостоятелно анализира типични изисквания за тестируемост, извежда пълни тестови условия и повдига дефекти в самите изисквания."
+        },
+        "S": {
+          "en": "Analyses complex or ambiguous specifications, exposes hidden assumptions and contradictions, and mentors others in requirement analysis.",
+          "bg": "Анализира сложни или двусмислени спецификации, разкрива скрити допускания и противоречия и напътства други в анализа на изискванията."
+        },
+        "X": {
+          "en": "Recognized authority; shapes how the organization specifies requirements so they are testable by design.",
+          "bg": "Признат авторитет; оформя начина, по който организацията специфицира изискванията, така че те да са тестируеми по замисъл."
+        },
+        "T": {
+          "en": "Ensures the team analyses requirements before implementation and aligns testability expectations with analysis and delivery practice.",
+          "bg": "Осигурява анализирането на изискванията от екипа преди реализацията и уеднаквява очакванията за тестируемост с практиката по анализ и доставяне."
+        }
+      },
+      "E1-54": {
+        "N": {
+          "en": "Uses provided test data and understands that production data cannot be used freely; follows given handling rules under guidance.",
+          "bg": "Използва предоставени тестови данни и разбира, че продукционни данни не могат да се използват свободно; следва зададени правила за работа с тях под ръководство."
+        },
+        "J": {
+          "en": "Prepares simple test data for straightforward cases with supervision and applies basic masking rules.",
+          "bg": "Подготвя прости тестови данни за несложни случаи с надзор и прилага базови правила за маскиране."
+        },
+        "R": {
+          "en": "Independently designs and maintains test data covering typical and edge conditions, applying anonymization requirements correctly.",
+          "bg": "Самостоятелно проектира и поддържа тестови данни, покриващи типични и гранични условия, прилагайки коректно изискванията за анонимизиране."
+        },
+        "S": {
+          "en": "Designs test data strategies for complex systems and data dependencies, ensures compliant handling, and mentors others.",
+          "bg": "Проектира стратегии за тестови данни за сложни системи и зависимости между данни, осигурява съответстващо на изискванията боравене с тях и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority on test data; defines data management and anonymization standards across the organization.",
+          "bg": "Признат авторитет по тестовите данни; дефинира стандартите за управление и анонимизиране на данни в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team manages test data effectively and compliantly, and aligns practice with data protection obligations.",
+          "bg": "Осигурява ефективното и съответстващо на изискванията управление на тестовите данни от екипа и уеднаквява практиката със задълженията за защита на данните."
+        }
+      },
+      "E1-55": {
+        "N": {
+          "en": "Aware of what automated tests are and can run an existing suite and read its results under guidance.",
+          "bg": "Осведомен е какво представляват автоматизираните тестове и може да изпълни съществуващ набор и да разчете резултатите му под ръководство."
+        },
+        "J": {
+          "en": "Understands the main automation concepts and interprets suite results on straightforward work with supervision.",
+          "bg": "Разбира основните концепции на автоматизацията и интерпретира резултатите от наборите тестове при несложна работа с надзор."
+        },
+        "R": {
+          "en": "Independently reasons about what should and should not be automated for typical work and understands the structure of the team's suite.",
+          "bg": "Самостоятелно преценява какво следва и какво не следва да бъде автоматизирано при типична работа и разбира структурата на набора тестове на екипа."
+        },
+        "S": {
+          "en": "Evaluates automation architecture and coverage on complex systems, identifies maintainability risks, and mentors others on automation strategy.",
+          "bg": "Оценява архитектурата и покритието на автоматизацията в сложни системи, идентифицира рискове за поддържаемостта и напътства други относно стратегията за автоматизация."
+        },
+        "X": {
+          "en": "Recognized authority on automation architecture; defines automation strategy and standards across the organization.",
+          "bg": "Признат авторитет по архитектурата на автоматизацията; дефинира стратегията и стандартите за автоматизация в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team makes sound automation decisions and aligns automation investment with quality and delivery goals.",
+          "bg": "Осигурява вземането на обосновани решения за автоматизация от екипа и уеднаквява инвестицията в автоматизация с целите за качество и доставяне."
+        }
+      },
+      "E1-56": {
+        "N": {
+          "en": "Aware that non-functional qualities are tested differently from functionality and can describe the main types under guidance.",
+          "bg": "Осведомен е, че нефункционалните качества се тестват различно от функционалността, и може да опише основните видове под ръководство."
+        },
+        "J": {
+          "en": "Understands the purpose of the main non-functional test types and interprets straightforward results with supervision.",
+          "bg": "Разбира целта на основните видове нефункционално тестване и интерпретира несложни резултати с надзор."
+        },
+        "R": {
+          "en": "Independently recognizes which non-functional concerns apply to typical work, interprets results, and escalates to specialists appropriately.",
+          "bg": "Самостоятелно разпознава кои нефункционални аспекти са относими към типична работа, интерпретира резултатите и ескалира към специалисти по подходящ начин."
+        },
+        "S": {
+          "en": "Reasons about non-functional risk across complex systems, scopes non-functional testing, and mentors others.",
+          "bg": "Разсъждава за нефункционалния риск в сложни системи, определя обхвата на нефункционалното тестване и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; shapes how the organization approaches non-functional quality across its systems.",
+          "bg": "Признат авторитет; оформя подхода на организацията към нефункционалното качество в нейните системи."
+        },
+        "T": {
+          "en": "Ensures the team accounts for non-functional quality rather than functionality alone, and aligns coverage with organizational standards.",
+          "bg": "Осигурява отчитането на нефункционалното качество от екипа, а не само на функционалността, и уеднаквява покритието с организационните стандарти."
+        }
+      },
+      "E1-57": {
+        "N": {
+          "en": "Understands that quality activity extends beyond a testing phase and follows established gates under guidance.",
+          "bg": "Разбира, че дейностите по качеството се простират отвъд етапа на тестване, и следва установените контролни точки под ръководство."
+        },
+        "J": {
+          "en": "Understands where quality activities fit in the lifecycle and participates in them on straightforward work with supervision.",
+          "bg": "Разбира къде дейностите по качеството попадат в жизнения цикъл и участва в тях при несложна работа с надзор."
+        },
+        "R": {
+          "en": "Independently contributes quality activity throughout the lifecycle for typical work rather than only at the testing stage.",
+          "bg": "Самостоятелно допринася с дейности по качеството през целия жизнен цикъл при типична работа, а не само на етапа на тестване."
+        },
+        "S": {
+          "en": "Embeds quality practice across the lifecycle on complex initiatives, strengthens gates and definitions of done, and mentors others.",
+          "bg": "Вгражда практиката по качеството през целия жизнен цикъл в сложни начинания, укрепва контролните точки и дефинициите за завършеност и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority on lifecycle quality; shapes quality practice and gate design across the organization.",
+          "bg": "Признат авторитет по качеството в жизнения цикъл; оформя практиката по качеството и проектирането на контролните точки в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team treats quality as a lifecycle responsibility and aligns quality gates with organizational delivery standards.",
+          "bg": "Осигурява третирането на качеството от екипа като отговорност през целия жизнен цикъл и уеднаквява контролните точки за качество с организационните стандарти за доставяне."
+        }
+      },
+      "E2-42": {
+        "N": {
+          "en": "Contributes parts of a test plan from a provided template under guidance and follows the plan set by others.",
+          "bg": "Допринася с части от план за тестване по предоставен шаблон под ръководство и следва плана, изготвен от други."
+        },
+        "J": {
+          "en": "Produces a basic test plan for a straightforward feature with supervision, though criteria and risk prioritisation need correction.",
+          "bg": "Изготвя базов план за тестване на несложна функционалност с надзор, макар критериите и приоритизацията по риск да се нуждаят от корекция."
+        },
+        "R": {
+          "en": "Independently produces a complete, realistic test plan for typical work, with defensible scope, criteria, and prioritisation.",
+          "bg": "Самостоятелно изготвя пълен, реалистичен план за тестване при типична работа, със защитими обхват, критерии и приоритизация."
+        },
+        "S": {
+          "en": "Develops test strategy for complex or multi-team releases, balances coverage against constraint, and mentors others in planning.",
+          "bg": "Разработва стратегия за тестване за сложни или многоекипни издания, балансира покритието спрямо ограниченията и напътства други в планирането."
+        },
+        "X": {
+          "en": "Defines test planning standards and templates across the organization and advises on strategy for high-risk releases.",
+          "bg": "Дефинира стандартите и шаблоните за планиране на тестването в цялата организация и консултира относно стратегията за високорискови издания."
+        },
+        "T": {
+          "en": "Ensures the team plans testing consistently and aligns test scope and criteria with delivery and quality goals.",
+          "bg": "Осигурява последователното планиране на тестването от екипа и уеднаквява обхвата и критериите за тестване с целите за доставяне и качество."
+        }
+      },
+      "E2-43": {
+        "N": {
+          "en": "Writes simple test cases from a template under guidance; cases may be incomplete or ambiguous.",
+          "bg": "Пише прости тестови случаи по шаблон под ръководство; случаите може да са непълни или двусмислени."
+        },
+        "J": {
+          "en": "Writes cases for straightforward functionality with supervision, though granularity and redundancy need correction.",
+          "bg": "Пише случаи за несложна функционалност с надзор, макар гранулярността и дублирането да се нуждаят от корекция."
+        },
+        "R": {
+          "en": "Independently writes clear, complete, non-redundant cases for typical features that others can execute unaided.",
+          "bg": "Самостоятелно пише ясни, пълни, недублиращи се случаи за типични функционалности, които други могат да изпълнят без помощ."
+        },
+        "S": {
+          "en": "Designs coherent case suites for complex functionality, ensures maintainability as the product changes, and mentors others.",
+          "bg": "Проектира свързани набори от случаи за сложна функционалност, осигурява поддържаемостта им с развитието на продукта и напътства други."
+        },
+        "X": {
+          "en": "Defines case design and documentation standards across the organization.",
+          "bg": "Дефинира стандартите за проектиране и документиране на тестови случаи в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team writes consistent, high-quality cases and aligns case design with coverage standards.",
+          "bg": "Осигурява писането на последователни, висококачествени случаи от екипа и уеднаквява проектирането на случаите със стандартите за покритие."
+        }
+      },
+      "E2-44": {
+        "N": {
+          "en": "Executes given test cases and records pass or fail outcomes under guidance.",
+          "bg": "Изпълнява зададени тестови случаи и записва резултат „преминал“ или „непреминал“ под ръководство."
+        },
+        "J": {
+          "en": "Executes test runs on straightforward work with supervision and reports basic results.",
+          "bg": "Изпълнява тестови цикли при несложна работа с надзор и докладва базови резултати."
+        },
+        "R": {
+          "en": "Independently plans and executes test runs for typical work and reports results clearly, with the context needed to interpret them.",
+          "bg": "Самостоятелно планира и изпълнява тестови цикли при типична работа и докладва резултатите ясно, с контекста, необходим за тяхната интерпретация."
+        },
+        "S": {
+          "en": "Manages execution across complex releases, reports in terms that support go/no-go decisions, and mentors others.",
+          "bg": "Управлява изпълнението при сложни издания, докладва в термини, които подпомагат решенията за пускане, и напътства други."
+        },
+        "X": {
+          "en": "Defines execution and reporting standards across the organization and reports on the most critical releases.",
+          "bg": "Дефинира стандартите за изпълнение и докладване в цялата организация и докладва за най-критичните издания."
+        },
+        "T": {
+          "en": "Ensures the team executes and reports consistently and aligns reporting with release governance.",
+          "bg": "Осигурява последователното изпълнение и докладване от екипа и уеднаквява докладването с управлението на изданията."
+        }
+      },
+      "E2-45": {
+        "N": {
+          "en": "Performs basic unguided checking under supervision and finds obvious problems, without a systematic approach.",
+          "bg": "Извършва базови непланирани проверки с надзор и открива очевидни проблеми, без систематичен подход."
+        },
+        "J": {
+          "en": "Conducts simple exploratory sessions against a provided charter with supervision, and records what was covered.",
+          "bg": "Провежда прости проучвателни сесии по предоставена харта с надзор и записва какво е било покрито."
+        },
+        "R": {
+          "en": "Independently runs charter-based exploratory sessions for typical features, applies heuristics, and documents findings usefully.",
+          "bg": "Самостоятелно провежда проучвателни сесии по харта за типични функционалности, прилага евристики и документира находките полезно."
+        },
+        "S": {
+          "en": "Conducts deep exploratory testing on complex or high-risk areas, applies advanced heuristics and modelling, and mentors others.",
+          "bg": "Провежда задълбочено проучвателно тестване в сложни или високорискови области, прилага усъвършенствани евристики и моделиране и напътства други."
+        },
+        "X": {
+          "en": "Recognized expert; defines exploratory practice and charter design across the organization.",
+          "bg": "Признат експерт; дефинира практиката за проучвателно тестване и проектирането на харти в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team applies structured exploratory testing rather than ad-hoc investigation, and allocates time for it deliberately.",
+          "bg": "Осигурява прилагането на структурирано проучвателно тестване от екипа вместо ad-hoc изследване и целенасочено отделя време за него."
+        }
+      },
+      "E2-46": {
+        "N": {
+          "en": "Reports obvious defects using a template under guidance; reports often lack detail needed to reproduce.",
+          "bg": "Докладва очевидни дефекти по шаблон под ръководство; докладите често не съдържат детайлите, необходими за възпроизвеждане."
+        },
+        "J": {
+          "en": "Writes adequate reports for straightforward defects with supervision and attends triage.",
+          "bg": "Пише приемливи доклади за несложни дефекти с надзор и присъства на триажа."
+        },
+        "R": {
+          "en": "Independently writes clear, reproducible, well-evidenced reports and contributes effectively to triage decisions.",
+          "bg": "Самостоятелно пише ясни, възпроизводими, добре документирани доклади и допринася ефективно за решенията при триажа."
+        },
+        "S": {
+          "en": "Investigates and reports complex or intermittent defects, drives triage on contested cases, and mentors others in report quality.",
+          "bg": "Изследва и докладва сложни или периодично проявяващи се дефекти, води триажа при оспорвани случаи и напътства други относно качеството на докладите."
+        },
+        "X": {
+          "en": "Defines defect reporting and triage standards across the organization.",
+          "bg": "Дефинира стандартите за докладване и триаж на дефекти в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team reports defects to a high standard and aligns triage outcomes with delivery priorities.",
+          "bg": "Осигурява докладването на дефекти от екипа на високо ниво и уеднаквява резултатите от триажа с приоритетите за доставяне."
+        }
+      },
+      "E2-47": {
+        "N": {
+          "en": "Executes a given regression suite and reports results under guidance.",
+          "bg": "Изпълнява зададен регресионен набор и докладва резултатите под ръководство."
+        },
+        "J": {
+          "en": "Executes regression runs and updates simple cases with supervision.",
+          "bg": "Изпълнява регресионни цикли и актуализира прости случаи с надзор."
+        },
+        "R": {
+          "en": "Independently selects appropriate regression scope for typical changes and keeps the suite accurate and current.",
+          "bg": "Самостоятелно избира подходящ регресионен обхват за типични промени и поддържа набора точен и актуален."
+        },
+        "S": {
+          "en": "Manages regression strategy for complex systems, controls suite growth and execution cost, and mentors others.",
+          "bg": "Управлява регресионната стратегия за сложни системи, контролира разрастването на набора и разходите за изпълнение и напътства други."
+        },
+        "X": {
+          "en": "Defines regression strategy and suite governance across the organization.",
+          "bg": "Дефинира регресионната стратегия и управлението на наборите в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team maintains effective, affordable regression coverage and aligns it with release cadence.",
+          "bg": "Осигурява поддържането на ефективно и икономично регресионно покритие от екипа и го уеднаквява с ритъма на изданията."
+        }
+      },
+      "E2-48": {
+        "N": {
+          "en": "Executes provided API tests using given tools under guidance.",
+          "bg": "Изпълнява предоставени тестове на API със зададени инструменти под ръководство."
+        },
+        "J": {
+          "en": "Tests simple endpoints and straightforward integrations with supervision.",
+          "bg": "Тества прости крайни точки и несложни интеграции с надзор."
+        },
+        "R": {
+          "en": "Independently designs and executes API and integration tests for typical services, including error paths.",
+          "bg": "Самостоятелно проектира и изпълнява тестове на API и интеграции за типични услуги, включително пътищата на грешките."
+        },
+        "S": {
+          "en": "Tests complex integration landscapes, covers contract and failure scenarios thoroughly, and mentors others.",
+          "bg": "Тества сложни интеграционни среди, покрива изчерпателно контрактни и отказни сценарии и напътства други."
+        },
+        "X": {
+          "en": "Defines API and integration testing practice across the organization.",
+          "bg": "Дефинира практиката за тестване на API и интеграции в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team covers integration boundaries adequately rather than testing only through the interface.",
+          "bg": "Осигурява адекватното покриване на интеграционните граници от екипа, а не само тестване през интерфейса."
+        }
+      },
+      "E2-49": {
+        "N": {
+          "en": "Runs provided queries to check simple data under guidance.",
+          "bg": "Изпълнява предоставени заявки за проверка на прости данни под ръководство."
+        },
+        "J": {
+          "en": "Writes basic queries to validate straightforward data with supervision.",
+          "bg": "Пише базови заявки за валидиране на несложни данни с надзор."
+        },
+        "R": {
+          "en": "Independently validates data correctness and integrity for typical work, including transformations and calculations.",
+          "bg": "Самостоятелно валидира коректността и целостта на данните при типична работа, включително трансформации и изчисления."
+        },
+        "S": {
+          "en": "Validates complex data flows, migrations, and reconciliations, and mentors others in data-level verification.",
+          "bg": "Валидира сложни потоци от данни, миграции и равнения и напътства други в проверката на ниво данни."
+        },
+        "X": {
+          "en": "Defines data validation practice and standards across the organization.",
+          "bg": "Дефинира практиката и стандартите за валидиране на данни в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team verifies data directly rather than relying on interface behaviour alone.",
+          "bg": "Осигурява директната проверка на данните от екипа вместо разчитане само на поведението на интерфейса."
+        }
+      },
+      "E2-50": {
+        "N": {
+          "en": "Uses a prepared environment and reports problems under guidance; cannot yet distinguish environment issues from defects.",
+          "bg": "Използва подготвена среда и докладва проблеми под ръководство; още не може да разграничава проблеми в средата от дефекти."
+        },
+        "J": {
+          "en": "Performs simple environment setup with supervision, though environment issues are sometimes misreported as defects.",
+          "bg": "Извършва проста подготовка на среда с надзор, макар проблеми в средата понякога да се докладват погрешно като дефекти."
+        },
+        "R": {
+          "en": "Independently configures and troubleshoots environments for typical work and reliably tells environment problems from product defects.",
+          "bg": "Самостоятелно конфигурира и отстранява проблеми в средите при типична работа и надеждно разграничава проблеми в средата от дефекти в продукта."
+        },
+        "S": {
+          "en": "Manages complex environment configurations and dependency chains, resolves difficult environment failures, and mentors others.",
+          "bg": "Управлява сложни конфигурации на среди и вериги от зависимости, решава трудни откази в средите и напътства други."
+        },
+        "X": {
+          "en": "Defines test environment standards and practices across the organization.",
+          "bg": "Дефинира стандартите и практиките за тестови среди в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team has reliable environments and aligns environment practice with infrastructure and delivery.",
+          "bg": "Осигурява надеждни среди за екипа и уеднаквява практиката за средите с инфраструктурата и доставянето."
+        }
+      },
+      "E2-51": {
+        "N": {
+          "en": "Records simple metrics into a provided format under guidance.",
+          "bg": "Записва прости метрики в предоставен формат под ръководство."
+        },
+        "J": {
+          "en": "Produces basic quality reports for straightforward work with supervision but interprets them only superficially.",
+          "bg": "Изготвя базови доклади за качеството при несложна работа с надзор, но ги интерпретира само повърхностно."
+        },
+        "R": {
+          "en": "Independently selects and reports appropriate metrics for typical work and interprets trends meaningfully.",
+          "bg": "Самостоятелно избира и докладва подходящи метрики при типична работа и интерпретира тенденциите смислено."
+        },
+        "S": {
+          "en": "Designs metric sets for complex programmes, interprets them to inform release decisions, and mentors others.",
+          "bg": "Проектира набори от метрики за сложни програми, интерпретира ги в подкрепа на решенията за издаване и напътства други."
+        },
+        "X": {
+          "en": "Defines the organization's quality metrics framework and advises on measurement strategy.",
+          "bg": "Дефинира рамката от метрики за качество на организацията и консултира относно стратегията за измерване."
+        },
+        "T": {
+          "en": "Ensures the team reports quality meaningfully rather than mechanically, and aligns reporting with governance needs.",
+          "bg": "Осигурява смисленото, а не механично докладване на качеството от екипа и го уеднаквява с нуждите на управлението."
+        }
+      },
+      "E3-28": {
+        "N": {
+          "en": "Has limited testing experience and applies lessons from training or a single product under guidance.",
+          "bg": "Има ограничен опит в тестването и прилага поуки от обучение или от един продукт под ръководство."
+        },
+        "J": {
+          "en": "Draws on experience from a few features or releases to handle familiar situations, but relies on guidance when unfamiliar.",
+          "bg": "Ползва опит от няколко функционалности или издания за справяне с познати ситуации, но разчита на напътствия при непознати."
+        },
+        "R": {
+          "en": "Applies experience across a range of work to anticipate likely problem areas independently and directs effort accordingly.",
+          "bg": "Прилага опит от разнообразна работа, за да предвижда самостоятелно вероятните проблемни области и да насочва усилието съобразно тях."
+        },
+        "S": {
+          "en": "Draws on deep, varied experience to assess risk in complex or unfamiliar systems, anticipates failure modes early, and mentors others with concrete examples.",
+          "bg": "Ползва задълбочен и разнообразен опит за оценка на риска в сложни или непознати системи, предвижда режимите на отказ рано и напътства други с конкретни примери."
+        },
+        "X": {
+          "en": "Recognized for exceptional quality judgment; advises across the organization on risk in difficult systems and codifies experience into reusable guidance.",
+          "bg": "Признат за изключителна преценка за качеството; консултира в цялата организация относно риска в трудни системи и превръща опита в приложими насоки."
+        },
+        "T": {
+          "en": "Applies and shares accumulated experience to direct the team's testing effort and aligns risk judgment with organizational lessons.",
+          "bg": "Прилага и споделя натрупания опит за насочване на усилието по тестване в екипа и уеднаквява преценката за риска с организационните поуки."
+        }
+      },
+      "E3-29": {
+        "N": {
+          "en": "Uses basic features of the standard tools for simple tasks under guidance.",
+          "bg": "Използва базови функции на стандартните инструменти за прости задачи под ръководство."
+        },
+        "J": {
+          "en": "Uses the main features of the standard tools on straightforward work with supervision, though not always efficiently.",
+          "bg": "Използва основните функции на стандартните инструменти при несложна работа с надзор, макар и не винаги ефективно."
+        },
+        "R": {
+          "en": "Independently uses the quality toolchain effectively for typical work, applying the right features for planning, execution, and reporting.",
+          "bg": "Самостоятелно използва ефективно инструментариума за качество при типична работа, прилагайки подходящите функции за планиране, изпълнение и докладване."
+        },
+        "S": {
+          "en": "Exploits advanced tool capabilities on complex work, configures and optimizes usage, and mentors others in effective tooling.",
+          "bg": "Използва усъвършенствани възможности на инструментите при сложна работа, конфигурира и оптимизира използването им и напътства други в ефективното боравене с инструменти."
+        },
+        "X": {
+          "en": "Recognized authority on quality tooling; evaluates and introduces tools and defines toolchain standards across the organization.",
+          "bg": "Признат авторитет по инструментите за качество; оценява и въвежда инструменти и дефинира стандартите за инструментариума в цялата организация."
+        },
+        "T": {
+          "en": "Ensures consistent, effective use of the quality toolchain across the team and aligns tooling practice with organizational standards.",
+          "bg": "Осигурява последователното и ефективно използване на инструментариума за качество в екипа и уеднаквява практиката с организационните стандарти."
+        }
+      },
+      "E3-30": {
+        "N": {
+          "en": "Reports failures as observed under guidance, without systematic investigation.",
+          "bg": "Докладва отказите така, както са наблюдавани, под ръководство, без систематично изследване."
+        },
+        "J": {
+          "en": "Investigates straightforward failures with supervision and gathers basic evidence, but struggles when reproduction is inconsistent.",
+          "bg": "Изследва несложни откази с надзор и събира базови доказателства, но се затруднява, когато възпроизвеждането е непостоянно."
+        },
+        "R": {
+          "en": "Independently investigates typical defects, isolates conditions, establishes reliable reproduction steps, and gathers sufficient evidence.",
+          "bg": "Самостоятелно изследва типични дефекти, изолира условията, установява надеждни стъпки за възпроизвеждане и събира достатъчно доказателства."
+        },
+        "S": {
+          "en": "Diagnoses complex, intermittent, or environment-specific failures, narrows causes systematically under pressure, and mentors others in investigation technique.",
+          "bg": "Диагностицира сложни, периодично проявяващи се или зависими от средата откази, стеснява причините систематично под напрежение и напътства други в техниката на изследване."
+        },
+        "X": {
+          "en": "Recognized authority in defect diagnosis; called on for the most intractable failures and shapes investigation practice across the organization.",
+          "bg": "Признат авторитет в диагностиката на дефекти; търсен за най-трудноразрешимите откази и оформя практиката по изследване в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team investigates rather than merely reports, develops diagnostic capability in others, and aligns investigation effort with delivery impact.",
+          "bg": "Осигурява изследването, а не само докладването от екипа, развива диагностичния капацитет у другите и уеднаквява усилието по изследване с въздействието върху доставянето."
+        }
+      },
+      "I1-8": {
+        "N": {
+          "en": "Follows the main QA process steps with guidance and reminders.",
+          "bg": "Следва основните стъпки на процеса за осигуряване на качеството с напътствия и напомняния."
+        },
+        "J": {
+          "en": "Follows the QA and testing process on routine work with occasional correction.",
+          "bg": "Следва процеса за осигуряване на качеството и тестване при рутинна работа с епизодична корекция."
+        },
+        "R": {
+          "en": "Independently adheres to the full QA process and the quality role's place in the SDLC for typical work.",
+          "bg": "Самостоятелно спазва пълния процес за осигуряване на качеството и мястото на ролята по качеството в SDLC при типична работа."
+        },
+        "S": {
+          "en": "Applies the QA process rigorously on complex work, identifies process gaps, and mentors others in correct process use.",
+          "bg": "Прилага процеса за осигуряване на качеството прецизно при сложна работа, идентифицира пропуски в процеса и напътства други в коректното използване на процеса."
+        },
+        "X": {
+          "en": "Shapes and improves the QA and testing process across the organization.",
+          "bg": "Оформя и подобрява процеса за осигуряване на качеството и тестване в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team adheres consistently to the QA process and aligns process use with organizational standards.",
+          "bg": "Осигурява последователното спазване на процеса за осигуряване на качеството от екипа и уеднаквява използването на процеса с организационните стандарти."
+        }
+      },
+      "I1-9": {
+        "N": {
+          "en": "Attends reviews under guidance and observes, contributing occasional obvious points.",
+          "bg": "Присъства на прегледи под ръководство и наблюдава, като допринася с отделни очевидни бележки."
+        },
+        "J": {
+          "en": "Participates in reviews of straightforward work with supervision and raises basic concerns.",
+          "bg": "Участва в прегледи на несложна работа с надзор и повдига базови въпроси."
+        },
+        "R": {
+          "en": "Independently participates in reviews for typical work, consistently raising testability and risk concerns before implementation.",
+          "bg": "Самостоятелно участва в прегледи при типична работа, като последователно повдига въпроси за тестируемост и риск преди реализацията."
+        },
+        "S": {
+          "en": "Contributes authoritatively to reviews of complex work, surfaces subtle risks early, and mentors others in effective review participation.",
+          "bg": "Допринася авторитетно в прегледите на сложна работа, разкрива фини рискове рано и напътства други в ефективното участие в прегледи."
+        },
+        "X": {
+          "en": "Shapes how quality perspectives are brought into requirement and design review across the organization.",
+          "bg": "Оформя начина, по който перспективата за качеството се внася в прегледите на изисквания и дизайн в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team participates in reviews consistently and aligns early quality involvement with delivery practice.",
+          "bg": "Осигурява последователното участие на екипа в прегледи и уеднаквява ранното включване по въпросите на качеството с практиката по доставяне."
+        }
+      },
+      "I1-10": {
+        "N": {
+          "en": "Follows basic documentation standards with guidance and reminders.",
+          "bg": "Следва базови стандарти за документация с напътствия и напомняния."
+        },
+        "J": {
+          "en": "Follows artifact standards on routine work with occasional correction, though traceability may be incomplete.",
+          "bg": "Следва стандартите за артефакти при рутинна работа с епизодична корекция, макар проследимостта да може да е непълна."
+        },
+        "R": {
+          "en": "Independently and consistently follows documentation and traceability standards for typical work.",
+          "bg": "Самостоятелно и последователно следва стандартите за документация и проследимост при типична работа."
+        },
+        "S": {
+          "en": "Applies and refines artifact standards on complex work, ensures auditability, and mentors others.",
+          "bg": "Прилага и прецизира стандартите за артефакти при сложна работа, осигурява одитируемост и напътства други."
+        },
+        "X": {
+          "en": "Defines test documentation and traceability standards across the organization.",
+          "bg": "Дефинира стандартите за тестова документация и проследимост в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team adheres to artifact standards and aligns documentation practice with organizational and audit requirements.",
+          "bg": "Осигурява спазването на стандартите за артефакти от екипа и уеднаквява практиката по документиране с организационните и одитните изисквания."
         }
       },
       "E3-22": {
