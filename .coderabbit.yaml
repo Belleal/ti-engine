@@ -14,3 +14,9 @@ reviews:
   profile: assertive
   path_filters:
     - "!packages/*/types/**"
+  finishing_touches:
+    # Carried over from the CodeRabbit UI settings this file supersedes — it was the only value
+    # customised there. Tests in this repository are written against `node --test` alongside the
+    # code they cover, not generated onto a branch.
+    unit_tests:
+      enabled: false
