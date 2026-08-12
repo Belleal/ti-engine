@@ -2,6 +2,13 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.20.1
+
+* fix(types): emit `/// <reference types="node" />` into `web-server.d.ts`, which names `node:http`.
+  Without it a consumer who has not separately configured Node's types gets `TS2591` from inside the
+  published declarations. See `@ti-engine/core` 1.9.1 for why the 1.20.0 gate did not catch this
+* build(release): bump package version from `1.20.0` to `1.20.1`
+
 ## Version 1.20.0
 
 TypeScript declarations now ship with the package, verified against a consumer type-checking with `skipLibCheck: false`

@@ -32,17 +32,16 @@ const REPOSITORY_ROOT = path.resolve( __dirname, "..", ".." );
 const PACKAGES = [ "core", "web-framework", "web-content" ];
 const WORK_DIRECTORY = path.join( REPOSITORY_ROOT, ".types-check" );
 
-// `types` and `typeRoots` are pinned rather than left to discovery: the configs are written into
-// `.types-check/`, so the automatic `@types` lookup would start from there instead of the
-// repository root and miss the Node types that `core`'s declarations reference by name.
+// Nothing is pinned here on purpose. An earlier version set `types` and `typeRoots`, which put
+// Node's types in scope for the check and for nothing else — the published declarations went out
+// without the `/// <reference types="node" />` they needed, and the gate reported zero errors while
+// a real consumer got two. The check now sees exactly what a consumer's compiler sees.
 const COMPILER_OPTIONS = {
     noEmit: true,
     skipLibCheck: false,
     module: "node16",
     moduleResolution: "node16",
-    target: "es2022",
-    types: [ "node" ],
-    typeRoots: [ path.join( REPOSITORY_ROOT, "node_modules", "@types" ) ]
+    target: "es2022"
 };
 
 /**
@@ -114,12 +113,10 @@ function readDeclarations() {
  */
 function checkDrift() {
     const before = readDeclarations();
-    for ( const name of PACKAGES ) {
-        const result = run( "npx", [ "tsc", "-p", "tsconfig.types.json" ], path.join( REPOSITORY_ROOT, "packages", name ) );
-        if ( result.code !== 0 ) {
-            process.stderr.write( result.output );
-            throw new Error( `declaration emit failed for ${ name }` );
-        }
+    const build = run( "node", [ path.join( __dirname, "build-types.js" ) ] );
+    if ( build.code !== 0 ) {
+        process.stderr.write( build.output );
+        throw new Error( "declaration build failed" );
     }
     const after = readDeclarations();
     const differences = [];

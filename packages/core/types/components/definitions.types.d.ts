@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import type { TiException } from "#exceptions";
 import type { TiLocalizationLanguage } from "#localization";
 import type { TiLogSeverity } from "#logger";
