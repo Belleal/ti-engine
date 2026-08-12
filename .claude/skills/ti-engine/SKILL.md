@@ -12,9 +12,9 @@ You are working on the **ti-engine** monorepo — an open-source (GPL-3.0) Node.
 ## Monorepo Layout
 
 ```
-ti-engine/                         npm workspace root (v1.2.4; workspaces = packages/*)
+ti-engine/                         npm workspace root (v1.2.7; workspaces = packages/*)
 ├── packages/
-│   ├── core/          v1.7.1      Framework foundation (Redis messaging, lifecycle, utils)
+│   ├── core/          v1.8.0      Framework foundation (Redis messaging, lifecycle, utils)
 │   ├── web-framework/ v1.19.0     Express server + auth + admin config-management + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
 │   ├── web-content/   v0.2.0      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture (WIP)
 │   ├── competence/    v3.16.0     HR competency appraisal application (108-competency dictionary); ships as a container image
@@ -47,7 +47,7 @@ Branches: `current` is the active feature branch; `master` is the release branch
 
 ---
 
-## Package: core (v1.7.1)
+## Package: core (v1.8.0)
 
 **Role**: Foundational framework. All other packages depend on it. Standalone (no intra-repo deps).
 
@@ -380,6 +380,18 @@ npm start              # run the instance without Docker (bin/competence-web-ser
 - Bumping a version means updating that package's `package.json` version **and** its `CHANGELOG.md`.
 - **`web-content` is pre-1.0**, so breaking changes land inside `0.x` — marked `!` on the commit and called out as **BREAKING** in the changelog body (e.g. the 0.2.0 path-decoding change) rather than forcing a major bump. Note that `web-framework` did the same for the 1.19.0 `/static` cache default: a `fix(web-server)!` inside a minor bump, because the framework is the one deciding the default.
 - **A version bump can be a release trigger.** Pushing a `competence-v*` tag to `master` makes CD publish the image to GHCR **and** Artifact Registry as `:X.Y.Z` + `:latest`; a plain `master` push publishes only `:edge` + `:sha`. So tag deliberately.
+
+### Publishing to npm — automatic on merge into `master`
+
+`core`, `web-framework`, `web-content` and `tester` are published by `.github/workflows/npm-publish.yml` on every push to `master`, which in normal use means every merged pull request. **A version bump plus its changelog section is the entire release ritual** — there is nothing to tag or trigger by hand. `competence` is deliberately excluded: it is the application, and ships as a container image through `cd.yml`.
+
+- **The plan comes from the registry and the tags, not from the diff.** Each package's declared version is compared against npm; a merge that bumps nothing publishes nothing and skips even the test job. A cancelled run, a hand-published version, or two bumps landing at once all leave the registry right where a diff of the merge commit would be wrong.
+- **A release is the version on npm *and* its `<package>-v<version>` tag plus GitHub release.** Only the npm half is irreversible, so a version that published but never got tagged stays in the plan until it has one — a re-run finishes it rather than skipping it forever. `workflow_dispatch` is therefore a safe retry.
+- **A version bump with no matching `## Version X.Y.Z` section fails the run before anything is published.** The release notes are built from that section; the plan job is the last point at which failing is free.
+- **Authentication is npm trusted publishing (OIDC)** — no `NPM_TOKEN`, and provenance is attached automatically. Each package has a trusted publisher on npmjs.com keyed to the **workflow filename**, so renaming `npm-publish.yml` breaks publishing until those entries are updated. A brand-new package must be published by hand once before a trusted publisher can be added for it.
+- **Provenance validates `repository.url`.** A package whose manifest lacks a `repository` block fails to publish with a `422` (this is what caught `tester` 1.3.3). A new package needs `repository` (with `directory`), `bugs` and `homepage` matching the others.
+- Actions in every workflow are **pinned to commit SHAs** with the version as a trailing comment; Dependabot's `github-actions` ecosystem keeps them current.
+- Dependabot scans from the workspace root only — with npm workspaces that already reaches every `packages/*/package.json` — and its **version updates target `current`**, so bumps arrive through the normal release pull request. Security updates always target the default branch regardless.
 
 ---
 

@@ -36,7 +36,9 @@ Being a messaging system, the **ti-engine** relies on a message broker for the a
 To run the basic **ti-engine** framework, you will need a couple of things:
 
 * A local [node.js installation](https://nodejs.org/en/download/) with a minimum version of **20.12.0** (the `core` package requires `process.loadEnvFile`)
-* A local or remote [Redis cache installation](https://redis.io/download) with a minimum version of **5.0.14**
+* A local or remote [Redis cache installation](https://redis.io/download) with a minimum version of **6.0**
+
+> The Redis floor moved from 5.0.14 to 6.0 in `core` 1.8.0, when `ioredis` 6 made RESP3 its default wire protocol. RESP3 arrived in Redis 6.0, and the client negotiates it with a `HELLO 3` on connect — an older server rejects that and the connection fails outright rather than falling back, so this is a hard requirement rather than a recommendation. Replies are unaffected: `ioredis` maps every RESP3 reply back to the same JavaScript value RESP2 produced, so nothing in your service code changes.
 
 If you are working under Windows 10+ OS and you need to install Redis, take a look at this [guide](https://redis.com/blog/redis-on-windows-10/). You could also use [Redis Cloud](https://app.redislabs.com/) for development as it offers a free basic account.
 
