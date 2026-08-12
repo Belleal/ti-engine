@@ -7,6 +7,15 @@
   "dependencies": {
     "@ti-engine/core": "*"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Belleal/ti-engine.git",
+    "directory": "packages/tester"
+  },
+  "bugs": {
+    "url": "https://github.com/Belleal/ti-engine/issues"
+  },
+  "homepage": "https://github.com/Belleal/ti-engine/tree/master/packages/tester#readme",
   "engines": {
     "node": ">=20.0.0"
   }
