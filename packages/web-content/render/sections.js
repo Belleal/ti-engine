@@ -23,7 +23,7 @@
  * layers per page is the design ceiling. No component ever emits a style attribute.
  */
 
-const { html, raw } = require( "#html" );
+const { html, raw, accentedTitle } = require( "#html" );
 const editorial = require( "#editorial" );
 
 // Body renderers keyed by section type. Each takes ( section, context ) and returns the section BODY only; the
@@ -131,6 +131,21 @@ function renderSection( section, context ) {
     return html`<section class="${ classes.join( " " ) }"${ section.screenLabel ? html` data-screen-label="${ section.screenLabel }"` : raw( "" ) }><div class="${ wrap }">${ renderChrome( section ) }${ body }</div></section>`;
 }
 
+/*
+ * Types whose own renderer draws the heading, so the generic chrome must not draw it again.
+ *
+ * `hero` emits `.hero-title` / `.hero-subtitle` and `audio` emits `.audio-title` / `.audio-subtitle`, both from the
+ * SAME `title` and `subtitle` fields the chrome reads. Without this, every hero rendered its title twice -- once as
+ * a small-caps `.section-header` and once as the large `.hero-title` directly beneath it. Nothing errored; the page
+ * simply had two headings, and the author is left wondering why their layout does not match the design.
+ *
+ * `divider` goes with them for a different reason: the chrome draws its rule ABOVE the section body, which on a hero
+ * is above the image -- never where a design wants it. The hero draws its own, between the title and the foot.
+ *
+ * `eyebrow` stays with the chrome, because no renderer here emits one.
+ */
+const OWN_HEADING = new Set( [ "hero", "audio" ] );
+
 /**
  * The optional eyebrow / header / subtitle / divider block above a section body. Each element is emitted only when
  * the record carries it, so an absent field leaves no empty node behind.
@@ -140,17 +155,17 @@ function renderSection( section, context ) {
  */
 function renderChrome( section ) {
     const parts = [];
+    const ownsHeading = OWN_HEADING.has( section.type );
     if ( section.eyebrow ) {
         parts.push( html`<p class="section-eyebrow">${ section.eyebrow }</p>` );
     }
-    if ( section.title || section.titleAccent ) {
-        const accent = section.titleAccent ? html` <span class="accent">${ section.titleAccent }</span>` : raw( "" );
-        parts.push( html`<h2 class="section-header">${ section.title || "" }${ accent }</h2>` );
+    if ( !ownsHeading && ( section.title || section.titleAccent ) ) {
+        parts.push( html`<h2 class="section-header">${ accentedTitle( section.title, section.titleAccent ) }</h2>` );
     }
-    if ( section.subtitle ) {
+    if ( !ownsHeading && section.subtitle ) {
         parts.push( html`<p class="section-subtitle">${ section.subtitle }</p>` );
     }
-    if ( section.divider ) {
+    if ( !ownsHeading && section.divider ) {
         // The scarlet rule is reserved for drama; gold is the default editorial divider.
         const tone = ( section.divider === "scarlet" ) ? "divider-scarlet" : "divider-gold";
         parts.push( html`<hr class="${ tone } divider-short">` );

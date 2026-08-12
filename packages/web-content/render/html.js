@@ -103,9 +103,40 @@ function raw( value ) {
     return new SafeString( value );
 }
 
+/**
+ * A heading with one run of text accented.
+ *
+ * The accent is placed WHERE IT APPEARS in the title, so any word can carry it -- `title: "Welcome to my Page"` with
+ * `titleAccent: "Welcome"` accents the first word, which the old design does and an append-only accent could never
+ * express. When the accented text is not part of the title it is appended instead, which is the long-standing
+ * behaviour and what `title: "The"` + `titleAccent: "Scarlet"` relies on.
+ *
+ * Both halves of the split are interpolated, never concatenated as markup, so the title is escaped exactly as any
+ * other interpolation is (CLAUDE.md 8). Only the span itself is structural.
+ *
+ * @param {string} title
+ * @param {string} [accentText]
+ * @returns {SafeString}
+ */
+function accentedTitle( title, accentText ) {
+    const text = ( title === null || title === undefined ) ? "" : String( title );
+    const accent = ( accentText === null || accentText === undefined ) ? "" : String( accentText );
+    if ( accent === "" ) {
+        return html`${ text }`;
+    }
+    const at = text.indexOf( accent );
+    if ( at === -1 ) {
+        return text === ""
+            ? html`<span class="accent">${ accent }</span>`
+            : html`${ text } <span class="accent">${ accent }</span>`;
+    }
+    return html`${ text.slice( 0, at ) }<span class="accent">${ accent }</span>${ text.slice( at + accent.length ) }`;
+}
+
 module.exports = {
     html: html,
     raw: raw,
     escapeHtml: escapeHtml,
+    accentedTitle: accentedTitle,
     SafeString: SafeString
 };

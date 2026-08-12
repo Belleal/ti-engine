@@ -132,4 +132,12 @@ describe( "a rendered CSRF token makes the response per-session", () => {
         assert.doesNotThrow( () => renderCapture( {}, { csrfToken: "abc" } ) );
     } );
 
+    it( "still renders when the caller passes no context at all", () => {
+        // `renderCapture` is exported, so it has callers beyond `renderSection` -- which passes `context || {}` and
+        // was therefore hiding this. Every other context read here is guarded; the no-token branch was not, so a
+        // direct call with no context threw a TypeError while reaching for the callback that reports the missing token.
+        assert.doesNotThrow( () => renderCapture( {} ) );
+        assert.doesNotThrow( () => renderCapture( {}, null ) );
+    } );
+
 } );

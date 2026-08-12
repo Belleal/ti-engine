@@ -14,7 +14,7 @@
  * attribute under the contract, so the script sets a CSS custom property on the rail instead.
  */
 
-const { html, raw } = require( "#html" );
+const { html, raw, accentedTitle } = require( "#html" );
 
 /**
  * `hero` -- the page opener. `title` may carry an accented fragment, which the theme colours; the accent is a span
@@ -28,16 +28,16 @@ function renderHero( section ) {
         ? html`<div class="hero-media"><img src="${ section.background }" alt="${ section.backgroundAlt || "" }"></div>`
         : raw( "" );
 
-    const accent = section.titleAccent ? html` <span class="accent">${ section.titleAccent }</span>` : raw( "" );
     const parts = [];
     if ( section.pretitle ) {
         parts.push( html`<p class="hero-pretitle">${ section.pretitle }</p>` );
     }
     if ( section.title || section.titleAccent ) {
         // h1 when the hero opens the document, h2 when it is one section among several.
+        const heading = accentedTitle( section.title, section.titleAccent );
         parts.push( section.primary === true
-            ? html`<h1 class="hero-title">${ section.title || "" }${ accent }</h1>`
-            : html`<h2 class="hero-title">${ section.title || "" }${ accent }</h2>` );
+            ? html`<h1 class="hero-title">${ heading }</h1>`
+            : html`<h2 class="hero-title">${ heading }</h2>` );
     }
     if ( section.subtitle ) {
         parts.push( html`<p class="hero-subtitle">${ section.subtitle }</p>` );
@@ -53,7 +53,13 @@ function renderHero( section ) {
         ? html`<div class="hero-foot"><p class="scroll-hint">${ section.scrollHint }</p></div>`
         : raw( "" );
 
-    return html`${ media }<div class="hero-content">${ parts }</div>${ foot }`;
+    // The hero draws its own rule, between the title and the foot. The generic chrome puts a divider ABOVE the
+    // section body, which on a hero means above the image -- never where the design wants it.
+    const divider = section.divider
+        ? html`<hr class="${ section.divider === "scarlet" ? "divider-scarlet" : "divider-gold" } divider-short">`
+        : raw( "" );
+
+    return html`${ media }<div class="hero-content">${ parts }</div>${ divider }${ foot }`;
 }
 
 /**

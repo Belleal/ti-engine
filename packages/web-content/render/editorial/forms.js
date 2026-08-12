@@ -22,7 +22,6 @@
  */
 
 const { html, raw } = require( "#html" );
-const logger = require( "@ti-engine/core/logger" );
 
 const STATUS_KINDS = new Set( [ "success", "duplicate", "error" ] );
 
@@ -85,11 +84,15 @@ function renderCapture( section, context ) {
             context.markPerSession();
         }
         hidden.push( html`<input type="hidden" name="csrfToken" value="${ context.csrfToken }">` );
-    } else {
+    } else if ( context && typeof context.reportProblem === "function" ) {
         // Silently omitting it renders a form that looks perfect and 403s on every submit, with nothing anywhere
         // saying why. The form is still emitted -- withholding it would break the page over a wiring mistake -- but
-        // the reason is now written down where whoever is debugging the 403 will find it.
-        logger.log( "Capture form rendered without a CSRF token; every submission will be rejected. The render context is missing `csrfToken`.", logger.logSeverity.ERROR );
+        // the caller is told, and decides how to say so.
+        //
+        // Reported through a callback rather than by logging directly: this is a pure render module, and requiring
+        // the core logger here made every template that renders a form pull in the framework's Redis client
+        // transitively. A renderer should not need infrastructure to draw a form.
+        context.reportProblem( "Capture form rendered without a CSRF token; every submission will be rejected. The render context is missing `csrfToken`." );
     }
     if ( section.purpose ) {
         hidden.push( html`<input type="hidden" name="purpose" value="${ section.purpose }">` );
