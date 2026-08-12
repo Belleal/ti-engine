@@ -1,13 +1,32 @@
 {
   "name": "@ti-engine/web-framework",
-  "version": "1.19.0",
+  "version": "1.20.0",
   "description": "A web-framework based on the ti-engine. It provides a customizable ready-to-use web-server microservice and a set of tools for creating web applications. NOTICE: This is still a work in progress and the full architecture, design, and functionality are not available!",
+  "keywords": [
+    "ti-engine",
+    "web-framework",
+    "express",
+    "microservices",
+    "htmx",
+    "alpinejs",
+    "openid-connect",
+    "csp"
+  ],
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "exports": {
-    "./config-management": "./components/config-service.js",
-    "./web-application": "./bin/web-app-manager.js",
-    "./web-server": "./bin/web-server.js"
+    "./config-management": {
+      "types": "./types/components/config-service.d.ts",
+      "default": "./components/config-service.js"
+    },
+    "./web-application": {
+      "types": "./types/bin/web-app-manager.d.ts",
+      "default": "./bin/web-app-manager.js"
+    },
+    "./web-server": {
+      "types": "./types/bin/web-server.d.ts",
+      "default": "./bin/web-server.js"
+    }
   },
   "imports": {
     "#admin-config-handlers": "./components/admin-config-handlers.js",
@@ -38,6 +57,7 @@
     "openid-client": "^6.8.4"
   },
   "devDependencies": {
+    "typescript": "^7.0.2"
   },
   "files": [
     "bin/",
@@ -46,7 +66,8 @@
     ".env",
     "package.json",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "types/"
   ],
   "repository": {
     "type": "git",
@@ -62,6 +83,7 @@
   },
   "scripts": {
     "postinstall": "node ./bin/build/post-install.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "build:types": "tsc -p tsconfig.types.json"
   }
 }

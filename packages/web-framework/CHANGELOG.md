@@ -2,6 +2,17 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.20.0
+
+The framework now ships TypeScript declarations, generated from the JSDoc already in the sources. Nothing is compiled — `emitDeclarationOnly` means the `.js` files ship exactly as written and only `.d.ts` files are added, so this is additive for every existing consumer and the package stays CommonJS. `bin/static` is excluded from the build: those are browser assets served to a page, not part of the module API.
+
+Getting a clean emit required fixing one JSDoc defect, and it was a real one rather than a tooling quirk. The `SemanticValidator` typedef was written as `function(Object, ValidatorContext): (ConfigValidationIssue[]|Promise<ConfigValidationIssue[]>)`, whose parenthesised return type inside the Closure `function(...)` form TypeScript's JSDoc parser cannot read — it aborted the declaration emit for the whole file. The same defect existed in `core`'s `TiEnum` typedef and is corrected the same way, with arrow syntax.
+
+* feat(types): ship generated `.d.ts` declarations for `config-management`, `web-application` and `web-server`, wired through per-subpath `types` conditions in the `exports` map
+* feat(build): add `npm run build:types` (`tsconfig.types.json`). The output is committed rather than generated at publish time, because the publish job deliberately installs nothing and runs no lifecycle scripts; CI regenerates it and fails if the committed declarations have drifted
+* fix(config-registry): rewrite the `SemanticValidator` typedef in arrow syntax. It described the validator contract correctly to a human reader and not at all to a parser
+* feat(package): declare `keywords`, which the package had none of — the terms npm search matches against
+
 ## Version 1.19.0
 
 `/static` was served with `max-age=1y, immutable` for every consumer of the framework. `immutable` is a promise that the bytes behind a URL will never change, and browsers honour it so completely that not even a manual reload revalidates — so the promise is only true for a content-addressed URL (`app.a1b2c3.css`). None of the framework's own assets are named that way (`/static/scripts/ti-framework.js`, the theme sheets), which made this an unsafe default that shipped to npm: a deployed CSS or JS fix would never reach anyone who had already visited, for up to a year, with no way to tell them otherwise. The standalone author's site had worked around it privately by fingerprinting its own asset URLs; every other consumer still inherited the bug.
