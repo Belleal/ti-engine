@@ -202,6 +202,12 @@ function reportPlan( plan ) {
     }
 }
 
+/**
+ * Builds the plan and reports it, in whichever of the three shapes was asked for: the workflow
+ * matrix, a single package's state, or a table for a human.
+ *
+ * @returns {Promise<void>}
+ */
 async function main() {
     const args = process.argv.slice( 2 );
     const asJSON = args.includes( "--json" );
