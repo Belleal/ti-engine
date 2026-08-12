@@ -3,7 +3,9 @@
 **Audience:** system administrators deploying the **competence** HR appraisal application.
 **Scope:** installing, configuring, running, upgrading, and troubleshooting the app as a container. Application usage (running appraisal cycles, etc.) is out of scope.
 
-> **Package versions this guide targets:** competence `3.16.0`, `@ti-engine/web-framework` `1.18.1`, `@ti-engine/core` `1.7.1`. Container image: `ghcr.io/belleal/ti-engine-competence`.
+> **Package versions this guide targets:** competence `3.16.0`, `@ti-engine/web-framework` `1.19.0`, `@ti-engine/core` `1.8.0`. Container image: `ghcr.io/belleal/ti-engine-competence`.
+>
+> `core` 1.8.0 raises the framework's own Redis floor to 6.0 (`ioredis` 6 defaults to the RESP3 protocol). This guide already requires Redis Stack or Redis 8+ for the JSON module, so nothing here changes.
 
 ---
 

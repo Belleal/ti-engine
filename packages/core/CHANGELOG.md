@@ -2,6 +2,16 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.8.0
+
+`ioredis` 6 makes RESP3 its default wire protocol. The framework does not set the `protocol` option, so this changes how every `core` connection talks to Redis without a line of framework code changing — and the suite here never touches a live Redis, so a green test run says nothing about it either way. It was checked against a real server rather than assumed: for every command the framework issues — `hgetall`, `smembers`, `hget`, `get`, `brpop`, the same commands through the generic `call()` path used for RedisJSON, and again inside `multi` — RESP3 and RESP2 return **identical** JavaScript values, because `ioredis` maps the new protocol's map and set types back to the objects and arrays it always returned. No consumer code changes.
+
+The cost is the Redis floor. `ioredis` negotiates with a `HELLO 3` on connect and **throws** when the server cannot answer it — there is no fallback to RESP2 — so a server older than 6.0 now fails to connect instead of working as it did before.
+
+* build(deps)!: update `ioredis` from ^5.11.1 to ^6.0.0. **BREAKING**: raises the minimum Redis version from 5.0.14 to **6.0**, because `ioredis` 6 defaults to RESP3 and refuses a server that cannot negotiate it. A deployment pinned to Redis 5 must upgrade the server; a consumer that needs the old wire protocol for another reason can pass `protocol: 2` in its Redis options
+* docs(core): correct the documented Redis prerequisite from 5.0.14 to 6.0 and record why the floor moved
+* build(release): bump package version from `1.7.2` to `1.8.0`
+
 ## Version 1.7.2
 
 No functional change — the framework code is what `1.7.1` shipped. The version exists to exercise the automated npm publish that replaced the release-triggered workflow, and to prove this package's own trusted publisher configuration on npmjs.com: OIDC trust is granted per package, so it is only ever validated by an actual publish of that package.

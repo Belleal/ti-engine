@@ -2,6 +2,12 @@
 
 This document contains the list of changes made to the ti-engine monorepo. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.2.7
+
+* build(deps-dev): update `@eslint/json` from ^1.0.0 to ^2.0.1. Lint-only and confined to the workspace root — no package ships it, and `eslint .` reports the same 25 pre-existing warnings and no errors on the major
+* docs(skill): re-sync the repository skill — the root and `core` versions it quoted were a release behind, and it described no publishing process at all now that one exists
+* docs(competence): correct the version targets in `INSTALL.md`, which still named `web-framework` `1.18.1` and `core` `1.7.1`, and note that `core` 1.8.0's new Redis 6.0 floor is already covered by that guide's stricter Redis Stack / Redis 8+ requirement. Documentation only — no competence code changed, so its version is untouched rather than minting a container image tag for a prose fix
+
 ## Version 1.2.6
 
 The Dependabot change in 1.2.5 rested on a wrong reading and made things worse. Its claim that no package's
