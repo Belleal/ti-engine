@@ -22,6 +22,10 @@ than from a person remembering to cut a release.
 * feat(ci): add `.github/scripts/npm-publish-plan.js` (registry diff, publishable-package allowlist, job-summary
   table) and `.github/scripts/changelog-section.js` (locates a version's section by heading, since the changelogs in
   this repository are not consistently ordered — `core` lists newest first, `web-content` oldest first)
+* feat(ci): a version bump without a matching `## Version X.Y.Z` changelog section fails the run before anything is
+  published. The release notes are built from that section, and the plan job is the last point at which failing is
+  free — after `npm publish` the version is permanent, so the release step there falls back to a pointer at the
+  changelog rather than abandoning the tag over an authoring gap
 * refactor(ci)!: the release-triggered publish is gone. `core` no longer has two publish paths that would race to a
   `403` on the second, and publishing a version is now a `version` bump rather than a GitHub release
 * fix(ci): Dependabot was scanning `/core` and `/tester` — paths from before everything moved under `packages/` — so

@@ -105,10 +105,22 @@ jobs:
           node-version: 24
           package-manager-cache: false
           registry-url: https://registry.npmjs.org
-      # Trusted publishing needs npm >= 11.5.1, which is newer than the npm bundled with some Node
-      # 24 releases. Tracking the current npm is the right call for the tool that talks to npm.
-      - name: Ensure npm can do trusted publishing
-        run: npm install --global npm@latest
+      # Trusted publishing needs npm >= 11.5.1, and the npm bundled with Node 24 is already well
+      # past it (24.19.0 ships 11.17.0). So nothing is installed here: a global install of a
+      # floating `npm@latest` in the job that holds the publishing identity is an unpinned
+      # dependency bought for no benefit, and pinning it instead just goes stale. Assert the floor
+      # rather than reaching for it, so a regression in the runner image fails here — with the
+      # reason — instead of at `npm publish` with an authentication error.
+      - name: Check npm meets the trusted-publishing floor
+        env:
+          REQUIRED: "11.5.1"
+        run: |
+          actual="$( npm --version )"
+          if [ "$( printf '%s\n%s\n' "$REQUIRED" "$actual" | sort --version-sort | head -n 1 )" != "$REQUIRED" ]; then
+            echo "::error::npm $actual is below the $REQUIRED that trusted publishing requires."
+            exit 1
+          fi
+          echo "npm $actual satisfies the $REQUIRED floor."
 
       # Guards a manual re-run after a partial failure: the registry, not the plan, has the last
       # word on whether this exact version is already out there.

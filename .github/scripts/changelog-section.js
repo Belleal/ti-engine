@@ -11,8 +11,11 @@
  * Usage: node .github/scripts/changelog-section.js <package-directory> <version>
  *
  * A missing file or missing section is reported on stderr and replaced with a one-line fallback
- * body. By the time this runs the version is already on the registry, and a gap in a changelog is
- * not worth failing a release over.
+ * body. This runs after `npm publish`, where the version is already on the registry and failing
+ * would abandon the tag and the release without un-publishing anything — a release carrying a
+ * pointer to the changelog beats no release at all. The gap is caught before it gets that far:
+ * `npm-publish-plan.js` requires a section for every version it plans, in the job that runs before
+ * anything is published, where failing is free and the fix is a changelog edit.
  */
 
 const fs = require( "node:fs" );
@@ -60,6 +63,26 @@ function extractSection( changelog, version ) {
     return body.length > 0 ? body : null;
 }
 
+/**
+ * Reads one version's section out of a package's changelog.
+ *
+ * @param {string} directory - the package directory under `packages/`
+ * @param {string} version - the version whose section to return
+ * @returns {string|null} the section body, or null when the file or the section is missing
+ */
+function readSection( directory, version ) {
+    const changelogPath = path.join( REPOSITORY_ROOT, "packages", directory, "CHANGELOG.md" );
+
+    if ( !fs.existsSync( changelogPath ) ) {
+        return null;
+    }
+
+    return extractSection( fs.readFileSync( changelogPath, "utf8" ), version );
+}
+
+/**
+ * Prints the requested section on stdout, falling back to a pointer at the changelog.
+ */
 function main() {
     const [ directory, version ] = process.argv.slice( 2 );
 
@@ -68,12 +91,7 @@ function main() {
         process.exit( 1 );
     }
 
-    const changelogPath = path.join( REPOSITORY_ROOT, "packages", directory, "CHANGELOG.md" );
-    let section = null;
-
-    if ( fs.existsSync( changelogPath ) ) {
-        section = extractSection( fs.readFileSync( changelogPath, "utf8" ), version );
-    }
+    let section = readSection( directory, version );
 
     if ( section === null ) {
         console.error( `::warning::No "## Version ${ version }" section in packages/${ directory }/CHANGELOG.md.` );
@@ -83,4 +101,10 @@ function main() {
     console.log( section );
 }
 
-main();
+module.exports.extractSection = extractSection;
+module.exports.readSection = readSection;
+
+// Only when run as a command — the planner requires this module for `readSection`.
+if ( require.main === module ) {
+    main();
+}

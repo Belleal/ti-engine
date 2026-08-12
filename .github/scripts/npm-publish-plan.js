@@ -20,6 +20,7 @@
 
 const fs = require( "node:fs" );
 const path = require( "node:path" );
+const { readSection } = require( "./changelog-section.js" );
 
 /**
  * The packages this repository publishes to npm, in dependency order — a dependent is never
@@ -207,6 +208,20 @@ async function main() {
     }
 
     const toPublish = plan.filter( entry => !entry.published );
+
+    // Every version that is about to be published needs the changelog section that becomes its
+    // release body. Checked here, before anything is published, because this is the last point at
+    // which failing costs nothing: after `npm publish` the version is permanent, and refusing to
+    // tag it would only add a missing release to a missing changelog entry.
+    const undocumented = toPublish.filter( entry => readSection( entry.directory, entry.version ) === null );
+    if ( undocumented.length > 0 ) {
+        const names = undocumented.map( entry => `${ entry.name }@${ entry.version }` ).join( ", " );
+        throw new Error(
+            `No "## Version" section for ${ names }. Add it to the package's CHANGELOG.md — the ` +
+            `release notes are built from it, and a version bump without one is an unfinished release.`
+        );
+    }
+
     writeStepOutputs( {
         packages: JSON.stringify( toPublish ),
         any: String( toPublish.length > 0 )
