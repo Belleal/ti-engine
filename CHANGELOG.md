@@ -19,6 +19,14 @@ than from a person remembering to cut a release.
   publisher per package on npmjs.com keyed to the `npm-publish.yml` filename
 * feat(ci): tag each published version `<package>-v<version>` and open a GitHub release carrying that version's
   `CHANGELOG.md` section, matching the `competence-v*` tag convention `cd.yml` already keys on
+* feat(ci): treat a release as finished only when the version is on the registry **and** carries its tag. Publishing
+  and tagging are two systems and only the npm half is irreversible, so a run that published and then failed before
+  tagging would previously leave the package permanently untagged — every later run saw it on the registry and skipped
+  it. The plan is now computed from both, so the next run finishes what the last one started and still publishes
+  nothing twice
+* build(ci)!: pin every action in every workflow to a full commit SHA with the version as a trailing comment. A
+  version tag is mutable, and `npm-publish.yml` runs actions in a job holding `id-token: write` and `contents: write`.
+  Dependabot's new `github-actions` ecosystem keeps the pins current
 * feat(ci): add `.github/scripts/npm-publish-plan.js` (registry diff, publishable-package allowlist, job-summary
   table) and `.github/scripts/changelog-section.js` (locates a version's section by heading, since the changelogs in
   this repository are not consistently ordered — `core` lists newest first, `web-content` oldest first)

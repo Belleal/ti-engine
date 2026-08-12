@@ -20,6 +20,7 @@
 
 const fs = require( "node:fs" );
 const path = require( "node:path" );
+const { execFileSync } = require( "node:child_process" );
 const { readSection } = require( "./changelog-section.js" );
 
 /**
@@ -99,24 +100,65 @@ async function fetchPublishedVersions( packageName ) {
 }
 
 /**
+ * Reads the tags present in the checkout.
+ *
+ * Publishing and tagging are two steps against two different systems, and the npm half is the
+ * irreversible one. Knowing which versions are already tagged is what lets a re-run finish a
+ * release that published but did not get as far as its tag, instead of skipping it forever on the
+ * grounds that the registry already has it.
+ *
+ * @returns {Set<string>}
+ */
+function readExistingTags() {
+    try {
+        const output = execFileSync( "git", [ "tag", "--list" ], { cwd: REPOSITORY_ROOT, encoding: "utf8" } );
+        return new Set( output.split( /\r?\n/ ).map( line => line.trim() ).filter( Boolean ) );
+    } catch ( error ) {
+        // Refuse to guess. An empty set here would read as "nothing is tagged" and re-tag versions
+        // that are already released; the workflow checks out with `fetch-tags`, so a failure means
+        // something is wrong that a human should see.
+        throw new Error( `Could not read the existing tags: ${ error.message }`, { cause: error } );
+    }
+}
+
+/**
  * Builds the plan entry for a single package.
  *
  * @param {string} directory - the package directory under `packages/`
+ * @param {Set<string>} existingTags - the tags present in the checkout
  * @returns {Promise<Object>}
  */
-async function planPackage( directory ) {
+async function planPackage( directory, existingTags ) {
     const { name, version } = readPackageManifest( directory );
     const registry = await fetchPublishedVersions( name );
+    const tag = `${ directory }-v${ version }`;
 
     return {
         directory: directory,
         name: name,
         version: version,
-        tag: `${ directory }-v${ version }`,
+        tag: tag,
         latest: ( registry && registry.latest ) || "—",
         published: registry !== null && registry.versions.includes( version ),
+        tagged: existingTags.has( tag ),
         neverPublished: registry === null
     };
+}
+
+/**
+ * Describes what a plan entry still needs.
+ *
+ * @param {Object} entry
+ * @returns {string}
+ */
+function outstandingWork( entry ) {
+    if ( entry.neverPublished ) {
+        return "never published";
+    }
+    if ( !entry.published ) {
+        return "publish";
+    }
+    return entry.tagged ? "up to date" : "tag + release";
 }
 
 /**
@@ -142,12 +184,14 @@ function writeStepOutputs( outputs ) {
  */
 function reportPlan( plan ) {
     const rows = plan.map( entry => {
-        const action = entry.neverPublished ? "**never published**" : ( entry.published ? "up to date" : "**publish**" );
-        return `| \`${ entry.name }\` | ${ entry.version } | ${ entry.latest } | ${ action } |`;
+        const work = outstandingWork( entry );
+        const action = ( work === "up to date" ) ? work : `**${ work }**`;
+        const tagged = entry.tagged ? entry.tag : "—";
+        return `| \`${ entry.name }\` | ${ entry.version } | ${ entry.latest } | ${ tagged } | ${ action } |`;
     } );
     const table = [
-        "| Package | Local | On npm | Action |",
-        "| --- | --- | --- | --- |",
+        "| Package | Local | On npm | Tag | Action |",
+        "| --- | --- | --- | --- | --- |",
         ...rows
     ].join( "\n" );
 
@@ -170,9 +214,10 @@ async function main() {
         throw new Error( `"${ singleDirectory }" is not a publishable package. Publishable: ${ PUBLISHABLE_PACKAGES.join( ", " ) }.` );
     }
 
+    const existingTags = readExistingTags();
     const plan = [];
     for ( const directory of ( singleDirectory ? [ singleDirectory ] : PUBLISHABLE_PACKAGES ) ) {
-        plan.push( await planPackage( directory ) );
+        plan.push( await planPackage( directory, existingTags ) );
     }
 
     if ( singleDirectory ) {
@@ -207,13 +252,18 @@ async function main() {
         );
     }
 
-    const toPublish = plan.filter( entry => !entry.published );
+    // A release is a version on the registry *and* the tag and GitHub release that point at the
+    // commit it came from. Those are two systems and only the npm half is irreversible, so a
+    // version that published but never got its tag is unfinished, not done: it stays in the plan
+    // until both halves exist. Without this a run that died between the two steps would leave the
+    // package permanently untagged, since every later run would see it on the registry and skip it.
+    const outstanding = plan.filter( entry => !entry.published || !entry.tagged );
 
-    // Every version that is about to be published needs the changelog section that becomes its
-    // release body. Checked here, before anything is published, because this is the last point at
-    // which failing costs nothing: after `npm publish` the version is permanent, and refusing to
-    // tag it would only add a missing release to a missing changelog entry.
-    const undocumented = toPublish.filter( entry => readSection( entry.directory, entry.version ) === null );
+    // Every version in the plan needs the changelog section that becomes its release body. Checked
+    // here, before anything is published, because this is the last point at which failing costs
+    // nothing: after `npm publish` the version is permanent, and refusing to tag it would only add
+    // a missing release to a missing changelog entry.
+    const undocumented = outstanding.filter( entry => readSection( entry.directory, entry.version ) === null );
     if ( undocumented.length > 0 ) {
         const names = undocumented.map( entry => `${ entry.name }@${ entry.version }` ).join( ", " );
         throw new Error(
@@ -223,8 +273,8 @@ async function main() {
     }
 
     writeStepOutputs( {
-        packages: JSON.stringify( toPublish ),
-        any: String( toPublish.length > 0 )
+        packages: JSON.stringify( outstanding ),
+        any: String( outstanding.length > 0 )
     } );
 }
 

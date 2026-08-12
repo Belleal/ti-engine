@@ -5,6 +5,10 @@
 # and a merge that bumps two packages publishes both. Bumping `version` in a package's package.json
 # (with its CHANGELOG.md section) is the whole release ritual; this workflow is the rest of it.
 #
+# A release is the version on the registry AND the tag and GitHub release pointing at the commit it
+# came from. Those are two systems and only the npm half cannot be undone, so the plan is computed
+# from both: a version that published but never got its tag stays in the plan until it has one.
+#
 # Authentication is npm trusted publishing (OIDC): no NPM_TOKEN, and provenance attestations are
 # generated automatically because this is a public repository. Each package needs a trusted
 # publisher configured once on npmjs.com — Settings -> Trusted Publisher -> GitHub Actions, with
@@ -16,8 +20,8 @@ name: Publish to npm
 on:
   push:
     branches: [ master ]
-  # Lets a run that failed after a partial publish be retried by hand; the plan is recomputed from
-  # the registry, so the packages that did land are simply skipped.
+  # Lets a failed run be retried by hand. The plan is recomputed from the registry and the tags, so
+  # a retry re-publishes nothing that already landed and finishes anything left half-released.
   workflow_dispatch:
 
 concurrency:
@@ -38,10 +42,14 @@ jobs:
       packages: ${{ steps.plan.outputs.packages }}
       any: ${{ steps.plan.outputs.any }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
+          # The planner reads the existing tags to tell a finished release from one that published
+          # but never got tagged. Checkout does not fetch tags by default, and an empty tag list
+          # would read as "nothing is released yet".
+          fetch-tags: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           package-manager-cache: false
@@ -58,10 +66,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           package-manager-cache: false
@@ -97,10 +105,10 @@ jobs:
       # This job holds the publishing identity and a write token, so it runs no third-party code:
       # none of these packages define a `prepare`/`prepack` script, and `npm publish` only packs the
       # directory it is run in, so there is deliberately no `npm install` step here.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           package-manager-cache: false

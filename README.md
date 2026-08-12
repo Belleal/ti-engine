@@ -45,6 +45,11 @@ three, in dependency order. Each published version also gets a `<package>-v<vers
 whose body is that changelog section. `competence` is deliberately excluded: it is the application, and it ships as a
 container image through `cd.yml`.
 
+A release counts as finished only once the version is on the registry *and* carries its tag, so a run that published
+but failed before tagging is picked up and completed by the next one rather than left half-released — a re-run
+publishes nothing twice. A version bump with no matching changelog section fails the run **before** anything is
+published, since the release notes are built from that section.
+
 Publishing authenticates with [npm trusted publishing](https://docs.npmjs.com/trusted-publishers) over OIDC rather
 than a token, so there is no npm secret in this repository and every release carries a provenance attestation. Each
 package needs its trusted publisher configured once on npmjs.com, under *Settings → Trusted Publisher → GitHub
