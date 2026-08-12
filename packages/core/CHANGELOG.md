@@ -2,10 +2,18 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
-## Version 1.8.1
+## Version 1.9.0
 
-Presentation only — no framework code changed. The npm page is the first thing a prospective user sees, and it was working against the package.
+The package now ships TypeScript declarations, generated from the JSDoc that was already in the sources. Nothing is compiled — `emitDeclarationOnly` means the `.js` files ship exactly as written and only `.d.ts` files are added, so this is additive for every existing consumer and the package stays CommonJS.
 
+Two source defects had to be fixed to get there, and both were real rather than tooling quirks. `tools.enum` assigned straight onto `module.exports` emitted `export declare var enum`, and `enum` is a reserved word — the declaration would not parse. The `TiEnum` typedef used `function( (number|string), [string] ): (string|undefined)`, whose JSDoc-optional bracket inside a function type TypeScript cannot read; it silently produced three unnamed `Function` members. Both are corrected at the source. **The runtime API is unchanged** — `tools.enum( ... )` is still `tools.enum( ... )`.
+
+The declarations were verified by type-checking a real consumer project against the built package, not by trusting a zero exit code: four subpath imports resolve, a subclass with a typed `onStart()` checks, and deliberately wrong code is *rejected* — a wrong return type, a missing argument, an unknown export and a bad override are all caught. Declarations that type-check but assert nothing would have passed the first test and failed this one.
+
+* feat(types): ship generated `.d.ts` declarations for every public entry point, wired through per-subpath `types` conditions in the `exports` map plus a top-level `types` field for older resolvers
+* feat(build): add `npm run build:types` (`tsconfig.types.json`). The output is committed rather than generated at publish time, because the publish job deliberately installs nothing and runs no lifecycle scripts; CI regenerates and fails if the committed declarations have drifted from the sources
+* fix(tools)!: `enum` is now declared as a named constant and exported as `module.exports.enum = createEnum`. **Not a breaking runtime change** — the export name, arguments and behaviour are identical — but it changes the emitted declaration from invalid syntax to `export { createEnum as enum }`
+* fix(types): correct the `TiEnum` typedef's function-property annotations, which TypeScript could not parse and which therefore described `name`, `description` and `contains` as unnamed `Function` members
 * fix(docs): remove the CodeRabbit badge, which rendered as `provider or repo not found` — an error message sitting in the first line of the package page
 * fix(docs): remove the `npms.io` popularity and quality badges. They were not broken; they worked, and published `popularity 4%` and `quality 47%` about this package on its own front page. Popularity is a restatement of the download count, which no niche framework wins, and there is no reason to advertise either
 * feat(docs): show `npm version`, monthly downloads, the supported Node range, the licence and CI status instead — facts that stay true on their own, sourced from npm and GitHub rather than a third-party scoring service. Provenance needs no badge: npm renders it natively beside the version

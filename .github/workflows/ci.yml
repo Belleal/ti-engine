@@ -29,6 +29,19 @@ jobs:
         run: npm test --workspaces --if-present
       - name: JSON config validation
         run: npm run test:json -w @ti-engine/competence
+      # core's published type declarations are generated from its JSDoc and committed, because the
+      # publish job deliberately installs nothing and runs no lifecycle scripts. Committed generated
+      # output drifts the moment someone edits a source and forgets to regenerate, so regenerate here
+      # and fail if the result differs from what is in the tree.
+      - name: Type declarations are current
+        run: |
+          npm run build:types -w @ti-engine/core
+          if [ -n "$( git status --porcelain -- packages/core/types )" ]; then
+            echo "::error::packages/core/types is stale. Run 'npm run build:types -w @ti-engine/core' and commit the result."
+            git status --short -- packages/core/types
+            exit 1
+          fi
+          echo "Type declarations match the sources."
 
   docker-build:
     runs-on: ubuntu-latest
