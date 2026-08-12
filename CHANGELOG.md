@@ -24,6 +24,12 @@ than from a person remembering to cut a release.
   this repository are not consistently ordered — `core` lists newest first, `web-content` oldest first)
 * refactor(ci)!: the release-triggered publish is gone. `core` no longer has two publish paths that would race to a
   `403` on the second, and publishing a version is now a `version` bump rather than a GitHub release
+* fix(ci): Dependabot was scanning `/core` and `/tester` — paths from before everything moved under `packages/` — so
+  two of its three configured directories had never matched anything and no package's dependencies were being
+  watched. It now covers `/` and the `/packages/*` glob, which also picks up a new package without another edit here
+* feat(ci): group Dependabot's minor and patch updates so five daily-scanned manifests do not become five times the
+  pull requests, leaving majors to arrive on their own; add the `github-actions` ecosystem, since the workflows pin
+  their actions to major tags and nothing was watching those
 * build(release): bump package version from `1.2.4` to `1.2.5`
 
 ## Version 1.2.4

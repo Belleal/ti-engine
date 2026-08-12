@@ -1,19 +1,39 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+# Dependabot version updates. For all configuration options see:
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
 version: 2
 updates:
+  # `directories` accepts globs, so one entry covers the workspace root and every package, and a new
+  # package under `packages/` is picked up without editing this file. The root entry is still needed
+  # alongside it: with npm workspaces Dependabot updates the manifest in the directory it is pointed
+  # at, so `/packages/*` reaches the packages' dependencies and `/` reaches the root devDependencies
+  # (eslint, prettier). The previous configuration pointed at `/core` and `/tester` — paths from
+  # before everything moved under `packages/` — so neither of those was ever actually scanned.
   - package-ecosystem: "npm"
+    directories:
+      - "/"
+      - "/packages/*"
+    schedule:
+      interval: "daily"
+    groups:
+      # Five manifests scanned daily is a lot of individual pull requests. Bundling the routine
+      # moves keeps that manageable and leaves majors on their own, which is where the changelog is
+      # worth reading anyway — `core` 1.7.0 dropping dotenvx is the kind of thing that should not
+      # arrive in a batch.
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # The workflows pin their actions to major tags, so this is what surfaces the next major of
+  # checkout/setup-node/build-push and friends. Weekly: they move far more slowly than npm packages.
+  - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
-  - package-ecosystem: "npm"
-    directory: "/core"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "npm"
-    directory: "/tester"
-    schedule:
-      interval: "daily"
+      interval: "weekly"
+    groups:
+      actions:
+        patterns:
+          - "*"
