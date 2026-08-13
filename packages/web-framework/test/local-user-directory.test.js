@@ -60,6 +60,39 @@ describe( "localUserDirectory.parseRecords", () => {
         assert.match( result.problems[ 0 ], /username/ );
     } );
 
+    // '__proto__', 'constructor', and 'prototype' collide with property names JavaScript's own object model
+    // treats specially. `cache.instance.setJSON` (the real, non-test-double path `reconcile` writes through)
+    // cannot represent a '__proto__'-keyed record without corrupting the whole stored directory — see the
+    // RESERVED_USERNAMES comment in local-user-directory.js for the mechanism, and the pinning test against
+    // the real serializer in local-user-directory.store.test.js. The other two are rejected alongside it for
+    // consistency. Rejecting all three here, at load, means the operator sees a clear, specific reason instead
+    // of a silently corrupted directory the first time someone is (deliberately or accidentally) named one of
+    // them — the message must name the reserved name and say plainly it cannot be stored, not read like a
+    // generic "invalid username".
+    it( "drops a record whose username is the reserved name '__proto__', naming it as unstorable rather than a typo", () => {
+        const result = directory.parseRecords( [ validEntry( { username: "__proto__" } ) ] );
+        assert.equal( result.records.length, 0 );
+        assert.equal( result.problems.length, 1 );
+        assert.match( result.problems[ 0 ], /__proto__/ );
+        assert.match( result.problems[ 0 ], /cannot be stored/i );
+    } );
+
+    it( "drops a record whose username is the reserved name 'constructor', naming it as unstorable rather than a typo", () => {
+        const result = directory.parseRecords( [ validEntry( { username: "constructor" } ) ] );
+        assert.equal( result.records.length, 0 );
+        assert.equal( result.problems.length, 1 );
+        assert.match( result.problems[ 0 ], /constructor/ );
+        assert.match( result.problems[ 0 ], /cannot be stored/i );
+    } );
+
+    it( "drops a record whose username is the reserved name 'prototype', naming it as unstorable rather than a typo", () => {
+        const result = directory.parseRecords( [ validEntry( { username: "prototype" } ) ] );
+        assert.equal( result.records.length, 0 );
+        assert.equal( result.problems.length, 1 );
+        assert.match( result.problems[ 0 ], /prototype/ );
+        assert.match( result.problems[ 0 ], /cannot be stored/i );
+    } );
+
     it( "drops a record with no email — the field an application resolves identity by", () => {
         const result = directory.parseRecords( [ validEntry( { email: undefined } ) ] );
         assert.equal( result.records.length, 0 );

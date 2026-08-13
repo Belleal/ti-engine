@@ -150,6 +150,31 @@ function verifyPassword( password, encoded ) {
         .catch( () => false );
 }
 
+// Usernames that JavaScript's object model treats specially, rejected here because the storage layer this
+// module writes through cannot represent all of them safely — reusing the exact trio ('__proto__',
+// 'constructor', 'prototype') this codebase already treats as reserved at every other prototype-pollution
+// boundary (see the CA-91 employee field-path guards in packages/competence). Verified empirically per name,
+// not assumed uniformly:
+// - '__proto__' is the one that actually corrupts storage. `cache.instance.setJSON` serializes through
+//   `tools.stringifyJSON` — `JSON.stringify( _.toPlainObject( decycle( value ) ) )` in
+//   @ti-engine/core/utils/tools.js. `decycle`'s object-copy branch builds each replica with `newItem = {};
+//   newItem[ name ] = derez( ... )`; for `name === "__proto__"` that assignment invokes the inherited accessor
+//   setter instead of creating an own key, repointing the replica's own prototype to the record instead of
+//   storing it under a key. `_.toPlainObject` then flattens that prototype chain back into own keys, so the
+//   record's fields get spliced into the top level of the *entire* stored directory rather than merely
+//   dropped — pinned against the real serializer by a test in local-user-directory.store.test.js.
+// - 'constructor' and 'prototype' round-trip through that same pipeline correctly (verified the same way).
+//   'constructor' is hazardous only for an *unguarded read* (`stored.constructor` resolves to the inherited
+//   Object constructor function when absent) — exactly what the hasOwnProperty guards in reconcile/
+//   findByUsername below exist to prevent — and 'prototype' collides with nothing in a plain object's
+//   prototype chain at all. Both are rejected anyway so this stays the same trio as everywhere else in the
+//   codebase, rather than a bespoke subset that has to be re-derived from this file's current implementation
+//   details every time something downstream changes.
+// Do not "simplify" this back down to just '__proto__' on the assumption that only it is provably broken
+// today — re-verify all three empirically first, the same way this comment's claims were verified, before
+// removing any of them (including after @ti-engine/core's decycle/stringifyJSON pipeline is eventually fixed).
+const RESERVED_USERNAMES = new Set( [ "__proto__", "constructor", "prototype" ] );
+
 /**
  * Validates raw file content into records, reporting why any entry was excluded. Never throws: a malformed row is
  * data, not a crash, so one bad entry cannot take an instance down.
@@ -178,6 +203,14 @@ function parseRecords( raw ) {
 
         if ( !username ) {
             problems.push( `entry ${ index } has no username` );
+            return;
+        }
+        // See the RESERVED_USERNAMES comment above: the storage layer cannot represent one of these three
+        // names without corrupting the directory (confirmed for '__proto__'; the other two are rejected for
+        // consistency), so a record using one is refused here — at load, where an operator sees why — rather
+        // than accepted and silently corrupted or lost the first time it is actually written.
+        if ( RESERVED_USERNAMES.has( username ) ) {
+            problems.push( `user '${ username }' cannot be stored — '${ username }' is a reserved name that collides with JavaScript's object model, not a typo` );
             return;
         }
         if ( !email ) {
