@@ -8,6 +8,7 @@
 
 const crypto = require( "node:crypto" );
 const tools = require( "@ti-engine/core/tools" );
+const cache = require( "@ti-engine/core/cache" );
 
 /**
  * @typedef {Object} LocalUserRecord
@@ -20,6 +21,8 @@ const tools = require( "@ti-engine/core/tools" );
  */
 
 const ALGORITHM = "scrypt";
+
+const CACHE_KEY = "ti:web:auth:local-users";
 
 // scrypt at N=16384, r=8 needs 128 * N * r = 16 MiB, comfortably inside node's 32 MiB default `maxmem`.
 const HASH_DEFAULTS = Object.freeze( { N: 16384, r: 8, p: 1, saltBytes: 16, keyBytes: 64 } );
@@ -211,4 +214,76 @@ function parseRecords( raw ) {
     return { records: records, problems: problems };
 }
 
-module.exports = { ALGORITHM, HASH_DEFAULTS, hashPassword, verifyPassword, parseRecords };
+/**
+ * Reads the whole stored directory, or an empty object when it has never been written.
+ * <br/>
+ * `cache.instance.getJSON` queries the `$` root, and RedisJSON's JSONPath contract wraps that result in a
+ * single-element array on a hit — mirrored deliberately by the in-memory test double (see its own doc comment)
+ * and already unwrapped once in this package by `ConfigStore#readJSON`. The same unwrap happens here, otherwise
+ * every read after the first write would misread a populated directory as empty.
+ * <br/>
+ * A genuine Redis failure is deliberately left to propagate rather than caught here: swallowing it into `{}`
+ * would make an outage indistinguishable from "no users configured", silently failing every local login as
+ * "no such user" instead of surfacing the outage to the caller.
+ *
+ * @returns {Promise<Object>}
+ */
+function readStored() {
+    return cache.instance.getJSON( CACHE_KEY ).then( ( result ) => {
+        const stored = Array.isArray( result ) ? ( result[ 0 ] ?? null ) : ( result ?? null );
+        return ( stored && typeof stored === "object" && !Array.isArray( stored ) ) ? stored : {};
+    } );
+}
+
+/**
+ * Writes the records as the complete directory, keyed by username, and reports what changed.
+ * <br/>
+ * The whole set is written rather than patched because the file is the source of truth: a username absent from
+ * `records` must disappear, which is what makes revocation-by-file-edit work. `@ti-engine/core/cache` exposes no
+ * delete, so a whole-object write is also the only way to remove a key.
+ *
+ * @method
+ * @param {LocalUserRecord[]} records
+ * @returns {Promise<{added: string[], updated: string[], removed: string[]}>}
+ * @public
+ */
+function reconcile( records ) {
+    const incoming = {};
+    ( Array.isArray( records ) ? records : [] ).forEach( ( record ) => {
+        incoming[ record.username ] = record;
+    } );
+
+    return readStored().then( ( stored ) => {
+        const added = [];
+        const updated = [];
+        Object.keys( incoming ).forEach( ( username ) => {
+            if ( !stored[ username ] ) {
+                added.push( username );
+            } else if ( JSON.stringify( stored[ username ] ) !== JSON.stringify( incoming[ username ] ) ) {
+                updated.push( username );
+            }
+        } );
+        const removed = Object.keys( stored ).filter( ( username ) => !incoming[ username ] );
+
+        return cache.instance.setJSON( CACHE_KEY, incoming ).then( () => {
+            return { added: added, updated: updated, removed: removed };
+        } );
+    } );
+}
+
+/**
+ * Looks a user up by exact username.
+ *
+ * @method
+ * @param {string} username
+ * @returns {Promise<LocalUserRecord|null>}
+ * @public
+ */
+function findByUsername( username ) {
+    if ( typeof username !== "string" || username.length === 0 ) {
+        return Promise.resolve( null );
+    }
+    return readStored().then( ( stored ) => stored[ username ] || null );
+}
+
+module.exports = { ALGORITHM, CACHE_KEY, HASH_DEFAULTS, hashPassword, verifyPassword, parseRecords, reconcile, findByUsername };

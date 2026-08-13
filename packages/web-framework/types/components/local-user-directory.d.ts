@@ -1,5 +1,6 @@
 declare const _exports: {
     ALGORITHM: string;
+    CACHE_KEY: string;
     HASH_DEFAULTS: Readonly<{
         N: 16384;
         r: 8;
@@ -10,6 +11,8 @@ declare const _exports: {
     hashPassword: typeof hashPassword;
     verifyPassword: typeof verifyPassword;
     parseRecords: typeof parseRecords;
+    reconcile: typeof reconcile;
+    findByUsername: typeof findByUsername;
 };
 export = _exports;
 export type LocalUserRecord = {
@@ -57,3 +60,29 @@ declare function parseRecords(raw: any): {
     records: LocalUserRecord[];
     problems: string[];
 };
+/**
+ * Writes the records as the complete directory, keyed by username, and reports what changed.
+ * <br/>
+ * The whole set is written rather than patched because the file is the source of truth: a username absent from
+ * `records` must disappear, which is what makes revocation-by-file-edit work. `@ti-engine/core/cache` exposes no
+ * delete, so a whole-object write is also the only way to remove a key.
+ *
+ * @method
+ * @param {LocalUserRecord[]} records
+ * @returns {Promise<{added: string[], updated: string[], removed: string[]}>}
+ * @public
+ */
+declare function reconcile(records: LocalUserRecord[]): Promise<{
+    added: string[];
+    updated: string[];
+    removed: string[];
+}>;
+/**
+ * Looks a user up by exact username.
+ *
+ * @method
+ * @param {string} username
+ * @returns {Promise<LocalUserRecord|null>}
+ * @public
+ */
+declare function findByUsername(username: string): Promise<LocalUserRecord | null>;
