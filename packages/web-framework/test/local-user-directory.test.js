@@ -13,12 +13,17 @@ const directory = require( "#local-user-directory" );
 // Obvious placeholder — never a realistic credential.
 const PLACEHOLDER_PASSWORD = "not-a-real-password";
 
+// Structural placeholder only — corresponds to no password. Salt decodes to 16 repeats-of-4 filler bytes
+// ("salt" x4) and key to 64 filler bytes ("hash" x16), chosen only to clear decodeHash's minimum lengths
+// (>= 8 salt bytes, >= 32 key bytes) with N/r/p left at the ordinary defaults.
+const PLACEHOLDER_HASH = "scrypt$16384$8$1$c2FsdHNhbHRzYWx0c2FsdA==$aGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaA==";
+
 function validEntry( overrides = {} ) {
     return Object.assign( {
         username: "someone",
         email: "someone@example.com",
         name: "Some One",
-        passwordHash: "scrypt$16384$8$1$c2FsdA==$aGFzaA=="
+        passwordHash: PLACEHOLDER_HASH
     }, overrides );
 }
 
@@ -73,6 +78,35 @@ describe( "localUserDirectory.parseRecords", () => {
         assert.match( result.problems[ 0 ], /passwordHash/ );
     } );
 
+    it( "drops a record whose passwordHash key material is too short to trust, even though it decodes cleanly", () => {
+        // A truncated copy-paste of the 88-character base64 key still decodes without error — Buffer.from()
+        // shortens rather than throwing on incomplete base64 — so only a minimum-length check catches it.
+        // This 4-byte-salt/4-byte-key hash is the old fixture value, from before this check existed.
+        const result = directory.parseRecords( [ validEntry( { passwordHash: "scrypt$16384$8$1$c2FsdA==$aGFzaA==" } ) ] );
+        assert.equal( result.records.length, 0 );
+        assert.match( result.problems[ 0 ], /passwordHash/ );
+    } );
+
+    it( "drops a record whose passwordHash requests a non-power-of-two N", () => {
+        // crypto.scrypt requires N to be a power of two. Left unchecked, this parses cleanly and then fails
+        // every verifyPassword call forever — ERR_CRYPTO_INVALID_SCRYPT_PARAMS is swallowed to `false` by its
+        // `.catch()` — a permanent, silent lockout with nothing reported anywhere.
+        const result = directory.parseRecords( [ validEntry( {
+            passwordHash: "scrypt$3$8$1$MTIzNDU2NzgxMjM0NTY3OA==$MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNDU2NzgxMjM0NTY3OA=="
+        } ) ] );
+        assert.equal( result.records.length, 0 );
+        assert.match( result.problems[ 0 ], /passwordHash/ );
+    } );
+
+    it( "drops a record whose passwordHash requests an excessive parallelization cost p", () => {
+        // Same salt/key as PLACEHOLDER_HASH, only p changed, so this isolates the p cap from the length checks.
+        const result = directory.parseRecords( [ validEntry( {
+            passwordHash: "scrypt$16384$8$17$c2FsdHNhbHRzYWx0c2FsdA==$aGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaA=="
+        } ) ] );
+        assert.equal( result.records.length, 0 );
+        assert.match( result.problems[ 0 ], /passwordHash/ );
+    } );
+
     it( "reports a duplicate username instead of silently overwriting", () => {
         const result = directory.parseRecords( [ validEntry(), validEntry( { email: "other@example.com" } ) ] );
         assert.equal( result.records.length, 1, "only the first occurrence is kept" );
@@ -112,6 +146,20 @@ describe( "localUserDirectory hashing", () => {
         assert.equal( await directory.verifyPassword( "something-else", encoded ), false );
     } );
 
+    it( "returns a Promise and keeps the event loop free while the key is derived", async () => {
+        const encoded = directory.hashPassword( PLACEHOLDER_PASSWORD );
+        let immediateFired = false;
+        setImmediate( () => { immediateFired = true; } );
+        const pending = directory.verifyPassword( PLACEHOLDER_PASSWORD, encoded );
+        assert.ok( pending instanceof Promise, "verifyPassword must return a Promise rather than blocking synchronously" );
+        await pending;
+        // A synchronous scryptSync implementation would occupy the thread for the whole derivation, so this
+        // setImmediate callback — scheduled before the call, and due on the very next event-loop tick — could
+        // not have run until after verifyPassword returned. It having fired by the time we get here proves the
+        // loop stayed free (able to serve other requests) for the ~100ms the real derivation takes.
+        assert.equal( immediateFired, true, "the event loop must stay free during key derivation" );
+    } );
+
     it( "produces a different hash each time, so the salt is genuinely per-call", () => {
         assert.notEqual( directory.hashPassword( PLACEHOLDER_PASSWORD ), directory.hashPassword( PLACEHOLDER_PASSWORD ) );
     } );
@@ -148,6 +196,14 @@ describe( "localUserDirectory hashing", () => {
         const encoded = directory.hashPassword( PLACEHOLDER_PASSWORD );
         assert.equal( await directory.verifyPassword( "", encoded ), false );
         assert.equal( await directory.verifyPassword( undefined, encoded ), false );
+    } );
+
+    it( "throws when asked to hash an empty or non-string password", () => {
+        // hashPassword("") used to mint a hash that verifyPassword can never accept (it refuses empty
+        // passwords), silently provisioning a permanently unusable account. Throwing surfaces the mistake
+        // immediately instead.
+        assert.throws( () => directory.hashPassword( "" ) );
+        assert.throws( () => directory.hashPassword( undefined ) );
     } );
 
 } );

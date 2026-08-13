@@ -24,6 +24,16 @@ const ALGORITHM = "scrypt";
 // scrypt at N=16384, r=8 needs 128 * N * r = 16 MiB, comfortably inside node's 32 MiB default `maxmem`.
 const HASH_DEFAULTS = Object.freeze( { N: 16384, r: 8, p: 1, saltBytes: 16, keyBytes: 64 } );
 
+// Minimums enforced by decodeHash so a truncated or hand-edited record is rejected at load time — where
+// parseRecords can report it — rather than silently authenticating with far less entropy than the encoding
+// implies (e.g. a copy-pasted base64 key cut short: Buffer.from() shortens it instead of throwing).
+const MIN_SALT_BYTES = 8;
+const MIN_KEY_BYTES = 32;
+
+// p multiplies scrypt's CPU cost linearly and sits outside node's `maxmem` guard, so a mistyped value would
+// hog a threadpool slot proportionally with no upper bound otherwise. The default is 1; 16 is ample headroom.
+const MAX_P = 16;
+
 /**
  * Derives a key with scrypt. Asynchronous on purpose: `scryptSync` blocks the event loop for roughly 100 ms at
  * these parameters, which on a login endpoint is a self-inflicted denial of service.
@@ -47,7 +57,9 @@ function deriveKey( password, salt, parameters, keyBytes ) {
 }
 
 /**
- * Splits an encoded hash into its parameters and material, or returns `null` when it is not a recognized encoding.
+ * Splits an encoded hash into its parameters and material, or returns `null` when it is not a recognized
+ * encoding — including a structurally valid one whose cost parameters or material fall outside the minimums
+ * this module enforces (a non-power-of-two `N`, an excessive `p`, or salt/key material too short to trust).
  *
  * @param {string} encoded
  * @returns {{parameters: {N: number, r: number, p: number}, salt: Buffer, key: Buffer}|null}
@@ -64,13 +76,23 @@ function decodeHash( encoded ) {
     const N = Number( rawN );
     const r = Number( rawR );
     const p = Number( rawP );
-    if ( !Number.isInteger( N ) || !Number.isInteger( r ) || !Number.isInteger( p ) || N < 2 || r < 1 || p < 1 ) {
+    if ( !Number.isInteger( N ) || !Number.isInteger( r ) || !Number.isInteger( p ) || N < 2 || r < 1 || p < 1 || p > MAX_P ) {
+        return null;
+    }
+    // crypto.scrypt requires N to be a power of two; anything else throws ERR_CRYPTO_INVALID_SCRYPT_PARAMS at
+    // derive time. verifyPassword's `.catch(() => false)` swallows that into an ordinary "wrong password", so
+    // without this check an operator would see permanent, silent failed logins with nothing reported anywhere.
+    if ( ( N & ( N - 1 ) ) !== 0 ) {
         return null;
     }
     try {
         const salt = Buffer.from( rawSalt, "base64" );
         const key = Buffer.from( rawKey, "base64" );
-        if ( salt.length === 0 || key.length === 0 ) {
+        // Minimum lengths, not just non-empty: the security level of a record must come from policy, not from
+        // whatever happened to survive into the stored string. A truncated key still decodes without error
+        // (Buffer.from() shortens rather than throwing on invalid/incomplete base64), so length is the only
+        // signal left to catch it.
+        if ( salt.length < MIN_SALT_BYTES || key.length < MIN_KEY_BYTES ) {
             return null;
         }
         return { parameters: { N: N, r: r, p: p }, salt: salt, key: key };
@@ -86,9 +108,14 @@ function decodeHash( encoded ) {
  * @method
  * @param {string} password
  * @returns {string} The encoded hash: `scrypt$N$r$p$salt$hash`, base64 salt and key.
+ * @throws {TypeError} If `password` is empty or not a string — `verifyPassword` refuses empty passwords, so
+ *         hashing one here would only mint a hash that can never be logged into.
  * @public
  */
 function hashPassword( password ) {
+    if ( typeof password !== "string" || password.length === 0 ) {
+        throw new TypeError( "hashPassword requires a non-empty string password" );
+    }
     const salt = crypto.randomBytes( HASH_DEFAULTS.saltBytes );
     const parameters = { N: HASH_DEFAULTS.N, r: HASH_DEFAULTS.r, p: HASH_DEFAULTS.p };
     const key = crypto.scryptSync( password, salt, HASH_DEFAULTS.keyBytes, parameters );
@@ -112,6 +139,10 @@ function verifyPassword( password, encoded ) {
         return Promise.resolve( false );
     }
     return deriveKey( password, decoded.salt, decoded.parameters, decoded.key.length )
+        // Compared as base64 strings, not raw Buffers: constantTimeEquals coerces each argument with
+        // `String(x || "")`, which would utf8-decode a key Buffer lossily (through U+FFFD replacement for any
+        // byte sequence that is not valid UTF-8) instead of comparing its bytes — silently breaking the
+        // comparison. Base64 text round-trips through String() exactly, so it stays safe to pass here.
         .then( ( key ) => tools.constantTimeEquals( key.toString( "base64" ), decoded.key.toString( "base64" ) ) )
         .catch( () => false );
 }
@@ -156,6 +187,11 @@ function parseRecords( raw ) {
         }
         // Usernames are matched exactly, so a repeat is a genuine duplicate. Keyed storage would silently keep the
         // last one and leave the operator unable to tell which password is live, so it is reported instead.
+        //
+        // A duplicate *email* is deliberately not checked here, unlike a duplicate username: two credentials
+        // sharing an email still resolve deterministically to the same person, so there is no "which password
+        // is live" ambiguity the way there is for a repeated username. This asymmetry is intentional, not an
+        // oversight.
         if ( seen.has( username ) ) {
             problems.push( `duplicate username '${ username }' at entry ${ index } — ignored, the first occurrence is kept` );
             return;

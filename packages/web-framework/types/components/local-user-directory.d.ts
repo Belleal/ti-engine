@@ -27,6 +27,8 @@ export type LocalUserRecord = {
  * @method
  * @param {string} password
  * @returns {string} The encoded hash: `scrypt$N$r$p$salt$hash`, base64 salt and key.
+ * @throws {TypeError} If `password` is empty or not a string — `verifyPassword` refuses empty passwords, so
+ *         hashing one here would only mint a hash that can never be logged into.
  * @public
  */
 declare function hashPassword(password: string): string;
