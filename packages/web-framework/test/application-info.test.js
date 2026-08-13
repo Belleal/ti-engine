@@ -47,6 +47,18 @@ describe( "buildApplicationInfo — manifest normalization", () => {
         assert.equal( buildApplicationInfo( { manifest: MANIFEST } ).author, "Boris Kostadinov" );
     } );
 
+    it( "handles every shape of npm's author string, and cannot leave a partial bracketed span behind", () => {
+        // The name is everything before the first `<` or `(` — both contact parts are suffixes, never embedded.
+        // The last case is the one that matters: removing `<…>` spans instead would leave a stray `<`, which is
+        // what makes that shape an incomplete sanitizer.
+        const nameOf = ( author ) => buildApplicationInfo( { manifest: { author } } ).author;
+        assert.equal( nameOf( "Boris Kostadinov" ), "Boris Kostadinov" );
+        assert.equal( nameOf( "Boris Kostadinov <a@b.c>" ), "Boris Kostadinov" );
+        assert.equal( nameOf( "Boris Kostadinov (https://d.e)" ), "Boris Kostadinov" );
+        assert.equal( nameOf( "Boris Kostadinov <a@b.c> (https://d.e)" ), "Boris Kostadinov" );
+        assert.equal( nameOf( "Boris <<a>b> (x)" ), "Boris" );
+    } );
+
     it( "reads the name out of an object author", () => {
         const info = buildApplicationInfo( { manifest: { author: { name: "Boris Kostadinov", email: "a@b.c" } } } );
         assert.equal( info.author, "Boris Kostadinov" );
