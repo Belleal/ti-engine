@@ -24,6 +24,17 @@ fix is a bug fix, but the replica's prototype is part of the observable contract
   own key with no setter to hit. Verified against both consumers of the output — `_.isPlainObject` accepts a
   null-prototype object, so `decomposeJSON` (message hashing) and `_.toPlainObject` (serialization) are unaffected
 * fix(tools): the same guard in `errorToJSON`, which copied an error's own property names with the identical pattern
+* fix(cache)!: `Cache.getValues( keys, prefix )` resolved **every key to `null`**, whatever Redis returned. Its ternary
+  inspected `results`, the accumulator being built, instead of `result`, the per-key `[ error, value ]` entry — and
+  `{}.length` is `undefined`, so the comparison was always false. The single-key `getValue()` had the correct form; the
+  two expressions were near-identical and one drifted. No first-party caller existed, which is why nothing caught it.
+  The per-entry decode and the key mapping are now two shared module-level functions (`decodeCommandValue`,
+  `mapCommandValues`, exported for testing) rather than duplicated inline expressions, so the drift cannot recur. The
+  mapping iterates the requested keys rather than the raw results, so a short response yields an entry per requested
+  key instead of silently omitting some, and its accumulator is a null-prototype object for the same reason as above —
+  cache keys come from the caller, and one named `__proto__` would otherwise repoint the map's prototype. Marked
+  breaking only because the returned map now has a null prototype (see the note below); the value behaviour is a
+  straight bug fix
 * test(tools): pin the regression, the cycle handling it must not break, the `decomposeJSON` and `retrocycle` paths,
   and the fact that a key named `constructor` was **never** affected — it is an ordinary writable data property, so
   bracket assignment always shadowed it correctly, and the fix's shape should not imply otherwise
@@ -32,8 +43,8 @@ fix is a bug fix, but the replica's prototype is part of the observable contract
 `retrocycle` was checked and is not affected: it mutates objects that already came through `JSON.parse`, which creates
 `__proto__` as an own data property, and assignment to an existing own property shadows the inherited setter.
 
-**Breaking for consumers who touch the returned object directly.** The objects returned by `decycle` — and by
-`errorToJSON` for an `Error` — now have a **null prototype**, so they inherit nothing from `Object.prototype`. Passing
+**Breaking for consumers who touch the returned object directly.** The objects returned by `decycle`, by `errorToJSON`
+for an `Error`, and by `Cache.getValues` now have a **null prototype**, so they inherit nothing from `Object.prototype`. Passing
 them to `JSON.stringify`, lodash, or `decomposeJSON` is unaffected; the following are not, and the first two throw
 rather than merely behaving differently:
 
