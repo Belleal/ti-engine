@@ -1194,11 +1194,13 @@ Create `packages/competence/test/organization-email-index.test.js`:
 
 const { describe, it, before } = require( "node:test" );
 const assert = require( "node:assert/strict" );
-const dataManager = require( "#data-manager" );
+
+const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
 const organizationManager = require( "#organization-manager" );
 
 // Employees whose emails exercise the index: a plain match, a mixed-case match, a duplicate pair, and one with no
-// email at all. Every record needs a career.organizationUnitID the org structure knows about, so reuse the seed's.
+// email at all. organizationUnitID is left null — the index is built from the employee records themselves, and an
+// employee with no unit simply gets no membership edge, which does not affect these assertions.
 const TEST_EMPLOYEES = [
     { employeeID: "901", email: "Ada@Example.com", employmentStatus: "active", personal: { firstName: "Ada", lastName: "L" }, career: { organizationUnitID: null } },
     { employeeID: "902", email: "grace@example.com", employmentStatus: "on-leave", personal: { firstName: "Grace", lastName: "H" }, career: { organizationUnitID: null } },
@@ -1210,14 +1212,17 @@ const TEST_EMPLOYEES = [
 describe( "organizationManager email index", () => {
 
     before( async () => {
-        // Build the chart against a fixed employee set rather than the live store.
-        const originalFetch = dataManager.instance.fetchEmployees;
-        dataManager.instance.fetchEmployees = () => Promise.resolve( TEST_EMPLOYEES );
-        try {
-            await organizationManager.instance.buildOrganizationChart();
-        } finally {
-            dataManager.instance.fetchEmployees = originalFetch;
-        }
+        // Seed the store through the in-memory cache stub, then build the chart from it. This is the established
+        // pattern in the other organization-* suites. Do NOT try to replace `dataManager.instance.fetchEmployees`:
+        // the singleton is exported frozen, so assigning a new own property silently no-ops and the real store read
+        // would run instead.
+        const stub = installInMemoryCache();
+        const employeeMap = {};
+        TEST_EMPLOYEES.forEach( ( employee ) => {
+            employeeMap[ employee.employeeID ] = employee;
+        } );
+        await stub.setJSON( "ti:competence:data:employees", employeeMap );
+        await organizationManager.instance.buildOrganizationChart();
     } );
 
     it( "resolves an employee by their exact email", () => {
