@@ -175,17 +175,23 @@ describe( "localUserDirectory Redis failure handling", () => {
 
 describe( "localUserDirectory reserved usernames (storage-layer assumption)", () => {
 
-    // This does not test this package's own code — `tools.stringifyJSON` belongs to @ti-engine/core. It is a
-    // guard on the assumption parseRecords' rejection of '__proto__' rests on: that the real (non-test-double)
-    // serializer cache.instance.setJSON calls cannot round-trip a '__proto__'-keyed object. Every other test in
-    // this file goes through InMemoryCache, which stores values with a plain `JSON.parse( JSON.stringify(...) )`
-    // and would never surface this — it has to be pinned here, directly against tools.stringifyJSON, or the
-    // reason for the rejection in local-user-directory.js is folklore rather than a verified fact.
+    // This does not test this package's own code — `tools.stringifyJSON` belongs to @ti-engine/core. It exists to
+    // keep the reason `parseRecords` rejects a '__proto__' username a verified fact rather than folklore. Every
+    // other test in this file goes through InMemoryCache, which stores values with a plain
+    // `JSON.parse( JSON.stringify(...) )` and so could never surface anything about the real serializer.
     //
-    // If a future @ti-engine/core release fixes `decycle` so this test starts failing (i.e. the round-trip
-    // becomes intact), that is the moment to revisit whether parseRecords still needs to reject '__proto__' —
-    // not before, and not by assuming it from this comment alone.
-    it( "pins that tools.stringifyJSON cannot round-trip an own '__proto__' key — the reason parseRecords rejects it", () => {
+    // The assumption it originally pinned was that the serializer **cannot** round-trip such a key: `decycle`
+    // turned it into the replica's prototype and `_.toPlainObject` then flattened that value's fields back in as
+    // top-level keys, corrupting the whole stored document. The earlier version of this test asserted exactly
+    // that, and left a note saying a core release fixing `decycle` was the moment to revisit the rejection.
+    //
+    // **@ti-engine/core 1.11.0 is that release** (see its changelog), so the assertion is inverted here: the
+    // round-trip is now intact. The rejection in `parseRecords` nevertheless stays, for a reason that has nothing
+    // to do with defence in depth — this package declares `"@ti-engine/core": "*"`, so a consumer of the
+    // published web-framework can pair it with **any** core, including a pre-1.11.0 one that still corrupts the
+    // document. web-framework cannot guarantee the serializer underneath it is fixed, so it must not store a
+    // record it might be unable to represent.
+    it( "confirms core 1.11.0 round-trips an own '__proto__' key, so the rejection is now about older cores, not this one", () => {
         const withReservedKey = Object.create( null );
         withReservedKey.ada = { username: "ada" };
         withReservedKey[ "__proto__" ] = { username: "__proto__", email: "proto@example.com" };
@@ -194,14 +200,14 @@ describe( "localUserDirectory reserved usernames (storage-layer assumption)", ()
 
         assert.equal(
             Object.prototype.hasOwnProperty.call( roundTripped, "__proto__" ),
-            false,
-            "the real serializer must fail to keep '__proto__' as an own key for this rejection to be justified"
+            true,
+            "core >= 1.11.0 must keep '__proto__' as an own key; if this fails the installed core predates that fix"
         );
-        // Not merely dropped: the withheld record's own fields are spliced into the top level of the document,
-        // corrupting whatever else shares it — this is what makes rejecting the username the honest choice
-        // over accepting and silently storing something broken.
-        assert.equal( roundTripped.username, "__proto__", "the '__proto__' record's fields leak into the top level instead of being dropped cleanly" );
-        assert.equal( roundTripped.email, "proto@example.com" );
+        assert.equal( roundTripped[ "__proto__" ].email, "proto@example.com", "the record's value must survive intact" );
+        // The specific corruption that used to happen: the withheld record's fields spliced into the top level.
+        // Asserting their absence is what proves the flattening is gone rather than merely relocated.
+        assert.equal( roundTripped.username, undefined, "the record's fields must no longer leak to the top level" );
+        assert.equal( roundTripped.email, undefined );
         assert.equal( roundTripped.ada.username, "ada", "an unrelated sibling record must still come through unaffected" );
     } );
 

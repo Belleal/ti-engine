@@ -1,6 +1,42 @@
 declare const _exported: Readonly<CommonMemoryCache>;
 export { _exported as instance };
+export { decodeCommandValue };
+export { mapCommandValues };
 import ConnectionObserver = require("#connection-observer");
+/**
+ * Decodes one entry of a `multi(...).exec()` result into the value it carries.
+ * <br/>
+ * Each entry is an ioredis `[ error, value ]` pair, so the value sits at index 1 and is a string when the key existed.
+ * Returns `undefined` for a miss, an error entry, or a malformed entry.
+ * <br/>
+ * This lives outside the class, and is shared by {@link CommonMemoryCache#getValue} and
+ * {@link CommonMemoryCache#getValues}, because it previously existed as two near-identical inline expressions and one
+ * of them drifted: `getValues` inspected its own accumulator instead of the per-key entry, so `.length` was
+ * `undefined`, the comparison was always false, and **every key resolved to `null`** whatever Redis returned.
+ *
+ * @method
+ * @param {Array} [result] One `[ error, value ]` entry.
+ * @returns {*} The parsed value, or `undefined` when there is none.
+ * @private
+ */
+declare function decodeCommandValue(result?: any[]): any;
+/**
+ * Maps a set of requested keys onto the values a `multi(...).exec()` returned for them, using `null` for a miss.
+ * <br/>
+ * Iterates the requested `keys` rather than the raw results, so a short or absent response still yields one entry per
+ * requested key instead of silently omitting some — the caller's map always has the shape it asked for.
+ * <br/>
+ * The accumulator has no prototype on purpose: the key names come from the caller, and a cache key named `__proto__`
+ * written by bracket assignment onto an ordinary `{}` would repoint the accumulator's prototype instead of creating
+ * the entry. Same class as the `decycle` defect fixed in `tools.js`; see the 1.11.0 changelog entry.
+ *
+ * @method
+ * @param {string[]} keys The keys that were requested, in command order.
+ * @param {Array} [rawResults] The `multi(...).exec()` result.
+ * @returns {Object} A null-prototype map of key to value, `null` where the key was absent.
+ * @private
+ */
+declare function mapCommandValues(keys: string[], rawResults?: any[]): Object;
 /**
  * Used to create and/or return a Common Memory Cache singleton instance.
  *

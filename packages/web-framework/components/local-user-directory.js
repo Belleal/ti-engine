@@ -184,14 +184,20 @@ function verifyPassword( password, encoded ) {
 // 'constructor', 'prototype') this codebase already treats as reserved at every other prototype-pollution
 // boundary (see the CA-91 employee field-path guards in packages/competence). Verified empirically per name,
 // not assumed uniformly:
-// - '__proto__' is the one that actually corrupts storage. `cache.instance.setJSON` serializes through
-//   `tools.stringifyJSON` — `JSON.stringify( _.toPlainObject( decycle( value ) ) )` in
-//   @ti-engine/core/utils/tools.js. `decycle`'s object-copy branch builds each replica with `newItem = {};
-//   newItem[ name ] = derez( ... )`; for `name === "__proto__"` that assignment invokes the inherited accessor
-//   setter instead of creating an own key, repointing the replica's own prototype to the record instead of
-//   storing it under a key. `_.toPlainObject` then flattens that prototype chain back into own keys, so the
-//   record's fields get spliced into the top level of the *entire* stored directory rather than merely
-//   dropped — pinned against the real serializer by a test in local-user-directory.store.test.js.
+// - '__proto__' is the one that corrupted storage, in @ti-engine/core **before 1.11.0**.
+//   `cache.instance.setJSON` serializes through `tools.stringifyJSON` —
+//   `JSON.stringify( _.toPlainObject( decycle( value ) ) )` in @ti-engine/core/utils/tools.js. `decycle`'s
+//   object-copy branch built each replica with `newItem = {}; newItem[ name ] = derez( ... )`; for
+//   `name === "__proto__"` that assignment invoked the inherited accessor setter instead of creating an own key,
+//   repointing the replica's own prototype to the record. `_.toPlainObject` then flattened that prototype chain
+//   back into own keys, so the record's fields were spliced into the top level of the *entire* stored directory
+//   rather than merely dropped.
+//   **core 1.11.0 fixed that** (its `decycle` builds the replica with `Object.create( null )`), so against a
+//   current core the round-trip is intact — the test in local-user-directory.store.test.js now pins the fixed
+//   behaviour. The rejection stays regardless, and not as vague defence in depth: this package declares
+//   `"@ti-engine/core": "*"`, so a consumer of the published web-framework may pair it with any core, including
+//   a pre-1.11.0 one that still corrupts. web-framework cannot guarantee the serializer beneath it is fixed, so
+//   it must not accept a record it might be unable to represent.
 // - 'constructor' and 'prototype' round-trip through that same pipeline correctly (verified the same way).
 //   'constructor' is hazardous only for an *unguarded read* (`stored.constructor` resolves to the inherited
 //   Object constructor function when absent) — exactly what the hasOwnProperty guards in reconcile/
