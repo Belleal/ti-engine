@@ -2,6 +2,40 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.21.0
+
+Two read-only screens the framework now provides for every consumer: **Profile** — which has been a registered
+fragment rendering a two-line placeholder since the shell was written — and a new **About**, so a running instance
+can finally answer "which build is this?" without shell access. Both are the same kind of screen (facts, grouped
+into labelled sections), so the framework owns the screen — fragment, Alpine component, CSS — and an application
+supplies only the content, through two virtual descriptor methods. Design record:
+`docs/superpowers/specs/2026-08-13-profile-and-about-screens-design.md` (CA-99).
+
+* feat(web-application): add `getProfileInfo( session )` and `getApplicationInfo( session )` — virtual methods
+  returning a display-ready `{ identity, sections }` descriptor, dispatched from `processDataRequest` for the
+  `profile` and `about` views. A subclass overrides one or both and inherits the entire screen. Every string in a
+  descriptor is resolved server-side, where the session language and the label catalogue are
+* feat(application-info): new `#application-info` module — the pure `buildApplicationInfo()` normalizes a
+  `package.json`-shaped manifest (display name derived from the package name, author contact stripped, a `git+…​.git`
+  repository URL reduced to a browser-openable homepage) and applies the `TI_WEB_APP_NAME` / `TI_WEB_APP_VERSION` /
+  `TI_WEB_APP_RELEASE_DATE` overrides; `readApplicationManifest()` is the one impure half and returns `{}` rather
+  than throwing, so a missing or malformed manifest cannot take a request down
+* feat(web-application): register the `about` fragment, and add `buildComponentsConfig( session )` supplying a
+  default sidebar user menu (Profile · About · sign-out) so a consuming application gets a working user menu without
+  configuring one
+* feat(static): new `frame-about.html` and a rebuilt `frame-profile.html` — content-free renderers over the
+  descriptor — plus the `tiScreenProfile` / `tiScreenAbout` Alpine components. The About screen's release, component
+  and runtime sections are assembled client-side, where `getLabel` takes a fallback, which is what keeps them
+  readable inside an application that loads only its own label catalogue
+* feat(static): add the reusable `.ti-identity-*` / `.ti-info-*` CSS primitives (identity header with avatar or app
+  mark, and the two-up grid of label/value sections), plus `.ti-kv-value.mono` / `.mono`-and-`.muted` modifiers
+* feat(localization): add `interface.profile.*`, `interface.about.*`, `interface.topbar.profile|about` and
+  `interface.user-menu.*` defaults in en/bg
+* fix(web-application): a framework-owned screen that resolves its own strings server-side used to render the
+  not-found sentinel inside a consuming application, because an application configures exactly one labels path —
+  its own — and never loads `web-server-labels.json`. Every such lookup now falls back to readable English
+* build(release): bump package version from `1.20.1` to `1.21.0`
+
 ## Version 1.20.1
 
 * fix(types): emit `/// <reference types="node" />` into `web-server.d.ts`, which names `node:http`.
