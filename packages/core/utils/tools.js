@@ -182,7 +182,11 @@ module.exports.getEnumName = ( enumList, enumValue, placeholder = undefined ) =>
  * @public
  */
 module.exports.errorToJSON = ( value ) => {
-    let error = {};
+    // Null prototype for the same reason as in `decycle`: the keys come from the error's own property names, and a
+    // key named `__proto__` written by bracket assignment onto an ordinary `{}` would repoint the prototype rather
+    // than be copied. An error carrying such a property is exotic — it takes a deliberate `defineProperty` — but the
+    // pattern is identical and the guard costs nothing.
+    let error = Object.create( null );
 
     if ( value instanceof Error ) {
         Object.getOwnPropertyNames( value ).forEach( ( key ) => {
@@ -337,7 +341,16 @@ module.exports.decycle = ( object, replacer ) => {
                 } );
             } else {
                 // If it is an object, replicate the object.
-                newItem = {};
+                // The replica has NO prototype on purpose. A key is copied in by bracket assignment, and on an
+                // ordinary `{}` a key named `__proto__` would hit the inherited setter instead of creating an own
+                // property: the key vanished from the replica and its value silently became the replica's prototype.
+                // `stringifyJSON` then ran `_.toPlainObject` over that, flattening the lost value's own fields back
+                // in as unrelated top-level keys — so serializing `{ __proto__: { hello: 1 }, ada: {} }` produced
+                // `{"ada":{},"hello":1}`. Silent corruption, not a crash, and it reached Redis through
+                // `cache.setJSON`. With a null prototype there is no setter to hit, so `__proto__` is an ordinary key.
+                // `_.isPlainObject` accepts a null-prototype object, so `decomposeJSON` and `_.toPlainObject` — the
+                // two things that consume this output — are unaffected.
+                newItem = Object.create( null );
                 Object.keys( value ).forEach( ( name ) => {
                     newItem[ name ] = derez(
                         value[ name ],

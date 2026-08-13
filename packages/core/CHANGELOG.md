@@ -2,6 +2,34 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.10.1
+
+`decycle` silently lost a key named `__proto__` and corrupted the surrounding document. It built its replica as `{}`
+and copied keys in by bracket assignment, so that one name hit the inherited prototype setter instead of becoming an
+own property: the key vanished and its value became the replica's prototype, which `stringifyJSON` then flattened
+back in as unrelated top-level keys. Serializing `{ __proto__: { hello: 1 }, ada: {} }` produced `{"ada":{},"hello":1}`.
+
+This reached Redis: `cache.setJSON` serializes with `stringifyJSON`, so any caller storing such a key lost it against
+a real cache. `decycle` also runs on the message-exchange integrity-hash path and over every exception data payload.
+No test caught it because web-framework's in-memory cache double clones with `JSON.parse( JSON.stringify( … ) )` and
+never reaches `stringifyJSON`.
+
+* fix(tools): build `decycle`'s object replica with `Object.create( null )`, so a key named `__proto__` is an ordinary
+  own key with no setter to hit. Verified against both consumers of the output — `_.isPlainObject` accepts a
+  null-prototype object, so `decomposeJSON` (message hashing) and `_.toPlainObject` (serialization) are unaffected
+* fix(tools): the same guard in `errorToJSON`, which copied an error's own property names with the identical pattern
+* test(tools): pin the regression, the cycle handling it must not break, the `decomposeJSON` and `retrocycle` paths,
+  and the fact that a key named `constructor` was **never** affected — it is an ordinary writable data property, so
+  bracket assignment always shadowed it correctly, and the fix's shape should not imply otherwise
+* build(release): bump package version from `1.10.0` to `1.10.1`
+
+`retrocycle` was checked and is not affected: it mutates objects that already came through `JSON.parse`, which creates
+`__proto__` as an own data property, and assignment to an existing own property shadows the inherited setter.
+
+**Note for consumers:** `decycle`'s replica now has a null prototype. Code calling an inherited `Object` method
+directly on the result — `result.hasOwnProperty( … )` — must use `Object.prototype.hasOwnProperty.call( result, … )`.
+No such call site exists in this monorepo.
+
 ## Version 1.10.0
 
 * feat(localization): `getLabel( label, language, fallback )` takes an optional third argument returned when the key
