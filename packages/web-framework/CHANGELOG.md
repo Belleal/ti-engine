@@ -2,6 +2,34 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.23.0
+
+Local (username/password) authentication is real. It had never been implemented: the constructor overwrote whatever
+was configured with `admin`/`admin` behind a "for testing purposes only" TODO, the check was a plain `===` on both
+fields, and the session user it produced carried no email — which since `competence` began resolving identity by
+email meant a local sign-in could not reach an application at all.
+
+* feat(local-user-directory): new `#local-user-directory` module — a JSON file of user records loaded on boot and
+  reconciled into Redis under `ti:web:auth:local-users`. Records carry `username`, `email`, `name` and a
+  `passwordHash`; `email` is required, because it is the field a consuming application resolves an identity by. The
+  file is the source of truth: a boot reconcile adds, updates and **removes**, so deleting a user revokes access
+* feat(local-user-directory): scrypt password hashing via `node:crypto` — no new dependency — with a per-user random
+  salt and the cost parameters recorded in each hash, so they can be raised later without invalidating existing
+  hashes. Verification is timing-safe, and an unknown username still performs a hash computation so the login form
+  is not a username-enumeration oracle
+* feat(auth-manager)!: **the hardcoded `admin`/`admin` pair is gone.** Local sign-ins are verified against the
+  directory, and `authorize()` returns a `User` carrying `userID`, `username`, `email` and `name` instead of a
+  random-UUID stub. Any deployment relying on the hardcoded credentials must provision a users file
+* fix(auth-manager): a local user's `userID` is stable across logins. It was a fresh UUID each time, so
+  `auth.admins` could never match a local user by userID — only by username
+* feat(build): `npm run hash-password` generates a record's hash, reading the password from **stdin** rather than
+  argv, which would put it in shell history and in `ps`
+* feat(web-config-env): `TI_WEB_AUTH_LOCAL_USERS_PATH` overrides `auth.local.usersPath`
+* build(release): bump package version from `1.22.0` to `1.23.0`
+
+**Not included, and required before `local` is the sole method on an internet-facing deployment:** rate limiting,
+lockout after repeated failures, and password policy.
+
 ## Version 1.22.0
 
 An application may now refuse a sign-in from its `augmentSession` hook, and that refusal is genuinely fail-closed.

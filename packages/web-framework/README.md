@@ -30,6 +30,47 @@ OpenID Connect providers are configured with their own variables — `TI_AZURE_A
 
 `TiWebServer#augmentSession` is the hook through which an application derives its own session roles — from an identity store, the org chart, or wherever a deployment keeps that mapping — once per login, before the framework's own additive `admin` role (`auth.admins`, see [Environment variables](#environment-variables)) is applied on top; the default is a no-op that returns the session unchanged. Throwing from the hook refuses the sign-in rather than admitting a session the application could not map to a principal: the framework destroys the freshly regenerated session so nothing usable survives the refusal, the login handler responds `401`, and the error handler sends the browser back to the login page with the exception code in the `?error=` query parameter — the same path a failed OpenID callback takes, regardless of which auth method was used.
 
+## Local (username/password) authentication
+
+`local` is one of the configurable `auth.enabledMethods` sign-in methods (see [Environment variables](#environment-variables), `TI_WEB_AUTH_METHODS`). It is backed by a JSON file of user records — there is no built-in account of any kind.
+
+### The users file
+
+`auth.local.usersPath` (override: `TI_WEB_AUTH_LOCAL_USERS_PATH`) points at a JSON file holding an array of records:
+
+```json
+[
+  {
+    "username": "jdoe",
+    "email": "jane.doe@example.com",
+    "name": "Jane Doe",
+    "passwordHash": "scrypt$16384$8$1$<salt-base64>$<hash-base64>"
+  }
+]
+```
+
+* `username`, `email`, `name` and `passwordHash` are required. `email` is required because a consuming application resolves the signed-in identity by it, the same way it would for an OpenID identity — a record with no email cannot reach an application at all.
+* `userID` is optional. When omitted, one is derived from the username, so it stays stable across restarts and logins; supply it explicitly only when something else needs to match a specific value (e.g. `auth.admins`).
+* `disabled: true` keeps the record (and its username) in the file while refusing every sign-in for it.
+
+Generate `passwordHash` with the bundled CLI. It reads the password from **stdin**, never an argument, so it never lands in shell history or a process listing (`ps`), and it never echoes the password back:
+
+```bash
+npm run hash-password -w @ti-engine/web-framework
+```
+
+Type or pipe the password, then EOF; only the resulting hash is written to stdout.
+
+### The file is the source of truth
+
+On every boot, the file is read and reconciled into the running directory: an added record starts working, a changed `passwordHash` takes effect, and — this is the point — **a record removed from the file is removed from the directory**, revoking that user's access on the next restart. Editing the file and restarting is the whole revocation mechanism; there is no separate delete action.
+
+### Every failure refuses rather than admits
+
+`local` enabled with no `auth.local.usersPath` configured, a file that cannot be read, a file that is not valid JSON, or a file that yields zero valid records after validation — each of these logs a startup **WARNING** and refuses every local sign-in, rather than admitting one or falling back to a default. A failed *read* deliberately does not reconcile, so a temporarily broken volume mount leaves previously stored records untouched instead of wiping them; those records stay inert (unused) while the load keeps failing, because sign-ins are refused anyway.
+
+**There is no rate limiting, no lockout after repeated failures, and no password policy.** Treat `local` on an internet-facing deployment as a deliberate risk until those exist.
+
 ## Static asset caching
 
 Everything under `/static` is served with a `Cache-Control` policy configured by the `staticCache` block:
