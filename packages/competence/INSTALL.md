@@ -130,7 +130,7 @@ All three are display-only — nothing behaves differently based on them. Signed
 | `TI_WEB_AUTH_METHODS`         | `openid-azure`  | Comma-separated list of enabled sign-in methods; **replaces** the configured set. Valid values: `openid-azure`, `openid-google`, `local`. The image default is Azure SSO only. Configure the chosen providers below. |
 | `TI_WEB_AUTH_LOCAL_USERS_PATH` | *(empty)*       | Path to the local users file backing `local` sign-in — a JSON array of `{ username, email, name, passwordHash }` records (see "Local auth" below). Required for `local` to accept any sign-in at all.       |
 
-- The login page renders **only** the methods listed here — e.g. the default `openid-azure` shows just the Azure button and **no** local form. A method listed here but not configured (no client ID, or — for `local` — no usable users file) is skipped with a warning and hidden.
+- The login page renders **only** the methods listed here — e.g. the default `openid-azure` shows just the Azure button and **no** local form. An OpenID Connect provider that is listed but not configured (no client ID) is dropped with a startup warning and its button hidden. **`local` is different: it has no such check.** Listing `local` here always renders the sign-in form, whether or not a usable users file exists at `TI_WEB_AUTH_LOCAL_USERS_PATH` — without one, the form renders but no sign-in can succeed (every attempt is refused; see "Local auth" below).
 - To also offer Google: `TI_WEB_AUTH_METHODS=openid-azure,openid-google`. For a local break-glass (dev/emergency only): add `local` and point `TI_WEB_AUTH_LOCAL_USERS_PATH` at a users file containing one provisioned record (see "Local auth" below, and §1) — there are no hardcoded credentials to fall back on.
 - If the effective list is empty (e.g. Azure listed but unconfigured), the login page shows a "no sign-in method is configured" message instead of a broken form.
 
@@ -182,7 +182,7 @@ employee record.
 The file is the source of truth: it is reconciled into the running directory on every boot, so removing an entry
 and restarting revokes that user's access — there is no separate delete action. `local` enabled with no users file
 configured, a file that cannot be read, or a file with zero valid records, each logs a startup **WARNING** and
-refuse every local sign-in rather than admitting one; a failed *read* leaves previously stored records untouched
+refuses every local sign-in rather than admitting one; a failed *read* leaves previously stored records untouched
 rather than wiping them.
 
 **There is still no rate limiting, no lockout after repeated failures, and no password policy** — see §1. The
@@ -401,7 +401,7 @@ reaches it once `deploy.sh` is re-run.
 - **Demo data:** `COMPETENCE_PRELOAD_DATA=true` seeds demo data (employees, a cycle, sample evaluations) by merging it into the collections on startup. It does **not** wipe existing data — collections are only initialized when empty, so data you create persists across restarts. While the flag stays `true` the seed is re-applied on every boot (re-adding seeded records), so set it back to `false` once seeded. Leave it `false` for a real install (you start empty).
 - **Organization structure:** the org chart is loaded from a configuration file baked into the image. Reflecting *your* organization requires supplying/adjusting that configuration (via the framework's admin configuration system or a custom build) — plan this with the application owner; it is not an environment variable.
 - **Admin access:** the admin configuration screens are gated to identities listed in the web-server config `auth.admins` (empty by default → no admins). Set it per environment with **`TI_WEB_AUTH_ADMINS`** (comma-separated; matched against the session user's user ID, username or email — so an OpenID deployment lists emails), or in the config file for a baked-in default. Other non-env config such as the organization structure remains a configuration step — coordinate with the application owner.
-- **First login:** browse to your HTTPS host. With the default `TI_WEB_AUTH_METHODS=openid-azure`, you sign in via Azure — so Azure must be configured (§7), otherwise the page shows "no sign-in method is configured." (A local sign-in only appears if you add `local` to `TI_WEB_AUTH_METHODS` **and** provision a record for that identity in the file at `TI_WEB_AUTH_LOCAL_USERS_PATH` — with no matching record, or a wrong password, it's refused; dev/break-glass only, see §1 and §7, "Local auth".)
+- **First login:** browse to your HTTPS host. With the default `TI_WEB_AUTH_METHODS=openid-azure`, you sign in via Azure — so Azure must be configured (§7), otherwise the page shows "no sign-in method is configured." (Adding `local` to `TI_WEB_AUTH_METHODS` makes its sign-in form appear immediately — the form itself does not depend on a users file existing — but no sign-in can *succeed* until you provision a record for that identity in the file at `TI_WEB_AUTH_LOCAL_USERS_PATH`; with no matching record, or a wrong password, it's refused; dev/break-glass only, see §1 and §7, "Local auth".)
 
 ---
 

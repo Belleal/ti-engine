@@ -61,6 +61,12 @@ npm run hash-password -w @ti-engine/web-framework
 
 Type or pipe the password, then EOF; only the resulting hash is written to stdout.
 
+That `npm run` form only works inside this monorepo (it is a workspace script). A consumer of the published `@ti-engine/web-framework` package has no `bin` entry to run it by name — the script ships under `bin/build/` regardless, so invoke it by its path inside `node_modules` instead:
+
+```bash
+node ./node_modules/@ti-engine/web-framework/bin/build/hash-password.js
+```
+
 ### The file is the source of truth
 
 On every boot, the file is read and reconciled into the running directory: an added record starts working, a changed `passwordHash` takes effect, and — this is the point — **a record removed from the file is removed from the directory**, revoking that user's access on the next restart. Editing the file and restarting is the whole revocation mechanism; there is no separate delete action.

@@ -56,17 +56,45 @@ class AuthManager {
     #authSettings = {
         enabledMethods: [],
         local: {
-            username: undefined,
-            password: undefined
+            usersPath: undefined
         },
         oauth2: {}
     };
     #clientConfigOAuth2Google = {};
     #clientConfigOAuth2Azure = {};
 
+    // Whether the local user directory is genuinely usable: set true only after #loadLocalUserDirectory performs
+    // a successful reconcile that produced at least one record. Every other outcome — no 'usersPath' configured,
+    // an unreadable/unparseable file, a file that reconciles to zero records, or a Redis failure during reconcile
+    // — leaves this false. #authenticateLocal and authorize() both require it before consulting the directory,
+    // because localUserDirectory.findByUsername reads Redis directly: without this flag, records reconciled by
+    // an EARLIER successful boot would remain live and would still authenticate even though the CURRENT boot's
+    // log already told the operator "every local sign-in will be refused". A failed load deliberately still does
+    // not erase those stale Redis records (see #loadLocalUserDirectory's own doc comment) — this flag is what
+    // makes them inert instead of merely unmentioned.
+    #localDirectoryUsable = false;
+
     // A fixed, valid encoding used only to spend comparable time on an unknown or disabled username. It corresponds
-    // to no usable password: it is generated once at load from random bytes, so nothing can ever verify against it.
-    static #TIMING_DECOY_HASH = localUserDirectory.hashPassword( randomBytes( 32 ).toString( "base64" ) );
+    // to no usable password. Computed lazily on first use rather than at module/class load: eagerly running
+    // scryptSync (~100ms, blocking) for every instance — even one where 'local' is disabled entirely, e.g.
+    // competence's shipped Azure-only image — pays that cost at startup for nothing. Memoized because the whole
+    // point is a fixed value nothing can ever verify against; recomputing it per call would just waste the cost
+    // repeatedly for no benefit.
+    static #timingDecoyHash;
+
+    /**
+     * Lazily computes and memoizes the timing decoy hash (see {@link AuthManager.#timingDecoyHash}).
+     *
+     * @method
+     * @static
+     * @returns {string}
+     */
+    static #getTimingDecoyHash() {
+        if ( AuthManager.#timingDecoyHash === undefined ) {
+            AuthManager.#timingDecoyHash = localUserDirectory.hashPassword( randomBytes( 32 ).toString( "base64" ) );
+        }
+        return AuthManager.#timingDecoyHash;
+    }
 
     /**
      * @constructor
@@ -187,6 +215,13 @@ class AuthManager {
 
     /**
      * Used to set up user authorization according to the specified authentication method.
+     * <br/>
+     * NOTE: This presupposes a successful, immediately preceding {@link AuthManager#authenticate} call for the
+     * same credentials and is NOT an independent authentication check on its own — for `LOCAL` it performs no
+     * password verification. It refuses an absent, disabled, or (for `LOCAL`) not-yet-usable-directory record,
+     * but a caller that invokes it without having just authenticated bypasses password verification entirely.
+     * The framework's own login route always calls `authenticate()` first (see `web-handlers.js`); this method
+     * is public on both `AuthManager` and `TiWebServer`, so any other caller must preserve that ordering itself.
      *
      * @method
      * @param {TiAuthMethod} authMethod
@@ -199,8 +234,18 @@ class AuthManager {
     authorize( authMethod, currentUrl, oidc ) {
         switch ( authMethod ) {
             case authMethodEnum.LOCAL:
+                // Requires the same #localDirectoryUsable flag #authenticateLocal requires — see its declaration
+                // — so a stale Redis-backed record from an earlier successful boot cannot mint a session User
+                // merely because authorize() looks the username up independently of #authenticateLocal.
+                if ( !this.#localDirectoryUsable ) {
+                    return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+                }
                 return localUserDirectory.findByUsername( oidc.username ).then( ( record ) => {
-                    if ( !record ) {
+                    // A disabled record must be refused here too, not only by #authenticateLocal: the two
+                    // lookups are independent reads of the same Redis-backed directory, and a reconcile that
+                    // flips 'disabled' between them would otherwise let authorize() admit what authenticate()
+                    // had just refused (or vice versa).
+                    if ( !record || record.disabled === true ) {
                         throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
                     }
                     return new User( {
@@ -371,8 +416,17 @@ class AuthManager {
      * stance as {@link AuthManager#dropUnconfiguredOpenIDProviders}: a bad local-users file must not take down an
      * instance whose other auth method works, and must not let anyone in either.
      * <br/>
+     * "Unusable" is not just a log line: {@link AuthManager#localDirectoryUsable} is the flag that actually makes
+     * it so. `localUserDirectory.findByUsername` reads Redis directly, so without this flag a record reconciled
+     * by an EARLIER successful boot would remain live — and would still authenticate — even on a boot where this
+     * method logs that every local sign-in will be refused. The flag defaults to `false` and is set `true` only
+     * at the very end of a successful reconcile that yielded at least one record; every failure path below
+     * returns (or rejects) without ever setting it, so it stays `false`.
+     * <br/>
      * A failed read deliberately does NOT reconcile, so a broken volume mount leaves the stored records untouched
-     * instead of destroying them. They are inert while the load is failing, because logins are refused anyway.
+     * instead of destroying them. They are inert while the load is failing — not because they are gone, but
+     * because {@link AuthManager#localDirectoryUsable} stays `false` and #authenticateLocal/authorize() both
+     * require it before ever consulting the directory.
      *
      * @method
      * @returns {Promise}
@@ -380,6 +434,7 @@ class AuthManager {
     #loadLocalUserDirectory() {
         const usersPath = this.#authSettings.local?.usersPath;
         if ( !usersPath ) {
+            this.#localDirectoryUsable = false;
             logger.log( "Local authentication is enabled but no 'auth.local.usersPath' is configured (see TI_WEB_AUTH_LOCAL_USERS_PATH) — every local sign-in will be refused.", logger.logSeverity.WARNING );
             return Promise.resolve();
         }
@@ -388,6 +443,7 @@ class AuthManager {
         try {
             raw = JSON.parse( fs.readFileSync( usersPath, "utf8" ) );
         } catch ( error ) {
+            this.#localDirectoryUsable = false;
             logger.log( `Could not read the local users file '${ usersPath }' — every local sign-in will be refused. Previously stored records are left untouched.`, logger.logSeverity.WARNING, exceptions.raise( error ) );
             return Promise.resolve();
         }
@@ -401,9 +457,22 @@ class AuthManager {
         }
 
         return localUserDirectory.reconcile( parsed.records ).then( ( result ) => {
+            // Usable only when the reconcile actually produced at least one record — a file that parses cleanly
+            // but yields zero valid records (logged above) must refuse just as completely as one that could not
+            // be read at all.
+            this.#localDirectoryUsable = parsed.records.length > 0;
             logger.log( `Local user directory reconciled: ${ result.added.length } added, ${ result.updated.length } updated, ${ result.removed.length } removed.`, logger.logSeverity.NOTICE );
         } ).catch( ( error ) => {
-            logger.log( "Could not reconcile the local user directory — every local sign-in will be refused.", logger.logSeverity.WARNING, exceptions.raise( error ) );
+            this.#localDirectoryUsable = false;
+            // Log only the error's message and code — never the raw error object or an exception wrapping it.
+            // ioredis attaches `err.command = { name, args }` to reply errors and connection aborts, and
+            // `tools.errorToJSON` (invoked when the logger's data argument is an Error, including one wrapped by
+            // exceptions.raise) copies every own property, `command` included. For this call `args` is
+            // `[ "JSON.SET", localUserDirectory.CACHE_KEY, "$", <the entire directory JSON> ]`, so passing the
+            // raw error through here would print every local user's salt and scrypt hash at WARNING level on a
+            // WRONGTYPE, OOM, ACL failure, or mid-command disconnect. Do not "simplify" this back to
+            // `exceptions.raise( error )` or `error` directly.
+            logger.log( "Could not reconcile the local user directory — every local sign-in will be refused.", logger.logSeverity.WARNING, { message: error?.message, code: error?.code } );
         } );
     }
 
@@ -413,6 +482,12 @@ class AuthManager {
      * An unknown username still performs a hash computation against a placeholder before failing, so a missing user
      * and a wrong password take comparable time. Without it the response time answers "does this username exist?",
      * which turns the login form into an enumeration oracle.
+     * <br/>
+     * Requires {@link AuthManager#localDirectoryUsable} in addition to {@link AuthManager#isAuthEnabled} before
+     * ever calling `findByUsername` — that function reads Redis directly, so without this check a record
+     * reconciled by an earlier successful boot would still authenticate on a boot whose own load just failed.
+     * This check is a boot-time configuration gate, not a per-request secret, so it refuses immediately rather
+     * than through the timing-decoy path below.
      *
      * @method
      * @param {string} username
@@ -420,7 +495,7 @@ class AuthManager {
      * @returns {Promise}
      */
     #authenticateLocal( username, password ) {
-        if ( !this.isAuthEnabled( authMethodEnum.LOCAL ) ) {
+        if ( !this.isAuthEnabled( authMethodEnum.LOCAL ) || !this.#localDirectoryUsable ) {
             return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
         }
 
@@ -429,7 +504,7 @@ class AuthManager {
         return localUserDirectory.findByUsername( username ).then( ( record ) => {
             if ( !record || record.disabled === true ) {
                 // Burn comparable time before refusing, so timing does not reveal whether the username exists.
-                return localUserDirectory.verifyPassword( password, AuthManager.#TIMING_DECOY_HASH ).then( () => refuse() );
+                return localUserDirectory.verifyPassword( password, AuthManager.#getTimingDecoyHash() ).then( () => refuse() );
             }
             return localUserDirectory.verifyPassword( password, record.passwordHash ).then( ( matches ) => {
                 return matches ? Promise.resolve() : refuse();

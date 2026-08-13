@@ -67,7 +67,7 @@ declare function parseRecords(raw: any): {
  * `records` must disappear, which is what makes revocation-by-file-edit work. `@ti-engine/core/cache` exposes no
  * delete, so a whole-object write is also the only way to remove a key.
  * <br/>
- * Usernames are attacker-influenceable (Task 5's login path resolves them from request input), so both the write
+ * Usernames are attacker-influenceable (the local sign-in handler resolves them from request input), so both the write
  * and every read below are guarded against `Object.prototype`'s reserved names rather than trusting plain bracket
  * access:
  * <br/>
@@ -97,8 +97,8 @@ declare function reconcile(records: LocalUserRecord[]): Promise<{
 /**
  * Looks a user up by exact username.
  * <br/>
- * `username` here is attacker-influenceable — this is the function Task 5's login path calls with the value a
- * client typed into the username field. Checked with `Object.prototype.hasOwnProperty.call(...)` rather than
+ * `username` here is attacker-influenceable — this is the function the local sign-in handler calls with the
+ * value a client typed into the username field. Checked with `Object.prototype.hasOwnProperty.call(...)` rather than
  * `stored[ username ] || null`, because `stored` carries the ordinary `Object.prototype` chain and an unguarded
  * bracket read would resolve `findByUsername( "constructor" )` to the inherited `Object` constructor function
  * instead of `null`, violating the declared return type for nearly every real query.

@@ -131,6 +131,29 @@ describe( "localUserDirectory.parseRecords", () => {
         assert.match( result.problems[ 0 ], /passwordHash/ );
     } );
 
+    it( "drops a record whose passwordHash requests a cost below the trusted floor, even though it is a power of two and decodes cleanly", () => {
+        // N=16 is a genuine power of two and decodes without error, so nothing before MIN_N would catch a
+        // truncated or mistyped N (e.g. the intended 16384 typed as 16) — it would silently downgrade the
+        // record to a near-free KDF with nothing reported anywhere.
+        const result = directory.parseRecords( [ validEntry( {
+            passwordHash: "scrypt$16$8$1$c2FsdHNhbHRzYWx0c2FsdA==$aGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaA=="
+        } ) ] );
+        assert.equal( result.records.length, 0 );
+        assert.match( result.problems[ 0 ], /passwordHash/ );
+    } );
+
+    it( "drops a record whose passwordHash requests a cost above the upper bound, even though it is a power of two", () => {
+        // N=2^32 is a genuine power of two, but `N & (N - 1)` coerces both operands to int32 to test that, so
+        // the check alone is unreliable at or above that boundary. Left unchecked, this loads clean and then
+        // returns false for every password forever — the exact silent lockout the power-of-two check exists to
+        // prevent, just moved past its own blind spot.
+        const result = directory.parseRecords( [ validEntry( {
+            passwordHash: "scrypt$4294967296$8$1$c2FsdHNhbHRzYWx0c2FsdA==$aGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaA=="
+        } ) ] );
+        assert.equal( result.records.length, 0 );
+        assert.match( result.problems[ 0 ], /passwordHash/ );
+    } );
+
     it( "drops a record whose passwordHash requests an excessive parallelization cost p", () => {
         // Same salt/key as PLACEHOLDER_HASH, only p changed, so this isolates the p cap from the length checks.
         const result = directory.parseRecords( [ validEntry( {
@@ -207,13 +230,18 @@ describe( "localUserDirectory hashing", () => {
     } );
 
     it( "verifies a hash carrying non-default cost parameters", async () => {
-        // This is what proves the encoding is genuinely self-describing rather than assuming the current defaults:
-        // a hash produced with a lower N must still verify after the defaults are raised.
+        // This is what proves the encoding is genuinely self-describing rather than assuming the current
+        // defaults: a hash produced with a different `r` must still verify using its own recorded parameters.
+        // (`N` is deliberately left at HASH_DEFAULTS.N rather than lowered or raised: decodeHash floors N at
+        // MIN_N — tied to HASH_DEFAULTS.N, see local-user-directory.js — specifically to reject a weaker cost,
+        // and doubling N here would sit exactly on node's 32 MiB scrypt `maxmem` boundary. Varying `r` instead
+        // makes the same self-description point without either problem.)
         const crypto = require( "node:crypto" );
         const salt = crypto.randomBytes( 16 );
-        const N = 1024;
-        const key = crypto.scryptSync( PLACEHOLDER_PASSWORD, salt, 64, { N: N, r: 8, p: 1 } );
-        const encoded = `scrypt$${ N }$8$1$${ salt.toString( "base64" ) }$${ key.toString( "base64" ) }`;
+        const N = directory.HASH_DEFAULTS.N;
+        const r = 4;
+        const key = crypto.scryptSync( PLACEHOLDER_PASSWORD, salt, 64, { N: N, r: r, p: 1 } );
+        const encoded = `scrypt$${ N }$${ r }$1$${ salt.toString( "base64" ) }$${ key.toString( "base64" ) }`;
         assert.equal( await directory.verifyPassword( PLACEHOLDER_PASSWORD, encoded ), true );
     } );
 

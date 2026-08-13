@@ -70,6 +70,13 @@ declare class AuthManager {
     authenticate(authMethod: TiAuthMethod, authDetails: Object): Promise<Object>;
     /**
      * Used to set up user authorization according to the specified authentication method.
+     * <br/>
+     * NOTE: This presupposes a successful, immediately preceding {@link AuthManager#authenticate} call for the
+     * same credentials and is NOT an independent authentication check on its own — for `LOCAL` it performs no
+     * password verification. It refuses an absent, disabled, or (for `LOCAL`) not-yet-usable-directory record,
+     * but a caller that invokes it without having just authenticated bypasses password verification entirely.
+     * The framework's own login route always calls `authenticate()` first (see `web-handlers.js`); this method
+     * is public on both `AuthManager` and `TiWebServer`, so any other caller must preserve that ordering itself.
      *
      * @method
      * @param {TiAuthMethod} authMethod

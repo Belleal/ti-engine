@@ -13,13 +13,19 @@ const tools = require( "@ti-engine/core/tools" );
 const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
 const directory = require( "#local-user-directory" );
 
+// Structurally valid placeholder — the same one local-user-directory.test.js uses. The previous fixture here
+// ("scrypt$16384$8$1$c2FsdA==$aGFzaA==") decodes to a 4-byte salt / 4-byte key, which decodeHash now rejects
+// for falling below MIN_SALT_BYTES/MIN_KEY_BYTES. Harmless for this file's tests (reconcile stores whatever it
+// is given without validating it), but it read as a valid record when it no longer is one.
+const PLACEHOLDER_HASH = "scrypt$16384$8$1$c2FsdHNhbHRzYWx0c2FsdA==$aGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaA==";
+
 function record( username, overrides = {} ) {
     return Object.assign( {
         userID: `local:${ username }`,
         username: username,
         email: `${ username }@example.com`,
         name: username,
-        passwordHash: "scrypt$16384$8$1$c2FsdA==$aGFzaA==",
+        passwordHash: PLACEHOLDER_HASH,
         disabled: false
     }, overrides );
 }

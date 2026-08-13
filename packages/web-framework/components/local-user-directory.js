@@ -37,6 +37,31 @@ const MIN_KEY_BYTES = 32;
 // hog a threadpool slot proportionally with no upper bound otherwise. The default is 1; 16 is ample headroom.
 const MAX_P = 16;
 
+// The lower bound a stored hash's N must clear before it is trusted, mirroring the salt/key length floors above:
+// the security level of a record must come from policy, not from whatever survived into the stored string.
+// Hardcoded to the same cost as HASH_DEFAULTS.N — deliberately NOT derived from it (e.g. `HASH_DEFAULTS.N`
+// itself), so an edit to HASH_DEFAULTS.N in isolation is caught by the invariant check below instead of the
+// floor silently tracking whatever the default becomes. Without this floor, `N & (N - 1)` still accepts any
+// power of two, so a truncated or mistyped N (16384 -> 16) loads clean and verifies almost for free.
+const MIN_N = 16384;
+
+// The upper bound. Two independent reasons: `N & (N - 1)` coerces both operands to int32 to test the
+// power-of-two invariant, so it is only reliable strictly below 2^31 — at or above that a non-power-of-two value
+// can pass the check anyway; separately, N is scrypt's dominant CPU-cost multiplier with no cap of its own, so
+// an unbounded value is a denial-of-service knob and, past the int32 boundary, a permanent silent lockout (loads
+// clean, then fails every verifyPassword call forever). 2^20 (64x HASH_DEFAULTS.N) is comfortably inside the
+// reliable range and far beyond any sane operational cost.
+const MAX_N = 2 ** 20;
+
+// Invariant: MIN_N must never be stricter than the cost this module itself mints new hashes at, or a hash
+// produced by hashPassword() today could be rejected by decodeHash() tomorrow. Asserted at module load, not
+// only documented in the comment above, so a future edit to either constant that breaks the relationship fails
+// loudly at require() time instead of silently shipping a directory that can never authenticate its own
+// freshly-hashed passwords.
+if ( MIN_N > HASH_DEFAULTS.N ) {
+    throw new Error( "local-user-directory: MIN_N must not exceed HASH_DEFAULTS.N — every hash minted by hashPassword() must clear decodeHash()'s own floor" );
+}
+
 /**
  * Derives a key with scrypt. Asynchronous on purpose: `scryptSync` blocks the event loop for roughly 100 ms at
  * these parameters, which on a login endpoint is a self-inflicted denial of service.
@@ -79,7 +104,11 @@ function decodeHash( encoded ) {
     const N = Number( rawN );
     const r = Number( rawR );
     const p = Number( rawP );
-    if ( !Number.isInteger( N ) || !Number.isInteger( r ) || !Number.isInteger( p ) || N < 2 || r < 1 || p < 1 || p > MAX_P ) {
+    // N is bounded on both sides by MIN_N/MAX_N (see their comments above) before the power-of-two test below —
+    // a value outside that range must never reach it, since the bitwise check alone is silently unreliable past
+    // the int32 boundary and provides no floor against a cost that is technically a power of two but far too
+    // cheap to trust.
+    if ( !Number.isInteger( N ) || !Number.isInteger( r ) || !Number.isInteger( p ) || N < MIN_N || N > MAX_N || r < 1 || p < 1 || p > MAX_P ) {
         return null;
     }
     // crypto.scrypt requires N to be a power of two; anything else throws ERR_CRYPTO_INVALID_SCRYPT_PARAMS at
@@ -275,7 +304,7 @@ function readStored() {
  * `records` must disappear, which is what makes revocation-by-file-edit work. `@ti-engine/core/cache` exposes no
  * delete, so a whole-object write is also the only way to remove a key.
  * <br/>
- * Usernames are attacker-influenceable (Task 5's login path resolves them from request input), so both the write
+ * Usernames are attacker-influenceable (the local sign-in handler resolves them from request input), so both the write
  * and every read below are guarded against `Object.prototype`'s reserved names rather than trusting plain bracket
  * access:
  * <br/>
@@ -328,8 +357,8 @@ function reconcile( records ) {
 /**
  * Looks a user up by exact username.
  * <br/>
- * `username` here is attacker-influenceable — this is the function Task 5's login path calls with the value a
- * client typed into the username field. Checked with `Object.prototype.hasOwnProperty.call(...)` rather than
+ * `username` here is attacker-influenceable — this is the function the local sign-in handler calls with the
+ * value a client typed into the username field. Checked with `Object.prototype.hasOwnProperty.call(...)` rather than
  * `stored[ username ] || null`, because `stored` carries the ordinary `Object.prototype` chain and an unguarded
  * bracket read would resolve `findByUsername( "constructor" )` to the inherited `Object` constructor function
  * instead of `null`, violating the declared return type for nearly every real query.

@@ -25,6 +25,15 @@ email meant a local sign-in could not reach an application at all.
 * feat(build): `npm run hash-password` generates a record's hash, reading the password from **stdin** rather than
   argv, which would put it in shell history and in `ps`
 * feat(web-config-env): `TI_WEB_AUTH_LOCAL_USERS_PATH` overrides `auth.local.usersPath`
+* fix(auth-manager): close a fail-open found by the whole-branch review — `#authenticateLocal` and `authorize()`
+  consulted the Redis-backed directory directly, so a users file that failed to load (missing, unreadable, or
+  unconfigured) still authenticated against records reconciled by an **earlier successful boot**, even while
+  logging that every local sign-in would be refused. A new `#localDirectoryUsable` flag is required by both
+  before any lookup, and is set only after a load that reconciled at least one record. `authorize()` also now
+  refuses a `disabled` record on its own, rather than relying on `authenticate()` having already been called
+* fix(auth-manager): a Redis error during directory reconcile is now logged with only its `message`/`code` —
+  the raw ioredis error carries the failed command's full arguments, which for this call includes every user's
+  salt and scrypt hash, so logging it verbatim printed the entire directory's credential material at WARNING level
 * build(release): bump package version from `1.22.0` to `1.23.0`
 
 **Not included, and required before `local` is the sole method on an internet-facing deployment:** rate limiting,

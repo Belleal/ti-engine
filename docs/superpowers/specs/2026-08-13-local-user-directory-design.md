@@ -4,7 +4,7 @@
 |---|---|
 | **Date** | 2026-08-13 |
 | **Packages** | `packages/web-framework` (the whole change); `packages/competence` (documentation only) |
-| **Status** | Approved (brainstorming) — pending spec review |
+| **Status** | Shipped — CA-100, including the whole-branch review fix pass (the `#localDirectoryUsable` fail-open closure, `authorize()` hardening, cost-parameter floor/ceiling, and log redaction) |
 | **Version targets** | web-framework `1.22.0` → `1.23.0` (minor, with a `!` entry); competence `3.19.0` → `3.19.1` (patch, docs only); core **no bump** |
 | **Author** | Boris Kostadinov (with Claude) |
 | **Tracking** | YouTrack [`CA-100`](https://belleal.youtrack.cloud/issue/CA-100) — subtask of `CA-11` Platform & Quality, alongside `CA-95` |
@@ -227,3 +227,37 @@ or a documentation snippet.
 - **`packages/web-framework/README.md`** — the directory, the record shape, the CLI, and the `TI_WEB_*` override.
 - Both packages' `CHANGELOG.md`. The web-framework entry is a `feat(auth-manager)!`: removing `admin`/`admin`
   breaks any deployment relying on it, which is the point.
+
+## 11. Implementation log — whole-branch review fix pass
+
+Six per-task reviews passed, but a final whole-branch review found a fail-open that only shows up across module
+boundaries: `#loadLocalUserDirectory` resolved (not rejected) on every "no `usersPath`" / unreadable / unparseable
+path while logging that every local sign-in would be refused, but `#authenticateLocal` never checked for that
+outcome before calling `localUserDirectory.findByUsername`, which reads Redis directly — so records reconciled
+by an **earlier successful boot** stayed live and still authenticated on a boot whose own load had just failed.
+The branch's own `test/auth-manager.test.js` masked this: its "accepts a directory user" test built the manager
+with `local: {}` — the exact configuration the code logs as refusing everything — while seeding Redis directly
+through `localUserDirectory.reconcile(...)`, so it never exercised `#loadLocalUserDirectory` at all.
+
+Fixed by adding a private `#localDirectoryUsable` flag (`AuthManager`, default `false`), set `true` only at the
+end of a successful reconcile that produced at least one record; every failure path leaves it `false`. Both
+`#authenticateLocal` and `authorize()` now require it before ever consulting the directory. §5.5 and §7 above
+describe the *intended* fail-closed behaviour, which was already correct as intent — this flag is what makes the
+*code* match it. The §7 failure-mode table and the "every failure refuses rather than admits" language in
+`packages/web-framework/README.md` needed no rewording as a result: they describe the flag's effect, not its
+absence.
+
+Also closed in the same pass: `authorize( "local", ... )` performed no `disabled` check of its own (it now
+requires the same flag and refuses a disabled record independently, since it looks the username up separately
+from `authenticate()`, with a JSDoc note that `authorize()` presupposes a preceding `authenticate()` call and is
+not an independent authentication check); a Redis reconcile failure logged the raw ioredis error, which attaches
+`err.command = { name, args }` — for this call `args` includes the full `JSON.SET` payload, i.e. every user's
+salt and scrypt hash — so that log line now reports only `message`/`code`; `local-user-directory.js`'s
+`decodeHash` gained `MIN_N`/`MAX_N` cost-parameter bounds (previously only salt/key *length* was floored, not
+cost) tied to `HASH_DEFAULTS.N` by a load-time assertion; and `packages/competence/INSTALL.md` had two passages
+describing local-auth login-form visibility that no code implements (`#dropUnconfiguredOpenIDProviders` only
+ever covered OpenID providers) — reworded to describe the actual behaviour rather than the intended one, per the
+explicit decision not to implement the hiding as scope creep.
+
+Full detail (flag read-sites, probe output, before/after doc diffs, test/lint results):
+`.superpowers/sdd/task-6-report.md`, "Whole-branch review fix pass" section.
