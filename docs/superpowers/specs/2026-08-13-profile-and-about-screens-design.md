@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Date** | 2026-08-13 |
-| **Packages** | `packages/web-framework` (the reusable screens), `packages/competence` (the content) |
+| **Packages** | `packages/web-framework` (the reusable screens), `packages/competence` (the content), plus one `packages/core` addition (§6.1) |
 | **Status** | Implemented |
-| **Version targets** | web-framework `1.20.1` → `1.21.0` (minor); competence `3.17.0` → `3.18.0` (minor) |
+| **Version targets** | web-framework `1.20.1` → `1.21.0` (minor); competence `3.17.0` → `3.18.0` (minor); core `1.9.1` → `1.10.0` (minor) |
 | **Author** | Boris Kostadinov (with Claude) |
 | **Tracking** | YouTrack [`CA-99`](https://belleal.youtrack.cloud/issue/CA-99) (subtask of `CA-10` Design System & UX) |
 
@@ -122,7 +122,7 @@ In competence the read is therefore ungated (fact 8) — an employee who cannot 
 | File | Change |
 |---|---|
 | `components/application-info.js` | **New.** `buildApplicationInfo` (pure) + `readApplicationManifest`. |
-| `bin/web-app-manager.js` | Registers the `about` fragment; adds the `getApplicationInfo` / `getProfileInfo` virtuals and the two `processDataRequest` branches, the `buildSessionIdentity` / `buildAccountSections` helpers a subclass can reuse, `buildComponentsConfig` (the default user menu), and `resolveLabel` (§6, the one-labels-path fallback). |
+| `bin/web-app-manager.js` | Registers the `about` fragment; adds the `getApplicationInfo` / `getProfileInfo` virtuals and the two `processDataRequest` branches, the `buildSessionIdentity` / `buildAccountSections` helpers a subclass can reuse, and `buildComponentsConfig` (the default user menu). |
 | `bin/static/fragments/frame-profile.html` | **Replaced.** Identity card + generic section renderer. |
 | `bin/static/fragments/frame-about.html` | **New.** Application hero + generic section renderer. |
 | `bin/static/fragments/components/component-sidebar.html` | Adds the user flyout to the default sidebar footer, so the baseline screens are reachable out of the box. |
@@ -132,7 +132,14 @@ In competence the read is therefore ungated (fact 8) — an employee who cannot 
 | `test/application-info.test.js` | **New.** Manifest normalization, env overrides, section shape. |
 | `test/web-app-manager.profile-about.test.js` | **New.** The baseline descriptors and the `processDataRequest` dispatch. |
 
-### 5.2 competence
+### 5.2 core
+
+| File | Change |
+|---|---|
+| `utils/localization.js` | `getLabel( label, language, fallback )` gains the optional third argument (§6.1). |
+| `test/localization.test.js` | **New.** Resolution, the unchanged default placeholder, and the fallback. |
+
+### 5.3 competence
 
 | File | Change |
 |---|---|
@@ -142,7 +149,7 @@ In competence the read is therefore ungated (fact 8) — an employee who cannot 
 | `INSTALL.md` | Documents `TI_WEB_APP_NAME` / `TI_WEB_APP_VERSION` / `TI_WEB_APP_RELEASE_DATE` in the environment reference. |
 | `test/competence-web-application.profile-about.test.js` | **New.** The projection from an employee record to the descriptor, the self-scoping, and the deployment section. |
 
-### 5.3 What the competence Profile shows
+### 5.4 What the competence Profile shows
 
 Mirrors the Employee Management **Details** tab, minus the controls:
 
@@ -155,9 +162,26 @@ Mirrors the Employee Management **Details** tab, minus the controls:
 
 ## 6. Risks & mitigations
 
+### 6.1 The one-labels-path problem (the one core change)
+
+Fact 4 has a consequence the design did not anticipate: any string a **framework**-owned screen resolves server-side
+looks up a key that lives in `web-server-labels.json`, which a consuming application never loads. Every such lookup
+would return core's `!!! label not found !!!` placeholder — in production, in a consumer, with nothing reporting it.
+
+The first implementation detected the placeholder by comparing against a copy of the literal, since core did not
+export it. That works and is testable, but it couples two packages to a string core is free to change, and both
+`web-framework` and `competence` ended up carrying their own copy of the comparison.
+
+The fix belongs one level down: `localization.getLabel( label, language, fallback )` takes an optional third
+argument returned when the key is absent, mirroring the client-side `tiApplication.getLabel( label, fallback )` that
+already worked this way. The default is unchanged, so a missing label stays loud for every existing call site, and
+neither consumer needs to know the placeholder exists. Ships as core `1.10.0`; `web-framework` 1.21.0 requires it.
+
+### 6.2 Risk table
+
 | Risk | Mitigation |
 |---|---|
-| A consuming app's label catalogue lacks the new keys, so the screens render `!!! label not found !!!`. | Every `x-text-label` in both fragments carries inline English fallback text (fact 5), and competence ships the keys in en/bg. |
+| A consuming app's label catalogue lacks the new keys, so the screens render the not-found placeholder. | Server-side lookups pass an English literal as `getLabel`'s fallback (§6.1); every `x-text-label` in both fragments carries inline English fallback text (fact 5); and competence ships the keys in en/bg. |
 | `package.json` is absent in some deployment layout, breaking About. | `readApplicationManifest` swallows the failure and returns `{}`; `buildApplicationInfo` produces a usable descriptor from an empty manifest. |
 | The descriptor grows into a general-purpose templating language. | The item flags are fixed at three presentational booleans. Anything needing more layout gets its own screen, not a new flag. |
 | Version/build facts leak pre-authentication. | The descriptor is served from a protected data view, never from `/app/config` (facts 2–3). |
@@ -173,6 +197,9 @@ Mirrors the Employee Management **Details** tab, minus the controls:
   unresolved labels, and every Alpine expression survives the CSP evaluator. That is the half no unit test reaches.
 - **2026-08-13** — Types regenerated, Help fragments rebuilt for the version stamp, suites green across the
   workspace, versions bumped (web-framework `1.21.0`, competence `3.18.0`).
+- **2026-08-13** — Review follow-up: replaced the hard-coded placeholder comparison in `web-framework` and
+  `competence` with core's new `getLabel` fallback argument (§6.1), covered by a new `core` localization suite.
+  Core `1.10.0`.
 
 ### Follow-up worth doing separately
 

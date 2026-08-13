@@ -31,9 +31,11 @@ supplies only the content, through two virtual descriptor methods. Design record
   mark, and the two-up grid of label/value sections), plus `.ti-kv-value.mono` / `.mono`-and-`.muted` modifiers
 * feat(localization): add `interface.profile.*`, `interface.about.*`, `interface.topbar.profile|about` and
   `interface.user-menu.*` defaults in en/bg
-* fix(web-application): a framework-owned screen that resolves its own strings server-side used to render the
-  not-found sentinel inside a consuming application, because an application configures exactly one labels path —
-  its own — and never loads `web-server-labels.json`. Every such lookup now falls back to readable English
+* fix(web-application): a framework-owned screen that resolves its own strings server-side would render the
+  not-found placeholder inside a consuming application, because an application configures exactly one labels path —
+  its own — and never loads `web-server-labels.json`. Every such lookup now passes a readable English literal as the
+  `getLabel` fallback added in `@ti-engine/core` 1.10.0 (**requires it**), rather than comparing the result against
+  a hard-coded copy of core's placeholder string
 * build(release): bump package version from `1.20.1` to `1.21.0`
 
 ## Version 1.20.1

@@ -4240,15 +4240,9 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #formatRoleNames( userRoles, language ) {
         return ( Array.isArray( userRoles ) ? userRoles : [] )
-            .map( ( role ) => {
-                // A missing key yields core's "!!! label not found !!!" sentinel — fall back to the enum's own
-                // (English) name so an added role code shows something readable before it is translated.
-                const resolved = localization.getLabel( `interface.profile.role.${ role }`, language );
-                if ( !resolved.startsWith( "!!!" ) ) {
-                    return resolved;
-                }
-                return configurationLoader.roleCode.name( role, String( role ) );
-            } )
+            // A role code with no label yet falls back to the enum's own (English) name, so an added code shows
+            // something readable rather than a placeholder before it is translated.
+            .map( ( role ) => localization.getLabel( `interface.profile.role.${ role }`, language, configurationLoader.roleCode.name( role, String( role ) ) ) )
             .join( " · " );
     }
 

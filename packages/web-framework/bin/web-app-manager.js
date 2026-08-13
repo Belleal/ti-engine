@@ -28,33 +28,6 @@ const ALL_METHODS = [ "local", "openid-google", "openid-azure" ];
 const RE_AUTH_MARKERS = /<!--\/?ti-auth-(?:divider|social|none|method(?::[a-z-]+)?)-->/g;
 
 /**
- * The sentinel `@ti-engine/core/localization` returns for a label that is not in the loaded catalogue. It is not
- * exported by core, so it is mirrored here — see {@link resolveLabel} for why the framework needs to detect it.
- *
- * @type {string}
- */
-const LABEL_NOT_FOUND = "!!! label not found !!!";
-
-/**
- * Resolves a label, falling back to the supplied literal when the key is absent from the loaded catalogue.
- * <br/>
- * A consuming application configures exactly ONE labels path (`TI_LOCALIZATION_LABELS_PATH`), which in practice is
- * its own catalogue — the framework's `web-server-labels.json` is not also loaded. Any framework-owned screen that
- * resolves its own strings server-side would therefore render the not-found sentinel inside a consumer, so every
- * such lookup goes through here and degrades to readable English instead.
- *
- * @method
- * @param {string} key Dot-separated label path.
- * @param {string} fallback The literal to use when the key is not in the catalogue.
- * @param {string} [language]
- * @returns {string}
- */
-function resolveLabel( key, fallback, language ) {
-    const resolved = localization.getLabel( key, language );
-    return ( !resolved || resolved === LABEL_NOT_FOUND ) ? fallback : resolved;
-}
-
-/**
  * Removes every `<openMarker>…<closeMarker>` span (inclusive) from `html` in a single linear pass. The markers are
  * matched as fixed strings via `indexOf`, so — unlike an `openMarker[\s\S]*?closeMarker` regular expression under a
  * global replace — this cannot exhibit super-linear backtracking on hostile input containing many opening markers
@@ -466,19 +439,19 @@ class TiWebAppManager {
         const language = session && session.language;
         return {
             userProfileMenu: {
-                menuTitle: resolveLabel( "interface.topbar.user-profile", "Your profile", language ),
+                menuTitle: localization.getLabel( "interface.topbar.user-profile", language, "Your profile" ),
                 placement: "right-end",
                 offset: 0,
                 buttonConfigs: [ {
-                    title: resolveLabel( "interface.user-menu.profile", "Your profile", language ),
+                    title: localization.getLabel( "interface.user-menu.profile", language, "Your profile" ),
                     icon: "user-profile",
                     action: { href: "/app/profile", target: "#ti-content", swap: "innerHTML" }
                 }, {
-                    title: resolveLabel( "interface.user-menu.about", "About", language ),
+                    title: localization.getLabel( "interface.user-menu.about", language, "About" ),
                     icon: "info-circle",
                     action: { href: "/app/about", target: "#ti-content", swap: "innerHTML" }
                 }, {
-                    title: resolveLabel( "interface.user-menu.logout", "Logout", language ),
+                    title: localization.getLabel( "interface.user-menu.logout", language, "Logout" ),
                     icon: "logout",
                     action: { href: "/logout", method: "post", target: "body", swap: "outerHTML" }
                 } ]
@@ -599,20 +572,20 @@ class TiWebAppManager {
         const roles = Array.isArray( user.roles ) ? user.roles : [];
 
         return [ {
-            title: resolveLabel( "interface.profile.section-account", "Account", language ),
+            title: localization.getLabel( "interface.profile.section-account", language, "Account" ),
             icon: "user",
             items: [
-                { label: resolveLabel( "interface.profile.field-name", "Full name", language ), value: String( user.name || "" ) },
-                { label: resolveLabel( "interface.profile.field-username", "Username", language ), value: String( user.username || "" ) },
-                { label: resolveLabel( "interface.profile.field-email", "E-mail", language ), value: String( user.email || "" ), wide: true },
-                { label: resolveLabel( "interface.profile.field-user-id", "User ID", language ), value: String( user.userID || "" ), mono: true },
-                { label: resolveLabel( "interface.profile.field-language", "Language", language ), value: String( user.language || language || "" ) }
+                { label: localization.getLabel( "interface.profile.field-name", language, "Full name" ), value: String( user.name || "" ) },
+                { label: localization.getLabel( "interface.profile.field-username", language, "Username" ), value: String( user.username || "" ) },
+                { label: localization.getLabel( "interface.profile.field-email", language, "E-mail" ), value: String( user.email || "" ), wide: true },
+                { label: localization.getLabel( "interface.profile.field-user-id", language, "User ID" ), value: String( user.userID || "" ), mono: true },
+                { label: localization.getLabel( "interface.profile.field-language", language, "Language" ), value: String( user.language || language || "" ) }
             ]
         }, {
-            title: resolveLabel( "interface.profile.section-access", "Access", language ),
+            title: localization.getLabel( "interface.profile.section-access", language, "Access" ),
             icon: "check-circle",
             items: [
-                { label: resolveLabel( "interface.profile.field-roles", "Roles", language ), value: roles.join( " · " ), wide: true }
+                { label: localization.getLabel( "interface.profile.field-roles", language, "Roles" ), value: roles.join( " · " ), wide: true }
             ]
         } ];
     }
