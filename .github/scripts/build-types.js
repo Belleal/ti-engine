@@ -18,9 +18,9 @@
  * the consumer's configuration.
  */
 
-const child = require( "node:child_process" );
 const fs = require( "node:fs" );
 const path = require( "node:path" );
+const { runTsc } = require( "./tsc-runner" );
 
 const REPOSITORY_ROOT = path.resolve( __dirname, "..", ".." );
 const PACKAGES = [ "core", "web-framework", "web-content" ];
@@ -58,10 +58,9 @@ function addNodeReferences( directory ) {
 function main() {
     for ( const name of PACKAGES ) {
         const directory = path.join( REPOSITORY_ROOT, "packages", name );
-        const result = child.spawnSync( "npx", [ "tsc", "-p", "tsconfig.types.json" ],
-            { cwd: directory, encoding: "utf8", shell: false } );
-        if ( result.status !== 0 ) {
-            process.stderr.write( ( result.stdout || "" ) + ( result.stderr || "" ) );
+        const result = runTsc( [ "-p", "tsconfig.types.json" ], directory );
+        if ( result.code !== 0 ) {
+            process.stderr.write( result.output );
             process.exit( 1 );
         }
         const touched = addNodeReferences( path.join( directory, "types" ) );

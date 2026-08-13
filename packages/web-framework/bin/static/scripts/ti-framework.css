@@ -2549,6 +2549,10 @@ body {
     border-radius: var(--r-md);
 }
 
+.ti-login-error.visible {
+    display: block;
+}
+
 .ti-login-form {
     display: flex;
     flex-direction: column;

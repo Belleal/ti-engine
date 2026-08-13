@@ -2,6 +2,25 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.22.0
+
+An application may now refuse a sign-in from its `augmentSession` hook, and that refusal is genuinely fail-closed.
+Sign-in failures also present identically across every auth method, which local (username/password) auth needs before
+it can be offered as a production option.
+
+* fix(web-handlers): destroy the session when an augment hook throws. `session.user` is assigned in place before the
+  hook runs and `verifySession` only checks that it exists, so a merely-rejected session was still persisted by
+  express-session at response end and would have admitted the refused user
+* feat(web-server): document the `augmentSession` refusal contract — throwing refuses the login, destroys the session,
+  and redirects to the login page carrying the exception code
+* feat(web-handlers): redirect any HTML-accepting, non-HTMX **401** to `/?error=<code>`, not only `GET` requests, so a
+  local-auth POST failure presents exactly like an OAuth callback failure. Non-401 responses are unaffected
+* feat(web-app): render the sign-in failure message on the login page. `#ti-error` was an empty element and the
+  `getUrlParam` helper had no call sites, so a failed sign-in previously returned a blank login form
+* feat(exports): expose the authorization helpers as `@ti-engine/web-framework/authorization`, so an application can
+  reuse `isAdminIdentity` for its own allowlist decisions instead of reimplementing the match
+* build(release): bump package version from `1.21.0` to `1.22.0`
+
 ## Version 1.21.0
 
 Two read-only screens the framework now provides for every consumer: **Profile** — which has been a registered
