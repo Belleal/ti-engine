@@ -19,6 +19,7 @@
     "#data-employees": "./bin/data/seeders/employees.json",
     "#data-evaluations": "./bin/data/seeders/evaluations.json",
     "#data-manager": "./application/data-manager.js",
+    "#identity-resolver": "./application/identity-resolver.js",
     "#organization-manager": "./application/organization-manager.js",
     "#research-consent": "./application/research-consent.js",
     "#results-analytics": "./application/results-analytics.js",
