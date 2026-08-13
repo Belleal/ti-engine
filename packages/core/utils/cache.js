@@ -14,6 +14,55 @@ const redis = require( "#redis-integration" );
 const exceptions = require( "#exceptions" );
 
 /**
+ * Decodes one entry of a `multi(...).exec()` result into the value it carries.
+ * <br/>
+ * Each entry is an ioredis `[ error, value ]` pair, so the value sits at index 1 and is a string when the key existed.
+ * Returns `undefined` for a miss, an error entry, or a malformed entry.
+ * <br/>
+ * This lives outside the class, and is shared by {@link CommonMemoryCache#getValue} and
+ * {@link CommonMemoryCache#getValues}, because it previously existed as two near-identical inline expressions and one
+ * of them drifted: `getValues` inspected its own accumulator instead of the per-key entry, so `.length` was
+ * `undefined`, the comparison was always false, and **every key resolved to `null`** whatever Redis returned.
+ *
+ * @method
+ * @param {Array} [result] One `[ error, value ]` entry.
+ * @returns {*} The parsed value, or `undefined` when there is none.
+ * @private
+ */
+function decodeCommandValue( result ) {
+    // `Array.isArray` rather than a bare truthy-and-length test: a string also has a `length` and an indexable
+    // character at 1, so a malformed non-array entry would otherwise be parsed as if it were a value.
+    return ( Array.isArray( result ) && result.length > 1 && _.isString( result[ 1 ] ) ) ? tools.parseJSON( result[ 1 ] ) : undefined;
+}
+
+/**
+ * Maps a set of requested keys onto the values a `multi(...).exec()` returned for them, using `null` for a miss.
+ * <br/>
+ * Iterates the requested `keys` rather than the raw results, so a short or absent response still yields one entry per
+ * requested key instead of silently omitting some — the caller's map always has the shape it asked for.
+ * <br/>
+ * The accumulator has no prototype on purpose: the key names come from the caller, and a cache key named `__proto__`
+ * written by bracket assignment onto an ordinary `{}` would repoint the accumulator's prototype instead of creating
+ * the entry. Same class as the `decycle` defect fixed in `tools.js`; see the 1.11.0 changelog entry.
+ *
+ * @method
+ * @param {string[]} keys The keys that were requested, in command order.
+ * @param {Array} [rawResults] The `multi(...).exec()` result.
+ * @returns {Object} A null-prototype map of key to value, `null` where the key was absent.
+ * @private
+ */
+function mapCommandValues( keys, rawResults ) {
+    let values = Object.create( null );
+
+    _.forEach( keys, ( key, idx ) => {
+        let decoded = decodeCommandValue( rawResults ? rawResults[ idx ] : undefined );
+        values[ key ] = ( decoded === undefined ) ? null : decoded;
+    } );
+
+    return values;
+}
+
+/**
  * Used to create and/or return a Common Memory Cache singleton instance.
  *
  * @class CommonMemoryCache
@@ -260,8 +309,7 @@ class CommonMemoryCache extends ConnectionObserver {
             if ( this.#isOperational === true ) {
                 let commandGetValue = [ redis.cacheCommands.GET_VALUE, key ];
                 this.#redisClient.executeCommands( [ commandGetValue ] ).then( ( results ) => {
-                    results = results[ 0 ];
-                    resolve( ( results && results.length > 1 && _.isString( results[ 1 ] ) ) ? tools.parseJSON( results[ 1 ] ) : undefined );
+                    resolve( decodeCommandValue( results ? results[ 0 ] : undefined ) );
                 } ).catch( ( error ) => {
                     reject( error );
                 } );
@@ -288,11 +336,7 @@ class CommonMemoryCache extends ConnectionObserver {
                     commands.push( [ redis.cacheCommands.GET_VALUE, ( ( prefix ) ? prefix : "" ) + key ] );
                 } );
                 this.#redisClient.executeCommands( commands ).then( ( rawResults ) => {
-                    let results = {};
-                    _.forEach( rawResults, ( result, idx ) => {
-                        results[ keys[ idx ] ] = ( results && results.length > 1 && _.isString( results[ 1 ] ) ) ? tools.parseJSON( results[ 1 ] ) : null;
-                    } );
-                    resolve( results );
+                    resolve( mapCommandValues( keys, rawResults ) );
                 } ).catch( ( error ) => {
                     reject( error );
                 } );
@@ -770,3 +814,8 @@ class CommonMemoryCache extends ConnectionObserver {
 
 const instance = new CommonMemoryCache();
 module.exports.instance = Object.freeze( instance );
+
+// Exported for testing. The cache singleton builds its own Redis client in its constructor, so `getValues` cannot be
+// driven without a live server — these are the pure halves of it, and they are where the defect was.
+module.exports.decodeCommandValue = decodeCommandValue;
+module.exports.mapCommandValues = mapCommandValues;
