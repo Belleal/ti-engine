@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/web-framework",
-  "version": "1.20.1",
+  "version": "1.21.0",
   "description": "A web-framework based on the ti-engine. It provides a customizable ready-to-use web-server microservice and a set of tools for creating web applications. NOTICE: This is still a work in progress and the full architecture, design, and functionality are not available!",
   "keywords": [
     "ti-engine",
@@ -36,6 +36,10 @@
     "#admin-config-handlers": {
       "types": "./types/components/admin-config-handlers.d.ts",
       "default": "./components/admin-config-handlers.js"
+    },
+    "#application-info": {
+      "types": "./types/components/application-info.d.ts",
+      "default": "./components/application-info.js"
     },
     "#auth-manager": {
       "types": "./types/components/auth-manager.d.ts",
