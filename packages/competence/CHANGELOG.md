@@ -2,6 +2,29 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.19.0
+
+Identity now comes from the login. Until now `augmentSession` fell back to a hard-coded `"20"` whenever the dev
+test-user cookie was disabled — and because the framework's user model carries no `employeeID`, that fallback was
+reached by *every* user on any deployment with the cookie off. On the Azure-SSO staging environment everyone signed in
+as employee 20, inheriting that employee's manager scope over their team. Identity is now resolved from the
+authenticated email against the employee directory, and an identity that cannot be resolved is refused rather than
+substituted (CA-95).
+
+* feat(competence)!: derive the acting employee from the authenticated login's email and **remove the employee-20
+  fallback**. An authenticated identity with no employee record, with an `employmentStatus` other than `active` or
+  `on-leave`, or whose email is shared by more than one record, is refused — no code path may invent an identity
+* feat(competence): add `application/identity-resolver.js`, a pure frozen-singleton owning every identity rule — dev
+  cookie parsing, the resolve precedence, the four refusal reasons, and applying an outcome to a session
+* feat(organization): index employee emails on the organization chart, with `resolveEmployeeIDByEmail` and
+  `hasEmployee` for synchronous login-time lookup. A duplicated email is reported once at startup as a `WARNING` and
+  refuses sign-in as ambiguous rather than resolving to an arbitrary record
+* feat(competence): admit an identity on the admin allowlist that has no employee record, with no `employeeID` and no
+  application roles, so the administration UI stays reachable when the employee data itself needs fixing
+* docs(competence): document in `INSTALL.md` that employee emails must match the identity provider's, what causes a
+  refused sign-in, and the admin allowlist as the recovery path
+* build(release): bump package version from `3.18.0` to `3.19.0`
+
 ## Version 3.17.0
 
 The Quality Engineering role family goes live. QE has been in the taxonomy since the beginning — nine families are defined, but only SE, BA and PM had competencies, so a QE employee could not be evaluated at all. This adds the 26-competency QE baseline and, in the process, promotes `E1-10 Business and IT domain knowledge` from BA-specific to shared canonical: its meaning is identical across disciplines, only the context of application differs. That single move is what the canonicalization policy now turns on — a competency is shared when its *meaning* is identical across families, not because of which category it sits in. The four QE specializations (MANUAL / AUTOMATION / PERFORMANCE / SECURITY) are deliberately not built: an employee without a specialization is evaluated on the baseline alone, so they are not required for QE to go live. This is a purely additive content change — no code was dropped or renumbered, so unlike the v3.0.0 rebuild **no evaluation data migration is required** (CA-98).

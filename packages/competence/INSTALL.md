@@ -144,6 +144,24 @@ All configuration is via environment variables. **Bold = must set for production
 | `COMPETENCE_PRELOAD_DATA`          | `false` | **Demo-data seed** — merges seed data on startup (re-applied each boot while `true`; does not wipe your data). Leave `false` for real installs (see §11). |
 | **`COMPETENCE_TEST_USER_ENABLED`** | `false` | Dev-only login test-user panel. **Must be `false` in production.**         |
 
+### Employee identity and sign-in
+
+The acting employee is resolved from the email the user signs in with, matched against the `email` field of their
+employee record. **Employee emails must match the addresses your identity provider issues** — an authenticated user
+with no matching record cannot sign in, and sees a generic "we couldn't sign you in" message.
+
+Sign-in is refused when:
+
+- no employee record carries that email;
+- the matching record's `employmentStatus` is anything other than `active` or `on-leave`;
+- two or more employee records share the email (the app refuses rather than guessing; the duplicate is also logged as
+  a `WARNING` at startup).
+
+**Recovery.** An identity listed in `TI_WEB_AUTH_ADMINS` (or `auth.admins`) may sign in *without* an employee record.
+That session has no employee identity and no application roles — it reaches only the administration screens — and
+exists so a deployment with wrong or missing employee data can still be fixed through the admin UI. Set at least one
+admin before enabling SSO.
+
 ### OpenID Connect (Azure is the default SSO — configure it)
 Azure is enabled by default (`TI_WEB_AUTH_METHODS=openid-azure`), so **you must set the Azure credentials below** for a working sign-in. Google is available if you add `openid-google` to `TI_WEB_AUTH_METHODS`. A method that is enabled but unconfigured (no client ID) is skipped with a warning and its button hidden, so the app still boots (and shows the "no method configured" message if nothing remains).
 
