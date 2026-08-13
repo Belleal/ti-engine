@@ -15,7 +15,7 @@ const tools = require( "@ti-engine/core/tools" );
  * Each override is applied ONLY when its environment variable is defined, so an absent variable leaves the
  * configured/default value untouched (fully backward compatible). This gives ti-engine web servers 12-factor,
  * container-friendly control over network binding, TLS, the session cookie secret, the enabled authentication
- * methods, the admin allowlist, the trusted request origins, and the `/static` cache policy without editing config files. Note `TI_WEB_AUTH_METHODS`,
+ * methods, the admin allowlist, the local auth users file path, the trusted request origins, and the `/static` cache policy without editing config files. Note `TI_WEB_AUTH_METHODS`,
  * `TI_WEB_AUTH_ADMINS`, `TI_WEB_TRUSTED_ORIGINS`, and `TI_WEB_STATIC_IMMUTABLE_PATHS` fully REPLACE their config arrays (`auth.enabledMethods` / `auth.admins` / `trustedOrigins` / `staticCache.immutablePaths`) rather than
  * merging — the config-file merge is by-index and cannot cleanly override an array.
  *
@@ -58,6 +58,11 @@ function applyWebConfigEnvOverrides( config, env = process.env ) {
     if ( env.TI_WEB_AUTH_ADMINS !== undefined ) {
         config.auth = config.auth || {};
         config.auth.admins = env.TI_WEB_AUTH_ADMINS.split( "," ).map( ( entry ) => entry.trim() ).filter( ( entry ) => entry.length > 0 );
+    }
+    if ( env.TI_WEB_AUTH_LOCAL_USERS_PATH !== undefined ) {
+        config.auth = config.auth || {};
+        config.auth.local = config.auth.local || {};
+        config.auth.local.usersPath = env.TI_WEB_AUTH_LOCAL_USERS_PATH;
     }
     if ( env.TI_WEB_TRUSTED_ORIGINS !== undefined ) {
         config.trustedOrigins = env.TI_WEB_TRUSTED_ORIGINS.split( "," ).map( ( origin ) => origin.trim() ).filter( ( origin ) => origin.length > 0 );
