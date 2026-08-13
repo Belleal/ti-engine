@@ -2,6 +2,10 @@
   "interface": {
     "default": {
       "login": {
+        "error-sign-in-failed": {
+          "en": "We couldn't sign you in. Check your credentials, or contact your administrator if your account is not set up for this application.",
+          "bg": "Неуспешно влизане. Проверете данните си за достъп или се свържете с администратора, ако акаунтът ви не е настроен за това приложение."
+        },
         "password": {
           "en": "Password",
           "bg": "Парола"
