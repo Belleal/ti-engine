@@ -20,7 +20,9 @@ const TEST_EMPLOYEES = [
     { employeeID: "902", email: "grace@example.com", employmentStatus: "on-leave", personal: { firstName: "Grace", lastName: "H" }, career: { organizationUnitID: null } },
     { employeeID: "903", email: "twins@example.com", employmentStatus: "active", personal: { firstName: "Twin", lastName: "One" }, career: { organizationUnitID: null } },
     { employeeID: "904", email: "twins@example.com", employmentStatus: "active", personal: { firstName: "Twin", lastName: "Two" }, career: { organizationUnitID: null } },
-    { employeeID: "905", employmentStatus: "active", personal: { firstName: "No", lastName: "Email" }, career: { organizationUnitID: null } }
+    { employeeID: "905", employmentStatus: "active", personal: { firstName: "No", lastName: "Email" }, career: { organizationUnitID: null } },
+    // Deliberately carries NO employmentStatus, to pin that the index does not invent one.
+    { employeeID: "906", email: "nostatus@example.com", personal: { firstName: "No", lastName: "Status" }, career: { organizationUnitID: null } }
 ];
 
 describe( "organizationManager email index", () => {
@@ -37,6 +39,16 @@ describe( "organizationManager email index", () => {
         } );
         await stub.setJSON( "ti:competence:data:employees", employeeMap );
         await organizationManager.instance.buildOrganizationChart();
+    } );
+
+    it( "passes an absent employmentStatus through instead of defaulting it to active", () => {
+        // This index feeds login identity resolution, and the resolver admits only a status on its permitted list.
+        // Defaulting an absent status to "active" here would hand a full employee session and org-derived roles to
+        // a record carrying no approved status — a fail-open on a security-relevant field. Asserting `undefined`
+        // rather than merely "not active" is deliberate: it pins the pass-through, not just the absence of a grant.
+        const resolved = organizationManager.instance.resolveEmployeeIDByEmail( "nostatus@example.com" );
+        assert.equal( resolved.employeeID, "906" );
+        assert.equal( resolved.employmentStatus, undefined, "the index must not invent a status the record does not have" );
     } );
 
     it( "resolves an employee by their exact email", () => {

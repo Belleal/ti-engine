@@ -45,13 +45,47 @@ const MAX_P = 16;
 // power of two, so a truncated or mistyped N (16384 -> 16) loads clean and verifies almost for free.
 const MIN_N = 16384;
 
-// The upper bound. Two independent reasons: `N & (N - 1)` coerces both operands to int32 to test the
+// A hard ceiling on N, kept for two narrow reasons: `N & (N - 1)` coerces both operands to int32 to test the
 // power-of-two invariant, so it is only reliable strictly below 2^31 — at or above that a non-power-of-two value
-// can pass the check anyway; separately, N is scrypt's dominant CPU-cost multiplier with no cap of its own, so
-// an unbounded value is a denial-of-service knob and, past the int32 boundary, a permanent silent lockout (loads
-// clean, then fails every verifyPassword call forever). 2^20 (64x HASH_DEFAULTS.N) is comfortably inside the
-// reliable range and far beyond any sane operational cost.
+// can pass the check anyway — and N is scrypt's dominant CPU-cost multiplier with no cap of its own.
+// NOTE: this is NOT the effective ceiling, and an earlier version of this comment wrongly claimed it prevented
+// the "loads clean, then fails every verifyPassword call forever" lockout. It does not: the memory budget below
+// binds first by a wide margin. At the shipped r=8, N=32768 — a mere 2x the default and 32x below this value —
+// already exceeds the memory limit. Treat MAX_N as a backstop, not as a description of the usable range.
 const MAX_N = 2 ** 20;
+
+// scrypt's memory requirement, and the budget it must fit inside.
+//
+// `crypto.scrypt` rejects parameters needing more than `maxmem`, which Node defaults to 32 MiB. Neither
+// `deriveKey` nor `hashPassword` passes `maxmem`, so that default governs — deliberately: raising it would widen
+// what this published package permits and multiply peak memory across concurrent logins, each holding its budget
+// on a threadpool slot. The bound therefore matches the runtime's real limit rather than a limit of our choosing.
+//
+// The formula is the one OpenSSL actually applies — `128 * r * (N + 2 + p)`, the V array plus the B buffer — NOT
+// the frequently-quoted `128 * N * r`. That distinction is load-bearing: for N=16384/r=16 the naive form computes
+// exactly 33554432, at or under the 32 MiB budget, so a check written from it would ADMIT the very parameters it
+// exists to reject, while the true requirement is 33560576 and OpenSSL refuses. Verified against
+// `crypto.scryptSync` across the boundary; the accepted/rejected split matches this expression exactly.
+//
+// Without this bound a record whose parameters exceed the budget loads with zero reported problems and then makes
+// every verification fail forever — `verifyPassword`'s `.catch( () => false )` turns the
+// ERR_CRYPTO_INVALID_SCRYPT_PARAMS into an ordinary "wrong password", so the account is permanently locked out
+// and indistinguishable from a typo. With it, the record is rejected at load and named in the operator's warning.
+const SCRYPT_MAX_MEMORY_BYTES = 32 * 1024 * 1024;
+
+/**
+ * The memory `crypto.scrypt` requires for the given cost parameters, in bytes.
+ *
+ * @method
+ * @param {number} N
+ * @param {number} r
+ * @param {number} p
+ * @returns {number}
+ * @private
+ */
+function scryptMemoryRequirement( N, r, p ) {
+    return 128 * r * ( N + 2 + p );
+}
 
 // Invariant: MIN_N must never be stricter than the cost this module itself mints new hashes at, or a hash
 // produced by hashPassword() today could be rejected by decodeHash() tomorrow. Asserted at module load, not
@@ -115,6 +149,14 @@ function decodeHash( encoded ) {
     // derive time. verifyPassword's `.catch(() => false)` swallows that into an ordinary "wrong password", so
     // without this check an operator would see permanent, silent failed logins with nothing reported anywhere.
     if ( ( N & ( N - 1 ) ) !== 0 ) {
+        return null;
+    }
+    // The memory bound. Reached only once N/r/p are individually sane, because it is the combination that matters:
+    // every one of N=16384/r=16, N=32768/r=8 and N=65536/r=8 has each value in range yet needs more than the
+    // budget, and each one would otherwise load clean and then never verify again. There is deliberately no
+    // separate ceiling on `r` — r only matters through this requirement, and a standalone limit would either
+    // duplicate this one or contradict it.
+    if ( scryptMemoryRequirement( N, r, p ) > SCRYPT_MAX_MEMORY_BYTES ) {
         return null;
     }
     try {

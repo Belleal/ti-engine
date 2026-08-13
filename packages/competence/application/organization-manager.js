@@ -622,7 +622,14 @@ class OrganizationManager {
                 return;
             }
 
-            index.set( email, { employeeID: employeeID, employmentStatus: employee.employmentStatus || "active" } );
+            // The status is passed through verbatim — deliberately NOT defaulted to "active" as the graph node
+            // attribute above does. This index feeds login identity resolution, where the resolver admits only a
+            // status on its permitted list; coercing an absent status to "active" here would hand a full employee
+            // session and org-derived roles to a record that carries no approved status at all, which is a
+            // fail-open on a security-relevant field. Passing `undefined` through lets the resolver refuse it.
+            // (The node attribute keeps its default because it feeds display and reporting, where "unknown" would
+            // be a regression, not a safeguard.)
+            index.set( email, { employeeID: employeeID, employmentStatus: employee.employmentStatus } );
         } );
 
         duplicates.forEach( ( employeeIDs, email ) => {

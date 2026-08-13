@@ -212,6 +212,12 @@ declare class TiWebServer extends ServiceConsumer {
     authenticate(authMethod: TiAuthMethod, authDetails?: Object): Promise<any>;
     /**
      * Used to set up user authorization according to the specified auth method.
+     * <br/>
+     * NOTE: This presupposes a successful, immediately preceding {@link TiWebServer#authenticate} call for the same
+     * credentials — it is **not** an independent authentication check. For the `local` method it builds the session
+     * user from the directory record named by `oidc.username`, verifying that the record exists and is not disabled
+     * but performing no password comparison of its own; the framework's own login route calls `authenticate` first.
+     * Calling this directly without that preceding step would mint a session for any known username.
      *
      * @method
      * @param {TiAuthMethod} authMethod

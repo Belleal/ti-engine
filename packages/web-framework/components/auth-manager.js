@@ -75,26 +75,28 @@ class AuthManager {
     #localDirectoryUsable = false;
 
     // A fixed, valid encoding used only to spend comparable time on an unknown or disabled username. It corresponds
-    // to no usable password. Computed lazily on first use rather than at module/class load: eagerly running
-    // scryptSync (~100ms, blocking) for every instance — even one where 'local' is disabled entirely, e.g.
-    // competence's shipped Azure-only image — pays that cost at startup for nothing. Memoized because the whole
-    // point is a fixed value nothing can ever verify against; recomputing it per call would just waste the cost
-    // repeatedly for no benefit.
-    static #timingDecoyHash;
-
-    /**
-     * Lazily computes and memoizes the timing decoy hash (see {@link AuthManager.#timingDecoyHash}).
-     *
-     * @method
-     * @static
-     * @returns {string}
-     */
-    static #getTimingDecoyHash() {
-        if ( AuthManager.#timingDecoyHash === undefined ) {
-            AuthManager.#timingDecoyHash = localUserDirectory.hashPassword( randomBytes( 32 ).toString( "base64" ) );
-        }
-        return AuthManager.#timingDecoyHash;
-    }
+    // to no usable password: the key material is random, so nothing can ever verify against it.
+    //
+    // It is ASSEMBLED, not hashed. `verifyPassword` reads N/r/p and the key length out of the encoded string and
+    // then derives asynchronously off the main thread, so the decoy only has to be *decodable* — the derive that
+    // equalizes the timing happens inside `verifyPassword` either way, at parameters identical to a real record's
+    // because they come from the same HASH_DEFAULTS. Calling `hashPassword` here would additionally run a
+    // ~100 ms blocking `scryptSync`, and it bought nothing: an earlier version paid that at class load (so every
+    // instance paid it, including one with 'local' disabled entirely — competence's shipped Azure-only image),
+    // and making it lazy only moved the same blocking cost onto the first refused login, i.e. onto a request path.
+    // Assembling it costs a few random bytes, so it can be eager again without the lazy-getter machinery.
+    //
+    // It MUST remain decodable: if `decodeHash` ever rejected it, `verifyPassword` would return false immediately
+    // without deriving, and the timing-equalization this exists for would silently stop working. A test asserts
+    // the decoy still round-trips through the directory's own validation.
+    static #timingDecoyHash = [
+        localUserDirectory.ALGORITHM,
+        localUserDirectory.HASH_DEFAULTS.N,
+        localUserDirectory.HASH_DEFAULTS.r,
+        localUserDirectory.HASH_DEFAULTS.p,
+        randomBytes( localUserDirectory.HASH_DEFAULTS.saltBytes ).toString( "base64" ),
+        randomBytes( localUserDirectory.HASH_DEFAULTS.keyBytes ).toString( "base64" )
+    ].join( "$" );
 
     /**
      * @constructor
@@ -504,7 +506,7 @@ class AuthManager {
         return localUserDirectory.findByUsername( username ).then( ( record ) => {
             if ( !record || record.disabled === true ) {
                 // Burn comparable time before refusing, so timing does not reveal whether the username exists.
-                return localUserDirectory.verifyPassword( password, AuthManager.#getTimingDecoyHash() ).then( () => refuse() );
+                return localUserDirectory.verifyPassword( password, AuthManager.#timingDecoyHash ).then( () => refuse() );
             }
             return localUserDirectory.verifyPassword( password, record.passwordHash ).then( ( matches ) => {
                 return matches ? Promise.resolve() : refuse();

@@ -163,6 +163,61 @@ describe( "localUserDirectory.parseRecords", () => {
         assert.match( result.problems[ 0 ], /passwordHash/ );
     } );
 
+    // The memory budget. Every case below has N, r and p individually inside their own bounds — it is the
+    // *combination* that exceeds what `crypto.scrypt` will allocate, so each one used to load with zero reported
+    // problems and then fail every verification forever, indistinguishable from a wrong password.
+    const KEY_64 = "aGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaA==";
+    const SALT_16 = "c2FsdHNhbHRzYWx0c2FsdA==";
+
+    [
+        { label: "r=16 at the default N", hash: `scrypt$16384$16$1$${ SALT_16 }$${ KEY_64 }` },
+        { label: "twice the default N at the default r", hash: `scrypt$32768$8$1$${ SALT_16 }$${ KEY_64 }` },
+        { label: "four times the default N at the default r", hash: `scrypt$65536$8$1$${ SALT_16 }$${ KEY_64 }` }
+    ].forEach( ( { label, hash } ) => {
+        it( `drops a record whose passwordHash needs more memory than crypto.scrypt will allocate (${ label })`, () => {
+            const result = directory.parseRecords( [ validEntry( { passwordHash: hash } ) ] );
+            assert.equal( result.records.length, 0, "a record that can never verify must not load" );
+            assert.match( result.problems[ 0 ], /passwordHash/ );
+        } );
+    } );
+
+    it( "still accepts the maximum p at the default cost, which fits the budget", () => {
+        // Guards the bound from being written too tight: p contributes to the requirement but only slightly, so
+        // the highest permitted p at the shipped N/r must still load.
+        const result = directory.parseRecords( [ validEntry( { passwordHash: `scrypt$16384$8$16$${ SALT_16 }$${ KEY_64 }` } ) ] );
+        assert.equal( result.records.length, 1, "p=16 at the default N/r fits the budget and must be accepted" );
+    } );
+
+    it( "rejects r=16 at the default N, which the frequently-quoted 128*N*r formula would have admitted", () => {
+        // This is the case that makes the formula choice load-bearing rather than pedantic. `128 * N * r` for
+        // N=16384/r=16 is exactly 33554432 — at or under the 32 MiB budget — so a bound written from that form
+        // would accept these parameters, while OpenSSL's real requirement of 128*r*(N+2+p) is 33560576 and it
+        // refuses. If someone "simplifies" the requirement expression, this test is what catches it.
+        assert.equal( 128 * 16384 * 16 <= 32 * 1024 * 1024, true, "the naive formula really does look acceptable here" );
+        const result = directory.parseRecords( [ validEntry( { passwordHash: `scrypt$16384$16$1$${ SALT_16 }$${ KEY_64 }` } ) ] );
+        assert.equal( result.records.length, 0 );
+    } );
+
+    it( "accepts an encoding assembled directly from HASH_DEFAULTS, which the auth manager's timing decoy relies on", () => {
+        // AuthManager builds its timing-decoy hash by assembling HASH_DEFAULTS plus random salt/key rather than
+        // running scryptSync. That only equalizes login timing while the assembled string is decodable: if
+        // decodeHash rejected it, verifyPassword would return false immediately without deriving and the decoy
+        // would stop hiding whether a username exists — silently. This pins the invariant from the directory side,
+        // where the constants and the validation both live.
+        const crypto = require( "node:crypto" );
+        const assembled = [
+            directory.ALGORITHM,
+            directory.HASH_DEFAULTS.N,
+            directory.HASH_DEFAULTS.r,
+            directory.HASH_DEFAULTS.p,
+            crypto.randomBytes( directory.HASH_DEFAULTS.saltBytes ).toString( "base64" ),
+            crypto.randomBytes( directory.HASH_DEFAULTS.keyBytes ).toString( "base64" )
+        ].join( "$" );
+
+        const result = directory.parseRecords( [ validEntry( { passwordHash: assembled } ) ] );
+        assert.equal( result.records.length, 1, "an encoding built from HASH_DEFAULTS must decode, or the timing decoy silently stops working" );
+    } );
+
     it( "reports a duplicate username instead of silently overwriting", () => {
         const result = directory.parseRecords( [ validEntry(), validEntry( { email: "other@example.com" } ) ] );
         assert.equal( result.records.length, 1, "only the first occurrence is kept" );

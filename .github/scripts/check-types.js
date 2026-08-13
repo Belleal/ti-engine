@@ -196,8 +196,12 @@ function main() {
             include: [ toConfigPath( path.join( REPOSITORY_ROOT, "packages", name, "types", "**", "*.d.ts" ) ) ]
         } );
         const errors = countErrors( result.output );
-        process.stdout.write( `declarations (${ name }): ${ errors } error(s)\n` );
-        if ( errors > 0 ) {
+        process.stdout.write( `declarations (${ name }): ${ errors } error(s)${ result.code !== 0 ? `, compiler exited ${ result.code }` : "" }\n` );
+        // The exit code is checked as well as the diagnostic count, because they are not the same signal: a run that
+        // fails to launch, crashes, is OOM-killed or dies on a signal exits nonzero while emitting no `error TS`
+        // line at all, so counting alone reported "0 error(s)" and let the gate pass. `checkDrift` above and
+        // build-types.js already gate on the code; these two branches were the ones that did not.
+        if ( result.code !== 0 || errors > 0 ) {
             process.stdout.write( result.output );
             failed = true;
         }
@@ -209,8 +213,8 @@ function main() {
         include: [ toConfigPath( path.join( WORK_DIRECTORY, "consumer.ts" ) ) ]
     } );
     const consumerErrors = countErrors( consumer.output );
-    process.stdout.write( `consumer (${ subpaths } subpaths): ${ consumerErrors } error(s)\n` );
-    if ( consumerErrors > 0 ) {
+    process.stdout.write( `consumer (${ subpaths } subpaths): ${ consumerErrors } error(s)${ consumer.code !== 0 ? `, compiler exited ${ consumer.code }` : "" }\n` );
+    if ( consumer.code !== 0 || consumerErrors > 0 ) {
         process.stdout.write( consumer.output );
         failed = true;
     }
