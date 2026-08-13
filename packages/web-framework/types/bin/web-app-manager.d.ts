@@ -1,5 +1,5 @@
 export = TiWebAppManager;
-import type { TiSession } from "#definitions";
+import type { TiApplicationInfo, TiInfoSection, TiProfileInfo, TiSession } from "#definitions";
 /**
  * Gates the login-page authentication markup to the effective enabled methods. The login fragment delimits blocks
  * with HTML-comment markers: `<!--ti-auth-method:METHOD-->…<!--/ti-auth-method-->` around each method's control
@@ -160,6 +160,100 @@ declare class TiWebAppManager {
      * @public
      */
     processDataRequest(session: TiSession, view: string, options?: Object): Promise<Object>;
+    /**
+     * Returns the configuration for the shared UI components the application shell renders — currently the sidebar
+     * user flyout menu. Shipped as part of the `config` data payload and merged into the `tiComponentsConfig`
+     * Alpine store on the client.
+     * <br/>
+     * The default menu links the two screens the framework itself provides (Profile and About) plus sign-out, so a
+     * consuming application gets a working user menu without configuring one. Override to replace it; a subclass
+     * that supplies its own `componentsConfig` naturally supersedes this.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Object}
+     * @virtual
+     * @public
+     */
+    buildComponentsConfig(session: TiSession): Object;
+    /**
+     * Returns the descriptor rendered by the "Profile" screen — the identity header plus an ordered list of titled
+     * label/value sections. Every string in it is display-ready: the server resolves labels and formats values,
+     * because this is where the session language and the label catalogue are (see {@link resolveLabel}).
+     * <br/>
+     * The default implementation reports what the framework itself knows about the session user — name, username,
+     * e-mail, language and roles. Override in subclasses to show application-owned data instead; the screen, its
+     * Alpine component and its styling are inherited unchanged, so an override only decides the content.
+     * <br/>
+     * NOTE: The descriptor is always about the SESSION user. There is deliberately no "whose profile" parameter —
+     * viewing another person's record belongs to an application screen that carries its own scoping rules.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<TiProfileInfo>}
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} (401) When the session carries no user.
+     * @virtual
+     * @public
+     */
+    getProfileInfo(session: TiSession): Promise<TiProfileInfo>;
+    /**
+     * Returns the descriptor rendered by the "About" screen — the application's own identity (name, version,
+     * release date, description, license, homepage) plus the ti-engine component versions it runs on, and any
+     * extra sections the application contributes.
+     * <br/>
+     * The baseline is resolved once from the consuming application's `package.json`, overridable through
+     * `TI_WEB_APP_NAME` / `TI_WEB_APP_VERSION` / `TI_WEB_APP_RELEASE_DATE` (see `#application-info`), and cached —
+     * the manifest cannot change while the process runs.
+     * <br/>
+     * NOTE: Runtime facts (node version, platform, instance identity) are attached only for an `admin` session.
+     * They are operational detail that helps support and means nothing to an ordinary user, so they are not handed
+     * to every signed-in visitor. Override in subclasses to append application-specific sections; call `super` and
+     * extend the result rather than rebuilding it.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<TiApplicationInfo>}
+     * @virtual
+     * @public
+     */
+    getApplicationInfo(session: TiSession): Promise<TiApplicationInfo>;
+    /**
+     * Builds the identity header of the Profile screen from the session user. Kept separate from
+     * {@link TiWebAppManager#getProfileInfo} so a subclass that replaces the sections can still reuse — or fall
+     * back to — the framework's identity block when the application has no richer identity to show.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Object}
+     * @public
+     */
+    buildSessionIdentity(session: TiSession): Object;
+    /**
+     * Builds the framework's account-level Profile sections from the session user. A subclass showing richer
+     * application data can append these so the account facts remain visible alongside it.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {TiInfoSection[]}
+     * @public
+     */
+    buildAccountSections(session: TiSession): TiInfoSection[];
+    /**
+     * Resolves the versions of the ti-engine packages the running application is built on, for the About screen.
+     * <br/>
+     * NOTE: `@ti-engine/core` does not expose `./package.json` through its exports map, so its manifest is located
+     * by walking up from a module it *does* export. A package that cannot be resolved is simply omitted — an
+     * informational screen must never be the reason a request fails.
+     *
+     * @method
+     * @static
+     * @returns {Array<{name: string, version: string}>}
+     * @public
+     */
+    static resolveFrameworkComponents(): Array<{
+        name: string;
+        version: string;
+    }>;
     /**
      * Used to process an application service request.
      *
