@@ -2,17 +2,23 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
-## Version 1.10.1
+## Version 1.11.0
 
 `decycle` silently lost a key named `__proto__` and corrupted the surrounding document. It built its replica as `{}`
 and copied keys in by bracket assignment, so that one name hit the inherited prototype setter instead of becoming an
 own property: the key vanished and its value became the replica's prototype, which `stringifyJSON` then flattened
-back in as unrelated top-level keys. Serializing `{ __proto__: { hello: 1 }, ada: {} }` produced `{"ada":{},"hello":1}`.
+back in as unrelated top-level keys. An object with an own `__proto__` key holding `{ hello: 1 }` alongside an `ada`
+key serialized to `{"ada":{…},"hello":1}` — the key gone and `hello` promoted to a sibling. (Note the input cannot be
+written as an object literal: in `{ __proto__: x }` that name is a prototype setter, not a key, even quoted. Only a
+computed key or an assignment onto `Object.create( null )` produces the property this bug needed.)
 
 This reached Redis: `cache.setJSON` serializes with `stringifyJSON`, so any caller storing such a key lost it against
-a real cache. `decycle` also runs on the message-exchange integrity-hash path and over every exception data payload.
-No test caught it because web-framework's in-memory cache double clones with `JSON.parse( JSON.stringify( … ) )` and
-never reaches `stringifyJSON`.
+a real cache. `decycle` also runs on the message-exchange integrity-hash path, and over an exception's `data` whenever
+`raise` is given one. No test caught it because web-framework's in-memory cache double clones with
+`JSON.parse( JSON.stringify( … ) )` and never reaches `stringifyJSON`.
+
+**This is a minor rather than a patch release because it requires a consumer code change** — see the note below. The
+fix is a bug fix, but the replica's prototype is part of the observable contract.
 
 * fix(tools): build `decycle`'s object replica with `Object.create( null )`, so a key named `__proto__` is an ordinary
   own key with no setter to hit. Verified against both consumers of the output — `_.isPlainObject` accepts a
@@ -21,14 +27,31 @@ never reaches `stringifyJSON`.
 * test(tools): pin the regression, the cycle handling it must not break, the `decomposeJSON` and `retrocycle` paths,
   and the fact that a key named `constructor` was **never** affected — it is an ordinary writable data property, so
   bracket assignment always shadowed it correctly, and the fix's shape should not imply otherwise
-* build(release): bump package version from `1.10.0` to `1.10.1`
+* build(release): bump package version from `1.10.0` to `1.11.0`
 
 `retrocycle` was checked and is not affected: it mutates objects that already came through `JSON.parse`, which creates
 `__proto__` as an own data property, and assignment to an existing own property shadows the inherited setter.
 
-**Note for consumers:** `decycle`'s replica now has a null prototype. Code calling an inherited `Object` method
-directly on the result — `result.hasOwnProperty( … )` — must use `Object.prototype.hasOwnProperty.call( result, … )`.
-No such call site exists in this monorepo.
+**Breaking for consumers who touch the returned object directly.** The objects returned by `decycle` — and by
+`errorToJSON` for an `Error` — now have a **null prototype**, so they inherit nothing from `Object.prototype`. Passing
+them to `JSON.stringify`, lodash, or `decomposeJSON` is unaffected; the following are not, and the first two throw
+rather than merely behaving differently:
+
+| Expression on the returned object | Before | Now |
+|---|---|---|
+| `` `${ result }` ``, `String( result )`, `result + ""` | `"[object Object]"` | **`TypeError: Cannot convert object to primitive value`** |
+| `result.toString()`, `result.valueOf()` | works | **`TypeError`** |
+| `result.hasOwnProperty( key )` | works | **`TypeError`** — use `Object.prototype.hasOwnProperty.call( result, key )` |
+| `result instanceof Object` | `true` | `false` |
+| `result.constructor` | `Object` | `undefined` |
+
+The likeliest way to hit this is interpolating an `errorToJSON` result straight into a log line. Wrap such a value in
+`_.cloneDeep( … )` — which normalizes the prototype back — or serialize it explicitly. No call site in this monorepo
+does any of the above; every first-party `hasOwnProperty` use is already the `Object.prototype.…call` form.
+
+**Mixed-version note:** for the rare message carrying a literal `__proto__` key, an old sender and an upgraded receiver
+compute different `createMessageHash` values, so the receiver raises `E_SEC_MESSAGE_TAMPERING_DETECTED`. Such messages
+were already being corrupted in transit, so this surfaces a pre-existing problem rather than creating one.
 
 ## Version 1.10.0
 

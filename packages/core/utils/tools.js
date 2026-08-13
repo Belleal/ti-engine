@@ -345,11 +345,14 @@ module.exports.decycle = ( object, replacer ) => {
                 // ordinary `{}` a key named `__proto__` would hit the inherited setter instead of creating an own
                 // property: the key vanished from the replica and its value silently became the replica's prototype.
                 // `stringifyJSON` then ran `_.toPlainObject` over that, flattening the lost value's own fields back
-                // in as unrelated top-level keys — so serializing `{ __proto__: { hello: 1 }, ada: {} }` produced
-                // `{"ada":{},"hello":1}`. Silent corruption, not a crash, and it reached Redis through
-                // `cache.setJSON`. With a null prototype there is no setter to hit, so `__proto__` is an ordinary key.
-                // `_.isPlainObject` accepts a null-prototype object, so `decomposeJSON` and `_.toPlainObject` — the
-                // two things that consume this output — are unaffected.
+                // in as unrelated top-level keys, so the key vanished and its contents surfaced as siblings. Silent
+                // corruption, not a crash, and it reached Redis through `cache.setJSON`. With a null prototype there
+                // is no setter to hit, so `__proto__` is an ordinary key.
+                // Both consumers of this output are safe: `_.isPlainObject` accepts a null-prototype object, so
+                // `decomposeJSON` behaves identically, and `_.toPlainObject` preserves the key — but only because
+                // lodash's own `baseAssignValue` special-cases `__proto__` with `defineProperty`. That is a dependency
+                // this fix leans on, so `test/tools-proto-keys.test.js` asserts the whole chain end to end rather than
+                // just this function.
                 newItem = Object.create( null );
                 Object.keys( value ).forEach( ( name ) => {
                     newItem[ name ] = derez(
