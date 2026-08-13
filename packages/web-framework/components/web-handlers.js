@@ -172,7 +172,13 @@ let regenerateAndSaveSession = ( request, redirectTo, modifier ) => {
                         request.session = modifier( request.session );
                     }
                 } catch ( error ) {
-                    reject( error );
+                    // The application's augment hook refused this login. `session.user` was already assigned in place
+                    // before the hook ran, and `verifySession` only checks that it exists — so a merely-rejected
+                    // session would still be persisted by express-session at response end and would admit the user.
+                    // Destroy it before rejecting so a refusal is genuinely fail-closed.
+                    request.session.destroy( () => {
+                        reject( error );
+                    } );
                     return;
                 }
                 request.session.save( ( error ) => {
