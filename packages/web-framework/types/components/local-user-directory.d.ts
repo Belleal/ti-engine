@@ -1,0 +1,57 @@
+declare const _exports: {
+    ALGORITHM: string;
+    HASH_DEFAULTS: Readonly<{
+        N: 16384;
+        r: 8;
+        p: 1;
+        saltBytes: 16;
+        keyBytes: 64;
+    }>;
+    hashPassword: typeof hashPassword;
+    verifyPassword: typeof verifyPassword;
+    parseRecords: typeof parseRecords;
+};
+export = _exports;
+export type LocalUserRecord = {
+    userID: string;
+    username: string;
+    email: string;
+    name: string;
+    passwordHash: string;
+    disabled: boolean;
+};
+/**
+ * Hashes a password for storage in a local-users file. Synchronous because its only caller is the one-shot CLI,
+ * where blocking is free — never call it on a request path.
+ *
+ * @method
+ * @param {string} password
+ * @returns {string} The encoded hash: `scrypt$N$r$p$salt$hash`, base64 salt and key.
+ * @public
+ */
+declare function hashPassword(password: string): string;
+/**
+ * Verifies a password against an encoded hash. The cost parameters come from the stored string rather than the
+ * current defaults, so raising the defaults never invalidates an existing hash.
+ *
+ * @method
+ * @param {string} password
+ * @param {string} encoded
+ * @returns {Promise<boolean>} `false` for a malformed encoding or an absent password — never a throw, because a
+ *          bad stored value must read as "does not match", not as a server error on the login path.
+ * @public
+ */
+declare function verifyPassword(password: string, encoded: string): Promise<boolean>;
+/**
+ * Validates raw file content into records, reporting why any entry was excluded. Never throws: a malformed row is
+ * data, not a crash, so one bad entry cannot take an instance down.
+ *
+ * @method
+ * @param {*} raw
+ * @returns {{records: LocalUserRecord[], problems: string[]}}
+ * @public
+ */
+declare function parseRecords(raw: any): {
+    records: LocalUserRecord[];
+    problems: string[];
+};

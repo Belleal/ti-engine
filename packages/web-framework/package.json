@@ -73,6 +73,10 @@
       "types": "./types/components/definitions.types.d.ts",
       "default": "./components/definitions.types.js"
     },
+    "#local-user-directory": {
+      "types": "./types/components/local-user-directory.d.ts",
+      "default": "./components/local-user-directory.js"
+    },
     "#session-store": {
       "types": "./types/components/session-store.d.ts",
       "default": "./components/session-store.js"
