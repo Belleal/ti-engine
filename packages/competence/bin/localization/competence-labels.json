@@ -7191,6 +7191,14 @@
         "en": "Dashboard",
         "bg": "Табло"
       },
+      "profile": {
+        "en": "My Profile",
+        "bg": "Моят профил"
+      },
+      "about": {
+        "en": "About Competence",
+        "bg": "За Competence"
+      },
       "employees": {
         "en": "Org Chart",
         "bg": "Орг. схема"
@@ -7359,6 +7367,10 @@
         "en": "Your profile",
         "bg": "Вашият профил"
       },
+      "about": {
+        "en": "About Competence",
+        "bg": "За Competence"
+      },
       "settings": {
         "en": "Settings",
         "bg": "Настройки"
@@ -7366,6 +7378,160 @@
       "logout": {
         "en": "Logout",
         "bg": "Изход"
+      }
+    },
+    "profile": {
+      "eyebrow": {
+        "en": "MY ACCOUNT",
+        "bg": "МОЯТ ПРОФИЛ"
+      },
+      "title": {
+        "en": "My Profile",
+        "bg": "Моят профил"
+      },
+      "intro": {
+        "en": "Your employee record as it stands today. This screen is read-only — personal, career and organization data is maintained by your manager or a supervisor in People, and every change there is audited.",
+        "bg": "Вашето служебно досие в актуалния му вид. Екранът е само за преглед — личните, кариерните и организационните данни се поддържат от вашия мениджър или надзорник в раздел Хора, като всяка промяна се одитира."
+      },
+      "empty-title": {
+        "en": "Profile unavailable",
+        "bg": "Профилът е недостъпен"
+      },
+      "empty-desc": {
+        "en": "Your profile information could not be loaded. Try again in a moment.",
+        "bg": "Информацията за профила не можа да бъде заредена. Опитайте отново след малко."
+      },
+      "field-roles": {
+        "en": "Roles in the appraisal process",
+        "bg": "Роли в процеса по оценяване"
+      },
+      "role": {
+        "1": {
+          "en": "Employee",
+          "bg": "Служител"
+        },
+        "2": {
+          "en": "Manager",
+          "bg": "Мениджър"
+        },
+        "3": {
+          "en": "Supervisor",
+          "bg": "Надзорник"
+        },
+        "4": {
+          "en": "Team Member",
+          "bg": "Член на екип"
+        },
+        "admin": {
+          "en": "Administrator",
+          "bg": "Администратор"
+        }
+      }
+    },
+    "about": {
+      "eyebrow": {
+        "en": "APPLICATION",
+        "bg": "ПРИЛОЖЕНИЕ"
+      },
+      "title": {
+        "en": "About Competence",
+        "bg": "За Competence"
+      },
+      "intro": {
+        "en": "The build of Competence you are running, the release it comes from, and the ti-engine components behind it.",
+        "bg": "Версията на Competence, която използвате, изданието, от което произхожда, и компонентите на ti-engine зад нея."
+      },
+      "empty-title": {
+        "en": "Details unavailable",
+        "bg": "Информацията е недостъпна"
+      },
+      "empty-desc": {
+        "en": "The application details could not be loaded. Try again in a moment.",
+        "bg": "Информацията за приложението не можа да бъде заредена. Опитайте отново след малко."
+      },
+      "released": {
+        "en": "Released",
+        "bg": "Издадена на"
+      },
+      "section-release": {
+        "en": "Release",
+        "bg": "Издание"
+      },
+      "section-components": {
+        "en": "Framework components",
+        "bg": "Компоненти на платформата"
+      },
+      "section-components-desc": {
+        "en": "The ti-engine packages this application is built on.",
+        "bg": "Пакетите на ti-engine, върху които е изградено приложението."
+      },
+      "section-runtime": {
+        "en": "Runtime",
+        "bg": "Среда"
+      },
+      "section-runtime-desc": {
+        "en": "Visible to administrators only.",
+        "bg": "Видимо само за администратори."
+      },
+      "section-deployment": {
+        "en": "This deployment",
+        "bg": "Тази инсталация"
+      },
+      "section-deployment-desc": {
+        "en": "What this particular instance is configured with right now.",
+        "bg": "С какво е конфигурирана точно тази инстанция в момента."
+      },
+      "field-version": {
+        "en": "Version",
+        "bg": "Версия"
+      },
+      "field-release-date": {
+        "en": "Release date",
+        "bg": "Дата на издаване"
+      },
+      "field-license": {
+        "en": "License",
+        "bg": "Лиценз"
+      },
+      "field-author": {
+        "en": "Author",
+        "bg": "Автор"
+      },
+      "field-package": {
+        "en": "Package",
+        "bg": "Пакет"
+      },
+      "field-homepage": {
+        "en": "Homepage",
+        "bg": "Уебсайт"
+      },
+      "field-current-cycle": {
+        "en": "Current cycle",
+        "bg": "Текущ цикъл"
+      },
+      "field-cycle-status": {
+        "en": "Cycle status",
+        "bg": "Статус на цикъла"
+      },
+      "field-competencies": {
+        "en": "Competencies defined",
+        "bg": "Дефинирани компетенции"
+      },
+      "field-role-families": {
+        "en": "Role families",
+        "bg": "Семейства роли"
+      },
+      "runtime-node": {
+        "en": "Node.js",
+        "bg": "Node.js"
+      },
+      "runtime-platform": {
+        "en": "Platform",
+        "bg": "Платформа"
+      },
+      "runtime-application": {
+        "en": "Application ID",
+        "bg": "ID на приложението"
       }
     },
     "admin": {
