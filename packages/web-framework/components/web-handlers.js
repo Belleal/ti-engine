@@ -534,7 +534,9 @@ module.exports.defaultErrorHandler = () => {
                     } )
                 } );
                 return response.status( status ).send( "" );
-            } else if ( isAcceptingResponseType( request, "html" ) && request.method === "GET" ) {
+                // A 401 on an HTML request means "you are not signed in" whatever the method — the useful answer is the
+                // sign-in page carrying the reason, so local auth's POST presents exactly like the OAuth callback's GET.
+            } else if ( isAcceptingResponseType( request, "html" ) && ( request.method === "GET" || status === exceptions.httpCode.C_401 ) ) {
                 response.redirect( exceptions.httpCode.C_303, "/?error=" + encodeURIComponent( exception.code ) );
             } else {
                 response.status( status ).send( payload );
