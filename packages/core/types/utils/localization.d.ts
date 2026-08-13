@@ -1,5 +1,5 @@
 export { localizationLanguageEnum as localizationLanguage };
-export declare var getLabel: (label: string, language?: TiLocalizationLanguage) => string;
+export declare var getLabel: (label: string, language?: TiLocalizationLanguage, fallback?: string) => string;
 export declare var getAllLabels: (language?: TiLocalizationLanguage) => TiLabelsTree;
 export type TiLocalizationLanguage = string;
 /**
