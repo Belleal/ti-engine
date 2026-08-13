@@ -60,10 +60,16 @@ const applyWebConfigEnvOverrides = require( "#web-config-env" );
 /**
  * @typedef {Object} SettingsAuth
  * @property {string[]} enabledMethods
- * @property {Object} local
+ * @property {SettingsAuthLocal} local
  * @property {Object} oauth2
  * @property {SettingsOAuth2Client} [oauth2.azure]
  * @property {SettingsOAuth2Client} [oauth2.google]
+ */
+
+/**
+ * @typedef {Object} SettingsAuthLocal
+ * @property {string} [usersPath] Path to the JSON file of local user records (see `TI_WEB_AUTH_LOCAL_USERS_PATH`).
+ *           Local sign-in refuses everyone whenever this is absent, unreadable, or yields no usable records.
  */
 
 /**

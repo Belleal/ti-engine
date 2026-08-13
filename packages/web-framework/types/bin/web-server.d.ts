@@ -13,11 +13,18 @@ export type ApiConfig = {
 };
 export type SettingsAuth = {
     enabledMethods: string[];
-    local: Object;
+    local: SettingsAuthLocal;
     oauth2: {
         azure?: SettingsOAuth2Client;
         google?: SettingsOAuth2Client;
     };
+};
+export type SettingsAuthLocal = {
+    /**
+     * Path to the JSON file of local user records (see `TI_WEB_AUTH_LOCAL_USERS_PATH`).
+     * Local sign-in refuses everyone whenever this is absent, unreadable, or yields no usable records.
+     */
+    usersPath?: string;
 };
 export type SettingsOAuth2Client = {
     clientID?: string;

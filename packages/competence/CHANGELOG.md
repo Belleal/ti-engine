@@ -2,6 +2,14 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.19.1
+
+* docs(competence): rewrite the `INSTALL.md` local-auth passages (§1, §7, §10, §11, §16) against
+  `@ti-engine/web-framework` 1.23.0's real local user directory. Local auth is no longer a dev-only stand-in with
+  hardcoded credentials, and a local user now carries an email, so it resolves to an employee like any SSO identity
+  — which makes the previous "local auth signs in nobody" caveat obsolete
+* build(release): bump package version from `3.19.0` to `3.19.1`
+
 ## Version 3.19.0
 
 Identity now comes from the login. Until now `augmentSession` fell back to a hard-coded `"20"` whenever the dev

@@ -161,4 +161,28 @@ describe( "applyWebConfigEnvOverrides", () => {
         assert.equal( config.staticCache, undefined );
     } );
 
+    describe( "TI_WEB_AUTH_LOCAL_USERS_PATH", () => {
+
+        it( "sets the local users file path", () => {
+            const config = applyWebConfigEnvOverrides( { auth: {} }, { TI_WEB_AUTH_LOCAL_USERS_PATH: "/run/secrets/local-users.json" } );
+            assert.equal( config.auth.local.usersPath, "/run/secrets/local-users.json" );
+        } );
+
+        it( "creates the auth and local blocks when absent", () => {
+            const config = applyWebConfigEnvOverrides( {}, { TI_WEB_AUTH_LOCAL_USERS_PATH: "/tmp/users.json" } );
+            assert.equal( config.auth.local.usersPath, "/tmp/users.json" );
+        } );
+
+        it( "leaves the configured value untouched when the variable is absent", () => {
+            const config = applyWebConfigEnvOverrides( { auth: { local: { usersPath: "configured.json" } } }, {} );
+            assert.equal( config.auth.local.usersPath, "configured.json" );
+        } );
+
+        it( "an explicitly empty value clears the path, which disables the directory", () => {
+            const config = applyWebConfigEnvOverrides( { auth: { local: { usersPath: "configured.json" } } }, { TI_WEB_AUTH_LOCAL_USERS_PATH: "" } );
+            assert.equal( config.auth.local.usersPath, "" );
+        } );
+
+    } );
+
 } );
