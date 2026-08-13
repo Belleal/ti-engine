@@ -1,0 +1,96 @@
+<!--
+    About screen — what this application is and which build of it you are looking at.
+
+    Like the Profile screen, this is a content-free renderer over a server descriptor: the identity block comes
+    from the top-level fields of TiWebAppManager#getApplicationInfo, and everything below it is the normalized
+    section list tiScreenAbout assembles (release facts, ti-engine component versions, admin-only runtime facts,
+    then whatever sections the application contributed).
+
+    Alpine runs in CSP mode: no inline style attributes and no optional chaining in expressions.
+-->
+<div class="ti-page" x-data="tiScreenAbout">
+
+    <div class="ti-page-head">
+        <div class="ti-page-eyebrow" x-text-label="interface.about.eyebrow">Application</div>
+        <h1 class="ti-page-title" x-text-label="interface.about.title">About</h1>
+        <p class="ti-page-subtitle" x-text-label="interface.about.intro">The application you are running, the release
+            it is built from, and the ti-engine components behind it.</p>
+    </div>
+
+    <template x-if="!busy && !application">
+        <div class="ti-panel">
+            <div class="ti-empty-state">
+                <div class="ti-empty-state-icon" aria-hidden="true">
+                    <span class="ti-icon info-circle xl"></span>
+                </div>
+                <div class="ti-empty-state-title" x-text-label="interface.about.empty-title">Details unavailable</div>
+                <div class="ti-empty-state-desc" x-text-label="interface.about.empty-desc">The application details
+                    could not be loaded. Try again in a moment.</div>
+            </div>
+        </div>
+    </template>
+
+    <template x-if="application">
+        <div>
+
+            <!-- Identity header — app mark, name, version pill and the one-line description. -->
+            <section class="ti-panel">
+                <div class="ti-identity">
+                    <div class="ti-identity-mark" aria-hidden="true">
+                        <span x-text="applicationInitial()"></span>
+                    </div>
+                    <div class="ti-identity-meta">
+                        <div class="ti-identity-name">
+                            <span x-text="application.name"></span>
+                            <span class="ti-tag mono" x-show="application.version"
+                                  x-text="versionTag()"></span>
+                        </div>
+                        <div class="ti-identity-caption" x-show="application.description"
+                             x-text="application.description"></div>
+                    </div>
+                    <div class="ti-identity-aside">
+                        <span class="ti-status-pill muted" x-show="application.releaseDate">
+                            <span class="ti-icon calendar-blank xs" aria-hidden="true"></span>
+                            <span x-text="releaseDateText()"></span>
+                        </span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sections — release facts, components, runtime (admin only), then application-contributed ones. -->
+            <div class="ti-info-sections">
+                <template x-for="(section, sectionIndex) in sections" x-bind:key="sectionIndex">
+                    <section class="ti-panel ti-info-section" x-bind:class="section.wide ? 'wide' : ''">
+                        <div class="ti-panel-head bar">
+                            <div class="ti-panel-head-icon">
+                                <span class="ti-icon md" x-bind:class="section.icon" aria-hidden="true"></span>
+                            </div>
+                            <div class="ti-panel-head-text">
+                                <div class="ti-panel-title" x-text="section.title"></div>
+                                <div class="ti-panel-subtitle" x-show="section.description"
+                                     x-text="section.description"></div>
+                            </div>
+                        </div>
+                        <div class="ti-info-grid">
+                            <template x-for="(item, itemIndex) in section.items" x-bind:key="itemIndex">
+                                <div class="ti-info-item" x-bind:class="item.wide ? 'wide' : ''">
+                                    <span class="ti-kv-label" x-text="item.label"></span>
+                                    <template x-if="item.href">
+                                        <a class="ti-kv-value ti-info-link" x-bind:href="item.href"
+                                           target="_blank" rel="noopener noreferrer" x-text="item.value"></a>
+                                    </template>
+                                    <template x-if="!item.href">
+                                        <span class="ti-kv-value" x-bind:class="item.valueClass"
+                                              x-text="item.value"></span>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </section>
+                </template>
+            </div>
+
+        </div>
+    </template>
+
+</div>

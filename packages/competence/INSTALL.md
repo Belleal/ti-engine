@@ -115,6 +115,15 @@ All configuration is via environment variables. **Bold = must set for production
 | `TI_WEB_TLS_CERT_PATH` / `TI_WEB_TLS_KEY_PATH` | —               | Only if you terminate TLS *inside* the container (not recommended). |
 | `TI_WEB_APP_STATIC_CACHE_DISABLED`             | `false`         | Leave `false` in production so static assets are cached.            |
 
+### Application identity (shown on the in-app **About** screen)
+| Variable                  | Default                       | Purpose                                                                                                     |
+|---------------------------|-------------------------------|--------------------------------------------------------------------------------------------------------------|
+| `TI_WEB_APP_NAME`         | `Competence`                  | Display name on the About screen. Useful to distinguish environments, e.g. `Competence (staging)`.          |
+| `TI_WEB_APP_VERSION`      | version from `package.json`   | Overrides the reported version. Leave unset unless you are repackaging.                                     |
+| `TI_WEB_APP_RELEASE_DATE` | `releaseDate` in `package.json` | Overrides the reported release date. Set this to the build date when you build your own image from source. |
+
+All three are display-only — nothing behaves differently based on them. Signed-in users see the name, version, release date, license and the ti-engine component versions; the Node/platform/instance block is shown to **admins only** (`TI_WEB_AUTH_ADMINS`, §7 Secrets).
+
 ### Authentication methods
 | Variable              | Default (image) | Purpose                                                                                                                                                                                                     |
 |-----------------------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

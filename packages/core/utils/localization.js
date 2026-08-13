@@ -250,15 +250,22 @@ tools.deepFreeze( labels );
 
 /**
  * Used to return the textual value for a label based on the current system language by default or the specified language code if provided.
+ * <br/>
+ * NOTE: A caller that has a sensible literal to show when the key is absent should pass it as `fallback` rather than
+ * comparing the result against the not-found placeholder. That placeholder is an internal detail, and a caller that
+ * hard-codes it is coupled to a string this module is free to change. This matters most for a framework-owned screen
+ * whose strings live in a catalogue the consuming application does not load — an application configures exactly one
+ * labels path, its own.
  *
  * @method
  * @param {string} label This should be a dot-separated JSON path string.
  * @param {TiLocalizationLanguage} [language] The language code to use for the lookup. If not provided, the current system language will be used.
+ * @param {string} [fallback] Returned when the label is not in the loaded catalogue. Defaults to a visible placeholder.
  * @returns {string}
  * @public
  */
-module.exports.getLabel = ( label, language ) => {
-    return _.get( labels, label + "." + ( ( language ) ? language : config.getSetting( config.setting.LOCALIZATION_LANGUAGE ) ), defaultEmptyLabel );
+module.exports.getLabel = ( label, language, fallback = defaultEmptyLabel ) => {
+    return _.get( labels, label + "." + ( ( language ) ? language : config.getSetting( config.setting.LOCALIZATION_LANGUAGE ) ), fallback );
 };
 
 const labelsCacheByLanguage = new Map();

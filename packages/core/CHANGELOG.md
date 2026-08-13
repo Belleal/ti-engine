@@ -2,6 +2,17 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.10.0
+
+* feat(localization): `getLabel( label, language, fallback )` takes an optional third argument returned when the key
+  is absent from the loaded catalogue, instead of the `!!! label not found !!!` placeholder. The placeholder is an
+  internal detail and was not exported, so a caller needing this had no option but to hard-code and compare against
+  it — which `@ti-engine/web-framework` and `@ti-engine/competence` both did. The default is unchanged, so a missing
+  label stays loud for every existing call site. This matters because an application configures exactly one labels
+  path (`TI_LOCALIZATION_LABELS_PATH`) — its own — so a *framework*-owned screen resolving its own strings finds
+  nothing in a consumer and needs a literal to degrade to
+* build(release): bump package version from `1.9.1` to `1.10.0`
+
 ## Version 1.9.1
 
 The declarations published in 1.9.0 type-check only for a consumer who has separately configured

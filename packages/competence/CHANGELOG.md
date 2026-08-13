@@ -2,6 +2,36 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.18.0
+
+The user menu gains a working **My Profile** screen and a new **About Competence** screen. Profile shows an employee
+their own record — the same personal, career, organization and employment facts the Employee Management detail panel
+holds — read-only, and, unlike that management screen, reachable by everyone for their own record. About reports which
+build of the app is running, which matters for an application that ships as `:edge`, `:latest` and `:X.Y.Z` tags. Both
+screens are provided by web-framework ≥ 1.21.0; competence supplies only their content. Design record:
+`docs/superpowers/specs/2026-08-13-profile-and-about-screens-design.md` (CA-99).
+
+* feat(competence): override `getProfileInfo` — the signed-in employee's own record, projected through the existing
+  `#projectEmployeeDetail` and rendered as the Employee Management "Details" tab in read-only form: identity header
+  (avatar, name, `role family · specialization · unit`, level pip, employment-status pill, employee-ID tag and the
+  structural/assigned Supervisor badge) over Personal / Career / Organization / Employment sections, plus the
+  session's effective roles. Self-scoped by construction — there is no "whose profile" parameter — and deliberately
+  **not** gated on MANAGER/SUPERVISOR the way `#loadEmployeeDetail` is, so an ordinary employee can read their own
+  record. A user with no employee record falls back to the framework's account-level sections instead of a 404
+* feat(competence): override `getApplicationInfo` — adds a "This deployment" section (current cycle and its status,
+  competencies defined, role families configured) to the framework's release/components/runtime baseline, so adjacent
+  environment tabs are tellable apart
+* feat(competence): add **About Competence** to the sidebar user flyout menu, next to Your profile, and map both new
+  screens in `sidebarNavMapping`
+* feat(localization): add `interface.profile.*` (including per-role display names) and `interface.about.*` in en/bg,
+  plus the `interface.topbar.profile` / `interface.topbar.about` screen titles and `interface.user-menu.about`
+* build(manifest): add a `releaseDate` field and replace the description, which was a copy of the framework's blurb —
+  both are shown verbatim on the About screen. `TI_WEB_APP_RELEASE_DATE` overrides the date for an image built from
+  source; keep the manifest field current alongside the version bump
+* docs(competence): document `TI_WEB_APP_NAME` / `TI_WEB_APP_VERSION` / `TI_WEB_APP_RELEASE_DATE` in the INSTALL.md
+  environment reference
+* build(release): bump package version from `3.17.0` to `3.18.0`
+
 ## Version 3.17.0
 
 The Quality Engineering role family goes live. QE has been in the taxonomy since the beginning — nine families are defined, but only SE, BA and PM had competencies, so a QE employee could not be evaluated at all. This adds the 26-competency QE baseline and, in the process, promotes `E1-10 Business and IT domain knowledge` from BA-specific to shared canonical: its meaning is identical across disciplines, only the context of application differs. That single move is what the canonicalization policy now turns on — a competency is shared when its *meaning* is identical across families, not because of which category it sits in. The four QE specializations (MANUAL / AUTOMATION / PERFORMANCE / SECURITY) are deliberately not built: an employee without a specialization is evaluated on the baseline alone, so they are not required for QE to go live. This is a purely additive content change — no code was dropped or renumbered, so unlike the v3.0.0 rebuild **no evaluation data migration is required** (CA-98).

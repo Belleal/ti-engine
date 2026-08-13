@@ -23,6 +23,166 @@
           "bg": "Потребител"
         }
       }
+    },
+    "topbar": {
+      "profile": {
+        "en": "My Profile",
+        "bg": "Моят профил"
+      },
+      "about": {
+        "en": "About",
+        "bg": "Информация"
+      }
+    },
+    "user-menu": {
+      "profile": {
+        "en": "Your profile",
+        "bg": "Вашият профил"
+      },
+      "about": {
+        "en": "About",
+        "bg": "Информация"
+      },
+      "logout": {
+        "en": "Logout",
+        "bg": "Изход"
+      }
+    },
+    "profile": {
+      "eyebrow": {
+        "en": "Account",
+        "bg": "Профил"
+      },
+      "title": {
+        "en": "My Profile",
+        "bg": "Моят профил"
+      },
+      "intro": {
+        "en": "Your information as it is recorded in the system. This screen is read-only — to have something corrected, contact your manager.",
+        "bg": "Вашата информация, както е записана в системата. Екранът е само за преглед — за корекция се обърнете към вашия мениджър."
+      },
+      "empty-title": {
+        "en": "Profile unavailable",
+        "bg": "Профилът е недостъпен"
+      },
+      "empty-desc": {
+        "en": "Your profile information could not be loaded. Try again in a moment.",
+        "bg": "Информацията за профила не можа да бъде заредена. Опитайте отново след малко."
+      },
+      "section-account": {
+        "en": "Account",
+        "bg": "Профил"
+      },
+      "section-access": {
+        "en": "Access",
+        "bg": "Достъп"
+      },
+      "field-name": {
+        "en": "Full name",
+        "bg": "Име"
+      },
+      "field-username": {
+        "en": "Username",
+        "bg": "Потребител"
+      },
+      "field-email": {
+        "en": "E-mail",
+        "bg": "Имейл"
+      },
+      "field-user-id": {
+        "en": "User ID",
+        "bg": "Потребителски ID"
+      },
+      "field-language": {
+        "en": "Language",
+        "bg": "Език"
+      },
+      "field-roles": {
+        "en": "Roles",
+        "bg": "Роли"
+      }
+    },
+    "about": {
+      "eyebrow": {
+        "en": "Application",
+        "bg": "Приложение"
+      },
+      "title": {
+        "en": "About",
+        "bg": "Информация"
+      },
+      "intro": {
+        "en": "The application you are running, the release it is built from, and the ti-engine components behind it.",
+        "bg": "Приложението, което използвате, версията, от която е изградено, и компонентите на ti-engine зад него."
+      },
+      "empty-title": {
+        "en": "Details unavailable",
+        "bg": "Информацията е недостъпна"
+      },
+      "empty-desc": {
+        "en": "The application details could not be loaded. Try again in a moment.",
+        "bg": "Информацията за приложението не можа да бъде заредена. Опитайте отново след малко."
+      },
+      "released": {
+        "en": "Released",
+        "bg": "Издадена на"
+      },
+      "section-release": {
+        "en": "Release",
+        "bg": "Версия"
+      },
+      "section-components": {
+        "en": "Framework components",
+        "bg": "Компоненти на платформата"
+      },
+      "section-components-desc": {
+        "en": "The ti-engine packages this application is built on.",
+        "bg": "Пакетите на ti-engine, върху които е изградено приложението."
+      },
+      "section-runtime": {
+        "en": "Runtime",
+        "bg": "Среда"
+      },
+      "section-runtime-desc": {
+        "en": "Visible to administrators only.",
+        "bg": "Видимо само за администратори."
+      },
+      "field-version": {
+        "en": "Version",
+        "bg": "Версия"
+      },
+      "field-release-date": {
+        "en": "Release date",
+        "bg": "Дата на издаване"
+      },
+      "field-license": {
+        "en": "License",
+        "bg": "Лиценз"
+      },
+      "field-author": {
+        "en": "Author",
+        "bg": "Автор"
+      },
+      "field-package": {
+        "en": "Package",
+        "bg": "Пакет"
+      },
+      "field-homepage": {
+        "en": "Homepage",
+        "bg": "Уебсайт"
+      },
+      "runtime-node": {
+        "en": "Node.js",
+        "bg": "Node.js"
+      },
+      "runtime-platform": {
+        "en": "Platform",
+        "bg": "Платформа"
+      },
+      "runtime-application": {
+        "en": "Application ID",
+        "bg": "ID на приложението"
+      }
     }
   }
 }

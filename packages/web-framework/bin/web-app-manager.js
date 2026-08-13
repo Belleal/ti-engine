@@ -14,8 +14,9 @@ const fs = require( "node:fs" );
 const configRegistry = require( "#config-registry" );
 const configService = require( "#config-service" );
 const authorization = require( "#authorization" );
+const applicationInfo = require( "#application-info" );
 
-/** @import { TiSession } from "#definitions" */
+/** @import { TiApplicationInfo, TiInfoSection, TiProfileInfo, TiSession } from "#definitions" */
 
 const RE_NONCE_ATTR = /\{ti-nonce-placeholder}/g;
 const RE_CSRF_ATTR = /\{ti-csrf-placeholder}/g;
@@ -124,6 +125,7 @@ class TiWebAppManager {
     #staticFileCache = {};
     #staticFileCacheEnabled;
     #enabledAuthMethods = [];
+    #baseApplicationInfo = null;
 
     /**
      * @constructor
@@ -164,6 +166,10 @@ class TiWebAppManager {
         this.#fragments[ 'profile' ] = {
             title: "Profile",
             path: "fragments/frame-profile.html"
+        };
+        this.#fragments[ 'about' ] = {
+            title: "About",
+            path: "fragments/frame-about.html"
         };
         this.#fragments[ 'not-found' ] = {
             title: "Not Found",
@@ -393,18 +399,217 @@ class TiWebAppManager {
      * @public
      */
     processDataRequest( session, view, options = {} ) {
+        if ( view === "profile" ) {
+            return this.getProfileInfo( session );
+        }
+        if ( view === "about" ) {
+            return this.getApplicationInfo( session );
+        }
         return new Promise( ( resolve, reject ) => {
             if ( view === "config" ) {
                 resolve( {
                     labels: localization.getAllLabels( session?.language ),
                     auth: {
                         isAuthenticated: Boolean( session && session.user )
-                    }
+                    },
+                    componentsConfig: this.buildComponentsConfig( session )
                 } );
             } else {
                 reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI, { view: view } ) );
             }
         } );
+    }
+
+    /**
+     * Returns the configuration for the shared UI components the application shell renders — currently the sidebar
+     * user flyout menu. Shipped as part of the `config` data payload and merged into the `tiComponentsConfig`
+     * Alpine store on the client.
+     * <br/>
+     * The default menu links the two screens the framework itself provides (Profile and About) plus sign-out, so a
+     * consuming application gets a working user menu without configuring one. Override to replace it; a subclass
+     * that supplies its own `componentsConfig` naturally supersedes this.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Object}
+     * @virtual
+     * @public
+     */
+    buildComponentsConfig( session ) {
+        const language = session && session.language;
+        return {
+            userProfileMenu: {
+                menuTitle: localization.getLabel( "interface.topbar.user-profile", language, "Your profile" ),
+                placement: "right-end",
+                offset: 0,
+                buttonConfigs: [ {
+                    title: localization.getLabel( "interface.user-menu.profile", language, "Your profile" ),
+                    icon: "user-profile",
+                    action: { href: "/app/profile", target: "#ti-content", swap: "innerHTML" }
+                }, {
+                    title: localization.getLabel( "interface.user-menu.about", language, "About" ),
+                    icon: "info-circle",
+                    action: { href: "/app/about", target: "#ti-content", swap: "innerHTML" }
+                }, {
+                    title: localization.getLabel( "interface.user-menu.logout", language, "Logout" ),
+                    icon: "logout",
+                    action: { href: "/logout", method: "post", target: "body", swap: "outerHTML" }
+                } ]
+            }
+        };
+    }
+
+    /**
+     * Returns the descriptor rendered by the "Profile" screen — the identity header plus an ordered list of titled
+     * label/value sections. Every string in it is display-ready: the server resolves labels and formats values,
+     * because this is where the session language and the label catalogue are (see {@link resolveLabel}).
+     * <br/>
+     * The default implementation reports what the framework itself knows about the session user — name, username,
+     * e-mail, language and roles. Override in subclasses to show application-owned data instead; the screen, its
+     * Alpine component and its styling are inherited unchanged, so an override only decides the content.
+     * <br/>
+     * NOTE: The descriptor is always about the SESSION user. There is deliberately no "whose profile" parameter —
+     * viewing another person's record belongs to an application screen that carries its own scoping rules.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<TiProfileInfo>}
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} (401) When the session carries no user.
+     * @virtual
+     * @public
+     */
+    getProfileInfo( session ) {
+        return new Promise( ( resolve, reject ) => {
+            const user = session && session.user;
+            if ( !user ) {
+                return reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+            }
+            resolve( {
+                identity: this.buildSessionIdentity( session ),
+                sections: this.buildAccountSections( session )
+            } );
+        } );
+    }
+
+    /**
+     * Returns the descriptor rendered by the "About" screen — the application's own identity (name, version,
+     * release date, description, license, homepage) plus the ti-engine component versions it runs on, and any
+     * extra sections the application contributes.
+     * <br/>
+     * The baseline is resolved once from the consuming application's `package.json`, overridable through
+     * `TI_WEB_APP_NAME` / `TI_WEB_APP_VERSION` / `TI_WEB_APP_RELEASE_DATE` (see `#application-info`), and cached —
+     * the manifest cannot change while the process runs.
+     * <br/>
+     * NOTE: Runtime facts (node version, platform, instance identity) are attached only for an `admin` session.
+     * They are operational detail that helps support and means nothing to an ordinary user, so they are not handed
+     * to every signed-in visitor. Override in subclasses to append application-specific sections; call `super` and
+     * extend the result rather than rebuilding it.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<TiApplicationInfo>}
+     * @virtual
+     * @public
+     */
+    getApplicationInfo( session ) {
+        return new Promise( ( resolve ) => {
+            if ( !this.#baseApplicationInfo ) {
+                this.#baseApplicationInfo = applicationInfo.buildApplicationInfo( {
+                    manifest: applicationInfo.readApplicationManifest(),
+                    env: process.env,
+                    components: TiWebAppManager.resolveFrameworkComponents()
+                } );
+            }
+
+            const info = structuredClone( this.#baseApplicationInfo );
+            if ( authorization.hasAnyRole( session, [ authorization.ADMIN_ROLE ] ) ) {
+                info.runtime = {
+                    node: process.version,
+                    platform: `${ process.platform } · ${ process.arch }`,
+                    application: this.#webAppIdentifier
+                };
+            }
+            resolve( info );
+        } );
+    }
+
+    /**
+     * Builds the identity header of the Profile screen from the session user. Kept separate from
+     * {@link TiWebAppManager#getProfileInfo} so a subclass that replaces the sections can still reuse — or fall
+     * back to — the framework's identity block when the application has no richer identity to show.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Object}
+     * @public
+     */
+    buildSessionIdentity( session ) {
+        const user = ( session && session.user ) || {};
+        return {
+            name: String( user.name || user.username || user.userID || "" ),
+            subtitle: "",
+            caption: String( user.email || "" ),
+            avatarSeed: String( user.userID || user.username || "" ),
+            // No pills by default: the framework knows roles only as opaque codes, and a stack of pills reading
+            // "1" / "2" beside the name is noise. The Access section lists them, and an application that has
+            // meaningful status to show (employment state, an ID, a badge) supplies its own.
+            tags: []
+        };
+    }
+
+    /**
+     * Builds the framework's account-level Profile sections from the session user. A subclass showing richer
+     * application data can append these so the account facts remain visible alongside it.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {TiInfoSection[]}
+     * @public
+     */
+    buildAccountSections( session ) {
+        const user = ( session && session.user ) || {};
+        const language = session && session.language;
+        const roles = Array.isArray( user.roles ) ? user.roles : [];
+
+        return [ {
+            title: localization.getLabel( "interface.profile.section-account", language, "Account" ),
+            icon: "user",
+            items: [
+                { label: localization.getLabel( "interface.profile.field-name", language, "Full name" ), value: String( user.name || "" ) },
+                { label: localization.getLabel( "interface.profile.field-username", language, "Username" ), value: String( user.username || "" ) },
+                { label: localization.getLabel( "interface.profile.field-email", language, "E-mail" ), value: String( user.email || "" ), wide: true },
+                { label: localization.getLabel( "interface.profile.field-user-id", language, "User ID" ), value: String( user.userID || "" ), mono: true },
+                { label: localization.getLabel( "interface.profile.field-language", language, "Language" ), value: String( user.language || language || "" ) }
+            ]
+        }, {
+            title: localization.getLabel( "interface.profile.section-access", language, "Access" ),
+            icon: "check-circle",
+            items: [
+                { label: localization.getLabel( "interface.profile.field-roles", language, "Roles" ), value: roles.join( " · " ), wide: true }
+            ]
+        } ];
+    }
+
+    /**
+     * Resolves the versions of the ti-engine packages the running application is built on, for the About screen.
+     * <br/>
+     * NOTE: `@ti-engine/core` does not expose `./package.json` through its exports map, so its manifest is located
+     * by walking up from a module it *does* export. A package that cannot be resolved is simply omitted — an
+     * informational screen must never be the reason a request fails.
+     *
+     * @method
+     * @static
+     * @returns {Array<{name: string, version: string}>}
+     * @public
+     */
+    static resolveFrameworkComponents() {
+        const manifests = [
+            applicationInfo.readApplicationManifest( path.join( __dirname, ".." ) ),
+            TiWebAppManager.#readManifestForModule( "@ti-engine/core/tools" )
+        ];
+        return manifests
+            .filter( ( manifest ) => manifest && manifest.name && manifest.version )
+            .map( ( manifest ) => ( { name: manifest.name, version: manifest.version } ) );
     }
 
     /**
@@ -451,6 +656,34 @@ class TiWebAppManager {
     }
 
     /* Private interface */
+
+    /**
+     * Locates the `package.json` owning a resolvable module specifier by walking up from the resolved file.
+     *
+     * @method
+     * @static
+     * @param {string} moduleSpecifier
+     * @returns {Object} The manifest, or an empty object when it cannot be located.
+     */
+    static #readManifestForModule( moduleSpecifier ) {
+        try {
+            let directory = path.dirname( require.resolve( moduleSpecifier ) );
+            for ( let depth = 0; depth < 8; depth++ ) {
+                const manifest = applicationInfo.readApplicationManifest( directory );
+                if ( manifest && manifest.name ) {
+                    return manifest;
+                }
+                const parent = path.dirname( directory );
+                if ( parent === directory ) {
+                    break;
+                }
+                directory = parent;
+            }
+        } catch {
+            // An unresolvable package simply does not appear in the component list.
+        }
+        return {};
+    }
 
     /**
      * Returns the HTML fragment for the requested route.

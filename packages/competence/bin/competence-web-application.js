@@ -280,6 +280,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                 } : null,
                 employeeLevel: this.#resolveSessionEmployeeLevel( session ),
                 sidebarNavMapping: {
+                    "profile": "profile",
+                    "about": "about",
                     "dashboard": "dashboard",
                     "employees-list": "employees",
                     "competence-evaluation": "evaluation",
@@ -324,6 +326,14 @@ class CompetenceWebApplication extends TiWebAppManager {
                             icon: "user-profile",
                             action: {
                                 href: "/app/profile",
+                                target: "#ti-content",
+                                swap: "innerHTML"
+                            }
+                        }, {
+                            title: localization.getLabel( "interface.user-menu.about", session?.language ),
+                            icon: "info-circle",
+                            action: {
+                                href: "/app/about",
                                 target: "#ti-content",
                                 swap: "innerHTML"
                             }
@@ -406,6 +416,87 @@ class CompetenceWebApplication extends TiWebAppManager {
         } else {
             return super.processDataRequest( session, view, options );
         }
+    }
+
+    /**
+     * Builds the Profile screen descriptor for the signed-in employee — the same facts the Employee Management
+     * detail panel shows (personal, career, organization, employment), rendered read-only.
+     * <br/>
+     * NOTE: This is deliberately NOT scoped like `#loadEmployeeDetail`, which is a management screen and requires
+     * MANAGER/SUPERVISOR. Everyone may read their own record, so the employee store is queried directly. There is
+     * no "whose profile" parameter: the descriptor always describes `session.user.employeeID`.
+     * <br/>
+     * When the session carries no employee identity, or the record is gone, the screen falls back to the
+     * framework's account-level sections rather than failing — a signed-in user without an employee record still
+     * has an account worth showing.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @override
+     * @public
+     */
+    getProfileInfo( session ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID, userRoles } = this.#requireSessionUser( session );
+
+            dataManager.instance.fetchEmployee( userID ).then( ( employee ) => {
+                const detail = this.#projectEmployeeDetail( employee, session );
+                resolve( {
+                    identity: this.#buildProfileIdentity( detail, userID, session?.language ),
+                    sections: this.#buildProfileSections( detail, userRoles, session )
+                } );
+            } ).catch( ( error ) => {
+                if ( error && error.code === exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND ) {
+                    logger.log( `No employee record for session user '${ userID }'; serving the account-level profile.`, logger.logSeverity.DEBUG );
+                    return super.getProfileInfo( session ).then( resolve ).catch( reject );
+                }
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Extends the framework's application descriptor with the facts that identify this particular competence
+     * deployment — the appraisal cycle it is currently running and the size of the competency configuration behind
+     * it. Useful when several environments (dev, test, production) are open in adjacent tabs.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<Object>}
+     * @override
+     * @public
+     */
+    getApplicationInfo( session ) {
+        return Promise.all( [
+            super.getApplicationInfo( session ),
+            this.#resolveCurrentCycle().catch( () => null )
+        ] ).then( ( [ info, currentCycle ] ) => {
+            const language = session?.language;
+            const competencies = ( configurationLoader.configCompetencies || {} ).competencies || {};
+            const roleFamilies = configurationLoader.configRoleFamilies || {};
+
+            info.sections.push( {
+                title: localization.getLabel( "interface.about.section-deployment", language ),
+                description: localization.getLabel( "interface.about.section-deployment-desc", language ),
+                icon: "cycles-loop",
+                items: [ {
+                    label: localization.getLabel( "interface.about.field-current-cycle", language ),
+                    value: currentCycle ? currentCycle.name : ""
+                }, {
+                    label: localization.getLabel( "interface.about.field-cycle-status", language ),
+                    value: currentCycle ? localization.getLabel( configurationLoader.cycleStatus.name( currentCycle.status ) || currentCycle.status, language ) : ""
+                }, {
+                    label: localization.getLabel( "interface.about.field-competencies", language ),
+                    value: String( Object.keys( competencies ).length )
+                }, {
+                    label: localization.getLabel( "interface.about.field-role-families", language ),
+                    value: String( Object.keys( roleFamilies ).length )
+                } ]
+            } );
+
+            return info;
+        } );
     }
 
     /**
@@ -4038,6 +4129,137 @@ class CompetenceWebApplication extends TiWebAppManager {
                 startingDate: employee?.career?.startingDate || null
             }
         };
+    }
+
+    /**
+     * Builds the Profile screen's identity header from a projected employee detail — the avatar seed, the name, the
+     * `role family · specialization · unit` meta line, the level pip and the pills beside it (employment status,
+     * employee ID, and the Supervisor badge when it applies). Mirrors the Employee Management detail head.
+     *
+     * @method
+     * @param {Object} detail The projection returned by {@link #projectEmployeeDetail}.
+     * @param {string} employeeID
+     * @param {TiLocalizationLanguage} [language]
+     * @returns {Object}
+     * @private
+     */
+    #buildProfileIdentity( detail, employeeID, language ) {
+        const subtitleParts = [ detail.roleFamilyName, detail.specializationName, detail.organizationUnitName ].filter( Boolean );
+        const tags = [ {
+            text: localization.getLabel( `interface.employee-management.employment-status.${ detail.employmentStatus }`, language ),
+            tone: this.#employmentStatusTone( detail.employmentStatus ),
+            dot: true
+        }, {
+            text: employeeID,
+            mono: true
+        } ];
+
+        // The same structural/granted distinction Employee Management draws — a merely-granted Supervisor is not
+        // the same thing as one the org chart itself makes.
+        const isAutoSupervisor = organizationManager.instance.isAutoSupervisor( employeeID );
+        const hasGrant = dataManager.instance.hasSupervisorGrant( employeeID );
+        if ( isAutoSupervisor || hasGrant ) {
+            tags.push( {
+                text: localization.getLabel( isAutoSupervisor ? "interface.employee-management.supervisor.badge-auto" : "interface.employee-management.supervisor.badge-granted", language ),
+                tone: isAutoSupervisor ? "info" : "success",
+                dot: true
+            } );
+        }
+
+        return {
+            name: detail.name,
+            subtitle: subtitleParts.join( " · " ),
+            caption: detail.email,
+            avatarSeed: employeeID,
+            badge: detail.stageLevel ? { text: detail.stageLevel, tone: "mono" } : null,
+            tags: tags
+        };
+    }
+
+    /**
+     * Builds the Profile screen's sections — the read-only counterpart of the Employee Management "Details" tab,
+     * in the same order and using the same labels, plus the session's effective roles.
+     *
+     * @method
+     * @param {Object} detail The projection returned by {@link #projectEmployeeDetail}.
+     * @param {Array<string|number>} userRoles
+     * @param {TiSession} session
+     * @returns {Array<Object>}
+     * @private
+     */
+    #buildProfileSections( detail, userRoles, session ) {
+        const language = session?.language;
+        const label = ( key ) => localization.getLabel( key, language );
+        const optionLabel = ( group, value ) => value ? localization.getLabel( `interface.employee-management.${ group }.${ value }`, language ) : "";
+
+        return [ {
+            title: label( "interface.employee-management.form.section-personal" ),
+            icon: "user",
+            items: [
+                { label: label( "interface.employee-management.form.first-name" ), value: detail.personal.firstName },
+                { label: label( "interface.employee-management.form.last-name" ), value: detail.personal.lastName },
+                { label: label( "interface.employee-management.form.email" ), value: detail.email, wide: true },
+                { label: label( "interface.employee-management.form.work-mode" ), value: optionLabel( "work-mode", detail.personal.workMode ) },
+                { label: label( "interface.employee-management.form.work-location" ), value: optionLabel( "work-location", detail.personal.workLocation ) }
+            ]
+        }, {
+            title: label( "interface.employee-management.form.section-career" ),
+            icon: "briefcase",
+            items: [
+                { label: label( "interface.employee-management.form.role-family" ), value: detail.roleFamilyName },
+                { label: label( "interface.employee-management.form.specialization" ), value: detail.specializationName || "" },
+                { label: `${ label( "interface.employee-management.form.level" ) } · ${ label( "interface.employee-management.form.stage" ) }`, value: detail.stageLevel, mono: true },
+                { label: label( "interface.employee-management.form.starting-date" ), value: detail.career.startingDate || "" }
+            ]
+        }, {
+            title: label( "interface.employee-management.form.section-organization" ),
+            icon: "users",
+            items: [
+                { label: label( "interface.employee-management.form.organization-unit" ), value: detail.organizationUnitName, wide: true },
+                { label: label( "interface.employee-management.form.manager-display" ), value: detail.managerName || "", wide: true }
+            ]
+        }, {
+            title: label( "interface.employee-management.form.section-employment" ),
+            icon: "check-clipboard",
+            items: [
+                { label: label( "interface.employee-management.form.employment-status" ), value: optionLabel( "employment-status", detail.employmentStatus ) },
+                { label: label( "interface.profile.field-roles" ), value: this.#formatRoleNames( userRoles, language ), wide: true }
+            ]
+        } ];
+    }
+
+    /**
+     * Renders the session's effective role codes as display names. The `admin` role is a framework allowlist string
+     * rather than a competence role code, so it is passed through under its own label.
+     *
+     * @method
+     * @param {Array<string|number>} userRoles
+     * @param {TiLocalizationLanguage} [language]
+     * @returns {string}
+     * @private
+     */
+    #formatRoleNames( userRoles, language ) {
+        return ( Array.isArray( userRoles ) ? userRoles : [] )
+            // A role code with no label yet falls back to the enum's own (English) name, so an added code shows
+            // something readable rather than a placeholder before it is translated.
+            .map( ( role ) => localization.getLabel( `interface.profile.role.${ role }`, language, configurationLoader.roleCode.name( role, String( role ) ) ) )
+            .join( " · " );
+    }
+
+    /**
+     * Maps an employment status onto the status-pill tone used across the app. Mirrors `employmentStatusTone` in
+     * the Employee Management Alpine component so the profile pill matches the management pill.
+     *
+     * @method
+     * @param {string} status
+     * @returns {string}
+     * @private
+     */
+    #employmentStatusTone( status ) {
+        if ( status === "active" ) return "success";
+        if ( status === "on-leave" ) return "warn";
+        if ( status === "terminated" ) return "muted";
+        return "";
     }
 
     /**
