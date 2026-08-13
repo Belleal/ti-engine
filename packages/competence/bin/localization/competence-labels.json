@@ -7405,6 +7405,34 @@
         "en": "Roles in the appraisal process",
         "bg": "Роли в процеса по оценяване"
       },
+      "section-account": {
+        "en": "Account",
+        "bg": "Акаунт"
+      },
+      "section-access": {
+        "en": "Access",
+        "bg": "Достъп"
+      },
+      "field-name": {
+        "en": "Full name",
+        "bg": "Име"
+      },
+      "field-username": {
+        "en": "Username",
+        "bg": "Потребителско име"
+      },
+      "field-email": {
+        "en": "E-mail",
+        "bg": "Имейл"
+      },
+      "field-user-id": {
+        "en": "User ID",
+        "bg": "Потребителски ID"
+      },
+      "field-language": {
+        "en": "Language",
+        "bg": "Език"
+      },
       "role": {
         "1": {
           "en": "Employee",

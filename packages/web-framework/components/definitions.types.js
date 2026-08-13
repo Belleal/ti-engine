@@ -35,6 +35,8 @@
  * @typedef {Object} TiInfoItem
  * @property {string} label
  * @property {string} [value]
+ * @property {string} [href] Renders the value as a link to this target. Only `http:`, `https:` and `mailto:` are
+ * honoured — any other scheme is dropped client-side and the item degrades to plain text.
  * @property {boolean} [wide] Span the full width of the section grid instead of one column.
  * @property {boolean} [mono] Render the value in the monospaced face (IDs, versions, hashes).
  * @property {boolean} [muted] Render the value as a dimmed hint rather than primary text.
@@ -48,7 +50,8 @@
  * @property {string} title
  * @property {string} [description] Optional intro line under the section title.
  * @property {string} [icon] Optional `ti-icon` variant name for the section head.
- * @property {TiInfoItem[]} items
+ * @property {boolean} [wide] Claim the full row of the two-up section grid instead of one column.
+ * @property {TiInfoItem[]} items A section with no items is dropped rather than rendered empty.
  */
 
 /**

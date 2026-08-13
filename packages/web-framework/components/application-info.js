@@ -21,12 +21,12 @@ const fs = require( "node:fs" );
 const RE_PACKAGE_SCOPE = /^@[^/]+\//;
 
 /**
- * Matches the trailing e-mail/URL suffix of a `package.json` author string
- * (`Boris Kostadinov <a@b.c> (https://d.e)` → `Boris Kostadinov`).
+ * Matches the first character that can open the contact suffix of a `package.json` author string — the `<` of the
+ * e-mail or the `(` of the homepage.
  *
  * @type {RegExp}
  */
-const RE_AUTHOR_CONTACT = /\s*[<(][^>)]*[>)]/g;
+const RE_AUTHOR_CONTACT_START = /[<(]/;
 
 /**
  * Turns an npm package name into a human-readable display name — the scope is dropped and each dash/underscore
@@ -53,6 +53,13 @@ function toDisplayName( packageName ) {
 /**
  * Reduces a `package.json` author entry — either the string form or the object form — to a bare display name,
  * dropping the e-mail address and homepage that npm allows to be inlined in the string form.
+ * <br/>
+ * NOTE: npm's string form is `Name <email> (url)`, where both bracketed parts are optional **suffixes** — they are
+ * never embedded inside the name. So the name is simply everything before the first `<` or `(`. This deliberately
+ * does NOT globally remove `<…>` spans: a replace of that shape reads as an attempt to strip HTML tags, which
+ * CodeQL flags as an incomplete multi-character sanitizer (`js/incomplete-multi-character-sanitization`, high) —
+ * correctly, since one pass over `<<a>b>` leaves a stray `<`. Truncating at the delimiter matches the actual
+ * grammar and cannot leave a partial span behind.
  *
  * @method
  * @param {string|Object} author
@@ -63,7 +70,9 @@ function toAuthorName( author ) {
     if ( author && typeof author === "object" ) {
         return String( author.name || "" ).trim();
     }
-    return String( author || "" ).replace( RE_AUTHOR_CONTACT, "" ).trim();
+    const declared = String( author || "" );
+    const contactStart = declared.search( RE_AUTHOR_CONTACT_START );
+    return ( contactStart === -1 ? declared : declared.slice( 0, contactStart ) ).trim();
 }
 
 /**

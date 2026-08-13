@@ -183,6 +183,24 @@ describe( "CompetenceWebApplication.getProfileInfo — the signed-in employee's 
         assert.deepEqual( profile.sections.map( ( section ) => section.title ), [ "Account", "Access" ] );
     } );
 
+    it( "translates that fallback too, rather than serving a half-Bulgarian panel", async ( t ) => {
+        // The framework's account sections resolve ITS keys, which live in web-server-labels.json — a catalogue
+        // this app never loads (one labels path, its own). Without these keys mirrored here the whole panel would
+        // render in English except the one label competence happened to define, which reads as a bug, not a
+        // fallback. This is the guard for that.
+        stubStores( t, { employee: null } );
+        const bg = { language: "bg", user: { employeeID: EMPLOYEE_ID, roles: [ configurationLoader.roleCode.EMPLOYEE ] } };
+        const { sections } = await app.getProfileInfo( bg );
+        assert.deepEqual( sections.map( ( section ) => section.title ), [ "Акаунт", "Достъп" ] );
+        const items = itemsByLabel( sections );
+        assert.ok( items.has( "Име" ) && items.has( "Потребителско име" ) && items.has( "Имейл" ) );
+        assert.ok( items.has( "Роли в процеса по оценяване" ) );
+        // Nothing may still be sitting on the framework's English literal.
+        [ "Account", "Access", "Full name", "Username", "E-mail", "User ID", "Language", "Roles" ].forEach( ( english ) => {
+            assert.ok( !items.has( english ), `"${ english }" is still untranslated in the Bulgarian fallback` );
+        } );
+    } );
+
     it( "rejects (401) when the session carries no employee identity", async ( t ) => {
         stubStores( t );
         await assert.rejects(

@@ -15,6 +15,11 @@ export type TiInfoItem = {
     label: string;
     value?: string;
     /**
+     * Renders the value as a link to this target. Only `http:`, `https:` and `mailto:` are
+     * honoured — any other scheme is dropped client-side and the item degrades to plain text.
+     */
+    href?: string;
+    /**
      * Span the full width of the section grid instead of one column.
      */
     wide?: boolean;
@@ -37,6 +42,13 @@ export type TiInfoSection = {
      * Optional `ti-icon` variant name for the section head.
      */
     icon?: string;
+    /**
+     * Claim the full row of the two-up section grid instead of one column.
+     */
+    wide?: boolean;
+    /**
+     * A section with no items is dropped rather than rendered empty.
+     */
     items: TiInfoItem[];
 };
 export type TiProfileIdentity = {
@@ -131,6 +143,8 @@ export type TiApplicationInfo = {
  * @typedef {Object} TiInfoItem
  * @property {string} label
  * @property {string} [value]
+ * @property {string} [href] Renders the value as a link to this target. Only `http:`, `https:` and `mailto:` are
+ * honoured — any other scheme is dropped client-side and the item degrades to plain text.
  * @property {boolean} [wide] Span the full width of the section grid instead of one column.
  * @property {boolean} [mono] Render the value in the monospaced face (IDs, versions, hashes).
  * @property {boolean} [muted] Render the value as a dimmed hint rather than primary text.
@@ -143,7 +157,8 @@ export type TiApplicationInfo = {
  * @property {string} title
  * @property {string} [description] Optional intro line under the section title.
  * @property {string} [icon] Optional `ti-icon` variant name for the section head.
- * @property {TiInfoItem[]} items
+ * @property {boolean} [wide] Claim the full row of the two-up section grid instead of one column.
+ * @property {TiInfoItem[]} items A section with no items is dropped rather than rendered empty.
  */
 /**
  * The identity header of the Profile screen — the avatar/name block and the pills beside it.
