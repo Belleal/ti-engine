@@ -2,7 +2,7 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
-## Version 1.21.0
+## Version 1.22.0
 
 An application may now refuse a sign-in from its `augmentSession` hook, and that refusal is genuinely fail-closed.
 Sign-in failures also present identically across every auth method, which local (username/password) auth needs before
@@ -19,7 +19,7 @@ it can be offered as a production option.
   `getUrlParam` helper had no call sites, so a failed sign-in previously returned a blank login form
 * feat(exports): expose the authorization helpers as `@ti-engine/web-framework/authorization`, so an application can
   reuse `isAdminIdentity` for its own allowlist decisions instead of reimplementing the match
-* build(release): bump package version from `1.20.1` to `1.21.0`
+* build(release): bump package version from `1.21.0` to `1.22.0`
 
 ## Version 1.20.1
 

@@ -20,7 +20,12 @@
 - **Every commit message references `(CA-95)`** and uses Conventional Commits scoped to the package.
 - **Never commit `.run/*.run.xml`** — they carry live local credentials.
 - **web-framework ships generated `.d.ts`**: after changing any public signature or JSDoc there, run `npm run build:types -w @ti-engine/web-framework` and commit the regenerated `types/`.
-- **Version targets:** web-framework `1.20.1` → `1.21.0`; competence `3.17.0` → `3.18.0`. Bump `package.json` **and** `CHANGELOG.md` together.
+- **Version targets:** web-framework `1.21.0` → `1.22.0`; competence `3.18.0` → `3.19.0`. Bump `package.json` **and** `CHANGELOG.md` together.
+  **Renumbered mid-execution.** Tasks 4 and 8 were written against `1.21.0` / `3.18.0`. While this branch was in
+  flight, CA-99 merged to `current` and published `@ti-engine/web-framework@1.21.0` to npm (tag
+  `web-framework-v1.21.0`, commit `f2f0c46`), claiming both numbers. An npm publish is irreversible, so this branch
+  moved. Task 4's step text below still names the original numbers — it records what was executed at the time; the
+  values in this constraints block are the ones that ship.
 - **Refusal reasons** are exactly these four strings: `no-email`, `no-record`, `terminated`, `ambiguous-email`.
 - **Employment statuses permitted to sign in** are exactly `active` and `on-leave`. Any other value — including an unrecognized one — fails closed as `terminated`.
 - **Copy (English):** `We couldn't sign you in. Check your credentials, or contact your administrator if your account is not set up for this application.`
@@ -1516,7 +1521,7 @@ git commit -m "feat(competence)!: derive login identity from the authenticated e
 
 ---
 
-## Task 8: Documentation and the competence 3.18.0 release
+## Task 8: Documentation and the competence 3.19.0 release
 
 **Files:**
 - Modify: `packages/competence/INSTALL.md`
@@ -1558,14 +1563,19 @@ When `false` (the default), identity is derived from the authenticated login's e
 
 - [ ] **Step 3: Bump the version**
 
-In `packages/competence/package.json`, change `"version": "3.17.0"` to `"version": "3.18.0"`.
+In `packages/competence/package.json`, change `"version": "3.17.0"` to `"version": "3.19.0"`.
+
+`3.18.0` is deliberately skipped: CA-99 took it on `current` while this branch was in flight. This branch does not
+carry that release, so the file reads `3.17.0` here — but the merged result must be `3.19.0`, which is why the jump
+looks like two steps.
 
 - [ ] **Step 4: Add the changelog section**
 
-At the top of `packages/competence/CHANGELOG.md`, directly below the intro paragraph and above `## Version 3.17.0`:
+At the top of `packages/competence/CHANGELOG.md`, directly below the intro paragraph and above `## Version 3.17.0`
+(after the merge, CA-99's `## Version 3.18.0` section will sit between them):
 
 ```markdown
-## Version 3.18.0
+## Version 3.19.0
 
 Identity now comes from the login. Until now `augmentSession` fell back to a hard-coded `"20"` whenever the dev
 test-user cookie was disabled — and because the framework's user model carries no `employeeID`, that fallback was
@@ -1586,7 +1596,7 @@ substituted (CA-95).
   application roles, so the administration UI stays reachable when the employee data itself needs fixing
 * docs(competence): document in `INSTALL.md` that employee emails must match the identity provider's, what causes a
   refused sign-in, and the admin allowlist as the recovery path
-* build(release): bump package version from `3.17.0` to `3.18.0`
+* build(release): bump package version from `3.18.0` to `3.19.0`
 ```
 
 Note the `!` on the first entry: existing deployments relying on the implicit employee-20 identity will stop working, which is the point.

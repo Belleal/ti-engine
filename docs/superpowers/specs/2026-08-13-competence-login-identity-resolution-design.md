@@ -5,7 +5,8 @@
 | **Date** | 2026-08-13 |
 | **Packages** | `packages/web-framework` (fail-closed session on a refused augment, login error surface), `packages/competence` (email→employee resolution, `augmentSession` rewrite) |
 | **Status** | Approved (brainstorming) — pending spec review |
-| **Version targets** | web-framework `1.20.1` → `1.21.0` (minor); competence `3.17.0` → `3.18.0` (minor); core **no bump** (see §6.3) |
+| **Version targets** | web-framework `1.21.0` → `1.22.0` (minor); competence `3.18.0` → `3.19.0` (minor); core **no bump** (see §6.3) |
+| **Version note** | Originally targeted `1.21.0` / `3.18.0`. CA-99 landed on `current` and published `@ti-engine/web-framework@1.21.0` to npm first, taking both numbers, so this work was renumbered before merging. The npm publish is irreversible, so the collision could only be resolved by moving this branch. |
 | **Author** | Boris Kostadinov (with Claude) |
 | **Tracking** | YouTrack [`CA-95`](https://belleal.youtrack.cloud/issue/CA-95) — *Map OIDC identities to employee records (retire the test-user cookie)*, subtask of `CA-11` |
 
