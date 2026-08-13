@@ -10,8 +10,10 @@ const tools = require( "@ti-engine/core/tools" );
 const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const { randomBytes } = require( "node:crypto" );
+const fs = require( "node:fs" );
 const openidClient = require( "openid-client" );
 const User = require( "#user" );
+const localUserDirectory = require( "#local-user-directory" );
 
 /** @import { SettingsAuth } from "#web-server" */
 
@@ -62,6 +64,10 @@ class AuthManager {
     #clientConfigOAuth2Google = {};
     #clientConfigOAuth2Azure = {};
 
+    // A fixed, valid encoding used only to spend comparable time on an unknown or disabled username. It corresponds
+    // to no usable password: it is generated once at load from random bytes, so nothing can ever verify against it.
+    static #TIMING_DECOY_HASH = localUserDirectory.hashPassword( randomBytes( 32 ).toString( "base64" ) );
+
     /**
      * @constructor
      * @param {SettingsAuth} settings
@@ -69,14 +75,6 @@ class AuthManager {
     constructor( settings ) {
         if ( settings ) {
             this.#authSettings = settings;
-        }
-
-        // Set up local authentication configuration:
-        if ( this.isAuthEnabled( authMethodEnum.LOCAL ) ) {
-            // TODO: For testing purposes only! Implement real local auth later!
-            this.#authSettings.local = this.#authSettings.local || {};
-            this.#authSettings.local.username = "admin";
-            this.#authSettings.local.password = "admin";
         }
 
         // Set up OAuth2 configuration:
@@ -113,6 +111,9 @@ class AuthManager {
         this.#dropUnconfiguredOpenIDProviders();
 
         let promises = [];
+        if ( this.isAuthEnabled( authMethodEnum.LOCAL ) ) {
+            promises.push( this.#loadLocalUserDirectory() );
+        }
         if ( this.isAuthEnabled( authMethodEnum.OPENID_GOOGLE ) ) {
             promises.push( this.#initializeOpenIDClient( this.#authSettings.oauth2.google ).then( ( configuration ) => {
                 this.#clientConfigOAuth2Google = configuration;
@@ -198,7 +199,17 @@ class AuthManager {
     authorize( authMethod, currentUrl, oidc ) {
         switch ( authMethod ) {
             case authMethodEnum.LOCAL:
-                return Promise.resolve( new User( { userID: `local:${ tools.getUUID() }`, username: oidc.username } ) );
+                return localUserDirectory.findByUsername( oidc.username ).then( ( record ) => {
+                    if ( !record ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+                    }
+                    return new User( {
+                        userID: record.userID,
+                        username: record.username,
+                        email: record.email,
+                        name: record.name
+                    } );
+                } );
             case authMethodEnum.OPENID_GOOGLE:
                 return this.#authorizeOpenID( currentUrl, oidc, this.#clientConfigOAuth2Google );
             case authMethodEnum.OPENID_AZURE:
@@ -355,7 +366,53 @@ class AuthManager {
     }
 
     /**
-     * Used to verify the local authentication of a request.
+     * Loads the configured local users file and reconciles it into the directory. Every failure path leaves the
+     * directory unusable and logs why, so local authentication refuses rather than admits — the same fail-soft
+     * stance as {@link AuthManager#dropUnconfiguredOpenIDProviders}: a bad local-users file must not take down an
+     * instance whose other auth method works, and must not let anyone in either.
+     * <br/>
+     * A failed read deliberately does NOT reconcile, so a broken volume mount leaves the stored records untouched
+     * instead of destroying them. They are inert while the load is failing, because logins are refused anyway.
+     *
+     * @method
+     * @returns {Promise}
+     */
+    #loadLocalUserDirectory() {
+        const usersPath = this.#authSettings.local?.usersPath;
+        if ( !usersPath ) {
+            logger.log( "Local authentication is enabled but no 'auth.local.usersPath' is configured (see TI_WEB_AUTH_LOCAL_USERS_PATH) — every local sign-in will be refused.", logger.logSeverity.WARNING );
+            return Promise.resolve();
+        }
+
+        let raw;
+        try {
+            raw = JSON.parse( fs.readFileSync( usersPath, "utf8" ) );
+        } catch ( error ) {
+            logger.log( `Could not read the local users file '${ usersPath }' — every local sign-in will be refused. Previously stored records are left untouched.`, logger.logSeverity.WARNING, exceptions.raise( error ) );
+            return Promise.resolve();
+        }
+
+        const parsed = localUserDirectory.parseRecords( raw );
+        parsed.problems.forEach( ( problem ) => {
+            logger.log( `Local users file '${ usersPath }': ${ problem }`, logger.logSeverity.WARNING );
+        } );
+        if ( parsed.records.length === 0 ) {
+            logger.log( `The local users file '${ usersPath }' yielded no usable records — every local sign-in will be refused.`, logger.logSeverity.WARNING );
+        }
+
+        return localUserDirectory.reconcile( parsed.records ).then( ( result ) => {
+            logger.log( `Local user directory reconciled: ${ result.added.length } added, ${ result.updated.length } updated, ${ result.removed.length } removed.`, logger.logSeverity.NOTICE );
+        } ).catch( ( error ) => {
+            logger.log( "Could not reconcile the local user directory — every local sign-in will be refused.", logger.logSeverity.WARNING, exceptions.raise( error ) );
+        } );
+    }
+
+    /**
+     * Verifies a local sign-in against the user directory.
+     * <br/>
+     * An unknown username still performs a hash computation against a placeholder before failing, so a missing user
+     * and a wrong password take comparable time. Without it the response time answers "does this username exist?",
+     * which turns the login form into an enumeration oracle.
      *
      * @method
      * @param {string} username
@@ -363,13 +420,20 @@ class AuthManager {
      * @returns {Promise}
      */
     #authenticateLocal( username, password ) {
-        return new Promise( ( resolve, reject ) => {
-            // TODO: Implement this!
-            if ( this.isAuthEnabled( authMethodEnum.LOCAL ) && ( username === this.#authSettings.local.username && password === this.#authSettings.local.password ) ) {
-                resolve();
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+        if ( !this.isAuthEnabled( authMethodEnum.LOCAL ) ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+        }
+
+        const refuse = () => Promise.reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+
+        return localUserDirectory.findByUsername( username ).then( ( record ) => {
+            if ( !record || record.disabled === true ) {
+                // Burn comparable time before refusing, so timing does not reveal whether the username exists.
+                return localUserDirectory.verifyPassword( password, AuthManager.#TIMING_DECOY_HASH ).then( () => refuse() );
             }
+            return localUserDirectory.verifyPassword( password, record.passwordHash ).then( ( matches ) => {
+                return matches ? Promise.resolve() : refuse();
+            } );
         } );
     }
 
