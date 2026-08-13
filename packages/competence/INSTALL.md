@@ -3,7 +3,7 @@
 **Audience:** system administrators deploying the **competence** HR appraisal application.
 **Scope:** installing, configuring, running, upgrading, and troubleshooting the app as a container. Application usage (running appraisal cycles, etc.) is out of scope.
 
-> **Package versions this guide targets:** competence `3.16.0`, `@ti-engine/web-framework` `1.19.0`, `@ti-engine/core` `1.8.0`. Container image: `ghcr.io/belleal/ti-engine-competence`.
+> **Package versions this guide targets:** competence `3.19.0`, `@ti-engine/web-framework` `1.22.0`, `@ti-engine/core` `1.9.1`. Container image: `ghcr.io/belleal/ti-engine-competence`.
 >
 > `core` 1.8.0 raises the framework's own Redis floor to 6.0 (`ioredis` 6 defaults to the RESP3 protocol). This guide already requires Redis Stack or Redis 8+ for the JSON module, so nothing here changes.
 
@@ -13,7 +13,7 @@
 
 The competence app is functional but still evolving. Please account for the following **before a production rollout**:
 
-1. **Azure SSO is the default; local auth is off.** The container ships with `TI_WEB_AUTH_METHODS=openid-azure`, so the only sign-in method is Azure OpenID Connect — **you must configure the Azure credentials** (§7) or the login page will show "no sign-in method is configured." Local username/password auth is **disabled by default** and is only a development stand-in anyway (hard-coded `admin`/`admin` when enabled). Do not enable `local` for an internet-facing deployment; if you need a break-glass path, enable it deliberately and briefly via `TI_WEB_AUTH_METHODS` (§7).
+1. **Azure SSO is the default; local auth is off.** The container ships with `TI_WEB_AUTH_METHODS=openid-azure`, so the only sign-in method is Azure OpenID Connect — **you must configure the Azure credentials** (§7) or the login page will show "no sign-in method is configured." Local username/password auth is **disabled by default** and is only a development stand-in anyway (hard-coded `admin`/`admin` when enabled). Do not enable `local` for an internet-facing deployment; if you need a break-glass path, enable it deliberately and briefly via `TI_WEB_AUTH_METHODS` (§7) — pair it with an admin-allowlisted identity (§7, "Employee identity and sign-in"), or it signs in nobody at all.
 2. **Disable the test-user panel in production.** The login screen has a developer "test user" selector gated behind `COMPETENCE_TEST_USER_ENABLED`. It **must be `false`** (the default) in production — when on, it lets the client choose the acting identity and roles.
 3. **Redis is the system of record, not a cache.** Application data (evaluations, cycles, employees, role grants, results snapshots, audit log) is stored in Redis via the JSON module. **Redis must be persisted and backed up** (see §6, §15). Losing Redis means losing application data.
 4. **Secrets must be supplied at deploy time.** The message-integrity key and session cookie secret default to insecure/ephemeral values; set strong ones (§8) or sessions and tamper-protection are ineffective.
@@ -61,7 +61,7 @@ There are no other required services. (The framework can call peer ti-engine ser
   - `:latest` — the most recent released version.
   - `:edge` — the tip of `master` (pre-release; for staging only).
 - **Base:** `node:22-alpine`, non-root (`node` user), `NODE_ENV=production`.
-- **Pulling:** if the package is public, `docker pull ghcr.io/belleal/ti-engine-competence:3.16.0`. If private, authenticate to GHCR first:
+- **Pulling:** if the package is public, `docker pull ghcr.io/belleal/ti-engine-competence:3.19.0`. If private, authenticate to GHCR first:
   ```bash
   echo "$GITHUB_TOKEN" | docker login ghcr.io -u <your-username> --password-stdin
   ```
@@ -162,6 +162,10 @@ That session has no employee identity and no application roles — it reaches on
 exists so a deployment with wrong or missing employee data can still be fixed through the admin UI. Set at least one
 admin before enabling SSO.
 
+**Local auth.** Username/password sign-in carries no email at all, so it is refused outright unless the identity is
+also admin-allowlisted, in which case the same admin-only exception above applies. The dev-only test-user cookie
+(`COMPETENCE_TEST_USER_ENABLED`) is unaffected and continues to work normally for local development.
+
 ### OpenID Connect (Azure is the default SSO — configure it)
 Azure is enabled by default (`TI_WEB_AUTH_METHODS=openid-azure`), so **you must set the Azure credentials below** for a working sign-in. Google is available if you add `openid-google` to `TI_WEB_AUTH_METHODS`. A method that is enabled but unconfigured (no client ID) is skipped with a warning and its button hidden, so the app still boots (and shows the "no method configured" message if nothing remains).
 
@@ -236,7 +240,7 @@ services:
     restart: unless-stopped
 
   competence:
-    image: ghcr.io/belleal/ti-engine-competence:3.16.0
+    image: ghcr.io/belleal/ti-engine-competence:3.19.0
     depends_on:
       redis:
         condition: service_healthy
@@ -283,7 +287,7 @@ docker run -d --name competence \
   -e COMPETENCE_TEST_USER_ENABLED=false \
   -e TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY=<strong-random> \
   -e TI_WEB_COOKIE_SECRET=<strong-random> \
-  ghcr.io/belleal/ti-engine-competence:3.16.0
+  ghcr.io/belleal/ti-engine-competence:3.19.0
 ```
 
 ### Method C — Kubernetes (pointers)
