@@ -12,7 +12,12 @@
         <!-- Login card -->
         <div class="ti-login-card">
             <!-- Error message -->
-            <div id="ti-error" class="ti-login-error"></div>
+            <div id="ti-error"
+                 class="ti-login-error"
+                 x-data="tiLoginError"
+                 x-bind:class="{ visible: hasError }"
+                 role="alert"
+                 x-text-label="interface.default.login.error-sign-in-failed"></div>
 
             <!--ti-auth-method:local-->
             <!-- Local auth form -->

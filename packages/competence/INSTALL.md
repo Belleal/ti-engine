@@ -3,7 +3,7 @@
 **Audience:** system administrators deploying the **competence** HR appraisal application.
 **Scope:** installing, configuring, running, upgrading, and troubleshooting the app as a container. Application usage (running appraisal cycles, etc.) is out of scope.
 
-> **Package versions this guide targets:** competence `3.16.0`, `@ti-engine/web-framework` `1.19.0`, `@ti-engine/core` `1.8.0`. Container image: `ghcr.io/belleal/ti-engine-competence`.
+> **Package versions this guide targets:** competence `3.19.1`, `@ti-engine/web-framework` `1.23.0`, `@ti-engine/core` `1.11.0`. Container image: `ghcr.io/belleal/ti-engine-competence`.
 >
 > `core` 1.8.0 raises the framework's own Redis floor to 6.0 (`ioredis` 6 defaults to the RESP3 protocol). This guide already requires Redis Stack or Redis 8+ for the JSON module, so nothing here changes.
 
@@ -13,7 +13,7 @@
 
 The competence app is functional but still evolving. Please account for the following **before a production rollout**:
 
-1. **Azure SSO is the default; local auth is off.** The container ships with `TI_WEB_AUTH_METHODS=openid-azure`, so the only sign-in method is Azure OpenID Connect — **you must configure the Azure credentials** (§7) or the login page will show "no sign-in method is configured." Local username/password auth is **disabled by default** and is only a development stand-in anyway (hard-coded `admin`/`admin` when enabled). Do not enable `local` for an internet-facing deployment; if you need a break-glass path, enable it deliberately and briefly via `TI_WEB_AUTH_METHODS` (§7).
+1. **Azure SSO is the default; local auth is off.** The container ships with `TI_WEB_AUTH_METHODS=openid-azure`, so the only sign-in method is Azure OpenID Connect — **you must configure the Azure credentials** (§7) or the login page will show "no sign-in method is configured." Local username/password auth is **disabled by default**. It is a real, directory-backed sign-in method, not hardcoded credentials: it is provisioned from a JSON file of `username`/`email`/`name`/`passwordHash` records (§7, "Local auth"), and because a record carries an email, a local sign-in resolves to an employee exactly like an SSO identity does. It still has **no rate limiting, no lockout and no password policy**, so do not enable `local` for an internet-facing deployment. If you need a break-glass path, provision a directory entry deliberately and briefly — point `TI_WEB_AUTH_LOCAL_USERS_PATH` at a users file and add `local` via `TI_WEB_AUTH_METHODS` (§7) — giving that entry either an email matching an active employee record, or an identity on the admin allowlist (§7, "Employee identity and sign-in").
 2. **Disable the test-user panel in production.** The login screen has a developer "test user" selector gated behind `COMPETENCE_TEST_USER_ENABLED`. It **must be `false`** (the default) in production — when on, it lets the client choose the acting identity and roles.
 3. **Redis is the system of record, not a cache.** Application data (evaluations, cycles, employees, role grants, results snapshots, audit log) is stored in Redis via the JSON module. **Redis must be persisted and backed up** (see §6, §15). Losing Redis means losing application data.
 4. **Secrets must be supplied at deploy time.** The message-integrity key and session cookie secret default to insecure/ephemeral values; set strong ones (§8) or sessions and tamper-protection are ineffective.
@@ -61,7 +61,7 @@ There are no other required services. (The framework can call peer ti-engine ser
   - `:latest` — the most recent released version.
   - `:edge` — the tip of `master` (pre-release; for staging only).
 - **Base:** `node:22-alpine`, non-root (`node` user), `NODE_ENV=production`.
-- **Pulling:** if the package is public, `docker pull ghcr.io/belleal/ti-engine-competence:3.16.0`. If private, authenticate to GHCR first:
+- **Pulling:** if the package is public, `docker pull ghcr.io/belleal/ti-engine-competence:3.19.1`. If private, authenticate to GHCR first:
   ```bash
   echo "$GITHUB_TOKEN" | docker login ghcr.io -u <your-username> --password-stdin
   ```
@@ -125,12 +125,13 @@ All configuration is via environment variables. **Bold = must set for production
 All three are display-only — nothing behaves differently based on them. Signed-in users see the name, version, release date, license and the ti-engine component versions; the Node/platform/instance block is shown to **admins only** (`TI_WEB_AUTH_ADMINS`, §7 Secrets).
 
 ### Authentication methods
-| Variable              | Default (image) | Purpose                                                                                                                                                                                                     |
-|-----------------------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `TI_WEB_AUTH_METHODS` | `openid-azure`  | Comma-separated list of enabled sign-in methods; **replaces** the configured set. Valid values: `openid-azure`, `openid-google`, `local`. The image default is Azure SSO only. Configure the chosen providers below. |
+| Variable                      | Default (image) | Purpose                                                                                                                                                                                                     |
+|--------------------------------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `TI_WEB_AUTH_METHODS`         | `openid-azure`  | Comma-separated list of enabled sign-in methods; **replaces** the configured set. Valid values: `openid-azure`, `openid-google`, `local`. The image default is Azure SSO only. Configure the chosen providers below. |
+| `TI_WEB_AUTH_LOCAL_USERS_PATH` | *(empty)*       | Path to the local users file backing `local` sign-in — a JSON array of `{ username, email, name, passwordHash }` records (see "Local auth" below). Required for `local` to accept any sign-in at all.       |
 
-- The login page renders **only** the methods listed here — e.g. the default `openid-azure` shows just the Azure button and **no** local form. A method listed here but not configured (no client ID) is skipped with a warning and hidden.
-- To also offer Google: `TI_WEB_AUTH_METHODS=openid-azure,openid-google`. For a local break-glass (dev/emergency only): add `local` (hard-coded `admin`/`admin` — see §1).
+- The login page renders **only** the methods listed here — e.g. the default `openid-azure` shows just the Azure button and **no** local form. An OpenID Connect provider that is listed but not configured (no client ID) is dropped with a startup warning and its button hidden. **`local` is different: it has no such check.** Listing `local` here always renders the sign-in form, whether or not a usable users file exists at `TI_WEB_AUTH_LOCAL_USERS_PATH` — without one, the form renders but no sign-in can succeed (every attempt is refused; see "Local auth" below).
+- To also offer Google: `TI_WEB_AUTH_METHODS=openid-azure,openid-google`. For a local break-glass (dev/emergency only): add `local` and point `TI_WEB_AUTH_LOCAL_USERS_PATH` at a users file containing one provisioned record (see "Local auth" below, and §1) — there are no hardcoded credentials to fall back on.
 - If the effective list is empty (e.g. Azure listed but unconfigured), the login page shows a "no sign-in method is configured" message instead of a broken form.
 
 ### Redis
@@ -152,6 +153,41 @@ All three are display-only — nothing behaves differently based on them. Signed
 |------------------------------------|---------|----------------------------------------------------------------------------|
 | `COMPETENCE_PRELOAD_DATA`          | `false` | **Demo-data seed** — merges seed data on startup (re-applied each boot while `true`; does not wipe your data). Leave `false` for real installs (see §11). |
 | **`COMPETENCE_TEST_USER_ENABLED`** | `false` | Dev-only login test-user panel. **Must be `false` in production.**         |
+
+### Employee identity and sign-in
+
+The acting employee is resolved from the email the user signs in with, matched against the `email` field of their
+employee record. **Employee emails must match the addresses your identity provider issues** — an authenticated user
+with no matching record cannot sign in, and sees a generic "we couldn't sign you in" message.
+
+Sign-in is refused when:
+
+- no employee record carries that email;
+- the matching record's `employmentStatus` is anything other than `active` or `on-leave`;
+- two or more employee records share the email (the app refuses rather than guessing; the duplicate is also logged as
+  a `WARNING` at startup).
+
+**Recovery.** An identity listed in `TI_WEB_AUTH_ADMINS` (or `auth.admins`) may sign in *without* an employee record.
+That session has no employee identity and no application roles — it reaches only the administration screens — and
+exists so a deployment with wrong or missing employee data can still be fixed through the admin UI. Set at least one
+admin before enabling SSO.
+
+**Local auth.** A local user is a record — `username`, `email`, `name` and a `passwordHash` — in the JSON file at
+`TI_WEB_AUTH_LOCAL_USERS_PATH` (see "Authentication methods" above). Generate `passwordHash` with
+`npm run hash-password -w @ti-engine/web-framework`, which reads the password from stdin and never writes it
+anywhere. Because the record carries an email, a successful local sign-in resolves to an employee exactly like an
+SSO identity does — through the same rules above, including the admin-allowlist recovery path for an email with no
+employee record.
+
+The file is the source of truth: it is reconciled into the running directory on every boot, so removing an entry
+and restarting revokes that user's access — there is no separate delete action. `local` enabled with no users file
+configured, a file that cannot be read, or a file with zero valid records, each logs a startup **WARNING** and
+refuses every local sign-in rather than admitting one; a failed *read* leaves previously stored records untouched
+rather than wiping them.
+
+**There is still no rate limiting, no lockout after repeated failures, and no password policy** — see §1. The
+dev-only test-user cookie (`COMPETENCE_TEST_USER_ENABLED`) is unaffected and continues to work normally for local
+development, independent of `local`.
 
 ### OpenID Connect (Azure is the default SSO — configure it)
 Azure is enabled by default (`TI_WEB_AUTH_METHODS=openid-azure`), so **you must set the Azure credentials below** for a working sign-in. Google is available if you add `openid-google` to `TI_WEB_AUTH_METHODS`. A method that is enabled but unconfigured (no client ID) is skipped with a warning and its button hidden, so the app still boots (and shows the "no method configured" message if nothing remains).
@@ -227,7 +263,7 @@ services:
     restart: unless-stopped
 
   competence:
-    image: ghcr.io/belleal/ti-engine-competence:3.16.0
+    image: ghcr.io/belleal/ti-engine-competence:3.19.1
     depends_on:
       redis:
         condition: service_healthy
@@ -274,7 +310,7 @@ docker run -d --name competence \
   -e COMPETENCE_TEST_USER_ENABLED=false \
   -e TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY=<strong-random> \
   -e TI_WEB_COOKIE_SECRET=<strong-random> \
-  ghcr.io/belleal/ti-engine-competence:3.16.0
+  ghcr.io/belleal/ti-engine-competence:3.19.1
 ```
 
 ### Method C — Kubernetes (pointers)
@@ -346,28 +382,16 @@ reaches it once `deploy.sh` is re-run.
 - **Test-user mode is on**, so any authenticated visitor can act as any
   employee. IAP is the only thing preventing that. Do not disable it, and do not
   put real employee data here.
-- **Locked out?** `local` auth is disabled, so a broken OAuth client locks
-  everyone out of the app. Re-enable it temporarily — safe, because IAP still
-  fronts the service (the `^:^` prefix changes the delimiter so the comma is part
-  of the value). **Pass `--project` explicitly**: without it `gcloud` targets
-  whatever the active configuration points at, which is the last thing you want
-  from a command run under pressure.
-
-  ```bash
-  gcloud run services update competence --region europe-west1 \
-    --project <your-project-id> \
-    --update-env-vars ^:^TI_WEB_AUTH_METHODS=local,openid-google
-  ```
-
-  **Revert as soon as sign-in works again** — hardcoded `admin`/`admin`
-  credentials should never stay enabled longer than it takes to fix the OAuth
-  client:
-
-  ```bash
-  gcloud run services update competence --region europe-west1 \
-    --project <your-project-id> \
-    --update-env-vars TI_WEB_AUTH_METHODS=openid-google
-  ```
+- **Locked out?** Re-enabling `local` now actually helps: rebuild and redeploy
+  with a local users file baked into the image (or mounted from a Secret
+  Manager volume) at the path you set in `TI_WEB_AUTH_LOCAL_USERS_PATH`,
+  containing one record whose `email` is also in `ADMIN_EMAILS`, with its
+  `passwordHash` generated by `npm run hash-password -w @ti-engine/web-framework`.
+  Add `local` to `TI_WEB_AUTH_METHODS` and redeploy; that identity then signs
+  in as an admin the same way an allowlisted OAuth identity would (§7, "Local
+  auth" and "Recovery"). If the OAuth client itself is broken for every
+  identity, repair it directly — its secret, its redirect URI — and
+  redeploy, rather than trying to route around it through the login page.
 
 
 ---
@@ -377,7 +401,7 @@ reaches it once `deploy.sh` is re-run.
 - **Demo data:** `COMPETENCE_PRELOAD_DATA=true` seeds demo data (employees, a cycle, sample evaluations) by merging it into the collections on startup. It does **not** wipe existing data — collections are only initialized when empty, so data you create persists across restarts. While the flag stays `true` the seed is re-applied on every boot (re-adding seeded records), so set it back to `false` once seeded. Leave it `false` for a real install (you start empty).
 - **Organization structure:** the org chart is loaded from a configuration file baked into the image. Reflecting *your* organization requires supplying/adjusting that configuration (via the framework's admin configuration system or a custom build) — plan this with the application owner; it is not an environment variable.
 - **Admin access:** the admin configuration screens are gated to identities listed in the web-server config `auth.admins` (empty by default → no admins). Set it per environment with **`TI_WEB_AUTH_ADMINS`** (comma-separated; matched against the session user's user ID, username or email — so an OpenID deployment lists emails), or in the config file for a baked-in default. Other non-env config such as the organization structure remains a configuration step — coordinate with the application owner.
-- **First login:** browse to your HTTPS host. With the default `TI_WEB_AUTH_METHODS=openid-azure`, you sign in via Azure — so Azure must be configured (§7), otherwise the page shows "no sign-in method is configured." (A local `admin`/`admin` login only appears if you add `local` to `TI_WEB_AUTH_METHODS` — dev/break-glass only, see §1.)
+- **First login:** browse to your HTTPS host. With the default `TI_WEB_AUTH_METHODS=openid-azure`, you sign in via Azure — so Azure must be configured (§7), otherwise the page shows "no sign-in method is configured." (Adding `local` to `TI_WEB_AUTH_METHODS` makes its sign-in form appear immediately — the form itself does not depend on a users file existing — but no sign-in can *succeed* until you provision a record for that identity in the file at `TI_WEB_AUTH_LOCAL_USERS_PATH`; with no matching record, or a wrong password, it's refused; dev/break-glass only, see §1 and §7, "Local auth".)
 
 ---
 
@@ -435,7 +459,7 @@ reaches it once `deploy.sh` is re-run.
 | `GET /logout` returns Not Found                                       | Logout is `POST /logout` (by design)                                | Use the in-app Logout button; not a GET URL.                                |
 | Sessions drop on restart / don't work across replicas                 | `TI_WEB_COOKIE_SECRET` unset (random per process)                   | Set a stable secret (§8).                                                   |
 | Login page says "no sign-in method is configured"                     | Every method in `TI_WEB_AUTH_METHODS` is unconfigured (e.g. the Azure default with no creds) | Configure the provider credentials (§7), or set `TI_WEB_AUTH_METHODS` to a method you have configured. |
-| A local `admin`/`admin` login is accepted                             | `local` was added to `TI_WEB_AUTH_METHODS` (it is off by default)   | Remove `local` from `TI_WEB_AUTH_METHODS` for production (§1).              |
+| A local sign-in succeeds unexpectedly                                 | `local` is enabled **and** the file at `TI_WEB_AUTH_LOCAL_USERS_PATH` has a matching, non-disabled record — there are no hardcoded credentials to disable | Remove `local` from `TI_WEB_AUTH_METHODS`, or remove the record from the users file and restart, for production (§1). |
 
 ---
 

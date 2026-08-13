@@ -1616,6 +1616,28 @@ const configureScreenAbout = () => {
 };
 
 /**
+ * Returns a configuration object for the login screen error message.
+ * <br/>
+ * The login handlers answer a failed sign-in with a `303` to `/?error=<code>` (see `defaultErrorHandler`). This reads
+ * that parameter and reveals the message element; the copy itself stays declarative via `x-text-label` so it localizes
+ * through the normal path. Deliberately independent of the throwaway test-user panel so it survives that panel's removal.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureLoginError = () => {
+    return {
+        hasError: false,
+
+        init() {
+            const tiToolbox = Alpine.store( "tiToolbox" );
+            this.hasError = Boolean( tiToolbox.getUrlParam( "error" ) );
+        }
+    };
+};
+
+/**
  * Returns a configuration object for the login screen test user pill panel.
  * <br/>
  * NOTE: This is a TEMPORARY testing aid that injects an employeeID into the session via a cookie which the
@@ -1738,6 +1760,7 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
     Alpine.data( "tiComponentTooltip", configureComponentTooltip );
     Alpine.data( "tiLoginTestUserPanel", configureLoginTestUserPanel );
+    Alpine.data( "tiLoginError", configureLoginError );
     Alpine.data( "tiScreenProfile", configureScreenProfile );
     Alpine.data( "tiScreenAbout", configureScreenAbout );
 } );

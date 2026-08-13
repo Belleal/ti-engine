@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/web-framework",
-  "version": "1.21.0",
+  "version": "1.23.0",
   "description": "A web-framework based on the ti-engine. It provides a customizable ready-to-use web-server microservice and a set of tools for creating web applications. NOTICE: This is still a work in progress and the full architecture, design, and functionality are not available!",
   "keywords": [
     "ti-engine",
@@ -26,6 +26,10 @@
     "./web-server": {
       "types": "./types/bin/web-server.d.ts",
       "default": "./bin/web-server.js"
+    },
+    "./authorization": {
+      "types": "./types/components/authorization.d.ts",
+      "default": "./components/authorization.js"
     },
     "./definitions": {
       "types": "./types/components/definitions.types.d.ts",
@@ -68,6 +72,10 @@
     "#definitions": {
       "types": "./types/components/definitions.types.d.ts",
       "default": "./components/definitions.types.js"
+    },
+    "#local-user-directory": {
+      "types": "./types/components/local-user-directory.d.ts",
+      "default": "./components/local-user-directory.js"
     },
     "#session-store": {
       "types": "./types/components/session-store.d.ts",
@@ -138,6 +146,7 @@
   "scripts": {
     "postinstall": "node ./bin/build/post-install.js",
     "test": "node --test test/*.test.js",
-    "build:types": "tsc -p tsconfig.types.json"
+    "build:types": "tsc -p tsconfig.types.json",
+    "hash-password": "node ./bin/build/hash-password.js"
   }
 }

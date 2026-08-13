@@ -24,9 +24,9 @@
  * surface once measured as 7.
  */
 
-const child = require( "node:child_process" );
 const fs = require( "node:fs" );
 const path = require( "node:path" );
+const { runNode, runTsc } = require( "./tsc-runner" );
 
 const REPOSITORY_ROOT = path.resolve( __dirname, "..", ".." );
 const PACKAGES = [ "core", "web-framework", "web-content" ];
@@ -45,19 +45,6 @@ const COMPILER_OPTIONS = {
 };
 
 /**
- * Runs a command and returns its combined output alongside the exit code.
- *
- * @param {string} command
- * @param {string[]} args
- * @param {string} [cwd]
- * @returns {{ code: number, output: string }}
- */
-function run( command, args, cwd = REPOSITORY_ROOT ) {
-    const result = child.spawnSync( command, args, { cwd: cwd, encoding: "utf8", shell: false } );
-    return { code: result.status === null ? 1 : result.status, output: ( result.stdout || "" ) + ( result.stderr || "" ) };
-}
-
-/**
  * Counts the compiler diagnostics in a tsc run's output.
  *
  * @param {string} output
@@ -65,6 +52,21 @@ function run( command, args, cwd = REPOSITORY_ROOT ) {
  */
 function countErrors( output ) {
     return output.split( "\n" ).filter( ( line ) => /error TS\d+/.test( line ) ).length;
+}
+
+/**
+ * Renders a filesystem path for use inside a tsconfig.
+ *
+ * A tsconfig `include` entry is a POSIX-style glob on every platform: TypeScript reads `\` as an
+ * escape character, not a separator, so a Windows path from `path.join` matches nothing and the
+ * compiler reports `TS18003: No inputs were found` — a green-looking "0 errors" for a check that
+ * examined no files at all.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+function toConfigPath( value ) {
+    return value.split( path.sep ).join( "/" );
 }
 
 /**
@@ -77,7 +79,7 @@ function countErrors( output ) {
 function typeCheck( name, config ) {
     const file = path.join( WORK_DIRECTORY, `tsconfig.${ name }.json` );
     fs.writeFileSync( file, JSON.stringify( config, null, 2 ) + "\n" );
-    return run( "npx", [ "tsc", "-p", file ] );
+    return runTsc( [ "-p", file ], REPOSITORY_ROOT );
 }
 
 /**
@@ -113,7 +115,7 @@ function readDeclarations() {
  */
 function checkDrift() {
     const before = readDeclarations();
-    const build = run( "node", [ path.join( __dirname, "build-types.js" ) ] );
+    const build = runNode( [ path.join( __dirname, "build-types.js" ) ], REPOSITORY_ROOT );
     if ( build.code !== 0 ) {
         process.stderr.write( build.output );
         throw new Error( "declaration build failed" );
@@ -179,7 +181,10 @@ function main() {
     if ( drift.length > 0 ) {
         process.stdout.write( `drift: ${ drift.length } declaration path(s) differ from the committed output\n` );
         drift.forEach( ( line ) => process.stdout.write( `  ${ line }\n` ) );
-        process.stdout.write( "  run `npm run build:types --workspaces --if-present` and commit the result\n" );
+        // Deliberately the root script, not `--workspaces`: each package's own `build:types` is `tsc`
+        // alone and skips `addNodeReferences()`, so following that advice regenerates declarations
+        // without the Node reference and reintroduces the very defect this gate exists to catch.
+        process.stdout.write( "  run `npm run build:types` (the root script) and commit the result\n" );
         failed = true;
     } else {
         process.stdout.write( "drift: committed declarations match a fresh build\n" );
@@ -188,11 +193,15 @@ function main() {
     for ( const name of PACKAGES ) {
         const result = typeCheck( name, {
             compilerOptions: COMPILER_OPTIONS,
-            include: [ path.join( REPOSITORY_ROOT, "packages", name, "types", "**", "*.d.ts" ) ]
+            include: [ toConfigPath( path.join( REPOSITORY_ROOT, "packages", name, "types", "**", "*.d.ts" ) ) ]
         } );
         const errors = countErrors( result.output );
-        process.stdout.write( `declarations (${ name }): ${ errors } error(s)\n` );
-        if ( errors > 0 ) {
+        process.stdout.write( `declarations (${ name }): ${ errors } error(s)${ result.code !== 0 ? `, compiler exited ${ result.code }` : "" }\n` );
+        // The exit code is checked as well as the diagnostic count, because they are not the same signal: a run that
+        // fails to launch, crashes, is OOM-killed or dies on a signal exits nonzero while emitting no `error TS`
+        // line at all, so counting alone reported "0 error(s)" and let the gate pass. `checkDrift` above and
+        // build-types.js already gate on the code; these two branches were the ones that did not.
+        if ( result.code !== 0 || errors > 0 ) {
             process.stdout.write( result.output );
             failed = true;
         }
@@ -201,11 +210,11 @@ function main() {
     const subpaths = writeConsumer();
     const consumer = typeCheck( "consumer", {
         compilerOptions: Object.assign( {}, COMPILER_OPTIONS, { strict: true } ),
-        include: [ path.join( WORK_DIRECTORY, "consumer.ts" ) ]
+        include: [ toConfigPath( path.join( WORK_DIRECTORY, "consumer.ts" ) ) ]
     } );
     const consumerErrors = countErrors( consumer.output );
-    process.stdout.write( `consumer (${ subpaths } subpaths): ${ consumerErrors } error(s)\n` );
-    if ( consumerErrors > 0 ) {
+    process.stdout.write( `consumer (${ subpaths } subpaths): ${ consumerErrors } error(s)${ consumer.code !== 0 ? `, compiler exited ${ consumer.code }` : "" }\n` );
+    if ( consumer.code !== 0 || consumerErrors > 0 ) {
         process.stdout.write( consumer.output );
         failed = true;
     }

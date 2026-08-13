@@ -172,7 +172,13 @@ let regenerateAndSaveSession = ( request, redirectTo, modifier ) => {
                         request.session = modifier( request.session );
                     }
                 } catch ( error ) {
-                    reject( error );
+                    // The application's augment hook refused this login. `session.user` was already assigned in place
+                    // before the hook ran, and `verifySession` only checks that it exists — so a merely-rejected
+                    // session would still be persisted by express-session at response end and would admit the user.
+                    // Destroy it before rejecting so a refusal is genuinely fail-closed.
+                    request.session.destroy( () => {
+                        reject( error );
+                    } );
                     return;
                 }
                 request.session.save( ( error ) => {
@@ -528,7 +534,9 @@ module.exports.defaultErrorHandler = () => {
                     } )
                 } );
                 return response.status( status ).send( "" );
-            } else if ( isAcceptingResponseType( request, "html" ) && request.method === "GET" ) {
+                // A 401 on an HTML request means "you are not signed in" whatever the method — the useful answer is the
+                // sign-in page carrying the reason, so local auth's POST presents exactly like the OAuth callback's GET.
+            } else if ( isAcceptingResponseType( request, "html" ) && ( request.method === "GET" || status === exceptions.httpCode.C_401 ) ) {
                 response.redirect( exceptions.httpCode.C_303, "/?error=" + encodeURIComponent( exception.code ) );
             } else {
                 response.status( status ).send( payload );

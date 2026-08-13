@@ -13,11 +13,18 @@ export type ApiConfig = {
 };
 export type SettingsAuth = {
     enabledMethods: string[];
-    local: Object;
+    local: SettingsAuthLocal;
     oauth2: {
         azure?: SettingsOAuth2Client;
         google?: SettingsOAuth2Client;
     };
+};
+export type SettingsAuthLocal = {
+    /**
+     * Path to the JSON file of local user records (see `TI_WEB_AUTH_LOCAL_USERS_PATH`).
+     * Local sign-in refuses everyone whenever this is absent, unreadable, or yields no usable records.
+     */
+    usersPath?: string;
 };
 export type SettingsOAuth2Client = {
     clientID?: string;
@@ -179,6 +186,11 @@ declare class TiWebServer extends ServiceConsumer {
      * Hook for the application to augment the freshly-authenticated session (e.g. derive domain roles from an
      * identity store or the org chart). Runs synchronously, once per login, before the framework's additive `admin`
      * role is applied. The default is a no-op. Any test-user role injection is an override of whatever the app derives.
+     * <br/>
+     * **Refusing a login.** Throwing from this hook refuses the sign-in: the framework destroys the freshly regenerated
+     * session (so no usable session survives the refusal), the login handler raises `401`, and the error handler
+     * redirects the browser to the login page with the exception code in `?error=`. Throw when the authenticated
+     * identity cannot be mapped to an application principal; return the session unchanged to accept it.
      *
      * @method
      * @virtual
@@ -200,6 +212,12 @@ declare class TiWebServer extends ServiceConsumer {
     authenticate(authMethod: TiAuthMethod, authDetails?: Object): Promise<any>;
     /**
      * Used to set up user authorization according to the specified auth method.
+     * <br/>
+     * NOTE: This presupposes a successful, immediately preceding {@link TiWebServer#authenticate} call for the same
+     * credentials — it is **not** an independent authentication check. For the `local` method it builds the session
+     * user from the directory record named by `oidc.username`, verifying that the record exists and is not disabled
+     * but performing no password comparison of its own; the framework's own login route calls `authenticate` first.
+     * Calling this directly without that preceding step would mint a session for any known username.
      *
      * @method
      * @param {TiAuthMethod} authMethod

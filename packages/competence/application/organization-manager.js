@@ -8,6 +8,7 @@
 
 const exceptions = require( "@ti-engine/core/exceptions" );
 const localization = require( "@ti-engine/core/localization" );
+const logger = require( "@ti-engine/core/logger" );
 const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
 const roleResolver = require( "#role-resolver" );
@@ -25,6 +26,10 @@ class OrganizationManager {
     static #instance = null;
 
     #organizationChart = null;
+
+    // Email -> { employeeID, employmentStatus } | { ambiguous: true }, rebuilt with the chart. Backs the synchronous
+    // login-time identity lookup, which cannot await a store read (augmentSession runs inside a sync session callback).
+    #emailIndex = new Map();
 
     /**
      * @constructor
@@ -155,6 +160,7 @@ class OrganizationManager {
                 } );
 
                 this.#organizationChart = graph;
+                this.#emailIndex = this.#buildEmailIndex( employees );
 
                 resolve();
             } ).catch( ( error ) => {
@@ -552,7 +558,89 @@ class OrganizationManager {
         } );
     }
 
+    /**
+     * Resolves an authenticated email to the acting employee. Synchronous by design — login-time identity resolution
+     * runs inside a synchronous session callback, so it reads the in-memory index rather than the store.
+     *
+     * @method
+     * @param {string} email
+     * @returns {{employeeID: string, employmentStatus: string}|{ambiguous: boolean}|null}
+     * @public
+     */
+    resolveEmployeeIDByEmail( email ) {
+        const normalized = String( email == null ? "" : email ).trim().toLowerCase();
+        if ( !normalized ) {
+            return null;
+        }
+        return this.#emailIndex.get( normalized ) || null;
+    }
+
+    /**
+     * Whether an employee node exists in the current organization chart.
+     *
+     * @method
+     * @param {string} employeeID
+     * @returns {boolean}
+     * @public
+     */
+    hasEmployee( employeeID ) {
+        if ( !employeeID || !this.#organizationChart ) {
+            return false;
+        }
+        return this.#organizationChart.hasNode( this.toEmployeeNodeID( employeeID ) );
+    }
+
     /* Private interface */
+
+    /**
+     * Builds the email -> employee index. A duplicated email is recorded as ambiguous rather than resolved, and is
+     * reported once here at build time so an operator learns about the bad data at deploy rather than from one user's
+     * failed login.
+     *
+     * @method
+     * @param {Array<Object>} employees
+     * @returns {Map<string, Object>}
+     * @private
+     */
+    #buildEmailIndex( employees ) {
+        const index = new Map();
+        const duplicates = new Map();
+
+        ( Array.isArray( employees ) ? employees : [] ).forEach( ( employee ) => {
+            const employeeID = employee?.employeeID;
+            const email = String( employee?.email == null ? "" : employee.email ).trim().toLowerCase();
+            if ( !employeeID || !email ) {
+                return;
+            }
+
+            const existing = index.get( email );
+            if ( existing ) {
+                const collided = duplicates.get( email ) || [ existing.employeeID ];
+                collided.push( employeeID );
+                duplicates.set( email, collided );
+                index.set( email, { ambiguous: true } );
+                return;
+            }
+
+            // The status is passed through verbatim — deliberately NOT defaulted to "active" as the graph node
+            // attribute above does. This index feeds login identity resolution, where the resolver admits only a
+            // status on its permitted list; coercing an absent status to "active" here would hand a full employee
+            // session and org-derived roles to a record that carries no approved status at all, which is a
+            // fail-open on a security-relevant field. Passing `undefined` through lets the resolver refuse it.
+            // (The node attribute keeps its default because it feeds display and reporting, where "unknown" would
+            // be a regression, not a safeguard.)
+            index.set( email, { employeeID: employeeID, employmentStatus: employee.employmentStatus } );
+        } );
+
+        duplicates.forEach( ( employeeIDs, email ) => {
+            logger.log(
+                `Employee email '${ email }' is shared by ${ employeeIDs.length } records (${ employeeIDs.join( ", " ) }). Sign-in with this address will be refused as ambiguous until the duplication is resolved.`,
+                logger.logSeverity.WARNING
+            );
+        } );
+
+        return index;
+    }
 
     /**
      * Returns the IDs of every organization unit the employee directly manages (`managerID === employeeID`).

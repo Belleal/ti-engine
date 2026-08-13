@@ -7,12 +7,14 @@
 */
 
 const TiWebServer = require( "@ti-engine/web-framework/web-server" );
+const authorization = require( "@ti-engine/web-framework/authorization" );
 const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const tools = require( "@ti-engine/core/tools" );
 const ServiceConsumer = require( "@ti-engine/core/service-consumer" );
 const dataManager = require( "#data-manager" );
 const organizationManager = require( "#organization-manager" );
+const identityResolver = require( "#identity-resolver" );
 const configurationLoader = require( "#configuration-loader" );
 const roleResolver = require( "#role-resolver" );
 const competenceFramework = require( "#competence-framework" );
@@ -81,30 +83,43 @@ class CompetenceWebServer extends TiWebServer {
     }
 
     /**
-     * Used to augment the session with additional data.
+     * Used to augment the session with the acting employee identity and their derived roles.
+     * <br/>
+     * Identity comes from the email the user authenticated with, resolved against the employee directory. An identity
+     * with no usable employee record is REFUSED — throwing refuses the login per the framework's documented
+     * `augmentSession` contract, which destroys the session and returns the browser to the login page. The one
+     * exception is an identity on the deployment's admin allowlist, which is admitted with no employeeID and no
+     * application roles so the admin configuration UI stays reachable when the employee data itself is wrong.
+     * <br/>
+     * The dev `ti-test-user` cookie still overrides identity, but only behind the off-by-default
+     * `COMPETENCE_TEST_USER_ENABLED` flag (see {@link IdentityResolver#resolve}).
      *
      * @method
      * @override
      * @param {TiSession} session
-     * @param {Object} [request] Express request used to read the test user selection (cookie).
+     * @param {Object} [request] Express request used to read the dev test-user selection (cookie).
      * @returns {TiSession}
      * @public
      */
     augmentSession( session, request ) {
-        // NOTE: Identity (employeeID) still comes from the temporary test-user cookie until AD-driven identity is
-        // wired up. Roles are now DERIVED from the user's place in the org chart; the cookie's optional `roles`
-        // array remains a dev-only override (see the login test panel). The whole cookie is honored ONLY when the
-        // off-by-default COMPETENCE_TEST_USER_ENABLED flag is set (see #readTestUserSelection) — in production it is
-        // ignored, so identity falls back to the authenticated session and roles are always org-derived.
-        if ( session.user ) {
-            const testUser = this.#readTestUserSelection( request );
-            session.user.employeeID = ( testUser && testUser.employeeID ) || session.user.employeeID || "20";
-
-            const overrideRoles = ( testUser && Array.isArray( testUser.roles ) && testUser.roles.length > 0 ) ? testUser.roles : null;
-            session.user.roles = overrideRoles || this.#resolveUserRoles( session.user.employeeID );
+        if ( !session.user ) {
+            return session;
         }
 
-        return session;
+        const outcome = identityResolver.instance.resolve( {
+            email: session.user.email,
+            testUserCookie: request && request.cookies && request.cookies[ "ti-test-user" ],
+            testUserEnabled: tools.toBool( process.env.COMPETENCE_TEST_USER_ENABLED ),
+            isAdmin: authorization.isAdminIdentity( session.user, this.serviceConfig?.auth?.admins ),
+            lookupByEmail: ( email ) => organizationManager.instance.resolveEmployeeIDByEmail( email ),
+            employeeExists: ( employeeID ) => organizationManager.instance.hasEmployee( employeeID )
+        } );
+
+        if ( outcome.reason ) {
+            logger.log( `Refusing sign-in for '${ session.user.email || session.user.userID }': ${ outcome.reason }.`, logger.logSeverity.WARNING );
+        }
+
+        return identityResolver.instance.applyIdentity( session, outcome, ( employeeID ) => this.#resolveUserRoles( employeeID ) );
     }
 
     /* Private interface */
@@ -125,43 +140,6 @@ class CompetenceWebServer extends TiWebServer {
             isAutoSupervisor: organizationManager.instance.isAutoSupervisor( employeeID ),
             hasSupervisorGrant: dataManager.instance.hasSupervisorGrant( employeeID )
         } );
-    }
-
-    /**
-     * Reads the temporary "ti-test-user" cookie set by the login screen pill panel and returns the parsed selection.
-     * <br/>
-     * SECURITY: This cookie is a dev-only backdoor — it lets the client choose BOTH the acting identity and an
-     * optional numeric roles override, bypassing org-derived and grant-based authorization. It must never be trusted
-     * in production, so it is hard-gated behind the explicit, off-by-default `COMPETENCE_TEST_USER_ENABLED` env flag
-     * (mirrors `COMPETENCE_PRELOAD_DATA`). Without the flag the cookie is ignored entirely.
-     * <br/>
-     * NOTE: For testing purposes only — the cookie path should be removed once real identity propagation is implemented.
-     *
-     * @method
-     * @param {Object} [request]
-     * @returns {{ employeeID: string, roles: number[] } | null}
-     * @private
-     */
-    #readTestUserSelection( request ) {
-        if ( !tools.toBool( process.env.COMPETENCE_TEST_USER_ENABLED ) ) {
-            return null;
-        }
-        const raw = request && request.cookies && request.cookies[ "ti-test-user" ];
-        if ( !raw ) {
-            return null;
-        }
-        try {
-            const parsed = JSON.parse( decodeURIComponent( raw ) );
-            if ( parsed && parsed.employeeID ) {
-                return {
-                    employeeID: String( parsed.employeeID ),
-                    roles: Array.isArray( parsed.roles ) ? parsed.roles.map( ( role ) => Number( role ) ).filter( ( role ) => Number.isFinite( role ) ) : []
-                };
-            }
-        } catch {
-            // Ignore malformed cookie values.
-        }
-        return null;
     }
 
 }

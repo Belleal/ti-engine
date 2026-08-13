@@ -18,6 +18,7 @@ The web server configuration (host, port, TLS, cookies, etc.) is normally provid
 * `TI_WEB_TLS_CERT_PATH` / `TI_WEB_TLS_KEY_PATH` override the TLS certificate/key paths (only used when TLS is enabled).
 * `TI_WEB_COOKIE_SECRET` sets the session cookie signing secret. Set a stable, private value for durable sessions and multi-replica deployments (otherwise a random per-process value is used).
 * `TI_WEB_AUTH_METHODS` (comma-separated) **replaces** the enabled authentication methods (`auth.enabledMethods`), e.g. `openid-google` or `local,openid-google`.
+* `TI_WEB_AUTH_LOCAL_USERS_PATH` overrides the local user directory's file path (`auth.local.usersPath`), which backs `local` sign-in. An explicitly empty value means *no directory*, so every local sign-in is refused. See [Local (username/password) authentication](#local-usernamepassword-authentication).
 * `TI_WEB_AUTH_ADMINS` (comma-separated) **replaces** the admin allowlist (`auth.admins`). Entries are matched against the session user's user ID, username or email, so an OpenID deployment lists emails. An explicitly empty value means *no admins*.
 * `TI_WEB_TRUSTED_ORIGINS` (comma-separated) **replaces** the trusted request origins (`trustedOrigins`) — needed behind proxies that do not present the real external origin.
 * `TI_WEB_STATIC_MAX_AGE` (whole seconds) overrides `staticCache.maxAge`. See [Static asset caching](#static-asset-caching).
@@ -25,6 +26,57 @@ The web server configuration (host, port, TLS, cookies, etc.) is normally provid
 * `TI_WEB_STATIC_IMMUTABLE_PATHS` (comma-separated) **replaces** `staticCache.immutablePaths`. An explicitly empty value means *no long-lived paths*.
 
 OpenID Connect providers are configured with their own variables — `TI_AZURE_AUTH_CLIENT_ID` / `TI_AZURE_AUTH_CLIENT_SECRET` / `TI_AZURE_AUTH_CALLBACK_URL` / `TI_AZURE_AUTH_DISCOVERY_URL`, and the `TI_GCLOUD_AUTH_*` equivalents. A callback URL may be given either as the full absolute URL registered with the provider (`https://your-host/login/azure-callback`) or as a path (`/login/azure-callback`): the server always listens on the path, while the `redirect_uri` sent to the provider is the absolute value verbatim if one was configured, and otherwise assembled from the request's forwarded protocol/host.
+
+## Authentication and authorization
+
+`TiWebServer#augmentSession` is the hook through which an application derives its own session roles — from an identity store, the org chart, or wherever a deployment keeps that mapping — once per login, before the framework's own additive `admin` role (`auth.admins`, see [Environment variables](#environment-variables)) is applied on top; the default is a no-op that returns the session unchanged. Throwing from the hook refuses the sign-in rather than admitting a session the application could not map to a principal: the framework destroys the freshly regenerated session so nothing usable survives the refusal, the login handler responds `401`, and the error handler sends the browser back to the login page with the exception code in the `?error=` query parameter — the same path a failed OpenID callback takes, regardless of which auth method was used.
+
+## Local (username/password) authentication
+
+`local` is one of the configurable `auth.enabledMethods` sign-in methods (see [Environment variables](#environment-variables), `TI_WEB_AUTH_METHODS`). It is backed by a JSON file of user records — there is no built-in account of any kind.
+
+### The users file
+
+`auth.local.usersPath` (override: `TI_WEB_AUTH_LOCAL_USERS_PATH`) points at a JSON file holding an array of records:
+
+```json
+[
+  {
+    "username": "jdoe",
+    "email": "jane.doe@example.com",
+    "name": "Jane Doe",
+    "passwordHash": "scrypt$16384$8$1$<salt-base64>$<hash-base64>"
+  }
+]
+```
+
+* `username`, `email`, `name` and `passwordHash` are required. `email` is required because a consuming application resolves the signed-in identity by it, the same way it would for an OpenID identity — a record with no email cannot reach an application at all.
+* `userID` is optional. When omitted, one is derived from the username, so it stays stable across restarts and logins; supply it explicitly only when something else needs to match a specific value (e.g. `auth.admins`).
+* `disabled: true` keeps the record (and its username) in the file while refusing every sign-in for it.
+
+Generate `passwordHash` with the bundled CLI. It reads the password from **stdin**, never an argument, so it never lands in shell history or a process listing (`ps`), and it never echoes the password back:
+
+```bash
+npm run hash-password -w @ti-engine/web-framework
+```
+
+Type or pipe the password, then EOF; only the resulting hash is written to stdout.
+
+That `npm run` form only works inside this monorepo (it is a workspace script). A consumer of the published `@ti-engine/web-framework` package has no `bin` entry to run it by name — the script ships under `bin/build/` regardless, so invoke it by its path inside `node_modules` instead:
+
+```bash
+node ./node_modules/@ti-engine/web-framework/bin/build/hash-password.js
+```
+
+### The file is the source of truth
+
+On every boot, the file is read and reconciled into the running directory: an added record starts working, a changed `passwordHash` takes effect, and — this is the point — **a record removed from the file is removed from the directory**, revoking that user's access on the next restart. Editing the file and restarting is the whole revocation mechanism; there is no separate delete action.
+
+### Every failure refuses rather than admits
+
+`local` enabled with no `auth.local.usersPath` configured, a file that cannot be read, a file that is not valid JSON, or a file that yields zero valid records after validation — each of these logs a startup **WARNING** and refuses every local sign-in, rather than admitting one or falling back to a default. A failed *read* deliberately does not reconcile, so a temporarily broken volume mount leaves previously stored records untouched instead of wiping them; those records stay inert (unused) while the load keeps failing, because sign-ins are refused anyway.
+
+**There is no rate limiting, no lockout after repeated failures, and no password policy.** Treat `local` on an internet-facing deployment as a deliberate risk until those exist.
 
 ## Static asset caching
 

@@ -1,0 +1,8 @@
+[
+  {
+    "username": "REPLACE-ME",
+    "email": "replace-me@example.com",
+    "name": "Replace Me",
+    "passwordHash": "GENERATE-WITH-npm-run-hash-password"
+  }
+]
