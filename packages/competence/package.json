@@ -1,7 +1,8 @@
 {
   "name": "@ti-engine/competence",
-  "version": "3.17.0",
-  "description": "The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.",
+  "version": "3.18.0",
+  "releaseDate": "2026-08-13",
+  "description": "Competency-based performance appraisal application, modelling competencies across role family, specialization and stage-level. Built on the ti-engine.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "imports": {
