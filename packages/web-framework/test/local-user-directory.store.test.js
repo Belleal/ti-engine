@@ -68,6 +68,36 @@ describe( "localUserDirectory reconcile", () => {
         assert.equal( await directory.findByUsername( "ada" ), null );
     } );
 
+    // Plain-object bracket access resolves 'constructor' to the inherited Object constructor and silently drops
+    // '__proto__' instead of storing it (both inherited from Object.prototype rather than genuinely present), so
+    // these pin the null-prototype-plus-hasOwnProperty mechanism rather than trusting `stored[username]` truthiness.
+    it( "reports a first-time '__proto__' user as added, not updated, and it round-trips", async () => {
+        const result = await directory.reconcile( [ record( "ada" ), record( "__proto__" ) ] );
+        assert.deepEqual( result.added.sort(), [ "__proto__", "ada" ] );
+        assert.equal( result.updated.length, 0 );
+        const found = await directory.findByUsername( "__proto__" );
+        assert.ok( found );
+        assert.equal( found.email, "__proto__@example.com" );
+    } );
+
+    it( "reports a first-time 'constructor' user as added, not updated, and it round-trips", async () => {
+        const result = await directory.reconcile( [ record( "ada" ), record( "constructor" ) ] );
+        assert.deepEqual( result.added.sort(), [ "ada", "constructor" ] );
+        assert.equal( result.updated.length, 0 );
+        const found = await directory.findByUsername( "constructor" );
+        assert.ok( found );
+        assert.equal( typeof found, "object" );
+        assert.equal( found.email, "constructor@example.com" );
+    } );
+
+    it( "reports '__proto__' and 'constructor' users in removed once dropped from the incoming set", async () => {
+        await directory.reconcile( [ record( "ada" ), record( "__proto__" ), record( "constructor" ) ] );
+        const result = await directory.reconcile( [ record( "ada" ) ] );
+        assert.deepEqual( result.removed.sort(), [ "__proto__", "constructor" ] );
+        assert.equal( await directory.findByUsername( "__proto__" ), null );
+        assert.equal( await directory.findByUsername( "constructor" ), null );
+    } );
+
 } );
 
 describe( "localUserDirectory findByUsername", () => {
@@ -94,6 +124,21 @@ describe( "localUserDirectory findByUsername", () => {
 
     it( "returns null when the directory was never populated", async () => {
         assert.equal( await directory.findByUsername( "ada" ), null );
+    } );
+
+    // `stored[ "constructor" ]` resolves to the inherited Object constructor function on any plain object — even
+    // an empty `{}` — unless the lookup checks ownership explicitly. This is the exact violation of the declared
+    // `Promise<LocalUserRecord|null>` contract that the login path (Task 5) would hit for a username of literally
+    // 'constructor', so it is pinned on both an empty and a populated directory.
+    it( "returns null, not the inherited Object constructor, for 'constructor' on an empty directory", async () => {
+        const found = await directory.findByUsername( "constructor" );
+        assert.equal( found, null );
+    } );
+
+    it( "returns null, not the inherited Object constructor, for 'constructor' on a populated directory", async () => {
+        await directory.reconcile( [ record( "ada" ), record( "grace" ) ] );
+        const found = await directory.findByUsername( "constructor" );
+        assert.equal( found, null );
     } );
 
 } );

@@ -241,6 +241,23 @@ function readStored() {
  * The whole set is written rather than patched because the file is the source of truth: a username absent from
  * `records` must disappear, which is what makes revocation-by-file-edit work. `@ti-engine/core/cache` exposes no
  * delete, so a whole-object write is also the only way to remove a key.
+ * <br/>
+ * Usernames are attacker-influenceable (Task 5's login path resolves them from request input), so both the write
+ * and every read below are guarded against `Object.prototype`'s reserved names rather than trusting plain bracket
+ * access:
+ * <br/>
+ * - `incoming` is built with a null prototype (`Object.create( null )`) so it inherits nothing. On an ordinary
+ *   `{}`, `incoming[ "__proto__" ] = record` would not create an own key at all — it would invoke the inherited
+ *   `__proto__` setter and silently repoint the object's own prototype to `record`, so the record never shows up
+ *   in `Object.keys`/`JSON.stringify` and is never persisted, without error. On a null-prototype object that
+ *   setter does not exist anywhere on the (empty) prototype chain, so the assignment falls back to creating a
+ *   perfectly ordinary own data property instead — confirmed empirically (see the test file) that this still
+ *   `JSON.stringify`s and round-trips normally.
+ * - Every classification read below checks ownership with `Object.prototype.hasOwnProperty.call(...)` rather than
+ *   relying on truthiness, because `stored` comes back from `readStored()` — ultimately a `JSON.parse` result —
+ *   with the ordinary `Object.prototype` chain. An unguarded `stored[ "constructor" ]` would resolve to the
+ *   inherited `Object` constructor function (always truthy) rather than "not present", misclassifying a
+ *   first-time `constructor`-named user as `updated` instead of `added`, and hiding its removal from `removed`.
  *
  * @method
  * @param {LocalUserRecord[]} records
@@ -248,7 +265,7 @@ function readStored() {
  * @public
  */
 function reconcile( records ) {
-    const incoming = {};
+    const incoming = Object.create( null );
     ( Array.isArray( records ) ? records : [] ).forEach( ( record ) => {
         incoming[ record.username ] = record;
     } );
@@ -257,13 +274,17 @@ function reconcile( records ) {
         const added = [];
         const updated = [];
         Object.keys( incoming ).forEach( ( username ) => {
-            if ( !stored[ username ] ) {
+            // Ownership check, not truthiness — see the function doc comment: `stored[ username ]` alone would
+            // resolve a username of 'constructor' to the inherited Object constructor instead of "not present".
+            if ( !Object.prototype.hasOwnProperty.call( stored, username ) ) {
                 added.push( username );
             } else if ( JSON.stringify( stored[ username ] ) !== JSON.stringify( incoming[ username ] ) ) {
                 updated.push( username );
             }
         } );
-        const removed = Object.keys( stored ).filter( ( username ) => !incoming[ username ] );
+        // Same reasoning in the other direction: `incoming` is null-prototype, so this is already safe, but the
+        // explicit ownership check keeps both classification directions visibly consistent for the same reason.
+        const removed = Object.keys( stored ).filter( ( username ) => !Object.prototype.hasOwnProperty.call( incoming, username ) );
 
         return cache.instance.setJSON( CACHE_KEY, incoming ).then( () => {
             return { added: added, updated: updated, removed: removed };
@@ -273,6 +294,12 @@ function reconcile( records ) {
 
 /**
  * Looks a user up by exact username.
+ * <br/>
+ * `username` here is attacker-influenceable — this is the function Task 5's login path calls with the value a
+ * client typed into the username field. Checked with `Object.prototype.hasOwnProperty.call(...)` rather than
+ * `stored[ username ] || null`, because `stored` carries the ordinary `Object.prototype` chain and an unguarded
+ * bracket read would resolve `findByUsername( "constructor" )` to the inherited `Object` constructor function
+ * instead of `null`, violating the declared return type for nearly every real query.
  *
  * @method
  * @param {string} username
@@ -283,7 +310,9 @@ function findByUsername( username ) {
     if ( typeof username !== "string" || username.length === 0 ) {
         return Promise.resolve( null );
     }
-    return readStored().then( ( stored ) => stored[ username ] || null );
+    return readStored().then( ( stored ) => {
+        return Object.prototype.hasOwnProperty.call( stored, username ) ? stored[ username ] : null;
+    } );
 }
 
 module.exports = { ALGORITHM, CACHE_KEY, HASH_DEFAULTS, hashPassword, verifyPassword, parseRecords, reconcile, findByUsername };
