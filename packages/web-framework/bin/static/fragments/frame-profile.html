@@ -1,3 +1,103 @@
-<div>
-    <span>Profile</span>
+<!--
+    Profile screen — a read-only view of the signed-in user's own information.
+
+    The markup is deliberately content-free: it renders the descriptor returned by
+    TiWebAppManager#getProfileInfo (`{ identity, sections }`), which the application overrides to decide WHAT is
+    shown while inheriting HOW it is shown. Every string in the descriptor arrives display-ready from the server,
+    so nothing here formats or translates data.
+
+    Alpine runs in CSP mode: no inline style attributes and no optional chaining in expressions — all shaping is
+    done in tiScreenProfile before the values reach the template.
+-->
+<div class="ti-page" x-data="tiScreenProfile">
+
+    <div class="ti-page-head">
+        <div class="ti-page-eyebrow" x-text-label="interface.profile.eyebrow">Account</div>
+        <h1 class="ti-page-title" x-text-label="interface.profile.title">My Profile</h1>
+        <p class="ti-page-subtitle" x-text-label="interface.profile.intro">Your information as it is recorded in the
+            system. This screen is read-only — to have something corrected, contact your manager.</p>
+    </div>
+
+    <template x-if="!busy && !profile">
+        <div class="ti-panel">
+            <div class="ti-empty-state">
+                <div class="ti-empty-state-icon" aria-hidden="true">
+                    <span class="ti-icon user xl"></span>
+                </div>
+                <div class="ti-empty-state-title" x-text-label="interface.profile.empty-title">Profile unavailable</div>
+                <div class="ti-empty-state-desc" x-text-label="interface.profile.empty-desc">Your profile information
+                    could not be loaded. Try again in a moment.</div>
+            </div>
+        </div>
+    </template>
+
+    <template x-if="profile">
+        <div>
+
+            <!-- Identity header — avatar, name, meta line and the status pills beside it. -->
+            <section class="ti-panel">
+                <div class="ti-identity">
+                    <div class="ti-avatar xl" x-bind:style="avatarStyle()" aria-hidden="true">
+                        <span x-text="avatarInitial()"></span>
+                    </div>
+                    <div class="ti-identity-meta">
+                        <div class="ti-identity-name">
+                            <span x-text="profile.identity.name"></span>
+                            <template x-if="profile.identity.badge">
+                                <span class="ti-tag" x-bind:class="profile.identity.badge.tone"
+                                      x-text="profile.identity.badge.text"></span>
+                            </template>
+                        </div>
+                        <div class="ti-identity-sub" x-show="profile.identity.subtitle"
+                             x-text="profile.identity.subtitle"></div>
+                        <div class="ti-identity-caption" x-show="profile.identity.caption"
+                             x-text="profile.identity.caption"></div>
+                    </div>
+                    <div class="ti-identity-aside">
+                        <template x-for="(tag, tagIndex) in profile.identity.tags" x-bind:key="tagIndex">
+                            <span x-bind:class="tag.pillClass">
+                                <span class="dot" x-show="tag.dot"></span>
+                                <span x-text="tag.text"></span>
+                            </span>
+                        </template>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sections — one panel per titled group of label/value pairs. -->
+            <div class="ti-info-sections">
+                <template x-for="(section, sectionIndex) in profile.sections" x-bind:key="sectionIndex">
+                    <section class="ti-panel ti-info-section" x-bind:class="section.wide ? 'wide' : ''">
+                        <div class="ti-panel-head bar">
+                            <div class="ti-panel-head-icon">
+                                <span class="ti-icon md" x-bind:class="section.icon" aria-hidden="true"></span>
+                            </div>
+                            <div class="ti-panel-head-text">
+                                <div class="ti-panel-title" x-text="section.title"></div>
+                                <div class="ti-panel-subtitle" x-show="section.description"
+                                     x-text="section.description"></div>
+                            </div>
+                        </div>
+                        <div class="ti-info-grid">
+                            <template x-for="(item, itemIndex) in section.items" x-bind:key="itemIndex">
+                                <div class="ti-info-item" x-bind:class="item.wide ? 'wide' : ''">
+                                    <span class="ti-kv-label" x-text="item.label"></span>
+                                    <template x-if="item.href">
+                                        <a class="ti-kv-value ti-info-link" x-bind:href="item.href"
+                                           target="_blank" rel="noopener noreferrer" x-text="item.value"></a>
+                                    </template>
+                                    <template x-if="!item.href">
+                                        <span class="ti-kv-value" x-bind:class="item.valueClass"
+                                              x-text="item.value"></span>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </section>
+                </template>
+            </div>
+
+        </div>
+    </template>
+
 </div>

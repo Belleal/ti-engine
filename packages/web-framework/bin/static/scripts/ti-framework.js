@@ -1301,6 +1301,320 @@ document.addEventListener( "htmx:responseError", ( event ) => {
     }
 } );
 
+/* ============================================================================================================
+   Read-only "facts" screens — Profile and About.
+
+   Both render the same descriptor shape: an identity header plus an ordered list of titled sections, each
+   holding label/value items. The server decides the content (see TiWebAppManager#getProfileInfo /
+   #getApplicationInfo); everything below only shapes it for the template, so the fragments stay free of
+   formatting logic — which is also what keeps them within Alpine's CSP expression subset.
+   ============================================================================================================ */
+
+/**
+ * Rendered in place of an item value the server left empty. Keeping it here rather than in each fragment means a
+ * section never has to be conditionally assembled just to avoid a blank cell.
+ *
+ * @type {string}
+ */
+const INFO_VALUE_PLACEHOLDER = "—";
+
+/**
+ * URL schemes an info item may link to. Descriptor content is server-authored, but an `href` becomes a live
+ * navigation target, so the set is an allowlist rather than a `javascript:` denylist.
+ *
+ * @type {string[]}
+ */
+const INFO_LINK_SCHEMES = [ "http:", "https:", "mailto:" ];
+
+/**
+ * Returns the href for an info item, or an empty string when it has none or names a scheme that is not in
+ * {@link INFO_LINK_SCHEMES}. A rejected href degrades the item to plain text rather than dropping it.
+ *
+ * @method
+ * @param {Object} item
+ * @returns {string}
+ * @private
+ */
+const sanitizeInfoHref = ( item ) => {
+    const href = String( ( item && item.href ) || "" ).trim();
+    if ( !href ) {
+        return "";
+    }
+    try {
+        return INFO_LINK_SCHEMES.includes( new URL( href, window.location.origin ).protocol ) ? href : "";
+    } catch {
+        return "";
+    }
+};
+
+/**
+ * Normalizes one label/value item: fills in the placeholder for an absent value, collapses the presentational
+ * flags into a single class string, and vets any link target.
+ *
+ * @method
+ * @param {Object} item
+ * @returns {Object}
+ * @private
+ */
+const normalizeInfoItem = ( item ) => {
+    const source = ( item && typeof item === "object" ) ? item : {};
+    const value = String( source.value === undefined || source.value === null ? "" : source.value ).trim();
+    const classes = [];
+    if ( source.mono ) classes.push( "mono" );
+    if ( source.muted || !value ) classes.push( "muted" );
+
+    return {
+        label: String( source.label || "" ),
+        value: value || INFO_VALUE_PLACEHOLDER,
+        valueClass: classes.join( " " ),
+        wide: source.wide === true,
+        href: value ? sanitizeInfoHref( source ) : ""
+    };
+};
+
+/**
+ * Normalizes a descriptor's section list so the template can iterate it without guarding for missing keys.
+ * A section carrying no items at all is dropped — an empty panel is noise, not information.
+ *
+ * @method
+ * @param {Array} sections
+ * @returns {Array}
+ * @private
+ */
+const normalizeInfoSections = ( sections ) => {
+    return ( Array.isArray( sections ) ? sections : [] )
+        .filter( ( section ) => section && Array.isArray( section.items ) && section.items.length > 0 )
+        .map( ( section ) => ( {
+            title: String( section.title || "" ),
+            description: String( section.description || "" ),
+            icon: String( section.icon || "info-circle" ),
+            wide: section.wide === true,
+            items: section.items.map( normalizeInfoItem )
+        } ) );
+};
+
+/**
+ * Normalizes an identity tag into a ready-to-bind pill.
+ *
+ * @method
+ * @param {Object} tag
+ * @returns {Object}
+ * @private
+ */
+const normalizeInfoTag = ( tag ) => {
+    const source = ( tag && typeof tag === "object" ) ? tag : {};
+    const classes = [ source.mono ? "ti-tag mono" : "ti-status-pill" ];
+    if ( source.tone ) classes.push( String( source.tone ) );
+    return {
+        text: String( source.text || "" ),
+        dot: source.dot === true && !source.mono,
+        pillClass: classes.join( " " )
+    };
+};
+
+/**
+ * Runs `load` once the application store has finished initializing — the descriptor endpoints are session-scoped,
+ * so requesting them before `/app/config` has resolved would race the session bootstrap.
+ *
+ * @method
+ * @param {Object} component The Alpine component (for `$watch`).
+ * @param {Function} load
+ * @private
+ */
+const loadWhenInitialized = ( component, load ) => {
+    const tiApplication = Alpine.store( "tiApplication" );
+    if ( tiApplication.isInitialized ) {
+        load();
+    } else {
+        component.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+            if ( isInitialized ) {
+                load();
+            }
+        } );
+    }
+};
+
+/**
+ * Returns a configuration object for the Profile screen "frame-profile.html".
+ * <br/>
+ * The descriptor comes from `GET /app/profile` (JSON), which the application's web app manager builds — this
+ * component only shapes it for the template and never decides what a profile contains.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureScreenProfile = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    return {
+
+        profile: null,
+        busy: true,
+
+        init() {
+            loadWhenInitialized( this, () => this.load() );
+        },
+
+        load() {
+            this.busy = true;
+            tiApplication.sendRequest( "/app/profile" ).then( ( result ) => {
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
+                const identity = ( data.identity && typeof data.identity === "object" ) ? data.identity : {};
+                this.profile = {
+                    identity: {
+                        name: String( identity.name || "" ),
+                        subtitle: String( identity.subtitle || "" ),
+                        caption: String( identity.caption || "" ),
+                        avatarSeed: String( identity.avatarSeed || identity.name || "" ),
+                        badge: identity.badge ? { text: String( identity.badge.text || "" ), tone: String( identity.badge.tone || "" ) } : null,
+                        tags: ( Array.isArray( identity.tags ) ? identity.tags : [] ).map( normalizeInfoTag )
+                    },
+                    sections: normalizeInfoSections( data.sections )
+                };
+                this.busy = false;
+            } ).catch( ( error ) => {
+                this.busy = false;
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) return;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        avatarStyle() {
+            const identity = this.profile ? this.profile.identity : {};
+            return tiToolbox.generateAvatarStyle( identity.avatarSeed, identity.name );
+        },
+
+        avatarInitial() {
+            const identity = this.profile ? this.profile.identity : {};
+            return String( identity.name || "?" ).charAt( 0 ).toUpperCase();
+        }
+
+    };
+};
+
+/**
+ * Returns a configuration object for the About screen "frame-about.html".
+ * <br/>
+ * The server descriptor carries the application's identity as flat fields; the release, component and runtime
+ * sections are assembled here rather than server-side, because their labels are fixed framework chrome and the
+ * client's `getLabel` takes a fallback — which is what keeps the screen readable inside a consuming application
+ * that loads only its own label catalogue.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureScreenAbout = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    // Runtime keys the framework itself supplies; anything else an application adds falls back to its own key.
+    const RUNTIME_LABELS = {
+        node: [ "interface.about.runtime-node", "Node.js" ],
+        platform: [ "interface.about.runtime-platform", "Platform" ],
+        application: [ "interface.about.runtime-application", "Application ID" ]
+    };
+
+    const label = ( key, fallback ) => tiApplication.getLabel( key, fallback );
+
+    return {
+
+        application: null,
+        sections: [],
+        busy: true,
+
+        init() {
+            loadWhenInitialized( this, () => this.load() );
+        },
+
+        load() {
+            this.busy = true;
+            tiApplication.sendRequest( "/app/about" ).then( ( result ) => {
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
+                this.application = {
+                    name: String( data.name || "" ),
+                    version: String( data.version || "" ),
+                    releaseDate: String( data.releaseDate || "" ),
+                    description: String( data.description || "" )
+                };
+                this.sections = normalizeInfoSections( [
+                    this._releaseSection( data ),
+                    this._componentsSection( data ),
+                    this._runtimeSection( data )
+                ].concat( Array.isArray( data.sections ) ? data.sections : [] ) );
+                this.busy = false;
+            } ).catch( ( error ) => {
+                this.busy = false;
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) return;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        applicationInitial() {
+            return String( ( this.application && this.application.name ) || "?" ).charAt( 0 ).toUpperCase();
+        },
+
+        versionTag() {
+            return "v" + ( ( this.application && this.application.version ) || "" );
+        },
+
+        releaseDateText() {
+            const released = label( "interface.about.released", "Released" );
+            return released + " " + tiToolbox.formatDate( ( this.application && this.application.releaseDate ) || "" );
+        },
+
+        _releaseSection( data ) {
+            return {
+                title: label( "interface.about.section-release", "Release" ),
+                icon: "info-circle",
+                items: [
+                    { label: label( "interface.about.field-version", "Version" ), value: data.version, mono: true },
+                    { label: label( "interface.about.field-release-date", "Release date" ), value: tiToolbox.formatDate( data.releaseDate ) },
+                    { label: label( "interface.about.field-license", "License" ), value: data.license },
+                    { label: label( "interface.about.field-author", "Author" ), value: data.author },
+                    { label: label( "interface.about.field-package", "Package" ), value: data.packageName, mono: true, wide: true },
+                    { label: label( "interface.about.field-homepage", "Homepage" ), value: data.homepage, href: data.homepage, wide: true }
+                ]
+            };
+        },
+
+        _componentsSection( data ) {
+            const components = Array.isArray( data.components ) ? data.components : [];
+            return {
+                title: label( "interface.about.section-components", "Framework components" ),
+                description: label( "interface.about.section-components-desc", "The ti-engine packages this application is built on." ),
+                icon: "folder",
+                items: components.map( ( component ) => ( {
+                    label: String( component.name || "" ),
+                    value: String( component.version || "" ),
+                    mono: true
+                } ) )
+            };
+        },
+
+        _runtimeSection( data ) {
+            // Present only for an admin session — the server withholds `runtime` from everyone else.
+            const runtime = ( data.runtime && typeof data.runtime === "object" ) ? data.runtime : {};
+            return {
+                title: label( "interface.about.section-runtime", "Runtime" ),
+                description: label( "interface.about.section-runtime-desc", "Visible to administrators only." ),
+                icon: "settings",
+                items: Object.keys( runtime ).map( ( key ) => {
+                    const known = RUNTIME_LABELS[ key ];
+                    return {
+                        label: known ? label( known[ 0 ], known[ 1 ] ) : key,
+                        value: String( runtime[ key ] || "" ),
+                        mono: true
+                    };
+                } )
+            };
+        }
+
+    };
+};
+
 /**
  * Returns a configuration object for the login screen test user pill panel.
  * <br/>
@@ -1424,4 +1738,6 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
     Alpine.data( "tiComponentTooltip", configureComponentTooltip );
     Alpine.data( "tiLoginTestUserPanel", configureLoginTestUserPanel );
+    Alpine.data( "tiScreenProfile", configureScreenProfile );
+    Alpine.data( "tiScreenAbout", configureScreenAbout );
 } );

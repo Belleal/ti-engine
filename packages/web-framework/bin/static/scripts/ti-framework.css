@@ -2042,6 +2042,145 @@ body {
     color: var(--fg-primary);
 }
 
+.ti-kv-value.mono {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: var(--fs-xs);
+}
+
+/* Dimmed value — a hint, a placeholder, or a fact that is deliberately secondary. */
+.ti-kv-value.muted {
+    color: var(--fg-tertiary);
+}
+
+/* ============================================================
+   Identity header + info sections — the read-only "facts"
+   pattern behind the Profile and About screens. An application
+   supplies the content as a descriptor; this supplies the
+   layout, so every consumer's screens look the same.
+   ============================================================ */
+.ti-identity {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    padding: var(--s-5);
+}
+
+/* Square brand/app mark, for an identity block that stands for an application rather than a person
+   (the circular .ti-avatar is the person case). Mirrors the sidebar brand mark at a larger size. */
+.ti-identity-mark {
+    width: 60px;
+    height: 60px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--r-lg);
+    background: linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 70%, #000));
+    color: #FFF;
+    font-weight: 700;
+    font-size: 26px;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    box-shadow: 0 4px 12px color-mix(in oklab, var(--accent) 32%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    flex: 0 0 auto;
+}
+
+.ti-identity-meta {
+    flex: 1;
+    min-width: 0;
+}
+
+.ti-identity-name {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    font-size: var(--fs-2xl);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--fg-primary);
+}
+
+.ti-identity-sub {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+    margin-top: var(--s-1);
+}
+
+.ti-identity-sub-sep {
+    color: var(--fg-tertiary);
+}
+
+.ti-identity-caption {
+    font-size: var(--fs-sm);
+    color: var(--fg-tertiary);
+    margin-top: 2px;
+    overflow-wrap: anywhere;
+}
+
+/* Right-hand stack of status pills / tags. */
+.ti-identity-aside {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--s-1);
+    flex: 0 0 auto;
+}
+
+/* Two-up grid of section panels; a section may claim the full row with .wide. */
+.ti-info-sections {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-5);
+    margin-top: var(--s-5);
+    align-items: start;
+}
+
+.ti-info-section.wide {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
+    .ti-info-sections {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Label/value pairs inside a section, stacked (label above value) rather than the side-by-side
+   rhythm of .ti-kv-grid — a read-only mirror of the .ti-form-grid a matching edit screen uses. */
+.ti-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-4);
+    padding: var(--s-5);
+}
+
+.ti-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.ti-info-item.wide {
+    grid-column: 1 / -1;
+}
+
+/* An info value that is a destination rather than a fact. Only http(s)/mailto targets ever reach it — the
+   normalizer in ti-framework.js drops anything else before it can become an href. */
+.ti-info-link {
+    color: var(--accent);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+
+.ti-info-link:hover {
+    text-decoration: underline;
+}
+
 /* ============================================================
    Tag / pill label
    ============================================================ */

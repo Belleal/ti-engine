@@ -29,5 +29,30 @@
             </span>
             <span class="ti-sidebar-item-label" x-text="theme === 'daylight' ? 'Glass Theme' : 'Daylight Theme'">Toggle Theme</span>
         </button>
+
+        <!--
+            User menu. Its entries come from `componentsConfig.userProfileMenu` in the /app/config payload, which
+            TiWebAppManager#buildComponentsConfig fills with the framework's own screens (Profile, About) plus
+            sign-out — so this menu works in a consuming application that configures nothing.
+        -->
+        <ti-component-sidebar-flyout-placeholder config-key="userProfileMenu">
+            <button class="ti-sidebar-user" type="button"
+                    x-on:click.stop="toggle()"
+                    x-on:ti-close-all-flyout="close()"
+                    x-bind:aria-expanded="isOpen"
+                    x-bind:aria-controls="$id( 'component-flyout' )"
+                    x-ref="flyoutButton"
+                    x-text-label:data-tip="interface.topbar.user-profile"
+                    data-tip="Your profile">
+                <span class="ti-avatar sm"
+                      x-bind:style="$store.tiToolbox.generateAvatarStyle( $store.tiApplication.user && $store.tiApplication.user.userID, $store.tiApplication.user && $store.tiApplication.user.name )"
+                      aria-hidden="true"
+                      x-text="( ( $store.tiApplication.user && $store.tiApplication.user.name ) || '?' ).charAt( 0 ).toUpperCase()">?</span>
+                <span class="ti-sidebar-user-text">
+                    <span class="ti-sidebar-user-name" x-text="( $store.tiApplication.user && $store.tiApplication.user.name ) || ''"></span>
+                    <span class="ti-sidebar-user-sub" x-text="( $store.tiApplication.user && $store.tiApplication.user.email ) || ''"></span>
+                </span>
+            </button>
+        </ti-component-sidebar-flyout-placeholder>
     </div>
 </nav>
