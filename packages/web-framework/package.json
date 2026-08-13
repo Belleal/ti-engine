@@ -146,6 +146,7 @@
   "scripts": {
     "postinstall": "node ./bin/build/post-install.js",
     "test": "node --test test/*.test.js",
-    "build:types": "tsc -p tsconfig.types.json"
+    "build:types": "tsc -p tsconfig.types.json",
+    "hash-password": "node ./bin/build/hash-password.js"
   }
 }
