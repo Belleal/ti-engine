@@ -5,7 +5,7 @@
 | **Date** | 2026-08-13 |
 | **Packages** | `packages/web-framework` (fail-closed session on a refused augment, login error surface), `packages/competence` (email→employee resolution, `augmentSession` rewrite) |
 | **Status** | Approved (brainstorming) — pending spec review |
-| **Version targets** | web-framework `1.19.0` → `1.20.0` (minor); competence `3.16.0` → `3.17.0` (minor); core **no bump** (see §6.3) |
+| **Version targets** | web-framework `1.20.1` → `1.21.0` (minor); competence `3.17.0` → `3.18.0` (minor); core **no bump** (see §6.3) |
 | **Author** | Boris Kostadinov (with Claude) |
 | **Tracking** | YouTrack [`CA-95`](https://belleal.youtrack.cloud/issue/CA-95) — *Map OIDC identities to employee records (retire the test-user cookie)*, subtask of `CA-11` |
 
@@ -114,6 +114,12 @@ own family.
 Scope of the widening is small in practice: HTMX requests are handled by the branch above, and a non-HTMX
 HTML-accepting POST that produces a 401 is a login attempt. Unauthenticated access to a protected route is handled
 earlier by `resourceProtectionHandler` and is unaffected.
+
+**(e) Export the authorization helpers.** `components/authorization.js` is currently internal — the `exports` map lists
+only `./config-management`, `./web-application`, `./web-server` and `./definitions` — so `isAdminIdentity` is
+unreachable by a consumer. Competence needs it for the admin exception (§4.2c), and reimplementing an allowlist match
+in the app would duplicate the framework's own matching rules. It is exposed as
+`@ti-engine/web-framework/authorization`, following the `types`/`default` condition shape the other entries use.
 
 CSP discipline applies: the component only reads a URL parameter and sets a boolean — no inline styles, no optional
 chaining in the template, per the Alpine CSP-build constraints. It is registered separately from
@@ -265,6 +271,11 @@ none of them belong in this change; they are noted as follow-up work in §11.
   path; admin exception; refusal throws.
 
 Both packages use `node --test`, consistent with the rest of the monorepo.
+
+**Type declarations.** Since web-framework 1.20.0 the package ships generated `.d.ts` files, gated against a consumer
+type-checking with `skipLibCheck: false`. The `augmentSession` JSDoc change and any new exported signature must be
+followed by `npm run build:types -w @ti-engine/web-framework`, with the regenerated `types/` committed alongside the
+source. A stale declaration is a release defect, not a cosmetic one.
 
 ## 9. Risks
 
