@@ -430,6 +430,11 @@ class TiWebServer extends ServiceConsumer {
      * Hook for the application to augment the freshly-authenticated session (e.g. derive domain roles from an
      * identity store or the org chart). Runs synchronously, once per login, before the framework's additive `admin`
      * role is applied. The default is a no-op. Any test-user role injection is an override of whatever the app derives.
+     * <br/>
+     * **Refusing a login.** Throwing from this hook refuses the sign-in: the framework destroys the freshly regenerated
+     * session (so no usable session survives the refusal), the login handler raises `401`, and the error handler
+     * redirects the browser to the login page with the exception code in `?error=`. Throw when the authenticated
+     * identity cannot be mapped to an application principal; return the session unchanged to accept it.
      *
      * @method
      * @virtual
