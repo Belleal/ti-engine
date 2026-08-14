@@ -85,7 +85,12 @@ describe( "ConfigService — getDrift / listDrift", () => {
     } );
 
     it( "rejects an unregistered configKey", async () => {
-        await assert.rejects( () => service.getDrift( "missing" ) );
+        // "unknown-config" is a live contract: admin-config-handlers.js maps this exact reason to HTTP 404, so a
+        // rename here would silently change the API's status code with nothing failing.
+        await assert.rejects(
+            () => service.getDrift( "missing" ),
+            ( err ) => err.data != null && err.data.reason === "unknown-config"
+        );
     } );
 
     it( "fails closed when the store is unreachable, rather than reporting in-sync", async () => {
@@ -153,7 +158,12 @@ describe( "ConfigService — applyDefaults", () => {
     } );
 
     it( "refuses a document with no registered default", async () => {
-        await assert.rejects( () => service.applyDefaults( [ "nodefault" ], { adminID: "admin:1" } ) );
+        // Same contract concern as "unknown-config" above: "no-default" is what admin-config-handlers.js and any
+        // future caller key off of, not just an arbitrary rejection.
+        await assert.rejects(
+            () => service.applyDefaults( [ "nodefault" ], { adminID: "admin:1" } ),
+            ( err ) => err.data != null && err.data.reason === "no-default"
+        );
     } );
 
     it( "rejects empty input or a missing adminID", async () => {

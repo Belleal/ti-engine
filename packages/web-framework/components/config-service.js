@@ -341,8 +341,10 @@ class ConfigService {
     }
 
     /**
-     * Drift summaries for every registered document — counts only, no entry lists, so it stays cheap enough for a
-     * landing screen and a startup log.
+     * Drift summaries for every registered document. This still computes each document's full entry list internally
+     * (it delegates to {@link ConfigService#getDrift} per document) — the saving is in the response shape, not the
+     * computation: `entries` is omitted here to keep the payload small enough for a landing screen and a startup log,
+     * where only the counts are shown.
      *
      * @method
      * @returns {Promise<Array<Object>>}

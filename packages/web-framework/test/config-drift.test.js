@@ -87,6 +87,15 @@ describe( "config-drift — arrays", () => {
         assert.equal( result.status, "in-sync" );
     } );
 
+    it( "reports drift for two distinct objects at swapped positions (position is meaningful, unlike a primitive array)", () => {
+        // This is exactly the property a future "improvement" could lose: mirroring the primitive-array branch's
+        // set-diff onto object arrays would make this pair look like a reorder of the same two elements and report
+        // in-sync, when the two objects at each position are genuinely different.
+        const result = configDrift.diffDocument( { rows: [ { n: 1 }, { n: 2 } ] }, { rows: [ { n: 2 }, { n: 1 } ] } );
+        assert.equal( result.status, "drifted" );
+        assert.deepEqual( pathsOf( result, "changed" ), [ ".rows" ] );
+    } );
+
 } );
 
 describe( "config-drift — scalars", () => {
