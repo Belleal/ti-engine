@@ -182,10 +182,13 @@ describe( "config-registration (competence)", () => {
             "the default must carry actual label content, not an empty stand-in"
         );
 
-        // The complementary half: every one of the seven STORE_BACKED documents must also register a real default —
-        // pinning the whole registration surface, not just the one document most likely broken by a future edit.
+        // The complementary half: every one of the seven STORE_BACKED documents must register ITS OWN file default —
+        // not just any defined value. Asserting identity (rather than merely "!== undefined") is what catches a
+        // transposition between two registrations (e.g. stage-levels wired to research-consent's default): both
+        // sides are still "a defined value", so a weaker assertion would pass every one of these seven checks even
+        // though the wrong document is being registered.
         for ( const key of [ "competencies", "relevancy-archetypes", "active-competency-sets", "role-families", "role-family-competencies", "stage-levels", "research-consent" ] ) {
-            assert.notEqual( registered[ key ].defaultValue, undefined, `${ key } must register a defined default value` );
+            assert.equal( registered[ key ].defaultValue, configurationLoader.fileDefaults[ key ], `${ key } must register its own file default, not another document's` );
         }
     } );
 

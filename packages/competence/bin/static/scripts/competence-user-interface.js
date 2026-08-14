@@ -4586,9 +4586,19 @@ const configureAdminConfig = () => {
             this.loadingDrift = true;
             tiApplication.sendRequest( "/admin/config/drift" ).then( ( result ) => {
                 this.drift = ( result && Array.isArray( result.data ) ) ? result.data : [];
-                // Preselect only genuinely drifted documents. An "absent" one is valid to apply but is not what the
-                // admin came here to do, and folding it silently into an unrelated apply would be a surprise.
-                this.driftSelection = this.drift.filter( ( row ) => row.status === "drifted" ).map( ( row ) => row.configKey );
+                // Preselect only a drifted document that has never been touched since it was seeded (storedVersion
+                // === 1). An "absent" one is valid to apply but is not what the admin came here to do, and folding it
+                // silently into an unrelated apply would be a surprise -- that part is unchanged.
+                // But five of the eight registered documents are also written by admin composite editors
+                // (competencies, competence-labels, relevancy-archetypes, role-families, active-competency-sets), so
+                // an admin's own edit makes a document differ from the shipped file default too -- indistinguishable
+                // from a release change by content alone. Preselecting it would make the one-click apply silently
+                // revert that admin's work (worst case: active-competency-sets, edited continuously via Cycle Setup,
+                // whose file default would wipe curated cycle baselines). A document with storedVersion > 1 has been
+                // written at least once since seeding, so it stays listed and selectable but is left unticked.
+                this.driftSelection = this.drift
+                    .filter( ( row ) => row.status === "drifted" && row.storedVersion === 1 )
+                    .map( ( row ) => row.configKey );
                 this.loadingDrift = false;
             } ).catch( ( error ) => {
                 if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
@@ -4619,6 +4629,16 @@ const configureAdminConfig = () => {
 
         driftStatusLabel( row ) {
             return this.getLabel( `interface.admin.drift-status-${ row.status }`, row.status );
+        },
+
+        // Gates the "has local changes" marker: a drifted document that has been written at least once since it was
+        // seeded (storedVersion > 1) -- so it was never preselected in loadDrift(), and the admin needs to know why.
+        driftHasLocalChanges( row ) {
+            return row.status === "drifted" && row.storedVersion > 1;
+        },
+
+        driftLocalChangesLabel() {
+            return this.getLabel( "interface.admin.drift-local-changes", "Has local changes" );
         },
 
         isDriftSelected( configKey ) {

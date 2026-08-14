@@ -9,11 +9,13 @@
 // NOTE: this suite drives configuration-loader.initialize(), which reassigns the module's exported config objects.
 // node --test isolates each file in its own process, so it must stay in a file of its own.
 
-const { describe, it } = require( "node:test" );
+const { describe, it, before } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 const configurationLoader = require( "#configuration-loader" );
 const configDrift = require( "@ti-engine/web-framework/config-drift" );
 const logger = require( "@ti-engine/core/logger" );
+const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
+const { registerCompetenceConfig } = require( "../application/config-registration" );
 
 const clone = ( value ) => JSON.parse( JSON.stringify( value ) );
 
@@ -161,6 +163,115 @@ describe( "config drift — the CA-98 QE case end to end", () => {
             "the real counts from the QE reconstruction reach the log message"
         );
         assert.equal( captured.length, 1, "only the drifted document should log anything — the rest are in-sync" );
+    } );
+
+} );
+
+describe( "config drift — the CA-98 QE case end to end, through the real ConfigService", () => {
+    // The block above characterizes the bug at the data level (diffDocument on a hand-built pair of values, with
+    // listDrift stubbed). That proves the drift computation is right, but nothing there ever constructs a real
+    // ConfigService, calls applyDefaults, or exercises competence's actual schemas/semantic validators — so it
+    // cannot catch the one failure mode this feature exists to prevent: shipped file defaults that are not mutually
+    // applicable (activeSetsWithinPool / poolReferenceIntegrity are exactly the constraints CA-98 tripped). This
+    // suite drives the real web-framework config-management stack end to end instead.
+
+    let cacheStub;
+    let store;
+    let ConfigRegistry;
+    let ConfigChangeNotifier;
+    let ConfigService;
+
+    before( () => {
+        cacheStub = installInMemoryCache();
+        // ConfigRegistry / ConfigStore / ConfigChangeNotifier are internal to @ti-engine/web-framework -- not part of
+        // its published `exports` map (only config-drift, config-management, web-application, web-server,
+        // authorization and definitions are) -- so they are reached by a relative path into the sibling package,
+        // exactly mirroring what @ti-engine/web-framework's OWN test/config-service.drift.test.js does via its
+        // private `#config-store` / `#config-registry` / `#config-change-notifier` aliases (which are not visible
+        // from outside that package). ConfigService (`config-management`) IS published and is required normally.
+        store = require( "../../web-framework/components/config-store" ).instance;
+        ConfigRegistry = require( "../../web-framework/components/config-registry" );
+        ConfigChangeNotifier = require( "../../web-framework/components/config-change-notifier" );
+        ConfigService = require( "@ti-engine/web-framework/config-management" );
+    } );
+
+    it( "detects the stale QE documents, blocks the partial apply, and closes the gap once applied together", async () => {
+        cacheStub.storage = {};
+
+        // A fresh registry + notifier (NOT the process-wide singletons research-consent.live.test.js uses) wired to
+        // the real ConfigStore singleton -- isolates this suite's registrations from every other test file's, since
+        // node --test isolates each file in its own process anyway, but keeps this file's own tests independent of
+        // each other too.
+        const registry = new ConfigRegistry();
+        const notifier = new ConfigChangeNotifier();
+        const service = new ConfigService( { store: store, registry: registry, notifier: notifier } );
+
+        registerCompetenceConfig( {
+            registerConfigDocument: ( key, definition ) => registry.register( key, definition ),
+            registerConfigEditor: () => {}
+        } );
+
+        // Reconstruct the pre-CA-98 store state from the current (post-CA-98) file defaults, undoing exactly what
+        // that release added:
+        //  - role-family-competencies.QE shrinks to the shared-canonical codes only -- the same set every still-
+        //    unpopulated family (e.g. XD) carries, since QE was itself unpopulated before CA-98;
+        //  - the QE-specific competencies' dictionary entries are removed, since they did not exist yet;
+        //  - active-competency-sets.QE is removed entirely -- QE had no baseline configured pre-release, which is
+        //    the literal "QE stayed invisible" bug this feature exists to catch.
+        const preCA98 = clone( configurationLoader.fileDefaults );
+        const sharedCanonical = preCA98[ "role-family-competencies" ].XD.slice();
+        const qeOnlyCodes = preCA98[ "role-family-competencies" ].QE.filter( ( code ) => !sharedCanonical.includes( code ) );
+        assert.ok( qeOnlyCodes.length > 20, "sanity: reconstructing pre-CA-98 removes a meaningful number of QE-specific codes" );
+
+        preCA98[ "role-family-competencies" ].QE = sharedCanonical;
+        for ( const code of qeOnlyCodes ) {
+            delete preCA98.competencies.competencies[ code ];
+        }
+        delete preCA98[ "active-competency-sets" ].QE;
+
+        // Seed the store with that reconstructed pre-CA-98 state before configurationLoader ever sees it --
+        // configurationLoader.initialize()'s own seedDefault() calls are seedIfEmpty, so they become no-ops for
+        // these documents and the stale values are what gets loaded, exactly like a deployment seeded before CA-98.
+        await Promise.all( Object.keys( preCA98 ).map( ( key ) => service.seedDefault( key, preCA98[ key ] ) ) );
+
+        await configurationLoader.initialize( service );
+        assert.ok(
+            !configurationLoader.configRoleFamilyCompetencies.QE.includes( "E1-48" ),
+            "the running pool must still be missing the release's QE-specific competencies -- this is the bug"
+        );
+
+        const drift = await service.listDrift();
+        const statusOf = ( key ) => {
+            const found = drift.find( ( d ) => d.configKey === key );
+            return found ? found.status : undefined;
+        };
+        assert.equal( statusOf( "role-family-competencies" ), "drifted" );
+        assert.equal( statusOf( "competencies" ), "drifted" );
+        assert.equal( statusOf( "active-competency-sets" ), "drifted" );
+
+        // The interdependency: applying the new active-competency-sets default alone fails, because its QE baseline
+        // references competencies that are not yet in the (still stale) stored pool -- activeSetsWithinPool checks
+        // the pending active-competency-sets value against role-family-competencies' STORED value when the latter
+        // is not part of the same edit batch.
+        const alone = await service.applyDefaults( [ "active-competency-sets" ], { adminID: "admin:qe-fixture" } );
+        assert.equal( alone.ok, false );
+        assert.ok( alone.errors[ "active-competency-sets" ], "QE's new baseline codes must be rejected against the still-stale stored pool" );
+
+        // Applying the three drifted documents together succeeds, because applyEdits resolves each validator's
+        // siblings at their PENDING (already-updated) values rather than the stale stored ones.
+        const combined = await service.applyDefaults(
+            [ "role-family-competencies", "competencies", "active-competency-sets" ],
+            { adminID: "admin:qe-fixture", note: "release 2026-H2: restore the QE pool, dictionary entries, and baseline" }
+        );
+        assert.equal( combined.ok, true );
+
+        // Let the config:changed hot-reload (subscribed inside configurationLoader.initialize) actually run --
+        // ConfigChangeNotifier#publish is synchronous but does not await its listeners, so the listener's own
+        // getCurrent()-then-reassign chain settles on a later tick.
+        await new Promise( ( resolve ) => setImmediate( resolve ) );
+
+        assert.deepEqual( configurationLoader.configRoleFamilyCompetencies.QE, configurationLoader.fileDefaults[ "role-family-competencies" ].QE );
+        assert.deepEqual( configurationLoader.configCompetencies, configurationLoader.fileDefaults.competencies );
     } );
 
 } );

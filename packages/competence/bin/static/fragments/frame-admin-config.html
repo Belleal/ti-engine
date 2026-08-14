@@ -108,6 +108,9 @@
                                                @change="toggleDriftSelected(row.configKey)">
                                         <span class="competence-admin-drift-label" x-text="driftDocLabel(row)"></span>
                                         <span class="ti-tag" x-text="driftStatusLabel(row)"></span>
+                                        <template x-if="driftHasLocalChanges(row)">
+                                            <span class="ti-tag" x-text="driftLocalChangesLabel()"></span>
+                                        </template>
                                         <span class="competence-admin-drift-counts" x-text="driftCountsText(row)"></span>
                                     </label>
                                     <button type="button" class="ti-btn ghost sm" @click="toggleDriftDetail(row.configKey)">

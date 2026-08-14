@@ -21,10 +21,12 @@ to fix it. Requires `@ti-engine/web-framework` ≥ 1.24.0 (CA-103).
   held the file default only because registration happens to run first — a consumer that ever registered after
   initializing would have compared the store against itself and reported "in sync" forever
 * feat(competence): flag a **stale family exclusion** in Cycle Setup. `cycle.excludedFamilies` is derived once when
-  the cycle record is created, so a family that gains competencies later stays excluded on existing cycles — which
-  is the second reason QE stayed invisible after 3.17.0. The excluded banner now says when the family has
-  competencies for the cycle, next to the include control that was always there. The derivation itself is unchanged:
-  including a family is a governance decision, not a computation
+  the cycle record is created, so a family that gains competencies later stays excluded on existing cycles — on a
+  demo-seeded deployment (`COMPETENCE_PRELOAD_DATA=true`) this was a second reason QE stayed invisible after 3.17.0,
+  since the seeder derives `excludedFamilies` from which families had competencies at seed time; a cycle created
+  through the UI starts with none excluded and only gains them from the explicit Supervisor toggle. The excluded
+  banner now says when the family has competencies for the cycle, next to the include control that was always
+  there. The derivation itself is unchanged: including a family is a governance decision, not a computation
 * docs(competence): document the post-upgrade drift check in `INSTALL.md` and the drift panel in the administrator
   user-guide chapter
 * build(release): bump package version from `3.19.1` to `3.20.0`

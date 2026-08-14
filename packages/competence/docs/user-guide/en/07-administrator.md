@@ -30,6 +30,14 @@ differs from the defaults in the version you are running, with a count of what
 was added, removed and changed. Open **Details** to see exactly which entries
 differ.
 
+Documents that have never been changed since they were first seeded are
+preselected for you, since a difference there can only come from a newer
+default in this version. A document that you — or another administrator — have
+edited yourself is listed but left unticked, with a note that it carries local
+changes: applying its file default would overwrite that edit, so it is never
+selected automatically. Tick it yourself if you do want to replace your own
+change with the shipped default.
+
 Select the documents you want to bring up to date, add a short note explaining
 why, and choose **Apply selected**. The change is recorded in the change history
 like any other configuration edit, so you can see who applied it and restore the

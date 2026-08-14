@@ -7789,6 +7789,10 @@
         "en": "Never stored",
         "bg": "Никога не е съхраняван"
       },
+      "drift-local-changes": {
+        "en": "Has local changes",
+        "bg": "Има локални промени"
+      },
       "drift-kind-added": {
         "en": "Added",
         "bg": "Добавено"

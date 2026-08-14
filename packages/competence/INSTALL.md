@@ -442,8 +442,10 @@ seeds from those files only on a **first** run, so an existing deployment keeps
 serving what it was seeded with.
 
 After an upgrade, sign in as an administrator and open **Administration →
-Configuration → Configuration drift**. Any document listed there differs from
-the defaults shipped in the new image. Review the changes and apply them; the
+Configuration → Configuration drift**. The panel lists every document that
+either differs from the defaults shipped in the new image, or has never been
+written to the store at all (shown with `+0 / -0 / ~0` — not a difference,
+just nothing seeded yet). Review the differing documents and apply them; the
 application is recorded as a normal, restorable configuration change.
 
 The container log reports the same condition at startup, one `WARNING` line per
