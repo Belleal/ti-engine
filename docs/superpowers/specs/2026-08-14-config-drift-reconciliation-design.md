@@ -5,7 +5,7 @@
 | **Date** | 2026-08-14 |
 | **Packages** | `packages/web-framework` (the mechanism), `packages/competence` (reporting, UI, cycle-setup warning) |
 | **Status** | Approved (brainstorming) — pending spec review |
-| **Version targets** | web-framework `1.19.0` → `1.20.0` (minor); competence `3.16.0` → `3.17.0` (minor) |
+| **Version targets** | web-framework `1.23.0` → `1.24.0` (minor); competence `3.19.1` → `3.20.0` (minor) |
 | **Author** | Boris Kostadinov (with Claude) |
 | **Tracking** | YouTrack [`CA-103`](https://belleal.youtrack.cloud/issue/CA-103) (subtask of `CA-9` Configuration Admin) |
 
@@ -24,7 +24,7 @@ Together these mean a file default is consulted exactly once in a deployment's l
 
 ### 1.1 How this surfaced
 
-CA-98 added the QE role-family competencies (commit `19c4786`): the dictionary grew from 108 to 134 competencies, the QE pool from 30 to 57 codes, and the QE `2026-H2` baseline from empty to 22 codes. All three files are correct, and `npm run test:json` passes.
+CA-98 added the QE role-family competencies (commit `19c4786`, shipped as competence 3.17.0): the dictionary grew from 108 to 134 competencies, the QE pool from 30 to 57 codes, and the QE `2026-H2` baseline from empty to 22 codes. All three files are correct, and `npm run test:json` passes.
 
 On a deployment whose Redis was seeded before that commit, none of it is visible. The Cycle Setup screen builds its picker from `competenciesByCode` and `poolByFamily` ([`competence-web-application.js:2885`](../../../packages/competence/bin/competence-web-application.js)), both sourced from the exported config objects — which have been overwritten with the pre-CA-98 store values. The picker cannot show competencies the store does not have.
 
@@ -35,6 +35,8 @@ There is no in-app remedy. Admin **restore** replays a *previous version* from h
 [`data-manager.js:1523-1529`](../../../packages/competence/application/data-manager.js) derives `cycle.excludedFamilies` **once, at seed time**, as "every family with no codes for this cycle". Before CA-98 that set was `[QE, XD, DA, IO, MC, PD]`. It is cycle *data*, never re-derived, so a family that later gains competencies stays excluded on existing cycle records — with its specializations hidden in the tree and an "excluded" banner in the panel.
 
 So even a fully reconciled config leaves QE invisible in an existing cycle until a Supervisor toggles it back in. Half a fix is worse than none here, because the remaining half is silent.
+
+The 3.17.0 changelog records that "the seeded cycle derives `excludedFamilies` from which families have competencies, so QE is now automatically included in that cycle". That is true — and true **only of a cycle seeded after the change**. On any deployment whose cycle record predates it, the derivation has already run and its result is frozen. The claim reads as a general statement and holds only for fresh installs, which is precisely the class of mistake this whole spec is about.
 
 ## 2. Decisions taken during brainstorming (2026-08-14)
 
@@ -206,8 +208,10 @@ Plus a cycle-setup stale-exclusion derivation test.
 
 | Package | Bump | Notes |
 |---|---|---|
-| web-framework | 1.19.0 → **1.20.0** | New capability, backward compatible; publishes to npm on merge to master |
-| competence | 3.16.0 → **3.17.0** | New capability; also bump its `@ti-engine/web-framework` dependency to `^1.20.0` |
+| web-framework | 1.23.0 → **1.24.0** | New capability, backward compatible; publishes to npm on merge to master |
+| competence | 3.19.1 → **3.20.0** | New capability |
+
+Competence depends on `@ti-engine/web-framework` as `"*"` (npm workspace), so there is no dependency range to bump. State the real floor — **requires web-framework ≥ 1.24.0** — in the competence changelog prose, which is the convention the 3.18.0 entry already follows for the ≥ 1.21.0 profile/about dependency.
 
 Both get `CHANGELOG.md` sections. A version bump plus its changelog section is the entire release ritual for web-framework.
 
