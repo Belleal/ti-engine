@@ -161,6 +161,10 @@
                                         <div class="competence-cycle-excluded-notice">
                                             <span class="ti-icon close sm" aria-hidden="true"></span>
                                             <span x-text-label="interface.cycle-setup.excluded-banner"></span>
+                                            <template x-if="isSelectedFamilyStaleExclusion()">
+                                                <span class="competence-cycle-stale-exclusion" x-show="!isReadOnly"
+                                                      x-text-label="interface.cycle-setup.stale-exclusion"></span>
+                                            </template>
                                             <button type="button" class="ti-btn sm" x-show="!isReadOnly"
                                                     @click="toggleFamilyExcluded()" x-bind:disabled="saving">
                                                 <span x-text-label="interface.cycle-setup.include-family-btn"></span>

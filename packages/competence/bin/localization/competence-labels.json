@@ -7733,6 +7733,98 @@
         "en": "Administrator access required.",
         "bg": "Изисква се администраторски достъп."
       },
+      "drift-title": {
+        "en": "Configuration drift",
+        "bg": "Разлики в конфигурацията"
+      },
+      "drift-desc": {
+        "en": "Configuration documents whose stored value differs from the defaults shipped with this build. Applying replaces the stored document and is recorded as a normal, restorable change.",
+        "bg": "Конфигурационни документи, чиято съхранена стойност се различава от стойностите по подразбиране в тази версия. Прилагането заменя съхранения документ и се записва като нормална, обратима промяна."
+      },
+      "drift-empty-title": {
+        "en": "Everything is up to date",
+        "bg": "Всичко е актуално"
+      },
+      "drift-empty-desc": {
+        "en": "All configuration documents match their file defaults.",
+        "bg": "Всички конфигурационни документи съвпадат със стойностите по подразбиране."
+      },
+      "drift-doc-competencies": {
+        "en": "Competency dictionary",
+        "bg": "Речник на компетенциите"
+      },
+      "drift-doc-competence-labels": {
+        "en": "Competency labels",
+        "bg": "Етикети на компетенциите"
+      },
+      "drift-doc-relevancy-archetypes": {
+        "en": "Relevancy archetypes",
+        "bg": "Архетипи на релевантност"
+      },
+      "drift-doc-active-competency-sets": {
+        "en": "Active competency sets",
+        "bg": "Активни набори от компетенции"
+      },
+      "drift-doc-role-families": {
+        "en": "Role families",
+        "bg": "Семейства роли"
+      },
+      "drift-doc-role-family-competencies": {
+        "en": "Role family competency pools",
+        "bg": "Пулове от компетенции по семейство роли"
+      },
+      "drift-doc-stage-levels": {
+        "en": "Stage levels",
+        "bg": "Нива на развитие"
+      },
+      "drift-doc-research-consent": {
+        "en": "Research consent statement",
+        "bg": "Декларация за съгласие за проучвания"
+      },
+      "drift-status-drifted": {
+        "en": "Differs from build",
+        "bg": "Различава се от версията"
+      },
+      "drift-status-absent": {
+        "en": "Never stored",
+        "bg": "Никога не е съхраняван"
+      },
+      "drift-local-changes": {
+        "en": "Has local changes",
+        "bg": "Има локални промени"
+      },
+      "drift-kind-added": {
+        "en": "Added",
+        "bg": "Добавено"
+      },
+      "drift-kind-removed": {
+        "en": "Removed",
+        "bg": "Премахнато"
+      },
+      "drift-kind-changed": {
+        "en": "Changed",
+        "bg": "Променено"
+      },
+      "drift-detail-btn": {
+        "en": "Details",
+        "bg": "Подробности"
+      },
+      "drift-note-placeholder": {
+        "en": "Why are you applying this?",
+        "bg": "Защо прилагате тази промяна?"
+      },
+      "drift-apply-btn": {
+        "en": "Apply selected",
+        "bg": "Приложи избраните"
+      },
+      "drift-applied": {
+        "en": "File defaults applied.",
+        "bg": "Стойностите по подразбиране са приложени."
+      },
+      "drift-invalid": {
+        "en": "The file defaults did not pass validation. Try applying the related documents together.",
+        "bg": "Стойностите по подразбиране не преминаха валидацията. Опитайте да приложите свързаните документи заедно."
+      },
       "text-editor": {
         "page-eyebrow": {
           "en": "CONFIGURATION",
@@ -8862,6 +8954,10 @@
       "excluded-banner": {
         "en": "This family is excluded from this cycle — its competencies won't apply.",
         "bg": "Това семейство е изключено от този цикъл — неговите компетенции няма да се прилагат."
+      },
+      "stale-exclusion": {
+        "en": "This family now has competencies configured for this cycle.",
+        "bg": "Това семейство вече има конфигурирани компетенции за този цикъл."
       },
       "excluded-tag": {
         "en": "Excluded",

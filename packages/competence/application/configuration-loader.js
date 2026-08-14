@@ -8,6 +8,7 @@
 
 const _ = require( "lodash" );
 const tools = require( "@ti-engine/core/tools" );
+const logger = require( "@ti-engine/core/logger" );
 
 /** @type {ConfigActiveCompetencySets} */
 module.exports.configActiveCompetencySets = tools.deepFreeze( require( "#config-active-competency-sets" ) );
@@ -255,6 +256,20 @@ Object.entries( STORE_BACKED ).forEach( ( [ configKey, property ] ) => {
 } );
 
 /**
+ * The file defaults for every store-backed document, captured at module load and **never** reassigned.
+ * <br/>
+ * `applyStoreValue` replaces the exported `configX` objects with store values, so those exports stop being the file
+ * default the moment {@link initialize} runs. Drift detection needs the file value specifically — comparing the
+ * store against itself would silently report "in sync" forever — so it reads this map instead. It is also what
+ * `config-registration` registers as each document's `defaultValue`, which makes the registration independent of
+ * whether it happens before or after initialization.
+ *
+ * @type {Object<string, Object>}
+ * @public
+ */
+module.exports.fileDefaults = Object.freeze( fileDefaults );
+
+/**
  * @method
  * @param {string} configKey
  * @param {Object} value
@@ -264,6 +279,37 @@ function applyStoreValue( configKey, value ) {
     if ( value !== undefined && value !== null ) {
         module.exports[ STORE_BACKED[ configKey ] ] = tools.deepFreeze( value );
     }
+}
+
+/**
+ * Logs how each store-backed document compares to its file default. This is the half of drift detection that needs
+ * no UI and no human present — on a container deployment nobody is watching an admin screen when the image rolls.
+ * <br/>
+ * `drifted` is a WARNING: a release changed something this deployment is not serving. `absent` is only INFO —
+ * `competence-labels` is registered but never seeded (it is written first by a composite editor), so treating
+ * "never written" as a warning would make a clean install look broken.
+ *
+ * @method
+ * @param {Object} configService
+ * @returns {Promise}
+ * @private
+ */
+function reportConfigDrift( configService ) {
+    if ( typeof configService.listDrift !== "function" ) {
+        return Promise.resolve();
+    }
+    return configService.listDrift().then( ( documents ) => {
+        for ( const document of ( documents || [] ) ) {
+            if ( document.status === "drifted" ) {
+                logger.log( `Configuration document '${ document.configKey }' differs from the file default shipped with this build (+${ document.counts.added } / -${ document.counts.removed } / ~${ document.counts.changed }). Review and apply it in Administration → Configuration.`, logger.logSeverity.WARNING );
+            } else if ( document.status === "absent" ) {
+                logger.log( `Configuration document '${ document.configKey }' has never been written to the store.`, logger.logSeverity.INFO );
+            }
+        }
+    } ).catch( ( error ) => {
+        // Diagnostics must never gate boot.
+        logger.log( "Unable to compute configuration drift at startup.", logger.logSeverity.WARNING, error );
+    } );
 }
 
 /**
@@ -294,5 +340,5 @@ module.exports.initialize = ( service ) => {
                 } );
             } ) );
         } );
-    } );
+    } ).then( () => reportConfigDrift( configService ) );
 };

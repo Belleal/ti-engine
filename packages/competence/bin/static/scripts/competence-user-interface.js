@@ -3317,6 +3317,7 @@ const configureCycleSetup = () => {
         competenciesByCode: {},
         poolByFamily: {},
         excludedFamilies: [],
+        staleExclusions: [],
         subcategories: [],
         validation: { valid: true, errorsByFamily: {} },
         allCycles: [],
@@ -3378,6 +3379,7 @@ const configureCycleSetup = () => {
             this.competenciesByCode = data.competenciesByCode ? tiToolbox.structuredClone( data.competenciesByCode ) : {};
             this.poolByFamily = data.poolByFamily ? tiToolbox.structuredClone( data.poolByFamily ) : {};
             this.excludedFamilies = Array.isArray( data.excludedFamilies ) ? tiToolbox.structuredClone( data.excludedFamilies ) : [];
+            this.staleExclusions = Array.isArray( data.staleExclusions ) ? tiToolbox.structuredClone( data.staleExclusions ) : [];
             this.subcategories = Array.isArray( data.subcategories ) ? tiToolbox.structuredClone( data.subcategories ) : [];
             this.validation = data.validation ? tiToolbox.structuredClone( data.validation ) : { valid: true, errorsByFamily: {} };
 
@@ -3510,6 +3512,12 @@ const configureCycleSetup = () => {
 
         isSelectedFamilyExcluded() {
             return !!this.selectedFamily && this.isFamilyExcluded( this.selectedFamily );
+        },
+
+        // An excluded family that has since gained competencies for this cycle. The exclusion was derived when the
+        // cycle record was created and is never recomputed, so without this the family stays silently hidden.
+        isSelectedFamilyStaleExclusion() {
+            return !!this.selectedFamily && this.staleExclusions.indexOf( this.selectedFamily ) >= 0;
         },
 
         // Toggle the selected family's inclusion in the cycle. An excluded family is skipped by lock validation and has
@@ -4521,6 +4529,13 @@ const configureAdminConfig = () => {
         restoring: false,
         changes: [],
         modal: emptyModal(),
+        loadingDrift: false,
+        applyingDrift: false,
+        drift: [],
+        driftSelection: [],
+        driftDetail: {},
+        expandedDrift: "",
+        driftNote: "",
 
         init() {
             const onInitialized = () => {
@@ -4531,6 +4546,7 @@ const configureAdminConfig = () => {
                 }
                 this.loaded = true;
                 this.loadChanges();
+                this.loadDrift();
             };
             if ( tiApplication.isInitialized ) {
                 onInitialized();
@@ -4562,6 +4578,157 @@ const configureAdminConfig = () => {
                 }
                 this.loadingChanges = false;
                 this.changes = [];
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        loadDrift() {
+            this.loadingDrift = true;
+            tiApplication.sendRequest( "/admin/config/drift" ).then( ( result ) => {
+                this.drift = ( result && Array.isArray( result.data ) ) ? result.data : [];
+                // Preselect only a drifted document that has never been touched since it was seeded (storedVersion
+                // === 1). An "absent" one is valid to apply but is not what the admin came here to do, and folding it
+                // silently into an unrelated apply would be a surprise -- that part is unchanged.
+                // But five of the eight registered documents are also written by admin composite editors
+                // (competencies, competence-labels, relevancy-archetypes, role-families, active-competency-sets), so
+                // an admin's own edit makes a document differ from the shipped file default too -- indistinguishable
+                // from a release change by content alone. Preselecting it would make the one-click apply silently
+                // revert that admin's work (worst case: active-competency-sets, edited continuously via Cycle Setup,
+                // whose file default would wipe curated cycle baselines). A document with storedVersion > 1 has been
+                // written at least once since seeding, so it stays listed and selectable but is left unticked.
+                this.driftSelection = this.drift
+                    .filter( ( row ) => row.status === "drifted" && row.storedVersion === 1 )
+                    .map( ( row ) => row.configKey );
+                this.loadingDrift = false;
+            } ).catch( ( error ) => {
+                // Deliberately returns BEFORE clearing loadingDrift: sendRequest aborts a GET only when a newer GET
+                // to the same path supersedes it, and that newer request is still in flight. Clearing the flag here
+                // would drop the panel out of its loading state while a load is still running.
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
+                this.loadingDrift = false;
+                this.drift = [];
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        // Rows worth showing: in-sync and no-default documents are noise on this panel.
+        driftRows() {
+            return this.drift.filter( ( row ) => row.status === "drifted" || row.status === "absent" );
+        },
+
+        hasDrift() {
+            return this.driftRows().length > 0;
+        },
+
+        driftCountsText( row ) {
+            return `+${ row.counts.added } / -${ row.counts.removed } / ~${ row.counts.changed }`;
+        },
+
+        driftDocLabel( row ) {
+            return this.getLabel( `interface.admin.drift-doc-${ row.configKey }`, row.label || row.configKey );
+        },
+
+        driftStatusLabel( row ) {
+            return this.getLabel( `interface.admin.drift-status-${ row.status }`, row.status );
+        },
+
+        // Gates the "has local changes" marker: a drifted document that has been written at least once since it was
+        // seeded (storedVersion > 1) -- so it was never preselected in loadDrift(), and the admin needs to know why.
+        driftHasLocalChanges( row ) {
+            return row.status === "drifted" && row.storedVersion > 1;
+        },
+
+        driftLocalChangesLabel() {
+            return this.getLabel( "interface.admin.drift-local-changes", "Has local changes" );
+        },
+
+        isDriftSelected( configKey ) {
+            return this.driftSelection.indexOf( configKey ) >= 0;
+        },
+
+        toggleDriftSelected( configKey ) {
+            const index = this.driftSelection.indexOf( configKey );
+            if ( index >= 0 ) {
+                this.driftSelection.splice( index, 1 );
+            } else {
+                this.driftSelection.push( configKey );
+            }
+        },
+
+        isDriftExpanded( configKey ) {
+            return this.expandedDrift === configKey;
+        },
+
+        toggleDriftDetail( configKey ) {
+            if ( this.expandedDrift === configKey ) {
+                this.expandedDrift = "";
+                return;
+            }
+            this.expandedDrift = configKey;
+            if ( this.driftDetail[ configKey ] ) {
+                return;
+            }
+            tiApplication.sendRequest( "/admin/config/drift/" + encodeURIComponent( configKey ) ).then( ( result ) => {
+                const data = result ? result.data : null;
+                this.driftDetail[ configKey ] = ( data && Array.isArray( data.entries ) ) ? data.entries : [];
+            } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        driftEntries( configKey ) {
+            return this.driftDetail[ configKey ] || [];
+        },
+
+        driftKindLabel( entry ) {
+            return this.getLabel( `interface.admin.drift-kind-${ entry.kind }`, entry.kind );
+        },
+
+        driftEntryText( entry ) {
+            if ( entry.addedMembers === undefined ) {
+                return entry.path;
+            }
+            return `${ entry.path }  +${ entry.addedMembers } / -${ entry.removedMembers }`;
+        },
+
+        canApplyDrift() {
+            return !this.applyingDrift && this.driftSelection.length > 0;
+        },
+
+        applyDrift() {
+            if ( !this.canApplyDrift() ) {
+                return;
+            }
+            this.applyingDrift = true;
+            tiApplication.sendRequest( "/admin/config/drift/apply", "POST", { configKeys: this.driftSelection, note: this.driftNote } ).then( ( result ) => {
+                this.applyingDrift = false;
+                const data = result ? result.data : null;
+                if ( data && data.ok === false ) {
+                    tiApplication.notify( {
+                        message: this.getLabel( "interface.admin.drift-invalid", "The file defaults did not pass validation." ),
+                        details: Object.keys( data.errors ).join( ", " )
+                    } );
+                    return;
+                }
+                tiApplication.notify( this.getLabel( "interface.admin.drift-applied", "File defaults applied." ) );
+                this.driftNote = "";
+                this.driftDetail = {};
+                this.expandedDrift = "";
+                this.loadDrift();
+                this.loadChanges();
+            } ).catch( ( error ) => {
+                // Unlike the GET loaders below, this flag IS cleared before the abort return. sendRequest only
+                // supersedes GET requests, so an aborted POST has no newer request behind it to clear the flag --
+                // leaving it set would disable the Apply button until the screen is reloaded.
+                this.applyingDrift = false;
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
                 tiApplication.notify( tiApplication.formatException( error ) );
             } );
         },

@@ -161,4 +161,35 @@ describe( "config-registration (competence)", () => {
         assert.ok( registered[ "relevancy-archetypes" ].defaultValue && registered[ "relevancy-archetypes" ].defaultValue.A );
     } );
 
+    it( "keeps competence-labels' default reading the directly-required labels constant, and pins a default for every store-backed document", () => {
+        const registered = {};
+        const stubApp = {
+            registerConfigDocument( key, definition ) { registered[ key ] = definition; return this; },
+            registerConfigEditor() { return this; }
+        };
+        registerCompetenceConfig( stubApp );
+
+        // competence-labels is deliberately NOT a key in STORE_BACKED, so configurationLoader.fileDefaults has no
+        // entry for it — its registration must keep reading the directly-required `competenceLabels` constant. If a
+        // future edit "completed the pattern" by switching it to a fileDefaults lookup, defaultValue would silently
+        // become undefined, and the document's drift status would be permanently stuck at "no-default" — every other
+        // test in this suite would still pass. Assert real content, not just presence, so a swap to `{}` or `null`
+        // couldn't sneak through either.
+        const labelsDefault = registered[ "competence-labels" ].defaultValue;
+        assert.notEqual( labelsDefault, undefined, "competence-labels must keep a real default value" );
+        assert.ok(
+            labelsDefault.competency && labelsDefault.competency.name && Object.keys( labelsDefault.competency.name ).length > 0,
+            "the default must carry actual label content, not an empty stand-in"
+        );
+
+        // The complementary half: every one of the seven STORE_BACKED documents must register ITS OWN file default —
+        // not just any defined value. Asserting identity (rather than merely "!== undefined") is what catches a
+        // transposition between two registrations (e.g. stage-levels wired to research-consent's default): both
+        // sides are still "a defined value", so a weaker assertion would pass every one of these seven checks even
+        // though the wrong document is being registered.
+        for ( const key of [ "competencies", "relevancy-archetypes", "active-competency-sets", "role-families", "role-family-competencies", "stage-levels", "research-consent" ] ) {
+            assert.equal( registered[ key ].defaultValue, configurationLoader.fileDefaults[ key ], `${ key } must register its own file default, not another document's` );
+        }
+    } );
+
 } );

@@ -12,6 +12,43 @@ If your account is on that list, an **Administration** section appears in your s
 
 **Configuration** is the landing screen for Administration, and it works more like a control center than an editor of its own. It shows a running feed of every configuration change that's been made, each one kept as its own version, with the option to restore any earlier one. It also offers an export: a bundle of the current configuration that you hand off to the development team, who commit it into source control as part of a release.
 
+### Configuration drift
+
+Competence ships with a set of default configuration values — the competency
+dictionary, the role-family pools, the active competency sets, the research
+consent statement. When the application first starts, those defaults are copied
+into the configuration store, and from then on the store is what the application
+uses. That is what makes your edits stick across restarts.
+
+It also means a later update that changes those defaults does not overwrite what
+you already have. If a new version adds competencies, your installation keeps
+serving the set it was started with until someone applies the change.
+
+The **Configuration drift** panel on the Configuration screen shows you where
+that has happened. Each row is a configuration document whose stored value
+differs from the defaults in the version you are running, with a count of what
+was added, removed and changed. Open **Details** to see exactly which entries
+differ.
+
+Documents that have never been changed since they were first seeded are
+preselected for you, since a difference there can only come from a newer
+default in this version. A document that you — or another administrator — have
+edited yourself is listed but left unticked, with a note that it carries local
+changes: applying its file default would overwrite that edit, so it is never
+selected automatically. Tick it yourself if you do want to replace your own
+change with the shipped default.
+
+Select the documents you want to bring up to date, add a short note explaining
+why, and choose **Apply selected**. The change is recorded in the change history
+like any other configuration edit, so you can see who applied it and restore the
+previous state if you need to.
+
+Some documents depend on each other — the competency dictionary, the role-family
+pools and the active competency sets are checked against one another. If an
+apply is rejected, select the related documents and apply them together.
+
+If the panel says everything is up to date, there is nothing to do.
+
 ## What you can edit
 
 Four editor screens, reached from Configuration, cover the parts of the application that are meant to be tuned rather than hard-coded.

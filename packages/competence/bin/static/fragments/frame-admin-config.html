@@ -78,6 +78,71 @@
                 </div>
             </section>
 
+            <section class="competence-admin-section">
+                <div class="competence-admin-section-head">
+                    <h2 class="competence-admin-section-title" x-text-label="interface.admin.drift-title"></h2>
+                    <div class="competence-admin-section-desc" x-text-label="interface.admin.drift-desc"></div>
+                </div>
+
+                <template x-if="loadingDrift">
+                    <div class="competence-admin-changes-status" x-text-label="interface.admin.loading"></div>
+                </template>
+
+                <template x-if="!loadingDrift && !hasDrift()">
+                    <div class="ti-empty-state">
+                        <div class="ti-empty-state-icon" aria-hidden="true">
+                            <span class="ti-icon check xl"></span>
+                        </div>
+                        <div class="ti-empty-state-title" x-text-label="interface.admin.drift-empty-title"></div>
+                        <div class="ti-empty-state-desc" x-text-label="interface.admin.drift-empty-desc"></div>
+                    </div>
+                </template>
+
+                <template x-if="!loadingDrift && hasDrift()">
+                    <div class="competence-admin-drift">
+                        <template x-for="row in driftRows()" x-bind:key="row.configKey">
+                            <div class="competence-admin-drift-item">
+                                <div class="competence-admin-drift-row">
+                                    <label class="competence-admin-drift-main">
+                                        <input type="checkbox" x-bind:checked="isDriftSelected(row.configKey)"
+                                               @change="toggleDriftSelected(row.configKey)">
+                                        <span class="competence-admin-drift-label" x-text="driftDocLabel(row)"></span>
+                                        <span class="ti-tag" x-text="driftStatusLabel(row)"></span>
+                                        <template x-if="driftHasLocalChanges(row)">
+                                            <span class="ti-tag" x-text="driftLocalChangesLabel()"></span>
+                                        </template>
+                                        <span class="competence-admin-drift-counts" x-text="driftCountsText(row)"></span>
+                                    </label>
+                                    <button type="button" class="ti-btn ghost sm" @click="toggleDriftDetail(row.configKey)">
+                                        <span x-text-label="interface.admin.drift-detail-btn"></span>
+                                    </button>
+                                </div>
+                                <template x-if="isDriftExpanded(row.configKey)">
+                                    <ul class="competence-admin-drift-entries">
+                                        <template x-for="entry in driftEntries(row.configKey)" x-bind:key="entry.path">
+                                            <li class="competence-admin-drift-entry">
+                                                <span class="ti-tag" x-text="driftKindLabel(entry)"></span>
+                                                <span x-text="driftEntryText(entry)"></span>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                </template>
+                            </div>
+                        </template>
+
+                        <div class="competence-admin-drift-apply">
+                            <input type="text" class="ti-input" x-model="driftNote"
+                                   x-bind:placeholder="getLabel('interface.admin.drift-note-placeholder')"
+                                   x-bind:aria-label="getLabel('interface.admin.drift-note-placeholder')">
+                            <button type="button" class="ti-btn" @click="applyDrift()" x-bind:disabled="!canApplyDrift()">
+                                <span class="ti-icon check sm" aria-hidden="true"></span>
+                                <span x-text-label="interface.admin.drift-apply-btn"></span>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </section>
+
             <!-- Maintenance: export-to-git + version history / restore (the admin safety net). -->
             <section class="competence-admin-section">
                 <div class="competence-admin-section-head">

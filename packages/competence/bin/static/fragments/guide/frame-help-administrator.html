@@ -24,6 +24,35 @@
 <p>If your account is on that list, an <strong>Administration</strong> section appears in your sidebar, giving you access to everything covered in this chapter. If it isn&#39;t, that section doesn&#39;t appear at all — Administrator status is entirely independent of whatever else you can already do in the application.</p>
 <h2 id="the-configuration-screen">The Configuration screen</h2>
 <p><strong>Configuration</strong> is the landing screen for Administration, and it works more like a control center than an editor of its own. It shows a running feed of every configuration change that&#39;s been made, each one kept as its own version, with the option to restore any earlier one. It also offers an export: a bundle of the current configuration that you hand off to the development team, who commit it into source control as part of a release.</p>
+<h3 id="configuration-drift">Configuration drift</h3>
+<p>Competence ships with a set of default configuration values — the competency
+dictionary, the role-family pools, the active competency sets, the research
+consent statement. When the application first starts, those defaults are copied
+into the configuration store, and from then on the store is what the application
+uses. That is what makes your edits stick across restarts.</p>
+<p>It also means a later update that changes those defaults does not overwrite what
+you already have. If a new version adds competencies, your installation keeps
+serving the set it was started with until someone applies the change.</p>
+<p>The <strong>Configuration drift</strong> panel on the Configuration screen shows you where
+that has happened. Each row is a configuration document whose stored value
+differs from the defaults in the version you are running, with a count of what
+was added, removed and changed. Open <strong>Details</strong> to see exactly which entries
+differ.</p>
+<p>Documents that have never been changed since they were first seeded are
+preselected for you, since a difference there can only come from a newer
+default in this version. A document that you — or another administrator — have
+edited yourself is listed but left unticked, with a note that it carries local
+changes: applying its file default would overwrite that edit, so it is never
+selected automatically. Tick it yourself if you do want to replace your own
+change with the shipped default.</p>
+<p>Select the documents you want to bring up to date, add a short note explaining
+why, and choose <strong>Apply selected</strong>. The change is recorded in the change history
+like any other configuration edit, so you can see who applied it and restore the
+previous state if you need to.</p>
+<p>Some documents depend on each other — the competency dictionary, the role-family
+pools and the active competency sets are checked against one another. If an
+apply is rejected, select the related documents and apply them together.</p>
+<p>If the panel says everything is up to date, there is nothing to do.</p>
 <h2 id="what-you-can-edit">What you can edit</h2>
 <p>Four editor screens, reached from Configuration, cover the parts of the application that are meant to be tuned rather than hard-coded.</p>
 <h3 id="competency-texts">Competency Texts</h3>
@@ -51,7 +80,7 @@
             </div>
             <footer class="competence-guide-footer">
             <button class="ti-btn ghost competence-guide-prev" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">← For Supervisors</button>
-                <span class="competence-guide-version">Guide for competence v3.19.1</span>
+                <span class="competence-guide-version">Guide for competence v3.20.0</span>
             <button class="ti-btn ghost competence-guide-next" type="button" hx-get="/app/help-appraisal-process" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">The Appraisal Process →</button>
             </footer>
         </article>

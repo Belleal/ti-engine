@@ -434,6 +434,27 @@ reaches it once `deploy.sh` is re-run.
 3. Data is **forward-only** — the app migrates/backfills as needed on start; there is no downgrade path for data written by a newer version. **Back up Redis before upgrading** (§15).
 4. If you customized framework/app configuration through the admin system, use its export/restore to carry it forward.
 
+### After upgrading the image
+
+A new image may ship changed configuration content — new competencies, an
+expanded role-family pool, a revised consent statement. The configuration store
+seeds from those files only on a **first** run, so an existing deployment keeps
+serving what it was seeded with.
+
+After an upgrade, sign in as an administrator and open **Administration →
+Configuration → Configuration drift**. The panel lists every document that
+either differs from the defaults shipped in the new image, or has never been
+written to the store at all (shown with `+0 / -0 / ~0` — not a difference,
+just nothing seeded yet). Review the differing documents and apply them; the
+application is recorded as a normal, restorable configuration change.
+
+The container log reports the same condition at startup, one `WARNING` line per
+drifted document, so this is also visible without opening the UI.
+
+If a document is rejected on apply, apply it together with the documents it
+depends on — the competency dictionary, the role-family pool and the active
+competency sets validate against one another, so they generally move together.
+
 ---
 
 ## 15. Backup & disaster recovery
