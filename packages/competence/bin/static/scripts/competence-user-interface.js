@@ -4639,12 +4639,19 @@ const configureAdminConfig = () => {
                 const data = result ? result.data : null;
                 this.driftDetail[ configKey ] = ( data && Array.isArray( data.entries ) ) ? data.entries : [];
             } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
                 tiApplication.notify( tiApplication.formatException( error ) );
             } );
         },
 
         driftEntries( configKey ) {
             return this.driftDetail[ configKey ] || [];
+        },
+
+        driftKindLabel( entry ) {
+            return this.getLabel( `interface.admin.drift-kind-${ entry.kind }`, entry.kind );
         },
 
         driftEntryText( entry ) {
@@ -4680,6 +4687,9 @@ const configureAdminConfig = () => {
                 this.loadDrift();
                 this.loadChanges();
             } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
                 this.applyingDrift = false;
                 tiApplication.notify( tiApplication.formatException( error ) );
             } );

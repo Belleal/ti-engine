@@ -7757,6 +7757,18 @@
         "en": "Never stored",
         "bg": "Никога не е съхраняван"
       },
+      "drift-kind-added": {
+        "en": "Added",
+        "bg": "Добавено"
+      },
+      "drift-kind-removed": {
+        "en": "Removed",
+        "bg": "Премахнато"
+      },
+      "drift-kind-changed": {
+        "en": "Changed",
+        "bg": "Променено"
+      },
       "drift-detail-btn": {
         "en": "Details",
         "bg": "Подробности"

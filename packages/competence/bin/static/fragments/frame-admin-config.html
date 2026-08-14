@@ -118,7 +118,7 @@
                                     <ul class="competence-admin-drift-entries">
                                         <template x-for="entry in driftEntries(row.configKey)" x-bind:key="entry.path">
                                             <li class="competence-admin-drift-entry">
-                                                <span class="ti-tag" x-text="entry.kind"></span>
+                                                <span class="ti-tag" x-text="driftKindLabel(entry)"></span>
                                                 <span x-text="driftEntryText(entry)"></span>
                                             </li>
                                         </template>
