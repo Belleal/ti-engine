@@ -91,6 +91,12 @@ function diffValue( fileValue, storedValue, path, entries ) {
 
     // A list of codes is a set, not a sequence: report which members moved, and treat a pure reorder as no change.
     // This is what turns "role-family-competencies changed" into the far more useful "QE +27 codes".
+    // <br/>
+    // Set semantics also mean MULTIPLICITY is ignored — `[ "A", "A" ]` and `[ "A" ]` compare as in-sync even though
+    // applying would replace one with the other. That is deliberate for a list of codes, where a repeated member is
+    // a data error rather than a meaningful difference, and it is unreachable for the documents shipped here: the
+    // array-valued competence schemas all declare `uniqueItems`, so a duplicate cannot pass validation on save. A
+    // consumer whose arrays are genuinely multisets should not model them as primitive arrays for this diff.
     if ( isPrimitiveArray( fileValue ) && isPrimitiveArray( storedValue ) ) {
         const storedMembers = new Set( storedValue );
         const fileMembers = new Set( fileValue );

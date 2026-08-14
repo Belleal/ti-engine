@@ -4601,6 +4601,9 @@ const configureAdminConfig = () => {
                     .map( ( row ) => row.configKey );
                 this.loadingDrift = false;
             } ).catch( ( error ) => {
+                // Deliberately returns BEFORE clearing loadingDrift: sendRequest aborts a GET only when a newer GET
+                // to the same path supersedes it, and that newer request is still in flight. Clearing the flag here
+                // would drop the panel out of its loading state while a load is still running.
                 if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
                     return;
                 }
@@ -4719,10 +4722,13 @@ const configureAdminConfig = () => {
                 this.loadDrift();
                 this.loadChanges();
             } ).catch( ( error ) => {
+                // Unlike the GET loaders below, this flag IS cleared before the abort return. sendRequest only
+                // supersedes GET requests, so an aborted POST has no newer request behind it to clear the flag --
+                // leaving it set would disable the Apply button until the screen is reloaded.
+                this.applyingDrift = false;
                 if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
                     return;
                 }
-                this.applyingDrift = false;
                 tiApplication.notify( tiApplication.formatException( error ) );
             } );
         },

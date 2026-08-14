@@ -92,7 +92,7 @@ Paths use the dot/bracket convention `instancePathToDataPath` already produces f
 
 Against the real CA-98 change this produces (counts verified against the commit):
 
-```
+```text
 role-family-competencies   8 changed   .QE +27 codes · .SE +1 · .PM +1 ·
                                        .XD .DA .IO .MC .PD +1 each (E1-10) · BA unchanged
 competencies              26 added     .competencies.E1-48 … .competencies.I1-10
@@ -153,7 +153,7 @@ The framework computes; competence decides when to report. Another consumer that
 
 Three routes beside the existing seven in [`web-server.js:579`](../../../packages/web-framework/bin/web-server.js), all behind `requireAdmin`, with handlers in `admin-config-handlers.js` following the established `(service) => (request, response, next)` curry:
 
-```
+```text
 GET  /admin/config/drift                 → listDrift()
 GET  /admin/config/drift/:configKey      → getDrift( configKey )
 POST /admin/config/drift/apply           → applyDefaults( body.configKeys, { adminID, note: body.note } )

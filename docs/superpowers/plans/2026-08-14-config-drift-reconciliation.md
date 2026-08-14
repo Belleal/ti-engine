@@ -1026,25 +1026,15 @@ In `packages/competence/application/config-registration.js`, replace each `defau
 
 ```js
         defaultValue: configurationLoader.fileDefaults[ "competencies" ],
-```
-```js
         defaultValue: configurationLoader.fileDefaults[ "relevancy-archetypes" ],
-```
-```js
         defaultValue: configurationLoader.fileDefaults[ "active-competency-sets" ],
-```
-```js
         defaultValue: configurationLoader.fileDefaults[ "role-families" ],
-```
-```js
         defaultValue: configurationLoader.fileDefaults[ "role-family-competencies" ],
-```
-```js
         defaultValue: configurationLoader.fileDefaults[ "stage-levels" ],
-```
-```js
         defaultValue: configurationLoader.fileDefaults[ "research-consent" ],
 ```
+
+Each line replaces the `defaultValue:` of its own registration — they are not consecutive lines in the file.
 
 - [ ] **Step 5: Report drift at the end of initialization**
 
@@ -1159,6 +1149,8 @@ EOF
 
 **CSP reminder:** no inline `style` attributes, no `?.` in any `x-*` expression, no `Array`/`Object` globals in templates. Every conditional goes through a component method.
 
+> **Superseded during review — the preselection rule below is not what shipped.** This task's Step 3 preselects every `drifted` document. Five of the eight registered documents are written by admin composite editors, so an admin's own edit also reads as `drifted`, and pre-ticking it made reverting their work the one-click default — worst case `active-competency-sets`, whose file default would wipe curated cycle baselines. What shipped preselects only `row.status === "drifted" && row.storedVersion === 1`; edited documents stay listed and selectable but unticked, with a "Has local changes" marker. See §4.2 and §5.3 of the design record. The code blocks below are left as originally written so the plan stays a faithful record of what was planned.
+
 - [ ] **Step 1: Add the component state**
 
 In `packages/competence/bin/static/scripts/competence-user-interface.js`, in the object returned by `configureAdminConfig` (line 4518), add after `modal: emptyModal(),`:
@@ -1192,8 +1184,9 @@ In the same component, add after the existing `loadChanges()` method:
             this.loadingDrift = true;
             tiApplication.sendRequest( "/admin/config/drift" ).then( ( result ) => {
                 this.drift = ( result && Array.isArray( result.data ) ) ? result.data : [];
-                // Preselect only genuinely drifted documents. An "absent" one is valid to apply but is not what the
-                // admin came here to do, and folding it silently into an unrelated apply would be a surprise.
+                // SUPERSEDED DURING REVIEW — see the note under this task. Preselecting every drifted document also
+                // pre-ticks documents an admin edited themselves, making a revert of their work the default action.
+                // What shipped filters on `row.status === "drifted" && row.storedVersion === 1`.
                 this.driftSelection = this.drift.filter( ( row ) => row.status === "drifted" ).map( ( row ) => row.configKey );
                 this.loadingDrift = false;
             } ).catch( ( error ) => {

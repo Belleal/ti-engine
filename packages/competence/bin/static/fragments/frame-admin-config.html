@@ -132,7 +132,8 @@
 
                         <div class="competence-admin-drift-apply">
                             <input type="text" class="ti-input" x-model="driftNote"
-                                   x-bind:placeholder="getLabel('interface.admin.drift-note-placeholder')">
+                                   x-bind:placeholder="getLabel('interface.admin.drift-note-placeholder')"
+                                   x-bind:aria-label="getLabel('interface.admin.drift-note-placeholder')">
                             <button type="button" class="ti-btn" @click="applyDrift()" x-bind:disabled="!canApplyDrift()">
                                 <span class="ti-icon check sm" aria-hidden="true"></span>
                                 <span x-text-label="interface.admin.drift-apply-btn"></span>
