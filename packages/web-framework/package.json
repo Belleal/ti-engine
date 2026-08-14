@@ -15,9 +15,21 @@
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "exports": {
+    "./authorization": {
+      "types": "./types/components/authorization.d.ts",
+      "default": "./components/authorization.js"
+    },
+    "./config-drift": {
+      "types": "./types/components/config-drift.d.ts",
+      "default": "./components/config-drift.js"
+    },
     "./config-management": {
       "types": "./types/components/config-service.d.ts",
       "default": "./components/config-service.js"
+    },
+    "./definitions": {
+      "types": "./types/components/definitions.types.d.ts",
+      "default": "./components/definitions.types.js"
     },
     "./web-application": {
       "types": "./types/bin/web-app-manager.d.ts",
@@ -26,14 +38,6 @@
     "./web-server": {
       "types": "./types/bin/web-server.d.ts",
       "default": "./bin/web-server.js"
-    },
-    "./authorization": {
-      "types": "./types/components/authorization.d.ts",
-      "default": "./components/authorization.js"
-    },
-    "./definitions": {
-      "types": "./types/components/definitions.types.d.ts",
-      "default": "./components/definitions.types.js"
     }
   },
   "imports": {
@@ -56,6 +60,10 @@
     "#config-change-notifier": {
       "types": "./types/components/config-change-notifier.d.ts",
       "default": "./components/config-change-notifier.js"
+    },
+    "#config-drift": {
+      "types": "./types/components/config-drift.d.ts",
+      "default": "./components/config-drift.js"
     },
     "#config-registry": {
       "types": "./types/components/config-registry.d.ts",
