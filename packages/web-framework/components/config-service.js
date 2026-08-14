@@ -7,6 +7,7 @@
 */
 
 const exceptions = require( "@ti-engine/core/exceptions" );
+const configDrift = require( "#config-drift" );
 
 /** @import ConfigChangeNotifier from "#config-change-notifier" */
 /** @import ConfigRegistry from "#config-registry" */
@@ -305,6 +306,100 @@ class ConfigService {
             exportedBy: meta.adminID || null,
             documents: documents
         } ) );
+    }
+
+    /* Public interface — drift against file defaults */
+
+    /**
+     * Compares a document's registered file default against the value currently in the store. This is how a
+     * configuration change shipped in a release becomes visible on a deployment that was seeded before it — the
+     * store seeds only once, so a later file change is otherwise invisible.
+     *
+     * @method
+     * @param {string} configKey
+     * @returns {Promise<{configKey: string, status: string, counts: Object, entries: Array, storedVersion: number, editable: boolean, label: string}>}
+     * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} If the document is not registered.
+     * @public
+     */
+    getDrift( configKey ) {
+        if ( !this.#registry.has( configKey ) ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { reason: "unknown-config", configKey: configKey } ) );
+        }
+        const metadata = this.#registry.metadataFor( configKey ) || {};
+        return this.#store.getCurrent( configKey ).then( ( current ) => {
+            const diff = configDrift.diffDocument( this.#registry.getDefault( configKey ), current ? current.value : null );
+            return {
+                configKey: configKey,
+                status: diff.status,
+                counts: diff.counts,
+                entries: diff.entries,
+                storedVersion: current ? current.version : 0,
+                editable: metadata.editable !== false,
+                label: metadata.label || configKey
+            };
+        } );
+    }
+
+    /**
+     * Drift summaries for every registered document — counts only, no entry lists, so it stays cheap enough for a
+     * landing screen and a startup log.
+     *
+     * @method
+     * @returns {Promise<Array<Object>>}
+     * @public
+     */
+    listDrift() {
+        return Promise.all( this.#registry.list().map( ( configKey ) => {
+            return this.getDrift( configKey ).then( ( drift ) => ( {
+                configKey: drift.configKey,
+                status: drift.status,
+                counts: drift.counts,
+                storedVersion: drift.storedVersion,
+                editable: drift.editable,
+                label: drift.label
+            } ) );
+        } ) );
+    }
+
+    /**
+     * Applies the registered file defaults for the given documents, as a single validated change-set.
+     * <br/>
+     * Routing through {@link ConfigService#applyEdits} is deliberate: the application is schema- and
+     * semantically validated, versioned, correlated into one change-set, added to the audit feed, and restorable —
+     * and, because a validator sees its siblings at their *pending* value, interdependent documents applied
+     * together validate against each other rather than against the stale stored state.
+     *
+     * @method
+     * @param {string[]} configKeys
+     * @param {Object} meta
+     * @param {string} meta.adminID
+     * @param {string} [meta.note]
+     * @returns {Promise<{ok: true, changeSetID: string, versions: Object}|{ok: false, errors: Object}>}
+     * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} On bad input, an unknown key, or a key with no default.
+     * @public
+     */
+    applyDefaults( configKeys, meta ) {
+        if ( !Array.isArray( configKeys ) || configKeys.length === 0 || !meta || !meta.adminID ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { reason: "invalid-apply-defaults-input" } ) );
+        }
+        const keys = Array.from( new Set( configKeys ) );
+        const unknown = keys.filter( ( key ) => !this.#registry.has( key ) );
+        if ( unknown.length > 0 ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { reason: "unknown-config", configKeys: unknown } ) );
+        }
+        const withoutDefault = keys.filter( ( key ) => this.#registry.getDefault( key ) === undefined );
+        if ( withoutDefault.length > 0 ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { reason: "no-default", configKeys: withoutDefault } ) );
+        }
+
+        return Promise.all( keys.map( ( key ) => this.#store.getCurrent( key ) ) ).then( ( currents ) => {
+            const edits = keys.map( ( key, index ) => ( {
+                configKey: key,
+                value: this.#registry.getDefault( key ),
+                expectedVersion: currents[ index ] ? currents[ index ].version : 0
+            } ) );
+            return this.applyEdits( edits, { adminID: meta.adminID, note: meta.note || "applied file defaults" } );
+        } );
     }
 
     /**
