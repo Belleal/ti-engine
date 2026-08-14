@@ -2,6 +2,32 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.24.0
+
+A configuration file change shipped in a release could never reach a deployment that had already been seeded. The
+store writes a file default only when the document has never been written, and the consuming application then lets
+the stored value overwrite the file value on every boot — so the file default is consulted exactly once in a
+deployment's lifetime. Restore could not help either, since it replays a previous version and the oldest version
+*is* the stale one. The framework now detects that difference and lets an admin apply it deliberately.
+
+* feat(config-drift): new `#config-drift` module — a pure structural diff between a document's registered file
+  default and its stored value. Recurses into objects to report leaf paths, **set-diffs arrays of primitives** so a
+  code-list change reads as `+27 codes` rather than an opaque "changed", and compares arrays of objects atomically.
+  Paths use the same dot/bracket dialect as schema validation issues
+* feat(config-service): `getDrift`, `listDrift` and `applyDefaults`. Applying routes through `applyEdits`, so a
+  file default lands validated, versioned, correlated into one change-set, in the audit feed, and restorable —
+  never as a side-channel write
+* feat(config-service): interdependent documents apply as a **single** change-set, which is required rather than
+  merely convenient: a semantic validator resolves its siblings at their *pending* value, so a document whose
+  constraint spans another can only pass when both are applied together
+* feat(admin-config-handlers): `GET /admin/config/drift`, `GET /admin/config/drift/:configKey` and
+  `POST /admin/config/drift/apply`, all admin-gated
+* build(release): bump package version from `1.23.0` to `1.24.0`
+
+**Note on statuses:** `absent` (never seeded) is deliberately distinct from `drifted`. A document that is registered
+but never seeded is not a problem to act on, and folding the two together would flag it on every boot of a clean
+install — training operators to ignore exactly the signal this feature exists to raise.
+
 ## Version 1.23.0
 
 Local (username/password) authentication is real. It had never been implemented: the constructor overwrote whatever

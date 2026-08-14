@@ -585,6 +585,9 @@ class TiWebServer extends ServiceConsumer {
         this.#webServer.get( "/admin/config/changes/:changeSetID", requireAdmin, adminConfigHandlers.getChange( service ) );
         this.#webServer.post( "/admin/config/changes/:changeSetID/restore", requireAdmin, adminConfigHandlers.restoreChangeSet( service ) );
         this.#webServer.get( "/admin/config/export", requireAdmin, adminConfigHandlers.exportBundle( service ) );
+        this.#webServer.get( "/admin/config/drift", requireAdmin, adminConfigHandlers.listDrift( service ) );
+        this.#webServer.get( "/admin/config/drift/:configKey", requireAdmin, adminConfigHandlers.getDrift( service ) );
+        this.#webServer.post( "/admin/config/drift/apply", requireAdmin, adminConfigHandlers.applyDefaults( service ) );
     }
 
     /**

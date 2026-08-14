@@ -192,6 +192,63 @@ declare class ConfigService {
         }>;
     }>;
     /**
+     * Compares a document's registered file default against the value currently in the store. This is how a
+     * configuration change shipped in a release becomes visible on a deployment that was seeded before it — the
+     * store seeds only once, so a later file change is otherwise invisible.
+     *
+     * @method
+     * @param {string} configKey
+     * @returns {Promise<{configKey: string, status: string, counts: Object, entries: Array, storedVersion: number, editable: boolean, label: string}>}
+     * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} If the document is not registered.
+     * @public
+     */
+    getDrift(configKey: string): Promise<{
+        configKey: string;
+        status: string;
+        counts: Object;
+        entries: any[];
+        storedVersion: number;
+        editable: boolean;
+        label: string;
+    }>;
+    /**
+     * Drift summaries for every registered document — counts only, no entry lists, so it stays cheap enough for a
+     * landing screen and a startup log.
+     *
+     * @method
+     * @returns {Promise<Array<Object>>}
+     * @public
+     */
+    listDrift(): Promise<Array<Object>>;
+    /**
+     * Applies the registered file defaults for the given documents, as a single validated change-set.
+     * <br/>
+     * Routing through {@link ConfigService#applyEdits} is deliberate: the application is schema- and
+     * semantically validated, versioned, correlated into one change-set, added to the audit feed, and restorable —
+     * and, because a validator sees its siblings at their *pending* value, interdependent documents applied
+     * together validate against each other rather than against the stale stored state.
+     *
+     * @method
+     * @param {string[]} configKeys
+     * @param {Object} meta
+     * @param {string} meta.adminID
+     * @param {string} [meta.note]
+     * @returns {Promise<{ok: true, changeSetID: string, versions: Object}|{ok: false, errors: Object}>}
+     * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} On bad input, an unknown key, or a key with no default.
+     * @public
+     */
+    applyDefaults(configKeys: string[], meta: {
+        adminID: string;
+        note?: string;
+    }): Promise<{
+        ok: true;
+        changeSetID: string;
+        versions: Object;
+    } | {
+        ok: false;
+        errors: Object;
+    }>;
+    /**
      * Seeds a document's default value into the store only if it has never been written (idempotent bootstrap).
      * Used by an application to bring its file defaults into the store at startup before serving live config.
      *

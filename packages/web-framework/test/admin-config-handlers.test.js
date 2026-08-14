@@ -100,4 +100,43 @@ describe( "admin-config-handlers", () => {
         assert.ok( res.body.includes( "documents" ) );
     } );
 
+    it( "listDrift responds with the drift summaries", async () => {
+        const service = { listDrift: () => Promise.resolve( [ { configKey: "pool", status: "drifted" } ] ) };
+        const res = mockRes();
+        handlers.listDrift( service )( mockReq(), res, () => {} );
+        await tick();
+        assert.equal( res.body.isSuccessful, true );
+        assert.deepEqual( res.body.data, [ { configKey: "pool", status: "drifted" } ] );
+    } );
+
+    it( "getDrift passes the configKey through", async () => {
+        let receivedKey;
+        const service = { getDrift: ( key ) => { receivedKey = key; return Promise.resolve( { configKey: key, status: "in-sync" } ); } };
+        const res = mockRes();
+        handlers.getDrift( service )( mockReq( { params: { configKey: "pool" } } ), res, () => {} );
+        await tick();
+        assert.equal( receivedKey, "pool" );
+        assert.equal( res.body.data.status, "in-sync" );
+    } );
+
+    it( "applyDefaults forwards the configKeys, note and the acting admin", async () => {
+        let received;
+        const service = { applyDefaults: ( keys, meta ) => { received = { keys, meta }; return Promise.resolve( { ok: true, changeSetID: "cs1", versions: {} } ); } };
+        const res = mockRes();
+        handlers.applyDefaults( service )( mockReq( { body: { configKeys: [ "pool", "sets" ], note: "release 2.0" } } ), res, () => {} );
+        await tick();
+        assert.deepEqual( received.keys, [ "pool", "sets" ] );
+        assert.equal( received.meta.note, "release 2.0" );
+        assert.equal( received.meta.adminID, "oauth2:admin1" );
+        assert.equal( res.body.data.ok, true );
+    } );
+
+    it( "applyDefaults forwards a rejection to the error middleware", async () => {
+        const service = { applyDefaults: () => Promise.reject( conflict() ) };
+        let forwarded = null;
+        handlers.applyDefaults( service )( mockReq( { body: { configKeys: [ "pool" ] } } ), mockRes(), ( error ) => { forwarded = error; } );
+        await tick();
+        assert.ok( forwarded, "the error reached next()" );
+    } );
+
 } );

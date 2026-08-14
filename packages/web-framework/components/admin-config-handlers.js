@@ -93,3 +93,34 @@ module.exports.exportBundle = ( service ) => ( request, response, next ) => {
         response.status( exceptions.httpCode.C_200 ).send( JSON.stringify( bundle, null, 2 ) );
     } ).catch( ( error ) => forward( next, error ) );
 };
+
+/**
+ * `GET /admin/config/drift` — drift summaries for every registered document.
+ *
+ * @param {ConfigService} service
+ * @returns {Function} The Express handler.
+ */
+module.exports.listDrift = ( service ) => ( request, response, next ) => {
+    service.listDrift().then( ( drift ) => sendData( response, drift ) ).catch( ( error ) => forward( next, error ) );
+};
+
+/**
+ * `GET /admin/config/drift/:configKey` — one document's drift, including the full entry list.
+ *
+ * @param {ConfigService} service
+ * @returns {Function} The Express handler.
+ */
+module.exports.getDrift = ( service ) => ( request, response, next ) => {
+    service.getDrift( request.params.configKey ).then( ( drift ) => sendData( response, drift ) ).catch( ( error ) => forward( next, error ) );
+};
+
+/**
+ * `POST /admin/config/drift/apply` — applies the file defaults for the named documents as one change-set.
+ *
+ * @param {ConfigService} service
+ * @returns {Function} The Express handler.
+ */
+module.exports.applyDefaults = ( service ) => ( request, response, next ) => {
+    const body = request.body || {};
+    service.applyDefaults( body.configKeys, { adminID: adminID( request ), note: body.note } ).then( ( result ) => sendData( response, result ) ).catch( ( error ) => forward( next, error ) );
+};
