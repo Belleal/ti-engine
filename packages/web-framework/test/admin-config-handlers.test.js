@@ -123,12 +123,22 @@ describe( "admin-config-handlers", () => {
         let received;
         const service = { applyDefaults: ( keys, meta ) => { received = { keys, meta }; return Promise.resolve( { ok: true, changeSetID: "cs1", versions: {} } ); } };
         const res = mockRes();
-        handlers.applyDefaults( service )( mockReq( { body: { configKeys: [ "pool", "sets" ], note: "release 2.0" } } ), res, () => {} );
+        handlers.applyDefaults( service )( mockReq( { body: { configKeys: [ "pool", "sets" ], note: "release 2.0", adminID: "attacker:injected" } } ), res, () => {} );
         await tick();
         assert.deepEqual( received.keys, [ "pool", "sets" ] );
         assert.equal( received.meta.note, "release 2.0" );
         assert.equal( received.meta.adminID, "oauth2:admin1" );
         assert.equal( res.body.data.ok, true );
+    } );
+
+    it( "applyDefaults returns validation failures as data, not as an error", async () => {
+        const service = { applyDefaults: () => Promise.resolve( { ok: false, errors: { pool: [ { message: "bad" } ] } } ) };
+        const res = mockRes();
+        let nextErr = null;
+        handlers.applyDefaults( service )( mockReq( { body: { configKeys: [ "pool" ] } } ), res, ( e ) => { nextErr = e; } );
+        await tick();
+        assert.equal( nextErr, null );
+        assert.equal( res.body.data.ok, false );
     } );
 
     it( "applyDefaults forwards a rejection to the error middleware", async () => {

@@ -98,7 +98,7 @@ module.exports.exportBundle = ( service ) => ( request, response, next ) => {
  * `GET /admin/config/drift` — drift summaries for every registered document.
  *
  * @param {ConfigService} service
- * @returns {Function} The Express handler.
+ * @returns {ExpressHandler} The Express handler.
  */
 module.exports.listDrift = ( service ) => ( request, response, next ) => {
     service.listDrift().then( ( drift ) => sendData( response, drift ) ).catch( ( error ) => forward( next, error ) );
@@ -108,7 +108,7 @@ module.exports.listDrift = ( service ) => ( request, response, next ) => {
  * `GET /admin/config/drift/:configKey` — one document's drift, including the full entry list.
  *
  * @param {ConfigService} service
- * @returns {Function} The Express handler.
+ * @returns {ExpressHandler} The Express handler.
  */
 module.exports.getDrift = ( service ) => ( request, response, next ) => {
     service.getDrift( request.params.configKey ).then( ( drift ) => sendData( response, drift ) ).catch( ( error ) => forward( next, error ) );
@@ -118,7 +118,7 @@ module.exports.getDrift = ( service ) => ( request, response, next ) => {
  * `POST /admin/config/drift/apply` — applies the file defaults for the named documents as one change-set.
  *
  * @param {ConfigService} service
- * @returns {Function} The Express handler.
+ * @returns {ExpressHandler} The Express handler.
  */
 module.exports.applyDefaults = ( service ) => ( request, response, next ) => {
     const body = request.body || {};

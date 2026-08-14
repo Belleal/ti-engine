@@ -7,8 +7,8 @@ export declare var listChanges: (service: any) => (request: any, response: any, 
 export declare var getChange: (service: any) => (request: any, response: any, next: any) => void;
 export declare var restoreChangeSet: (service: any) => (request: any, response: any, next: any) => void;
 export declare var exportBundle: (service: any) => (request: any, response: any, next: any) => void;
-export declare var listDrift: (service: ConfigService) => Function;
-export declare var getDrift: (service: ConfigService) => Function;
-export declare var applyDefaults: (service: ConfigService) => Function;
+export declare var listDrift: (service: ConfigService) => ExpressHandler;
+export declare var getDrift: (service: ConfigService) => ExpressHandler;
+export declare var applyDefaults: (service: ConfigService) => ExpressHandler;
 import type ConfigService from "#config-service";
 import type { ExpressHandler } from "#web-handlers";
