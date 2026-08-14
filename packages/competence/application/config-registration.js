@@ -48,7 +48,7 @@ function registerCompetenceConfig( app ) {
     app.registerConfigDocument( "competencies", {
         schema: competenciesSchema,
         validators: [ validators.competenciesArchetypeResolves ],
-        defaultValue: configurationLoader.configCompetencies,
+        defaultValue: configurationLoader.fileDefaults[ "competencies" ],
         metadata: { path: "bin/config/config.competencies.json", label: "competency.dictionary", editable: true }
     } );
     app.registerConfigDocument( "competence-labels", {
@@ -60,37 +60,37 @@ function registerCompetenceConfig( app ) {
     app.registerConfigDocument( "relevancy-archetypes", {
         schema: relevancyArchetypesSchema,
         validators: [ validators.archetypesReferentialIntegrity ],
-        defaultValue: configurationLoader.configRelevancyArchetypes,
+        defaultValue: configurationLoader.fileDefaults[ "relevancy-archetypes" ],
         metadata: { path: "bin/config/config.relevancy-archetypes.json", label: "relevancy.archetypes", editable: true }
     } );
     app.registerConfigDocument( "active-competency-sets", {
         schema: activeCompetencySetsSchema,
         validators: [ validators.activeSetsReferenceIntegrity, validators.activeSetsFloorCoverage, validators.activeSetsCap, validators.activeSetsWithinPool ],
-        defaultValue: configurationLoader.configActiveCompetencySets,
+        defaultValue: configurationLoader.fileDefaults[ "active-competency-sets" ],
         metadata: { path: "bin/config/config.active-competency-sets.json", label: "active.competency.sets", editable: true }
     } );
     app.registerConfigDocument( "role-families", {
         schema: roleFamiliesSchema,
         validators: [ validators.roleFamiliesReferentialIntegrity ],
-        defaultValue: configurationLoader.configRoleFamilies,
+        defaultValue: configurationLoader.fileDefaults[ "role-families" ],
         metadata: { path: "bin/config/config.role-families.json", label: "role.families", editable: true }
     } );
     app.registerConfigDocument( "role-family-competencies", {
         schema: roleFamilyCompetenciesSchema,
         validators: [ validators.poolReferenceIntegrity ],
-        defaultValue: configurationLoader.configRoleFamilyCompetencies,
+        defaultValue: configurationLoader.fileDefaults[ "role-family-competencies" ],
         metadata: { path: "bin/config/config.role-family-competencies.json", label: "role.family.competencies", editable: false }
     } );
     app.registerConfigDocument( "stage-levels", {
         schema: stageLevelsSchema,
         validators: [],
-        defaultValue: configurationLoader.configStageLevels,
+        defaultValue: configurationLoader.fileDefaults[ "stage-levels" ],
         metadata: { path: "bin/config/config.stage-levels.json", label: "stage.levels", editable: false }
     } );
     app.registerConfigDocument( "research-consent", {
         schema: researchConsentSchema,
         validators: [ validators.consentTextVersionBumped ],
-        defaultValue: configurationLoader.configResearchConsent,
+        defaultValue: configurationLoader.fileDefaults[ "research-consent" ],
         metadata: { path: "bin/config/config.research-consent.json", label: "consent.research", editable: true }
     } );
 
