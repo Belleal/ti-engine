@@ -15,10 +15,6 @@
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "GPL-3.0-or-later",
   "exports": {
-    "./authorization": {
-      "types": "./types/components/authorization.d.ts",
-      "default": "./components/authorization.js"
-    },
     "./config-drift": {
       "types": "./types/components/config-drift.d.ts",
       "default": "./components/config-drift.js"
@@ -27,10 +23,6 @@
       "types": "./types/components/config-service.d.ts",
       "default": "./components/config-service.js"
     },
-    "./definitions": {
-      "types": "./types/components/definitions.types.d.ts",
-      "default": "./components/definitions.types.js"
-    },
     "./web-application": {
       "types": "./types/bin/web-app-manager.d.ts",
       "default": "./bin/web-app-manager.js"
@@ -38,6 +30,14 @@
     "./web-server": {
       "types": "./types/bin/web-server.d.ts",
       "default": "./bin/web-server.js"
+    },
+    "./authorization": {
+      "types": "./types/components/authorization.d.ts",
+      "default": "./components/authorization.js"
+    },
+    "./definitions": {
+      "types": "./types/components/definitions.types.d.ts",
+      "default": "./components/definitions.types.js"
     }
   },
   "imports": {

@@ -82,6 +82,20 @@ describe( "config-drift — arrays", () => {
         assert.equal( result.entries[ 0 ].addedMembers, undefined );
     } );
 
+    it( "treats an array of objects as in-sync when only property order differs", () => {
+        const result = configDrift.diffDocument( { rows: [ { n: 1, m: 2 } ] }, { rows: [ { m: 2, n: 1 } ] } );
+        assert.equal( result.status, "in-sync" );
+    } );
+
+} );
+
+describe( "config-drift — scalars", () => {
+
+    it( "reports changed when the file default and stored value differ in type", () => {
+        const result = configDrift.diffDocument( { a: { nested: true } }, { a: [ "nested" ] } );
+        assert.deepEqual( pathsOf( result, "changed" ), [ ".a" ] );
+    } );
+
 } );
 
 describe( "config-drift — counts", () => {

@@ -19,6 +19,8 @@
  * @module config-drift
  */
 
+const { isDeepStrictEqual } = require( "node:util" );
+
 const STATUS_IN_SYNC = "in-sync";
 const STATUS_DRIFTED = "drifted";
 const STATUS_ABSENT = "absent";
@@ -100,7 +102,7 @@ function diffValue( fileValue, storedValue, path, entries ) {
         return;
     }
 
-    if ( JSON.stringify( fileValue ) !== JSON.stringify( storedValue ) ) {
+    if ( !isDeepStrictEqual( fileValue, storedValue ) ) {
         entries.push( { path: path, kind: KIND_CHANGED } );
     }
 }
