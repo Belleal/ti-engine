@@ -5669,10 +5669,15 @@
     gap: var(--s-2);
 }
 
+/* Wraps rather than overlapping: the row holds a document name, a status tag, an optional
+   "has local changes" tag, a counts figure and a button, and below roughly 700px of viewport
+   the tag and the button collide. Both axes need to wrap — the row so the button drops to its
+   own line, and the label group so a long document name does not push the tags out of it. */
 .competence-admin-drift-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
     gap: var(--s-4);
     padding: var(--s-3) var(--s-4);
     border: 1px solid var(--border);
@@ -5682,6 +5687,8 @@
 .competence-admin-drift-main {
     display: flex;
     align-items: center;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
     gap: var(--s-2);
     min-width: 0;
     cursor: pointer;
