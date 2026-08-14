@@ -8951,6 +8951,10 @@
         "en": "This family is excluded from this cycle — its competencies won't apply.",
         "bg": "Това семейство е изключено от този цикъл — неговите компетенции няма да се прилагат."
       },
+      "stale-exclusion": {
+        "en": "This family now has competencies configured for this cycle.",
+        "bg": "Това семейство вече има конфигурирани компетенции за този цикъл."
+      },
       "excluded-tag": {
         "en": "Excluded",
         "bg": "Изключено"

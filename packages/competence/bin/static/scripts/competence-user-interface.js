@@ -3317,6 +3317,7 @@ const configureCycleSetup = () => {
         competenciesByCode: {},
         poolByFamily: {},
         excludedFamilies: [],
+        staleExclusions: [],
         subcategories: [],
         validation: { valid: true, errorsByFamily: {} },
         allCycles: [],
@@ -3378,6 +3379,7 @@ const configureCycleSetup = () => {
             this.competenciesByCode = data.competenciesByCode ? tiToolbox.structuredClone( data.competenciesByCode ) : {};
             this.poolByFamily = data.poolByFamily ? tiToolbox.structuredClone( data.poolByFamily ) : {};
             this.excludedFamilies = Array.isArray( data.excludedFamilies ) ? tiToolbox.structuredClone( data.excludedFamilies ) : [];
+            this.staleExclusions = Array.isArray( data.staleExclusions ) ? tiToolbox.structuredClone( data.staleExclusions ) : [];
             this.subcategories = Array.isArray( data.subcategories ) ? tiToolbox.structuredClone( data.subcategories ) : [];
             this.validation = data.validation ? tiToolbox.structuredClone( data.validation ) : { valid: true, errorsByFamily: {} };
 
@@ -3510,6 +3512,12 @@ const configureCycleSetup = () => {
 
         isSelectedFamilyExcluded() {
             return !!this.selectedFamily && this.isFamilyExcluded( this.selectedFamily );
+        },
+
+        // An excluded family that has since gained competencies for this cycle. The exclusion was derived when the
+        // cycle record was created and is never recomputed, so without this the family stays silently hidden.
+        isSelectedFamilyStaleExclusion() {
+            return !!this.selectedFamily && this.staleExclusions.indexOf( this.selectedFamily ) >= 0;
         },
 
         // Toggle the selected family's inclusion in the cycle. An excluded family is skipped by lock validation and has

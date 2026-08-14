@@ -2,6 +2,33 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.20.0
+
+Configuration shipped in a release can finally reach a running deployment. The configuration store seeds from the
+files bundled in the image only on a first run, and from then on the stored value wins on every boot — so the 26 QE
+competencies added in 3.17.0 were invisible on every environment that had been started before it, with no in-app way
+to fix it. Requires `@ti-engine/web-framework` ≥ 1.24.0 (CA-103).
+
+* feat(competence): add the **Configuration drift** panel to the admin configuration screen — every document whose
+  stored value differs from the default shipped with this build, with per-document counts, an expandable list of
+  changed paths, and an audited apply. Applying routes through the normal change-set machinery, so it is versioned,
+  appears in the change feed and can be restored
+* feat(competence): report drift at startup — one `WARNING` per drifted document in the container log, so the
+  condition is visible on a deployment where nobody is watching an admin screen. A document that has simply never
+  been stored logs at `INFO`, and a failure to compute drift never gates boot
+* fix(competence): register each store-backed document's `defaultValue` from the explicitly captured `fileDefaults`
+  map rather than the live export. The export is reassigned to the store value by `initialize()`, so the registry
+  held the file default only because registration happens to run first — a consumer that ever registered after
+  initializing would have compared the store against itself and reported "in sync" forever
+* feat(competence): flag a **stale family exclusion** in Cycle Setup. `cycle.excludedFamilies` is derived once when
+  the cycle record is created, so a family that gains competencies later stays excluded on existing cycles — which
+  is the second reason QE stayed invisible after 3.17.0. The excluded banner now says when the family has
+  competencies for the cycle, next to the include control that was always there. The derivation itself is unchanged:
+  including a family is a governance decision, not a computation
+* docs(competence): document the post-upgrade drift check in `INSTALL.md` and the drift panel in the administrator
+  user-guide chapter
+* build(release): bump package version from `3.19.1` to `3.20.0`
+
 ## Version 3.19.1
 
 * docs(competence): rewrite the `INSTALL.md` local-auth passages (§1, §7, §10, §11, §16) against

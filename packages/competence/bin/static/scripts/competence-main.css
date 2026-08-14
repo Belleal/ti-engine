@@ -3448,6 +3448,11 @@
     margin-left: auto;
 }
 
+.competence-cycle-stale-exclusion {
+    color: var(--fg-secondary);
+    font-size: 0.8rem;
+}
+
 .competence-cycle-tree-node-label {
     flex: 1;
     overflow: hidden;

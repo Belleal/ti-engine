@@ -17,6 +17,7 @@ const competenceFramework = require( "#competence-framework" );
 const taskResolver = require( "#task-resolver" );
 const resultsAnalytics = require( "#results-analytics" );
 const researchConsent = require( "#research-consent" );
+const cycleSetupTools = require( "#cycle-setup-tools" );
 const logger = require( "@ti-engine/core/logger" );
 const { registerCompetenceConfig } = require( "../application/config-registration" );
 
@@ -2885,6 +2886,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                         competenciesByCode,
                         poolByFamily: configurationLoader.configRoleFamilyCompetencies,
                         excludedFamilies: Array.isArray( cycle.excludedFamilies ) ? cycle.excludedFamilies : [],
+                        staleExclusions: cycleSetupTools.deriveStaleExclusions( cycle.excludedFamilies, sets ),
                         subcategories,
                         validation: {
                             valid: validation ? validation.valid : true,
