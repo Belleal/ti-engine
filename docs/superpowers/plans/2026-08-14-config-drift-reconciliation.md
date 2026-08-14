@@ -833,10 +833,17 @@ In `packages/web-framework/bin/web-server.js`, immediately after the `/admin/con
 Run: `cd packages/web-framework && node --test test/admin-config-handlers.test.js`
 Expected: PASS
 
-- [ ] **Step 6: Regenerate the type declarations**
+- [ ] **Step 6: Regenerate and verify the type declarations**
 
-Run: `cd packages/web-framework && npm run build:types`
-Expected: succeeds, producing `types/components/config-drift.d.ts` and updating `config-service.d.ts` / `admin-config-handlers.d.ts`
+The committed `types/` trees are generated, and CI gates on them being current. Use the **root** scripts, not the per-package `tsc` — `check:types` is what `.github/workflows/ci.yml` runs.
+
+Run: `npm run build:types` (from the repo root)
+Expected: succeeds, producing `packages/web-framework/types/components/config-drift.d.ts` and updating `config-service.d.ts` / `admin-config-handlers.d.ts`
+
+Run: `npm run check:types` (from the repo root)
+Expected: reports no drift.
+
+Known Windows quirk: `check:types` compares file content read as utf8, so a git checkout (CRLF) against a fresh build (LF) can report false drift after a branch switch. If it reports drift on files this task did not touch, that is the quirk — confirm with `git diff --stat` that the reported files are genuinely unchanged before chasing it.
 
 - [ ] **Step 7: Bump the version and write the changelog**
 
@@ -1321,31 +1328,30 @@ In `packages/competence/bin/static/fragments/frame-admin-config.html`, insert a 
                 <template x-if="!loadingDrift && hasDrift()">
                     <div class="competence-admin-drift">
                         <template x-for="row in driftRows()" x-bind:key="row.configKey">
-                            <div class="competence-admin-drift-row">
-                                <label class="competence-admin-drift-main">
-                                    <input type="checkbox" x-bind:checked="isDriftSelected(row.configKey)"
-                                           @change="toggleDriftSelected(row.configKey)">
-                                    <span class="competence-admin-drift-label" x-text="row.label"></span>
-                                    <span class="ti-tag" x-text="driftStatusLabel(row)"></span>
-                                    <span class="competence-admin-drift-counts" x-text="driftCountsText(row)"></span>
-                                </label>
-                                <button type="button" class="ti-btn ghost sm" @click="toggleDriftDetail(row.configKey)">
-                                    <span x-text-label="interface.admin.drift-detail-btn"></span>
-                                </button>
+                            <div class="competence-admin-drift-item">
+                                <div class="competence-admin-drift-row">
+                                    <label class="competence-admin-drift-main">
+                                        <input type="checkbox" x-bind:checked="isDriftSelected(row.configKey)"
+                                               @change="toggleDriftSelected(row.configKey)">
+                                        <span class="competence-admin-drift-label" x-text="row.label"></span>
+                                        <span class="ti-tag" x-text="driftStatusLabel(row)"></span>
+                                        <span class="competence-admin-drift-counts" x-text="driftCountsText(row)"></span>
+                                    </label>
+                                    <button type="button" class="ti-btn ghost sm" @click="toggleDriftDetail(row.configKey)">
+                                        <span x-text-label="interface.admin.drift-detail-btn"></span>
+                                    </button>
+                                </div>
+                                <template x-if="isDriftExpanded(row.configKey)">
+                                    <ul class="competence-admin-drift-entries">
+                                        <template x-for="entry in driftEntries(row.configKey)" x-bind:key="entry.path">
+                                            <li class="competence-admin-drift-entry">
+                                                <span class="ti-tag" x-text="entry.kind"></span>
+                                                <span x-text="driftEntryText(entry)"></span>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                </template>
                             </div>
-                        </template>
-
-                        <template x-for="row in driftRows()" x-bind:key="'detail-' + row.configKey">
-                            <template x-if="isDriftExpanded(row.configKey)">
-                                <ul class="competence-admin-drift-entries">
-                                    <template x-for="entry in driftEntries(row.configKey)" x-bind:key="entry.path">
-                                        <li class="competence-admin-drift-entry">
-                                            <span class="ti-tag" x-text="entry.kind"></span>
-                                            <span x-text="driftEntryText(entry)"></span>
-                                        </li>
-                                    </template>
-                                </ul>
-                            </template>
                         </template>
 
                         <div class="competence-admin-drift-apply">
@@ -1404,6 +1410,12 @@ The tokens below are the ones the adjacent `.competence-admin-change-*` rules al
 ```css
 /* Configuration drift panel (admin config landing). */
 .competence-admin-drift {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.competence-admin-drift-item {
     display: flex;
     flex-direction: column;
     gap: var(--s-2);
