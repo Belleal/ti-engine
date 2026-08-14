@@ -7733,6 +7733,50 @@
         "en": "Administrator access required.",
         "bg": "Изисква се администраторски достъп."
       },
+      "drift-title": {
+        "en": "Configuration drift",
+        "bg": "Разлики в конфигурацията"
+      },
+      "drift-desc": {
+        "en": "Configuration documents whose stored value differs from the defaults shipped with this build. Applying replaces the stored document and is recorded as a normal, restorable change.",
+        "bg": "Конфигурационни документи, чиято съхранена стойност се различава от стойностите по подразбиране в тази версия. Прилагането заменя съхранения документ и се записва като нормална, обратима промяна."
+      },
+      "drift-empty-title": {
+        "en": "Everything is up to date",
+        "bg": "Всичко е актуално"
+      },
+      "drift-empty-desc": {
+        "en": "All configuration documents match their file defaults.",
+        "bg": "Всички конфигурационни документи съвпадат със стойностите по подразбиране."
+      },
+      "drift-status-drifted": {
+        "en": "Differs from build",
+        "bg": "Различава се от версията"
+      },
+      "drift-status-absent": {
+        "en": "Never stored",
+        "bg": "Никога не е съхраняван"
+      },
+      "drift-detail-btn": {
+        "en": "Details",
+        "bg": "Подробности"
+      },
+      "drift-note-placeholder": {
+        "en": "Why are you applying this?",
+        "bg": "Защо прилагате тази промяна?"
+      },
+      "drift-apply-btn": {
+        "en": "Apply selected",
+        "bg": "Приложи избраните"
+      },
+      "drift-applied": {
+        "en": "File defaults applied.",
+        "bg": "Стойностите по подразбиране са приложени."
+      },
+      "drift-invalid": {
+        "en": "The file defaults did not pass validation. Try applying the related documents together.",
+        "bg": "Стойностите по подразбиране не преминаха валидацията. Опитайте да приложите свързаните документи заедно."
+      },
       "text-editor": {
         "page-eyebrow": {
           "en": "CONFIGURATION",

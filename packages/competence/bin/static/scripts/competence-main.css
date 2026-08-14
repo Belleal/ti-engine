@@ -5650,3 +5650,73 @@
     color: var(--fg-tertiary);
     font-size: var(--fs-sm);
 }
+
+/* Configuration drift panel (admin config landing). */
+.competence-admin-drift {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.competence-admin-drift-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.competence-admin-drift-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-4);
+    padding: var(--s-3) var(--s-4);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+}
+
+.competence-admin-drift-main {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-width: 0;
+    cursor: pointer;
+}
+
+.competence-admin-drift-label {
+    font-weight: 500;
+}
+
+.competence-admin-drift-counts {
+    color: var(--fg-secondary);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.competence-admin-drift-entries {
+    margin: 0 0 0 var(--s-4);
+    padding: 0;
+    list-style: none;
+    max-height: 18rem;
+    overflow-y: auto;
+}
+
+.competence-admin-drift-entry {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: 2px 0;
+    color: var(--fg-secondary);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.8rem;
+}
+
+.competence-admin-drift-apply {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: var(--s-2);
+}
+
+.competence-admin-drift-apply .ti-input {
+    flex: 1;
+}

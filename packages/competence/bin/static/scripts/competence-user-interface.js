@@ -4521,6 +4521,13 @@ const configureAdminConfig = () => {
         restoring: false,
         changes: [],
         modal: emptyModal(),
+        loadingDrift: false,
+        applyingDrift: false,
+        drift: [],
+        driftSelection: [],
+        driftDetail: {},
+        expandedDrift: "",
+        driftNote: "",
 
         init() {
             const onInitialized = () => {
@@ -4531,6 +4538,7 @@ const configureAdminConfig = () => {
                 }
                 this.loaded = true;
                 this.loadChanges();
+                this.loadDrift();
             };
             if ( tiApplication.isInitialized ) {
                 onInitialized();
@@ -4562,6 +4570,117 @@ const configureAdminConfig = () => {
                 }
                 this.loadingChanges = false;
                 this.changes = [];
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        loadDrift() {
+            this.loadingDrift = true;
+            tiApplication.sendRequest( "/admin/config/drift" ).then( ( result ) => {
+                this.drift = ( result && Array.isArray( result.data ) ) ? result.data : [];
+                // Preselect only genuinely drifted documents. An "absent" one is valid to apply but is not what the
+                // admin came here to do, and folding it silently into an unrelated apply would be a surprise.
+                this.driftSelection = this.drift.filter( ( row ) => row.status === "drifted" ).map( ( row ) => row.configKey );
+                this.loadingDrift = false;
+            } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
+                this.loadingDrift = false;
+                this.drift = [];
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        // Rows worth showing: in-sync and no-default documents are noise on this panel.
+        driftRows() {
+            return this.drift.filter( ( row ) => row.status === "drifted" || row.status === "absent" );
+        },
+
+        hasDrift() {
+            return this.driftRows().length > 0;
+        },
+
+        driftCountsText( row ) {
+            return `+${ row.counts.added } / -${ row.counts.removed } / ~${ row.counts.changed }`;
+        },
+
+        driftStatusLabel( row ) {
+            return this.getLabel( `interface.admin.drift-status-${ row.status }`, row.status );
+        },
+
+        isDriftSelected( configKey ) {
+            return this.driftSelection.indexOf( configKey ) >= 0;
+        },
+
+        toggleDriftSelected( configKey ) {
+            const index = this.driftSelection.indexOf( configKey );
+            if ( index >= 0 ) {
+                this.driftSelection.splice( index, 1 );
+            } else {
+                this.driftSelection.push( configKey );
+            }
+        },
+
+        isDriftExpanded( configKey ) {
+            return this.expandedDrift === configKey;
+        },
+
+        toggleDriftDetail( configKey ) {
+            if ( this.expandedDrift === configKey ) {
+                this.expandedDrift = "";
+                return;
+            }
+            this.expandedDrift = configKey;
+            if ( this.driftDetail[ configKey ] ) {
+                return;
+            }
+            tiApplication.sendRequest( "/admin/config/drift/" + encodeURIComponent( configKey ) ).then( ( result ) => {
+                const data = result ? result.data : null;
+                this.driftDetail[ configKey ] = ( data && Array.isArray( data.entries ) ) ? data.entries : [];
+            } ).catch( ( error ) => {
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        driftEntries( configKey ) {
+            return this.driftDetail[ configKey ] || [];
+        },
+
+        driftEntryText( entry ) {
+            if ( entry.addedMembers === undefined ) {
+                return entry.path;
+            }
+            return `${ entry.path }  +${ entry.addedMembers } / -${ entry.removedMembers }`;
+        },
+
+        canApplyDrift() {
+            return !this.applyingDrift && this.driftSelection.length > 0;
+        },
+
+        applyDrift() {
+            if ( !this.canApplyDrift() ) {
+                return;
+            }
+            this.applyingDrift = true;
+            tiApplication.sendRequest( "/admin/config/drift/apply", "POST", { configKeys: this.driftSelection, note: this.driftNote } ).then( ( result ) => {
+                this.applyingDrift = false;
+                const data = result ? result.data : null;
+                if ( data && data.ok === false ) {
+                    tiApplication.notify( {
+                        message: this.getLabel( "interface.admin.drift-invalid", "The file defaults did not pass validation." ),
+                        details: Object.keys( data.errors ).join( ", " )
+                    } );
+                    return;
+                }
+                tiApplication.notify( this.getLabel( "interface.admin.drift-applied", "File defaults applied." ) );
+                this.driftNote = "";
+                this.driftDetail = {};
+                this.expandedDrift = "";
+                this.loadDrift();
+                this.loadChanges();
+            } ).catch( ( error ) => {
+                this.applyingDrift = false;
                 tiApplication.notify( tiApplication.formatException( error ) );
             } );
         },
