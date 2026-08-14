@@ -7749,6 +7749,38 @@
         "en": "All configuration documents match their file defaults.",
         "bg": "Всички конфигурационни документи съвпадат със стойностите по подразбиране."
       },
+      "drift-doc-competencies": {
+        "en": "Competency dictionary",
+        "bg": "Речник на компетенциите"
+      },
+      "drift-doc-competence-labels": {
+        "en": "Competency labels",
+        "bg": "Етикети на компетенциите"
+      },
+      "drift-doc-relevancy-archetypes": {
+        "en": "Relevancy archetypes",
+        "bg": "Архетипи на релевантност"
+      },
+      "drift-doc-active-competency-sets": {
+        "en": "Active competency sets",
+        "bg": "Активни набори от компетенции"
+      },
+      "drift-doc-role-families": {
+        "en": "Role families",
+        "bg": "Семейства роли"
+      },
+      "drift-doc-role-family-competencies": {
+        "en": "Role family competency pools",
+        "bg": "Пулове от компетенции по семейство роли"
+      },
+      "drift-doc-stage-levels": {
+        "en": "Stage levels",
+        "bg": "Нива на развитие"
+      },
+      "drift-doc-research-consent": {
+        "en": "Research consent statement",
+        "bg": "Декларация за съгласие за проучвания"
+      },
       "drift-status-drifted": {
         "en": "Differs from build",
         "bg": "Различава се от версията"

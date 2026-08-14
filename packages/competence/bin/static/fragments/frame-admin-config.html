@@ -106,7 +106,7 @@
                                     <label class="competence-admin-drift-main">
                                         <input type="checkbox" x-bind:checked="isDriftSelected(row.configKey)"
                                                @change="toggleDriftSelected(row.configKey)">
-                                        <span class="competence-admin-drift-label" x-text="row.label"></span>
+                                        <span class="competence-admin-drift-label" x-text="driftDocLabel(row)"></span>
                                         <span class="ti-tag" x-text="driftStatusLabel(row)"></span>
                                         <span class="competence-admin-drift-counts" x-text="driftCountsText(row)"></span>
                                     </label>

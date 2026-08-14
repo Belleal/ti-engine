@@ -4605,6 +4605,10 @@ const configureAdminConfig = () => {
             return `+${ row.counts.added } / -${ row.counts.removed } / ~${ row.counts.changed }`;
         },
 
+        driftDocLabel( row ) {
+            return this.getLabel( `interface.admin.drift-doc-${ row.configKey }`, row.label || row.configKey );
+        },
+
         driftStatusLabel( row ) {
             return this.getLabel( `interface.admin.drift-status-${ row.status }`, row.status );
         },
