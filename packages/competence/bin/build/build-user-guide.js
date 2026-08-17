@@ -13,11 +13,17 @@
  * order, the slug fixes the fragment name `help-<slug>`, the first line must be the `# H1` chapter title). This
  * script converts each chapter into a complete, static HTML screen fragment at
  * `bin/static/fragments/guide/frame-help-<slug>.html` — page head, chapter navigation (current chapter marked),
- * the converted content wrapped in `.ti-doc`, prev/next footer links, and a version stamp from package.json.
+ * the converted content wrapped in `.ti-doc`, prev/next footer links, and a version stamp.
  * The generated files are committed; the app serves them like any other registered fragment
  * (bin/competence-web-application.js). `test/user-guide-build.test.js` regenerates the guide in-memory and fails
  * when the committed output is stale — after editing any chapter run:  npm run build:guide
  * OVERWRITES everything under bin/static/fragments/guide/.
+ *
+ * The version stamp is emitted as the `VERSION_PLACEHOLDER` token, NOT the literal version: the app substitutes
+ * the running package version in `transformHtml` at serve time. The output therefore depends only on the markdown
+ * sources, so a routine version bump can never make the committed fragments stale (it used to — bumping
+ * package.json alone re-stamped all nine screens and failed the freshness guard on a commit that touched no
+ * chapter). Keep it that way: never let a value that changes independently of the chapters into the output.
  *
  * CSP discipline (enforced by tests): no raw HTML in the markdown (build error), no inline styles, no scripts,
  * no event-handler attributes in the output. Relative *.md links are rejected — cross-reference chapters as plain
@@ -34,6 +40,10 @@ const OUTPUT_DIR = path.join( PACKAGE_ROOT, "bin", "static", "fragments", "guide
 
 const CHAPTER_FILE_PATTERN = /^(\d{2})-([a-z0-9-]+)\.md$/;
 const GENERATED_BANNER = ( sourceFile ) => `<!-- GENERATED FILE — do not edit. Source: docs/user-guide/en/${ sourceFile }. Regenerate: npm run build:guide -->`;
+
+// Substituted with the running package version by the app's `transformHtml` (bin/competence-web-application.js).
+// Baking the literal version in here would couple the generated output to package.json — see the file header.
+const VERSION_PLACEHOLDER = "{competence-version-placeholder}";
 
 /**
  * Converts heading/title text to a URL- and id-safe slug.
@@ -170,7 +180,7 @@ function convertMarkdown( md, fileName ) {
  * @returns {string}
  * @public
  */
-function assembleScreen( chapter, chapters, sourceFile, packageVersion ) {
+function assembleScreen( chapter, chapters, sourceFile ) {
     const index = chapters.indexOf( chapter );
     const navItems = chapters.map( ( entry ) => {
         const isCurrent = entry === chapter;
@@ -200,7 +210,7 @@ ${ convertMarkdown( chapter.bodyMd, sourceFile ) }
             </div>
             <footer class="competence-guide-footer">
 ${ previousButton }
-                <span class="competence-guide-version">Guide for competence v${ escapeHtml( packageVersion ) }</span>
+                <span class="competence-guide-version">Guide for competence v${ VERSION_PLACEHOLDER }</span>
 ${ nextButton }
             </footer>
         </article>
@@ -214,11 +224,10 @@ ${ nextButton }
  *
  * @method
  * @param {Array<{ fileName: string, raw: string }>} sources
- * @param {string} packageVersion
  * @returns {Array<{ fileName: string, fragmentName: string, html: string }>} Sorted by chapter order.
  * @public
  */
-function buildGuideScreens( sources, packageVersion ) {
+function buildGuideScreens( sources ) {
     const chapters = sources.map( ( source ) => Object.assign( parseChapterSource( source.fileName, source.raw ), { sourceFile: source.fileName } ) );
     chapters.sort( ( a, b ) => a.order - b.order );
     const seenOrders = new Set();
@@ -237,7 +246,7 @@ function buildGuideScreens( sources, packageVersion ) {
         return {
             fileName: `frame-${ chapter.fragmentName }.html`,
             fragmentName: chapter.fragmentName,
-            html: assembleScreen( chapter, chapters, chapter.sourceFile, packageVersion )
+            html: assembleScreen( chapter, chapters, chapter.sourceFile )
         };
     } );
 }
@@ -249,7 +258,6 @@ function buildGuideScreens( sources, packageVersion ) {
  * @private
  */
 function main() {
-    const packageVersion = JSON.parse( fs.readFileSync( path.join( PACKAGE_ROOT, "package.json" ), "utf8" ) ).version;
     const fileNames = fs.readdirSync( GUIDE_SOURCE_DIR ).filter( ( name ) => name.endsWith( ".md" ) );
     if ( fileNames.length === 0 ) {
         throw new Error( `No guide chapters found in ${ GUIDE_SOURCE_DIR }` );
@@ -257,7 +265,7 @@ function main() {
     const sources = fileNames.map( ( fileName ) => {
         return { fileName: fileName, raw: fs.readFileSync( path.join( GUIDE_SOURCE_DIR, fileName ), "utf8" ) };
     } );
-    const screens = buildGuideScreens( sources, packageVersion );
+    const screens = buildGuideScreens( sources );
     fs.rmSync( OUTPUT_DIR, { recursive: true, force: true } );
     fs.mkdirSync( OUTPUT_DIR, { recursive: true } );
     for ( const screen of screens ) {
@@ -266,7 +274,7 @@ function main() {
     console.log( `build-user-guide: generated ${ screens.length } screen(s) into ${ path.relative( PACKAGE_ROOT, OUTPUT_DIR ) }` );
 }
 
-module.exports = { parseChapterSource, convertMarkdown, assembleScreen, buildGuideScreens, slugify, GUIDE_SOURCE_DIR, OUTPUT_DIR };
+module.exports = { parseChapterSource, convertMarkdown, assembleScreen, buildGuideScreens, slugify, GUIDE_SOURCE_DIR, OUTPUT_DIR, VERSION_PLACEHOLDER };
 
 if ( require.main === module ) {
     main();

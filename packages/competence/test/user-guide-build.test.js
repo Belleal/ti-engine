@@ -16,6 +16,10 @@
  * Part 2 (added when the screens are registered): the committed generated output under
  * bin/static/fragments/guide/ must be exactly reproducible from docs/user-guide/en (freshness), every screen must
  * be registered/mapped/titled, and the output must stay CSP-clean.
+ *
+ * The version stamp is a placeholder substituted at serve time, never a literal — the build output depends only on
+ * the markdown, so a version bump cannot make the committed fragments stale. Two guards hold that: the output must
+ * carry the placeholder and no baked-in version, and the app must substitute the same token the build emits.
  */
 
 const { describe, it } = require( "node:test" );
@@ -28,7 +32,8 @@ const {
     convertMarkdown,
     buildGuideScreens,
     GUIDE_SOURCE_DIR,
-    OUTPUT_DIR
+    OUTPUT_DIR,
+    VERSION_PLACEHOLDER
 } = require( "../bin/build/build-user-guide.js" );
 
 describe( "User guide build — chapter parsing", () => {
@@ -133,7 +138,7 @@ describe( "User guide build — screen assembly", () => {
     ];
 
     it( "builds one screen per chapter, sorted by order, with the generated banner", () => {
-        const screens = buildGuideScreens( sources, "3.14.0" );
+        const screens = buildGuideScreens( sources );
         assert.deepEqual( screens.map( ( s ) => s.fileName ), [ "frame-help-overview.html", "frame-help-getting-started.html", "frame-help-employee.html" ] );
         assert.deepEqual( screens.map( ( s ) => s.fragmentName ), [ "help-overview", "help-getting-started", "help-employee" ] );
         for ( const screen of screens ) {
@@ -142,7 +147,7 @@ describe( "User guide build — screen assembly", () => {
     } );
 
     it( "renders the chapter nav on every screen with the current chapter marked", () => {
-        const screens = buildGuideScreens( sources, "3.14.0" );
+        const screens = buildGuideScreens( sources );
         const overview = screens[ 0 ].html;
         assert.match( overview, /hx-get="\/app\/help-getting-started"/ );
         assert.match( overview, /hx-get="\/app\/help-employee"/ );
@@ -150,18 +155,25 @@ describe( "User guide build — screen assembly", () => {
         assert.equal( ( overview.match( /aria-current="page"/g ) || [] ).length, 1 );
     } );
 
-    it( "renders prev/next footer links and the version stamp", () => {
-        const screens = buildGuideScreens( sources, "3.14.0" );
+    it( "renders prev/next footer links and the version stamp as a placeholder, not a literal version", () => {
+        const screens = buildGuideScreens( sources );
         const middle = screens[ 1 ].html;
         assert.match( middle, /competence-guide-prev/ );
         assert.match( middle, /competence-guide-next/ );
-        assert.match( middle, /Guide for competence v3\.14\.0/ );
+        assert.match( middle, /Guide for competence v\{competence-version-placeholder}/ );
         assert.doesNotMatch( screens[ 0 ].html, /competence-guide-prev/ );
         assert.doesNotMatch( screens[ 2 ].html, /competence-guide-next/ );
     } );
 
+    it( "builds identical output regardless of the package version — the build takes no version input", () => {
+        // The regression guard for the coupling that broke CI: bumping package.json used to re-stamp all nine
+        // screens, so a version-only commit failed the freshness check below with no chapter having changed.
+        assert.equal( buildGuideScreens.length, 1, "buildGuideScreens must take only `sources`" );
+        assert.equal( buildGuideScreens( sources )[ 0 ].html, buildGuideScreens( sources )[ 0 ].html );
+    } );
+
     it( "rejects duplicate chapter orders or slugs", () => {
-        assert.throws( () => buildGuideScreens( [ ...sources, { fileName: "01-intro.md", raw: "# Intro\n\nX." } ], "3.14.0" ), /Duplicate chapter order/ );
+        assert.throws( () => buildGuideScreens( [ ...sources, { fileName: "01-intro.md", raw: "# Intro\n\nX." } ] ), /Duplicate chapter order/ );
     } );
 
     it( "rejects duplicate chapter slugs, even with different orders", () => {
@@ -169,7 +181,7 @@ describe( "User guide build — screen assembly", () => {
             { fileName: "01-overview.md", raw: "# Overview\n\nOne." },
             { fileName: "02-overview.md", raw: "# Overview Two\n\nTwo." }
         ];
-        assert.throws( () => buildGuideScreens( duplicateSlugSources, "3.14.0" ), /Duplicate chapter slug/ );
+        assert.throws( () => buildGuideScreens( duplicateSlugSources ), /Duplicate chapter slug/ );
     } );
 
 } );
@@ -190,10 +202,9 @@ const normalizeLineEndings = ( text ) => text.replace( /\r\n/g, "\n" );
 describe( "User guide — repo state", () => {
 
     it( "committed screens are exactly reproducible from docs/user-guide (run npm run build:guide after editing)", () => {
-        const packageVersion = JSON.parse( fs.readFileSync( path.join( PACKAGE_ROOT, "package.json" ), "utf8" ) ).version;
         const sources = fs.readdirSync( GUIDE_SOURCE_DIR ).filter( ( name ) => name.endsWith( ".md" ) )
             .map( ( fileName ) => ( { fileName: fileName, raw: fs.readFileSync( path.join( GUIDE_SOURCE_DIR, fileName ), "utf8" ) } ) );
-        const screens = buildGuideScreens( sources, packageVersion );
+        const screens = buildGuideScreens( sources );
         const committed = fs.readdirSync( OUTPUT_DIR ).filter( ( name ) => name.endsWith( ".html" ) );
         assert.deepEqual( committed.sort(), screens.map( ( screen ) => screen.fileName ).sort(), "generated file set differs from committed set" );
         for ( const screen of screens ) {
@@ -249,6 +260,33 @@ describe( "User guide — repo state", () => {
             }
         }
         assert.deepEqual( offenders, [], `Guide screens with CSP violations: ${ offenders.join( ", " ) }` );
+    } );
+
+    it( "committed screens carry the version placeholder and never a baked-in package version", () => {
+        // Without this, the freshness check above turns every version bump into a build break: the generated HTML
+        // would carry the version literal, so package.json and the committed fragments could disagree.
+        const packageVersion = JSON.parse( fs.readFileSync( path.join( PACKAGE_ROOT, "package.json" ), "utf8" ) ).version;
+        const offenders = [];
+        for ( const fileName of fs.readdirSync( OUTPUT_DIR ).filter( ( name ) => name.endsWith( ".html" ) ) ) {
+            const html = fs.readFileSync( path.join( OUTPUT_DIR, fileName ), "utf8" );
+            if ( !html.includes( VERSION_PLACEHOLDER ) ) {
+                offenders.push( `${ fileName }: missing the ${ VERSION_PLACEHOLDER } stamp` );
+            }
+            if ( html.includes( `v${ packageVersion }` ) ) {
+                offenders.push( `${ fileName }: has the literal version v${ packageVersion } baked in` );
+            }
+        }
+        assert.deepEqual( offenders, [], `Version-stamp problems:\n  ${ offenders.join( "\n  " ) }` );
+    } );
+
+    it( "the web application substitutes exactly the placeholder the build emits", () => {
+        // The app cannot import the build script (it pulls in `marked`, a build-time devDependency absent from the
+        // runtime image), so it re-declares the token. This pins the two copies equal.
+        const webApplicationSource = fs.readFileSync( WEB_APPLICATION_FILE, "utf8" );
+        assert.ok( webApplicationSource.includes( `"${ VERSION_PLACEHOLDER }"` ),
+            `bin/competence-web-application.js must declare the token ${ VERSION_PLACEHOLDER } that build-user-guide.js emits` );
+        assert.match( webApplicationSource, /replaceAll\( GUIDE_VERSION_PLACEHOLDER, PACKAGE_VERSION \)/,
+            "transformHtml must substitute the guide version placeholder with the running package version" );
     } );
 
 } );

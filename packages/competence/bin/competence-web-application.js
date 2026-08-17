@@ -31,6 +31,26 @@ const { registerCompetenceConfig } = require( "../application/config-registratio
 const UNSAFE_PATH_SEGMENTS = new Set( [ "__proto__", "constructor", "prototype" ] );
 
 /**
+ * The version-stamp token emitted into the generated User Guide fragments, substituted with the running package
+ * version by {@link CompetenceWebApplication#transformHtml}. Keeping the version out of the build output is what
+ * lets a routine version bump leave the committed fragments untouched.
+ * <br/>
+ * NOTE: This deliberately duplicates `VERSION_PLACEHOLDER` from `bin/build/build-user-guide.js` rather than
+ * importing it — that module pulls in `marked`, a build-time devDependency absent from the runtime image, so
+ * requiring it here would crash the app in the container. `test/user-guide-build.test.js` pins the two equal.
+ *
+ * @type {string}
+ */
+const GUIDE_VERSION_PLACEHOLDER = "{competence-version-placeholder}";
+
+/**
+ * The running package version, stamped into the User Guide screens.
+ *
+ * @type {string}
+ */
+const PACKAGE_VERSION = require( "../package.json" ).version;
+
+/**
  * Rejects a dotted field path that contains a prototype-polluting segment (`__proto__`, `constructor`, or
  * `prototype`). Legitimate employee field paths never contain these, so this is behavior-preserving for all valid
  * input while blocking the prototype-pollution vector before any object traversal or assignment.
@@ -216,6 +236,8 @@ class CompetenceWebApplication extends TiWebAppManager {
 
     /**
      * Optional HTML transformation hook.
+     * <br/>
+     * Also substitutes the User Guide version stamp — a no-op on every other fragment.
      *
      * @method
      * @param {string} html
@@ -229,7 +251,9 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @public
      */
     transformHtml( html, options ) {
-        return super.transformHtml( html, { ...options, title: options.title || "Competence" } );
+        return super.transformHtml( html, { ...options, title: options.title || "Competence" } ).then( ( transformedHtml ) => {
+            return transformedHtml.replaceAll( GUIDE_VERSION_PLACEHOLDER, PACKAGE_VERSION );
+        } );
     }
 
     /**
