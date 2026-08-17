@@ -16,13 +16,13 @@ You're also an Employee — every Manager is. Your own evaluation gets started t
 
 ## The manager review
 
-Once an evaluation reaches In Review — the employee's self-assessment is done, and any team feedback is either complete or wasn't requested — it lands on your Dashboard as a task, and you're notified. Open it, and you'll see the employee's self-grades, the team's cumulative grade if peer feedback was requested, and the team's anonymous written notes — you're the only one who ever sees those. Grade every competency, and add your own written feedback; none of it reaches the employee until their results are ready. **Save Draft** as often as you like; **Submit** once every competency is graded.
+Once an evaluation reaches In Review — the employee's self-assessment is done, and any peer feedback is either complete or wasn't requested — it lands on your Dashboard as a task, and you're notified. Open it, and you'll see the employee's self-grades, the peers' cumulative grade if peer feedback was requested, and the peers' anonymous written notes — you're the only one who ever sees those. Grade every competency, and add your own written feedback; none of it reaches the employee until their results are ready. **Save Draft** as often as you like; **Submit** once every competency is graded.
 
 > **Note:** Unlike the self-assessment deadline, yours is a reminder, not a block — a late manager submission is never rejected.
 
 That doesn't make it optional. Once your deadline passes, the review shows up as overdue on Supervisors' dashboards, and a Supervisor may step in and complete it on your behalf — though only by recording a reason, which stays on the evaluation's audit trail (the For Supervisors chapter covers that action, and the rest of their stall-recovery toolkit, from their side). Help can also come from inside your own reporting line: a manager above you can complete a stalled review directly, the same way you would, with no reason required, since they'd be acting as a manager rather than standing in for you. Either way, submitting computes the evaluation's scores automatically and moves it to Ready.
 
-## Finalizing team feedback
+## Finalizing peer feedback
 
 Peer feedback has its own cycle-level deadline. If it passes and someone assigned still hasn't submitted, the evaluation doesn't have to sit stalled: you can finalize the round yourself, and so can a Supervisor, who can view the evaluation as a read-only facilitator for exactly this purpose. Finalizing works with whatever grades were actually submitted — anyone who never responded is simply left out, not counted against the employee. The action is recorded on the evaluation, and once it's done, the round counts as complete and the evaluation can move forward instead of waiting indefinitely on one non-responder.
 

@@ -4722,8 +4722,8 @@
         "bg": "Самооценката за тази Оценка вече е завършена."
       },
       "already-completed-team-evaluation": {
-        "en": "The team evaluation for this Evaluation was already completed.",
-        "bg": "Екипната оценка за тази Оценка вече е завършена."
+        "en": "The peer review for this Evaluation was already completed.",
+        "bg": "Колегиалната оценка за тази Оценка вече е завършена."
       },
       "deadline-over-manager-evaluation": {
         "en": "The manager evaluation deadline for this Evaluation has passed.",
@@ -4734,8 +4734,8 @@
         "bg": "Крайният срок за самооценка за тази Оценка е изтекъл."
       },
       "deadline-over-team-evaluation": {
-        "en": "The team evaluation deadline for this Evaluation has passed.",
-        "bg": "Крайният срок за екипна оценка за тази Оценка е изтекъл."
+        "en": "The peer review deadline for this Evaluation has passed.",
+        "bg": "Крайният срок за колегиална оценка за тази Оценка е изтекъл."
       },
       "incomplete-grades": {
         "en": "All grades must be filled before submitting the evaluation.",
@@ -4762,8 +4762,8 @@
         "bg": "Статусът на Оценката трябва да е 'Ready', за да планирате интервю."
       },
       "no-draft-saving-possible": {
-        "en": "Not possible to save a draft for team evaluation. Please submit all grades to proceed.",
-        "bg": "Не е възможно запазване на чернова за екипна оценка. Моля, изпратете всички оценки, за да продължите."
+        "en": "Not possible to save a draft for a peer review. Please submit all grades to proceed.",
+        "bg": "Не е възможно запазване на чернова за колегиална оценка. Моля, изпратете всички оценки, за да продължите."
       },
       "no-active-cycle": {
         "en": "There is no active appraisal cycle. Contact HR.",
@@ -4790,32 +4790,32 @@
         "bg": "Крайният резултат за тази Оценка не може да бъде изчислен."
       },
       "invalid-team-members": {
-        "en": "One or more team member IDs are not valid employees.",
-        "bg": "Един или повече идентификатори на членове на екипа не са валидни служители."
+        "en": "One or more peer reviewer IDs are not valid employees.",
+        "bg": "Един или повече идентификатори на колегиални оценители не са валидни служители."
       },
       "team-below-minimum": {
-        "en": "Team reviewers must include at least {min} members.",
-        "bg": "Екипните оценители трябва да включват поне {min} члена."
+        "en": "Peer reviewers must include at least {min} members.",
+        "bg": "Колегиалните оценители трябва да включват поне {min} души."
       },
       "team-above-maximum": {
-        "en": "Team reviewers cannot exceed {max} members.",
-        "bg": "Екипните оценители не могат да надвишават {max} члена."
+        "en": "Peer reviewers cannot exceed {max} members.",
+        "bg": "Колегиалните оценители не могат да надвишават {max} души."
       },
       "finalize-not-open": {
-        "en": "This evaluation is not open, so team feedback cannot be finalized.",
-        "bg": "Тази оценка не е отворена, така че екипната обратна връзка не може да бъде финализирана."
+        "en": "This evaluation is not open, so peer feedback cannot be finalized.",
+        "bg": "Тази оценка не е отворена, така че колегиалната обратна връзка не може да бъде финализирана."
       },
       "finalize-deadline-not-reached": {
-        "en": "The team-feedback deadline has not passed yet.",
-        "bg": "Крайният срок за екипна обратна връзка все още не е изтекъл."
+        "en": "The peer-feedback deadline has not passed yet.",
+        "bg": "Крайният срок за колегиална обратна връзка все още не е изтекъл."
       },
       "finalize-no-pending-team": {
-        "en": "There are no pending team reviewers to finalize.",
-        "bg": "Няма чакащи екипни оценители за финализиране."
+        "en": "There are no pending peer reviewers to finalize.",
+        "bg": "Няма чакащи колегиални оценители за финализиране."
       },
       "finalize-no-submissions": {
-        "en": "Team feedback cannot be finalized without at least one submission.",
-        "bg": "Екипната обратна връзка не може да бъде финализирана без поне едно подадено мнение."
+        "en": "Peer feedback cannot be finalized without at least one submission.",
+        "bg": "Колегиалната обратна връзка не може да бъде финализирана без поне едно подадено мнение."
       },
       "outcome-not-ready": {
         "en": "The interview outcome can only be recorded while the evaluation is Ready.",
@@ -4930,12 +4930,12 @@
         "bg": "Базовият набор не може да бъде изчистен — само наборите за специализация могат."
       },
       "invalid-team-feedback-deadline": {
-        "en": "Enter a valid team-feedback deadline.",
-        "bg": "Въведете валиден краен срок за екипна обратна връзка."
+        "en": "Enter a valid peer-feedback deadline.",
+        "bg": "Въведете валиден краен срок за колегиална обратна връзка."
       },
       "team-feedback-deadline-out-of-range": {
-        "en": "The team-feedback deadline must fall within the cycle, on or before the manager-review deadline.",
-        "bg": "Крайният срок за екипна обратна връзка трябва да е в рамките на цикъла, на или преди крайния срок за преглед от мениджър."
+        "en": "The peer-feedback deadline must fall within the cycle, on or before the manager-review deadline.",
+        "bg": "Крайният срок за колегиална обратна връзка трябва да е в рамките на цикъла, на или преди крайния срок за преглед от мениджър."
       }
     },
     "employee": {
@@ -5101,8 +5101,8 @@
           "bg": "Оценката все още не е започната."
         },
         "open": {
-          "en": "The Evaluation is open for self and team submissions.",
-          "bg": "Оценката е отворена за попълване от служителя и членовете на екипа."
+          "en": "The Evaluation is open for self and peer submissions.",
+          "bg": "Оценката е отворена за попълване от служителя и колегиалните оценители."
         },
         "in-review": {
           "en": "The Evaluation is in review and rating by the manager.",
@@ -5842,16 +5842,16 @@
         "bg": "дадоха обратна връзка"
       },
       "facilitator-notice": {
-        "en": "You are viewing this evaluation as a process facilitator (read-only). You cannot rate it, but you may finalize team feedback once the deadline has passed.",
-        "bg": "Преглеждате тази оценка като фасилитатор на процеса (само за четене). Не можете да я оценявате, но можете да финализирате екипната обратна връзка след изтичане на крайния срок."
+        "en": "You are viewing this evaluation as a process facilitator (read-only). You cannot rate it, but you may finalize peer feedback once the deadline has passed.",
+        "bg": "Преглеждате тази оценка като фасилитатор на процеса (само за четене). Не можете да я оценявате, но можете да финализирате колегиалната обратна връзка след изтичане на крайния срок."
       },
       "finalize-team-title": {
-        "en": "Team feedback ready to finalize",
-        "bg": "Екипната обратна връзка е готова за финализиране"
+        "en": "Peer feedback ready to finalize",
+        "bg": "Колегиалната обратна връзка е готова за финализиране"
       },
       "finalize-team-hint": {
-        "en": "The team-feedback deadline has passed — proceed to manager review.",
-        "bg": "Крайният срок за екипна обратна връзка изтече — продължете към преглед от мениджър."
+        "en": "The peer-feedback deadline has passed — proceed to manager review.",
+        "bg": "Крайният срок за колегиална обратна връзка изтече — продължете към преглед от мениджър."
       },
       "grade-hidden-aria": {
         "en": "Hidden — not visible to you",
@@ -5913,8 +5913,8 @@
           "bg": "Средно тегло на оценката по подкатегория (0–1.3: U=0.6, R=1.0, S=1.3) спрямо очакваната крива."
         },
         "source-comparison": {
-          "en": "Self vs Manager vs Team",
-          "bg": "Самооценка / мениджър / екип"
+          "en": "Self vs Manager vs Peers",
+          "bg": "Самооценка / мениджър / колеги"
         },
         "source-intro": {
           "en": "Average grade weight per category (0–1.3) for each rating source.",
@@ -5933,8 +5933,8 @@
           "bg": "Как се изчислява"
         },
         "by-category-method": {
-          "en": "Each category score is the relevancy-weighted average of its competency grades, blended across self (20%), team (30%) and manager (50%), then scaled to 0–150 and mapped to a performance band.",
-          "bg": "Резултатът за всяка категория е претеглената по релевантност средна оценка на компетенциите, комбинирана от самооценка (20%), екип (30%) и мениджър (50%), мащабирана до 0–150 и съотнесена към ниво на представяне."
+          "en": "Each category score is the relevancy-weighted average of its competency grades, blended across self (20%), peers (30%) and manager (50%), then scaled to 0–150 and mapped to a performance band.",
+          "bg": "Резултатът за всяка категория е претеглената по релевантност средна оценка на компетенциите, комбинирана от самооценка (20%), колеги (30%) и мениджър (50%), мащабирана до 0–150 и съотнесена към ниво на представяне."
         },
         "profile-method": {
           "en": "Per subcategory, each source's relevancy-weighted mean grade weight is plotted on a 0–1.3 axis. The dashed line is the expected level for this stage-level, derived from the relevancy curve.",
@@ -6043,8 +6043,8 @@
           "bg": "Моля оценете всяка компетенция с една от следните оценки, придържайки се към обективност и справедливост. За всяка дадена оценка може да бъдете попитани за допълнителна информация и обосновка."
         },
         "team-grading": {
-          "en": "When rating a team member, please consider how their individual performance and contribution in each particular competency category has affected the outcomes of your mutual work.",
-          "bg": "Когато оценявате член на екипа, моля вземете под внимание как тяхната индивидуална дейност и принос във всяка конкретна категория компетенции са повлияли на резултатите от вашата съвместна работа."
+          "en": "When rating a colleague, please consider how their individual performance and contribution in each particular competency category has affected the outcomes of your mutual work.",
+          "bg": "Когато оценявате колега, моля вземете под внимание как тяхната индивидуална дейност и принос във всяка конкретна категория компетенции са повлияли на резултатите от вашата съвместна работа."
         },
         "point-scale": {
           "en": "point scale",
@@ -6087,8 +6087,8 @@
           "bg": "Данни за Оценка на Представянето"
         },
         "team-selection": {
-          "en": "Team Selection",
-          "bg": "Избор на Екип"
+          "en": "Peer Selection",
+          "bg": "Избор на Колеги"
         },
         "employee-list": {
           "en": "Select Employees:",
@@ -6127,8 +6127,8 @@
           "bg": "Самооценка (служител)"
         },
         "team-comment": {
-          "en": "Team Feedback",
-          "bg": "Обратна връзка от членове на екипа"
+          "en": "Peer Feedback",
+          "bg": "Колегиална обратна връзка"
         },
         "manager-comment": {
           "en": "Manager Feedback",
@@ -6151,8 +6151,8 @@
           "bg": "Текущ Статус:"
         },
         "empty-team-list": {
-          "en": "No team members selected",
-          "bg": "Няма избрани членове на екипа"
+          "en": "No peer reviewers selected",
+          "bg": "Няма избрани колегиални оценители"
         },
         "days-left": {
           "en": "days left",
@@ -6177,8 +6177,8 @@
           "bg": "Мениджър"
         },
         "team": {
-          "en": "Team",
-          "bg": "Екип"
+          "en": "Peers",
+          "bg": "Колеги"
         },
         "locked": {
           "en": "Locked",
@@ -6207,8 +6207,8 @@
           "bg": "Премахни"
         },
         "add-team-member": {
-          "en": "Add Team Member",
-          "bg": "Добави член на екипа"
+          "en": "Add Peer Reviewer",
+          "bg": "Добави колегиален оценител"
         },
         "finalize-team": {
           "en": "Proceed to manager review",
@@ -6289,8 +6289,8 @@
           "bg": "в {n} категории"
         },
         "team-title": {
-          "en": "Team Reviewers",
-          "bg": "Екипни оценители"
+          "en": "Peer Reviewers",
+          "bg": "Колегиални оценители"
         },
         "team-optional": {
           "en": "(optional)",
@@ -6329,8 +6329,8 @@
           "bg": "Препоръчително: {n}+"
         },
         "team-min-error": {
-          "en": "Please add at least {min} team reviewers.",
-          "bg": "Моля, добавете поне {min} екипни оценители."
+          "en": "Please add at least {min} peer reviewers.",
+          "bg": "Моля, добавете поне {min} колегиални оценители."
         }
       },
       "submit-modal": {
@@ -6353,12 +6353,12 @@
       },
       "finalize-team-modal": {
         "title": {
-          "en": "Finalize team feedback?",
-          "bg": "Финализиране на екипната обратна връзка?"
+          "en": "Finalize peer feedback?",
+          "bg": "Финализиране на колегиалната обратна връзка?"
         },
         "desc": {
-          "en": "Proceed to manager review? Any pending reviewers will be dropped and the team feedback finalized.",
-          "bg": "Към преглед от мениджър? Всички чакащи оценители ще бъдат премахнати и екипната обратна връзка ще бъде финализирана."
+          "en": "Proceed to manager review? Any pending reviewers will be dropped and the peer feedback finalized.",
+          "bg": "Към преглед от мениджър? Всички чакащи оценители ще бъдат премахнати и колегиалната обратна връзка ще бъде финализирана."
         },
         "cancel-btn": {
           "en": "Cancel",
@@ -6379,12 +6379,12 @@
           "bg": "Оценката беше изпратена успешно."
         },
         "team-finalized": {
-          "en": "Team feedback finalized.",
-          "bg": "Екипната обратна връзка е финализирана."
+          "en": "Peer feedback finalized.",
+          "bg": "Колегиалната обратна връзка е финализирана."
         },
         "waiting-for-employees": {
-          "en": "The Evaluation is waiting for the employee and team members to submit their ratings.",
-          "bg": "Оценката очаква служителят и членовете на екипа да подадат оценките си."
+          "en": "The Evaluation is waiting for the employee and peer reviewers to submit their ratings.",
+          "bg": "Оценката очаква служителят и колегиалните оценители да подадат оценките си."
         },
         "waiting-for-manager": {
           "en": "The Evaluation is waiting for the manager to submit their rating.",
@@ -6989,8 +6989,8 @@
           "bg": "отворени"
         },
         "open-desc": {
-          "en": "Awaiting self or team evaluation",
-          "bg": "Очакват самооценка или оценка от екипа"
+          "en": "Awaiting self or peer review",
+          "bg": "Очакват самооценка или колегиална оценка"
         },
         "review": {
           "en": "In Review",
@@ -7026,8 +7026,8 @@
         "bg": "Преглед от мениджър"
       },
       "peer-feedback": {
-        "en": "Your Team Feedback",
-        "bg": "Вашата обратна връзка"
+        "en": "Your Peer Feedback",
+        "bg": "Вашата колегиална обратна връзка"
       },
       "peer-feedback-suffix": {
         "en": "submitted",
@@ -7094,12 +7094,12 @@
         "bg": "Добър вечер"
       },
       "task-team-feedback": {
-        "en": "Provide team feedback for a colleague",
+        "en": "Provide peer feedback for a colleague",
         "bg": "Дайте обратна връзка за колега"
       },
       "task-team-finalize": {
-        "en": "Finalize team feedback",
-        "bg": "Финализиране на екипната обратна връзка"
+        "en": "Finalize peer feedback",
+        "bg": "Финализиране на колегиалната обратна връзка"
       },
       "task-feedback-due": {
         "en": "Feedback requested",
@@ -7345,9 +7345,9 @@
         "en": "User Guide — For Employees",
         "bg": "Ръководство — За служители"
       },
-      "help-team-member": {
-        "en": "User Guide — For Team Members",
-        "bg": "Ръководство — За членове на екип"
+      "help-peer-reviewer": {
+        "en": "User Guide — For Peer Reviewers",
+        "bg": "Ръководство — За колегиални оценители"
       },
       "help-manager": {
         "en": "User Guide — For Managers",
@@ -7481,8 +7481,8 @@
           "bg": "Надзорник"
         },
         "4": {
-          "en": "Team Member",
-          "bg": "Член на екип"
+          "en": "Peer Reviewer",
+          "bg": "Колегиален оценител"
         },
         "admin": {
           "en": "Administrator",
@@ -8560,8 +8560,8 @@
         "bg": "Самооценката е отменена; оценката е придвижена."
       },
       "advanced-held-toast": {
-        "en": "Self-evaluation waived; awaiting team feedback before the evaluation advances.",
-        "bg": "Самооценката е отменена; оценката ще се придвижи след получаване на екипната обратна връзка."
+        "en": "Self-evaluation waived; awaiting peer feedback before the evaluation advances.",
+        "bg": "Самооценката е отменена; оценката ще се придвижи след получаване на колегиалната обратна връзка."
       },
       "withdrawn-toast": {
         "en": "Evaluation withdrawn.",
@@ -8920,20 +8920,20 @@
         "bg": "Към циклите"
       },
       "settings-title": {
-        "en": "Team feedback",
-        "bg": "Екипна обратна връзка"
+        "en": "Peer feedback",
+        "bg": "Колегиална обратна връзка"
       },
       "team-feedback-deadline-label": {
-        "en": "Team-feedback deadline",
-        "bg": "Краен срок за екипна обратна връзка"
+        "en": "Peer-feedback deadline",
+        "bg": "Краен срок за колегиална обратна връзка"
       },
       "team-feedback-deadline-hint": {
         "en": "Reviewers may submit peer feedback up to this date. It defaults from the configured window and must fall on or before the manager-review deadline.",
         "bg": "Оценителите могат да подават колегиална обратна връзка до тази дата. Стойността по подразбиране идва от конфигурирания прозорец и трябва да е на или преди крайния срок за преглед от мениджър."
       },
       "team-feedback-deadline-saved": {
-        "en": "Team-feedback deadline saved.",
-        "bg": "Крайният срок за екипна обратна връзка е запазен."
+        "en": "Peer-feedback deadline saved.",
+        "bg": "Крайният срок за колегиална обратна връзка е запазен."
       },
       "read-only-banner": {
         "en": "This cycle is no longer in PLANNING. The configuration is read-only.",
@@ -9857,8 +9857,8 @@
               "bg": "Съответствие самооценка/мениджър"
             },
             "whatItShows": {
-              "en": "Each reported person plotted by their average manager grade (x) against their average self grade (y), with the team grade as the bubble size.",
-              "bg": "Всеки докладван човек, позициониран по средна оценка от мениджъра (x) спрямо средна самооценка (y), с екипната оценка като размер на балона."
+              "en": "Each reported person plotted by their average manager grade (x) against their average self grade (y), with the peer grade as the bubble size.",
+              "bg": "Всеки докладван човек, позициониран по средна оценка от мениджъра (x) спрямо средна самооценка (y), с колегиалната оценка като размер на балона."
             },
             "methodology": {
               "en": "Grades are averaged per source in weight space (S=1.3, R=1.0, U=0.6, N=0.0), weighted by each competency's relevancy and kept separate per source. The diagonal is perfect agreement; points above it self-rate higher than their manager (possible hidden strengths), points below sit in the manager-higher ‘blind spot’ region. Quadrants split at the ‘meets’ (R) midpoint. Drill into a person to see the competencies with the largest self–manager gaps.",
@@ -9875,8 +9875,8 @@
               "bg": "Средна оценка по подкатегория компетенции през групи (ролеви семейства или звена), с опционален изглед на разликата спрямо очакваното."
             },
             "methodology": {
-              "en": "Each cell is the relevancy-weighted average grade for that subcategory and group, for the chosen source (self, manager, team, or the blended score). The value view shades cells light-to-dark on a quantile scale. The gap view instead shows the difference from the level-appropriate expected grade (see the level report) — stronger shading above expectation, grey below. Cells covering fewer than three people are hidden to protect anonymity.",
-              "bg": "Всяка клетка е претеглената по релевантност средна оценка за подкатегорията и групата, за избрания източник (самооценка, мениджър, екип или смесена). Изгледът по стойност оцветява от светло към тъмно по квантилна скала. Изгледът по разлика показва отклонението от очакваната за нивото оценка – по-наситено над очакванията, сиво под тях. Клетки с по-малко от трима души се скриват за анонимност."
+              "en": "Each cell is the relevancy-weighted average grade for that subcategory and group, for the chosen source (self, manager, peers, or the blended score). The value view shades cells light-to-dark on a quantile scale. The gap view instead shows the difference from the level-appropriate expected grade (see the level report) — stronger shading above expectation, grey below. Cells covering fewer than three people are hidden to protect anonymity.",
+              "bg": "Всяка клетка е претеглената по релевантност средна оценка за подкатегорията и групата, за избрания източник (самооценка, мениджър, колеги или смесена). Изгледът по стойност оцветява от светло към тъмно по квантилна скала. Изгледът по разлика показва отклонението от очакваната за нивото оценка – по-наситено над очакванията, сиво под тях. Клетки с по-малко от трима души се скриват за анонимност."
             }
           },
           "levelDistribution": {
@@ -9913,20 +9913,20 @@
               "bg": "Калибриране на оценителя"
             },
             "whatItShows": {
-              "en": "How your own manager grades compare with self-assessments and team feedback, per competency subcategory.",
-              "bg": "Как вашите мениджърски оценки се съпоставят със самооценките и обратната връзка от екипа, по подкатегория компетенции."
+              "en": "How your own manager grades compare with self-assessments and peer feedback, per competency subcategory.",
+              "bg": "Как вашите мениджърски оценки се съпоставят със самооценките и колегиалната обратна връзка, по подкатегория компетенции."
             },
             "methodology": {
-              "en": "For each competency you graded, we take the signed gap in grade-points between your manager grade and the self grade (and separately the team grade): a positive gap means you rated more generously than that source, negative means stricter. Gaps are averaged across your evaluations per subcategory and overall (a cell covering fewer than three people is hidden to protect anonymity). Use it to spot systematic leniency or severity in your own grading relative to how people rate themselves and how their team rates them.",
-              "bg": "За всяка компетенция, която сте оценили, вземаме знаковата разлика в точки между вашата мениджърска оценка и самооценката (и поотделно екипната оценка): положителна разлика означава, че сте оценили по-щедро от този източник, отрицателна – по-строго. Разликите се осредняват по вашите оценки за подкатегория и общо (клетка с по-малко от трима души се скрива за анонимност). Използвайте го, за да забележите системна снизходителност или строгост в собственото си оценяване спрямо самооценките и оценките на екипа."
+              "en": "For each competency you graded, we take the signed gap in grade-points between your manager grade and the self grade (and separately the peer grade): a positive gap means you rated more generously than that source, negative means stricter. Gaps are averaged across your evaluations per subcategory and overall (a cell covering fewer than three people is hidden to protect anonymity). Use it to spot systematic leniency or severity in your own grading relative to how people rate themselves and how their peers rate them.",
+              "bg": "За всяка компетенция, която сте оценили, вземаме знаковата разлика в точки между вашата мениджърска оценка и самооценката (и поотделно колегиалната оценка): положителна разлика означава, че сте оценили по-щедро от този източник, отрицателна – по-строго. Разликите се осредняват по вашите оценки за подкатегория и общо (клетка с по-малко от трима души се скрива за анонимност). Използвайте го, за да забележите системна снизходителност или строгост в собственото си оценяване спрямо самооценките и колегиалните оценки."
             },
             "kpi-self": {
               "en": "Avg gap vs self",
               "bg": "Средна разлика спрямо самооценка"
             },
             "kpi-team": {
-              "en": "vs team",
-              "bg": "спрямо екип"
+              "en": "vs peers",
+              "bg": "спрямо колеги"
             },
             "col-competency": {
               "en": "Competency",

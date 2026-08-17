@@ -202,9 +202,9 @@ class CompetenceWebApplication extends TiWebAppManager {
             title: "User Guide — For Employees",
             path: "fragments/guide/frame-help-employee.html"
         } );
-        this.addFragment( "help-team-member", {
-            title: "User Guide — For Team Members",
-            path: "fragments/guide/frame-help-team-member.html"
+        this.addFragment( "help-peer-reviewer", {
+            title: "User Guide — For Peer Reviewers",
+            path: "fragments/guide/frame-help-peer-reviewer.html"
         } );
         this.addFragment( "help-manager", {
             title: "User Guide — For Managers",
@@ -330,7 +330,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "help-overview": "help",
                     "help-getting-started": "help",
                     "help-employee": "help",
-                    "help-team-member": "help",
+                    "help-peer-reviewer": "help",
                     "help-manager": "help",
                     "help-supervisor": "help",
                     "help-administrator": "help",

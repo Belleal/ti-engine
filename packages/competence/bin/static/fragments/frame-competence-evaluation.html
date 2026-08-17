@@ -494,7 +494,7 @@
                                             <span class="ti-grade-chip"
                                                   x-bind:data-grade="gradeKey"
                                                   x-bind:class="getGradeChipClass(sub.id, 'team', gradeKey)"
-                                                  x-bind:aria-label="'Team grade for ' + sub.id + ': ' + gradeKey"
+                                                  x-bind:aria-label="'Peer grade for ' + sub.id + ': ' + gradeKey"
                                                   x-text="gradeKey"
                                                   @click="toggleGrade(sub.id, 'team', gradeKey)"></span>
                                         </template>
@@ -571,7 +571,7 @@
                                                 <span class="ti-grade-chip"
                                                       x-bind:data-grade="gradeKey"
                                                       x-bind:class="getGradeChipClass(item.id, 'team', gradeKey)"
-                                                      x-bind:aria-label="'Team grade for ' + item.id + ': ' + gradeKey"
+                                                      x-bind:aria-label="'Peer grade for ' + item.id + ': ' + gradeKey"
                                                       x-text="gradeKey"
                                                       @click="toggleGrade(item.id, 'team', gradeKey)"></span>
                                             </template>

@@ -6,7 +6,7 @@ This chapter gets you into the application and oriented: how to sign in, what th
 
 You sign in with your organization account through your company's single sign-on — there's no separate registration or password to create for this application specifically. Depending on how your organization has set things up, this is typically a Microsoft Entra (Azure) sign-in, though the exact method depends on your deployment.
 
-The moment you sign in, the application works out which capacities you hold — Employee, Manager, and Supervisor — from your position in the organization chart, while Team Member is conferred when you're picked for a specific evaluation's feedback team. There's nothing for you to configure yourself.
+The moment you sign in, the application works out which capacities you hold — Employee, Manager, and Supervisor — from your position in the organization chart, while Peer Reviewer is conferred when you're picked for a specific evaluation's peer review. There's nothing for you to configure yourself.
 
 > **Note:** If sign-in fails, that's an account issue the application itself can't resolve — contact your administrator.
 
@@ -59,7 +59,7 @@ Prefer more room for the page content? Click the arrow at the top of the sidebar
 This chapter covered the shared basics. From here, jump to whichever chapter matches what you're doing next:
 
 - **For Employees** covers completing your own self-assessment, understanding your deadline, and reading your results once they're ready.
-- **For Team Members** covers giving peer feedback — how it's graded, how anonymous it stays, and why it matters.
+- **For Peer Reviewers** covers giving peer feedback — how it's graded, how anonymous it stays, and why it matters.
 - **For Managers** covers starting and reviewing evaluations, managing your availability calendar, conducting interviews, and your team's analytics.
 - **For Supervisors** covers running the appraisal cycle end to end — configuration, locking, keeping stalled evaluations moving, scheduling, and closing out.
 - **For Administrators** covers the configuration screens — what you can edit and when changes take effect.

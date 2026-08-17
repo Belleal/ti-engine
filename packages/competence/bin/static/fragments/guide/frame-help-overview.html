@@ -9,7 +9,7 @@
             <button class="competence-guide-nav-item active" type="button" aria-current="page" hx-get="/app/help-overview" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Overview &amp; Key Concepts</button>
             <button class="competence-guide-nav-item" type="button" hx-get="/app/help-getting-started" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Getting Started</button>
             <button class="competence-guide-nav-item" type="button" hx-get="/app/help-employee" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Employees</button>
-            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-team-member" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Team Members</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-peer-reviewer" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Peer Reviewers</button>
             <button class="competence-guide-nav-item" type="button" hx-get="/app/help-manager" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Managers</button>
             <button class="competence-guide-nav-item" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Supervisors</button>
             <button class="competence-guide-nav-item" type="button" hx-get="/app/help-administrator" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Administrators</button>
@@ -21,7 +21,7 @@
 <p>This chapter introduces the ideas you&#39;ll run into everywhere else in this guide — what the application does, who does what, how a competency-based evaluation is put together, and how a final score comes out the other end. Later chapters walk through the screens themselves and cover each person&#39;s day-to-day steps in detail.</p>
 <h2 id="what-this-application-does">What this application does</h2>
 <p>This application manages <strong>competency-based performance appraisals</strong> — a structured way of assessing how someone is doing in their role, built around a defined set of competencies rather than a single overall impression.</p>
-<p>An evaluation is collaborative by design. The employee completes a self-assessment, a small group of peers can optionally add team feedback, and the employee&#39;s manager reviews everything and adds a grade and comment of their own. Once the manager&#39;s review is in, all of that input combines into a weighted performance score, which is then read against a set of defined performance thresholds — so &quot;how did this evaluation turn out&quot; always has a consistent, comparable answer.</p>
+<p>An evaluation is collaborative by design. The employee completes a self-assessment, a small group of peers can optionally add peer feedback, and the employee&#39;s manager reviews everything and adds a grade and comment of their own. Once the manager&#39;s review is in, all of that input combines into a weighted performance score, which is then read against a set of defined performance thresholds — so &quot;how did this evaluation turn out&quot; always has a consistent, comparable answer.</p>
 <p>Appraisals don&#39;t run continuously — they run in <strong>cycles</strong>, typically annual or twice a year. Every evaluation belongs to exactly one cycle, and it can only be started while that cycle is open for business.</p>
 <h2 id="who-does-what">Who does what</h2>
 <div class="ti-doc-table">
@@ -39,7 +39,7 @@
 <td>Complete your self-assessment and see your own results. Every person is an Employee — including managers and supervisors.</td>
 </tr>
 <tr>
-<td>Team Member</td>
+<td>Peer Reviewer</td>
 <td>Whoever is picked to give peer feedback on a specific evaluation</td>
 <td>Give peer feedback on a colleague&#39;s evaluation. It isn&#39;t a standing role — you hold it only for the evaluations you&#39;re picked for.</td>
 </tr>
@@ -61,7 +61,7 @@
 </tbody></table>
 </div>
 <blockquote>
-<p><strong>Note:</strong> Your Employee and Manager standing is worked out automatically the moment you sign in, based on your place in the organization chart, while Team Member is conferred when you&#39;re picked for a specific evaluation&#39;s feedback team — you can hold more than one at a time (everyone is always an Employee, and you might also be a Manager, and a Team Member on a colleague&#39;s evaluation this cycle). Supervisor capacity comes in two forms: structural, held automatically by organization-chart position, and granted — a structural Supervisor can hand the capacity to someone else. Being an Administrator is different: it&#39;s a fixed list kept by your operations team, not something derived from the org chart.</p>
+<p><strong>Note:</strong> Your Employee and Manager standing is worked out automatically the moment you sign in, based on your place in the organization chart, while Peer Reviewer is conferred when you&#39;re picked for a specific evaluation&#39;s peer review — you can hold more than one at a time (everyone is always an Employee, and you might also be a Manager, and a Peer Reviewer on a colleague&#39;s evaluation this cycle). Supervisor capacity comes in two forms: structural, held automatically by organization-chart position, and granted — a structural Supervisor can hand the capacity to someone else. Being an Administrator is different: it&#39;s a fixed list kept by your operations team, not something derived from the org chart.</p>
 </blockquote>
 <h2 id="appraisal-cycles">Appraisal cycles</h2>
 <p>Every evaluation happens inside an appraisal cycle, and a cycle moves through three stages, in one direction only:</p>
@@ -165,12 +165,12 @@
 </tr>
 </tbody></table>
 </div>
-<p>Depending on how far an evaluation has progressed, up to three separate grades exist for each competency — one from the employee (self), one combined from the team (if peer feedback was requested), and one from the manager. See Scores and what they mean below for how these combine into an overall result, and Privacy at a glance for who can see which grade, and from when.</p>
+<p>Depending on how far an evaluation has progressed, up to three separate grades exist for each competency — one from the employee (self), one combined from the peer reviewers (if peer feedback was requested), and one from the manager. See Scores and what they mean below for how these combine into an overall result, and Privacy at a glance for who can see which grade, and from when.</p>
 <h2 id="scores-and-what-they-mean">Scores and what they mean</h2>
 <p>Once the manager submits their review, the application calculates a score for each category (Expertise, Insight, Commitment) plus a single final score for the whole evaluation.</p>
-<p>Not every grade counts equally. Self-grades count for 20% of the score, team feedback for 30%, and the manager&#39;s grades for 50% — so the manager&#39;s assessment carries the most weight, followed by the team, then the employee&#39;s own self-assessment.</p>
+<p>Not every grade counts equally. Self-grades count for 20% of the score, peer feedback for 30%, and the manager&#39;s grades for 50% — so the manager&#39;s assessment carries the most weight, followed by the peer reviewers, then the employee&#39;s own self-assessment.</p>
 <blockquote>
-<p><strong>Note:</strong> If a round didn&#39;t happen at all — no team feedback was requested, or a stalled self-round was waived by a Supervisor — it&#39;s left out of the calculation entirely, and the remaining rounds are rebalanced to cover the full 100% between them. A missing round is never treated as a zero, so it never drags the score down.</p>
+<p><strong>Note:</strong> If a round didn&#39;t happen at all — no peer feedback was requested, or a stalled self-round was waived by a Supervisor — it&#39;s left out of the calculation entirely, and the remaining rounds are rebalanced to cover the full 100% between them. A missing round is never treated as a zero, so it never drags the score down.</p>
 </blockquote>
 <p>As a rule of thumb, if every grade that did participate came back Regular, the final score lands around 100. The score is then read against five bands:</p>
 <div class="ti-doc-table">
@@ -212,8 +212,8 @@
 <h2 id="the-life-of-an-evaluation">The life of an evaluation</h2>
 <p>Every evaluation moves through a fixed sequence of stages, driven by people submitting their input rather than by a calendar — there&#39;s no automatic time-based advance; a stage only changes because someone completed an action.</p>
 <ul>
-<li><strong>Open</strong> — the employee&#39;s self-assessment and (if requested) peer team feedback both happen in this stage.</li>
-<li><strong>In Review</strong> — once the self-assessment is done, and team feedback is either done or wasn&#39;t requested, the evaluation moves here for the manager&#39;s review.</li>
+<li><strong>Open</strong> — the employee&#39;s self-assessment and (if requested) peer feedback both happen in this stage.</li>
+<li><strong>In Review</strong> — once the self-assessment is done, and peer feedback is either done or wasn&#39;t requested, the evaluation moves here for the manager&#39;s review.</li>
 <li><strong>Ready</strong> — once the manager submits, scores are calculated and become visible; this is also the stage where the interview gets scheduled and held.</li>
 <li><strong>Closed</strong> — the final stage, reached once the interview&#39;s outcome has been recorded and a Supervisor formally closes it. Grades and scores were already visible from Ready; Closed additionally reveals the interview&#39;s written feedback and any next-period goals.</li>
 </ul>
@@ -222,11 +222,11 @@
 <blockquote>
 <p><strong>Warning:</strong> The self-assessment deadline is strict — a late draft save or a late submission is rejected outright, so don&#39;t leave your self-assessment until the last day.</p>
 </blockquote>
-<p>The team deadline works the same way — a late peer submission is rejected outright, just like the self-assessment. What sets the team round apart is the recovery: once its deadline passes, the manager (or a Supervisor) may finalize the round with whatever was actually submitted, so the evaluation isn&#39;t held up by one non-responder — and if nobody on the team submitted at all, the round is simply excluded from the score rather than counted as a zero. The manager deadline is different again — it&#39;s a reminder rather than a block; a late manager submission is never rejected, since it&#39;s the single most influential input in the score.</p>
+<p>The peer-review deadline works the same way — a late peer submission is rejected outright, just like the self-assessment. What sets the peer review apart is the recovery: once its deadline passes, the manager (or a Supervisor) may finalize the round with whatever was actually submitted, so the evaluation isn&#39;t held up by one non-responder — and if no peer submitted at all, the round is simply excluded from the score rather than counted as a zero. The manager deadline is different again — it&#39;s a reminder rather than a block; a late manager submission is never rejected, since it&#39;s the single most influential input in the score.</p>
 <h2 id="privacy-at-a-glance">Privacy at a glance</h2>
 <ul>
-<li><strong>Individual peer grades are never shown to anyone but the person who gave them</strong> — not the employee, not the manager. Only the combined (cumulative) team grade is ever shown to anyone else.</li>
-<li>The employee sees the manager&#39;s grades, the team&#39;s cumulative grade, and the manager&#39;s written feedback only once the evaluation reaches Ready — never before.</li>
+<li><strong>Individual peer grades are never shown to anyone but the person who gave them</strong> — not the employee, not the manager. Only the combined (cumulative) peer grade is ever shown to anyone else.</li>
+<li>The employee sees the manager&#39;s grades, the peers&#39; cumulative grade, and the manager&#39;s written feedback only once the evaluation reaches Ready — never before.</li>
 <li>Written peer feedback is anonymous and goes to the manager only; the employee never sees it, individually or combined.</li>
 <li>Reports and analytics screens never display a group smaller than three people — a small group is hidden rather than shown, so nobody can be identified by working backward from a tiny statistic.</li>
 </ul>
