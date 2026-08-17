@@ -69,7 +69,7 @@ Once the manager submits their review, the application calculates a score for ea
 
 Not every grade counts equally. Self-grades count for 20% of the score, peer feedback for 30%, and the manager's grades for 50% — so the manager's assessment carries the most weight, followed by the peer reviewers, then the employee's own self-assessment.
 
-> **Note:** If a round didn't happen at all — no peer feedback was requested, or a stalled self-round was waived by a Supervisor — it's left out of the calculation entirely, and the remaining rounds are rebalanced to cover the full 100% between them. A missing round is never treated as a zero, so it never drags the score down.
+> **Note:** If a round produced no grades at all — no peer feedback was requested, a peer round was finalized after its deadline with nobody having answered, or a stalled self-round was waived by a Supervisor — it's left out of the calculation entirely, and the remaining rounds are rebalanced to cover the full 100% between them. A missing round is never treated as a zero, so it never drags the score down.
 
 As a rule of thumb, if every grade that did participate came back Regular, the final score lands around 100. The score is then read against five bands:
 

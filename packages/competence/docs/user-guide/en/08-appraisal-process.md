@@ -18,7 +18,7 @@ The evaluation is created at Open status, carrying a snapshot of the competency 
 
 The Employee completes the self-assessment on the evaluation form, grading every competency and adding a written comment, and may save drafts freely until a strict deadline; a draft or submission after that point is rejected outright. Submitting requires every competency to be graded.
 
-If the Employee cannot finish in time, the Supervisor may waive the round from Oversight once the deadline has passed, recording a reason. Waiving lets the evaluation move on to In Review — once any peer review is also complete — without the self-grades, which are then excluded from scoring rather than counted against the Employee.
+If the Employee cannot finish in time, the Supervisor may waive the round from Oversight once the deadline has passed, recording a reason. Waiving lets the evaluation move on to In Review — once the peer review is complete, or if none was requested — without the self-grades, which are then excluded from scoring rather than counted against the Employee.
 
 ## Step 4 — Peer Review *(optional)*
 

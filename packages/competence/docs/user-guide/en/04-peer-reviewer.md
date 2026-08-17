@@ -20,7 +20,7 @@ While you're grading, you see no one else's grades at all — not the employee's
 
 ## Anonymity — what happens to your input
 
-Your individual grades are never shown to anyone — not the employee, not even the manager. Once every assigned peer reviewer has submitted, all the individual grades for each competency are averaged into a single cumulative grade, rounded to the nearest grade value, and it's that combined figure — never your personal grade — that ever appears anywhere else.
+Your individual grades are never shown to anyone — not the employee, not even the manager. Whenever the round closes — either because every assigned reviewer has submitted, or because it was finalized after the deadline with only some of them in — the grades that were submitted for each competency are averaged into a single cumulative grade, rounded to the nearest grade value, and it's that combined figure — never your personal grade — that ever appears anywhere else.
 
 Your written note follows a similar principle but isn't merged with anyone else's: it goes to the manager as anonymous feedback, with nothing identifying you attached. The employee never sees it, individually or otherwise.
 
