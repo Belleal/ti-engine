@@ -5794,8 +5794,42 @@
             "bg": "Частично отговаря на очакванията"
           },
           "N": {
-            "en": "Not assessed for this cycle",
-            "bg": "Не е оценявано за този цикъл"
+            "en": "Not used or not held at this level",
+            "bg": "Не се използва или не се притежава на това ниво"
+          }
+        }
+      },
+      "missed-round": {
+        "chip": {
+          "awaiting": {
+            "en": "Rating still awaited",
+            "bg": "Очаква се оценка"
+          },
+          "waived": {
+            "en": "No self-assessment — the round was waived and is excluded from the score",
+            "bg": "Няма самооценка — кръгът беше пропуснат и не участва в резултата"
+          },
+          "no-responses": {
+            "en": "No peer responses — the round closed unanswered and is excluded from the score",
+            "bg": "Няма отговори от колеги — кръгът приключи без отговори и не участва в резултата"
+          },
+          "none-assigned": {
+            "en": "No peer reviewers were assigned — this round is excluded from the score",
+            "bg": "Не бяха определени колегиални оценители — този кръг не участва в резултата"
+          }
+        },
+        "note": {
+          "self-waived": {
+            "en": "The self-assessment deadline passed and the evaluation was advanced without it. Those ratings are excluded from the score, not counted as zero.",
+            "bg": "Срокът за самооценка изтече и оценяването продължи без нея. Тези оценки не участват в резултата и не се броят за нула."
+          },
+          "team-no-responses": {
+            "en": "The peer review round closed without any responses. It is excluded from the score, not counted as zero.",
+            "bg": "Кръгът за колегиална оценка приключи без нито един отговор. Той не участва в резултата и не се брои за нула."
+          },
+          "team-none-assigned": {
+            "en": "No peer reviewers were assigned to this evaluation, so there is no peer input. It is excluded from the score, not counted as zero.",
+            "bg": "За това оценяване не бяха определени колегиални оценители, затова липсва колегиален принос. Той не участва в резултата и не се брои за нула."
           }
         }
       },

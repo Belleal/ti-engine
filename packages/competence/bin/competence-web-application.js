@@ -1515,6 +1515,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                     && teamRemaining > 0
                     && ( allowFinalizeWithoutSubmissions || teamSubmitted > 0 );
 
+                // Which rounds closed without producing grades (CA-104). Derived before the workflow is dropped;
+                // carries reason codes only, no identities, so it is safe to ship.
+                const missedRounds = competenceFramework.instance.resolveMissedRounds( currentEvaluation );
+
                 // NOTE: Make sure to delete the workflow system information:
                 delete currentEvaluation.workflow;
                 delete currentEvaluation.closure;
@@ -1555,6 +1559,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     isFacilitator: isFacilitator, // Supervisor viewing read-only as process facilitator (cannot rate).
                     isManagerProxy: isManagerProxy, // Supervisor completing manager grades on the manager's behalf (CA-59); frontend requires a reason on submit.
                     canFinalizeTeam: canFinalizeTeam, // Drives the "Proceed to manager review" action; server-authoritative.
+                    missedRounds: missedRounds, // Per-round reason code when a round closed unrated (CA-104); null when answered or still open.
                     isTeamEvaluationCollective: configurationLoader.getSetting( "performanceAppraisals.isTeamEvaluationCollective" ),
                     competencies: competenceFramework.instance.buildCompetenciesTreeFromSnapshot( currentEvaluation.snapshot, session?.language )
                 } );
@@ -1619,6 +1624,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                 // Always collapse peer grades to the cumulative for the results view — for every viewer, including CLOSED history.
                 competenceFramework.instance.anonymizeEvaluationGrades( current, configurationLoader.roleCode.EMPLOYEE );
                 competenceFramework.instance.anonymizeEvaluationScores( current, configurationLoader.roleCode.EMPLOYEE );
+                // Which rounds closed without producing grades (CA-104). The Scores screen draws no grade chips, but
+                // the reader deserves to know a source was excluded from the score they are looking at.
+                const missedRounds = competenceFramework.instance.resolveMissedRounds( current );
+
                 delete current.workflow;
                 // The Scores screen renders only the results summary (no grading tables, no feedback section), so the
                 // written feedback is unused here — it stays available on the evaluation screen. Don't ship it.
@@ -1661,6 +1670,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     deadlineDate: null,
                     canEdit: false,
                     isFacilitator: false,
+                    missedRounds: missedRounds, // Per-round reason code when a round closed unrated (CA-104).
                     isTeamEvaluationCollective: configurationLoader.getSetting( "performanceAppraisals.isTeamEvaluationCollective" ),
                     competencies: competenceFramework.instance.buildCompetenciesTreeFromSnapshot( current.snapshot, session?.language )
                 } );
