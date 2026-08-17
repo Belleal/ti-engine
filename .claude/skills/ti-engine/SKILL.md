@@ -5,7 +5,12 @@ description: "Use whenever working in the ti-engine monorepo (core / web-framewo
 
 # ti-engine Developer Skill
 
-You are working on the **ti-engine** monorepo — an open-source (GPL-3.0) Node.js microservices framework by Boris Kostadinov, plus the **competence** HR application built on top of it. Whenever this skill is invoked, orient yourself fully before answering or making changes.
+You are working on the **ti-engine** monorepo — an open-source Node.js microservices framework by Boris Kostadinov, plus the **competence** HR application built on top of it. Whenever this skill is invoked, orient yourself fully before answering or making changes.
+
+**Licensing is split per package — see `LICENSE.md` at the repo root for the full table.** `core`, `web-framework`,
+`web-content`, and `tester` are **Apache-2.0**. `competence` is **AGPL-3.0-or-later**. When adding a new `.js` file,
+copy the header block verbatim from an existing file in the *same package* (not from a file in a different
+package) — the header text differs by license.
 
 ---
 

@@ -124,3 +124,7 @@ Step 3: Generate certificate files for localhost:
 ```text
 mkcert localhost 127.0.0.1 ::1
 ```
+
+## License
+
+Apache-2.0 © Boris Kostadinov. See [LICENSE](LICENSE).

@@ -1074,3 +1074,7 @@ All application settings are in `bin/config/config.application.json` and are val
 | `COMPETENCE_TEST_USER_ENABLED`| `false` | If `true`, honors the temporary `ti-test-user` login cookie that injects a dev identity and optional roles override. **Dev only** — leave unset in production, where it would let any client self-assign identity and roles, bypassing authorization. When `false` (the default), identity is derived from the authenticated login's email instead. |
 
 These are the application-specific variables. The standard `@ti-engine/core` and `@ti-engine/web-framework` variables also apply — service identity (`TI_INSTANCE_NAME`, `TI_INSTANCE_CLASS`), the Redis connection (`TI_MEMORY_CACHE_HOST`/`PORT`/`AUTH`/`DB`), logging, and the web/auth settings — and are loaded from the package `.env` via dotenvx. The administrator allowlist (`auth.admins`) and the authentication methods are configured in the web server's JSON config, not through environment variables.
+
+## License
+
+AGPL-3.0-or-later © Boris Kostadinov. See [LICENSE](LICENSE). A commercial license without the AGPL network-copyleft obligation is available on request — contact kostadinov.boris@gmail.com.

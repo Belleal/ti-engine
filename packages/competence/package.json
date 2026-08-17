@@ -4,7 +4,7 @@
   "releaseDate": "2026-08-14",
   "description": "Competency-based performance appraisal application, modelling competencies across role family, specialization and stage-level. Built on the ti-engine.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
-  "license": "GPL-3.0-or-later",
+  "license": "AGPL-3.0-or-later",
   "imports": {
     "#competence-framework": "./application/competence-framework.js",
     "#config-active-competency-sets": "./bin/config/config.active-competency-sets.json",

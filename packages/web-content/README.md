@@ -16,4 +16,4 @@ A content-publishing engine for [ti-engine](https://github.com/Belleal/ti-engine
 
 ## License
 
-GPL-3.0-or-later © Boris Kostadinov
+Apache-2.0 © Boris Kostadinov

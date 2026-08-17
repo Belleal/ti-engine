@@ -120,7 +120,7 @@ packages/web-content/
   "version": "0.1.0",                    // new package, pre-1.0 while Draft-1 shapes settle
   "description": "Content-publishing engine (path-index routing, deny-by-default visibility, SEO documents, feeds, capture) for ti-engine sites.",
   "type": "commonjs",
-  "license": "GPL-3.0",
+  "license": "Apache-2.0",
   "dependencies": {
     "@ti-engine/core": "*",
     "@ti-engine/web-framework": "*",     // effective minimum 1.17.0 — the P0 route seams

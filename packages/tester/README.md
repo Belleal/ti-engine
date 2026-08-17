@@ -29,3 +29,7 @@ These are just some benefits **ti-engine** offers. Get to know it better to find
 This is the tester module for the **ti-engine** framework. It is created as an example microservice that can help you understand how the framework works.
 
 For more information on the actual framework, please visit the [ti-engine/core](https://github.com/Belleal/ti-engine/tree/master/packages/core) package.
+
+## License
+
+Apache-2.0 © Boris Kostadinov. See [LICENSE](LICENSE).

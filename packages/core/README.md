@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/%40ti-engine/core)](https://www.npmjs.com/package/@ti-engine/core)
 [![npm downloads](https://img.shields.io/npm/dm/%40ti-engine/core)](https://www.npmjs.com/package/@ti-engine/core)
 [![node](https://img.shields.io/node/v/%40ti-engine/core)](https://nodejs.org/)
-[![license](https://img.shields.io/npm/l/%40ti-engine/core)](https://github.com/Belleal/ti-engine/blob/master/LICENSE.md)
+[![license](https://img.shields.io/npm/l/%40ti-engine/core)](https://github.com/Belleal/ti-engine/blob/master/packages/core/LICENSE.md)
 [![CI](https://github.com/Belleal/ti-engine/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Belleal/ti-engine/actions/workflows/ci.yml)
 
 ![Logo](https://raw.githubusercontent.com/Belleal/ti-engine/master/packages/core/docs/ti-engine-icon.ico)
@@ -299,7 +299,7 @@ In the tester module all application files are located inside the `bin` folder. 
   "version": "[tester module version]",
   "description": "[tester module description]",
   "author": "[tester module author]",
-  "license": "GPL-3.0-or-later",
+  "license": "Apache-2.0",
   "dependencies": {
     "@ti-engine/core": "latest"
   },
