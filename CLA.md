@@ -1,8 +1,5 @@
 # ti-engine Individual Contributor License Agreement
 
-> **This is a template, not legal advice.** Have a lawyer review this document before relying on it, especially
-> before you use it to support a paid commercial license for `@ti-engine/competence`.
-
 Thank you for your interest in contributing to the `ti-engine` project ("**Project**"), maintained by Boris
 Kostadinov ("**Maintainer**"). This Contributor License Agreement ("**Agreement**") clarifies the intellectual
 property license granted with Contributions from any person or entity. It protects you as a contributor and the
