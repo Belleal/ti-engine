@@ -76,3 +76,10 @@ before they can be committed. See `@ti-engine/core` 1.9.0 for why the previous a
   grep, so it produced no diffs and matched no searches
 * fix(types): `renderPage`'s inline closure-style annotation in `contentHandler`'s options, and the two route factories
   returning `function(Object, Object)`, are written in arrow syntax — the closure form emits a parameter with no name
+
+## Version 0.3.1
+
+License change only — no functional code changed.
+
+* chore(license): relicense package from `GPL-3.0-or-later` to `Apache-2.0`. See `LICENSE` and `NOTICE`
+* docs(license): update every source file's license header to the Apache-2.0 notice

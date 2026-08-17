@@ -2,6 +2,16 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.20.1
+
+License change only — no functional code changed.
+
+* chore(license): relicense package from `GPL-3.0-or-later` to `AGPL-3.0-or-later`. The network-copyleft clause
+  means a modified version run as a network service must make its source available to those users. A separate
+  commercial license without that obligation is available on request — contact `kostadinov.boris@gmail.com`.
+  See `LICENSE`
+* docs(license): update every source file's license header to reference the GNU Affero General Public License
+
 ## Version 3.20.0
 
 Configuration shipped in a release can finally reach a running deployment. The configuration store seeds from the

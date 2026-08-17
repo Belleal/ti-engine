@@ -2,6 +2,13 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.24.1
+
+License change only — no functional code changed.
+
+* chore(license): relicense package from `GPL-3.0-or-later` to `Apache-2.0`. See `LICENSE` and `NOTICE`
+* docs(license): update every source file's license header to the Apache-2.0 notice
+
 ## Version 1.24.0
 
 A configuration file change shipped in a release could never reach a deployment that had already been seeded. The

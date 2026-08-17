@@ -2,6 +2,13 @@
 
 This document contains the list of changes made to the tester package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.5
+
+License change only — no functional code changed.
+
+* chore(license): relicense package from `GPL-3.0-or-later` to `Apache-2.0`. See `LICENSE` and `NOTICE`
+* docs(license): update the source file's license header to the Apache-2.0 notice
+
 ## Version 1.3.4
 
 Packaging metadata only — no code changed. This package is the framework's runnable reference service, and its npm entry did not say so.
