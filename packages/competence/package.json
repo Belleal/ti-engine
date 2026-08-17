@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/competence",
-  "version": "3.21.0",
+  "version": "3.21.1",
   "releaseDate": "2026-08-17",
   "description": "Competency-based performance appraisal application, modelling competencies across role family, specialization and stage-level. Built on the ti-engine.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
@@ -34,7 +34,7 @@
     "graphology": "^0.26.0"
   },
   "devDependencies": {
-    "marked": "^18.0.7"
+    "marked": "^18.0.9"
   },
   "scripts": {
     "start": "node ../../node_modules/@ti-engine/core/bin/start-instance.js",

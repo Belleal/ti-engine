@@ -2,6 +2,14 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.21.1
+
+Dependency maintenance only — no application code changed.
+
+* chore(deps): update the `marked` devDependency from `^18.0.7` to `^18.0.9`. It is the markdown converter behind
+  `npm run build:guide`, so the guide-freshness guard in `test/user-guide-build.test.js` is what proves the upgrade
+  produced identical output from the same chapters — the committed screens are unchanged
+
 ## Version 3.21.0
 
 Two related pieces of appraisal wording and state, both presentation-only — no stored evaluation changes shape, no

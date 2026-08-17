@@ -2,6 +2,17 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.24.2
+
+Dependency maintenance only — no framework code changed.
+
+* chore(deps): update `@alpinejs/csp` from `^3.15.12` to `^3.16.1`, and refresh the vendored
+  `bin/static/scripts/lib/alpinejs-csp.min.js` to the matching build. The vendored file is what the browser actually
+  loads, so it has to move with the dependency or the two silently disagree; it is byte-identical to
+  `node_modules/@alpinejs/csp/dist/cdn.min.js` at 3.16.1
+* chore(deps): update `openid-client` from `^6.8.4` to `^6.8.5`
+* chore(deps): update `@types/express-session` from `^1.18.2` to `^1.19.0` (type declarations only — no runtime code)
+
 ## Version 1.24.1
 
 License change only — no functional code changed.
