@@ -26,7 +26,7 @@ Locking is what turns a Planning cycle into the live one. It validates everythin
 
 | Action | Available when | What it does |
 |---|---|---|
-| Advance without self | The self-assessment deadline has passed and the round is still incomplete | Waives the stalled self round — those grades are excluded from scoring, never treated as a zero — and moves the evaluation on once the team round is also done |
+| Advance without self | The self-assessment deadline has passed and the round is still incomplete | Waives the stalled self round — those grades are excluded from scoring, never treated as a zero — and moves the evaluation on once the peer review is complete, or straight away if none was requested |
 | Complete manager review | The manager round is incomplete | Opens the evaluation in proxy mode so you can grade and submit it on the manager's behalf |
 | Withdraw | Any evaluation listed here, whatever its status | Cancels it outright and irreversibly, releasing any booked interview slot and immediately freeing the employee for a brand-new evaluation |
 

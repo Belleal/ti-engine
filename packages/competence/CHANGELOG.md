@@ -2,6 +2,43 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.21.0
+
+Two related pieces of appraisal wording and state, both presentation-only — no stored evaluation changes shape, no
+score is recomputed, and no results snapshot is touched.
+
+A rating round that closed without producing grades — a self round waived by a Supervisor, or a peer round finalized
+with nobody having answered — kept rendering the hourglass that means "rating still awaited", promising a resolution
+that was never coming. Those cells now carry a distinct settled state. Note what was deliberately *not* done: the
+blanks are not backfilled with grade `N`. `N` carries weight `0.0` and its relevancy still counts toward the category
+maximum, so it scores as a hard zero; `results-analytics` maps `""` to `null` (excluded from means) but `N` to `0.0`
+(included), so backfilling would have depressed every cohort mean, heatmap cell and driver ranking, permanently, via
+the immutable per-cycle snapshot. Absence is already handled correctly one level up by source renormalization.
+
+"Team" is also retired from the peer-review vocabulary. `isEligibleTeamReviewer` excludes only the evaluatee and
+their management chain — there is no org-unit restriction — so reviewers were never limited to the evaluatee's team
+and the label misdescribed the role. Wording that refers to an actual org team (the manager's reporting line, Team
+analytics, team coverage) is unchanged, as is the entire competency dictionary, where "team" means a real team.
+
+* feat(evaluation): mark a rating round that closed unrated with a distinct chip state — solid border and a
+  circle-slash glyph rather than the dashed-border hourglass — plus a note stating the input was excluded from the
+  score rather than counted as a zero. Backed by the pure `CompetenceFramework.resolveMissedRounds`, surfaced as a
+  `missedRounds` reason code (`waived` / `no-responses` / `none-assigned`) on the `load-evaluation` and
+  `load-results` payloads. It carries no identities, so it survives the deliberate `delete evaluation.workflow`
+  that keeps peer reviewer IDs off the wire. The manager round has no unrated state by design — a late manager
+  submit is never blocked, so a blank manager grade genuinely is still pending (CA-104)
+* fix(localization): correct `interface.evaluation.grades.short.N`, which read "Not assessed for this cycle" while
+  the grade itself is defined as "Not Utilized — the employee does not use or does not have this competency at the
+  current level". The short text is what the grade picker shows, so it had been inviting graders to read `N` as
+  "no answer" (CA-104)
+* feat(localization)!: reword the peer-review round from "team" to **peer review** / **peer feedback** across the UI
+  (en + bg) and rename the `Team Member` role label to `Peer Reviewer`. The `TEAM_MEMBER` enum key and its value `4`
+  are unchanged, as is the persisted shape (`workflow.team`, `grades.*.team`, `teamEvaluationCompleted`,
+  `cycle.teamFeedbackDeadline`, the `team-feedback` / `team-finalize` task types) — no migration (CA-105)
+* feat(docs)!: rename the guide chapter `04-team-member.md` to `04-peer-reviewer.md` and reword the peer-review
+  passages in all nine chapters. **BREAKING for bookmarks:** the screen moves from `/app/help-team-member` to
+  `/app/help-peer-reviewer`; there is no redirect (CA-105)
+
 ## Version 3.20.2
 
 Fixes a build trap that made every version bump a CI failure. The generated User Guide fragments carried the package

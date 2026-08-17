@@ -15,7 +15,7 @@
             <div class="ti-panel-title">The life of an evaluation</div>
         </div>
         <div class="competence-pg-lifecycle" role="list" aria-label="Evaluation statuses in order">
-            <span class="competence-pg-status open" role="listitem">Open<span class="competence-pg-status-sub">self &amp; team rounds</span></span>
+            <span class="competence-pg-status open" role="listitem">Open<span class="competence-pg-status-sub">self &amp; peer rounds</span></span>
             <span class="competence-pg-arrow" aria-hidden="true">→</span>
             <span class="competence-pg-status in-review" role="listitem">In Review<span class="competence-pg-status-sub">manager round</span></span>
             <span class="competence-pg-arrow" aria-hidden="true">→</span>
@@ -49,7 +49,7 @@
                 <span class="competence-pg-role manager">Manager</span>
                 <span class="competence-pg-role supervisor">Supervisor</span>
             </div>
-            <p>A manager (or Supervisor) starts an evaluation for an employee and may pick peers for team feedback (3–5 with the default settings). The employee's competency set is frozen into the evaluation at this moment — later configuration changes never affect it.</p>
+            <p>A manager (or Supervisor) starts an evaluation for an employee and may pick peers to provide feedback (3–5 with the default settings). The employee's competency set is frozen into the evaluation at this moment — later configuration changes never affect it.</p>
             <div class="competence-pg-step-foot">
                 <span class="competence-pg-step-where">Org Chart · New Evaluation</span>
                 <button class="ti-btn ghost" type="button" hx-get="/app/help-manager" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" aria-label="Learn more — For Managers">Learn more</button>
@@ -72,13 +72,13 @@
         <div class="ti-panel competence-pg-step">
             <div class="competence-pg-step-head">
                 <span class="competence-pg-step-number" aria-hidden="true">4</span>
-                <h2 class="competence-pg-step-title">Team feedback</h2>
-                <span class="competence-pg-role team">Team Members</span>
+                <h2 class="competence-pg-step-title">Peer feedback</h2>
+                <span class="competence-pg-role team">Peer Reviewers</span>
             </div>
-            <p>If peers were assigned, each submits feedback once — by default one grade per competency group. Individual grades stay private forever; only the averaged team grade is ever shown. A round that never happens is excluded from the score, not counted against it.</p>
+            <p>If peers were assigned, each submits feedback once — by default one grade per competency group. Individual grades stay private forever; only the averaged peer grade is ever shown. A round that never happens is excluded from the score, not counted against it.</p>
             <div class="competence-pg-step-foot">
-                <span class="competence-pg-step-where">My Evaluation (as Team)</span>
-                <button class="ti-btn ghost" type="button" hx-get="/app/help-team-member" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" aria-label="Learn more — For Team Members">Learn more</button>
+                <span class="competence-pg-step-where">My Evaluation (as a peer)</span>
+                <button class="ti-btn ghost" type="button" hx-get="/app/help-peer-reviewer" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" aria-label="Learn more — For Peer Reviewers">Learn more</button>
             </div>
         </div>
 
@@ -88,7 +88,7 @@
                 <h2 class="competence-pg-step-title">Ready for review</h2>
                 <span class="competence-pg-role system">Automatic</span>
             </div>
-            <p>Once the self-evaluation is in and team feedback is complete (or was not requested), the evaluation moves to In Review on its own and the manager is notified.</p>
+            <p>Once the self-evaluation is in and peer feedback is complete (or was not requested), the evaluation moves to In Review on its own and the manager is notified.</p>
             <div class="competence-pg-step-foot">
                 <span class="competence-pg-step-where">—</span>
                 <button class="ti-btn ghost" type="button" hx-get="/app/help-appraisal-process" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" aria-label="Learn more — The Appraisal Process">Learn more</button>
@@ -101,7 +101,7 @@
                 <h2 class="competence-pg-step-title">Manager review</h2>
                 <span class="competence-pg-role manager">Manager</span>
             </div>
-            <p>The manager reviews the self grades, the team result, and the anonymous peer notes, then grades every competency and writes their feedback. Submitting computes the scores — the manager's input carries the largest weight — and the evaluation becomes Ready. The manager deadline is a reminder, never a block.</p>
+            <p>The manager reviews the self grades, the peer result, and the anonymous peer notes, then grades every competency and writes their feedback. Submitting computes the scores — the manager's input carries the largest weight — and the evaluation becomes Ready. The manager deadline is a reminder, never a block.</p>
             <div class="competence-pg-step-foot">
                 <span class="competence-pg-step-where">Evaluation Form</span>
                 <button class="ti-btn ghost" type="button" hx-get="/app/help-manager" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" aria-label="Learn more — For Managers">Learn more</button>
@@ -146,7 +146,7 @@
         </div>
         <ul class="competence-pg-legend-list">
             <li><span class="competence-pg-role employee">Employee</span> The person being evaluated — everyone holds this role.</li>
-            <li><span class="competence-pg-role team">Team Member</span> A peer picked to give feedback on one specific evaluation.</li>
+            <li><span class="competence-pg-role team">Peer Reviewer</span> A peer picked to give feedback on one specific evaluation.</li>
             <li><span class="competence-pg-role manager">Manager</span> Manages a unit — starts evaluations, reviews, and conducts interviews.</li>
             <li><span class="competence-pg-role supervisor">Supervisor</span> The process owner — runs cycles, unblocks stalls, schedules and closes.</li>
             <li><span class="competence-pg-role system">Automatic</span> Done by the application itself — no action needed.</li>

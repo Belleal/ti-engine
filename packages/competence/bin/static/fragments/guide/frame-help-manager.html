@@ -9,7 +9,7 @@
             <button class="competence-guide-nav-item" type="button" hx-get="/app/help-overview" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Overview &amp; Key Concepts</button>
             <button class="competence-guide-nav-item" type="button" hx-get="/app/help-getting-started" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">Getting Started</button>
             <button class="competence-guide-nav-item" type="button" hx-get="/app/help-employee" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Employees</button>
-            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-team-member" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Team Members</button>
+            <button class="competence-guide-nav-item" type="button" hx-get="/app/help-peer-reviewer" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Peer Reviewers</button>
             <button class="competence-guide-nav-item active" type="button" aria-current="page" hx-get="/app/help-manager" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Managers</button>
             <button class="competence-guide-nav-item" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Supervisors</button>
             <button class="competence-guide-nav-item" type="button" hx-get="/app/help-administrator" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Administrators</button>
@@ -26,12 +26,12 @@
 <h2 id="your-own-evaluation">Your own evaluation</h2>
 <p>You&#39;re also an Employee — every Manager is. Your own evaluation gets started the same way, just by someone else: your own manager, or occasionally a Supervisor. From there it works exactly like anyone else&#39;s — same self-assessment, same deadline, same results — all covered in the For Employees chapter. Being a Manager changes nothing about your side of it.</p>
 <h2 id="the-manager-review">The manager review</h2>
-<p>Once an evaluation reaches In Review — the employee&#39;s self-assessment is done, and any team feedback is either complete or wasn&#39;t requested — it lands on your Dashboard as a task, and you&#39;re notified. Open it, and you&#39;ll see the employee&#39;s self-grades, the team&#39;s cumulative grade if peer feedback was requested, and the team&#39;s anonymous written notes — you&#39;re the only one who ever sees those. Grade every competency, and add your own written feedback; none of it reaches the employee until their results are ready. <strong>Save Draft</strong> as often as you like; <strong>Submit</strong> once every competency is graded.</p>
+<p>Once an evaluation reaches In Review — the employee&#39;s self-assessment is done, and any peer feedback is either complete or wasn&#39;t requested — it lands on your Dashboard as a task, and you&#39;re notified. Open it, and you&#39;ll see the employee&#39;s self-grades, the peers&#39; cumulative grade if peer feedback was requested, and the peers&#39; anonymous written notes — you&#39;re the only one who ever sees those. Grade every competency, and add your own written feedback; none of it reaches the employee until their results are ready. <strong>Save Draft</strong> as often as you like; <strong>Submit</strong> once every competency is graded.</p>
 <blockquote>
 <p><strong>Note:</strong> Unlike the self-assessment deadline, yours is a reminder, not a block — a late manager submission is never rejected.</p>
 </blockquote>
 <p>That doesn&#39;t make it optional. Once your deadline passes, the review shows up as overdue on Supervisors&#39; dashboards, and a Supervisor may step in and complete it on your behalf — though only by recording a reason, which stays on the evaluation&#39;s audit trail (the For Supervisors chapter covers that action, and the rest of their stall-recovery toolkit, from their side). Help can also come from inside your own reporting line: a manager above you can complete a stalled review directly, the same way you would, with no reason required, since they&#39;d be acting as a manager rather than standing in for you. Either way, submitting computes the evaluation&#39;s scores automatically and moves it to Ready.</p>
-<h2 id="finalizing-team-feedback">Finalizing team feedback</h2>
+<h2 id="finalizing-peer-feedback">Finalizing peer feedback</h2>
 <p>Peer feedback has its own cycle-level deadline. If it passes and someone assigned still hasn&#39;t submitted, the evaluation doesn&#39;t have to sit stalled: you can finalize the round yourself, and so can a Supervisor, who can view the evaluation as a read-only facilitator for exactly this purpose. Finalizing works with whatever grades were actually submitted — anyone who never responded is simply left out, not counted against the employee. The action is recorded on the evaluation, and once it&#39;s done, the round counts as complete and the evaluation can move forward instead of waiting indefinitely on one non-responder.</p>
 <h2 id="your-availability-calendar">Your availability calendar</h2>
 <p>Open <strong>Availability</strong> from the sidebar for your weekly grid, bounded to the current cycle — you can&#39;t page back before the current week, or forward past the cycle&#39;s close date. Hover over an empty cell, and a small split control appears: its ✓ half marks the slot available, its ✕ half marks it busy. Click a cell you&#39;ve already marked either way, and it&#39;s removed. Once a slot is booked, it turns read-only and shows the employee&#39;s name right in the cell — that&#39;s a Supervisor having booked an interview into your available time, and you can&#39;t undo it yourself.</p>
@@ -47,7 +47,7 @@
 
             </div>
             <footer class="competence-guide-footer">
-            <button class="ti-btn ghost competence-guide-prev" type="button" hx-get="/app/help-team-member" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">← For Team Members</button>
+            <button class="ti-btn ghost competence-guide-prev" type="button" hx-get="/app/help-peer-reviewer" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">← For Peer Reviewers</button>
                 <span class="competence-guide-version">Guide for competence v{competence-version-placeholder}</span>
             <button class="ti-btn ghost competence-guide-next" type="button" hx-get="/app/help-supervisor" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true">For Supervisors →</button>
             </footer>

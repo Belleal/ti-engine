@@ -18,21 +18,21 @@ The evaluation is created at Open status, carrying a snapshot of the competency 
 
 The Employee completes the self-assessment on the evaluation form, grading every competency and adding a written comment, and may save drafts freely until a strict deadline; a draft or submission after that point is rejected outright. Submitting requires every competency to be graded.
 
-If the Employee cannot finish in time, the Supervisor may waive the round from Oversight once the deadline has passed, recording a reason. Waiving lets the evaluation move on to In Review — once any team round is also complete — without the self-grades, which are then excluded from scoring rather than counted against the Employee.
+If the Employee cannot finish in time, the Supervisor may waive the round from Oversight once the deadline has passed, recording a reason. Waiving lets the evaluation move on to In Review — once the peer review is complete, or if none was requested — without the self-grades, which are then excluded from scoring rather than counted against the Employee.
 
-## Step 4 — Team Evaluation *(optional)*
+## Step 4 — Peer Review *(optional)*
 
-If team members were named at Step 2, each grades the evaluation form before a separate, cycle-level deadline — by subcategory in the default collective mode, or competency by competency if collective mode is switched off. Each team member submits once, and once every one of them has, the system averages the individual grades into a single cumulative grade per competency.
+If peer reviewers were named at Step 2, each grades the evaluation form before a separate, cycle-level deadline — by subcategory in the default collective mode, or competency by competency if collective mode is switched off. Each peer reviewer submits once, and once every one of them has, the system averages the individual grades into a single cumulative grade per competency.
 
-This round is skipped entirely when an evaluation starts without team members. Its deadline blocks late input the same way the self-round's does — a late submission is rejected outright. What differs is the recovery: once the deadline passes, the Manager — or a Supervisor acting as a read-only facilitator — may finalize the round with whatever was actually submitted, so one non-responder can't hold up the rest, and a round with no submissions at all is simply excluded from the score.
+This round is skipped entirely when an evaluation starts without peer reviewers. Its deadline blocks late input the same way the self-round's does — a late submission is rejected outright. What differs is the recovery: once the deadline passes, the Manager — or a Supervisor acting as a read-only facilitator — may finalize the round with whatever was actually submitted, so one non-responder can't hold up the rest, and a round with no submissions at all is simply excluded from the score.
 
 ## Step 5 — Status Transition: Open → In Review
 
-No one takes a direct action for this step — it happens on its own. As soon as the Employee's self-assessment is submitted, and the team round is either complete or was never requested, the evaluation's status changes from Open to In Review automatically, and the Manager is notified that it's waiting on them.
+No one takes a direct action for this step — it happens on its own. As soon as the Employee's self-assessment is submitted, and the peer review is either complete or was never requested, the evaluation's status changes from Open to In Review automatically, and the Manager is notified that it's waiting on them.
 
 ## Step 6 — Manager Review
 
-The Manager reviews the submitted self and team grades on the evaluation form, adds a grade for every competency plus a written comment, and may save drafts freely. The Manager's own deadline works differently from the Employee's: it's a reminder rather than a block, so a late manager submission is never rejected.
+The Manager reviews the submitted self and peer grades on the evaluation form, adds a grade for every competency plus a written comment, and may save drafts freely. The Manager's own deadline works differently from the Employee's: it's a reminder rather than a block, so a late manager submission is never rejected.
 
 Once the deadline passes, it surfaces as an overdue task for the Supervisor, who may complete the manager grades from Oversight on the Manager's behalf, recording a reason — a manager further up the same reporting line may also step in directly, without needing to record one, since they'd be acting as a manager rather than standing in for someone. Once the manager review is submitted, by whichever of them does it, the system calculates the evaluation's performance scores and its status changes to Ready, and the Supervisor is notified.
 
@@ -58,7 +58,7 @@ NOT STARTED → OPEN → IN REVIEW → READY → CLOSED
 ```
 
 - **Not Started** — no evaluation exists yet for the employee.
-- **Open** — the self-assessment, and any team feedback, are in progress.
+- **Open** — the self-assessment, and any peer feedback, are in progress.
 - **In Review** — both of those are done, and the manager review is in progress.
 - **Ready** — the manager has submitted; scores are calculated and visible, and the interview gets scheduled and held from here.
 - **Closed** — the interview's outcome is recorded and the Supervisor has formally closed the evaluation; nothing more happens after this.
@@ -69,7 +69,7 @@ NOT STARTED → OPEN → IN REVIEW → READY → CLOSED
 For the detail behind any one step, the earlier chapters cover it from that role's own side:
 
 - **For Employees** covers the self-assessment, the results screen, and what stays private, from the employee's side.
-- **For Team Members** covers being picked for peer feedback, how it's graded, and how anonymous it stays.
+- **For Peer Reviewers** covers being picked for peer feedback, how it's graded, and how anonymous it stays.
 - **For Managers** covers starting evaluations, the manager review, the availability calendar, and conducting interviews.
 - **For Supervisors** covers configuring and locking a cycle, recovering stalled evaluations, scheduling interviews, and closing both evaluations and the cycle itself.
 - **For Administrators** covers the configuration screens — the competency dictionary, the relevancy model behind scoring, and role families — and when each kind of change takes effect.

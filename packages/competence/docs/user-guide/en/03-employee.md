@@ -1,6 +1,6 @@
 # For Employees
 
-Every appraisal cycle, you go through your own evaluation as the Employee — the person being evaluated. This chapter follows it end to end: how it starts, completing your self-assessment, what happens while your manager and any teammates weigh in, and what you'll see once your results — and eventually your closing interview — are ready.
+Every appraisal cycle, you go through your own evaluation as the Employee — the person being evaluated. This chapter follows it end to end: how it starts, completing your self-assessment, what happens while your manager and any peer reviewers weigh in, and what you'll see once your results — and eventually your closing interview — are ready.
 
 ## When your evaluation starts
 
@@ -8,7 +8,7 @@ You don't start your own evaluation — that step belongs to your manager, or oc
 
 ## Completing your self-assessment
 
-Open **My Evaluation** from the sidebar, or click straight through from the dashboard task. A role banner at the top confirms you're grading as the Employee — the same screen is also used by your manager and any team members, just showing each of you a different view.
+Open **My Evaluation** from the sidebar, or click straight through from the dashboard task. A role banner at the top confirms you're grading as the Employee — the same screen is also used by your manager and any peer reviewers, just showing each of you a different view.
 
 Competencies are grouped by category and then by subcategory. For each one, read its scope description first — a short statement of what mastery looks like specifically at your stage-level — before choosing a grade: S (Superior), R (Regular), U (Unsatisfactory), or N (Not Utilized). Use N whenever a competency genuinely didn't apply to your work this period, or wasn't something you had the chance to demonstrate — not as a way of skipping something you'd rather not grade.
 
@@ -26,9 +26,9 @@ If something genuinely prevents you from finishing in time, talk to your manager
 
 ## While others review
 
-Once you submit — and, if peer feedback was requested for your evaluation, once the team round is complete too — your evaluation moves on to In Review, and it lands with your manager. From here, your own inputs are read-only; there's nothing left for you to do until your manager finishes their review.
+Once you submit — and, if peer feedback was requested for your evaluation, once the peer review is complete too — your evaluation moves on to In Review, and it lands with your manager. From here, your own inputs are read-only; there's nothing left for you to do until your manager finishes their review.
 
-Whatever grades your manager and any teammates are working on stay hidden from you while this is happening — you won't see any of it until your results are ready.
+Whatever grades your manager and any peer reviewers are working on stay hidden from you while this is happening — you won't see any of it until your results are ready.
 
 ## Your results
 
@@ -39,7 +39,7 @@ My Scores is where the full picture lives:
 - Your **final score** and which threshold band it falls into
 - A **score chip** for each of the three categories — Expertise, Insight, and Commitment
 - A **subcategory radar** chart breaking your result down across all nine subcategories
-- A **self, team, and manager comparison** — the team side is always shown as a single cumulative figure, never as individual grades
+- A **self, peer, and manager comparison** — the peer side is always shown as a single cumulative figure, never as individual grades
 - Your **strengths and development areas**, based on how your results compare to what's expected at your stage-level
 - A **score-history** line across cycles, once you have results from at least two of them
 - A "**how it's calculated**" note beside each chart, for whenever you want the detail behind a number
@@ -62,7 +62,7 @@ Once your evaluation is Closed, My Scores additionally shows the interview's wri
 |---|---|
 | Your own grades and self-evaluation comment | Always |
 | Your manager's grades and written feedback | From Ready onward |
-| The team's cumulative grade | From Ready onward |
-| Individual teammates' grades, and their anonymous written notes | Never |
+| The peers' cumulative grade | From Ready onward |
+| Individual peer grades, and their anonymous written notes | Never |
 
-That last row is by design — peer feedback stays anonymous permanently, not just until your results are ready. It's covered in more detail in the For Team Members chapter.
+That last row is by design — peer feedback stays anonymous permanently, not just until your results are ready. It's covered in more detail in the For Peer Reviewers chapter.

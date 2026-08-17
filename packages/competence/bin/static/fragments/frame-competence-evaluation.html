@@ -114,6 +114,15 @@
                         <span class="ti-icon eye sm" aria-hidden="true"></span>
                         <span x-text-label="interface.evaluation.facilitator-notice"></span>
                     </div>
+                    <!-- Rounds that closed without producing any ratings (CA-104). Deliberately unguarded by
+                         isMyResults: the reader of the Scores screen needs this as much as the grader does, because it
+                         explains why a source is absent and that it was excluded from the score rather than zeroed. -->
+                    <template x-for="note in getMissedRoundNotes()" x-bind:key="note">
+                        <div class="competence-eval-emp-note">
+                            <span class="ti-icon info-circle sm" aria-hidden="true"></span>
+                            <span x-text="note"></span>
+                        </div>
+                    </template>
                 </div>
 
                 <!-- Right column: deadline/interview + team reviewers + final score, stacked and stretched to the
@@ -485,14 +494,16 @@
                                             <span class="ti-grade-chip"
                                                   x-bind:data-grade="gradeKey"
                                                   x-bind:class="getGradeChipClass(sub.id, 'team', gradeKey)"
-                                                  x-bind:aria-label="'Team grade for ' + sub.id + ': ' + gradeKey"
+                                                  x-bind:aria-label="'Peer grade for ' + sub.id + ': ' + gradeKey"
                                                   x-text="gradeKey"
                                                   @click="toggleGrade(sub.id, 'team', gradeKey)"></span>
                                         </template>
                                     </div>
                                     <span class="ti-grade-chip"
                                           x-bind:data-grade="getItemGrade(sub.id, 'team')"
-                                          x-bind:class="getItemGrade(sub.id, 'team') ? '' : 'empty'"
+                                          x-bind:class="getGradeChipStateClass(sub.id, 'team')"
+                                          x-bind:title="getGradeChipTitle(sub.id, 'team')"
+                                          x-bind:aria-label="getGradeChipTitle(sub.id, 'team')"
                                           x-text="getItemGrade(sub.id, 'team')"
                                           x-show="!canEdit"></span>
                                 </div>
@@ -540,7 +551,9 @@
                                         <!-- Read-only own: employee when not editing, or manager viewing -->
                                         <span class="ti-grade-chip"
                                               x-bind:data-grade="getItemGrade(item.id, 'employee')"
-                                              x-bind:class="getItemGrade(item.id, 'employee') ? '' : 'empty'"
+                                              x-bind:class="getGradeChipStateClass(item.id, 'employee')"
+                                              x-bind:title="getGradeChipTitle(item.id, 'employee')"
+                                              x-bind:aria-label="getGradeChipTitle(item.id, 'employee')"
                                               x-text="getItemGrade(item.id, 'employee')"
                                               x-show="(userRole === 1 && !canEdit) || userRole === 2"></span>
                                         <!-- Hidden from team reviewers (stripped server-side): show a lock, never a value or progress -->
@@ -558,7 +571,7 @@
                                                 <span class="ti-grade-chip"
                                                       x-bind:data-grade="gradeKey"
                                                       x-bind:class="getGradeChipClass(item.id, 'team', gradeKey)"
-                                                      x-bind:aria-label="'Team grade for ' + item.id + ': ' + gradeKey"
+                                                      x-bind:aria-label="'Peer grade for ' + item.id + ': ' + gradeKey"
                                                       x-text="gradeKey"
                                                       @click="toggleGrade(item.id, 'team', gradeKey)"></span>
                                             </template>
@@ -566,7 +579,9 @@
                                         <!-- Read-only value: team reviewer not editing, manager viewing, or the employee once Ready -->
                                         <span class="ti-grade-chip"
                                               x-bind:data-grade="getItemGrade(item.id, 'team')"
-                                              x-bind:class="getItemGrade(item.id, 'team') ? '' : 'empty'"
+                                              x-bind:class="getGradeChipStateClass(item.id, 'team')"
+                                              x-bind:title="getGradeChipTitle(item.id, 'team')"
+                                              x-bind:aria-label="getGradeChipTitle(item.id, 'team')"
                                               x-text="getItemGrade(item.id, 'team')"
                                               x-show="(userRole === 4 && !canEdit) || userRole === 2 || (userRole === 1 && hasResults())"></span>
                                         <!-- Hidden from the employee until results are revealed (Ready/Closed; stripped server-side): show a lock -->
@@ -592,7 +607,9 @@
                                         <!-- Read-only value: manager not editing, or the employee once results are Ready -->
                                         <span class="ti-grade-chip"
                                               x-bind:data-grade="getItemGrade(item.id, 'manager')"
-                                              x-bind:class="getItemGrade(item.id, 'manager') ? '' : 'empty'"
+                                              x-bind:class="getGradeChipStateClass(item.id, 'manager')"
+                                              x-bind:title="getGradeChipTitle(item.id, 'manager')"
+                                              x-bind:aria-label="getGradeChipTitle(item.id, 'manager')"
                                               x-text="getItemGrade(item.id, 'manager')"
                                               x-show="(userRole === 2 && !canEdit) || (userRole === 1 && hasResults())"></span>
                                         <!-- Hidden: team reviewers always; the employee until results are revealed (Ready/Closed; stripped server-side) -->

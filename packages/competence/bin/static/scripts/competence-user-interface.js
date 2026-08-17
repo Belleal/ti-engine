@@ -38,6 +38,9 @@ const configureCompetenceEvaluation = () => {
         canFinalizeTeam: false,
         isFacilitator: false,
         isManagerProxy: false,
+        // CA-104 — per-round reason code when a rating round closed without producing any grades ("waived",
+        // "no-responses", "none-assigned"), or null when the round was answered or is still genuinely open.
+        missedRounds: { self: null, team: null },
         manager: {},
         personal: {},
         evaluation: {
@@ -99,6 +102,7 @@ const configureCompetenceEvaluation = () => {
             this.teamReviewers = fresh.teamReviewers ? tiToolbox.structuredClone( fresh.teamReviewers ) : null;
             this.canEdit = fresh.canEdit;
             this.canFinalizeTeam = ( fresh.canFinalizeTeam === true );
+            this.missedRounds = fresh.missedRounds ? tiToolbox.structuredClone( fresh.missedRounds ) : { self: null, team: null };
             this.isFacilitator = ( fresh.isFacilitator === true );
             this.isManagerProxy = ( fresh.isManagerProxy === true );
             if ( typeof fresh.isOwnResults === "boolean" ) {
@@ -502,6 +506,59 @@ const configureCompetenceEvaluation = () => {
 
         getGradeShortDesc( gradeKey ) {
             return tiApplication.getLabel( `interface.evaluation.grades.short.${ gradeKey }`, "" );
+        },
+
+        // CA-104 — an ungraded cell in a round that has already closed is not "awaiting a rating": nothing further is
+        // coming. Returns the reason code so the chip can render a settled state and explain itself, instead of an
+        // hourglass that will never resolve. The manager round is deliberately excluded — a late manager submit is
+        // never blocked, so a blank manager grade genuinely is still pending.
+        getMissedRoundReason( role ) {
+            const missed = this.missedRounds || {};
+            if ( role === "employee" ) {
+                return missed.self || null;
+            } else if ( role === "team" ) {
+                return missed.team || null;
+            }
+            return null;
+        },
+
+        // State class for a read-only grade chip: a graded chip needs none, an ungraded one is either still awaited
+        // (dashed border, hourglass) or settled-unrated (solid border, distinct glyph).
+        getGradeChipStateClass( competencyCode, role ) {
+            if ( this.getItemGrade( competencyCode, role ) ) {
+                return "";
+            }
+            return this.getMissedRoundReason( role ) ? "empty missed" : "empty";
+        },
+
+        // Tooltip/accessible text for a read-only grade chip. Empty for a graded chip so it carries no redundant title.
+        getGradeChipTitle( competencyCode, role ) {
+            if ( this.getItemGrade( competencyCode, role ) ) {
+                return "";
+            }
+            const reason = this.getMissedRoundReason( role );
+            return reason
+                ? tiApplication.getLabel( `interface.evaluation.missed-round.chip.${ reason }`, "" )
+                : tiApplication.getLabel( "interface.evaluation.missed-round.chip.awaiting", "" );
+        },
+
+        // One explanatory note per round that closed unrated, shown above the competency tables and on the Scores
+        // screen. These say the absent input was excluded from the score rather than counted as a zero — the part a
+        // reader cannot infer from a blank cell.
+        getMissedRoundNotes() {
+            const missed = this.missedRounds || {};
+            const notes = [];
+            if ( missed.self ) {
+                notes.push( tiApplication.getLabel( `interface.evaluation.missed-round.note.self-${ missed.self }`, "" ) );
+            }
+            if ( missed.team ) {
+                notes.push( tiApplication.getLabel( `interface.evaluation.missed-round.note.team-${ missed.team }`, "" ) );
+            }
+            return notes.filter( ( note ) => note );
+        },
+
+        hasMissedRounds() {
+            return this.getMissedRoundNotes().length > 0;
         },
 
         getPageTitle() {

@@ -716,6 +716,57 @@ class CompetenceFramework {
     }
 
     /**
+     * Resolves which rating rounds closed without producing any grades, so the UI can tell a settled-but-unanswered
+     * cell apart from one that is still awaited. Pure — derived from workflow state alone.
+     *
+     * <br/>Returns a reason code per round (or `null` when the round is either answered or still genuinely open), so
+     * the caller can explain *why* nothing was rated rather than only that nothing was:
+     * <ul>
+     *   <li><b>self</b> — `"waived"`: a supervisor advanced the evaluation past a stalled self round.</li>
+     *   <li><b>team</b> — `"no-responses"`: the round was finalized after its deadline with nobody having submitted.
+     *       A finalize with at least one submission leaves every competency with a cumulative grade, because a
+     *       submitting peer must grade the whole set (enforced on submit), so it is not an unrated round.</li>
+     *   <li><b>team</b> — `"none-assigned"`: no peer reviewers were ever picked, so the round could never produce
+     *       anything. `createNewEvaluation` seeds an empty roster and the OPEN->IN_REVIEW predicate treats an empty
+     *       one as done, so such an evaluation never sets `teamEvaluationCompleted`.</li>
+     * </ul>
+     *
+     * <br/>The manager round has no unrated state by design: a late manager submit is never rejected (CA-59), so a
+     * blank manager grade always means "still pending", never "missed".
+     *
+     * <br/>NOTE: The result carries counts and flags only — never identities — which is what makes it safe to ship
+     * to the client, where `workflow` itself (it holds the peer reviewer IDs) is deliberately stripped.
+     *
+     * @method
+     * @param {Evaluation} evaluation
+     * @returns {{ self: ( string | null ), team: ( string | null ) }}
+     * @public
+     */
+    resolveMissedRounds( evaluation ) {
+        const workflow = evaluation && evaluation.workflow;
+        // Without a workflow nothing can be concluded — in particular an absent roster must not be mistaken for a
+        // deliberately empty one, which would report "none-assigned" for an evaluation we simply know nothing about.
+        if ( !workflow || typeof workflow !== "object" ) {
+            return { self: null, team: null };
+        }
+        const teamCompleted = workflow.teamEvaluationCompleted === true;
+        const teamSubmitted = workflow.teamEvaluationsSubmitted || 0;
+        const teamRoster = Array.isArray( workflow.team ) ? workflow.team : [];
+
+        let team = null;
+        if ( teamCompleted && teamSubmitted === 0 ) {
+            team = "no-responses";
+        } else if ( !teamCompleted && teamSubmitted === 0 && teamRoster.length === 0 ) {
+            team = "none-assigned";
+        }
+
+        return {
+            self: ( workflow.selfEvaluationWaived === true && workflow.selfEvaluationCompleted !== true ) ? "waived" : null,
+            team: team
+        };
+    }
+
+    /**
      * Used to calculate the final evaluation scores for the provided evaluation. Reads per-stage-level relevancy
      * weights from the evaluation snapshot, not from the live competencies dictionary.
      *

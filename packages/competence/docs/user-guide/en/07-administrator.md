@@ -4,7 +4,7 @@ Being an Administrator is unlike every other capacity in this guide — it has n
 
 ## Who is an administrator
 
-Administrator status doesn't come from the organization chart the way your other capacities do. Being an Employee, Manager, or Supervisor is worked out automatically from where you sit in the organization, and being a Team Member comes from being picked for a specific evaluation's feedback team — but Administrator is different: it's a separate list of trusted accounts, kept directly by your operations team, and it isn't derived from anything else you hold.
+Administrator status doesn't come from the organization chart the way your other capacities do. Being an Employee, Manager, or Supervisor is worked out automatically from where you sit in the organization, and being a Peer Reviewer comes from being picked for a specific evaluation's peer review — but Administrator is different: it's a separate list of trusted accounts, kept directly by your operations team, and it isn't derived from anything else you hold.
 
 If your account is on that list, an **Administration** section appears in your sidebar, giving you access to everything covered in this chapter. If it isn't, that section doesn't appear at all — Administrator status is entirely independent of whatever else you can already do in the application.
 

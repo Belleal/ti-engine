@@ -36,7 +36,11 @@ const roleCodeEnum = tools.enum( {
     EMPLOYEE: [ 1, "Employee", "A general employee role without any additional privileges." ],
     MANAGER: [ 2, "Manager", "A manager role that is responsible for managing employees." ],
     SUPERVISOR: [ 3, "Supervisor", "A supervisor role that oversees the process but does not manage employees." ],
-    TEAM_MEMBER: [ 4, "Team Member", "A team member role that is part of a dedicated team and has limited privileges." ]
+    // The key stays TEAM_MEMBER — it is referenced across the code and the stored workflow shape. Only the display
+    // text moves to "peer": reviewers are not restricted to the evaluatee's team (isEligibleTeamReviewer excludes
+    // only the evaluatee and their management chain), so "team member" misdescribed the role. The value is 4, a
+    // number, so nothing persisted or compared is affected (CA-105).
+    TEAM_MEMBER: [ 4, "Peer Reviewer", "A peer reviewer role that provides feedback on a colleague's evaluation and has limited privileges." ]
 } );
 module.exports.roleCode = roleCodeEnum;
 

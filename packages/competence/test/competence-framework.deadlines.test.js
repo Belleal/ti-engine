@@ -43,3 +43,62 @@ describe( "createNewEvaluation — deadline population", () => {
         assert.equal( evaluation.workflow.managerEvaluationDeadline, "2026-11-30" );
     } );
 } );
+
+describe( "resolveMissedRounds — rounds that closed without producing grades (CA-104)", () => {
+    function workflow( overrides ) {
+        return { workflow: Object.assign( {
+            selfEvaluationCompleted: false,
+            selfEvaluationWaived: false,
+            teamEvaluationCompleted: false,
+            teamEvaluationsSubmitted: 0,
+            team: [ "peer-1" ]
+        }, overrides ) };
+    }
+
+    it( "reports a waived self round", () => {
+        const missed = competenceFramework.instance.resolveMissedRounds( workflow( { selfEvaluationWaived: true } ) );
+        assert.equal( missed.self, "waived" );
+    } );
+
+    it( "reports no missed self round when the self-assessment was submitted", () => {
+        const missed = competenceFramework.instance.resolveMissedRounds( workflow( { selfEvaluationCompleted: true } ) );
+        assert.equal( missed.self, null );
+    } );
+
+    it( "reports no missed self round while the round is still open", () => {
+        assert.equal( competenceFramework.instance.resolveMissedRounds( workflow( {} ) ).self, null );
+    } );
+
+    it( "reports a peer round finalized with zero submissions", () => {
+        const missed = competenceFramework.instance.resolveMissedRounds( workflow( { teamEvaluationCompleted: true, team: [] } ) );
+        assert.equal( missed.team, "no-responses" );
+    } );
+
+    it( "reports no missed peer round when at least one peer submitted — a submitting peer must grade the whole set, so every competency carries a cumulative", () => {
+        const missed = competenceFramework.instance.resolveMissedRounds( workflow( {
+            teamEvaluationCompleted: true,
+            teamEvaluationsSubmitted: 1,
+            team: []
+        } ) );
+        assert.equal( missed.team, null );
+    } );
+
+    it( "reports an evaluation that never had peer reviewers assigned", () => {
+        const missed = competenceFramework.instance.resolveMissedRounds( workflow( { team: [] } ) );
+        assert.equal( missed.team, "none-assigned" );
+    } );
+
+    it( "reports no missed peer round while reviewers are still pending", () => {
+        assert.equal( competenceFramework.instance.resolveMissedRounds( workflow( {} ) ).team, null );
+    } );
+
+    it( "never reports the manager round — a late manager submit is never blocked, so a blank manager grade stays pending", () => {
+        const missed = competenceFramework.instance.resolveMissedRounds( workflow( { managerEvaluationCompleted: false } ) );
+        assert.deepEqual( Object.keys( missed ).sort(), [ "self", "team" ] );
+    } );
+
+    it( "concludes nothing without a workflow rather than mistaking an absent roster for an empty one", () => {
+        assert.deepEqual( competenceFramework.instance.resolveMissedRounds( {} ), { self: null, team: null } );
+        assert.deepEqual( competenceFramework.instance.resolveMissedRounds( null ), { self: null, team: null } );
+    } );
+} );

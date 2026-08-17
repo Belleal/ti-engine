@@ -6,11 +6,11 @@ This chapter closes out the guide with two things: quick answers to the question
 
 ### Why can't I see my manager's grades yet?
 
-Your manager's grades stay hidden from you until your evaluation reaches Ready. From that point on, they're visible alongside the team's cumulative grade — never earlier.
+Your manager's grades stay hidden from you until your evaluation reaches Ready. From that point on, they're visible alongside the peers' cumulative grade — never earlier.
 
-### Can I ever see how a specific teammate graded me?
+### Can I ever see how a specific peer graded me?
 
-No — individual peer grades are never shown to anyone but the person who gave them, not even your manager. What you see instead, once your evaluation reaches Ready, is the team's single combined cumulative grade.
+No — individual peer grades are never shown to anyone but the person who gave them, not even your manager. What you see instead, once your evaluation reaches Ready, is the peers' single combined cumulative grade.
 
 ### Can grades be changed after submitting?
 
@@ -20,9 +20,9 @@ No — grades are locked in the moment a round is submitted; nobody edits them a
 
 A draft save or a submission after your self-evaluation deadline is rejected outright. If you genuinely can't finish in time, a Supervisor can waive the round once the deadline has passed so your evaluation isn't held up — your self-grades are then excluded from scoring entirely, never treated as a zero.
 
-### Does a skipped team round hurt the score?
+### Does a skipped peer review hurt the score?
 
-No. When a team round wasn't requested — or was finalized without any submissions — it's excluded from the score calculation entirely, and the remaining sources are renormalized to cover the full result, rather than the missing round counting as a zero.
+No. When a peer review wasn't requested — or was finalized without any submissions — it's excluded from the score calculation entirely, and the remaining sources are renormalized to cover the full result, rather than the missing round counting as a zero.
 
 ### What does "Not Utilized" (N) do to the score?
 
@@ -30,7 +30,7 @@ It carries a weight of zero, so that competency contributes nothing to the score
 
 ### Who sees my written self-evaluation comment?
 
-Your manager sees it, as part of their review. Team members never do, and that never changes.
+Your manager sees it, as part of their review. Peer reviewers never do, and that never changes.
 
 ### Who conducts my interview?
 
@@ -72,11 +72,11 @@ You don't request it inside the application — Administrator status is a separa
 | Competency pool | The fixed set of competencies a role family may draw on; the picker and the cycle-lock validation only allow choices from within it. |
 | Stage-level | The combination of level and stage (for example J2 or S3) that reflects seniority and sets each competency's relevancy weight. |
 | Relevancy | How much a competency counts toward the score at a given stage-level, defined by its archetype curve. |
-| Grade | The S / R / U / N rating given to a competency by the employee, the team, or the manager. |
+| Grade | The S / R / U / N rating given to a competency by the employee, the peer reviewers, or the manager. |
 | Threshold | One of the five score bands, from Weak to Outstanding, that a final score is read against. |
 | Snapshot | The competency set — and its relevancy weights — frozen onto an evaluation the moment it starts, immune to any later configuration change. |
-| Collective team evaluation | The default team-feedback mode, where team members grade by subcategory instead of competency by competency. |
-| Cumulative team grade | The single combined grade calculated per competency from every team member's submission; individual team grades are never shown. |
+| Collective peer review | The default peer-feedback mode, where peer reviewers grade by subcategory instead of competency by competency. |
+| Cumulative peer grade | The single combined grade calculated per competency from every peer reviewer's submission; individual peer grades are never shown. |
 | Conducting manager | The manager who owns the calendar slot booked for a given interview, whether or not they're the employee's own manager. |
 | Structural Supervisor | A Supervisor by virtue of organization-chart position — the top manager, or a direct report whose own sub-organization runs at least two management levels deep; the role can't be taken away. |
 | Granted Supervisor | A Supervisor role given to someone by a structural Supervisor; the same powers, except managing other people's roles, taking effect at the grantee's next sign-in. |
