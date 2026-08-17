@@ -2,6 +2,21 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.20.2
+
+Fixes a build trap that made every version bump a CI failure. The generated User Guide fragments carried the package
+version as a literal, so bumping `package.json` alone re-stamped all nine screens and failed the freshness guard in
+`test/user-guide-build.test.js` — on a commit that touched no chapter. This is what broke the 3.20.1 relicensing
+build and, because the npm-publish `publish` job gates on that test, it also blocked the `core`, `web-framework`,
+`web-content` and `tester` releases the bump was made to trigger.
+
+* fix(build): emit the guide version stamp as the `{competence-version-placeholder}` token instead of the literal
+  version, and substitute the running version in `transformHtml` at serve time. The generated HTML now depends only
+  on the markdown sources, so a version bump cannot make the committed fragments stale — and the guide shows the
+  version actually running rather than the one it was last built at
+* test(build): guard the decoupling — the committed fragments must carry the placeholder and no baked-in version,
+  the build must take no version input, and the app must substitute the same token the build emits
+
 ## Version 3.20.1
 
 License change only — no functional code changed.
