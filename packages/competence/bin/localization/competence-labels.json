@@ -5857,6 +5857,20 @@
         "en": "Hidden — not visible to you",
         "bg": "Скрито — не е видимо за вас"
       },
+      "grade-select-aria": {
+        "employee": {
+          "en": "Self grade for {code}: {grade}",
+          "bg": "Самооценка за {code}: {grade}"
+        },
+        "team": {
+          "en": "Peer grade for {code}: {grade}",
+          "bg": "Колегиална оценка за {code}: {grade}"
+        },
+        "manager": {
+          "en": "Manager grade for {code}: {grade}",
+          "bg": "Оценка от мениджър за {code}: {grade}"
+        }
+      },
       "you-tag": {
         "en": "You",
         "bg": "Вие"
