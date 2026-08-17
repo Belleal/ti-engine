@@ -15,7 +15,7 @@
 
 The `competence` HR appraisal app currently has **no container or CI/CD tooling**. It is launched from IDE run-configs via `core`'s `bin/start-instance.js`, with no `start` script, no Dockerfile, and only a **stale CodeQL workflow** (pinned to retired `codeql-action@v1` / `checkout@v2`, which fail on today's GitHub runners). The goal is to make the app trivially buildable and deployable through a Docker-based pipeline that publishes versioned images to a registry.
 
-This is delivered against a **public, GPL-3.0 GitHub repo** (`Belleal/ti-engine`) under Information Services org rules, so: **no secret ever enters the repo or an image**, artifacts get heightened review, and secure defaults (non-root, minimal base) are mandatory.
+This is delivered against a **public GitHub repo** (`Belleal/ti-engine`, `competence` package under AGPL-3.0-or-later) under Information Services org rules, so: **no secret ever enters the repo or an image**, artifacts get heightened review, and secure defaults (non-root, minimal base) are mandatory.
 
 ## 2. Goals & non-goals
 

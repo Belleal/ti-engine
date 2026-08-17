@@ -16,7 +16,7 @@
 - **postinstall ordering:** `web-framework`'s `postinstall` (copies HTMX/Alpine libs) needs its own source present — install with `--ignore-scripts`, copy source, then run `npm run postinstall -w @ti-engine/web-framework`.
 - **No native modules** in the tree → `node:22-alpine` needs no build toolchain. The `allowScripts.zeromq` entry in root `package.json` is stale — leave it or remove only if trivial; do not add a build toolchain for it.
 - **No secrets anywhere** in the repo or image. GHCR auth uses the built-in `${{ secrets.GITHUB_TOKEN }}`. Runtime secrets (`TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY`, `TI_WEB_COOKIE_SECRET`, Redis auth, OAuth) come only from env. `.env` and `bin/tls/**` must be excluded from the build context.
-- **GPL header:** every new `.js` file starts with the standard GPL-3.0 header block (copy verbatim from an existing file such as `packages/web-framework/test/authorization.test.js:1-7`, keeping `Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>`).
+- **License header:** every new `.js` file starts with the standard AGPL-3.0 header block for this package (copy verbatim from an existing file such as `packages/competence/test/identity-resolver.test.js:1-6`, keeping `Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>`).
 - **Conventions:** CommonJS; `#alias` internal imports; `node --test` tests using `const { describe, it } = require("node:test")` + `const assert = require("node:assert/strict")`; commits are Conventional-Commit, thematically bundled (few, coherent), each referencing the `CA-###` id from Task 1.
 - **Image name:** `ghcr.io/belleal/ti-engine-competence`.
 - **Version targets:** web-framework `1.13.2` → `1.14.0`; competence `3.12.0` → `3.13.0`.
@@ -74,9 +74,18 @@ Create `packages/web-framework/test/web-server-env-overrides.test.js`:
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
  * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
 */
 
 const { describe, it } = require( "node:test" );
@@ -160,9 +169,18 @@ Create `packages/web-framework/components/web-config-env.js`:
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
  * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
 */
 
 "use strict";
