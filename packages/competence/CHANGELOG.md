@@ -35,6 +35,12 @@ analytics, team coverage) is unchanged, as is the entire competency dictionary, 
   (en + bg) and rename the `Team Member` role label to `Peer Reviewer`. The `TEAM_MEMBER` enum key and its value `4`
   are unchanged, as is the persisted shape (`workflow.team`, `grades.*.team`, `teamEvaluationCompleted`,
   `cycle.teamFeedbackDeadline`, the `team-feedback` / `team-finalize` task types) — no migration (CA-105)
+* fix(a11y): localize the editable grade pills' `aria-label`. A pill renders one grade letter and nothing else, so
+  that label *is* its accessible name — and all four groups built it from an English literal, leaving the one part
+  of the grading table a Bulgarian reader could not see as the one part that was never translated. Now
+  `getGradeSelectAria` against `interface.evaluation.grade-select-aria.<source>` (en + bg), one label per source
+  rather than a shared template with a `{source}` placeholder, since dropping a bare noun into a sentence breaks
+  agreement in bg. `test/grade-select-aria.test.js` closes the class rather than the four instances (CA-106)
 * feat(docs)!: rename the guide chapter `04-team-member.md` to `04-peer-reviewer.md` and reword the peer-review
   passages in all nine chapters. **BREAKING for bookmarks:** the screen moves from `/app/help-team-member` to
   `/app/help-peer-reviewer`; there is no redirect (CA-105)

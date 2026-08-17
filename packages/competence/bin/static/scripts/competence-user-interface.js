@@ -508,6 +508,19 @@ const configureCompetenceEvaluation = () => {
             return tiApplication.getLabel( `interface.evaluation.grades.short.${ gradeKey }`, "" );
         },
 
+        // CA-106 — an editable grade pill carries only its one-letter grade as text, so this label IS its accessible
+        // name; left as an English literal it was the only part of the grading table a bg reader still heard in
+        // English. One label per source rather than a single template with a {source} placeholder: dropping a bare
+        // noun into a sentence breaks agreement in bg, where each source reads differently. Substitution follows the
+        // established getLabel(...).replace("{x}", …) pattern — getLabel does no interpolation of its own.
+        getGradeSelectAria( competencyCode, role, gradeKey ) {
+            const template = tiApplication.getLabel( `interface.evaluation.grade-select-aria.${ role }`, "" );
+            if ( !template ) {
+                return `${ competencyCode }: ${ gradeKey }`;
+            }
+            return template.replace( "{code}", competencyCode ).replace( "{grade}", gradeKey );
+        },
+
         // CA-104 — an ungraded cell in a round that has already closed is not "awaiting a rating": nothing further is
         // coming. Returns the reason code so the chip can render a settled state and explain itself, instead of an
         // hourglass that will never resolve. The manager round is deliberately excluded — a late manager submit is
