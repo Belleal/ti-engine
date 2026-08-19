@@ -1079,6 +1079,27 @@ describe( "organization structure semantic validators", () => {
         assert.equal( issues[ 0 ].code, "cycle" );
     } );
 
+    it( "accepts a tree whose every unit id equals its map key", async () => {
+        assert.deepEqual( await validators.organizationIdMatchesKey( validTree(), CONTEXT ), [] );
+    } );
+
+    it( "rejects a unit whose id disagrees with its map key", async () => {
+        const tree = validTree();
+        tree[ "1-1" ].id = "1-2";
+        const issues = await validators.organizationIdMatchesKey( tree, CONTEXT );
+        assert.equal( issues.length, 1 );
+        assert.equal( issues[ 0 ].code, "id-key-mismatch" );
+        assert.equal( issues[ 0 ].path, ".1-1" );
+    } );
+
+    it( "rejects a unit with no id at all", async () => {
+        const tree = validTree();
+        delete tree[ "1-1" ].id;
+        const issues = await validators.organizationIdMatchesKey( tree, CONTEXT );
+        assert.equal( issues.length, 1 );
+        assert.equal( issues[ 0 ].code, "id-key-mismatch" );
+    } );
+
     it( "does not reject a dangling managerID — that is a diagnostic, not a gate", async () => {
         const tree = validTree();
         tree[ "1" ].managerID = "does-not-exist";
@@ -1174,7 +1195,40 @@ function organizationNoCycles( value, context ) {
 }
 ```
 
-Add all three to the file's `module.exports` block, matching its existing export style.
+```js
+/**
+ * organization-structure: every unit's `id` must equal its map key. The schema documents this but cannot express
+ * it — JSON Schema has no way to say "this property's value equals its property name" — so it was documented and
+ * unenforced until now.
+ * <br/>
+ * It also removes a real ambiguity in the reporting layer: `organizationRules.findCycles` identifies findings by raw
+ * map key while the other three rules use `unit.id || rawID`. Those name different things only when the two
+ * disagree, so enforcing equality makes every rule report the same identifier by construction — and the map key is
+ * what the operator must actually edit, since `parent` and `children` reference keys, not `id` fields.
+ *
+ * @method
+ * @param {Object} value
+ * @param {ValidatorContext} context
+ * @returns {Promise<Array<ValidationIssue>>}
+ * @public
+ */
+function organizationIdMatchesKey( value, context ) {
+    const issues = [];
+    for ( const [ rawID, unit ] of Object.entries( value || {} ) ) {
+        const declared = unit && unit.id;
+        if ( declared !== rawID ) {
+            issues.push( {
+                path: `.${ rawID }`,
+                message: `unit id '${ declared === undefined ? "(absent)" : declared }' does not match its key '${ rawID }'`,
+                code: "id-key-mismatch"
+            } );
+        }
+    }
+    return Promise.resolve( issues );
+}
+```
+
+Add all four to the file's `module.exports` block, matching its existing export style.
 
 - [ ] **Step 4: Run the test and confirm it passes**
 
@@ -1182,7 +1236,7 @@ Add all three to the file's `module.exports` block, matching its existing export
 node --test packages/competence/test/organization-structure-config.test.js
 ```
 
-Expected: 6 passing.
+Expected: 9 passing.
 
 - [ ] **Step 5: Make the document store-backed**
 
@@ -1241,7 +1295,7 @@ and register it after the `research-consent` registration:
 ```js
     app.registerConfigDocument( "organization-structure", {
         schema: organizationStructureSchema,
-        validators: [ validators.organizationSingleRoot, validators.organizationParentChildSymmetry, validators.organizationNoCycles ],
+        validators: [ validators.organizationSingleRoot, validators.organizationParentChildSymmetry, validators.organizationNoCycles, validators.organizationIdMatchesKey ],
         defaultValue: configurationLoader.fileDefaults[ "organization-structure" ],
         metadata: { path: "bin/config/config.organization-structure.json", label: "organization.structure", editable: true, driftTracked: false }
     } );
