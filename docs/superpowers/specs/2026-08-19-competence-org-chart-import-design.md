@@ -251,7 +251,10 @@ These are the ways an HR-produced CSV corrupts data without anyone noticing, and
 - **Leading zeros stripped** — `00123` becoming `123` after a round-trip through Excel silently addresses a
   *different* employee. The importer cannot detect this after the fact, so it is called out in the operator
   documentation, and `--template` (§5.5) emits a header-only file to discourage editing an export in Excel at all.
-- **CRLF line endings** and a stray leading apostrophe on quoted values, both normalized.
+- **CRLF line endings**, normalized by the parser.
+- A **leading apostrophe** is deliberately *not* stripped. Excel uses it as a display-only marker for "treat this
+  cell as text" and does not write it to a CSV export, so stripping one would corrupt a value that genuinely starts
+  with an apostrophe while fixing nothing real.
 
 ### 5.5 Component C — the CLI driver
 
