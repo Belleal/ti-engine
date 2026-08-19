@@ -37,8 +37,14 @@ class OrganizationImport {
     /* Public interface */
 
     /**
-     * Picks the delimiter from the header line by simple frequency. Excel exports semicolon-delimited files in a
-     * European locale, which would otherwise parse as a single unnamed column. Pure.
+     * Picks the delimiter from the header line by counting `,` and `;` occurrences that fall outside quoted
+     * spans, so a human-titled column such as `"Last, First"` cannot masquerade as an extra delimiter. Excel
+     * exports semicolon-delimited files in a European locale, which would otherwise parse as a single unnamed
+     * column. Ties favour the comma. Pure.
+     * <br/>
+     * Known limitation: the header line is taken by splitting the whole text on `\r?\n`, so a header cell that
+     * itself contains a quoted newline would truncate the line mid-quote and could still miscount. That input is
+     * pathological for a header row and is intentionally not handled here.
      *
      * @method
      * @param {string} text
@@ -48,15 +54,17 @@ class OrganizationImport {
     detectDelimiter( text ) {
         const source = this.#stripBOM( String( text == null ? "" : text ) );
         const headerLine = source.split( /\r?\n/ )[ 0 ] || "";
-        const semicolons = ( headerLine.match( /;/g ) || [] ).length;
-        const commas = ( headerLine.match( /,/g ) || [] ).length;
+        const semicolons = this.#countOutsideQuotes( headerLine, ";" );
+        const commas = this.#countOutsideQuotes( headerLine, "," );
         return ( semicolons > commas ) ? ";" : ",";
     }
 
     /**
-     * Strict RFC 4180 parser: quoted fields, embedded delimiters and newlines, doubled quotes, CRLF, and a leading
-     * UTF-8 BOM. Blank lines are skipped. Values are returned verbatim — no trimming — so a leading zero in an ID
-     * survives. Pure.
+     * RFC 4180-style parser: quoted fields, embedded delimiters and newlines, doubled quotes, CRLF, and a leading
+     * UTF-8 BOM. Blank lines are skipped. This is lenient rather than strict about one thing: an unterminated
+     * quote at end of input is treated as implicitly closed rather than rejected, so a malformed trailing quote
+     * does not raise an error — it simply ends the field (and record) where the input does. Values are returned
+     * verbatim — no trimming — so a leading zero in an ID survives. Pure.
      *
      * @method
      * @param {string} text
@@ -126,10 +134,12 @@ class OrganizationImport {
     }
 
     /**
-     * Turns parsed rows into objects keyed by the trimmed, lower-cased header cells. Each record carries a `__row`
-     * property holding its 1-based line number in the source file, so a rejection can name the row without echoing
-     * any of its contents. A short row is padded rather than dropped, so it still reports its own missing fields.
-     * Pure.
+     * Turns parsed rows into objects keyed by the trimmed, lower-cased header cells. Field values pass through
+     * verbatim — no trimming or case-folding — the same as `parseDelimited` returns them; that asymmetry between
+     * header and value handling is deliberate, e.g. a leading zero in an employee ID must survive. Each
+     * record carries a `__row` property holding its 1-based line number in the source file, so a rejection can
+     * name the row without echoing any of its contents. A short row is padded rather than dropped, so it still
+     * reports its own missing fields. Pure.
      *
      * @method
      * @param {Array<Array<string>>} rows
@@ -155,6 +165,35 @@ class OrganizationImport {
     }
 
     /* Private interface */
+
+    /**
+     * Counts occurrences of `delimiter` in `line` that fall outside a quoted span, mirroring the quote state
+     * machine in `parseDelimited`: a doubled quote (`""`) is treated as an escaped quote rather than a state
+     * toggle.
+     *
+     * @method
+     * @param {string} line
+     * @param {string} delimiter
+     * @returns {number}
+     * @private
+     */
+    #countOutsideQuotes( line, delimiter ) {
+        let count = 0;
+        let inQuotes = false;
+        for ( let i = 0; i < line.length; i++ ) {
+            const character = line[ i ];
+            if ( character === "\"" ) {
+                if ( inQuotes && line[ i + 1 ] === "\"" ) {
+                    i++;
+                } else {
+                    inQuotes = !inQuotes;
+                }
+            } else if ( character === delimiter && !inQuotes ) {
+                count++;
+            }
+        }
+        return count;
+    }
 
     /**
      * @method

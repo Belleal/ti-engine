@@ -25,6 +25,10 @@ describe( "organizationImport.detectDelimiter", () => {
         assert.equal( organizationImport.instance.detectDelimiter( "last_name;first_name;note\nSmith, Jr.;Ada;x" ), ";" );
     } );
 
+    it( "counts a delimiter only outside quotes, so a quoted header cell can't skew detection", () => {
+        assert.equal( organizationImport.instance.detectDelimiter( '"last, first";age' ), ";" );
+    } );
+
 } );
 
 describe( "organizationImport.parseDelimited", () => {
@@ -65,6 +69,32 @@ describe( "organizationImport.parseDelimited", () => {
     it( "preserves a leading zero in an ID", () => {
         const rows = organizationImport.instance.parseDelimited( "employee_id\n00123" );
         assert.equal( rows[ 1 ][ 0 ], "00123" );
+    } );
+
+    it( "keeps a quoted empty field instead of treating it as missing", () => {
+        assert.deepEqual( organizationImport.instance.parseDelimited( 'a,b\n"",x' ), [ [ "a", "b" ], [ "", "x" ] ] );
+    } );
+
+    it( "keeps a trailing delimiter as an empty final field", () => {
+        assert.deepEqual( organizationImport.instance.parseDelimited( "a,b,c\n1,2," ), [ [ "a", "b", "c" ], [ "1", "2", "" ] ] );
+    } );
+
+    it( "keeps a row of only delimiters instead of discarding it as blank", () => {
+        assert.deepEqual( organizationImport.instance.parseDelimited( ",," ), [ [ "", "", "" ] ] );
+    } );
+
+    it( "accepts an unterminated quote at end of input as implicitly closed", () => {
+        assert.deepEqual( organizationImport.instance.parseDelimited( 'a,b\n"unclosed' ), [ [ "a", "b" ], [ "unclosed" ] ] );
+    } );
+
+    it( "preserves a CRLF inside a quoted field while normalizing a CRLF line ending outside quotes", () => {
+        const rows = organizationImport.instance.parseDelimited( "a,b\r\n\"line1\r\nline2\",x\r\n" );
+        assert.deepEqual( rows, [ [ "a", "b" ], [ "line1\r\nline2", "x" ] ] );
+    } );
+
+    it( "auto-detects the semicolon delimiter for a quoted header with an internal comma, then parses two columns per row", () => {
+        const rows = organizationImport.instance.parseDelimited( '"last, first";age\n"Smith, Ada";30' );
+        assert.deepEqual( rows, [ [ "last, first", "age" ], [ "Smith, Ada", "30" ] ] );
     } );
 
 } );
