@@ -54,6 +54,7 @@ class CompetenceWebServer extends TiWebServer {
             .then( () => dataManager.instance.loadRoleGrants() )
             .then( () => configurationLoader.initialize() )
             .then( () => competenceFramework.instance.backfillMissingEvaluationDeadlines() )
+            .then( () => organizationManager.instance.reportUnresolvedManagers() )
             .catch( ( error ) => {
                 logger.log( `Error while trying to start competence web server within instance '${ ServiceConsumer.instanceID }'!`, logger.logSeverity.ERROR, error );
                 throw exceptions.raise( error );
