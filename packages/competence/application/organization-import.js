@@ -6,6 +6,18 @@
  * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+// The CSV column contract. Documented in INSTALL.md; `--template` emits exactly this header.
+const REQUIRED_COLUMNS = Object.freeze( [
+    "employee_id", "email", "first_name", "last_name", "work_mode", "work_location",
+    "organization_unit_id", "role_family", "level", "stage"
+] );
+const OPTIONAL_COLUMNS = Object.freeze( [ "employment_status", "birth_date", "gender", "specialization", "starting_date" ] );
+
+const WORK_MODES = Object.freeze( [ "Full-time", "Part-time", "Contract" ] );
+const WORK_LOCATIONS = Object.freeze( [ "On-site", "Hybrid", "Remote" ] );
+const EMPLOYMENT_STATUSES = Object.freeze( [ "active", "on-leave", "terminated" ] );
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 /**
  * Pure employee-import pipeline: `parseDelimited` → `mapRows` → `reconcile` → `applyPlan`. Performs no I/O — the
  * caller supplies the file contents and injects the store lookups and the writer, mirroring the {@link RoleResolver}
@@ -164,6 +176,128 @@ class OrganizationImport {
         return { header: header, records: records };
     }
 
+    /**
+     * The CSV column contract.
+     *
+     * @property
+     * @returns {{required: Array<string>, optional: Array<string>}}
+     * @public
+     */
+    get COLUMNS() {
+        return Object.freeze( { required: REQUIRED_COLUMNS, optional: OPTIONAL_COLUMNS } );
+    }
+
+    /**
+     * Maps one CSV record onto the nested employee shape, coercing types and normalizing the fixed enums. Returns
+     * either an employee or the first error found — never both. Pure.
+     * <br/>
+     * Enum normalization is mechanical (trim, lower-case, collapse spaces/underscores/hyphens), never a synonym
+     * table: guessing what `FT` meant is how a person is silently graded wrong. An unmatched value is rejected with
+     * the permitted values named.
+     * <br/>
+     * No error message ever contains a personal field — only the column, a code, and the permitted values.
+     *
+     * @method
+     * @param {Object} record
+     * @returns {{employee: Employee|null, error: Object|null}}
+     * @public
+     */
+    mapRow( record ) {
+        const source = record || {};
+        const rowNumber = source.__row;
+        const fail = ( column, code, message ) => ( { employee: null, error: { row: rowNumber, column: column, code: code, message: message } } );
+        const read = ( column ) => String( source[ column ] == null ? "" : source[ column ] ).trim();
+
+        for ( const column of REQUIRED_COLUMNS ) {
+            if ( read( column ).length === 0 ) {
+                return fail( column, "required", `'${ column }' is required and was empty` );
+            }
+        }
+
+        const workMode = this.#matchEnum( read( "work_mode" ), WORK_MODES );
+        if ( !workMode ) {
+            return fail( "work_mode", "not-a-permitted-value", `'work_mode' must be one of: ${ WORK_MODES.join( ", " ) }` );
+        }
+        const workLocation = this.#matchEnum( read( "work_location" ), WORK_LOCATIONS );
+        if ( !workLocation ) {
+            return fail( "work_location", "not-a-permitted-value", `'work_location' must be one of: ${ WORK_LOCATIONS.join( ", " ) }` );
+        }
+
+        const rawStatus = read( "employment_status" );
+        const employmentStatus = rawStatus.length === 0 ? "active" : this.#matchEnum( rawStatus, EMPLOYMENT_STATUSES );
+        if ( !employmentStatus ) {
+            return fail( "employment_status", "not-a-permitted-value", `'employment_status' must be one of: ${ EMPLOYMENT_STATUSES.join( ", " ) }` );
+        }
+
+        const rawStage = read( "stage" );
+        if ( !/^\d+$/.test( rawStage ) ) {
+            return fail( "stage", "not-an-integer", "'stage' must be a whole number from 1 to 3" );
+        }
+        const stage = Number( rawStage );
+
+        for ( const column of [ "birth_date", "starting_date" ] ) {
+            const value = read( column );
+            if ( value.length > 0 && !ISO_DATE.test( value ) ) {
+                return fail( column, "not-a-date", `'${ column }' must be an ISO-8601 date, formatted YYYY-MM-DD` );
+            }
+        }
+
+        const specialization = read( "specialization" );
+        const birthDate = read( "birth_date" );
+        const gender = read( "gender" );
+        const startingDate = read( "starting_date" );
+
+        const employee = {
+            // The source line number travels with the record so `reconcile` can name the offending line without
+            // echoing any of its contents. `reconcile` strips it before the record reaches the plan, so it is never
+            // persisted.
+            __row: rowNumber,
+            employeeID: read( "employee_id" ),
+            email: read( "email" ).toLowerCase(),
+            employmentStatus: employmentStatus,
+            personal: {
+                firstName: read( "first_name" ),
+                lastName: read( "last_name" ),
+                workMode: workMode,
+                workLocation: workLocation,
+                ...( birthDate ? { birthDate: birthDate } : {} ),
+                ...( gender ? { gender: gender } : {} )
+            },
+            career: {
+                organizationUnitID: read( "organization_unit_id" ),
+                roleFamily: read( "role_family" ).toUpperCase(),
+                specialization: specialization.length > 0 ? specialization.toUpperCase() : null,
+                level: read( "level" ).toUpperCase(),
+                stage: stage,
+                ...( startingDate ? { startingDate: startingDate } : {} )
+            }
+        };
+        return { employee: employee, error: null };
+    }
+
+    /**
+     * Maps every record, collecting mapped employees and per-row errors separately. A bad row never stops the ones
+     * around it. Pure.
+     *
+     * @method
+     * @param {Array<Object>} records
+     * @returns {{employees: Array<Employee>, errors: Array<Object>}}
+     * @public
+     */
+    mapRows( records ) {
+        const employees = [];
+        const errors = [];
+        for ( const record of ( Array.isArray( records ) ? records : [] ) ) {
+            const { employee, error } = this.mapRow( record );
+            if ( error ) {
+                errors.push( error );
+            } else {
+                employees.push( employee );
+            }
+        }
+        return { employees: employees, errors: errors };
+    }
+
     /* Private interface */
 
     /**
@@ -203,6 +337,30 @@ class OrganizationImport {
      */
     #stripBOM( text ) {
         return ( text.charCodeAt( 0 ) === 0xFEFF ) ? text.slice( 1 ) : text;
+    }
+
+    /**
+     * Matches a raw cell against a fixed enum, normalizing case and separators only. Returns the canonical value, or
+     * `null` when nothing matches. Pure.
+     *
+     * @method
+     * @param {string} raw
+     * @param {Array<string>} allowed
+     * @returns {string|null}
+     * @private
+     */
+    #matchEnum( raw, allowed ) {
+        const normalize = ( value ) => String( value == null ? "" : value ).trim().toLowerCase().replace( /[\s_-]+/g, "-" );
+        const target = normalize( raw );
+        if ( !target ) {
+            return null;
+        }
+        for ( const candidate of allowed ) {
+            if ( normalize( candidate ) === target ) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
 }
