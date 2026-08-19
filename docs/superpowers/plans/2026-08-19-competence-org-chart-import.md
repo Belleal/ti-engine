@@ -19,7 +19,7 @@
 - **Tests are `node --test`** with `node:assert/strict`. No external test framework. One `test/<subject>.test.js` per module.
 - **Pure modules perform no I/O.** The caller injects every lookup. This is what makes each rule testable with plain objects.
 - **Commit convention:** Conventional Commits scoped to the package, referencing the YouTrack ID — e.g. `feat(competence): add the CSV row mapper (CA-107)`. Bundle thematically; one commit per task unless a task says otherwise.
-- **Create the YouTrack `CA` card before Task 1** and substitute its real ID everywhere this plan writes `CA-NNN`.
+- **Tracking:** [CA-107](https://belleal.youtrack.cloud/issue/CA-107), a subtask of CA-6 (Employee & Organization Management). Reference it in every commit message.
 - **Never add a `Co-Authored-By: Claude` trailer** in this repo — it adds a `claude` PR author that fails the CLA check.
 - **No personal data in logs or stdout.** Rejections are identified by `employee_id` and row number only — never names, emails, birth dates or gradings.
 - **Never commit `.run/*.run.xml`** — they are git-tracked but carry live local credentials.
@@ -155,14 +155,14 @@ Set `packages/web-framework/package.json` `version` to `1.25.0`. Add to the top 
   against the file default shipped in the image, which is meaningful for vendor-shipped product content and
   meaningless for a document holding customer data — that always differs, forever, and would drown a signal that
   otherwise means "a release changed something this deployment is not serving". Consumers now filter on data rather
-  than on a hardcoded key list (CA-NNN)
+  than on a hardcoded key list (CA-107)
 ```
 
 - [ ] **Step 7: Commit**
 
 ```bash
 git add packages/web-framework/components/config-service.js packages/web-framework/test/config-service.drift.test.js packages/web-framework/package.json packages/web-framework/CHANGELOG.md
-git commit -m "feat(config-management): add a driftTracked flag to the drift payloads (CA-NNN)"
+git commit -m "feat(config-management): add a driftTracked flag to the drift payloads (CA-107)"
 ```
 
 ---
@@ -447,7 +447,7 @@ Expected: all suites pass. This is a pure relocation — any failure means the e
 
 ```bash
 git add packages/competence/application/employee-rules.js packages/competence/test/employee-rules.test.js packages/competence/package.json packages/competence/bin/competence-web-application.js
-git commit -m "refactor(competence): extract employee field validation into a pure rules module (CA-NNN)"
+git commit -m "refactor(competence): extract employee field validation into a pure rules module (CA-107)"
 ```
 
 ---
@@ -616,7 +616,7 @@ Expected: all pass.
 
 ```bash
 git add packages/competence/application/employee-rules.js packages/competence/test/employee-rules.test.js packages/competence/bin/competence-web-application.js packages/competence/bin/localization/competence-labels.json
-git commit -m "fix(competence): reject a duplicate employee email on write (CA-NNN)"
+git commit -m "fix(competence): reject a duplicate employee email on write (CA-107)"
 ```
 
 ---
@@ -998,7 +998,7 @@ Expected: pass. If this suite does not yet cover the org structure, add it there
 
 ```bash
 git add packages/competence/application/organization-rules.js packages/competence/test/organization-rules.test.js packages/competence/bin/data/schemas/organization-structure.schema.json packages/competence/package.json packages/competence/test/json-config-validation.test.js
-git commit -m "feat(competence): add the organization structure schema and pure structural rules (CA-NNN)"
+git commit -m "feat(competence): add the organization structure schema and pure structural rules (CA-107)"
 ```
 
 ---
@@ -1278,7 +1278,7 @@ In `packages/competence/README.md`, change the `config.organization-structure.js
 
 ```bash
 git add packages/competence/application/config-validators.js packages/competence/application/config-registration.js packages/competence/application/configuration-loader.js packages/competence/test/organization-structure-config.test.js packages/competence/bin/localization/competence-labels.json packages/competence/INSTALL.md packages/competence/README.md
-git commit -m "feat(competence): make the organization structure a store-backed config document (CA-NNN)"
+git commit -m "feat(competence): make the organization structure a store-backed config document (CA-107)"
 ```
 
 ---
@@ -1408,7 +1408,7 @@ Expected: all pass.
 
 ```bash
 git add packages/competence/bin/competence-web-server.js packages/competence/test/organization-manager-diagnostics.test.js
-git commit -m "feat(competence): report organization units whose manager does not resolve (CA-NNN)"
+git commit -m "feat(competence): report organization units whose manager does not resolve (CA-107)"
 ```
 
 ---
@@ -1716,7 +1716,7 @@ Expected: 15 passing.
 
 ```bash
 git add packages/competence/application/organization-import.js packages/competence/test/organization-import.parse.test.js packages/competence/package.json
-git commit -m "feat(competence): add the CSV parse stage of the employee importer (CA-NNN)"
+git commit -m "feat(competence): add the CSV parse stage of the employee importer (CA-107)"
 ```
 
 ---
@@ -2062,7 +2062,7 @@ Expected: 16 passing.
 
 ```bash
 git add packages/competence/application/organization-import.js packages/competence/test/organization-import.map.test.js
-git commit -m "feat(competence): map CSV rows onto employee records (CA-NNN)"
+git commit -m "feat(competence): map CSV rows onto employee records (CA-107)"
 ```
 
 ---
@@ -2397,7 +2397,7 @@ Expected: 13 passing.
 
 ```bash
 git add packages/competence/application/organization-import.js packages/competence/test/organization-import.reconcile.test.js
-git commit -m "feat(competence): reconcile an imported batch against the employee store (CA-NNN)"
+git commit -m "feat(competence): reconcile an imported batch against the employee store (CA-107)"
 ```
 
 ---
@@ -2749,21 +2749,21 @@ employee records arrive through a validating, idempotent CSV importer. Requires 
   failure that was previously silent: a second root breaks the structural-supervisor derivation, an asymmetric link
   yields a half-connected graph with no error, and a cycle is a stack overflow at login rather than a diagnosable
   fault. The document is registered `driftTracked: false` — it holds deployment data, not content shipped with the
-  release, so it differs from the image default by design (CA-NNN)
+  release, so it differs from the image default by design (CA-107)
 * feat(competence): report every organization unit whose `managerID` names no employee or a terminated one, as a
   startup `WARNING` per finding. Deliberately a diagnostic rather than a validator: blocking the tree's save on
   employee data would deadlock a fresh install, since the tree must exist before an employee can reference its
-  units (CA-NNN)
+  units (CA-107)
 * feat(competence): add the employee CSV importer — a pure `organization-import` module (parse → map → reconcile →
   apply) with a dry-run-by-default CLI, `npm run import:org`. Reconciliation is keyed on `employeeID` so a changed
   name or email keeps the same record and its evaluation history; a leaver becomes `terminated` rather than being
   deleted, which would orphan their evaluations; and an employee absent from the file is reported, never inferred
   as a departure. Returning a plan is what makes dry-run exact — the preview and the write come from one function
-  (CA-NNN)
+  (CA-107)
 * fix(competence): reject a duplicate employee email on write. Nothing enforced uniqueness, and
   `buildEmailIndex` marks a shared address ambiguous only afterwards — at which point `IdentityResolver` refuses
   **both** employees. A Supervisor could lock out two people through the ordinary Employee Management screen with
-  no warning (CA-NNN)
+  no warning (CA-107)
 * refactor(competence): extract employee field validation from the web application into the pure `employee-rules`
   module with configuration injected, so the UI, the importer and any future sync driver decide validity
   identically. Behaviour is unchanged — same rules, same returned label keys
@@ -2776,7 +2776,7 @@ employee records arrive through a validating, idempotent CSV importer. Requires 
 
 ```bash
 git add packages/competence/application/organization-import.js packages/competence/test/organization-import.apply.test.js packages/competence/bin/build/import-organization.js packages/competence/package.json packages/competence/CHANGELOG.md packages/competence/INSTALL.md
-git commit -m "feat(competence): add the employee import CLI and release 3.22.0 (CA-NNN)"
+git commit -m "feat(competence): add the employee import CLI and release 3.22.0 (CA-107)"
 ```
 
 ---
@@ -2787,5 +2787,5 @@ git commit -m "feat(competence): add the employee import CLI and release 3.22.0 
 - [ ] `npm run lint` — clean
 - [ ] `npm run test:json -w @ti-engine/competence` — the shipped org structure validates against its new schema
 - [ ] `git diff --stat master` shows no `.run/*.run.xml`
-- [ ] Every `CA-NNN` in the commits has been replaced with the real YouTrack ID
-- [ ] The YouTrack card has its time logged and is moved to `State: Verified` / `Stage: Done`
+- [ ] Every commit message references `CA-107`
+- [ ] CA-107 has its time logged and is moved to `State: Verified` / `Stage: Done`
