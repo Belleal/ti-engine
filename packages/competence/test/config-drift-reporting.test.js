@@ -12,6 +12,7 @@
 const { describe, it, before } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 const configurationLoader = require( "#configuration-loader" );
+const organizationManager = require( "#organization-manager" );
 const configDrift = require( "@ti-engine/web-framework/config-drift" );
 const logger = require( "@ti-engine/core/logger" );
 const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
@@ -24,10 +25,18 @@ const clone = ( value ) => JSON.parse( JSON.stringify( value ) );
 // has harmless data to assign) and takes just the `listDrift` implementation under test. `captureLogs` mirrors the
 // established precedent at core/test/security-hash-key-warning.test.js (lines ~8-24): replace logger.log with a
 // collector, run, restore in a `finally` so the stub can never leak into another test in this file.
-const stubServiceWithDrift = ( listDrift ) => ( {
+//
+// The optional `captureListener` callback, when supplied, receives the `config:changed` listener that
+// configuration-loader registers during initialize() — the org-chart hot-reload branch (CA-107) has no other seam
+// to reach it through. Every existing call site passes only `listDrift`, so `captureListener` is `undefined` for
+// them and the guard below is a no-op — backward compatible, no behavior change for any current test.
+const stubServiceWithDrift = ( listDrift, captureListener ) => ( {
     seedDefault: ( configKey ) => Promise.resolve( { value: configurationLoader.fileDefaults[ configKey ], version: 1 } ),
     getCurrent: ( configKey ) => Promise.resolve( { value: configurationLoader.fileDefaults[ configKey ], version: 1 } ),
-    onConfigChanged: () => () => {},
+    onConfigChanged: ( listener ) => {
+        if ( captureListener ) captureListener( listener );
+        return () => {};
+    },
     listDrift: listDrift
 } );
 
@@ -272,6 +281,58 @@ describe( "config drift — the CA-98 QE case end to end, through the real Confi
 
         assert.deepEqual( configurationLoader.configRoleFamilyCompetencies.QE, configurationLoader.fileDefaults[ "role-family-competencies" ].QE );
         assert.deepEqual( configurationLoader.configCompetencies, configurationLoader.fileDefaults.competencies );
+    } );
+
+} );
+
+describe( "configuration-loader — the organization-structure hot-reload branch (CA-107)", () => {
+    // The onConfigChanged handler registered inside initialize() is the runtime mechanism that rebuilds the
+    // organization chart when an admin edits the org-structure document, with no restart required. It has no other
+    // test. It matters more than ordinary coverage because web-framework's ConfigChangeNotifier#publish delivers
+    // each listener fire-and-forget inside a try/catch that only catches a SYNCHRONOUS throw from `listener(payload)`
+    // — this listener returns a promise chain, so a rejection anywhere inside it (a broken require, a rejected
+    // buildOrganizationChart()) would become an unhandled rejection that neither fails the admin's save nor appears
+    // in the notifier's error log. The wiring is correct today; this test is the regression guard that keeps it so.
+
+    it( "rebuilds the organization chart for its own key, not for an unrelated key, and its returned promise resolves", async () => {
+        let capturedListener;
+        const stubService = stubServiceWithDrift(
+            () => Promise.resolve( [] ),
+            ( listener ) => { capturedListener = listener; }
+        );
+        await configurationLoader.initialize( stubService );
+        assert.equal( typeof capturedListener, "function", "initialize() must register a config:changed listener" );
+
+        // buildOrganizationChart is a prototype method (unlike toUnitNodeID/toEmployeeNodeID, which are own arrow
+        // class fields), so it stays writable through the prototype even though Object.freeze(instance) at the
+        // bottom of organization-manager.js freezes the instance's own properties. Restored in `finally`, mirroring
+        // how `captureLogs` above restores `logger.log` — a stub that leaks into a later test here is a defect.
+        const OrganizationManagerPrototype = Object.getPrototypeOf( organizationManager.instance );
+        const originalBuildOrganizationChart = OrganizationManagerPrototype.buildOrganizationChart;
+        let callCount = 0;
+        OrganizationManagerPrototype.buildOrganizationChart = () => {
+            callCount++;
+            return Promise.resolve();
+        };
+
+        try {
+            // The discriminating half: an unrelated key must not touch the org chart.
+            await assert.doesNotReject(
+                () => capturedListener( { configKeys: [ "competencies" ] } ),
+                "the listener's returned promise must resolve on the no-op path too"
+            );
+            assert.equal( callCount, 0, "an unrelated key must not rebuild the organization chart" );
+
+            // The branch under test: its own key must rebuild the chart, and the returned promise must settle --
+            // this is exactly what would catch a rejection ConfigChangeNotifier's synchronous try/catch cannot.
+            await assert.doesNotReject(
+                () => capturedListener( { configKeys: [ "organization-structure" ] } ),
+                "the listener's returned promise must resolve, not reject silently"
+            );
+            assert.equal( callCount, 1, "the 'organization-structure' key must rebuild the organization chart exactly once" );
+        } finally {
+            OrganizationManagerPrototype.buildOrganizationChart = originalBuildOrganizationChart;
+        }
     } );
 
 } );
