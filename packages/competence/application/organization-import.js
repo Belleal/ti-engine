@@ -6,6 +6,8 @@
  * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+const employeeRules = require( "#employee-rules" );
+
 // The CSV column contract. Documented in INSTALL.md; `--template` emits exactly this header.
 const REQUIRED_COLUMNS = Object.freeze( [
     "employee_id", "email", "first_name", "last_name", "work_mode", "work_location",
@@ -298,6 +300,101 @@ class OrganizationImport {
         return { employees: employees, errors: errors };
     }
 
+    /**
+     * Classifies every mapped employee against the current store, returning a plan rather than performing any write.
+     * The plan is what makes dry-run free: the preview and the applied change come from this one function, so a
+     * dry-run cannot diverge from what apply does. Pure.
+     * <br/>
+     * Reconciliation is keyed on `employeeID`, never email — a person who changes their name or address must keep
+     * the same record, and with it their evaluation history. A shared email is a rejection rather than a warning,
+     * because it makes the login index ambiguous and locks out **both** employees.
+     * <br/>
+     * An employee present in the store but absent from the file is reported and left untouched. A departure is never
+     * inferred from an omission: a partial export would otherwise terminate half the organization.
+     *
+     * @method
+     * @param {Array<Employee>} employees - Mapped candidates, from {@link OrganizationImport#mapRows}.
+     * @param {Array<Employee>} existing - Every employee currently stored.
+     * @param {EmployeeRulesContext} context
+     * @returns {{create: Array, update: Array, unchanged: Array, rejected: Array, absent: Array}}
+     * @public
+     */
+    reconcile( employees, existing, context ) {
+        const candidates = Array.isArray( employees ) ? employees : [];
+        const stored = Array.isArray( existing ) ? existing : [];
+        const plan = { create: [], update: [], unchanged: [], rejected: [], absent: [] };
+
+        const storedByID = new Map( stored.filter( ( e ) => e && e.employeeID ).map( ( e ) => [ String( e.employeeID ), e ] ) );
+        const seenIDs = new Set();
+        const seenEmails = new Map();
+        const rejectedIDs = new Set();
+
+        const reject = ( employee, code, message ) => {
+            plan.rejected.push( { employeeID: String( employee.employeeID ), row: employee.__row, code: code, message: message } );
+            rejectedIDs.add( String( employee.employeeID ) );
+        };
+
+        // Pass 1 — collisions within the batch itself.
+        for ( const candidate of candidates ) {
+            const id = String( candidate.employeeID );
+            if ( seenIDs.has( id ) ) {
+                reject( candidate, "duplicate-employee-id", `employee_id '${ id }' appears more than once in this file` );
+            }
+            seenIDs.add( id );
+
+            const email = String( candidate.email == null ? "" : candidate.email ).trim().toLowerCase();
+            if ( email ) {
+                const previous = seenEmails.get( email );
+                if ( previous ) {
+                    // Both participants are named: either could be the wrong one, and the operator needs the pair.
+                    reject( previous, "duplicate-email", `this email is also used by employee_id '${ id }' in this file` );
+                    reject( candidate, "duplicate-email", `this email is also used by employee_id '${ String( previous.employeeID ) }' in this file` );
+                } else {
+                    seenEmails.set( email, candidate );
+                }
+            }
+        }
+
+        // Pass 2 — validity and classification.
+        for ( const candidate of candidates ) {
+            const id = String( candidate.employeeID );
+            if ( rejectedIDs.has( id ) ) {
+                continue;
+            }
+
+            const violation = employeeRules.instance.validateEmployee( candidate, context );
+            if ( violation ) {
+                reject( candidate, violation, `record is not valid: ${ violation }` );
+                continue;
+            }
+
+            const collision = employeeRules.instance.findEmailCollision( candidate.email, id, stored );
+            if ( collision ) {
+                reject( candidate, "duplicate-email", `this email is already held by stored employee_id '${ collision }'` );
+                continue;
+            }
+
+            // Strip the row marker here: it exists only to name a line in a rejection, and must never be persisted.
+            const record = this.#withoutRowMarker( candidate );
+            const previous = storedByID.get( id );
+            if ( !previous ) {
+                plan.create.push( record );
+            } else if ( this.#isSameRecord( previous, record ) ) {
+                plan.unchanged.push( record );
+            } else {
+                plan.update.push( { employee: record, previous: previous } );
+            }
+        }
+
+        for ( const id of storedByID.keys() ) {
+            if ( !seenIDs.has( id ) ) {
+                plan.absent.push( id );
+            }
+        }
+
+        return plan;
+    }
+
     /* Private interface */
 
     /**
@@ -361,6 +458,55 @@ class OrganizationImport {
             }
         }
         return null;
+    }
+
+    /**
+     * Returns the record without the `__row` marker that {@link OrganizationImport#mapRow} attaches. The marker
+     * exists only so a rejection can name its source line; it must never reach the store. Pure.
+     *
+     * @method
+     * @param {Employee} employee
+     * @returns {Employee}
+     * @private
+     */
+    #withoutRowMarker( employee ) {
+        const { __row, ...record } = employee || {};
+        return record;
+    }
+
+    /**
+     * Whether a stored record and a candidate are identical for import purposes. Compares the fields the importer
+     * writes, ignoring key order and any property the importer never sets. Pure.
+     *
+     * @method
+     * @param {Employee} previous
+     * @param {Employee} candidate
+     * @returns {boolean}
+     * @private
+     */
+    #isSameRecord( previous, candidate ) {
+        const normalize = ( employee ) => JSON.stringify( {
+            employeeID: String( employee.employeeID ),
+            email: String( employee.email == null ? "" : employee.email ).trim().toLowerCase(),
+            employmentStatus: employee.employmentStatus || "active",
+            personal: {
+                firstName: employee.personal && employee.personal.firstName,
+                lastName: employee.personal && employee.personal.lastName,
+                workMode: employee.personal && employee.personal.workMode,
+                workLocation: employee.personal && employee.personal.workLocation,
+                birthDate: ( employee.personal && employee.personal.birthDate ) || null,
+                gender: ( employee.personal && employee.personal.gender ) || null
+            },
+            career: {
+                organizationUnitID: employee.career && employee.career.organizationUnitID,
+                roleFamily: employee.career && employee.career.roleFamily,
+                specialization: ( employee.career && employee.career.specialization ) || null,
+                level: employee.career && employee.career.level,
+                stage: employee.career && employee.career.stage,
+                startingDate: ( employee.career && employee.career.startingDate ) || null
+            }
+        } );
+        return normalize( previous ) === normalize( candidate );
     }
 
 }
