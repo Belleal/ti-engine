@@ -24,6 +24,7 @@
     "#employee-rules": "./application/employee-rules.js",
     "#identity-resolver": "./application/identity-resolver.js",
     "#organization-manager": "./application/organization-manager.js",
+    "#organization-rules": "./application/organization-rules.js",
     "#research-consent": "./application/research-consent.js",
     "#results-analytics": "./application/results-analytics.js",
     "#role-resolver": "./application/role-resolver.js",

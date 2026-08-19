@@ -119,6 +119,10 @@ describe( "Configuration files validate against their schemas", () => {
         expectValid( "https://ti-engine.dev/schemas/competence/research-consent.json", path.join( CONFIG_DIR, "config.research-consent.json" ) );
     } );
 
+    it( "config.organization-structure.json validates against organization-structure.schema.json", () => {
+        expectValid( "https://ti-engine.dev/schemas/competence/organization-structure.json", path.join( CONFIG_DIR, "config.organization-structure.json" ) );
+    } );
+
 } );
 
 describe( "Seed data files validate against their schemas", () => {
