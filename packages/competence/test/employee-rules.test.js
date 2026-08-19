@@ -152,3 +152,31 @@ describe( "employeeRules.validateEmployee", () => {
     } );
 
 } );
+
+describe( "employeeRules.findEmailCollision", () => {
+
+    const EXISTING = [
+        { employeeID: "1", email: "ada@example.com" },
+        { employeeID: "2", email: "Grace@Example.com" },
+        { employeeID: "3" }
+    ];
+
+    it( "returns null when the email is unused", () => {
+        assert.equal( employeeRules.instance.findEmailCollision( "new@example.com", "9", EXISTING ), null );
+    } );
+
+    it( "finds a collision regardless of case or surrounding whitespace", () => {
+        assert.equal( employeeRules.instance.findEmailCollision( "  ADA@example.com ", "9", EXISTING ), "1" );
+        assert.equal( employeeRules.instance.findEmailCollision( "grace@example.com", "9", EXISTING ), "2" );
+    } );
+
+    it( "does not collide a record with itself", () => {
+        assert.equal( employeeRules.instance.findEmailCollision( "ada@example.com", "1", EXISTING ), null );
+    } );
+
+    it( "ignores an absent or empty email", () => {
+        assert.equal( employeeRules.instance.findEmailCollision( "", "9", EXISTING ), null );
+        assert.equal( employeeRules.instance.findEmailCollision( undefined, "9", EXISTING ), null );
+    } );
+
+} );

@@ -115,6 +115,40 @@ class EmployeeRules {
         return null;
     }
 
+    /**
+     * Finds an existing employee already using the given email, excluding the record being written. Returns the
+     * colliding `employeeID`, or `null`. Matching is trimmed and case-insensitive, exactly as
+     * `OrganizationManager#buildEmailIndex` normalizes at login. Pure.
+     * <br/>
+     * A collision is a hard rejection rather than a warning: a shared address makes the login index ambiguous, and
+     * `IdentityResolver` then refuses **both** employees rather than guessing which one signed in.
+     *
+     * @method
+     * @param {string} [email]
+     * @param {string} [employeeID] - The record being written, excluded from the search.
+     * @param {Array<Employee>} [employees]
+     * @returns {string|null}
+     * @public
+     */
+    findEmailCollision( email, employeeID, employees ) {
+        const normalized = String( email == null ? "" : email ).trim().toLowerCase();
+        if ( !normalized ) {
+            return null;
+        }
+        const self = String( employeeID == null ? "" : employeeID );
+        const list = Array.isArray( employees ) ? employees : [];
+        for ( const candidate of list ) {
+            const candidateID = candidate && candidate.employeeID;
+            if ( !candidateID || String( candidateID ) === self ) {
+                continue;
+            }
+            if ( String( candidate.email == null ? "" : candidate.email ).trim().toLowerCase() === normalized ) {
+                return String( candidateID );
+            }
+        }
+        return null;
+    }
+
 }
 
 const instance = new EmployeeRules();

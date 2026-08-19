@@ -3932,6 +3932,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                     throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: validationError }, exceptions.httpCode.C_422 );
                 }
 
+                const collision = employeeRules.instance.findEmailCollision( newEmployee.email, newEmployee.employeeID, employees );
+                if ( collision ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_ALREADY_EXISTS, { details: "error.employee.duplicate-email" }, exceptions.httpCode.C_409 );
+                }
+
                 return dataManager.instance.saveEmployee( newEmployee ).then( ( saved ) => {
                     return dataManager.instance.appendAuditEntry( {
                         subjectType: "employee",
@@ -4004,7 +4009,13 @@ class CompetenceWebApplication extends TiWebAppManager {
                     throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: validationError }, exceptions.httpCode.C_422 );
                 }
 
-                return dataManager.instance.saveEmployee( updated ).then( ( saved ) => {
+                return dataManager.instance.fetchEmployees().then( ( employees ) => {
+                    const collision = employeeRules.instance.findEmailCollision( updated.email, updated.employeeID, employees );
+                    if ( collision ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_ALREADY_EXISTS, { details: "error.employee.duplicate-email" }, exceptions.httpCode.C_409 );
+                    }
+                    return dataManager.instance.saveEmployee( updated );
+                } ).then( ( saved ) => {
                     return Promise.all( changes.map( ( change ) => dataManager.instance.appendAuditEntry( {
                         subjectType: "employee",
                         subjectID: saved.employeeID,
