@@ -23,6 +23,7 @@
     "#data-manager": "./application/data-manager.js",
     "#employee-rules": "./application/employee-rules.js",
     "#identity-resolver": "./application/identity-resolver.js",
+    "#organization-import": "./application/organization-import.js",
     "#organization-manager": "./application/organization-manager.js",
     "#organization-rules": "./application/organization-rules.js",
     "#research-consent": "./application/research-consent.js",
