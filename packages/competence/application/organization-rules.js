@@ -91,6 +91,8 @@ class OrganizationRules {
     /**
      * Every unit that sits on a parent cycle. `RoleResolver#subManagerDepth` recurses with no visited set, so a
      * cycle is a stack overflow at login rather than a diagnosable error. Pure.
+     * <br/>
+     * The returned array contains raw map keys, not the `id`-or-key values that the other rules report.
      *
      * @method
      * @param {Object} structure

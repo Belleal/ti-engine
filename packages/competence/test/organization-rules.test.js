@@ -95,6 +95,14 @@ describe( "organizationRules.findCycles", () => {
         assert.ok( organizationRules.instance.findCycles( tree ).includes( "1-1" ) );
     } );
 
+    it( "returns the exact cycle members when a known cycle is detected", () => {
+        const tree = validTree();
+        tree[ "cycle-1" ] = { id: "cycle-1", parent: "cycle-2", children: [] };
+        tree[ "cycle-2" ] = { id: "cycle-2", parent: "cycle-1", children: [] };
+        const cycles = organizationRules.instance.findCycles( tree );
+        assert.deepEqual( cycles, [ "cycle-1", "cycle-2" ] );
+    } );
+
 } );
 
 describe( "organizationRules.findUnresolvedManagers", () => {
@@ -128,10 +136,45 @@ describe( "organizationRules.findUnresolvedManagers", () => {
         assert.deepEqual( organizationRules.instance.findUnresolvedManagers( tree, EMPLOYEES ), [] );
     } );
 
+    it( "treats null and empty string managerID as legal", () => {
+        const treeWithNull = { "1": { id: "1", parent: null, children: [], managerID: null } };
+        assert.deepEqual( organizationRules.instance.findUnresolvedManagers( treeWithNull, EMPLOYEES ), [] );
+
+        const treeWithEmpty = { "2": { id: "2", parent: null, children: [], managerID: "" } };
+        assert.deepEqual( organizationRules.instance.findUnresolvedManagers( treeWithEmpty, EMPLOYEES ), [] );
+    } );
+
     it( "reports every unit against an empty employee list, which is the fresh-install state", () => {
         const findings = organizationRules.instance.findUnresolvedManagers( validTree(), [] );
         assert.equal( findings.length, 3 );
         assert.ok( findings.every( ( f ) => f.code === "manager-not-found" ) );
+    } );
+
+} );
+
+describe( "organizationRules defensive inputs", () => {
+
+    it( "handles empty structure without throwing", () => {
+        const emptyStructure = {};
+        assert.deepEqual( organizationRules.instance.findRootUnits( emptyStructure ), [] );
+        assert.deepEqual( organizationRules.instance.findSymmetryBreaks( emptyStructure ), [] );
+        assert.deepEqual( organizationRules.instance.findCycles( emptyStructure ), [] );
+        assert.deepEqual( organizationRules.instance.findUnresolvedManagers( emptyStructure, [] ), [] );
+    } );
+
+    it( "handles null structure argument without throwing", () => {
+        assert.deepEqual( organizationRules.instance.findRootUnits( null ), [] );
+        assert.deepEqual( organizationRules.instance.findSymmetryBreaks( null ), [] );
+        assert.deepEqual( organizationRules.instance.findCycles( null ), [] );
+        assert.deepEqual( organizationRules.instance.findUnresolvedManagers( null, [] ), [] );
+    } );
+
+    it( "handles structure with null unit value without throwing", () => {
+        const nullUnitStructure = { "1": null };
+        assert.deepEqual( organizationRules.instance.findRootUnits( nullUnitStructure ), [ "1" ] );
+        assert.deepEqual( organizationRules.instance.findSymmetryBreaks( nullUnitStructure ), [] );
+        assert.deepEqual( organizationRules.instance.findCycles( nullUnitStructure ), [] );
+        assert.deepEqual( organizationRules.instance.findUnresolvedManagers( nullUnitStructure, [] ), [] );
     } );
 
 } );
