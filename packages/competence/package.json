@@ -21,6 +21,7 @@
     "#data-employees": "./bin/data/seeders/employees.json",
     "#data-evaluations": "./bin/data/seeders/evaluations.json",
     "#data-manager": "./application/data-manager.js",
+    "#employee-rules": "./application/employee-rules.js",
     "#identity-resolver": "./application/identity-resolver.js",
     "#organization-manager": "./application/organization-manager.js",
     "#research-consent": "./application/research-consent.js",
