@@ -84,4 +84,42 @@ describe( "employeeRules.validateEmployee", () => {
         assert.equal( employeeRules.instance.validateEmployee( employee( { email: undefined } ), CONTEXT ), null );
     } );
 
+    // Uncovered branches (Minor findings)
+
+    it( "rejects an unrecognized work location", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { workLocation: "Underwater" } ), CONTEXT ), "error.employee.invalid-work-location" );
+    } );
+
+    it( "rejects an unrecognized employment status", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { employmentStatus: "unknown" } ), CONTEXT ), "error.employee.invalid-employment-status" );
+    } );
+
+    it( "rejects an unrecognized level", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { level: "Z" } ), CONTEXT ), "error.employee.invalid-level" );
+    } );
+
+    // Stage boundary cases (Minor finding)
+
+    it( "rejects a stage below the permitted range (0)", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { stage: 0 } ), CONTEXT ), "error.employee.invalid-stage" );
+    } );
+
+    it( "rejects a stage above the permitted range (4)", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { stage: 4 } ), CONTEXT ), "error.employee.invalid-stage" );
+    } );
+
+    // Rule-order precedence (Important finding)
+
+    it( "enforces that missing-name takes precedence over invalid-work-mode", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { firstName: "", workMode: "Casual" } ), CONTEXT ), "error.employee.missing-name" );
+    } );
+
+    it( "enforces that invalid-work-mode takes precedence over invalid-role-family", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { workMode: "Casual", roleFamily: "ZZ" } ), CONTEXT ), "error.employee.invalid-work-mode" );
+    } );
+
+    it( "enforces that invalid-level takes precedence over invalid-organization-unit", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { level: "Z", unit: "9-9" } ), CONTEXT ), "error.employee.invalid-level" );
+    } );
+
 } );
