@@ -2345,6 +2345,35 @@ describe( "organizationImport.reconcile", () => {
         assert.ok( plan.rejected.some( ( r ) => r.code === "duplicate-employee-id" ) );
     } );
 
+    // `reconcile` runs two passes and rejects a row at the first thing that disqualifies it, so the order is part
+    // of its contract: pass 1 finds batch-internal collisions, pass 2 then runs validity, then the stored-email
+    // collision, then classification. Every case above breaks one thing at a time, which would still pass if two
+    // stages were swapped — these pin the precedence. (The same gap was found by review twice earlier in this
+    // feature; a case whose two violations are not adjacent pins far less than it appears to.)
+    it( "reports a batch-internal duplicate email ahead of a validity failure", () => {
+        const rows = [ employee( { employeeID: "1", unit: "9-9" } ), employee( { employeeID: "2", unit: "9-9" } ) ];
+        const plan = organizationImport.instance.reconcile( rows, [], CONTEXT );
+        assert.equal( plan.rejected.length, 2 );
+        assert.ok( plan.rejected.every( ( rejection ) => rejection.code === "duplicate-email" ) );
+    } );
+
+    it( "reports a duplicate employeeID ahead of a validity failure", () => {
+        const rows = [
+            employee( { employeeID: "1", email: "a@x.co", unit: "9-9" } ),
+            employee( { employeeID: "1", email: "b@x.co", unit: "9-9" } )
+        ];
+        const plan = organizationImport.instance.reconcile( rows, [], CONTEXT );
+        assert.ok( plan.rejected.some( ( rejection ) => rejection.code === "duplicate-employee-id" ) );
+        assert.equal( plan.rejected.some( ( rejection ) => rejection.code.startsWith( "error.employee." ) ), false );
+    } );
+
+    it( "reports a validity failure ahead of a stored-email collision", () => {
+        const existing = [ employee( { employeeID: "9", email: "ada@example.com" } ) ];
+        const plan = organizationImport.instance.reconcile( [ employee( { employeeID: "1", unit: "9-9" } ) ], existing, CONTEXT );
+        assert.equal( plan.rejected.length, 1 );
+        assert.equal( plan.rejected[ 0 ].code, "error.employee.invalid-organization-unit" );
+    } );
+
     it( "names the source line on a rejection, and strips the marker from the plan", () => {
         const bad = Object.assign( employee( { unit: "9-9" } ), { __row: 17 } );
         const good = Object.assign( employee( { employeeID: "2", email: "g@example.com" } ), { __row: 18 } );
@@ -2539,7 +2568,7 @@ Add to the private interface:
 node --test packages/competence/test/organization-import.reconcile.test.js
 ```
 
-Expected: 13 passing.
+Expected: 16 passing.
 
 - [ ] **Step 5: Commit**
 
