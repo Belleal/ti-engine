@@ -231,7 +231,7 @@ class OrganizationImport {
 
         const rawStage = read( "stage" );
         if ( !/^\d+$/.test( rawStage ) ) {
-            return fail( "stage", "not-an-integer", "'stage' must be a whole number from 1 to 3" );
+            return fail( "stage", "not-an-integer", "'stage' must contain only digits" );
         }
         const stage = Number( rawStage );
 

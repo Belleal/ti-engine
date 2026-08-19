@@ -129,12 +129,20 @@ describe( "organizationImport.mapRow", () => {
         assert.equal( organizationImport.instance.mapRow( row( { work_mode: "Casual", work_location: "Moon" } ) ).error.column, "work_mode" );
     } );
 
+    it( "reports an invalid work_location ahead of an invalid employment_status", () => {
+        assert.equal( organizationImport.instance.mapRow( row( { work_location: "Moon", employment_status: "furloughed" } ) ).error.column, "work_location" );
+    } );
+
     it( "reports an invalid employment_status ahead of a bad stage", () => {
         assert.equal( organizationImport.instance.mapRow( row( { employment_status: "furloughed", stage: "nope" } ) ).error.column, "employment_status" );
     } );
 
     it( "reports a bad stage ahead of a bad date", () => {
         assert.equal( organizationImport.instance.mapRow( row( { stage: "nope", starting_date: "14/03/2022" } ) ).error.column, "stage" );
+    } );
+
+    it( "reports birth_date ahead of starting_date when both are invalid", () => {
+        assert.equal( organizationImport.instance.mapRow( row( { birth_date: "14/03/2022", starting_date: "14/03/2022" } ) ).error.column, "birth_date" );
     } );
 
 } );
