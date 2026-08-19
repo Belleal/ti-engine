@@ -12,6 +12,7 @@ const assert = require( "node:assert/strict" );
 const logger = require( "@ti-engine/core/logger" );
 const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
 const organizationManager = require( "#organization-manager" );
+const dataManager = require( "#data-manager" );
 
 let cacheStub;
 
@@ -52,10 +53,35 @@ describe( "OrganizationManager.reportUnresolvedManagers", () => {
         let findings;
         const logs = await captureLogs( async () => { findings = await organizationManager.instance.reportUnresolvedManagers(); } );
 
-        assert.equal( findings.length, MANAGER_IDS.length );
-        assert.ok( findings.every( ( finding ) => finding.code === "manager-not-found" ) );
+        // Sort both arrays by unitID for order-independent comparison
+        const sortByUnitID = ( a, b ) => a.unitID.localeCompare( b.unitID );
+        const sortedFindings = findings.slice().sort( sortByUnitID );
+        const expectedFindings = [
+            { unitID: "1", managerID: "22", code: "manager-not-found" },
+            { unitID: "1-1", managerID: "20", code: "manager-not-found" },
+            { unitID: "1-1-1", managerID: "8", code: "manager-not-found" },
+            { unitID: "1-1-2", managerID: "11", code: "manager-not-found" }
+        ].sort( sortByUnitID );
+
+        assert.deepEqual( sortedFindings, expectedFindings );
         assert.equal( logs.length, MANAGER_IDS.length );
         assert.ok( logs.every( ( entry ) => entry.severity === logger.logSeverity.WARNING ) );
+    } );
+
+    it( "resolves with empty findings and one warning when fetchEmployees rejects — boot never gates", async () => {
+        const originalFetchEmployees = dataManager.instance.constructor.prototype.fetchEmployees;
+        try {
+            dataManager.instance.constructor.prototype.fetchEmployees = () => Promise.reject( new Error( "Storage unavailable" ) );
+            let findings;
+            const logs = await captureLogs( async () => { findings = await organizationManager.instance.reportUnresolvedManagers(); } );
+
+            assert.deepEqual( findings, [] );
+            assert.equal( logs.length, 1 );
+            assert.equal( logs[ 0 ].severity, logger.logSeverity.WARNING );
+            assert.equal( logs[ 0 ].message, "Unable to check organization unit managers." );
+        } finally {
+            dataManager.instance.constructor.prototype.fetchEmployees = originalFetchEmployees;
+        }
     } );
 
     it( "is silent once every named manager exists and is not terminated", async () => {
@@ -73,8 +99,7 @@ describe( "OrganizationManager.reportUnresolvedManagers", () => {
         const logs = await captureLogs( async () => { findings = await organizationManager.instance.reportUnresolvedManagers(); } );
 
         assert.equal( findings.length, 1 );
-        assert.equal( findings[ 0 ].managerID, "8" );
-        assert.equal( findings[ 0 ].code, "manager-terminated" );
+        assert.deepEqual( findings[ 0 ], { unitID: "1-1-1", managerID: "8", code: "manager-terminated" } );
         assert.equal( logs.length, 1 );
     } );
 
