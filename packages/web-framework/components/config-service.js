@@ -344,6 +344,7 @@ class ConfigService {
                 entries: diff.entries,
                 storedVersion: current ? current.version : 0,
                 editable: metadata.editable !== false,
+                driftTracked: metadata.driftTracked !== false,
                 label: metadata.label || configKey
             };
         } );
@@ -367,6 +368,7 @@ class ConfigService {
                 counts: drift.counts,
                 storedVersion: drift.storedVersion,
                 editable: drift.editable,
+                driftTracked: drift.driftTracked,
                 label: drift.label
             } ) );
         } ) );
