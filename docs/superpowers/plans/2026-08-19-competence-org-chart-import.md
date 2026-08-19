@@ -40,7 +40,7 @@
 | File | Responsibility |
 |---|---|
 | `packages/competence/application/employee-rules.js` (create) | Employee field validation + email-collision detection, config injected |
-| `packages/competence/application/organization-rules.js` (create) | Structural tree rules (roots, symmetry, cycles) + the unresolved-manager diagnostic |
+| `packages/competence/application/organization-rules.js` (create) | Structural tree rules (roots, symmetry, cycles) + the pure unresolved-manager rule |
 | `packages/competence/application/organization-import.js` (create) | `parseDelimited` → `mapRows` → `reconcile` → `applyPlan` |
 
 **competence — wiring**
@@ -51,8 +51,9 @@
 | `packages/competence/application/config-validators.js` (modify) | Thin adapters wrapping `organization-rules` into `ValidationIssue[]` |
 | `packages/competence/application/config-registration.js` (modify) | Register the ninth document with `driftTracked: false` |
 | `packages/competence/application/configuration-loader.js` (modify) | `STORE_BACKED` entry, org-chart rebuild on change, drift-report skip |
+| `packages/competence/application/organization-manager.js` (modify) | `reportUnresolvedManagers()` — the startup diagnostic, logging one WARNING per finding |
 | `packages/competence/bin/competence-web-application.js` (modify) | Delegate employee validation to `employee-rules`; enforce email uniqueness |
-| `packages/competence/bin/competence-web-server.js` (modify) | Startup unresolved-manager diagnostic |
+| `packages/competence/bin/competence-web-server.js` (modify) | Call the diagnostic from `onStart` |
 | `packages/competence/bin/build/import-organization.js` (create) | CLI driver — dry-run by default |
 
 **competence — docs**
@@ -1252,15 +1253,32 @@ Also extend the module's header comment, which enumerates what is editable, to m
 
 In `packages/competence/bin/localization/competence-labels.json`, add the `organization.structure` label in both `en` (`"Organization Structure"`) and `bg` (`"Организационна структура"`), alongside the other config-document labels such as `role.families`.
 
-- [ ] **Step 10: Run the full suite**
+- [ ] **Step 10: Update the two suites that enumerate the store-backed documents**
+
+Adding a ninth registered document — and an eighth `STORE_BACKED` entry — breaks two existing assertions. **This is expected, and updating them is part of the task, not a regression to work around.**
+
+In `packages/competence/test/config-drift-reporting.test.js`, the first test asserts the exact key list of `configurationLoader.fileDefaults`, which is seven entries today. Add the new key:
+
+```js
+    it( "exposes the eight store-backed file defaults", () => {
+        assert.deepEqual( Object.keys( configurationLoader.fileDefaults ).sort(), [
+            "active-competency-sets", "competencies", "organization-structure", "relevancy-archetypes",
+            "research-consent", "role-families", "role-family-competencies", "stage-levels"
+        ] );
+    } );
+```
+
+Then run `node --test packages/competence/test/config-management.test.js` and check its registration loop, which per the CA-103 ledger asserts over the seven store-backed registrations. If it enumerates a fixed key list or count, extend it to include `organization-structure` — do **not** weaken the assertion to a length check or a subset match, since its whole purpose is catching a transposition among the registrations.
+
+- [ ] **Step 11: Run the full suite**
 
 ```bash
 node --test packages/competence/test/
 ```
 
-Expected: all pass — notably `config-drift-reporting.test.js`, `config-management.test.js`, `config-live.test.js` and the four `organization-*.test.js` suites, which keep asserting against the shipped demo tree.
+Expected: all pass — notably `config-drift-reporting.test.js` and `config-management.test.js` with their updated enumerations, plus `config-live.test.js` and the four `organization-*.test.js` suites, which keep asserting against the shipped demo tree.
 
-- [ ] **Step 11: Correct the documentation this makes true**
+- [ ] **Step 12: Correct the documentation this makes true**
 
 In `packages/competence/INSTALL.md` §17, replace the **Organization structure** bullet:
 
@@ -1274,10 +1292,10 @@ In `packages/competence/INSTALL.md` §17, replace the **Organization structure**
 
 In `packages/competence/README.md`, change the `config.organization-structure.json` row's *Configurable at runtime* cell from `No` to `Yes (store-backed)`.
 
-- [ ] **Step 12: Commit**
+- [ ] **Step 13: Commit**
 
 ```bash
-git add packages/competence/application/config-validators.js packages/competence/application/config-registration.js packages/competence/application/configuration-loader.js packages/competence/test/organization-structure-config.test.js packages/competence/bin/localization/competence-labels.json packages/competence/INSTALL.md packages/competence/README.md
+git add packages/competence/application/config-validators.js packages/competence/application/config-registration.js packages/competence/application/configuration-loader.js packages/competence/test/organization-structure-config.test.js packages/competence/test/config-drift-reporting.test.js packages/competence/test/config-management.test.js packages/competence/bin/localization/competence-labels.json packages/competence/INSTALL.md packages/competence/README.md
 git commit -m "feat(competence): make the organization structure a store-backed config document (CA-107)"
 ```
 
@@ -1285,77 +1303,126 @@ git commit -m "feat(competence): make the organization structure a store-backed 
 
 ## Task 6: competence — report unresolved unit managers
 
-A dangling `managerID` means that unit's people silently have no manager and no one gains MANAGER over them. It must be visible until it clears, so it is a persistent diagnostic — not a one-shot message at save time, and not a save gate (Task 4's class note explains why).
+A dangling `managerID` means that unit's people silently have no manager and nobody gains MANAGER over them. It must be visible until it clears, so it is a persistent diagnostic — not a one-shot message at save time, and not a save gate (Task 4's class note explains why).
+
+The reporter lives on `OrganizationManager`, which already owns org-chart concerns and already requires `dataManager` and `logger`. That placement is what makes it testable: the existing org suites reach it with `installInMemoryCache`, and `test/config-drift-reporting.test.js` already establishes the logger-stub precedent for exactly this kind of startup diagnostic.
 
 **Files:**
+- Modify: `packages/competence/application/organization-manager.js`
 - Modify: `packages/competence/bin/competence-web-server.js` (`onStart`)
 - Create: `packages/competence/test/organization-manager-diagnostics.test.js`
 
 **Interfaces:**
 - Consumes: `organizationRules.instance.findUnresolvedManagers` (Task 4); `dataManager.instance.fetchEmployees()`.
-- Produces: `reportUnresolvedManagers()` on the web server, logging one `WARNING` per finding. Returns `Promise<Array>` of the findings so the test can assert on them.
+- Produces: `organizationManager.instance.reportUnresolvedManagers() → Promise<Array<{unitID, managerID, code}>>` — logs one `WARNING` per finding and resolves with them. Never rejects.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `packages/competence/test/organization-manager-diagnostics.test.js` with the AGPL header. It tests the pure composition rather than the logger:
+Create `packages/competence/test/organization-manager-diagnostics.test.js` with the AGPL header. `captureLogs` mirrors the precedent in `test/config-drift-reporting.test.js` — replace `logger.log`, run, restore in a `finally` so the stub cannot leak into a later test in this file:
 
 ```js
-const { describe, it } = require( "node:test" );
+const { describe, it, before, beforeEach } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 
-const organizationRules = require( "#organization-rules" );
+const logger = require( "@ti-engine/core/logger" );
+const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
+const organizationManager = require( "#organization-manager" );
 
-// Mirrors the shipped demo tree's shape: root "1" mgr 22 -> "1-1" mgr 20 -> "1-1-1" mgr 8.
-const TREE = {
-    "1": { id: "1", parent: null, children: [ "1-1" ], managerID: "22" },
-    "1-1": { id: "1-1", parent: "1", children: [ "1-1-1" ], managerID: "20" },
-    "1-1-1": { id: "1-1-1", parent: "1-1", children: [], managerID: "8" }
+let cacheStub;
+
+// The shipped demo tree roots at unit "1" (mgr 22) -> "1-1" (mgr 20) -> { "1-1-1" mgr 8, "1-1-2" mgr 11 }.
+const MANAGER_IDS = [ "22", "20", "8", "11" ];
+
+const captureLogs = async ( run ) => {
+    const originalLog = logger.log;
+    const captured = [];
+    logger.log = ( message, severity ) => { captured.push( { message, severity } ); };
+    try {
+        await run();
+    } finally {
+        logger.log = originalLog;
+    }
+    return captured;
 };
 
-describe( "unresolved manager diagnostics", () => {
+const seedEmployees = async ( employees ) => {
+    const map = {};
+    employees.forEach( ( employee ) => { map[ employee.employeeID ] = employee; } );
+    await cacheStub.setJSON( "ti:competence:data:employees", map );
+    await organizationManager.instance.buildOrganizationChart();
+};
 
-    it( "reports every unit on a fresh install with no employees loaded", () => {
-        const findings = organizationRules.instance.findUnresolvedManagers( TREE, [] );
-        assert.equal( findings.length, 3 );
-        assert.deepEqual( findings.map( ( f ) => f.unitID ).sort(), [ "1", "1-1", "1-1-1" ] );
+before( () => {
+    cacheStub = installInMemoryCache();
+} );
+
+beforeEach( () => {
+    cacheStub.storage = {};
+} );
+
+describe( "OrganizationManager.reportUnresolvedManagers", () => {
+
+    it( "warns once per unit when no employees are loaded — the fresh-install state", async () => {
+        await seedEmployees( [] );
+        let findings;
+        const logs = await captureLogs( async () => { findings = await organizationManager.instance.reportUnresolvedManagers(); } );
+
+        assert.equal( findings.length, MANAGER_IDS.length );
+        assert.ok( findings.every( ( finding ) => finding.code === "manager-not-found" ) );
+        assert.equal( logs.length, MANAGER_IDS.length );
+        assert.ok( logs.every( ( entry ) => entry.severity === logger.logSeverity.WARNING ) );
     } );
 
-    it( "clears once the named employees exist and are not terminated", () => {
-        const employees = [
-            { employeeID: "22", employmentStatus: "active" },
-            { employeeID: "20", employmentStatus: "on-leave" },
-            { employeeID: "8", employmentStatus: "active" }
-        ];
-        assert.deepEqual( organizationRules.instance.findUnresolvedManagers( TREE, employees ), [] );
+    it( "is silent once every named manager exists and is not terminated", async () => {
+        await seedEmployees( MANAGER_IDS.map( ( id ) => ( { employeeID: id, employmentStatus: "active" } ) ) );
+        let findings;
+        const logs = await captureLogs( async () => { findings = await organizationManager.instance.reportUnresolvedManagers(); } );
+
+        assert.deepEqual( findings, [] );
+        assert.equal( logs.length, 0 );
     } );
 
-    it( "carries a machine-readable code and no personal data", () => {
-        const findings = organizationRules.instance.findUnresolvedManagers( TREE, [ { employeeID: "22", employmentStatus: "terminated" } ] );
-        const forRoot = findings.find( ( f ) => f.unitID === "1" );
-        assert.equal( forRoot.code, "manager-terminated" );
-        assert.deepEqual( Object.keys( forRoot ).sort(), [ "code", "managerID", "unitID" ] );
+    it( "warns for a terminated manager, whose employee record does exist", async () => {
+        await seedEmployees( MANAGER_IDS.map( ( id ) => ( { employeeID: id, employmentStatus: id === "8" ? "terminated" : "active" } ) ) );
+        let findings;
+        const logs = await captureLogs( async () => { findings = await organizationManager.instance.reportUnresolvedManagers(); } );
+
+        assert.equal( findings.length, 1 );
+        assert.equal( findings[ 0 ].managerID, "8" );
+        assert.equal( findings[ 0 ].code, "manager-terminated" );
+        assert.equal( logs.length, 1 );
+    } );
+
+    it( "logs no personal field — only unit, manager ID and code", async () => {
+        await seedEmployees( [ { employeeID: "22", employmentStatus: "terminated", email: "ada@example.com", personal: { firstName: "Ada", lastName: "Lovelace" } } ] );
+        const logs = await captureLogs( () => organizationManager.instance.reportUnresolvedManagers() );
+
+        const joined = logs.map( ( entry ) => entry.message ).join( " " );
+        assert.equal( joined.includes( "Ada" ), false );
+        assert.equal( joined.includes( "Lovelace" ), false );
+        assert.equal( joined.includes( "ada@example.com" ), false );
     } );
 
 } );
 ```
 
-- [ ] **Step 2: Run it and confirm it passes already**
+- [ ] **Step 2: Run it and confirm it fails**
 
 ```bash
 node --test packages/competence/test/organization-manager-diagnostics.test.js
 ```
 
-Expected: 3 passing — Task 4 built the rule. This suite pins the **contract the startup reporter depends on**, including that a finding carries no personal fields. Keep it: it is what stops a later change from putting a manager's name into a log line.
+Expected: `organizationManager.instance.reportUnresolvedManagers is not a function` on all four cases.
 
-- [ ] **Step 3: Report at startup**
+- [ ] **Step 3: Implement the reporter**
 
-In `packages/competence/bin/competence-web-server.js`, add the requires if not already present:
+In `packages/competence/application/organization-manager.js`, add the require alongside the existing `#role-resolver` one:
 
 ```js
 const organizationRules = require( "#organization-rules" );
 ```
 
-Add the method to the class:
+Add to the public interface. Match the surrounding style — `OrganizationManager`'s public members are assigned as arrow-function class fields, not prototype methods:
 
 ```js
     /**
@@ -1363,40 +1430,47 @@ Add the method to the class:
      * unit's people silently have no manager and nobody gains MANAGER over them, so the condition must stay visible
      * until it clears — on a container deployment nobody is watching an admin screen.
      * <br/>
-     * Deliberately a diagnostic rather than a validator: blocking the tree's save on employee data would deadlock a
-     * fresh install, where the tree must exist before employees can reference its units. Every unit reporting at once
-     * is the *expected* state between loading the tree and importing employees.
+     * Deliberately a diagnostic rather than a config validator: blocking the tree's save on employee data would
+     * deadlock a fresh install, where the tree must exist before an employee can reference its units. Every unit
+     * reporting at once is the *expected* state between loading the tree and importing employees.
      * <br/>
-     * Never gates boot, and never logs a personal field — a finding carries only unit ID, manager ID and a code.
+     * Never rejects — a diagnostic must not gate boot — and never logs a personal field.
      *
      * @method
-     * @returns {Promise<Array<Object>>}
+     * @returns {Promise<Array<{unitID: string, managerID: string, code: string}>>}
      * @public
      */
-    reportUnresolvedManagers() {
+    reportUnresolvedManagers = () => {
         return dataManager.instance.fetchEmployees().then( ( employees ) => {
             const findings = organizationRules.instance.findUnresolvedManagers( configurationLoader.configOrganizationStructure, employees );
-            for ( const finding of findings ) {
-                logger.log( `Organization unit '${ finding.unitID }' names manager '${ finding.managerID }' which does not resolve to an active employee (${ finding.code }). That unit's employees have no manager, and nobody holds MANAGER over them.`, logger.logSeverity.WARNING );
-            }
+            findings.forEach( ( finding ) => {
+                logger.log( `Organization unit '${ finding.unitID }' names manager '${ finding.managerID }', which does not resolve to an active employee (${ finding.code }). That unit's employees have no manager, and nobody holds MANAGER over them.`, logger.logSeverity.WARNING );
+            } );
             return findings;
         } ).catch( ( error ) => {
-            // Diagnostics must never gate boot.
-            logger.log( "Unable to check organization unit managers at startup.", logger.logSeverity.WARNING, error );
+            logger.log( "Unable to check organization unit managers.", logger.logSeverity.WARNING, error );
             return [];
         } );
     }
 ```
 
-- [ ] **Step 4: Call it from `onStart`**
+- [ ] **Step 4: Run the test and confirm it passes**
 
-Still in `competence-web-server.js`, append it to the `onStart` promise chain, after `backfillMissingEvaluationDeadlines()` — it must run once the org chart and employees are both loaded:
-
-```js
-            .then( () => this.reportUnresolvedManagers() )
+```bash
+node --test packages/competence/test/organization-manager-diagnostics.test.js
 ```
 
-- [ ] **Step 5: Run the full suite**
+Expected: 4 passing.
+
+- [ ] **Step 5: Call it at startup**
+
+In `packages/competence/bin/competence-web-server.js`, append to the `onStart` promise chain, after `backfillMissingEvaluationDeadlines()` — it must run once the org chart and employees are both loaded:
+
+```js
+            .then( () => organizationManager.instance.reportUnresolvedManagers() )
+```
+
+- [ ] **Step 6: Run the full suite**
 
 ```bash
 node --test packages/competence/test/
@@ -1404,12 +1478,13 @@ node --test packages/competence/test/
 
 Expected: all pass.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add packages/competence/bin/competence-web-server.js packages/competence/test/organization-manager-diagnostics.test.js
+git add packages/competence/application/organization-manager.js packages/competence/bin/competence-web-server.js packages/competence/test/organization-manager-diagnostics.test.js
 git commit -m "feat(competence): report organization units whose manager does not resolve (CA-107)"
 ```
+
 
 ---
 
