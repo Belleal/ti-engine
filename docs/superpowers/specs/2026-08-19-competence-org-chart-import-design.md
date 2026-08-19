@@ -271,8 +271,11 @@ These are the ways an HR-produced CSV corrupts data without anyone noticing, and
 
 Validation is **per row**: a bad row is rejected on its own and must never block the 299 good ones around it.
 
-Exactly two conditions fail the whole file instead, because each means the operator supplied the wrong file rather
-than a flawed row — an undecodable encoding (§5.4.2), and a header that does not resolve the required columns.
+Three conditions fail the whole file instead, because each means the operator supplied the wrong file rather
+than a flawed row — an undecodable encoding (§5.4.2), a header that does not resolve the required columns, and a
+header that repeats a column. The last is fatal rather than per-row because records are keyed by header cell: two
+columns normalizing to the same key silently overwrite each other, and the earlier column's data disappears with no
+error anywhere.
 
 Every rejection carries a machine-readable reason code and the row number. Duplicate email is reported against *both*
 participating rows, since either could be the wrong one and the operator needs to see the pair.

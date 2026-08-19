@@ -2804,6 +2804,16 @@ function run() {
         return Promise.resolve( 2 );
     }
 
+    // A duplicate header cell is whole-file fatal, not a per-row rejection. `toRecords` keys records by header
+    // cell, so two columns normalizing to the same key silently overwrite — the earlier column's data vanishes
+    // with no error anywhere. Detect it here rather than in `toRecords`, which has no channel to report it.
+    const duplicated = header.filter( ( column, index ) => column.length > 0 && header.indexOf( column ) !== index );
+    if ( duplicated.length > 0 ) {
+        process.stderr.write( `The header repeats column(s): ${ Array.from( new Set( duplicated ) ).join( ", " ) }\n` );
+        process.stderr.write( "Header names are matched case-insensitively after trimming, so 'Note' and 'NOTE' collide.\n" );
+        return Promise.resolve( 2 );
+    }
+
     const { employees, errors } = organizationImport.instance.mapRows( records );
 
     return dataManager.instance.fetchEmployees().then( ( existing ) => {
