@@ -555,7 +555,7 @@ Add to the public interface of `EmployeeRules` in `packages/competence/applicati
 node --test packages/competence/test/employee-rules.test.js
 ```
 
-Expected: 15 passing.
+Expected: 28 passing (24 pre-existing plus the 4 new collision cases).
 
 - [ ] **Step 5: Add the localization label**
 
