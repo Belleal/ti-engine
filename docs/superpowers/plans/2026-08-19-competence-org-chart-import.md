@@ -1927,6 +1927,25 @@ describe( "organizationImport.mapRow", () => {
         assert.equal( error.message.includes( "Lovelace" ), false );
     } );
 
+    // `mapRow` returns the FIRST error it finds, so the check order is part of its contract. Every case above breaks
+    // one field in isolation, which would still pass if two adjacent checks were swapped. These pin the precedence.
+    // Order is: required columns -> work_mode -> work_location -> employment_status -> stage -> dates.
+    it( "reports a missing required column ahead of an invalid enum", () => {
+        assert.equal( organizationImport.instance.mapRow( row( { employee_id: "", work_mode: "Casual" } ) ).error.column, "employee_id" );
+    } );
+
+    it( "reports an invalid work_mode ahead of an invalid work_location", () => {
+        assert.equal( organizationImport.instance.mapRow( row( { work_mode: "Casual", work_location: "Moon" } ) ).error.column, "work_mode" );
+    } );
+
+    it( "reports an invalid employment_status ahead of a bad stage", () => {
+        assert.equal( organizationImport.instance.mapRow( row( { employment_status: "furloughed", stage: "nope" } ) ).error.column, "employment_status" );
+    } );
+
+    it( "reports a bad stage ahead of a bad date", () => {
+        assert.equal( organizationImport.instance.mapRow( row( { stage: "nope", starting_date: "14/03/2022" } ) ).error.column, "stage" );
+    } );
+
 } );
 
 describe( "organizationImport.mapRows", () => {
@@ -2131,7 +2150,7 @@ And add to the private interface, after `#stripBOM`:
 node --test packages/competence/test/organization-import.map.test.js
 ```
 
-Expected: 16 passing.
+Expected: 20 passing.
 
 - [ ] **Step 5: Commit**
 
