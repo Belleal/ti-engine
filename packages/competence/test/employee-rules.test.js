@@ -84,7 +84,7 @@ describe( "employeeRules.validateEmployee", () => {
         assert.equal( employeeRules.instance.validateEmployee( employee( { email: undefined } ), CONTEXT ), null );
     } );
 
-    // Uncovered branches (Minor findings)
+    // Work location, employment status, and level checks not covered by single-field cases
 
     it( "rejects an unrecognized work location", () => {
         assert.equal( employeeRules.instance.validateEmployee( employee( { workLocation: "Underwater" } ), CONTEXT ), "error.employee.invalid-work-location" );
@@ -98,7 +98,7 @@ describe( "employeeRules.validateEmployee", () => {
         assert.equal( employeeRules.instance.validateEmployee( employee( { level: "Z" } ), CONTEXT ), "error.employee.invalid-level" );
     } );
 
-    // Stage boundary cases (Minor finding)
+    // Boundary tests for the stage field's valid range (1-3)
 
     it( "rejects a stage below the permitted range (0)", () => {
         assert.equal( employeeRules.instance.validateEmployee( employee( { stage: 0 } ), CONTEXT ), "error.employee.invalid-stage" );
@@ -108,18 +108,47 @@ describe( "employeeRules.validateEmployee", () => {
         assert.equal( employeeRules.instance.validateEmployee( employee( { stage: 4 } ), CONTEXT ), "error.employee.invalid-stage" );
     } );
 
-    // Rule-order precedence (Important finding)
+    // Adjacent-rule-boundary precedence tests: when two adjacent rules in the sequence are both violated,
+    // the earlier rule wins. This catches future swaps where adjacent rules might be inadvertently re-ordered.
 
-    it( "enforces that missing-name takes precedence over invalid-work-mode", () => {
+    it( "enforces that missing-name takes precedence over invalid-work-mode (1→2)", () => {
         assert.equal( employeeRules.instance.validateEmployee( employee( { firstName: "", workMode: "Casual" } ), CONTEXT ), "error.employee.missing-name" );
     } );
 
-    it( "enforces that invalid-work-mode takes precedence over invalid-role-family", () => {
-        assert.equal( employeeRules.instance.validateEmployee( employee( { workMode: "Casual", roleFamily: "ZZ" } ), CONTEXT ), "error.employee.invalid-work-mode" );
+    it( "enforces that invalid-work-mode takes precedence over invalid-work-location (2→3)", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { workMode: "Casual", workLocation: "Underwater" } ), CONTEXT ), "error.employee.invalid-work-mode" );
     } );
 
-    it( "enforces that invalid-level takes precedence over invalid-organization-unit", () => {
-        assert.equal( employeeRules.instance.validateEmployee( employee( { level: "Z", unit: "9-9" } ), CONTEXT ), "error.employee.invalid-level" );
+    it( "enforces that invalid-work-location takes precedence over invalid-employment-status (3→4)", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { workLocation: "Underwater", employmentStatus: "unknown" } ), CONTEXT ), "error.employee.invalid-work-location" );
+    } );
+
+    it( "enforces that invalid-employment-status takes precedence over invalid-role-family (4→5)", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { employmentStatus: "unknown", roleFamily: "ZZ" } ), CONTEXT ), "error.employee.invalid-employment-status" );
+    } );
+
+    // Role-family/specialization boundary (5→6) is structurally protected: the specialization check reads
+    // families[roleFamily].specializations, so it is only reachable when the family is valid. A swap would
+    // throw a TypeError on families[undefined] rather than mis-order silently, so no test is needed here.
+
+    it( "enforces that invalid-specialization takes precedence over invalid-level (6→7)", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { roleFamily: "SE", specialization: "AGILE", level: "Z" } ), CONTEXT ), "error.employee.invalid-specialization" );
+    } );
+
+    it( "enforces that invalid-level takes precedence over invalid-stage (7→8)", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { level: "Z", stage: 1.5 } ), CONTEXT ), "error.employee.invalid-level" );
+    } );
+
+    it( "enforces that invalid-stage takes precedence over invalid-stage-for-level (8→9)", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { level: "X", stage: 4 } ), CONTEXT ), "error.employee.invalid-stage" );
+    } );
+
+    it( "enforces that invalid-stage-for-level takes precedence over invalid-organization-unit (9→10)", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { level: "X", stage: 2, unit: "9-9" } ), CONTEXT ), "error.employee.invalid-stage-for-level" );
+    } );
+
+    it( "enforces that invalid-organization-unit takes precedence over invalid-email (10→11)", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { unit: "9-9", email: "not-an-email" } ), CONTEXT ), "error.employee.invalid-organization-unit" );
     } );
 
 } );
