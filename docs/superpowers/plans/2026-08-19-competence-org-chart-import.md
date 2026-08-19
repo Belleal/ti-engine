@@ -1476,7 +1476,7 @@ In `packages/competence/application/organization-manager.js`, add the require al
 const organizationRules = require( "#organization-rules" );
 ```
 
-Add to the public interface. Match the surrounding style — `OrganizationManager`'s public members are assigned as arrow-function class fields, not prototype methods:
+Add to the public interface as a **regular prototype method**, matching the surrounding style. Only `toUnitNodeID` and `toEmployeeNodeID` are arrow-function class fields; every other public member of this class — `buildOrganizationChart`, `getTopManagerID`, `isUnitManager` and the rest — is a prototype method. That distinction is not cosmetic: `Object.freeze( instance )` at the bottom of the file locks own properties, so an arrow field cannot be stubbed in a test, while a prototype method can.
 
 ```js
     /**
@@ -1494,7 +1494,7 @@ Add to the public interface. Match the surrounding style — `OrganizationManage
      * @returns {Promise<Array<{unitID: string, managerID: string, code: string}>>}
      * @public
      */
-    reportUnresolvedManagers = () => {
+    reportUnresolvedManagers() {
         return dataManager.instance.fetchEmployees().then( ( employees ) => {
             const findings = organizationRules.instance.findUnresolvedManagers( configurationLoader.configOrganizationStructure, employees );
             findings.forEach( ( finding ) => {
