@@ -252,7 +252,8 @@ const STORE_BACKED = {
     "role-families": "configRoleFamilies",
     "role-family-competencies": "configRoleFamilyCompetencies",
     "stage-levels": "configStageLevels",
-    "research-consent": "configResearchConsent"
+    "research-consent": "configResearchConsent",
+    "organization-structure": "configOrganizationStructure"
 };
 const fileDefaults = {};
 Object.entries( STORE_BACKED ).forEach( ( [ configKey, property ] ) => {
@@ -304,6 +305,12 @@ function reportConfigDrift( configService ) {
     }
     return configService.listDrift().then( ( documents ) => {
         for ( const document of ( documents || [] ) ) {
+            if ( document.driftTracked === false ) {
+                // Customer data (the org chart), not vendor-shipped product content: it differs from the image's
+                // default by definition and forever, so reporting it would drown the signal for documents where a
+                // difference genuinely means "a release changed something this deployment is not serving".
+                continue;
+            }
             if ( document.status === "drifted" ) {
                 logger.log( `Configuration document '${ document.configKey }' differs from the file default shipped with this build (+${ document.counts.added } / -${ document.counts.removed } / ~${ document.counts.changed }). Review and apply it in Administration → Configuration.`, logger.logSeverity.WARNING );
             } else if ( document.status === "absent" ) {
@@ -342,7 +349,13 @@ module.exports.initialize = ( service ) => {
                 return configService.getCurrent( key ).then( ( current ) => {
                     if ( current ) applyStoreValue( key, current.value );
                 } );
-            } ) );
+            } ) ).then( () => {
+                if ( !keys.includes( "organization-structure" ) ) {
+                    return undefined;
+                }
+                // Lazy require: organization-manager requires this module, so a top-level require is a cycle.
+                return require( "#organization-manager" ).instance.buildOrganizationChart();
+            } );
         } );
     } ).then( () => reportConfigDrift( configService ) );
 };

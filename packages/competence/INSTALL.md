@@ -399,7 +399,11 @@ reaches it once `deploy.sh` is re-run.
 ## 11. First run & data
 
 - **Demo data:** `COMPETENCE_PRELOAD_DATA=true` seeds demo data (employees, a cycle, sample evaluations) by merging it into the collections on startup. It does **not** wipe existing data — collections are only initialized when empty, so data you create persists across restarts. While the flag stays `true` the seed is re-applied on every boot (re-adding seeded records), so set it back to `false` once seeded. Leave it `false` for a real install (you start empty).
-- **Organization structure:** the org chart is loaded from a configuration file baked into the image. Reflecting *your* organization requires supplying/adjusting that configuration (via the framework's admin configuration system or a custom build) — plan this with the application owner; it is not an environment variable.
+- **Organization structure:** the org chart is a store-backed configuration document, editable in
+  **Administration → Configuration** like any other. The file baked into the image is only the bootstrap default,
+  seeded on a first run; from then on the stored value wins. Reflecting *your* organization is therefore a
+  configuration task, not a rebuild. It is deliberately excluded from the configuration-drift report: it holds your
+  data rather than content shipped with the release, so it differs from the image default by design.
 - **Admin access:** the admin configuration screens are gated to identities listed in the web-server config `auth.admins` (empty by default → no admins). Set it per environment with **`TI_WEB_AUTH_ADMINS`** (comma-separated; matched against the session user's user ID, username or email — so an OpenID deployment lists emails), or in the config file for a baked-in default. Other non-env config such as the organization structure remains a configuration step — coordinate with the application owner.
 - **First login:** browse to your HTTPS host. With the default `TI_WEB_AUTH_METHODS=openid-azure`, you sign in via Azure — so Azure must be configured (§7), otherwise the page shows "no sign-in method is configured." (Adding `local` to `TI_WEB_AUTH_METHODS` makes its sign-in form appear immediately — the form itself does not depend on a users file existing — but no sign-in can *succeed* until you provision a record for that identity in the file at `TI_WEB_AUTH_LOCAL_USERS_PATH`; with no matching record, or a wrong password, it's refused; dev/break-glass only, see §1 and §7, "Local auth".)
 

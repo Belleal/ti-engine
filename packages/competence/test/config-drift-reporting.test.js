@@ -45,10 +45,10 @@ const captureLogs = async ( run ) => {
 
 describe( "configuration-loader — file defaults survive store initialization", () => {
 
-    it( "exposes the seven store-backed file defaults", () => {
+    it( "exposes the eight store-backed file defaults", () => {
         assert.deepEqual( Object.keys( configurationLoader.fileDefaults ).sort(), [
-            "active-competency-sets", "competencies", "relevancy-archetypes", "research-consent",
-            "role-families", "role-family-competencies", "stage-levels"
+            "active-competency-sets", "competencies", "organization-structure", "relevancy-archetypes",
+            "research-consent", "role-families", "role-family-competencies", "stage-levels"
         ] );
     } );
 

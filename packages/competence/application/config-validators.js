@@ -24,6 +24,7 @@
  */
 
 const configurationLoader = require( "#configuration-loader" );
+const organizationRules = require( "#organization-rules" );
 
 const SUBCATEGORIES = [ "E1", "E2", "E3", "I1", "I2", "I3", "C1", "C2", "C3" ];
 const SCOPE_LEVELS = [ "N", "J", "R", "S", "X", "T" ];
@@ -486,6 +487,107 @@ function consentTextVersionBumped( value, context ) {
 }
 
 /**
+ * organization-structure: exactly one unit must have no parent. `getTopManagerID` and the symmetry-breaks
+ * derivation both assume a single root.
+ * <br/>
+ * Document-intrinsic, like the other three organization-structure validators below — it reads no sibling document,
+ * so (unlike most validators in this file) it does not need the `context` parameter of the general
+ * `(value, context)` {@link SemanticValidator} shape.
+ *
+ * @method
+ * @param {Object} value - The pending organization structure being validated.
+ * @returns {Promise<Array<ValidationIssue>>}
+ * @public
+ */
+function organizationSingleRoot( value ) {
+    const roots = organizationRules.instance.findRootUnits( value );
+    if ( roots.length === 1 ) {
+        return Promise.resolve( [] );
+    }
+    return Promise.resolve( [ {
+        path: ".",
+        message: ( roots.length === 0 )
+            ? "no root unit — exactly one unit must have parent: null"
+            : `${ roots.length } root units (${ roots.join( ", " ) }) — exactly one unit must have parent: null`,
+        code: "single-root"
+    } ] );
+}
+
+/**
+ * organization-structure: the `parent` and `children` links must agree in both directions. The graph builder reads
+ * them independently, so a mismatch produces a half-connected tree with no error.
+ * <br/>
+ * Document-intrinsic — no `context` parameter needed; see {@link organizationSingleRoot}.
+ *
+ * @method
+ * @param {Object} value
+ * @returns {Promise<Array<ValidationIssue>>}
+ * @public
+ */
+function organizationParentChildSymmetry( value ) {
+    return Promise.resolve( organizationRules.instance.findSymmetryBreaks( value ).map( ( found ) => ( {
+        path: `.${ found.unitID }`,
+        message: `link to '${ found.relatedID }' is inconsistent (${ found.code })`,
+        code: "symmetry"
+    } ) ) );
+}
+
+/**
+ * organization-structure: the parent chain must be acyclic. `RoleResolver#subManagerDepth` recurses with no visited
+ * set, so a cycle is a stack overflow at login rather than a diagnosable failure.
+ * <br/>
+ * Document-intrinsic — no `context` parameter needed; see {@link organizationSingleRoot}.
+ *
+ * @method
+ * @param {Object} value
+ * @returns {Promise<Array<ValidationIssue>>}
+ * @public
+ */
+function organizationNoCycles( value ) {
+    const cyclic = organizationRules.instance.findCycles( value );
+    if ( cyclic.length === 0 ) {
+        return Promise.resolve( [] );
+    }
+    return Promise.resolve( [ {
+        path: ".",
+        message: `parent cycle through unit(s): ${ cyclic.join( ", " ) }`,
+        code: "cycle"
+    } ] );
+}
+
+/**
+ * organization-structure: every unit's `id` must equal its map key. The schema documents this but cannot express
+ * it — JSON Schema has no way to say "this property's value equals its property name" — so it was documented and
+ * unenforced until now.
+ * <br/>
+ * It also removes a real ambiguity in the reporting layer: `organizationRules.findCycles` identifies findings by raw
+ * map key while the other three rules use `unit.id || rawID`. Those name different things only when the two
+ * disagree, so enforcing equality makes every rule report the same identifier by construction — and the map key is
+ * what the operator must actually edit, since `parent` and `children` reference keys, not `id` fields.
+ *
+ * Document-intrinsic — no `context` parameter needed; see {@link organizationSingleRoot}.
+ *
+ * @method
+ * @param {Object} value
+ * @returns {Promise<Array<ValidationIssue>>}
+ * @public
+ */
+function organizationIdMatchesKey( value ) {
+    const issues = [];
+    for ( const [ rawID, unit ] of Object.entries( value || {} ) ) {
+        const declared = unit && unit.id;
+        if ( declared !== rawID ) {
+            issues.push( {
+                path: `.${ rawID }`,
+                message: `unit id '${ declared === undefined ? "(absent)" : declared }' does not match its key '${ rawID }'`,
+                code: "id-key-mismatch"
+            } );
+        }
+    }
+    return Promise.resolve( issues );
+}
+
+/**
  * Employee source for {@link roleFamiliesReferentialIntegrity}, isolated as a seam so it can be overridden in tests
  * (the data-manager singleton is frozen and cannot be stubbed directly). Resolves to [] when the data layer is absent
  * (e.g. outside the running service); a genuine fetch failure is allowed to reject so the caller can fail closed.
@@ -518,5 +620,9 @@ module.exports = {
     roleFamiliesReferentialIntegrity,
     fetchEmployeesForValidation,
     labelsContentComplete,
-    consentTextVersionBumped
+    consentTextVersionBumped,
+    organizationSingleRoot,
+    organizationParentChildSymmetry,
+    organizationNoCycles,
+    organizationIdMatchesKey
 };
