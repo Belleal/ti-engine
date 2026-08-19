@@ -16,7 +16,7 @@
 - **CommonJS only** — `require()` / `module.exports`. No ESM.
 - **Internal imports use `#alias`** from the package's `imports` map, never relative paths. A new module needs a new alias entry in `package.json`.
 - **License headers are per-package and differ.** Copy the header block verbatim from an existing file **in the same package**: competence is `AGPL-3.0-or-later`, web-framework is `Apache-2.0`.
-- **Tests are `node --test`** with `node:assert/strict`. No external test framework. One `test/<subject>.test.js` per module.
+- **Tests are `node --test`** with `node:assert/strict`. No external test framework. One `test/<subject>.test.js` per module. Run a FOCUSED test by file path (`node --test packages/competence/test/x.test.js`); run a FULL package suite as `npm test -w @ti-engine/competence` — the bare directory form does not glob on Node 26 and running it from the repo root breaks tests that resolve paths relative to the package.
 - **Pure modules perform no I/O.** The caller injects every lookup. This is what makes each rule testable with plain objects.
 - **Commit convention:** Conventional Commits scoped to the package, referencing the YouTrack ID — e.g. `feat(competence): add the CSV row mapper (CA-107)`. Bundle thematically; one commit per task unless a task says otherwise.
 - **Tracking:** [CA-107](https://belleal.youtrack.cloud/issue/CA-107), a subtask of CA-6 (Employee & Organization Management). Reference it in every commit message.
@@ -439,7 +439,7 @@ Then replace the entire body of `#validateEmployeeFields` — keep the method an
 - [ ] **Step 7: Run the full competence suite to prove nothing regressed**
 
 ```bash
-node --test packages/competence/test/
+npm test -w @ti-engine/competence
 ```
 
 Expected: all suites pass. This is a pure relocation — any failure means the extracted rules diverged from the original.
@@ -608,7 +608,7 @@ In `#createEmployee` in `packages/competence/bin/competence-web-application.js`,
 - [ ] **Step 8: Run the full suite**
 
 ```bash
-node --test packages/competence/test/
+npm test -w @ti-engine/competence
 ```
 
 Expected: all pass.
@@ -1273,7 +1273,7 @@ Then run `node --test packages/competence/test/config-management.test.js` and ch
 - [ ] **Step 11: Run the full suite**
 
 ```bash
-node --test packages/competence/test/
+npm test -w @ti-engine/competence
 ```
 
 Expected: all pass — notably `config-drift-reporting.test.js` and `config-management.test.js` with their updated enumerations, plus `config-live.test.js` and the four `organization-*.test.js` suites, which keep asserting against the shipped demo tree.
@@ -1473,7 +1473,7 @@ In `packages/competence/bin/competence-web-server.js`, append to the `onStart` p
 - [ ] **Step 6: Run the full suite**
 
 ```bash
-node --test packages/competence/test/
+npm test -w @ti-engine/competence
 ```
 
 Expected: all pass.
@@ -2799,7 +2799,7 @@ In `packages/competence/INSTALL.md`, add a subsection to the installation flow c
 - [ ] **Step 9: Run the whole suite and the linter**
 
 ```bash
-node --test packages/competence/test/
+npm test -w @ti-engine/competence
 ```
 
 ```bash
