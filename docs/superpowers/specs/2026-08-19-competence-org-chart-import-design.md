@@ -19,8 +19,9 @@ arrives in two incompatible ways, and neither is fit for a real installation of 
 **The unit tree** lives in `bin/config/config.organization-structure.json`, `require()`d and deep-frozen at module
 load (`configuration-loader.js:20`). It is not one of the eight store-backed configuration documents, so it has no
 schema, no validators, no versioning, no audit trail and no admin editor. Changing it means changing the image.
-`README.md` marks it *Configurable at runtime: No*, while `INSTALL.md` §17 tells operators the opposite — that it can
-be adjusted "via the framework's admin configuration system". That statement is false today.
+`README.md`'s configuration-reference table marks it *Admin-editable: No*, while `INSTALL.md` §11 tells operators
+the opposite — that it can be adjusted "via the framework's admin configuration system". That statement is false
+today.
 
 **Employee records** live in Redis and are created one at a time through the Employee Management screen
 (`create-employee` / `update-employee`). The only bulk path is `bin/data/seeders/employees.json` behind
@@ -132,6 +133,14 @@ Concretely, `orgManagerResolves` emits a per-unit finding shown in the admin con
 manager, an unresolved finding must be visible until it clears — not a one-shot message at save time. It resolves
 employees through the injected validator context, so it stays unit-testable with plain objects, consistent with the
 existing validators in `config-validators.js`.
+
+> **Corrected after implementation (CA-107 whole-branch review).** Only the startup `WARNING` shipped — there is no
+> admin-configuration-screen surface for this finding; `reportUnresolvedManagers` has exactly two consumers
+> (`onStart` and its own test) and no route, handler or fragment. The screen surface described in the paragraph
+> above was considered and deferred rather than built: it needs a new route, handler and fragment of its own, which
+> is scope beyond this feature. The finding is instead documented for operators in `INSTALL.md` §11 — what the
+> warning looks like, when a screenful of it is expected, and how to clear one that persists. §10 is corrected to
+> match.
 
 The ordering this permits: apply the tree first (structurally valid, managers reported as unresolved), import
 employees second, at which point the findings clear on the next evaluation.
@@ -322,8 +331,8 @@ The four existing org suites keep the shipped demo tree and are untouched (§5.2
 5. `--apply`, then sign in as an identity from `TI_WEB_AUTH_ADMINS` and spot-check Employee Management.
 6. Verify role derivation: confirm each unit manager sees MANAGER, and that exactly the intended people are
    SUPERVISOR.
-7. Correct `INSTALL.md` §17, which this work finally makes accurate, and `README.md`'s
-   *Configurable at runtime: No* row.
+7. Correct `INSTALL.md` §11, which this work finally makes accurate, and `README.md`'s
+   *Admin-editable: No* row.
 
 ## 10. Risks & open questions
 
@@ -334,6 +343,11 @@ The four existing org suites keep the shipped demo tree and are untouched (§5.2
 - **An unresolved `managerID` is a warning, not a save gate** (§5.1.1). That is the right call for bootstrapping, but
   it means a deployment can run indefinitely with a unit whose people have no manager, visible only in the admin
   screen and the startup log. Step 6 of the runbook is what catches it; a derived-roles preview would catch it better.
+- **Corrected after implementation:** no admin-screen surface shipped for the bullet above — see the amendment in
+  §5.1.1. The finding is visible only in the startup log, now documented for operators in `INSTALL.md` §11 and
+  checked for explicitly in its §13 post-install verification, because the finding's own severity is `WARNING` and
+  the general "no `error`/`alert` severity lines" check would otherwise pass a deployment where an entire unit has
+  no manager.
 - **No rollback for an applied import.** Employee writes are audited but not versioned the way configuration is.
   A Redis backup before `--apply` is the operator's rollback, and belongs in the runbook.
 

@@ -507,6 +507,27 @@ Three behaviors are worth understanding before the first real import:
   (`specialization` is different: an empty cell there is applied and does clear a previously-set specialization,
   turning the person into a generalist.)
 
+### Unresolved-manager warnings
+
+On every startup, the app cross-checks each organization unit's `managerID` against the employee store and logs one
+`WARNING` per unit whose manager does not resolve to an active employee, for example:
+
+- `Organization unit '<unitID>' names manager '<managerID>', which does not resolve to an active employee (manager-not-found). That unit's employees have no manager, and nobody holds MANAGER over them.`
+
+The warning names only a unit ID and a manager ID — never a person's name. This diagnostic has no admin-screen
+surface; the startup log is the only place it currently appears.
+
+**Expect a screenful of these between applying the org tree and importing employees.** The tree must exist before
+an employee record can reference one of its units, so at that point in a fresh install no employee has been
+imported yet and every unit that names a manager will report unresolved. That is expected, not a sign that anything
+is broken — it clears once the matching employees are imported and the app is restarted.
+
+**A warning that survives *after* the employee import is a different matter — an access-control problem, not a
+cosmetic one.** Roles are derived from the org chart at login, so that unit's people genuinely have no MANAGER over
+them (and, depending on where the unit sits in the tree, possibly no SUPERVISOR either). Fix it by correcting the
+unit's `managerID` in **Administration → Configuration**, or by importing the employee it names if that employee
+is simply missing from the store.
+
 ---
 
 ## 12. Health, logging & lifecycle
@@ -528,6 +549,11 @@ Three behaviors are worth understanding before the first real import:
 3. `GET /health` returns `200` (body reports `broker: "connected"` once Redis is up).
 4. Through the proxy, `https://<host>/` returns the login screen showing your configured method(s) — e.g. the Azure button, and **no** local form under the default config; a sign-in via your provider reaches the dashboard.
 5. No `error`/`alert` severity lines in the logs (a *warning* about an unconfigured OAuth provider or a missing security hash key is informational — address the latter for production).
+6. **Once the org tree and employees are both loaded and the app has been restarted, no unresolved-manager
+   `WARNING` remains in the logs (§11).** A screenful was expected while the tree existed without employees;
+   checking only for `error`/`alert` severity in step 5 would pass a deployment where an entire unit's people have
+   no manager, because that finding is logged as a warning. Treat any that still appear as named units to fix, not
+   as noise.
 
 ---
 
