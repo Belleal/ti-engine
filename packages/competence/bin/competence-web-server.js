@@ -50,9 +50,14 @@ class CompetenceWebServer extends TiWebServer {
     onStart() {
         return super.onStart()
             .then( () => dataManager.instance.initialize() )
+            // Must run before buildOrganizationChart(): this is what replaces the exported
+            // configOrganizationStructure (the shipped file-default demo tree) with this deployment's actual stored
+            // tree, and buildOrganizationChart() reads that export at call time. Swap the order back and every boot
+            // silently rebuilds the chart from the demo tree instead — there is no later rebuild on the boot path to
+            // correct it, since the only rebuild hook (onConfigChanged) fires on an admin save, not on startup. (CA-107)
+            .then( () => configurationLoader.initialize() )
             .then( () => organizationManager.instance.buildOrganizationChart() )
             .then( () => dataManager.instance.loadRoleGrants() )
-            .then( () => configurationLoader.initialize() )
             .then( () => competenceFramework.instance.backfillMissingEvaluationDeadlines() )
             .then( () => organizationManager.instance.reportUnresolvedManagers() )
             .catch( ( error ) => {

@@ -336,3 +336,65 @@ describe( "configuration-loader — the organization-structure hot-reload branch
     } );
 
 } );
+
+describe( "onStart boot order — the chart must be built from the STORED tree, not the file default (CA-107)", () => {
+    // The regression this guards: onStart() (bin/competence-web-server.js) used to call buildOrganizationChart()
+    // two steps before configurationLoader.initialize() ever ran. Since buildOrganizationChart() reads
+    // configurationLoader.configOrganizationStructure at call time, and initialize() is the only thing that ever
+    // replaces that export with the deployment's actual stored tree, every boot silently built the chart from the
+    // shipped file-default demo tree instead — real managers lost MANAGER/SUPERVISOR derivation, and whoever holds
+    // the demo tree's employee ID "22" became top manager.
+    //
+    // Driving the real onStart() end to end would need a live cache and message exchange, which this suite has no
+    // access to — so this is NOT a test of onStart() itself. What it DOES prove is the causal claim the fix depends
+    // on: called in the corrected order (initialize() before buildOrganizationChart()), the chart built afterward
+    // reflects the STORED tree rather than the file default. That onStart() actually invokes them in this order is
+    // verified separately, by reading bin/competence-web-server.js.
+
+    it( "builds a chart whose top manager comes from the stored organization structure once initialize() has run first", async () => {
+        const fileDefaultRoot = Object.values( configurationLoader.fileDefaults[ "organization-structure" ] ).find( ( unit ) => !unit.parent );
+        assert.equal( fileDefaultRoot.managerID, "22", "sanity: the shipped demo tree's root manager is employee '22'" );
+
+        // A deployment's real, stored root unit — deliberately unlike the shipped demo tree, so the two are never
+        // mistaken for one another by this assertion.
+        const storedOrganizationStructure = {
+            "root-unit": {
+                id: "root-unit",
+                name: "Stored Root",
+                displayName: "Stored Root",
+                description: "This deployment's real, stored root unit.",
+                type: "Organization",
+                managerID: "999",
+                parent: null,
+                children: []
+            }
+        };
+
+        const stubService = {
+            seedDefault: ( configKey ) => Promise.resolve( { value: configurationLoader.fileDefaults[ configKey ], version: 1 } ),
+            getCurrent: ( configKey ) => Promise.resolve( {
+                value: ( configKey === "organization-structure" ) ? storedOrganizationStructure : configurationLoader.fileDefaults[ configKey ],
+                version: 1
+            } ),
+            onConfigChanged: () => () => {},
+            listDrift: () => Promise.resolve( [] )
+        };
+
+        // The fixed order, minus the framework lifecycle around it: initialize() first (loads the stored tree into
+        // configOrganizationStructure), THEN buildOrganizationChart() (reads that export at call time) — exactly
+        // bin/competence-web-server.js's corrected onStart() sequence.
+        await configurationLoader.initialize( stubService );
+        assert.deepEqual(
+            configurationLoader.configOrganizationStructure, storedOrganizationStructure,
+            "initialize() must replace the export with the stored value before the chart is ever built"
+        );
+
+        await organizationManager.instance.buildOrganizationChart();
+
+        assert.equal(
+            organizationManager.instance.getTopManagerID(), "999",
+            "the chart built after initialize() must reflect the STORED root manager, not the demo tree's '22'"
+        );
+    } );
+
+} );
