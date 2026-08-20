@@ -470,13 +470,20 @@ node bin/build/import-organization.js --file employees.csv --apply         # wri
 node bin/build/import-organization.js --file employees.csv --delimiter ";" # override delimiter detection
 ```
 
+**Restart the application after `--apply`.** Every org-chart rebuild and login email-index rebuild happens
+in-process, inside the running server. This CLI is a separate process writing straight to Redis, so it cannot
+trigger either one. Until you restart, an employee this run just wrote is in the store but invisible to the running
+app — missing from the org chart and unable to sign in.
+
 **Back up Redis before you `--apply` (§15) — an import has no rollback.** Applying is audited like any other
 change, but employee records are not versioned the way store-backed configuration is, so there is no restore
 action to undo one. Take a fresh Redis backup immediately before every `--apply`, not only the first.
 
 **Exit codes** make a run scriptable: `0` — completed, nothing rejected; `1` — completed with one or more rows
 rejected (a dry run never writes regardless of the exit code; with `--apply`, only the rejected rows were left out);
-`2` — the file itself was unusable and nothing was processed at all.
+`2` — the run did not complete at all: the file itself was unusable, the Redis cache could not be reached (stderr
+names the required env vars), or an `--apply` failed partway through (stderr then reports how many records were
+written before it stopped, and which one didn't finish — see "no rollback" above).
 
 Three conditions fail the whole file rather than the one row responsible, because each means the wrong file was
 supplied rather than one flawed record among good ones: the file is not valid UTF-8, the header is missing a
