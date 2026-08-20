@@ -407,6 +407,94 @@ reaches it once `deploy.sh` is re-run.
 - **Admin access:** the admin configuration screens are gated to identities listed in the web-server config `auth.admins` (empty by default → no admins). Set it per environment with **`TI_WEB_AUTH_ADMINS`** (comma-separated; matched against the session user's user ID, username or email — so an OpenID deployment lists emails), or in the config file for a baked-in default. Other non-env config such as the organization structure remains a configuration step — coordinate with the application owner.
 - **First login:** browse to your HTTPS host. With the default `TI_WEB_AUTH_METHODS=openid-azure`, you sign in via Azure — so Azure must be configured (§7), otherwise the page shows "no sign-in method is configured." (Adding `local` to `TI_WEB_AUTH_METHODS` makes its sign-in form appear immediately — the form itself does not depend on a users file existing — but no sign-in can *succeed* until you provision a record for that identity in the file at `TI_WEB_AUTH_LOCAL_USERS_PATH`; with no matching record, or a wrong password, it's refused; dev/break-glass only, see §1 and §7, "Local auth".)
 
+### Importing employee data
+
+Once the organization structure reflects your organization, load employees with the bundled CLI,
+`bin/build/import-organization.js` (`npm run import:org`). It reads a CSV export from your HRIS, reconciles it
+against whatever is already in Redis, and either prints or applies the resulting plan — it never touches employee
+data on its own. Run it with access to the same Redis your deployment uses: `docker exec` into the running
+container (the image's `WORKDIR` is already the competence package directory, so the command below runs as-is), or
+run it from any host with the Redis connection variables (§7, "Redis") pointed at that Redis. A file is not already
+inside the container — copy it in first with `docker cp employees.csv <container>:/tmp/employees.csv`.
+
+**The column contract.** One row per employee, UTF-8, first row a header. Column order is irrelevant; column names
+are matched case-insensitively after trimming. `--template` prints the exact header row so you always start from a
+valid one:
+
+```bash
+node bin/build/import-organization.js --template > employees.csv
+```
+
+| Column                 | Required | Notes                                                                                |
+|------------------------|----------|---------------------------------------------------------------------------------------|
+| `employee_id`          | yes      | The reconciliation key (see below). Matched verbatim — a leading zero must survive intact; see the warning below |
+| `email`                | yes      | Lower-cased on import; must be unique across employees                              |
+| `first_name`           | yes      |                                                                                       |
+| `last_name`            | yes      |                                                                                       |
+| `work_mode`            | yes      | `Full-time` / `Part-time` / `Contract`                                              |
+| `work_location`        | yes      | `On-site` / `Hybrid` / `Remote`                                                      |
+| `organization_unit_id` | yes      | Must exist in the current organization structure                                    |
+| `role_family`          | yes      | `SE` `QE` `BA` `PM` `XD` `DA` `IO` `MC` `PD`                                         |
+| `level`                | yes      | `N` `J` `R` `S` `X` `T`                                                              |
+| `stage`                | yes      | `1`–`3`; `N`, `X` and `T` admit only stage `1`                                       |
+| `employment_status`    | no       | `active` (default) / `on-leave` / `terminated`                                      |
+| `birth_date`           | no       | `YYYY-MM-DD`                                                                         |
+| `gender`               | no       | Free text                                                                            |
+| `specialization`       | no       | One of the role family's configured specializations; an empty cell means a generalist |
+| `starting_date`        | no       | `YYYY-MM-DD`                                                                         |
+
+Enum columns are matched case-insensitively after trimming (`full time`, `FULL-TIME` and `Full-time` all match), but
+never guessed at: a value that still does not match is rejected with the permitted values named, rather than mapped
+to the closest one.
+
+**Encoding and delimiter.** The file must be valid UTF-8 — an undecodable byte (e.g. a Windows-1251/CP1251 export of
+Cyrillic names) fails the whole file rather than writing corrupted names. The delimiter (`,` or the `;` a
+European-locale Excel export uses) is auto-detected from the header row; override it with `--delimiter ";"` if
+detection ever picks the wrong one.
+
+**Leading zeros.** If `employee_id` carries a leading zero (`00123`), opening the CSV in Excel and saving it again
+silently strips it — and the importer then reconciles that row against a *different* employee, with no error from
+anywhere in the pipeline to catch it. Prepare and edit the export with a text editor, or a spreadsheet with the
+column explicitly formatted as text, never a spreadsheet's default cell format. This is also why `--template` emits
+a bare header rather than a filled-in example: so a bulk edit does not start from, and get silently laundered
+through, a spreadsheet.
+
+**Dry run first, always.** Without `--apply`, the CLI only prints the plan — how many records it would create,
+update, or leave unchanged, every rejection, and every employee on record in Redis but missing from the file. Nothing
+is written. Resolve whatever is rejected and dry-run again until the plan is clean, or until only expected
+rejections remain, before ever passing `--apply`:
+
+```bash
+node bin/build/import-organization.js --file employees.csv                 # dry run — prints the plan, writes nothing
+node bin/build/import-organization.js --file employees.csv --apply         # writes
+node bin/build/import-organization.js --file employees.csv --delimiter ";" # override delimiter detection
+```
+
+**Back up Redis before you `--apply` (§15) — an import has no rollback.** Applying is audited like any other
+change, but employee records are not versioned the way store-backed configuration is, so there is no restore
+action to undo one. Take a fresh Redis backup immediately before every `--apply`, not only the first.
+
+**Exit codes** make a run scriptable: `0` — completed, nothing rejected; `1` — completed with one or more rows
+rejected (a dry run never writes regardless of the exit code; with `--apply`, only the rejected rows were left out);
+`2` — the file itself was unusable and nothing was processed at all.
+
+Three conditions fail the whole file rather than the one row responsible, because each means the wrong file was
+supplied rather than one flawed record among good ones: the file is not valid UTF-8, the header is missing a
+required column, or the header repeats a column (case-insensitively — `Note` and `NOTE` collide). All three exit `2`.
+
+**No personal data is ever printed.** A rejection is identified only by `employee_id` and its source line number —
+never a name, email, birth date or grade — because this runs against real HR data and a terminal or CI log is not a
+place for it.
+
+Two behaviors are worth understanding before the first real import:
+
+- **A leaver is marked `employment_status=terminated`, never removed from the file.** An employee who is in Redis
+  but missing from the CSV is reported as absent from the file and left completely untouched. A departure is never
+  inferred from an omission — a partial export would otherwise terminate half the organization.
+- **Reconciliation is keyed on `employee_id`, not email or name.** An employee who changes their name or email keeps
+  the same record, and with it their evaluation history — only a changed `employee_id` looks like a different
+  person to the importer.
+
 ---
 
 ## 12. Health, logging & lifecycle

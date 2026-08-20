@@ -2,6 +2,46 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.22.0
+
+A real organization can now be loaded into a deployment. The org unit tree becomes a store-backed configuration
+document — versioned, validated, audited and admin-editable rather than welded into the container image — and
+employee records arrive through a validating, idempotent CSV importer. Requires `@ti-engine/web-framework` ≥ 1.25.0.
+
+* feat(competence): register `organization-structure` as the ninth store-backed configuration document, with a JSON
+  schema and four blocking semantic validators — single root, parent/child symmetry, acyclicity, and unit-`id`-
+  matches-map-key. Each closes a failure that was previously silent: a second root breaks the structural-supervisor
+  derivation, an asymmetric link yields a half-connected graph with no error, a cycle is a stack overflow at login
+  rather than a diagnosable fault, and an `id` that disagreed with its own map key went unenforced — the schema has
+  no way to express that constraint, and `parent`/`children` links reference keys, not `id` fields, so the key is
+  what an operator actually edits. The document is registered `driftTracked: false` — it holds deployment data, not
+  content shipped with the release, so it differs from the image default by design (CA-107)
+* feat(competence): report every organization unit whose `managerID` names no employee or a terminated one, as a
+  startup `WARNING` per finding. Deliberately a diagnostic rather than a validator: blocking the tree's save on
+  employee data would deadlock a fresh install, since the tree must exist before an employee can reference its
+  units (CA-107)
+* feat(competence): add the employee CSV importer — a pure `organization-import` module (parse → map → reconcile →
+  apply) with a dry-run-by-default CLI, `npm run import:org`. Reconciliation is keyed on `employeeID` so a changed
+  name or email keeps the same record and its evaluation history; a leaver becomes `terminated` rather than being
+  deleted, which would orphan their evaluations; and an employee absent from the file is reported, never inferred
+  as a departure. Returning a plan is what makes dry-run exact — the preview and the write come from one function
+  (CA-107)
+* fix(competence): make CSV delimiter detection quote-aware. The count of `,` against `;` ran across the whole
+  header line regardless of quote state, so a semicolon-delimited export whose header carried a quoted column such
+  as `"Last, First"` had its real delimiter out-voted by the comma hiding inside the quotes — collapsing every row
+  of the file into a single unusable column with no error raised. `detectDelimiter` now excludes characters inside
+  a quoted span, mirroring the same quote state machine `parseDelimited` uses to read the file itself (CA-107)
+* fix(competence): reject a duplicate employee email on write. Nothing enforced uniqueness, and
+  `buildEmailIndex` marks a shared address ambiguous only afterwards — at which point `IdentityResolver` refuses
+  **both** employees. A Supervisor could lock out two people through the ordinary Employee Management screen with
+  no warning (CA-107)
+* refactor(competence): extract employee field validation from the web application into the pure `employee-rules`
+  module with configuration injected, so the UI, the importer and any future sync driver decide validity
+  identically. Behaviour is unchanged — same rules, same returned label keys
+* docs(competence): correct `INSTALL.md` §17 and the `README.md` runtime-configurability table, which both
+  described the org structure as a build-time file, and add the import runbook
+* build(release): bump package version from `3.21.1` to `3.22.0`
+
 ## Version 3.21.1
 
 Dependency maintenance only — no application code changed.
