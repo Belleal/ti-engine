@@ -20,7 +20,9 @@
  * before reading or writing a single employee record. Without that connection, `DataManager` silently falls back to
  * its development-only seed data and every referential check would run against the shipped file-default
  * organization tree instead of this deployment's real one — a plan built that way is fiction, dry run or not. When
- * the cache never comes up, this tool refuses that fallback and fails closed instead (exit 2).
+ * the cache never comes up, this tool refuses that fallback and fails closed instead (exit 2), bounded by a connect
+ * timeout that defaults to 5000ms and can be raised with `TI_IMPORT_CACHE_CONNECT_TIMEOUT_MS` for an operator on a
+ * slow link or a cold container.
  *
  * Output names rows by employee_id and line number only — never a name, email, date of birth or grading. This runs
  * against real HR data, and a terminal or CI log is not a place for it.
@@ -49,7 +51,32 @@ const CACHE_ENV_VARS = [
 // against a host it cannot reach at all. Left unbounded, that would turn a genuinely unreachable Redis into a CLI
 // that hangs forever instead of failing closed. This is the bound that makes "unreachable" a reportable, bounded
 // failure instead of a hang.
-const CACHE_CONNECT_TIMEOUT_MS = 5000;
+const DEFAULT_CACHE_CONNECT_TIMEOUT_MS = 5000;
+
+// Overridable — an operator on a slow link or a cold container could otherwise false-fail on the default above with
+// no recourse but editing this file. Named in the TI_-prefixed style the rest of this file's env-var references use
+// (see CACHE_ENV_VARS above), scoped to this CLI rather than TI_MEMORY_CACHE_* since it bounds this tool's own
+// connect wait, not anything core's cache module itself reads. printCacheUnavailable() below names it too.
+const CACHE_CONNECT_TIMEOUT_ENV_VAR = "TI_IMPORT_CACHE_CONNECT_TIMEOUT_MS";
+
+/**
+ * Resolves the fail-closed cache-connect bound from the environment. Falls back to the default on anything that is
+ * not a positive finite number — unset, empty, non-numeric, zero, or negative — rather than letting a typo turn
+ * into a NaN or a zero/negative `setTimeout` delay, which would fire immediately and fail the CLI closed before
+ * Redis ever had a chance to report ready. Pure.
+ *
+ * @method
+ * @param {Object} env
+ * @returns {number}
+ * @private
+ */
+function resolveCacheConnectTimeoutMs( env ) {
+    const raw = ( env || {} )[ CACHE_CONNECT_TIMEOUT_ENV_VAR ];
+    const parsed = Number( raw );
+    return ( raw !== undefined && raw !== "" && Number.isFinite( parsed ) && parsed > 0 ) ? parsed : DEFAULT_CACHE_CONNECT_TIMEOUT_MS;
+}
+
+const CACHE_CONNECT_TIMEOUT_MS = resolveCacheConnectTimeoutMs( process.env );
 
 function parseArguments( argv ) {
     const args = { file: null, apply: false, template: false, delimiter: null };
@@ -60,6 +87,29 @@ function parseArguments( argv ) {
         else if ( argv[ i ] === "--delimiter" ) args.delimiter = argv[ ++i ];
     }
     return args;
+}
+
+/**
+ * Validates a `--delimiter` override before it ever reaches `parseDelimited`, which compares single characters —
+ * so a multi-character value (e.g. an operator pasting the two-character text `;;`) would silently make every row
+ * parse as a single column, and every row would then fail the `required` check with no clue as to why. This
+ * rejects the bad input at the CLI boundary instead, where a clear message is possible; `parseDelimited` itself is
+ * unchanged. `null`/`undefined` (no override given, including a trailing `--delimiter` with no value following it)
+ * both mean "nothing to validate" — auto-detection still applies. Pure.
+ *
+ * @method
+ * @param {string|null|undefined} delimiter
+ * @returns {string|null} An error message, or `null` when the value is acceptable.
+ * @private
+ */
+function validateDelimiter( delimiter ) {
+    if ( delimiter == null ) {
+        return null;
+    }
+    if ( delimiter.length !== 1 ) {
+        return `--delimiter must be exactly one character; got '${ delimiter }' (${ delimiter.length } characters).`;
+    }
+    return null;
 }
 
 function printTemplate() {
@@ -99,6 +149,7 @@ function printPlan( plan, applied ) {
 function printCacheUnavailable() {
     process.stderr.write( `Unable to reach the Redis cache within ${ CACHE_CONNECT_TIMEOUT_MS }ms.\n` );
     process.stderr.write( `Set ${ CACHE_ENV_VARS.join( ", " ) } to the same values the running application uses, then retry.\n` );
+    process.stderr.write( `On a slow link or a cold container, raise the bound with ${ CACHE_CONNECT_TIMEOUT_ENV_VAR } (currently ${ CACHE_CONNECT_TIMEOUT_MS }ms; default ${ DEFAULT_CACHE_CONNECT_TIMEOUT_MS }ms).\n` );
     process.stderr.write( "Refusing to continue: without a real connection this tool would silently plan against seed/demo data instead of the actual employee store.\n" );
 }
 
@@ -167,6 +218,74 @@ function applyWithProgress( plan ) {
 }
 
 /**
+ * Builds a `row number → raw employee_id` lookup from the parsed records, so a mapping-stage rejection — whose
+ * error object carries only the row number and column (see {@link OrganizationImport#mapRow}) — can still be
+ * labeled by the id the operator actually put in that row, and so that same id can be reconciled against
+ * `plan.absent` (see {@link excludeMappingErrorsFromAbsent} below). Pure.
+ *
+ * @method
+ * @param {Array<Object>} records - From {@link OrganizationImport#toRecords}.
+ * @returns {Map<number, string>} Row number → trimmed `employee_id` (empty string when the cell itself was blank).
+ * @private
+ */
+function mapRowsToEmployeeIDs( records ) {
+    const byRow = new Map();
+    for ( const record of ( Array.isArray( records ) ? records : [] ) ) {
+        byRow.set( record.__row, String( record.employee_id == null ? "" : record.employee_id ).trim() );
+    }
+    return byRow;
+}
+
+/**
+ * Turns one mapping-stage error into the same rejection shape {@link OrganizationImport#reconcile} produces,
+ * labeled by the row's real `employee_id` whenever the row provided one. `mapRow` rejects before ever building an
+ * `Employee`, so its error carries only the row number, not the id — even though the raw CSV cell is sitting right
+ * there in the source record. Falls back to `'(unmapped)'` only when the id is genuinely absent (e.g. the row
+ * failed on the empty `employee_id` column itself), never for any other reason. The raw value is printed verbatim:
+ * it is an identifier the operator supplied, not personal data, and no other cell is ever surfaced. Pure.
+ *
+ * @method
+ * @param {Object} error - One entry from {@link OrganizationImport#mapRows}'s `errors`.
+ * @param {Map<number, string>} rowEmployeeIDs - From {@link mapRowsToEmployeeIDs}.
+ * @returns {Object}
+ * @private
+ */
+function toMappingRejection( error, rowEmployeeIDs ) {
+    const rawID = rowEmployeeIDs.get( error.row );
+    return {
+        employeeID: rawID ? rawID : "(unmapped)",
+        row: error.row,
+        code: error.code,
+        message: `${ error.column }: ${ error.message }`
+    };
+}
+
+/**
+ * Removes from `absent` every id a mapping-stage rejection already accounts for. A row that fails mapping never
+ * becomes an `Employee`, so it never reaches {@link OrganizationImport#reconcile} and its id is never added to
+ * reconcile's own seenIDs; when that same id also belongs to a currently-stored employee, reconcile reports it as
+ * "absent from the file" even though the row is right there, just rejected at an earlier stage. Left alone, the
+ * plan would tell the operator to terminate a leaver right next to a rejection naming that same employee_id. This
+ * lives here rather than inside reconcile() because reconcile() is a verified pure function that correctly knows
+ * nothing about rows that never reached it — the two lists only disagree once the CLI merges the mapping errors
+ * in, so this is where the disagreement must be resolved too. Pure.
+ *
+ * @method
+ * @param {Array<string>} absent - `plan.absent`, from {@link OrganizationImport#reconcile}.
+ * @param {Array<Object>} mappingRejections - From {@link toMappingRejection}.
+ * @returns {Array<string>}
+ * @private
+ */
+function excludeMappingErrorsFromAbsent( absent, mappingRejections ) {
+    const mappingErrorIDs = new Set(
+        ( Array.isArray( mappingRejections ) ? mappingRejections : [] )
+            .map( ( rejection ) => rejection.employeeID )
+            .filter( ( id ) => id !== "(unmapped)" )
+    );
+    return ( Array.isArray( absent ) ? absent : [] ).filter( ( id ) => !mappingErrorIDs.has( id ) );
+}
+
+/**
  * The part of a run that needs the real store: connect the cache (failing closed if it never comes up), load the
  * store's current configuration the same way the application does at boot, reconcile against the actual employee
  * store, and — for `--apply` — write. Shuts the cache down before returning on every outcome (success, a rejected
@@ -174,12 +293,15 @@ function applyWithProgress( plan ) {
  *
  * @method
  * @param {Object} args
+ * @param {Array<Object>} records - From {@link OrganizationImport#toRecords}; carried through only so a mapping
+ *   error (which knows just its row number) can still be labeled by that row's real employee_id — see
+ *   {@link mapRowsToEmployeeIDs}.
  * @param {Array<Object>} employees
  * @param {Array<Object>} errors
  * @returns {Promise<number>} The process exit code.
  * @private
  */
-function runAgainstStore( args, employees, errors ) {
+function runAgainstStore( args, records, employees, errors ) {
     return connectCache().then( ( operational ) => {
         if ( !operational ) {
             printCacheUnavailable();
@@ -196,13 +318,14 @@ function runAgainstStore( args, employees, errors ) {
                 organizationStructure: configurationLoader.configOrganizationStructure
             } );
 
-            // Mapping errors are rejections too — merge them so one list is the whole truth.
-            plan.rejected = errors.map( ( error ) => ( {
-                employeeID: "(unmapped)",
-                row: error.row,
-                code: error.code,
-                message: `${ error.column }: ${ error.message }`
-            } ) ).concat( plan.rejected );
+            // Mapping errors are rejections too — merge them so one list is the whole truth, each labeled by the
+            // row's real employee_id wherever the row provided one (see toMappingRejection).
+            const rowEmployeeIDs = mapRowsToEmployeeIDs( records );
+            const mappingRejections = errors.map( ( error ) => toMappingRejection( error, rowEmployeeIDs ) );
+            plan.rejected = mappingRejections.concat( plan.rejected );
+            // A row that failed mapping never reached reconcile(), so it must not ALSO be reported as absent from
+            // the file — see excludeMappingErrorsFromAbsent for why the two lists would otherwise disagree.
+            plan.absent = excludeMappingErrorsFromAbsent( plan.absent, mappingRejections );
 
             if ( !args.apply ) {
                 printPlan( plan, false );
@@ -238,6 +361,12 @@ function formatError( error ) {
 
 function run() {
     const args = parseArguments( process.argv.slice( 2 ) );
+
+    const delimiterError = validateDelimiter( args.delimiter );
+    if ( delimiterError ) {
+        process.stderr.write( `${ delimiterError }\n` );
+        return Promise.resolve( 2 );
+    }
 
     if ( args.template ) {
         printTemplate();
@@ -284,7 +413,7 @@ function run() {
 
     const { employees, errors } = organizationImport.instance.mapRows( records );
 
-    return runAgainstStore( args, employees, errors );
+    return runAgainstStore( args, records, employees, errors );
 }
 
 if ( require.main === module ) {
@@ -294,4 +423,8 @@ if ( require.main === module ) {
     } );
 }
 
-module.exports = { run, parseArguments, formatError };
+module.exports = {
+    run, parseArguments, formatError, validateDelimiter,
+    resolveCacheConnectTimeoutMs, mapRowsToEmployeeIDs, toMappingRejection, excludeMappingErrorsFromAbsent,
+    CACHE_CONNECT_TIMEOUT_ENV_VAR, DEFAULT_CACHE_CONNECT_TIMEOUT_MS
+};
