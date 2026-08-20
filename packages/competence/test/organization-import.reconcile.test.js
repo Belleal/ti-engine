@@ -155,4 +155,61 @@ describe( "organizationImport.reconcile", () => {
         assert.equal( second.update.length, 0 );
     } );
 
+    it( "accounts for every batch-collision row exactly once across all plan arrays", () => {
+        const batch = [
+            employee( { employeeID: "new-1", email: "new@x.co" } ),
+            employee( { employeeID: "1", email: "existing@x.co" } ),
+            employee( { employeeID: "2", email: "identical@x.co" } ),
+            employee( { employeeID: "dup-3", email: "dup3a@x.co" } ),
+            employee( { employeeID: "dup-3", email: "dup3b@x.co" } ),
+            employee( { employeeID: "dup-email-4", email: "shared@x.co" } ),
+            employee( { employeeID: "dup-email-5", email: "shared@x.co" } ),
+            employee( { employeeID: "invalid-6", unit: "9-9" } )
+        ];
+        const existing = [
+            employee( { employeeID: "1", email: "old@x.co" } ),
+            employee( { employeeID: "2", email: "identical@x.co" } )
+        ];
+        const plan = organizationImport.instance.reconcile( batch, existing, CONTEXT );
+        const totalAccounted = plan.create.length + plan.update.length + plan.unchanged.length + plan.rejected.length;
+        assert.equal( totalAccounted, batch.length, `Expected ${ batch.length } rows accounted for, got ${ totalAccounted }` );
+    } );
+
+    it( "rejects duplicate employeeID naming every row in the group with count", () => {
+        const rows = [
+            employee( { employeeID: "1", email: "a@x.co" } ),
+            employee( { employeeID: "1", email: "b@x.co" } )
+        ];
+        const plan = organizationImport.instance.reconcile( rows, [], CONTEXT );
+        assert.equal( plan.rejected.length, 2 );
+        assert.ok( plan.rejected.every( ( r ) => r.code === "duplicate-employee-id" ) );
+        const ids = plan.rejected.map( ( r ) => r.employeeID ).sort();
+        assert.deepEqual( ids, [ "1", "1" ] );
+    } );
+
+    it( "rejects three rows sharing one email, yielding exactly 3 distinct rejection entries", () => {
+        const rows = [
+            employee( { employeeID: "1", email: "same@x.co" } ),
+            employee( { employeeID: "2", email: "same@x.co" } ),
+            employee( { employeeID: "3", email: "same@x.co" } )
+        ];
+        const plan = organizationImport.instance.reconcile( rows, [], CONTEXT );
+        const rejectedByEmail = plan.rejected.filter( ( r ) => r.code === "duplicate-email" );
+        assert.equal( rejectedByEmail.length, 3 );
+        const ids = rejectedByEmail.map( ( r ) => r.employeeID ).sort();
+        assert.deepEqual( ids, [ "1", "2", "3" ] );
+    } );
+
+    it( "rejects a row that is both duplicate employeeID and duplicate email exactly once", () => {
+        const row0 = Object.assign( employee( { employeeID: "1", email: "shared-email@x.co" } ), { __row: 2 } );
+        const row1 = Object.assign( employee( { employeeID: "1", email: "diff@x.co" } ), { __row: 3 } );
+        const row2 = Object.assign( employee( { employeeID: "3", email: "shared-email@x.co" } ), { __row: 4 } );
+        const plan = organizationImport.instance.reconcile( [ row0, row1, row2 ], [], CONTEXT );
+        // Row 0 is both duplicate ID (with row 1) and duplicate email (with row 2).
+        // It should appear exactly once in rejections, rejected for the duplicate ID, not also for email.
+        const row0Rejections = plan.rejected.filter( ( r ) => r.row === 2 );
+        assert.equal( row0Rejections.length, 1, "Row 2 should have exactly one rejection entry" );
+        assert.equal( row0Rejections[ 0 ].code, "duplicate-employee-id" );
+    } );
+
 } );

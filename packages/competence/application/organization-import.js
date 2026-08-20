@@ -325,35 +325,64 @@ class OrganizationImport {
         const plan = { create: [], update: [], unchanged: [], rejected: [], absent: [] };
 
         const storedByID = new Map( stored.filter( ( e ) => e && e.employeeID ).map( ( e ) => [ String( e.employeeID ), e ] ) );
-        const seenIDs = new Set();
-        const seenEmails = new Map();
         const rejectedIDs = new Set();
+        // Rejected rows are tracked by object identity, not by employeeID: when employeeIDs collide the id no
+        // longer identifies a single row, and every row must yield exactly one rejection entry so the plan's
+        // counts reconcile against the file the operator supplied.
+        const rejectedRows = new Set();
 
         const reject = ( employee, code, message ) => {
+            if ( rejectedRows.has( employee ) ) {
+                return;
+            }
+            rejectedRows.add( employee );
             plan.rejected.push( { employeeID: String( employee.employeeID ), row: employee.__row, code: code, message: message } );
             rejectedIDs.add( String( employee.employeeID ) );
         };
 
-        // Pass 1 — collisions within the batch itself.
+        // Pass 1 — collisions within the batch itself. Group by key first, then reject whole groups: treating the
+        // first occurrence as special both LOST a row (a duplicate employeeID's first row was skipped by pass 2 via
+        // rejectedIDs without ever being rejected) and DOUBLE-COUNTED one (three rows sharing an email produced four
+        // rejection entries, because the first was re-rejected against each later duplicate).
+        const groupsByID = new Map();
+        const groupsByEmail = new Map();
         for ( const candidate of candidates ) {
             const id = String( candidate.employeeID );
-            if ( seenIDs.has( id ) ) {
-                reject( candidate, "duplicate-employee-id", `employee_id '${ id }' appears more than once in this file` );
+            if ( !groupsByID.has( id ) ) {
+                groupsByID.set( id, [] );
             }
-            seenIDs.add( id );
+            groupsByID.get( id ).push( candidate );
 
             const email = String( candidate.email == null ? "" : candidate.email ).trim().toLowerCase();
             if ( email ) {
-                const previous = seenEmails.get( email );
-                if ( previous ) {
-                    // Both participants are named: either could be the wrong one, and the operator needs the pair.
-                    reject( previous, "duplicate-email", `this email is also used by employee_id '${ id }' in this file` );
-                    reject( candidate, "duplicate-email", `this email is also used by employee_id '${ String( previous.employeeID ) }' in this file` );
-                } else {
-                    seenEmails.set( email, candidate );
+                if ( !groupsByEmail.has( email ) ) {
+                    groupsByEmail.set( email, [] );
                 }
+                groupsByEmail.get( email ).push( candidate );
             }
         }
+
+        for ( const [ id, group ] of groupsByID ) {
+            if ( group.length < 2 ) {
+                continue;
+            }
+            for ( const candidate of group ) {
+                reject( candidate, "duplicate-employee-id", `employee_id '${ id }' appears ${ group.length } times in this file` );
+            }
+        }
+
+        for ( const group of groupsByEmail.values() ) {
+            if ( group.length < 2 ) {
+                continue;
+            }
+            for ( const candidate of group ) {
+                // Every participant is named: any one of them could be the wrong record, and the operator needs the set.
+                const others = group.filter( ( other ) => other !== candidate ).map( ( other ) => `'${ String( other.employeeID ) }'` );
+                reject( candidate, "duplicate-email", `this email is also used by employee_id ${ others.join( ", " ) } in this file` );
+            }
+        }
+
+        const seenIDs = new Set( groupsByID.keys() );
 
         // Pass 2 — validity and classification.
         for ( const candidate of candidates ) {
