@@ -198,7 +198,7 @@ declare class ConfigService {
      *
      * @method
      * @param {string} configKey
-     * @returns {Promise<{configKey: string, status: string, counts: Object, entries: Array, storedVersion: number, editable: boolean, label: string}>}
+     * @returns {Promise<{configKey: string, status: string, counts: Object, entries: Array, storedVersion: number, editable: boolean, driftTracked: boolean, label: string}>}
      * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} If the document is not registered.
      * @public
      */
@@ -209,6 +209,7 @@ declare class ConfigService {
         entries: any[];
         storedVersion: number;
         editable: boolean;
+        driftTracked: boolean;
         label: string;
     }>;
     /**
