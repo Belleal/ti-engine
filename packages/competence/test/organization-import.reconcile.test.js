@@ -213,3 +213,63 @@ describe( "organizationImport.reconcile", () => {
     } );
 
 } );
+
+// `dataManager.saveEmployee` persists through a Redis `JSON.MERGE` (RFC 7386 merge-patch): an omitted key is left
+// in place, only an explicit `null` deletes it. `mapRow` OMITS `personal.birthDate`, `personal.gender` and
+// `career.startingDate` (never writes them as `null`) when their CSV cell is blank, so a write built from such a
+// row can never change one of those three fields. `#isSameRecord` has to agree, or a stored employee who has one
+// of these and a blank cell in the file gets reclassified `update` on every single run, forever, even though the
+// write never actually changes anything.
+describe( "organizationImport.reconcile — blank optional cell means leave-unchanged (merge-patch parity)", () => {
+
+    it( "treats a stored personal.birthDate as unchanged when the incoming row omits it", () => {
+        const stored = employee();
+        stored.personal.birthDate = "1990-05-12";
+        const incoming = employee(); // mapRow never set birthDate for this row — its CSV cell was blank
+        const plan = organizationImport.instance.reconcile( [ incoming ], [ stored ], CONTEXT );
+        assert.equal( plan.unchanged.length, 1 );
+        assert.equal( plan.update.length, 0 );
+    } );
+
+    it( "treats a stored personal.gender as unchanged when the incoming row omits it", () => {
+        const stored = employee();
+        stored.personal.gender = "female";
+        const incoming = employee();
+        const plan = organizationImport.instance.reconcile( [ incoming ], [ stored ], CONTEXT );
+        assert.equal( plan.unchanged.length, 1 );
+        assert.equal( plan.update.length, 0 );
+    } );
+
+    it( "treats a stored career.startingDate as unchanged when the incoming row omits it", () => {
+        const stored = employee();
+        stored.career.startingDate = "2018-09-01";
+        const incoming = employee();
+        const plan = organizationImport.instance.reconcile( [ incoming ], [ stored ], CONTEXT );
+        assert.equal( plan.unchanged.length, 1 );
+        assert.equal( plan.update.length, 0 );
+    } );
+
+    it( "still classifies a different incoming birthDate as an update — the omission rule must not make the field un-importable", () => {
+        const stored = employee();
+        stored.personal.birthDate = "1990-05-12";
+        const incoming = employee();
+        incoming.personal.birthDate = "1985-01-01";
+        const plan = organizationImport.instance.reconcile( [ incoming ], [ stored ], CONTEXT );
+        assert.equal( plan.update.length, 1 );
+        assert.equal( plan.unchanged.length, 0 );
+        assert.equal( plan.update[ 0 ].employee.personal.birthDate, "1985-01-01" );
+    } );
+
+    it( "still classifies an explicit null career.specialization as an update — the omission rule must not extend to specialization", () => {
+        // Unlike the three fields above, mapRow sets specialization to an explicit `null` on a blank cell (its
+        // schema type permits null), and merge-patch DELETES a key on an explicit null — so it genuinely converges
+        // and must keep comparing normally, never treated as "omitted".
+        const stored = employee( { specialization: "BACKEND" } );
+        const incoming = employee( { specialization: null } );
+        const plan = organizationImport.instance.reconcile( [ incoming ], [ stored ], CONTEXT );
+        assert.equal( plan.update.length, 1 );
+        assert.equal( plan.unchanged.length, 0 );
+        assert.equal( plan.update[ 0 ].employee.career.specialization, null );
+    } );
+
+} );

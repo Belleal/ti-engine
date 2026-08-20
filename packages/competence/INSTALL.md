@@ -493,7 +493,7 @@ required column, or the header repeats a column (case-insensitively — `Note` a
 never a name, email, birth date or grade — because this runs against real HR data and a terminal or CI log is not a
 place for it.
 
-Two behaviors are worth understanding before the first real import:
+Three behaviors are worth understanding before the first real import:
 
 - **A leaver is marked `employment_status=terminated`, never removed from the file.** An employee who is in Redis
   but missing from the CSV is reported as absent from the file and left completely untouched. A departure is never
@@ -501,6 +501,11 @@ Two behaviors are worth understanding before the first real import:
 - **Reconciliation is keyed on `employee_id`, not email or name.** An employee who changes their name or email keeps
   the same record, and with it their evaluation history — only a changed `employee_id` looks like a different
   person to the importer.
+- **A blank optional cell means leave unchanged, not clear.** For `birth_date`, `gender` and `starting_date`, an
+  empty cell leaves whatever is already stored for that person exactly as it is — it does not erase it. This
+  importer cannot clear one of those three fields for someone; do that from Employee Management instead.
+  (`specialization` is different: an empty cell there is applied and does clear a previously-set specialization,
+  turning the person into a generalist.)
 
 ---
 

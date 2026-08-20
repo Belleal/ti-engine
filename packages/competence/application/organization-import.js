@@ -20,6 +20,26 @@ const WORK_LOCATIONS = Object.freeze( [ "On-site", "Hybrid", "Remote" ] );
 const EMPLOYMENT_STATUSES = Object.freeze( [ "active", "on-leave", "terminated" ] );
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+// `mapRow` OMITS these three fields entirely — it never writes an explicit `null` — when their CSV cell is blank.
+// That is deliberate: `employee.schema.json` types `personal.birthDate` and `career.startingDate` as
+// `format: "date"` strings (and `personal.gender` as a plain string), none of them with `"null"` in their `type`,
+// so writing an explicit `null` would fail schema validation. `DataManager#saveEmployee` persists through
+// `cache.editJSON`, which issues a Redis `JSON.MERGE` — RFC 7386 merge-patch semantics, where an omitted key is
+// left untouched and only an explicit `null` deletes it. So a blank cell for one of these three can never change
+// the stored value; the merge just leaves it exactly as it was. `#isSameRecord` has to agree with that, or a row
+// whose stored record already carries one of these keeps reclassifying as `update` on every single run forever,
+// re-auditing a write that changes nothing.
+// <br/>
+// `career.specialization` is deliberately NOT in this list: `mapRow` sets it to an explicit `null` on a blank
+// cell (its schema type permits `null`), and under merge-patch an explicit `null` DELETES the key — so
+// specialization genuinely converges to `null` in storage and must keep being compared like every other field.
+// Adding it here would make specialization changes silently un-importable.
+const LEAVE_UNCHANGED_WHEN_OMITTED = Object.freeze( [
+    { group: "personal", field: "birthDate" },
+    { group: "personal", field: "gender" },
+    { group: "career", field: "startingDate" }
+] );
+
 /**
  * Pure employee-import pipeline: `parseDelimited` → `mapRows` → `reconcile` → `applyPlan`. Performs no I/O — the
  * caller supplies the file contents and injects the store lookups and the writer, mirroring the {@link RoleResolver}
@@ -545,6 +565,12 @@ class OrganizationImport {
     /**
      * Whether a stored record and a candidate are identical for import purposes. Compares the fields the importer
      * writes, ignoring key order and any property the importer never sets. Pure.
+     * <br/>
+     * Mirrors the writer's merge-patch semantics for the three fields named in {@link LEAVE_UNCHANGED_WHEN_OMITTED}
+     * (module-level, top of this file): when `candidate` omits one of them, it compares as equal to whatever
+     * `previous` holds on that field alone — a write of `candidate` can never change it, so a diff there would be
+     * fictitious. When `candidate` does carry a value for one of those fields, it compares normally, same as every
+     * other field.
      *
      * @method
      * @param {Employee} previous
@@ -553,7 +579,7 @@ class OrganizationImport {
      * @private
      */
     #isSameRecord( previous, candidate ) {
-        const normalize = ( employee ) => JSON.stringify( {
+        const normalize = ( employee ) => ( {
             employeeID: String( employee.employeeID ),
             email: String( employee.email == null ? "" : employee.email ).trim().toLowerCase(),
             employmentStatus: employee.employmentStatus || "active",
@@ -574,7 +600,21 @@ class OrganizationImport {
                 startingDate: ( employee.career && employee.career.startingDate ) || null
             }
         } );
-        return normalize( previous ) === normalize( candidate );
+
+        const previousNormalized = normalize( previous );
+        const candidateNormalized = normalize( candidate );
+
+        // An omitted field on the incoming candidate can never be written — the merge leaves whatever is stored
+        // in place — so force that one field to compare equal regardless of what `previous` holds. Every other
+        // field (and these three, when `candidate` does carry a value) still compares normally below.
+        for ( const { group, field } of LEAVE_UNCHANGED_WHEN_OMITTED ) {
+            const candidateGroup = ( candidate && candidate[ group ] ) || {};
+            if ( !Object.prototype.hasOwnProperty.call( candidateGroup, field ) ) {
+                previousNormalized[ group ][ field ] = candidateNormalized[ group ][ field ];
+            }
+        }
+
+        return JSON.stringify( previousNormalized ) === JSON.stringify( candidateNormalized );
     }
 
 }

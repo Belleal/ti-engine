@@ -26,7 +26,9 @@ employee records arrive through a validating, idempotent CSV importer. Requires 
   apply) with a dry-run-by-default CLI, `npm run import:org`. Reconciliation is keyed on `employeeID` so a changed
   name or email keeps the same record and its evaluation history; a leaver becomes `terminated` rather than being
   deleted, which would orphan their evaluations; and an employee absent from the file is reported, never inferred
-  as a departure. Returning a plan is what makes dry-run exact — the preview and the write come from one function
+  as a departure. Returning a plan is what makes dry-run exact — the preview and the write come from one function.
+  A blank `birth_date`, `gender` or `starting_date` cell means leave unchanged rather than clear, mirroring the
+  writer's Redis merge-patch: the importer cannot erase one of those three fields, only Employee Management can
   (CA-107)
 * fix(competence): make CSV delimiter detection quote-aware. The count of `,` against `;` ran across the whole
   header line regardless of quote state, so a semicolon-delimited export whose header carried a quoted column such
