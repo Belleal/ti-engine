@@ -38,8 +38,8 @@ employee records arrive through a validating, idempotent CSV importer. Requires 
 * refactor(competence): extract employee field validation from the web application into the pure `employee-rules`
   module with configuration injected, so the UI, the importer and any future sync driver decide validity
   identically. Behaviour is unchanged — same rules, same returned label keys
-* docs(competence): correct `INSTALL.md` §17 and the `README.md` runtime-configurability table, which both
-  described the org structure as a build-time file, and add the import runbook
+* docs(competence): correct `INSTALL.md` §11 and the `README.md` runtime-configurability table, which both
+  described the org structure as a build-time file, and add the import runbook to §11 alongside it
 * build(release): bump package version from `3.21.1` to `3.22.0`
 
 ## Version 3.21.1
