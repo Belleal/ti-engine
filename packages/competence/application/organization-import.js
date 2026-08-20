@@ -424,6 +424,45 @@ class OrganizationImport {
         return plan;
     }
 
+    /**
+     * Applies a plan through the injected writer, sequentially so a partial failure leaves a comprehensible store.
+     * Only `create` and `update` are written; `unchanged`, `rejected` and `absent` are never touched — which is what
+     * makes a re-run of the same file a no-op.
+     *
+     * @method
+     * @param {Object} plan - From {@link OrganizationImport#reconcile}.
+     * @param {{save: function(Employee): Promise, audit: function(Object): Promise}} writer
+     * @returns {Promise<{created: number, updated: number, skipped: number}>}
+     * @public
+     */
+    applyPlan( plan, writer ) {
+        const safe = plan || {};
+        const creates = Array.isArray( safe.create ) ? safe.create : [];
+        const updates = Array.isArray( safe.update ) ? safe.update : [];
+        const skipped = Array.isArray( safe.unchanged ) ? safe.unchanged.length : 0;
+
+        const steps = creates.map( ( employee ) => () => {
+            return writer.save( employee ).then( ( saved ) => writer.audit( {
+                subjectType: "employee",
+                subjectID: String( employee.employeeID ),
+                field: "__created__",
+                oldValue: null,
+                newValue: saved || employee
+            } ) );
+        } ).concat( updates.map( ( change ) => () => {
+            return writer.save( change.employee ).then( ( saved ) => writer.audit( {
+                subjectType: "employee",
+                subjectID: String( change.employee.employeeID ),
+                field: "__imported__",
+                oldValue: change.previous,
+                newValue: saved || change.employee
+            } ) );
+        } ) );
+
+        return steps.reduce( ( chain, step ) => chain.then( step ), Promise.resolve() )
+            .then( () => ( { created: creates.length, updated: updates.length, skipped: skipped } ) );
+    }
+
     /* Private interface */
 
     /**
