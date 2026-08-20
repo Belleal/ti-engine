@@ -11,6 +11,8 @@
 
 const { describe, it, before } = require( "node:test" );
 const assert = require( "node:assert/strict" );
+const fs = require( "node:fs" );
+const path = require( "node:path" );
 const configurationLoader = require( "#configuration-loader" );
 const organizationManager = require( "#organization-manager" );
 const configDrift = require( "@ti-engine/web-framework/config-drift" );
@@ -129,6 +131,56 @@ describe( "reportConfigDrift — startup logging", () => {
         ) );
 
         assert.ok( captured.some( ( c ) => c.severity === logger.logSeverity.WARNING ), "the failure to compute drift is itself logged, not silently swallowed" );
+    } );
+
+} );
+
+describe( "driftRows() (admin panel, competence-user-interface.js) -- excludes driftTracked: false documents", () => {
+    // This is the front-end half of the exact same exclusion "reportConfigDrift -- startup logging" above verifies
+    // for the backend half: a document registered driftTracked: false (the organization structure -- customer
+    // data, not vendor-shipped product content) must never appear in the admin drift panel, even when its status
+    // is "drifted" or "absent". Before this guard's fix, driftRows() filtered on status alone, so a customer's real
+    // org chart sat in the panel permanently flagged "drifted" -- one tick plus "apply defaults" away from
+    // silently replacing an authored org chart with the shipped 4-unit demo tree.
+    //
+    // The Alpine component lives in a browser-only script (Alpine.data(...), no module.exports, no DOM/Alpine
+    // globals in this suite) so there is no seam to execute it as a whole. Mirroring the house style already used
+    // for this exact file at test/consent-register-screen.test.js ("static wiring guards" -- regex assertions over
+    // the source), this reads the actual filter predicate out of the source and, since it is a small, pure,
+    // self-contained expression (it closes over nothing but its own `row` argument), evaluates it directly so the
+    // guard proves real boolean behaviour rather than merely that certain tokens are present somewhere nearby.
+
+    const UI_SCRIPT_FILE = path.join( __dirname, "..", "bin", "static", "scripts", "competence-user-interface.js" );
+
+    function extractDriftRowsPredicate() {
+        const source = fs.readFileSync( UI_SCRIPT_FILE, "utf8" );
+        const match = /driftRows\(\)\s*\{\s*return this\.drift\.filter\(\s*([\s\S]*?)\s*\);\s*\}/.exec( source );
+        assert.ok( match, "expected to find a one-line `driftRows() { return this.drift.filter( ... ); }` method in competence-user-interface.js" );
+        // Evaluates the extracted arrow-function source text itself (not untrusted input) -- see the block comment
+        // above for why that is safe here.
+        const predicate = new Function( `return (${ match[ 1 ] });` )();
+        assert.equal( typeof predicate, "function", "driftRows() must filter with a function predicate" );
+        return predicate;
+    }
+
+    it( "still shows a tracked document whose status is drifted or absent", () => {
+        const predicate = extractDriftRowsPredicate();
+        assert.equal( predicate( { status: "drifted", driftTracked: true } ), true );
+        assert.equal( predicate( { status: "absent", driftTracked: true } ), true );
+    } );
+
+    it( "excludes a driftTracked: false document even when its status is drifted or absent", () => {
+        const predicate = extractDriftRowsPredicate();
+        assert.equal( predicate( { status: "drifted", driftTracked: false } ), false,
+            "a drifted-but-untracked row (e.g. organization-structure) must be excluded from the panel" );
+        assert.equal( predicate( { status: "absent", driftTracked: false } ), false,
+            "an absent-but-untracked row must be excluded too" );
+    } );
+
+    it( "still excludes an in-sync or no-default document regardless of driftTracked", () => {
+        const predicate = extractDriftRowsPredicate();
+        assert.equal( predicate( { status: "in-sync", driftTracked: true } ), false );
+        assert.equal( predicate( { status: "no-default", driftTracked: true } ), false );
     } );
 
 } );

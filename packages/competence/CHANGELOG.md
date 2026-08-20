@@ -8,8 +8,10 @@ A real organization can now be loaded into a deployment. The org unit tree becom
 document — versioned, validated, audited and admin-editable rather than welded into the container image — and
 employee records arrive through a validating, idempotent CSV importer. Requires `@ti-engine/web-framework` ≥ 1.25.0.
 
-* feat(competence): register `organization-structure` as the ninth store-backed configuration document, with a JSON
-  schema and four blocking semantic validators — single root, parent/child symmetry, acyclicity, and unit-`id`-
+* feat(competence): register `organization-structure` as the ninth registered configuration document — the eighth
+  to become store-backed (`STORE_BACKED` in `application/configuration-loader.js`; `competence-labels` is
+  registered but not store-backed) — with a JSON schema and four blocking semantic validators — single root,
+  parent/child symmetry, acyclicity, and unit-`id`-
   matches-map-key. Each closes a failure that was previously silent: a second root breaks the structural-supervisor
   derivation, an asymmetric link yields a half-connected graph with no error, a cycle is a stack overflow at login
   rather than a diagnosable fault, and an `id` that disagreed with its own map key went unenforced — the schema has
