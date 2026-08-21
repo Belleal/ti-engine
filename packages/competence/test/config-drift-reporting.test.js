@@ -407,6 +407,22 @@ describe( "onStart boot order — the chart must be built from the STORED tree, 
         const fileDefaultRoot = Object.values( configurationLoader.fileDefaults[ "organization-structure" ] ).find( ( unit ) => !unit.parent );
         assert.equal( fileDefaultRoot.managerID, "22", "sanity: the shipped demo tree's root manager is employee '22'" );
 
+        // Snapshot the shared, module-level state this test is about to overwrite. configurationLoader.initialize()
+        // reassigns the exported config object; buildOrganizationChart() replaces the organizationManager
+        // singleton's internal graph, which has no public getter/setter, so there is nothing to snapshot directly.
+        // Rebuilding once against whatever configuration is already in force turns "the chart's prior state" into a
+        // concrete, reproducible value instead of an assumption -- empirically, at this point in the file no earlier
+        // test has ever triggered a REAL buildOrganizationChart() (one block stubs the method out and restores it
+        // without calling through), so the chart is still unbuilt and getTopManagerID() alone would read "" -- a
+        // value a later rebuild could never reproduce on its own. Building it here first makes "prior state" a
+        // value the `finally` block below can actually put back, and the assertions after it can actually prove
+        // came back, rather than merely assuming so. This mirrors how `captureLogs` above restores `logger.log` in
+        // a `finally` -- a fabricated tree that leaks into a later test in this file would be the same kind of
+        // defect as a leaked logger stub.
+        const previousOrganizationStructure = configurationLoader.configOrganizationStructure;
+        await organizationManager.instance.buildOrganizationChart();
+        const previousTopManagerID = organizationManager.instance.getTopManagerID();
+
         // A deployment's real, stored root unit — deliberately unlike the shipped demo tree, so the two are never
         // mistaken for one another by this assertion.
         const storedOrganizationStructure = {
@@ -432,20 +448,38 @@ describe( "onStart boot order — the chart must be built from the STORED tree, 
             listDrift: () => Promise.resolve( [] )
         };
 
-        // The fixed order, minus the framework lifecycle around it: initialize() first (loads the stored tree into
-        // configOrganizationStructure), THEN buildOrganizationChart() (reads that export at call time) — exactly
-        // bin/competence-web-server.js's corrected onStart() sequence.
-        await configurationLoader.initialize( stubService );
-        assert.deepEqual(
-            configurationLoader.configOrganizationStructure, storedOrganizationStructure,
-            "initialize() must replace the export with the stored value before the chart is ever built"
-        );
+        try {
+            // The fixed order, minus the framework lifecycle around it: initialize() first (loads the stored tree
+            // into configOrganizationStructure), THEN buildOrganizationChart() (reads that export at call time) —
+            // exactly bin/competence-web-server.js's corrected onStart() sequence.
+            await configurationLoader.initialize( stubService );
+            assert.deepEqual(
+                configurationLoader.configOrganizationStructure, storedOrganizationStructure,
+                "initialize() must replace the export with the stored value before the chart is ever built"
+            );
 
-        await organizationManager.instance.buildOrganizationChart();
+            await organizationManager.instance.buildOrganizationChart();
 
+            assert.equal(
+                organizationManager.instance.getTopManagerID(), "999",
+                "the chart built after initialize() must reflect the STORED root manager, not the demo tree's '22'"
+            );
+        } finally {
+            // Undo both mutations this test made to shared, module-level singleton state: put the config export
+            // back first, then rebuild the chart from it so the singleton's OBSERVABLE state — not merely the
+            // config export — matches what it was before this test ran, exactly as captured above.
+            configurationLoader.configOrganizationStructure = previousOrganizationStructure;
+            await organizationManager.instance.buildOrganizationChart();
+        }
+
+        // Confirm the isolation actually holds, rather than assuming the `finally` block above did its job.
         assert.equal(
-            organizationManager.instance.getTopManagerID(), "999",
-            "the chart built after initialize() must reflect the STORED root manager, not the demo tree's '22'"
+            configurationLoader.configOrganizationStructure, previousOrganizationStructure,
+            "configOrganizationStructure must be restored to its pre-test value so a later test in this file never sees the fabricated tree"
+        );
+        assert.equal(
+            organizationManager.instance.getTopManagerID(), previousTopManagerID,
+            "the organization chart's top manager must be restored to its pre-test value, not left as the fabricated '999'"
         );
     } );
 
