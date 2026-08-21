@@ -5,3 +5,8 @@
 Dockerfile      text eol=lf
 *.Dockerfile    text eol=lf
 *.sh            text eol=lf
+
+# Spreadsheet templates are zip containers. Git normally auto-detects them as binary, but this
+# repo runs core.autocrlf=true, so declare it explicitly rather than rely on detection — a single
+# LF->CRLF rewrite inside the container corrupts the file irrecoverably.
+*.xlsx          binary
