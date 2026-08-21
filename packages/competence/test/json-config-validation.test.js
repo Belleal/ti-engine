@@ -125,6 +125,36 @@ describe( "Configuration files validate against their schemas", () => {
 
 } );
 
+describe( "Organization-structure schema rejects a malformed parent (CA-107)", () => {
+
+    const ORG_STRUCTURE_SCHEMA_ID = "https://ti-engine.dev/schemas/competence/organization-structure.json";
+
+    // findRootUnits() (application/organization-rules.js) treats an empty-string parent as a root, same as null --
+    // deliberately, so a malformed unit stays visible to the single-root semantic validator instead of vanishing
+    // from the count. This schema rule is the fix that stops such a unit from ever reaching that validator: only
+    // null (the single root) or a non-empty string (a real parent id) may satisfy 'parent' at all.
+    it( "rejects parent: '' -- only null or a non-empty string may mark a unit's parent", () => {
+        const validate = ajv.getSchema( ORG_STRUCTURE_SCHEMA_ID );
+        assert.ok( validate, "Schema 'organization-structure.json' must be loaded." );
+        const tree = {
+            "1": { id: "1", name: "Root", type: "Organization", parent: null, children: [ "1-1" ] },
+            "1-1": { id: "1-1", name: "Engineering", type: "Department", parent: "", children: [] }
+        };
+        const ok = validate( tree );
+        assert.equal( ok, false, "Schema must reject an empty-string parent." );
+    } );
+
+    it( "still accepts null (the root marker) and a non-empty parent id", () => {
+        const validate = ajv.getSchema( ORG_STRUCTURE_SCHEMA_ID );
+        const tree = {
+            "1": { id: "1", name: "Root", type: "Organization", parent: null, children: [ "1-1" ] },
+            "1-1": { id: "1-1", name: "Engineering", type: "Department", parent: "1", children: [] }
+        };
+        assert.equal( validate( tree ), true );
+    } );
+
+} );
+
 describe( "Seed data files validate against their schemas", () => {
 
     it( "seeders/employees.json validates against employees.schema.json", () => {

@@ -10,7 +10,7 @@
  * Unit tests for the pure, unit-testable seams of the employee-importer CLI (bin/build/import-organization.js) --
  * everything it exports besides `run` itself, which orchestrates real I/O (a file read, a Redis-backed cache
  * connection, process.exit) and is exercised manually instead (see the whole-branch review's "Verify" section).
- * Four review findings live here:
+ * Four review findings from that first whole-branch review live here:
  *   - finding 2: a mapping-stage rejection must be labeled by the row's real employee_id, not the literal string
  *     '(unmapped)', whenever the row provided one;
  *   - finding 3: a row that failed mapping must not ALSO be reported as "absent from the file" just because it
@@ -19,12 +19,23 @@
  *     in organization-import.parse.test.js, and not changed here) would silently collapse the whole file into one
  *     column with no clue as to why;
  *   - finding 6: the fail-closed Redis-connect bound must be overridable, not hard-coded.
+ *
+ * A later PR #130 automated review added a fifth: `applyWithProgress` is now also exported (still not pure -- it
+ * drives the real `dataManager` -- but mockable on `DataManager.prototype` the same way
+ * `competence-web-application.consent-fallback.test.js` mocks it) so the in-flight-record naming fix below can be
+ * exercised without touching Redis.
  */
 
 const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 
 const cli = require( "../bin/build/import-organization" );
+const dataManager = require( "#data-manager" );
+
+// `#data-manager` exports only the frozen `instance`, never the `DataManager` class -- but Object.freeze() on the
+// instance does not touch its prototype, so this is the real (writable) `DataManager.prototype`, the same idiom
+// `competence-web-application.consent-fallback.test.js` uses.
+const DataManagerPrototype = Object.getPrototypeOf( dataManager.instance );
 
 describe( "validateDelimiter (finding 5) -- a --delimiter override must be exactly one character", () => {
 
@@ -166,6 +177,57 @@ describe( "mapping-error rejection labeling and the absent-list disagreement (fi
         assert.equal( mappingRejections.length, 1 );
         assert.equal( mappingRejections[ 0 ].employeeID, "1", "the rejection must be named by the real id, not '(unmapped)'" );
         assert.deepEqual( absent, [], "employee_id '1' must not be listed as absent -- its row is right there, rejected" );
+    } );
+
+} );
+
+describe( "applyWithProgress -- names the record whose write was in flight (CA-107, PR #130 review finding 2)", () => {
+
+    // Before the fix, `written` was incremented inside `save`, so a rejecting `audit` -- which applyPlan calls only
+    // AFTER `save` has already resolved for the same record -- found `written` already counting that record, and
+    // `ordered[ written ]` named the NEXT planned record instead. These mock DataManager.prototype so the real
+    // sequencing (save resolves, then audit is attempted and rejects) plays out without touching Redis.
+
+    function threeRecordPlan() {
+        return {
+            create: [
+                { employeeID: "1", email: "a@x.co", personal: {}, career: {} },
+                { employeeID: "2", email: "b@x.co", personal: {}, career: {} },
+                { employeeID: "3", email: "c@x.co", personal: {}, career: {} }
+            ],
+            update: [], unchanged: [], rejected: [], absent: []
+        };
+    }
+
+    it( "on a rejecting audit, names the record whose audit rejected -- not the next planned record", async ( t ) => {
+        t.mock.method( DataManagerPrototype, "saveEmployee", ( employee ) => Promise.resolve( employee ) );
+        const failure = new Error( "audit failed for employee 2" );
+        t.mock.method( DataManagerPrototype, "appendAuditEntry", ( entry ) => (
+            ( entry.subjectID === "2" ) ? Promise.reject( failure ) : Promise.resolve( {} )
+        ) );
+        const stderrMock = t.mock.method( process.stderr, "write", () => true );
+
+        await assert.rejects( cli.applyWithProgress( threeRecordPlan() ), ( error ) => error === failure );
+
+        const output = stderrMock.mock.calls.map( ( call ) => call.arguments[ 0 ] ).join( "" );
+        assert.match( output, /employee_id '2'/, "must name employee 2, whose audit rejected" );
+        assert.doesNotMatch( output, /employee_id '3'/, "must never name employee 3 -- its turn never came" );
+        assert.match( output, /writing 1 of 3/, "only employee 1's step (save AND audit) fully completed" );
+    } );
+
+    it( "on a rejecting save, still names the record whose save rejected (regression guard)", async ( t ) => {
+        const failure = new Error( "save failed for employee 2" );
+        t.mock.method( DataManagerPrototype, "saveEmployee", ( employee ) => (
+            ( employee.employeeID === "2" ) ? Promise.reject( failure ) : Promise.resolve( employee )
+        ) );
+        t.mock.method( DataManagerPrototype, "appendAuditEntry", () => Promise.resolve( {} ) );
+        const stderrMock = t.mock.method( process.stderr, "write", () => true );
+
+        await assert.rejects( cli.applyWithProgress( threeRecordPlan() ), ( error ) => error === failure );
+
+        const output = stderrMock.mock.calls.map( ( call ) => call.arguments[ 0 ] ).join( "" );
+        assert.match( output, /employee_id '2'/, "must name employee 2, whose save rejected" );
+        assert.match( output, /writing 1 of 3/, "only employee 1's step fully completed" );
     } );
 
 } );

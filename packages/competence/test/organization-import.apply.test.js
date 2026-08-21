@@ -100,4 +100,67 @@ describe( "organizationImport.applyPlan", () => {
         assert.deepEqual( order, [ "save:1", "audit:1", "save:5", "audit:5" ] );
     } );
 
+    // CA-107 code review, finding 4: applyPlan chains its steps with `reduce`, and the CLI's recovery message
+    // (bin/build/import-organization.js#applyWithProgress) depends on a rejection propagating out of applyPlan
+    // AND on the chain stopping there -- neither was exercised by a test before this.
+    it( "propagates a rejected save and never attempts the record behind it", async () => {
+        const order = [];
+        const failure = new Error( "save failed for 2" );
+        const writer = {
+            save: ( employee ) => {
+                order.push( "save:" + employee.employeeID );
+                return ( employee.employeeID === "2" ) ? Promise.reject( failure ) : Promise.resolve( employee );
+            },
+            audit: ( entry ) => {
+                order.push( "audit:" + entry.subjectID );
+                return Promise.resolve();
+            }
+        };
+
+        await assert.rejects(
+            organizationImport.instance.applyPlan( {
+                create: [
+                    { employeeID: "1", email: "a@x.co", personal: {}, career: {} },
+                    { employeeID: "2", email: "b@x.co", personal: {}, career: {} },
+                    { employeeID: "3", email: "c@x.co", personal: {}, career: {} }
+                ],
+                update: [], unchanged: [], rejected: [], absent: []
+            }, writer ),
+            ( error ) => error === failure
+        );
+
+        assert.deepEqual( order, [ "save:1", "audit:1", "save:2" ], "the third record must never be attempted" );
+    } );
+
+    it( "propagates a rejected audit and never attempts the record behind it", async () => {
+        const order = [];
+        const failure = new Error( "audit failed for 2" );
+        const writer = {
+            save: ( employee ) => {
+                order.push( "save:" + employee.employeeID );
+                return Promise.resolve( employee );
+            },
+            audit: ( entry ) => {
+                order.push( "audit:" + entry.subjectID );
+                return ( entry.subjectID === "2" ) ? Promise.reject( failure ) : Promise.resolve();
+            }
+        };
+
+        await assert.rejects(
+            organizationImport.instance.applyPlan( {
+                create: [
+                    { employeeID: "1", email: "a@x.co", personal: {}, career: {} },
+                    { employeeID: "2", email: "b@x.co", personal: {}, career: {} },
+                    { employeeID: "3", email: "c@x.co", personal: {}, career: {} }
+                ],
+                update: [], unchanged: [], rejected: [], absent: []
+            }, writer ),
+            ( error ) => error === failure
+        );
+
+        // The record whose audit rejected (2) was saved but never attempted again -- and the third record, whose
+        // turn never came, must show no trace at all.
+        assert.deepEqual( order, [ "save:1", "audit:1", "save:2", "audit:2" ], "the third record must never be attempted" );
+    } );
+
 } );

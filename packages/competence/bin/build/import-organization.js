@@ -190,25 +190,40 @@ function connectCache() {
  * @private
  */
 function applyWithProgress( plan ) {
-    // Mirrors the order applyPlan itself writes in (creates, then updates, each in array order) so `written` can be
-    // used as a direct index into this list to name the record whose write did not complete.
+    // Mirrors the order applyPlan itself writes in (creates, then updates, each in array order), so an index into
+    // this list can name the record a step is (or was) working on.
     const ordered = plan.create.concat( plan.update.map( ( change ) => change.employee ) );
-    let written = 0;
+
+    // `inFlight` names the record `save` most recently started on — set the moment `save` is called, BEFORE it
+    // delegates to the real write, and never touched by `audit`. That makes it correct however the current step
+    // fails: applyPlan calls `writer.audit` only after `writer.save` for the same record has already resolved, so
+    // if `audit` rejects, `save` was never called again in between and `inFlight` still names the record audit is
+    // rejecting for — not the next planned one. `completed`, in contrast, counts only a step whose audit has ALSO
+    // resolved: a record that saved but never finished auditing is not "written" for the operator's purposes, and
+    // counting it there would misreport progress by one on exactly the failure this exists to describe. Neither
+    // counter is derived from the other, and neither is looked up with `ordered.indexOf(...)` — the plan can
+    // legitimately hold two distinct objects that compare equal only by identity, and an indexOf per write would
+    // be needless work besides.
+    let inFlight = -1;
+    let completed = 0;
 
     const writer = {
-        save: ( employee ) => dataManager.instance.saveEmployee( employee ).then( ( saved ) => {
-            written++;
-            return saved;
-        } ),
-        audit: ( entry ) => dataManager.instance.appendAuditEntry( Object.assign( { changedBy: "import-cli" }, entry ) )
+        save: ( employee ) => {
+            inFlight++;
+            return dataManager.instance.saveEmployee( employee );
+        },
+        audit: ( entry ) => dataManager.instance.appendAuditEntry( Object.assign( { changedBy: "import-cli" }, entry ) ).then( ( result ) => {
+            completed++;
+            return result;
+        } )
     };
 
     return organizationImport.instance.applyPlan( plan, writer ).then( () => {
         printPlan( plan, true );
         return plan.rejected.length > 0 ? 1 : 0;
     } ).catch( ( error ) => {
-        const failedRecord = ordered[ written ];
-        process.stderr.write( `\nApply stopped after writing ${ written } of ${ ordered.length } planned record(s).\n` );
+        const failedRecord = ordered[ inFlight ];
+        process.stderr.write( `\nApply stopped after writing ${ completed } of ${ ordered.length } planned record(s).\n` );
         if ( failedRecord ) {
             process.stderr.write( `The write for employee_id '${ failedRecord.employeeID }' is the one that did not complete.\n` );
         }
@@ -429,7 +444,7 @@ if ( require.main === module ) {
 }
 
 module.exports = {
-    run, parseArguments, formatError, validateDelimiter,
+    run, parseArguments, formatError, validateDelimiter, applyWithProgress,
     resolveCacheConnectTimeoutMs, mapRowsToEmployeeIDs, toMappingRejection, excludeMappingErrorsFromAbsent,
     CACHE_CONNECT_TIMEOUT_ENV_VAR, DEFAULT_CACHE_CONNECT_TIMEOUT_MS
 };

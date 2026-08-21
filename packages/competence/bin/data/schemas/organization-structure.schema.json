@@ -17,7 +17,7 @@
       "branch": { "type": "string", "description": "Branch designation" },
       "location": { "type": "string", "description": "Physical location" },
       "managerID": { "type": [ "string", "null" ], "description": "Employee ID of the unit's manager; absent or null means a manager-less pass-through unit" },
-      "parent": { "type": [ "string", "null" ], "description": "Parent unit ID; null marks the single root" },
+      "parent": { "type": [ "string", "null" ], "minLength": 1, "description": "Parent unit ID; null marks the single root — an empty string is neither and is rejected" },
       "children": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Child unit IDs" }
     }
   }
