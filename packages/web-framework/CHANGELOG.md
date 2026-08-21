@@ -2,6 +2,15 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.25.0
+
+* feat(config-management): surface a `driftTracked` flag on the `getDrift` / `listDrift` payloads, defaulting to
+  `true` and set to `false` by a document registering `metadata.driftTracked: false`. Drift compares a stored value
+  against the file default shipped in the image, which is meaningful for vendor-shipped product content and
+  meaningless for a document holding customer data — that always differs, forever, and would drown a signal that
+  otherwise means "a release changed something this deployment is not serving". Consumers now filter on data rather
+  than on a hardcoded key list (CA-107)
+
 ## Version 1.24.2
 
 Dependency maintenance only — no framework code changed.

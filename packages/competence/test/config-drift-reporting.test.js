@@ -11,7 +11,10 @@
 
 const { describe, it, before } = require( "node:test" );
 const assert = require( "node:assert/strict" );
+const fs = require( "node:fs" );
+const path = require( "node:path" );
 const configurationLoader = require( "#configuration-loader" );
+const organizationManager = require( "#organization-manager" );
 const configDrift = require( "@ti-engine/web-framework/config-drift" );
 const logger = require( "@ti-engine/core/logger" );
 const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
@@ -24,10 +27,18 @@ const clone = ( value ) => JSON.parse( JSON.stringify( value ) );
 // has harmless data to assign) and takes just the `listDrift` implementation under test. `captureLogs` mirrors the
 // established precedent at core/test/security-hash-key-warning.test.js (lines ~8-24): replace logger.log with a
 // collector, run, restore in a `finally` so the stub can never leak into another test in this file.
-const stubServiceWithDrift = ( listDrift ) => ( {
+//
+// The optional `captureListener` callback, when supplied, receives the `config:changed` listener that
+// configuration-loader registers during initialize() — the org-chart hot-reload branch (CA-107) has no other seam
+// to reach it through. Every existing call site passes only `listDrift`, so `captureListener` is `undefined` for
+// them and the guard below is a no-op — backward compatible, no behavior change for any current test.
+const stubServiceWithDrift = ( listDrift, captureListener ) => ( {
     seedDefault: ( configKey ) => Promise.resolve( { value: configurationLoader.fileDefaults[ configKey ], version: 1 } ),
     getCurrent: ( configKey ) => Promise.resolve( { value: configurationLoader.fileDefaults[ configKey ], version: 1 } ),
-    onConfigChanged: () => () => {},
+    onConfigChanged: ( listener ) => {
+        if ( captureListener ) captureListener( listener );
+        return () => {};
+    },
     listDrift: listDrift
 } );
 
@@ -45,10 +56,10 @@ const captureLogs = async ( run ) => {
 
 describe( "configuration-loader — file defaults survive store initialization", () => {
 
-    it( "exposes the seven store-backed file defaults", () => {
+    it( "exposes the eight store-backed file defaults", () => {
         assert.deepEqual( Object.keys( configurationLoader.fileDefaults ).sort(), [
-            "active-competency-sets", "competencies", "relevancy-archetypes", "research-consent",
-            "role-families", "role-family-competencies", "stage-levels"
+            "active-competency-sets", "competencies", "organization-structure", "relevancy-archetypes",
+            "research-consent", "role-families", "role-family-competencies", "stage-levels"
         ] );
     } );
 
@@ -120,6 +131,56 @@ describe( "reportConfigDrift — startup logging", () => {
         ) );
 
         assert.ok( captured.some( ( c ) => c.severity === logger.logSeverity.WARNING ), "the failure to compute drift is itself logged, not silently swallowed" );
+    } );
+
+} );
+
+describe( "driftRows() (admin panel, competence-user-interface.js) -- excludes driftTracked: false documents", () => {
+    // This is the front-end half of the exact same exclusion "reportConfigDrift -- startup logging" above verifies
+    // for the backend half: a document registered driftTracked: false (the organization structure -- customer
+    // data, not vendor-shipped product content) must never appear in the admin drift panel, even when its status
+    // is "drifted" or "absent". Before this guard's fix, driftRows() filtered on status alone, so a customer's real
+    // org chart sat in the panel permanently flagged "drifted" -- one tick plus "apply defaults" away from
+    // silently replacing an authored org chart with the shipped 4-unit demo tree.
+    //
+    // The Alpine component lives in a browser-only script (Alpine.data(...), no module.exports, no DOM/Alpine
+    // globals in this suite) so there is no seam to execute it as a whole. Mirroring the house style already used
+    // for this exact file at test/consent-register-screen.test.js ("static wiring guards" -- regex assertions over
+    // the source), this reads the actual filter predicate out of the source and, since it is a small, pure,
+    // self-contained expression (it closes over nothing but its own `row` argument), evaluates it directly so the
+    // guard proves real boolean behaviour rather than merely that certain tokens are present somewhere nearby.
+
+    const UI_SCRIPT_FILE = path.join( __dirname, "..", "bin", "static", "scripts", "competence-user-interface.js" );
+
+    function extractDriftRowsPredicate() {
+        const source = fs.readFileSync( UI_SCRIPT_FILE, "utf8" );
+        const match = /driftRows\(\)\s*\{\s*return this\.drift\.filter\(\s*([\s\S]*?)\s*\);\s*\}/.exec( source );
+        assert.ok( match, "expected to find a one-line `driftRows() { return this.drift.filter( ... ); }` method in competence-user-interface.js" );
+        // Evaluates the extracted arrow-function source text itself (not untrusted input) -- see the block comment
+        // above for why that is safe here.
+        const predicate = new Function( `return (${ match[ 1 ] });` )();
+        assert.equal( typeof predicate, "function", "driftRows() must filter with a function predicate" );
+        return predicate;
+    }
+
+    it( "still shows a tracked document whose status is drifted or absent", () => {
+        const predicate = extractDriftRowsPredicate();
+        assert.equal( predicate( { status: "drifted", driftTracked: true } ), true );
+        assert.equal( predicate( { status: "absent", driftTracked: true } ), true );
+    } );
+
+    it( "excludes a driftTracked: false document even when its status is drifted or absent", () => {
+        const predicate = extractDriftRowsPredicate();
+        assert.equal( predicate( { status: "drifted", driftTracked: false } ), false,
+            "a drifted-but-untracked row (e.g. organization-structure) must be excluded from the panel" );
+        assert.equal( predicate( { status: "absent", driftTracked: false } ), false,
+            "an absent-but-untracked row must be excluded too" );
+    } );
+
+    it( "still excludes an in-sync or no-default document regardless of driftTracked", () => {
+        const predicate = extractDriftRowsPredicate();
+        assert.equal( predicate( { status: "in-sync", driftTracked: true } ), false );
+        assert.equal( predicate( { status: "no-default", driftTracked: true } ), false );
     } );
 
 } );
@@ -272,6 +333,154 @@ describe( "config drift — the CA-98 QE case end to end, through the real Confi
 
         assert.deepEqual( configurationLoader.configRoleFamilyCompetencies.QE, configurationLoader.fileDefaults[ "role-family-competencies" ].QE );
         assert.deepEqual( configurationLoader.configCompetencies, configurationLoader.fileDefaults.competencies );
+    } );
+
+} );
+
+describe( "configuration-loader — the organization-structure hot-reload branch (CA-107)", () => {
+    // The onConfigChanged handler registered inside initialize() is the runtime mechanism that rebuilds the
+    // organization chart when an admin edits the org-structure document, with no restart required. It has no other
+    // test. It matters more than ordinary coverage because web-framework's ConfigChangeNotifier#publish delivers
+    // each listener fire-and-forget inside a try/catch that only catches a SYNCHRONOUS throw from `listener(payload)`
+    // — this listener returns a promise chain, so a rejection anywhere inside it (a broken require, a rejected
+    // buildOrganizationChart()) would become an unhandled rejection that neither fails the admin's save nor appears
+    // in the notifier's error log. The wiring is correct today; this test is the regression guard that keeps it so.
+
+    it( "rebuilds the organization chart for its own key, not for an unrelated key, and its returned promise resolves", async () => {
+        let capturedListener;
+        const stubService = stubServiceWithDrift(
+            () => Promise.resolve( [] ),
+            ( listener ) => { capturedListener = listener; }
+        );
+        await configurationLoader.initialize( stubService );
+        assert.equal( typeof capturedListener, "function", "initialize() must register a config:changed listener" );
+
+        // buildOrganizationChart is a prototype method (unlike toUnitNodeID/toEmployeeNodeID, which are own arrow
+        // class fields), so it stays writable through the prototype even though Object.freeze(instance) at the
+        // bottom of organization-manager.js freezes the instance's own properties. Restored in `finally`, mirroring
+        // how `captureLogs` above restores `logger.log` — a stub that leaks into a later test here is a defect.
+        const OrganizationManagerPrototype = Object.getPrototypeOf( organizationManager.instance );
+        const originalBuildOrganizationChart = OrganizationManagerPrototype.buildOrganizationChart;
+        let callCount = 0;
+        OrganizationManagerPrototype.buildOrganizationChart = () => {
+            callCount++;
+            return Promise.resolve();
+        };
+
+        try {
+            // The discriminating half: an unrelated key must not touch the org chart.
+            await assert.doesNotReject(
+                () => capturedListener( { configKeys: [ "competencies" ] } ),
+                "the listener's returned promise must resolve on the no-op path too"
+            );
+            assert.equal( callCount, 0, "an unrelated key must not rebuild the organization chart" );
+
+            // The branch under test: its own key must rebuild the chart, and the returned promise must settle --
+            // this is exactly what would catch a rejection ConfigChangeNotifier's synchronous try/catch cannot.
+            await assert.doesNotReject(
+                () => capturedListener( { configKeys: [ "organization-structure" ] } ),
+                "the listener's returned promise must resolve, not reject silently"
+            );
+            assert.equal( callCount, 1, "the 'organization-structure' key must rebuild the organization chart exactly once" );
+        } finally {
+            OrganizationManagerPrototype.buildOrganizationChart = originalBuildOrganizationChart;
+        }
+    } );
+
+} );
+
+describe( "onStart boot order — the chart must be built from the STORED tree, not the file default (CA-107)", () => {
+    // The regression this guards: onStart() (bin/competence-web-server.js) used to call buildOrganizationChart()
+    // two steps before configurationLoader.initialize() ever ran. Since buildOrganizationChart() reads
+    // configurationLoader.configOrganizationStructure at call time, and initialize() is the only thing that ever
+    // replaces that export with the deployment's actual stored tree, every boot silently built the chart from the
+    // shipped file-default demo tree instead — real managers lost MANAGER/SUPERVISOR derivation, and whoever holds
+    // the demo tree's employee ID "22" became top manager.
+    //
+    // Driving the real onStart() end to end would need a live cache and message exchange, which this suite has no
+    // access to — so this is NOT a test of onStart() itself. What it DOES prove is the causal claim the fix depends
+    // on: called in the corrected order (initialize() before buildOrganizationChart()), the chart built afterward
+    // reflects the STORED tree rather than the file default. That onStart() actually invokes them in this order is
+    // verified separately, by reading bin/competence-web-server.js.
+
+    it( "builds a chart whose top manager comes from the stored organization structure once initialize() has run first", async () => {
+        const fileDefaultRoot = Object.values( configurationLoader.fileDefaults[ "organization-structure" ] ).find( ( unit ) => !unit.parent );
+        assert.equal( fileDefaultRoot.managerID, "22", "sanity: the shipped demo tree's root manager is employee '22'" );
+
+        // Snapshot the shared, module-level state this test is about to overwrite. configurationLoader.initialize()
+        // reassigns the exported config object; buildOrganizationChart() replaces the organizationManager
+        // singleton's internal graph, which has no public getter/setter, so there is nothing to snapshot directly.
+        // Rebuilding once against whatever configuration is already in force turns "the chart's prior state" into a
+        // concrete, reproducible value instead of an assumption -- empirically, at this point in the file no earlier
+        // test has ever triggered a REAL buildOrganizationChart() (one block stubs the method out and restores it
+        // without calling through), so the chart is still unbuilt and getTopManagerID() alone would read "" -- a
+        // value a later rebuild could never reproduce on its own. Building it here first makes "prior state" a
+        // value the `finally` block below can actually put back, and the assertions after it can actually prove
+        // came back, rather than merely assuming so. This mirrors how `captureLogs` above restores `logger.log` in
+        // a `finally` -- a fabricated tree that leaks into a later test in this file would be the same kind of
+        // defect as a leaked logger stub.
+        const previousOrganizationStructure = configurationLoader.configOrganizationStructure;
+        await organizationManager.instance.buildOrganizationChart();
+        const previousTopManagerID = organizationManager.instance.getTopManagerID();
+
+        // A deployment's real, stored root unit — deliberately unlike the shipped demo tree, so the two are never
+        // mistaken for one another by this assertion.
+        const storedOrganizationStructure = {
+            "root-unit": {
+                id: "root-unit",
+                name: "Stored Root",
+                displayName: "Stored Root",
+                description: "This deployment's real, stored root unit.",
+                type: "Organization",
+                managerID: "999",
+                parent: null,
+                children: []
+            }
+        };
+
+        const stubService = {
+            seedDefault: ( configKey ) => Promise.resolve( { value: configurationLoader.fileDefaults[ configKey ], version: 1 } ),
+            getCurrent: ( configKey ) => Promise.resolve( {
+                value: ( configKey === "organization-structure" ) ? storedOrganizationStructure : configurationLoader.fileDefaults[ configKey ],
+                version: 1
+            } ),
+            onConfigChanged: () => () => {},
+            listDrift: () => Promise.resolve( [] )
+        };
+
+        try {
+            // The fixed order, minus the framework lifecycle around it: initialize() first (loads the stored tree
+            // into configOrganizationStructure), THEN buildOrganizationChart() (reads that export at call time) —
+            // exactly bin/competence-web-server.js's corrected onStart() sequence.
+            await configurationLoader.initialize( stubService );
+            assert.deepEqual(
+                configurationLoader.configOrganizationStructure, storedOrganizationStructure,
+                "initialize() must replace the export with the stored value before the chart is ever built"
+            );
+
+            await organizationManager.instance.buildOrganizationChart();
+
+            assert.equal(
+                organizationManager.instance.getTopManagerID(), "999",
+                "the chart built after initialize() must reflect the STORED root manager, not the demo tree's '22'"
+            );
+        } finally {
+            // Undo both mutations this test made to shared, module-level singleton state: put the config export
+            // back first, then rebuild the chart from it so the singleton's OBSERVABLE state — not merely the
+            // config export — matches what it was before this test ran, exactly as captured above.
+            configurationLoader.configOrganizationStructure = previousOrganizationStructure;
+            await organizationManager.instance.buildOrganizationChart();
+        }
+
+        // Confirm the isolation actually holds, rather than assuming the `finally` block above did its job.
+        assert.equal(
+            configurationLoader.configOrganizationStructure, previousOrganizationStructure,
+            "configOrganizationStructure must be restored to its pre-test value so a later test in this file never sees the fabricated tree"
+        );
+        assert.equal(
+            organizationManager.instance.getTopManagerID(), previousTopManagerID,
+            "the organization chart's top manager must be restored to its pre-test value, not left as the fabricated '999'"
+        );
     } );
 
 } );

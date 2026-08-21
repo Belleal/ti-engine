@@ -13,10 +13,18 @@
  * endpoints then serve these documents and editors.
  *
  * Editable: the dictionary, its localization, the relevancy archetypes, the active competency sets, the role
- * families (the nine disciplines are fixed by schema; their text and their specializations are editable), and the
+ * families (the nine disciplines are fixed by schema; their text and their specializations are editable), the
  * research-consent statement (guarded by the consentTextVersionBumped validator so its text can't change without a
- * version bump). The role-family competency pool and the stage levels are registered read-only — versioned,
- * validated, restorable, and exportable, but not exposed for inline editing yet.
+ * version bump), and the organization structure (guarded by the four structural validators — single root,
+ * parent/child symmetry, acyclicity, and id/key agreement — from {@link module:config-validators}). The role-family
+ * competency pool and the stage levels are registered read-only — versioned, validated, restorable, and exportable,
+ * but not exposed for inline editing yet.
+ * <br/>
+ * The organization structure is also registered with `metadata.driftTracked: false`: unlike the other documents,
+ * which hold vendor-shipped product content, it holds this deployment's own org chart — a real company's structure
+ * differs from the shipped demo tree by definition and forever, so including it in the drift report would drown the
+ * signal for documents where a difference genuinely means "a release changed something this deployment is not
+ * serving".
  *
  * @module config-registration
  */
@@ -32,6 +40,7 @@ const roleFamiliesSchema = require( "../bin/data/schemas/role-families.schema.js
 const roleFamilyCompetenciesSchema = require( "../bin/data/schemas/role-family-competencies.schema.json" );
 const stageLevelsSchema = require( "../bin/data/schemas/stage-levels.schema.json" );
 const researchConsentSchema = require( "../bin/data/schemas/research-consent.schema.json" );
+const organizationStructureSchema = require( "../bin/data/schemas/organization-structure.schema.json" );
 const competenceLabels = require( "../bin/localization/competence-labels.json" );
 
 // competence-labels.json has no dedicated JSON Schema (its structure is large and open-ended). Structural validity is
@@ -92,6 +101,12 @@ function registerCompetenceConfig( app ) {
         validators: [ validators.consentTextVersionBumped ],
         defaultValue: configurationLoader.fileDefaults[ "research-consent" ],
         metadata: { path: "bin/config/config.research-consent.json", label: "consent.research", editable: true }
+    } );
+    app.registerConfigDocument( "organization-structure", {
+        schema: organizationStructureSchema,
+        validators: [ validators.organizationSingleRoot, validators.organizationParentChildSymmetry, validators.organizationNoCycles, validators.organizationIdMatchesKey ],
+        defaultValue: configurationLoader.fileDefaults[ "organization-structure" ],
+        metadata: { path: "bin/config/config.organization-structure.json", label: "organization.structure", editable: true, driftTracked: false }
     } );
 
     // Composite (entity) editors — e.g. the competency-text editor that the BG-review screen edits.

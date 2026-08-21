@@ -18,6 +18,7 @@ const taskResolver = require( "#task-resolver" );
 const resultsAnalytics = require( "#results-analytics" );
 const researchConsent = require( "#research-consent" );
 const cycleSetupTools = require( "#cycle-setup-tools" );
+const employeeRules = require( "#employee-rules" );
 const logger = require( "@ti-engine/core/logger" );
 const { registerCompetenceConfig } = require( "../application/config-registration" );
 
@@ -3931,6 +3932,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                     throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: validationError }, exceptions.httpCode.C_422 );
                 }
 
+                const collision = employeeRules.instance.findEmailCollision( newEmployee.email, newEmployee.employeeID, employees );
+                if ( collision ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_ALREADY_EXISTS, { details: "error.employee.duplicate-email" }, exceptions.httpCode.C_409 );
+                }
+
                 return dataManager.instance.saveEmployee( newEmployee ).then( ( saved ) => {
                     return dataManager.instance.appendAuditEntry( {
                         subjectType: "employee",
@@ -4003,7 +4009,13 @@ class CompetenceWebApplication extends TiWebAppManager {
                     throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: validationError }, exceptions.httpCode.C_422 );
                 }
 
-                return dataManager.instance.saveEmployee( updated ).then( ( saved ) => {
+                return dataManager.instance.fetchEmployees().then( ( employees ) => {
+                    const collision = employeeRules.instance.findEmailCollision( updated.email, updated.employeeID, employees );
+                    if ( collision ) {
+                        throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_ALREADY_EXISTS, { details: "error.employee.duplicate-email" }, exceptions.httpCode.C_409 );
+                    }
+                    return dataManager.instance.saveEmployee( updated );
+                } ).then( ( saved ) => {
                     return Promise.all( changes.map( ( change ) => dataManager.instance.appendAuditEntry( {
                         subjectType: "employee",
                         subjectID: saved.employeeID,
@@ -4482,60 +4494,10 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @private
      */
     #validateEmployeeFields( employee ) {
-        const firstName = employee?.personal?.firstName;
-        const lastName = employee?.personal?.lastName;
-        if ( !firstName || !lastName ) {
-            return "error.employee.missing-name";
-        }
-
-        const workMode = employee?.personal?.workMode;
-        if ( ![ "Full-time", "Part-time", "Contract" ].includes( workMode ) ) {
-            return "error.employee.invalid-work-mode";
-        }
-        const workLocation = employee?.personal?.workLocation;
-        if ( ![ "On-site", "Hybrid", "Remote" ].includes( workLocation ) ) {
-            return "error.employee.invalid-work-location";
-        }
-
-        const employmentStatus = employee?.employmentStatus || "active";
-        if ( ![ "active", "on-leave", "terminated" ].includes( employmentStatus ) ) {
-            return "error.employee.invalid-employment-status";
-        }
-
-        const roleFamily = employee?.career?.roleFamily;
-        const families = configurationLoader.configRoleFamilies || {};
-        if ( !roleFamily || !families[ roleFamily ] ) {
-            return "error.employee.invalid-role-family";
-        }
-        const specialization = employee?.career?.specialization || null;
-        if ( specialization && !( families[ roleFamily ].specializations || {} )[ specialization ] ) {
-            return "error.employee.invalid-specialization";
-        }
-
-        const level = employee?.career?.level;
-        const stage = employee?.career?.stage;
-        if ( ![ "N", "J", "R", "S", "X", "T" ].includes( level ) ) {
-            return "error.employee.invalid-level";
-        }
-        if ( !Number.isInteger( stage ) || stage < 1 || stage > 3 ) {
-            return "error.employee.invalid-stage";
-        }
-        // Dual-track rule: N, X, T have only stage 1.
-        if ( ( level === "N" || level === "X" || level === "T" ) && stage !== 1 ) {
-            return "error.employee.invalid-stage-for-level";
-        }
-
-        const organizationUnitID = employee?.career?.organizationUnitID;
-        const orgStructure = configurationLoader.configOrganizationStructure || {};
-        if ( !organizationUnitID || !orgStructure[ organizationUnitID ] ) {
-            return "error.employee.invalid-organization-unit";
-        }
-
-        if ( employee.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test( employee.email ) ) {
-            return "error.employee.invalid-email";
-        }
-
-        return null;
+        return employeeRules.instance.validateEmployee( employee, {
+            roleFamilies: configurationLoader.configRoleFamilies,
+            organizationStructure: configurationLoader.configOrganizationStructure
+        } );
     }
 
     /**

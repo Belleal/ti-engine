@@ -123,6 +123,30 @@ describe( "ConfigService — getDrift / listDrift", () => {
 
 } );
 
+describe( "ConfigService — driftTracked metadata flag", () => {
+
+    it( "defaults to true when the document does not set it", async () => {
+        // "pool" registers metadata without driftTracked.
+        const drift = await service.getDrift( "pool" );
+        assert.equal( drift.driftTracked, true );
+    } );
+
+    it( "is false when the document opts out", async () => {
+        registry.register( "customer-data", { schema: POOL, defaultValue: {}, metadata: { label: "org", driftTracked: false } } );
+        const drift = await service.getDrift( "customer-data" );
+        assert.equal( drift.driftTracked, false );
+    } );
+
+    it( "carries the flag through listDrift", async () => {
+        registry.register( "customer-data", { schema: POOL, defaultValue: {}, metadata: { label: "org", driftTracked: false } } );
+        const listed = await service.listDrift();
+        const byKey = Object.fromEntries( listed.map( ( entry ) => [ entry.configKey, entry ] ) );
+        assert.equal( byKey[ "pool" ].driftTracked, true );
+        assert.equal( byKey[ "customer-data" ].driftTracked, false );
+    } );
+
+} );
+
 describe( "ConfigService — applyDefaults", () => {
 
     it( "commits interdependent documents as one change-set, so cross-document validation sees pending values", async () => {

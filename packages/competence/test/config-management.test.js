@@ -146,7 +146,7 @@ describe( "config-registration (competence)", () => {
 
         assert.deepEqual(
             Object.keys( registered ).sort(),
-            [ "active-competency-sets", "competence-labels", "competencies", "relevancy-archetypes", "research-consent", "role-families", "role-family-competencies", "stage-levels" ]
+            [ "active-competency-sets", "competence-labels", "competencies", "organization-structure", "relevancy-archetypes", "research-consent", "role-families", "role-family-competencies", "stage-levels" ]
         );
         assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "relevancy-archetype", "role-families" ] );
         assert.deepEqual( editors[ "competency-text" ].documents, [ "competencies", "competence-labels" ] );
@@ -159,6 +159,9 @@ describe( "config-registration (competence)", () => {
         assert.ok( registered[ "role-family-competencies" ].validators.length >= 1, "the pool carries its reference-integrity validator" );
         assert.ok( registered.competencies.defaultValue && registered.competencies.defaultValue.competencies );
         assert.ok( registered[ "relevancy-archetypes" ].defaultValue && registered[ "relevancy-archetypes" ].defaultValue.A );
+        assert.ok( registered[ "organization-structure" ].validators.length >= 4, "organization-structure carries its four structural validators" );
+        assert.equal( registered[ "organization-structure" ].metadata.editable, true );
+        assert.equal( registered[ "organization-structure" ].metadata.driftTracked, false, "organization-structure holds customer data and is drift-exempt" );
     } );
 
     it( "keeps competence-labels' default reading the directly-required labels constant, and pins a default for every store-backed document", () => {
@@ -182,12 +185,12 @@ describe( "config-registration (competence)", () => {
             "the default must carry actual label content, not an empty stand-in"
         );
 
-        // The complementary half: every one of the seven STORE_BACKED documents must register ITS OWN file default —
+        // The complementary half: every one of the eight STORE_BACKED documents must register ITS OWN file default —
         // not just any defined value. Asserting identity (rather than merely "!== undefined") is what catches a
         // transposition between two registrations (e.g. stage-levels wired to research-consent's default): both
-        // sides are still "a defined value", so a weaker assertion would pass every one of these seven checks even
+        // sides are still "a defined value", so a weaker assertion would pass every one of these eight checks even
         // though the wrong document is being registered.
-        for ( const key of [ "competencies", "relevancy-archetypes", "active-competency-sets", "role-families", "role-family-competencies", "stage-levels", "research-consent" ] ) {
+        for ( const key of [ "competencies", "relevancy-archetypes", "active-competency-sets", "role-families", "role-family-competencies", "stage-levels", "research-consent", "organization-structure" ] ) {
             assert.equal( registered[ key ].defaultValue, configurationLoader.fileDefaults[ key ], `${ key } must register its own file default, not another document's` );
         }
     } );

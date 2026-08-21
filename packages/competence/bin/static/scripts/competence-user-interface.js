@@ -4659,7 +4659,7 @@ const configureAdminConfig = () => {
                 // Preselect only a drifted document that has never been touched since it was seeded (storedVersion
                 // === 1). An "absent" one is valid to apply but is not what the admin came here to do, and folding it
                 // silently into an unrelated apply would be a surprise -- that part is unchanged.
-                // But five of the eight registered documents are also written by admin composite editors
+                // But five of the nine registered documents are also written by admin composite editors
                 // (competencies, competence-labels, relevancy-archetypes, role-families, active-competency-sets), so
                 // an admin's own edit makes a document differ from the shipped file default too -- indistinguishable
                 // from a release change by content alone. Preselecting it would make the one-click apply silently
@@ -4683,9 +4683,14 @@ const configureAdminConfig = () => {
             } );
         },
 
-        // Rows worth showing: in-sync and no-default documents are noise on this panel.
+        // Rows worth showing: in-sync and no-default documents are noise on this panel. A document registered
+        // driftTracked: false (the organization structure -- customer data, not vendor-shipped product content)
+        // is excluded too, even when its status is drifted or absent: it differs from the shipped file default by
+        // definition and forever, so showing it here would offer a one-tick "apply defaults" that could silently
+        // replace an authored org chart with the shipped demo tree. Mirrors the same exclusion reportConfigDrift()
+        // applies to the startup log (application/configuration-loader.js).
         driftRows() {
-            return this.drift.filter( ( row ) => row.status === "drifted" || row.status === "absent" );
+            return this.drift.filter( ( row ) => ( row.status === "drifted" || row.status === "absent" ) && row.driftTracked !== false );
         },
 
         hasDrift() {

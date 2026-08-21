@@ -399,9 +399,134 @@ reaches it once `deploy.sh` is re-run.
 ## 11. First run & data
 
 - **Demo data:** `COMPETENCE_PRELOAD_DATA=true` seeds demo data (employees, a cycle, sample evaluations) by merging it into the collections on startup. It does **not** wipe existing data — collections are only initialized when empty, so data you create persists across restarts. While the flag stays `true` the seed is re-applied on every boot (re-adding seeded records), so set it back to `false` once seeded. Leave it `false` for a real install (you start empty).
-- **Organization structure:** the org chart is loaded from a configuration file baked into the image. Reflecting *your* organization requires supplying/adjusting that configuration (via the framework's admin configuration system or a custom build) — plan this with the application owner; it is not an environment variable.
+- **Organization structure:** the org chart is a store-backed configuration document, editable in
+  **Administration → Configuration** like any other. The file baked into the image is only the bootstrap default,
+  seeded on a first run; from then on the stored value wins. Reflecting *your* organization is therefore a
+  configuration task, not a rebuild. It is deliberately excluded from the configuration-drift report: it holds your
+  data rather than content shipped with the release, so it differs from the image default by design.
 - **Admin access:** the admin configuration screens are gated to identities listed in the web-server config `auth.admins` (empty by default → no admins). Set it per environment with **`TI_WEB_AUTH_ADMINS`** (comma-separated; matched against the session user's user ID, username or email — so an OpenID deployment lists emails), or in the config file for a baked-in default. Other non-env config such as the organization structure remains a configuration step — coordinate with the application owner.
 - **First login:** browse to your HTTPS host. With the default `TI_WEB_AUTH_METHODS=openid-azure`, you sign in via Azure — so Azure must be configured (§7), otherwise the page shows "no sign-in method is configured." (Adding `local` to `TI_WEB_AUTH_METHODS` makes its sign-in form appear immediately — the form itself does not depend on a users file existing — but no sign-in can *succeed* until you provision a record for that identity in the file at `TI_WEB_AUTH_LOCAL_USERS_PATH`; with no matching record, or a wrong password, it's refused; dev/break-glass only, see §1 and §7, "Local auth".)
+
+### Importing employee data
+
+Once the organization structure reflects your organization, load employees with the bundled CLI,
+`bin/build/import-organization.js` (`npm run import:org`). It reads a CSV export from your HRIS, reconciles it
+against whatever is already in Redis, and either prints or applies the resulting plan — it never touches employee
+data on its own. Run it with access to the same Redis your deployment uses: `docker exec` into the running
+container (the image's `WORKDIR` is already the competence package directory, so the command below runs as-is), or
+run it from any host with the Redis connection variables (§7, "Redis") pointed at that Redis. A file is not already
+inside the container — copy it in first with `docker cp employees.csv <container>:/tmp/employees.csv`.
+
+**The column contract.** One row per employee, UTF-8, first row a header. Column order is irrelevant; column names
+are matched case-insensitively after trimming. `--template` prints the exact header row so you always start from a
+valid one:
+
+```bash
+node bin/build/import-organization.js --template > employees.csv
+```
+
+| Column                 | Required | Notes                                                                                |
+|------------------------|----------|---------------------------------------------------------------------------------------|
+| `employee_id`          | yes      | The reconciliation key (see below). Matched verbatim — a leading zero must survive intact; see the warning below |
+| `email`                | yes      | Lower-cased on import; must be unique across employees                              |
+| `first_name`           | yes      |                                                                                       |
+| `last_name`            | yes      |                                                                                       |
+| `work_mode`            | yes      | `Full-time` / `Part-time` / `Contract`                                              |
+| `work_location`        | yes      | `On-site` / `Hybrid` / `Remote`                                                      |
+| `organization_unit_id` | yes      | Must exist in the current organization structure                                    |
+| `role_family`          | yes      | `SE` `QE` `BA` `PM` `XD` `DA` `IO` `MC` `PD`                                         |
+| `level`                | yes      | `N` `J` `R` `S` `X` `T`                                                              |
+| `stage`                | yes      | `1`–`3`; `N`, `X` and `T` admit only stage `1`                                       |
+| `employment_status`    | no       | `active` (default) / `on-leave` / `terminated`                                      |
+| `birth_date`           | no       | `YYYY-MM-DD`                                                                         |
+| `gender`               | no       | Free text                                                                            |
+| `specialization`       | no       | One of the role family's configured specializations; an empty cell means a generalist |
+| `starting_date`        | no       | `YYYY-MM-DD`                                                                         |
+
+Enum columns are matched case-insensitively after trimming (`full time`, `FULL-TIME` and `Full-time` all match), but
+never guessed at: a value that still does not match is rejected with the permitted values named, rather than mapped
+to the closest one.
+
+**Encoding and delimiter.** The file must be valid UTF-8 — an undecodable byte (e.g. a Windows-1251/CP1251 export of
+Cyrillic names) fails the whole file rather than writing corrupted names. The delimiter (`,` or the `;` a
+European-locale Excel export uses) is auto-detected from the header row; override it with `--delimiter ";"` if
+detection ever picks the wrong one.
+
+**Leading zeros.** If `employee_id` carries a leading zero (`00123`), opening the CSV in Excel and saving it again
+silently strips it — and the importer then reconciles that row against a *different* employee, with no error from
+anywhere in the pipeline to catch it. Prepare and edit the export with a text editor, or a spreadsheet with the
+column explicitly formatted as text, never a spreadsheet's default cell format. This is also why `--template` emits
+a bare header rather than a filled-in example: so a bulk edit does not start from, and get silently laundered
+through, a spreadsheet.
+
+**Dry run first, always.** Without `--apply`, the CLI only prints the plan — how many records it would create,
+update, or leave unchanged, every rejection, and every employee on record in Redis but missing from the file. Nothing
+is written. Resolve whatever is rejected and dry-run again until the plan is clean, or until only expected
+rejections remain, before ever passing `--apply`:
+
+```bash
+node bin/build/import-organization.js --file /tmp/employees.csv                 # dry run — prints the plan, writes nothing
+node bin/build/import-organization.js --file /tmp/employees.csv --apply         # writes
+node bin/build/import-organization.js --file /tmp/employees.csv --delimiter ";" # override delimiter detection
+```
+
+**Restart the application after `--apply`.** Every org-chart rebuild and login email-index rebuild happens
+in-process, inside the running server. This CLI is a separate process writing straight to Redis, so it cannot
+trigger either one. Until you restart, an employee this run just wrote is in the store but invisible to the running
+app — missing from the org chart and unable to sign in.
+
+**Back up Redis before you `--apply` (§15) — an import has no rollback.** Applying is audited like any other
+change, but employee records are not versioned the way store-backed configuration is, so there is no restore
+action to undo one. Take a fresh Redis backup immediately before every `--apply`, not only the first.
+
+**Exit codes** make a run scriptable: `0` — completed, nothing rejected; `1` — completed with one or more rows
+rejected (a dry run never writes regardless of the exit code; with `--apply`, only the rejected rows were left out);
+`2` — the run did not complete at all: the file itself was unusable, the Redis cache could not be reached (stderr
+names the required env vars), or an `--apply` failed partway through (stderr then reports how many records were
+written before it stopped, and which one didn't finish — see "no rollback" above).
+
+Three conditions fail the whole file rather than the one row responsible, because each means the wrong file was
+supplied rather than one flawed record among good ones: the file is not valid UTF-8, the header is missing a
+required column, or the header repeats a column (case-insensitively — `Note` and `NOTE` collide). All three exit `2`.
+
+**No personal data is ever printed.** A rejection is identified only by `employee_id` and its source line number —
+never a name, email, birth date or grade — because this runs against real HR data and a terminal or CI log is not a
+place for it.
+
+Three behaviors are worth understanding before the first real import:
+
+- **A leaver is marked `employment_status=terminated`, never removed from the file.** An employee who is in Redis
+  but missing from the CSV is reported as absent from the file and left completely untouched. A departure is never
+  inferred from an omission — a partial export would otherwise terminate half the organization.
+- **Reconciliation is keyed on `employee_id`, not email or name.** An employee who changes their name or email keeps
+  the same record, and with it their evaluation history — only a changed `employee_id` looks like a different
+  person to the importer.
+- **A blank optional cell means leave unchanged, not clear.** For `birth_date`, `gender` and `starting_date`, an
+  empty cell leaves whatever is already stored for that person exactly as it is — it does not erase it. This
+  importer cannot clear one of those three fields for someone; do that from Employee Management instead.
+  (`specialization` is different: an empty cell there is applied and does clear a previously-set specialization,
+  turning the person into a generalist.)
+
+### Unresolved-manager warnings
+
+On every startup, the app cross-checks each organization unit's `managerID` against the employee store and logs one
+`WARNING` per unit whose manager does not resolve to an active employee, for example:
+
+- `Organization unit '<unitID>' names manager '<managerID>', which does not resolve to an active employee (manager-not-found). That unit's employees have no manager, and nobody holds MANAGER over them.`
+
+The warning names only a unit ID and a manager ID — never a person's name. This diagnostic has no admin-screen
+surface; the startup log is the only place it currently appears.
+
+**Expect a screenful of these between applying the org tree and importing employees.** The tree must exist before
+an employee record can reference one of its units, so at that point in a fresh install no employee has been
+imported yet and every unit that names a manager will report unresolved. That is expected, not a sign that anything
+is broken — it clears once the matching employees are imported and the app is restarted.
+
+**A warning that survives *after* the employee import is a different matter — an access-control problem, not a
+cosmetic one.** Roles are derived from the org chart at login, so that unit's people genuinely have no MANAGER over
+them (and, depending on where the unit sits in the tree, possibly no SUPERVISOR either). Fix it by correcting the
+unit's `managerID` in **Administration → Configuration**, or by importing the employee it names if that employee
+is simply missing from the store.
 
 ---
 
@@ -424,6 +549,11 @@ reaches it once `deploy.sh` is re-run.
 3. `GET /health` returns `200` (body reports `broker: "connected"` once Redis is up).
 4. Through the proxy, `https://<host>/` returns the login screen showing your configured method(s) — e.g. the Azure button, and **no** local form under the default config; a sign-in via your provider reaches the dashboard.
 5. No `error`/`alert` severity lines in the logs (a *warning* about an unconfigured OAuth provider or a missing security hash key is informational — address the latter for production).
+6. **Once the org tree and employees are both loaded and the app has been restarted, no unresolved-manager
+   `WARNING` remains in the logs (§11).** A screenful was expected while the tree existed without employees;
+   checking only for `error`/`alert` severity in step 5 would pass a deployment where an entire unit's people have
+   no manager, because that finding is logged as a warning. Treat any that still appear as named units to fix, not
+   as noise.
 
 ---
 

@@ -4982,6 +4982,10 @@
       "invalid-email": {
         "en": "Email address is not valid.",
         "bg": "Невалиден имейл адрес."
+      },
+      "duplicate-email": {
+        "en": "Another employee already uses this email address. Emails must be unique — a shared address prevents both employees from signing in.",
+        "bg": "Друг служител вече използва този имейл адрес. Имейлите трябва да са уникални — споделен адрес спира достъпа и на двамата служители."
       }
     },
     "calendar": {
@@ -10121,6 +10125,12 @@
         "en": "People/team capabilities where the manager track is the peak (delegation, leadership, developing & motivating others)",
         "bg": "Способности за работа с хора и екипи, при които мениджърският път е пикът (делегиране, лидерство, развиване и мотивиране на други)."
       }
+    }
+  },
+  "organization": {
+    "structure": {
+      "en": "Organization Structure",
+      "bg": "Организационна структура"
     }
   }
 }

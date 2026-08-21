@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/organization-structure.json",
+  "title": "Organization Structure",
+  "description": "The organization unit tree, keyed by unit ID. Relational integrity (single root, parent/child symmetry, acyclicity) is enforced by semantic validators, not by this schema.",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "required": [ "id", "name", "type", "parent", "children" ],
+    "additionalProperties": false,
+    "properties": {
+      "id": { "type": "string", "minLength": 1, "description": "Unit identifier; must equal the map key" },
+      "name": { "type": "string", "minLength": 1, "description": "Unit name" },
+      "displayName": { "type": "string", "description": "Optional display override" },
+      "description": { "type": "string", "description": "Free-text description" },
+      "type": { "type": "string", "minLength": 1, "description": "Unit kind, e.g. Organization, Department, Unit" },
+      "branch": { "type": "string", "description": "Branch designation" },
+      "location": { "type": "string", "description": "Physical location" },
+      "managerID": { "type": [ "string", "null" ], "description": "Employee ID of the unit's manager; absent or null means a manager-less pass-through unit" },
+      "parent": { "type": [ "string", "null" ], "minLength": 1, "description": "Parent unit ID; null marks the single root — an empty string is neither and is rejected" },
+      "children": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Child unit IDs" }
+    }
+  }
+}

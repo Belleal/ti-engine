@@ -11,6 +11,7 @@ const localization = require( "@ti-engine/core/localization" );
 const logger = require( "@ti-engine/core/logger" );
 const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
+const organizationRules = require( "#organization-rules" );
 const roleResolver = require( "#role-resolver" );
 const { DirectedGraph } = require( "graphology" );
 
@@ -588,6 +589,34 @@ class OrganizationManager {
             return false;
         }
         return this.#organizationChart.hasNode( this.toEmployeeNodeID( employeeID ) );
+    }
+
+    /**
+     * Logs one WARNING per organization unit whose `managerID` names no employee, or names a terminated one. Such a
+     * unit's people silently have no manager and nobody gains MANAGER over them, so the condition must stay visible
+     * until it clears — on a container deployment nobody is watching an admin screen.
+     * <br/>
+     * Deliberately a diagnostic rather than a config validator: blocking the tree's save on employee data would
+     * deadlock a fresh install, where the tree must exist before an employee can reference its units. Every unit
+     * reporting at once is the *expected* state between loading the tree and importing employees.
+     * <br/>
+     * Never rejects — a diagnostic must not gate boot — and never logs a personal field.
+     *
+     * @method
+     * @returns {Promise<Array<{unitID: string, managerID: string, code: string}>>}
+     * @public
+     */
+    reportUnresolvedManagers() {
+        return dataManager.instance.fetchEmployees().then( ( employees ) => {
+            const findings = organizationRules.instance.findUnresolvedManagers( configurationLoader.configOrganizationStructure, employees );
+            findings.forEach( ( finding ) => {
+                logger.log( `Organization unit '${ finding.unitID }' names manager '${ finding.managerID }', which does not resolve to an active employee (${ finding.code }). That unit's employees have no manager, and nobody holds MANAGER over them.`, logger.logSeverity.WARNING );
+            } );
+            return findings;
+        } ).catch( ( error ) => {
+            logger.log( "Unable to check organization unit managers.", logger.logSeverity.WARNING, error );
+            return [];
+        } );
     }
 
     /* Private interface */

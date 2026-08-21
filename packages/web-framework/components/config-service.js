@@ -326,7 +326,7 @@ class ConfigService {
      *
      * @method
      * @param {string} configKey
-     * @returns {Promise<{configKey: string, status: string, counts: Object, entries: Array, storedVersion: number, editable: boolean, label: string}>}
+     * @returns {Promise<{configKey: string, status: string, counts: Object, entries: Array, storedVersion: number, editable: boolean, driftTracked: boolean, label: string}>}
      * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} If the document is not registered.
      * @public
      */
@@ -344,6 +344,7 @@ class ConfigService {
                 entries: diff.entries,
                 storedVersion: current ? current.version : 0,
                 editable: metadata.editable !== false,
+                driftTracked: metadata.driftTracked !== false,
                 label: metadata.label || configKey
             };
         } );
@@ -367,6 +368,7 @@ class ConfigService {
                 counts: drift.counts,
                 storedVersion: drift.storedVersion,
                 editable: drift.editable,
+                driftTracked: drift.driftTracked,
                 label: drift.label
             } ) );
         } ) );
