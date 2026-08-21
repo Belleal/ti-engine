@@ -465,9 +465,9 @@ is written. Resolve whatever is rejected and dry-run again until the plan is cle
 rejections remain, before ever passing `--apply`:
 
 ```bash
-node bin/build/import-organization.js --file employees.csv                 # dry run — prints the plan, writes nothing
-node bin/build/import-organization.js --file employees.csv --apply         # writes
-node bin/build/import-organization.js --file employees.csv --delimiter ";" # override delimiter detection
+node bin/build/import-organization.js --file /tmp/employees.csv                 # dry run — prints the plan, writes nothing
+node bin/build/import-organization.js --file /tmp/employees.csv --apply         # writes
+node bin/build/import-organization.js --file /tmp/employees.csv --delimiter ";" # override delimiter detection
 ```
 
 **Restart the application after `--apply`.** Every org-chart rebuild and login email-index rebuild happens

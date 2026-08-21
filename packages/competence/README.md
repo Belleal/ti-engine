@@ -1034,7 +1034,7 @@ All configuration lives in `bin/config/` as JSON, validated against the schemas 
 | `config.role-family-competencies.json`| The per-family competency pool (applicability universe)                                            | No (read-only; exportable)    |
 | `config.active-competency-sets.json`  | Per-cycle baseline + specialization competency selections                                          | Yes                           |
 | `config.stage-levels.json`            | The stage-level ladder (N/J/R/S/X/T and their stage counts)                                         | No (read-only)                |
-| `config.organization-structure.json`  | The organization chart (units + employees) used to resolve managers                                | Yes (store-backed)            |
+| `config.organization-structure.json`  | The organization unit tree and each unit's manager reference. Employee records live in Redis, managed via Employee Management or the importer | Yes (store-backed)            |
 
 The competency dictionary, the relevancy archetypes, and the per-family pool are generated from the source-of-truth design documents in `design/` by `bin/build/build-competency-relevancy.js`; hand-edit those documents and re-run the build rather than editing the generated files directly.
 

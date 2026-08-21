@@ -4,10 +4,10 @@
 |---|---|
 | **Date** | 2026-08-19 |
 | **Packages** | `packages/competence`, plus a small `packages/web-framework` addition (see §5.2) |
-| **Status** | Approved (brainstorming) — pending spec review |
+| **Status** | Implemented — open as [PR #130](https://github.com/Belleal/ti-engine/pull/130) |
 | **Version targets** | competence `3.21.1` → `3.22.0` (minor); web-framework `1.24.2` → `1.25.0` (minor) |
 | **Author** | Boris Kostadinov (with Claude) |
-| **Tracking** | YouTrack `CA-###` — to be created (subtask of the organization/identity epic) |
+| **Tracking** | YouTrack [`CA-107`](https://belleal.youtrack.cloud/issue/CA-107) (subtask of `CA-6` Employee & Organization Management) |
 
 ---
 
@@ -113,7 +113,19 @@ Register it alongside the existing eight in `config-registration.js`, add it to 
 | `orgSingleRoot` | Zero or more than one unit with `parent: null` | yes |
 | `orgParentChildSymmetry` | A `children` entry that does not name this unit as its `parent`, and the converse | yes |
 | `orgNoCycles` | Any cycle reachable through `children` | yes |
+| `orgIdMatchesKey` | A unit whose `id` differs from its own map key | yes |
 | `orgManagerResolves` | A `managerID` that names no employee, or names a `terminated` one | **no — reported** |
+
+> **Corrected after implementation (CA-107 whole-branch review).** A fourth blocking validator shipped:
+> `orgIdMatchesKey` (`organizationIdMatchesKey` in `config-validators.js`, tested in
+> `test/organization-structure-config.test.js`), added to the table above. It rejects a unit whose `id` differs
+> from its own map key. The schema's `id` property already documents this constraint in its description, but JSON
+> Schema has no way to express "this property's value equals its property name", so the constraint was documented
+> and unenforced until this validator closed the gap. It also removes a real ambiguity in the reporting layer:
+> `organization-rules.findCycles` identifies a finding by its raw map key, while the other three structural rules
+> report `unit.id || rawID` — the two name different things only when they disagree, which is exactly the case
+> this validator now closes off. The implementation plan documented this validator from the start; this spec did
+> not, and is corrected here to match.
 
 #### 5.1.1 Why `orgManagerResolves` reports rather than blocks
 
