@@ -391,8 +391,13 @@ function run() {
         return Promise.resolve( 2 );
     }
 
-    const rows = organizationImport.instance.parseDelimited( text, args.delimiter ? { delimiter: args.delimiter } : undefined );
-    const { header, records } = organizationImport.instance.toRecords( rows );
+    // withLines: true so a rejection can name the row's true physical source line (see toRecords below) rather
+    // than its position among the parsed rows, which diverges from that line whenever the file has a blank line
+    // or a quoted embedded newline ahead of the row in question.
+    const parsed = organizationImport.instance.parseDelimited(
+        text, Object.assign( { withLines: true }, args.delimiter ? { delimiter: args.delimiter } : {} )
+    );
+    const { header, records } = organizationImport.instance.toRecords( parsed.rows, parsed.lines );
 
     const missing = organizationImport.instance.COLUMNS.required.filter( ( column ) => !header.includes( column ) );
     if ( missing.length > 0 ) {

@@ -99,24 +99,42 @@ class OrganizationImport {
      * quote at end of input is treated as implicitly closed rather than rejected, so a malformed trailing quote
      * does not raise an error — it simply ends the field (and record) where the input does. Values are returned
      * verbatim — no trimming — so a leading zero in an ID survives. Pure.
+     * <br/>
+     * `options.withLines` is additive and opt-in, and changes the return shape (see `@returns`) only when set. The
+     * default (omitted or falsy) is byte-identical to every prior release — the 22 tests in
+     * `organization-import.parse.test.js` pin exactly that. When set, the return also carries the 1-based physical
+     * line in `text` on which each returned row STARTS. A row is one physical line only when it contains no quoted
+     * embedded newline; blank lines are skipped exactly as in the default mode, so two rows that are adjacent in
+     * the returned array are not necessarily on adjacent physical lines. This is what lets a caller (`toRecords`,
+     * and the CLI beyond it) name a rejection by its true source line rather than by its position in this array.
      *
      * @method
      * @param {string} text
      * @param {Object} [options]
      * @param {string} [options.delimiter] - Overrides auto-detection.
-     * @returns {Array<Array<string>>}
+     * @param {boolean} [options.withLines] - When true, returns `{ rows, lines }` instead of `rows` alone.
+     * @returns {Array<Array<string>>|{rows: Array<Array<string>>, lines: Array<number>}}
      * @public
      */
     parseDelimited( text, options ) {
         const opts = options || {};
         const source = this.#stripBOM( String( text == null ? "" : text ) );
         const delimiter = opts.delimiter || this.detectDelimiter( source );
+        const withLines = !!opts.withLines;
 
         const rows = [];
+        const lines = [];
         let record = [];
         let field = "";
         let inQuotes = false;
         let dirty = false;
+        // 1-based, mirroring how every editor and error message counts lines. `currentLine` advances on every
+        // literal "\n" consumed, whether inside a quoted field or not — a physical newline is a physical newline
+        // either way. `recordStartLine` is only ever set once per record: at the moment the PREVIOUS record ended
+        // (or at the very start of the text), so a newline swallowed by a quoted field mid-record advances
+        // `currentLine` without moving the start line already captured for that record.
+        let currentLine = 1;
+        let recordStartLine = 1;
 
         const endField = () => {
             record.push( field );
@@ -126,9 +144,13 @@ class OrganizationImport {
             endField();
             if ( dirty ) {
                 rows.push( record );
+                if ( withLines ) {
+                    lines.push( recordStartLine );
+                }
             }
             record = [];
             dirty = false;
+            recordStartLine = currentLine;
         };
 
         for ( let i = 0; i < source.length; i++ ) {
@@ -143,6 +165,9 @@ class OrganizationImport {
                     }
                 } else {
                     field += character;
+                    if ( character === "\n" ) {
+                        currentLine++;
+                    }
                 }
                 dirty = true;
                 continue;
@@ -154,6 +179,7 @@ class OrganizationImport {
                 endField();
                 dirty = true;
             } else if ( character === "\n" ) {
+                currentLine++;
                 endRecord();
             } else if ( character !== "\r" ) {
                 field += character;
@@ -164,32 +190,44 @@ class OrganizationImport {
         }
         endRecord();
 
-        return rows;
+        return withLines ? { rows: rows, lines: lines } : rows;
     }
 
     /**
      * Turns parsed rows into objects keyed by the trimmed, lower-cased header cells. Field values pass through
      * verbatim — no trimming or case-folding — the same as `parseDelimited` returns them; that asymmetry between
-     * header and value handling is deliberate, e.g. a leading zero in an employee ID must survive. Each
-     * record carries a `__row` property holding its 1-based line number in the source file, so a rejection can
-     * name the row without echoing any of its contents. A short row is padded rather than dropped, so it still
-     * reports its own missing fields. Pure.
+     * header and value handling is deliberate, e.g. a leading zero in an employee ID must survive. A short row is
+     * padded rather than dropped, so it still reports its own missing fields. Pure.
+     * <br/>
+     * Each record carries a `__row` property so a rejection can name its row without echoing any of its contents.
+     * Without `lines`, `__row` is this record's 1-based position within `rows` — which, because `parseDelimited`
+     * skips blank lines and collapses a quoted embedded newline into the one row it belongs to, is generally NOT
+     * the same as the physical line in the source file. Pass `lines` — the parallel array from
+     * `parseDelimited( text, { withLines: true } ).lines` — to get the true physical line instead: `__row` then
+     * holds `lines[ i ]` for the row at index `i` (falling back to the row's position wherever `lines` is absent
+     * or short, so this stays defensive rather than throwing on a mismatched array). A caller that needs the true
+     * source line for operator-facing output — the import CLI is the reason this exists — must parse with
+     * `withLines: true` and pass the resulting `lines` through here; omitting it keeps the original, row-position
+     * behaviour byte-identical.
      *
      * @method
      * @param {Array<Array<string>>} rows
+     * @param {Array<number>} [lines] - Physical start line per row, from `parseDelimited`'s `withLines` mode.
+     *   Aligned by index with `rows`, header included. Omit to keep `__row` as the record's position within `rows`.
      * @returns {{header: Array<string>, records: Array<Object>}}
      * @public
      */
-    toRecords( rows ) {
+    toRecords( rows, lines ) {
         const list = Array.isArray( rows ) ? rows : [];
         if ( list.length === 0 ) {
             return { header: [], records: [] };
         }
         const header = ( list[ 0 ] || [] ).map( ( cell ) => String( cell == null ? "" : cell ).trim().toLowerCase() );
+        const lineStarts = Array.isArray( lines ) ? lines : [];
         const records = [];
         for ( let i = 1; i < list.length; i++ ) {
             const row = list[ i ] || [];
-            const record = { __row: i + 1 };
+            const record = { __row: ( lineStarts[ i ] !== undefined ) ? lineStarts[ i ] : i + 1 };
             header.forEach( ( key, index ) => {
                 record[ key ] = String( row[ index ] == null ? "" : row[ index ] );
             } );
