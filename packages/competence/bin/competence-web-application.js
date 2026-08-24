@@ -4141,12 +4141,12 @@ class CompetenceWebApplication extends TiWebAppManager {
         const { employees, errors } = organizationImport.instance.mapRows( records );
 
         // Row -> raw employee_id, so a mapping-stage error (which knows only its row number -- mapRow rejects
-        // before ever building an Employee) can still be labeled by the row's real employee_id. Mirrors
-        // bin/build/import-organization.js's mapRowsToEmployeeIDs/toMappingRejection exactly (CA-107 review
-        // findings 2 and 3): falling back to the error's row number alone would silently re-report every
-        // mapping-stage rejection as "(unmapped)", and would stop a mapping-rejected row's still-stored id from
-        // being excluded from `absent` below.
-        const rowEmployeeIDs = new Map( records.map( ( record ) => [ record.__row, String( record.employee_id == null ? "" : record.employee_id ).trim() ] ) );
+        // before ever building an Employee) can still be labeled by the row's real employee_id. Shares
+        // OrganizationImport#mapRowsToEmployeeIDs/#toMappingRejection/#excludeMappingErrorsFromAbsent with the
+        // operator CLI rather than mirroring them (CA-107 review findings 2 and 3): falling back to the error's row
+        // number alone would silently re-report every mapping-stage rejection as "(unmapped)", and would stop a
+        // mapping-rejected row's still-stored id from being excluded from `absent` below.
+        const rowEmployeeIDs = organizationImport.instance.mapRowsToEmployeeIDs( records );
 
         return dataManager.instance.fetchEmployees().then( ( existing ) => {
             const plan = organizationImport.instance.reconcile( employees, existing, {
@@ -4156,19 +4156,10 @@ class CompetenceWebApplication extends TiWebAppManager {
 
             // Mapping errors never reached reconcile, so merge them into one list the operator can read as the whole
             // truth — and drop their ids from `absent`, which would otherwise advise terminating an employee whose
-            // row is present but unmapped. Mirrors the CLI exactly.
-            const mappingRejections = errors.map( ( error ) => {
-                const rawID = rowEmployeeIDs.get( error.row );
-                return {
-                    employeeID: rawID ? rawID : "(unmapped)",
-                    row: error.row,
-                    code: error.code,
-                    message: `${ error.column }: ${ error.message }`
-                };
-            } );
-            const mappedIDs = new Set( mappingRejections.map( ( entry ) => entry.employeeID ).filter( ( id ) => id !== "(unmapped)" ) );
+            // row is present but unmapped. Shares the merge logic with the CLI exactly.
+            const mappingRejections = errors.map( ( error ) => organizationImport.instance.toMappingRejection( error, rowEmployeeIDs ) );
             plan.rejected = mappingRejections.concat( plan.rejected );
-            plan.absent = plan.absent.filter( ( id ) => !mappedIDs.has( id ) );
+            plan.absent = organizationImport.instance.excludeMappingErrorsFromAbsent( plan.absent, mappingRejections );
             return plan;
         } );
     }

@@ -359,6 +359,76 @@ class OrganizationImport {
     }
 
     /**
+     * Builds a `row number → raw employee_id` lookup from the parsed records, so a mapping-stage rejection — whose
+     * error object carries only the row number and column (see {@link OrganizationImport#mapRow}) — can still be
+     * labeled by the id the operator actually put in that row, and so that same id can be reconciled against
+     * `plan.absent` (see {@link OrganizationImport#excludeMappingErrorsFromAbsent} below). Shared by every driver
+     * (the CLI and the employee-import screen) so the row→id lookup is defined exactly once. Pure.
+     *
+     * @method
+     * @param {Array<Object>} records - From {@link OrganizationImport#toRecords}.
+     * @returns {Map<number, string>} Row number → trimmed `employee_id` (empty string when the cell itself was blank).
+     * @public
+     */
+    mapRowsToEmployeeIDs( records ) {
+        const byRow = new Map();
+        for ( const record of ( Array.isArray( records ) ? records : [] ) ) {
+            byRow.set( record.__row, String( record.employee_id == null ? "" : record.employee_id ).trim() );
+        }
+        return byRow;
+    }
+
+    /**
+     * Turns one mapping-stage error into the same rejection shape {@link OrganizationImport#reconcile} produces,
+     * labeled by the row's real `employee_id` whenever the row provided one. `mapRow` rejects before ever building
+     * an `Employee`, so its error carries only the row number, not the id — even though the raw CSV cell is sitting
+     * right there in the source record. Falls back to `'(unmapped)'` only when the id is genuinely absent (e.g. the
+     * row failed on the empty `employee_id` column itself), never for any other reason. The raw value is printed
+     * verbatim: it is an identifier the operator supplied, not personal data, and no other cell is ever surfaced.
+     * Pure.
+     *
+     * @method
+     * @param {Object} error - One entry from {@link OrganizationImport#mapRows}'s `errors`.
+     * @param {Map<number, string>} rowEmployeeIDs - From {@link OrganizationImport#mapRowsToEmployeeIDs}.
+     * @returns {Object}
+     * @public
+     */
+    toMappingRejection( error, rowEmployeeIDs ) {
+        const rawID = rowEmployeeIDs.get( error.row );
+        return {
+            employeeID: rawID ? rawID : "(unmapped)",
+            row: error.row,
+            code: error.code,
+            message: `${ error.column }: ${ error.message }`
+        };
+    }
+
+    /**
+     * Removes from `absent` every id a mapping-stage rejection already accounts for. A row that fails mapping never
+     * becomes an `Employee`, so it never reaches {@link OrganizationImport#reconcile} and its id is never added to
+     * reconcile's own seenIDs; when that same id also belongs to a currently-stored employee, reconcile reports it
+     * as "absent from the file" even though the row is right there, just rejected at an earlier stage. Left alone,
+     * the plan would tell the operator to terminate a leaver right next to a rejection naming that same
+     * employee_id. This lives here rather than inside reconcile() because reconcile() is a verified pure function
+     * that correctly knows nothing about rows that never reached it — the two lists only disagree once a driver
+     * merges the mapping errors in, so this is where the disagreement must be resolved too. Pure.
+     *
+     * @method
+     * @param {Array<string>} absent - `plan.absent`, from {@link OrganizationImport#reconcile}.
+     * @param {Array<Object>} mappingRejections - From {@link OrganizationImport#toMappingRejection}.
+     * @returns {Array<string>}
+     * @public
+     */
+    excludeMappingErrorsFromAbsent( absent, mappingRejections ) {
+        const mappingErrorIDs = new Set(
+            ( Array.isArray( mappingRejections ) ? mappingRejections : [] )
+                .map( ( rejection ) => rejection.employeeID )
+                .filter( ( id ) => id !== "(unmapped)" )
+        );
+        return ( Array.isArray( absent ) ? absent : [] ).filter( ( id ) => !mappingErrorIDs.has( id ) );
+    }
+
+    /**
      * Whether the file's text shows evidence of a decoding failure. Node's `'utf8'` decoding substitutes U+FFFD for
      * an undecodable byte instead of throwing, so a CP1251 export of Cyrillic names arrives as a string full of
      * replacement characters rather than as an error — and would otherwise be written to the store as mojibake.

@@ -233,10 +233,10 @@ function applyWithProgress( plan ) {
 }
 
 /**
- * Builds a `row number → raw employee_id` lookup from the parsed records, so a mapping-stage rejection — whose
- * error object carries only the row number and column (see {@link OrganizationImport#mapRow}) — can still be
- * labeled by the id the operator actually put in that row, and so that same id can be reconciled against
- * `plan.absent` (see {@link excludeMappingErrorsFromAbsent} below). Pure.
+ * Builds a `row number → raw employee_id` lookup from the parsed records. Delegates to
+ * {@link OrganizationImport#mapRowsToEmployeeIDs} — see its JSDoc for the full rationale. Kept as a named export
+ * here (rather than calling the module directly from {@link runAgainstStore}) because `import-organization-cli.test.js`
+ * imports it by this name.
  *
  * @method
  * @param {Array<Object>} records - From {@link OrganizationImport#toRecords}.
@@ -244,20 +244,13 @@ function applyWithProgress( plan ) {
  * @private
  */
 function mapRowsToEmployeeIDs( records ) {
-    const byRow = new Map();
-    for ( const record of ( Array.isArray( records ) ? records : [] ) ) {
-        byRow.set( record.__row, String( record.employee_id == null ? "" : record.employee_id ).trim() );
-    }
-    return byRow;
+    return organizationImport.instance.mapRowsToEmployeeIDs( records );
 }
 
 /**
- * Turns one mapping-stage error into the same rejection shape {@link OrganizationImport#reconcile} produces,
- * labeled by the row's real `employee_id` whenever the row provided one. `mapRow` rejects before ever building an
- * `Employee`, so its error carries only the row number, not the id — even though the raw CSV cell is sitting right
- * there in the source record. Falls back to `'(unmapped)'` only when the id is genuinely absent (e.g. the row
- * failed on the empty `employee_id` column itself), never for any other reason. The raw value is printed verbatim:
- * it is an identifier the operator supplied, not personal data, and no other cell is ever surfaced. Pure.
+ * Turns one mapping-stage error into the same rejection shape {@link OrganizationImport#reconcile} produces.
+ * Delegates to {@link OrganizationImport#toMappingRejection} — see its JSDoc for the full rationale. Kept as a
+ * named export here because `import-organization-cli.test.js` imports it by this name.
  *
  * @method
  * @param {Object} error - One entry from {@link OrganizationImport#mapRows}'s `errors`.
@@ -266,24 +259,13 @@ function mapRowsToEmployeeIDs( records ) {
  * @private
  */
 function toMappingRejection( error, rowEmployeeIDs ) {
-    const rawID = rowEmployeeIDs.get( error.row );
-    return {
-        employeeID: rawID ? rawID : "(unmapped)",
-        row: error.row,
-        code: error.code,
-        message: `${ error.column }: ${ error.message }`
-    };
+    return organizationImport.instance.toMappingRejection( error, rowEmployeeIDs );
 }
 
 /**
- * Removes from `absent` every id a mapping-stage rejection already accounts for. A row that fails mapping never
- * becomes an `Employee`, so it never reaches {@link OrganizationImport#reconcile} and its id is never added to
- * reconcile's own seenIDs; when that same id also belongs to a currently-stored employee, reconcile reports it as
- * "absent from the file" even though the row is right there, just rejected at an earlier stage. Left alone, the
- * plan would tell the operator to terminate a leaver right next to a rejection naming that same employee_id. This
- * lives here rather than inside reconcile() because reconcile() is a verified pure function that correctly knows
- * nothing about rows that never reached it — the two lists only disagree once the CLI merges the mapping errors
- * in, so this is where the disagreement must be resolved too. Pure.
+ * Removes from `absent` every id a mapping-stage rejection already accounts for. Delegates to
+ * {@link OrganizationImport#excludeMappingErrorsFromAbsent} — see its JSDoc for the full rationale. Kept as a named
+ * export here because `import-organization-cli.test.js` imports it by this name.
  *
  * @method
  * @param {Array<string>} absent - `plan.absent`, from {@link OrganizationImport#reconcile}.
@@ -292,12 +274,7 @@ function toMappingRejection( error, rowEmployeeIDs ) {
  * @private
  */
 function excludeMappingErrorsFromAbsent( absent, mappingRejections ) {
-    const mappingErrorIDs = new Set(
-        ( Array.isArray( mappingRejections ) ? mappingRejections : [] )
-            .map( ( rejection ) => rejection.employeeID )
-            .filter( ( id ) => id !== "(unmapped)" )
-    );
-    return ( Array.isArray( absent ) ? absent : [] ).filter( ( id ) => !mappingErrorIDs.has( id ) );
+    return organizationImport.instance.excludeMappingErrorsFromAbsent( absent, mappingRejections );
 }
 
 /**
