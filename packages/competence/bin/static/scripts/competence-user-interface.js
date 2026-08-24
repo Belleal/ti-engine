@@ -6141,6 +6141,7 @@ function configureEmployeeImport() {
         fileName: "",
         busy: false,
         error: "",
+        errorDetail: "",
         plan: null,
         confirming: false,
 
@@ -6148,6 +6149,7 @@ function configureEmployeeImport() {
             this.csv = "";
             this.fileName = "";
             this.error = "";
+            this.errorDetail = "";
             this.plan = null;
             this.confirming = false;
         },
@@ -6180,11 +6182,12 @@ function configureEmployeeImport() {
             }
             this.busy = true;
             this.error = "";
+            this.errorDetail = "";
             tiApplication.sendRequest( "/app/preview-employee-import", "POST", { csv: this.csv } ).then( ( result ) => {
                 this.plan = ( result && result.data ) ? result.data : null;
             } ).catch( ( error ) => {
                 this.plan = null;
-                this.error = tiApplication.formatException( error );
+                this.applyError( error );
             } ).finally( () => {
                 this.busy = false;
             } );
@@ -6208,10 +6211,29 @@ function configureEmployeeImport() {
                     details: this.appliedSummary()
                 } );
             } ).catch( ( error ) => {
-                this.error = tiApplication.formatException( error );
+                this.applyError( error );
             } ).finally( () => {
                 this.busy = false;
             } );
+        },
+
+        // Splits formatException's `{ message, details }` into the two fields the fragment renders on separate
+        // lines, then folds in the offending column names the handler attaches for a missing/duplicate header
+        // (error.exception.data.columns) so the operator is told which columns, not just that the header is bad.
+        // Guarded because most exceptions carry no columns at all.
+        applyError( error ) {
+            const formatted = tiApplication.formatException( error );
+            this.error = formatted.message;
+            this.errorDetail = this.describeErrorColumns( error, formatted.details );
+        },
+
+        describeErrorColumns( error, details ) {
+            const data = error && error.exception && error.exception.data;
+            const columns = ( data && Array.isArray( data.columns ) ) ? data.columns : [];
+            if ( columns.length === 0 ) {
+                return details;
+            }
+            return details + ": " + columns.join( ", " );
         },
 
         // Alpine's CSP build cannot call Array/Object inside a template expression, so every derived value the

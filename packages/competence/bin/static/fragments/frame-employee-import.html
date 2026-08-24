@@ -16,39 +16,18 @@
             <div class="ti-panel-head-text">
                 <div class="ti-panel-title" x-text-label="interface.employee-import.choose">Choose CSV file</div>
                 <div class="ti-panel-subtitle">
-                    <template x-if="fileName">
+                    <template x-if="hasPlan()">
+                        <span x-text="pendingSummary()"></span>
+                    </template>
+                    <template x-if="!hasPlan() && fileName">
                         <span x-text="fileName"></span>
                     </template>
-                    <template x-if="!fileName">
+                    <template x-if="!hasPlan() && !fileName">
                         <span x-text-label="interface.employee-import.no-file">No file chosen</span>
                     </template>
                 </div>
             </div>
-        </div>
-        <div class="competence-panel-body">
-            <p class="ti-panel-body-intro" x-text-label="interface.employee-import.export-hint">Export from the template with File &gt; Save As &gt; CSV UTF-8. Another encoding stores names incorrectly and is refused.</p>
-            <div class="ti-form-row">
-                <input class="ti-input" type="file" accept=".csv,text/csv" x-bind:disabled="busy" @change="chooseFile($event)">
-            </div>
-            <template x-if="busy">
-                <p class="ti-form-hint" x-text-label="interface.employee-import.working">Working…</p>
-            </template>
-            <template x-if="error">
-                <p class="ti-form-error" x-text="error"></p>
-            </template>
-        </div>
-    </section>
-
-    <template x-if="hasPlan()">
-        <section class="ti-panel">
-            <div class="ti-panel-head bar">
-                <div class="ti-panel-head-icon">
-                    <span class="ti-icon check-clipboard md" aria-hidden="true"></span>
-                </div>
-                <div class="ti-panel-head-text">
-                    <div class="ti-panel-title" x-text-label="interface.employee-import.plan-title">Import plan</div>
-                    <div class="ti-panel-subtitle" x-text="pendingSummary()"></div>
-                </div>
+            <template x-if="hasPlan()">
                 <div class="ti-panel-head-aside">
                     <template x-if="canApply()">
                         <button class="ti-btn primary" type="button" @click="beginApply()" x-text-label="interface.employee-import.apply">Apply import</button>
@@ -57,9 +36,30 @@
                         <span class="ti-status-pill success" x-text="appliedSummary()"></span>
                     </template>
                 </div>
-            </div>
-            <div class="competence-panel-body">
+            </template>
+        </div>
 
+        <p class="ti-panel-body-intro" x-text-label="interface.employee-import.export-hint">Export from the template with File &gt; Save As &gt; CSV UTF-8. Another encoding stores names incorrectly and is refused.</p>
+
+        <div class="ti-form-row">
+            <input class="ti-input" type="file" accept=".csv,text/csv" x-bind:disabled="busy" @change="chooseFile($event)">
+        </div>
+
+        <template x-if="busy">
+            <p class="ti-form-hint" x-text-label="interface.employee-import.working">Working…</p>
+        </template>
+
+        <template x-if="error">
+            <div>
+                <p class="ti-form-error" x-text="error"></p>
+                <template x-if="errorDetail">
+                    <p class="ti-form-hint" x-text="errorDetail"></p>
+                </template>
+            </div>
+        </template>
+
+        <template x-if="hasPlan()">
+            <div>
                 <template x-if="plan.rejections.length > 0">
                     <div>
                         <div class="ti-kv-label" x-text-label="interface.employee-import.rejections-title">Rejected rows</div>
@@ -79,10 +79,9 @@
                         <p class="ti-kv-value" x-text="absentSummary()"></p>
                     </div>
                 </template>
-
             </div>
-        </section>
-    </template>
+        </template>
+    </section>
 
     <template x-if="confirming">
         <div class="ti-modal-backdrop">
