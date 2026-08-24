@@ -39,48 +39,50 @@
             </template>
         </div>
 
-        <p class="ti-panel-body-intro" x-text-label="interface.employee-import.export-hint">Export from the template with File &gt; Save As &gt; CSV UTF-8. Another encoding stores names incorrectly and is refused.</p>
+        <div class="competence-panel-body">
+            <p class="ti-form-hint" x-text-label="interface.employee-import.export-hint">Export from the template with File &gt; Save As &gt; CSV UTF-8. Another encoding stores names incorrectly and is refused.</p>
 
-        <div class="ti-form-row">
-            <input class="ti-input" type="file" accept=".csv,text/csv" x-bind:disabled="busy" @change="chooseFile($event)">
+            <div class="ti-form-row">
+                <input class="ti-input" type="file" accept=".csv,text/csv" x-bind:disabled="busy" @change="chooseFile($event)">
+            </div>
+
+            <template x-if="busy">
+                <p class="ti-form-hint" x-text-label="interface.employee-import.working">Working…</p>
+            </template>
+
+            <template x-if="error">
+                <div>
+                    <p class="ti-form-error" x-text="error"></p>
+                    <template x-if="errorDetail">
+                        <p class="ti-form-hint" x-text="errorDetail"></p>
+                    </template>
+                </div>
+            </template>
+
+            <template x-if="hasPlan()">
+                <div>
+                    <template x-if="plan.rejections.length > 0">
+                        <div>
+                            <div class="ti-kv-label" x-text-label="interface.employee-import.rejections-title">Rejected rows</div>
+                            <p class="ti-form-hint" x-text-label="interface.employee-import.rejections-intro">Fix these in the spreadsheet and upload again. Re-uploading is safe — rows already written come back as unchanged.</p>
+                            <ul class="ti-form-section">
+                                <template x-for="entry in plan.rejections" x-bind:key="entry.employeeID + ':' + entry.row">
+                                    <li class="ti-form-readonly" x-text="rejectionLabel(entry)"></li>
+                                </template>
+                            </ul>
+                        </div>
+                    </template>
+
+                    <template x-if="plan.absent.length > 0">
+                        <div>
+                            <div class="ti-kv-label" x-text-label="interface.employee-import.absent-title">In the system but not in this file</div>
+                            <p class="ti-form-hint" x-text-label="interface.employee-import.absent-intro">These are left untouched — a departure is never inferred from an omission. Mark a leaver with employment_status=terminated.</p>
+                            <p class="ti-kv-value" x-text="absentSummary()"></p>
+                        </div>
+                    </template>
+                </div>
+            </template>
         </div>
-
-        <template x-if="busy">
-            <p class="ti-form-hint" x-text-label="interface.employee-import.working">Working…</p>
-        </template>
-
-        <template x-if="error">
-            <div>
-                <p class="ti-form-error" x-text="error"></p>
-                <template x-if="errorDetail">
-                    <p class="ti-form-hint" x-text="errorDetail"></p>
-                </template>
-            </div>
-        </template>
-
-        <template x-if="hasPlan()">
-            <div>
-                <template x-if="plan.rejections.length > 0">
-                    <div>
-                        <div class="ti-kv-label" x-text-label="interface.employee-import.rejections-title">Rejected rows</div>
-                        <p class="ti-panel-body-intro" x-text-label="interface.employee-import.rejections-intro">Fix these in the spreadsheet and upload again. Re-uploading is safe — rows already written come back as unchanged.</p>
-                        <ul class="ti-form-section">
-                            <template x-for="entry in plan.rejections" x-bind:key="entry.employeeID + ':' + entry.row">
-                                <li class="ti-form-readonly" x-text="rejectionLabel(entry)"></li>
-                            </template>
-                        </ul>
-                    </div>
-                </template>
-
-                <template x-if="plan.absent.length > 0">
-                    <div>
-                        <div class="ti-kv-label" x-text-label="interface.employee-import.absent-title">In the system but not in this file</div>
-                        <p class="ti-panel-body-intro" x-text-label="interface.employee-import.absent-intro">These are left untouched — a departure is never inferred from an omission. Mark a leaver with employment_status=terminated.</p>
-                        <p class="ti-kv-value" x-text="absentSummary()"></p>
-                    </div>
-                </template>
-            </div>
-        </template>
     </section>
 
     <template x-if="confirming">
