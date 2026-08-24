@@ -9,6 +9,7 @@
 const { describe, it, before, beforeEach } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 
+const exceptions = require( "@ti-engine/core/exceptions" );
 const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
 
 let cacheStub;
@@ -28,6 +29,11 @@ const CSV_WITH_REJECT = CSV + "\n90003,mireille.aubertin@example.com,Mireille,Au
 
 const adminSession = () => ( { user: { userID: "admin@example.com", roles: [ "admin" ] } } );
 const employeeSession = () => ( { user: { userID: "1", employeeID: "1", roles: [ 1 ] } } );
+
+// Shaped exactly like IdentityResolver#applyIdentity's break-glass admin outcome once applyAdminRole has run:
+// employeeID null, no application roles, plus the framework's "admin" string role. userID is a real, attributable
+// framework identity throughout.
+const breakGlassAdminSession = () => ( { user: { userID: "admin@example.com", employeeID: null, roles: [ "admin" ] } } );
 
 before( () => {
     cacheStub = installInMemoryCache();
@@ -59,6 +65,32 @@ describe( "employee import screen — access", () => {
 
     it( "refuses apply to a session without the admin role", async () => {
         await assert.rejects( () => app.processServiceRequest( employeeSession(), "apply-employee-import", { csv: CSV } ) );
+    } );
+
+} );
+
+describe( "employee import screen — fail-closed session guard (CA-108 regression)", () => {
+
+    // #requireSessionUser briefly fell back to session.user.userID when employeeID was absent, so that a break-glass
+    // admin (no employee record by design) could reach an admin-gated import screen. The fix moved that fallback
+    // into its own #requireAdmin gate instead of loosening #requireSessionUser — which every OTHER employee-scoped
+    // handler still routes through. This pins that #requireSessionUser itself stays fail-closed: a session shaped
+    // exactly like that break-glass admin (employeeID: null, "admin" in roles, a real userID) must still be refused
+    // by a handler that gates on authentication alone, such as #loadEmployeeList (dispatched as "load-employee-list"
+    // and one of #requireSessionUser's 15 direct call sites) — never admitted with userID standing in for an
+    // employee identity. Asserting the specific 401/E_SEC_UNAUTHORIZED_ACCESS shape (rather than a bare "rejects")
+    // matters here: were the fallback reinstated, this same session would sail past the guard and fail later
+    // instead — e.g. a 404 while resolving an organization unit for the bogus "employeeID" — which would still
+    // reject, just not for the reason this test exists to pin.
+    it( "refuses a break-glass admin session (no employeeID) on an employee-scoped handler that gates on authentication alone", async () => {
+        await assert.rejects(
+            app.processDataRequest( breakGlassAdminSession(), "load-employee-list" ),
+            ( error ) => {
+                assert.equal( error.code, exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
+                assert.equal( error.httpCode, exceptions.httpCode.C_401 );
+                return true;
+            }
+        );
     } );
 
 } );

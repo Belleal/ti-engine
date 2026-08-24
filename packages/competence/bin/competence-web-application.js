@@ -4215,7 +4215,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #previewEmployeeImport( session, params ) {
         return new Promise( ( resolve, reject ) => {
-            this.#requireRole( session, "admin" );
+            this.#requireAdmin( session );
             this.#deriveImportPlan( params ? params.csv : "" ).then( ( plan ) => {
                 resolve( this.#projectImportPlan( plan, null ) );
             } ).catch( ( error ) => {
@@ -4238,7 +4238,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     #applyEmployeeImport( session, params ) {
         return new Promise( ( resolve, reject ) => {
-            const { userID } = this.#requireRole( session, "admin" );
+            const { userID } = this.#requireAdmin( session );
             this.#deriveImportPlan( params ? params.csv : "" ).then( ( plan ) => {
                 return organizationImport.instance.applyPlan( plan, {
                     save: ( employee ) => dataManager.instance.saveEmployee( employee ),
@@ -4709,11 +4709,7 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
-     * Extracts the authenticated user context from the session. `employeeID` is the acting identity for every
-     * employee-scoped call site and takes precedence; it falls back to `userID` (the raw framework login identity —
-     * `User#asJSON`, set before this app's own login hook runs) for a break-glass admin, who by design has no
-     * employee record (`IdentityResolver#applyIdentity` sets `employeeID: null` for that case) but always has a
-     * `userID` — the same field `admin-config-handlers.js` reads for its own audit attribution.
+     * Extracts the authenticated user context from the session.
      *
      * @method
      * @param {TiSession} session
@@ -4722,7 +4718,7 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @private
      */
     #requireSessionUser( session ) {
-        const userID = session?.user?.employeeID || session?.user?.userID;
+        const userID = session?.user?.employeeID;
         if ( !userID ) {
             throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
         }
@@ -4746,6 +4742,36 @@ class CompetenceWebApplication extends TiWebAppManager {
             throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
         }
         return context;
+    }
+
+    /**
+     * Gates an admin-only service and returns the acting administrator's framework identity.
+     * <br/>
+     * Deliberately NOT routed through {@link #requireSessionUser}, which demands an `employeeID` and refuses a
+     * session without one. That refusal is a fail-closed guard worth keeping for the employee-scoped handlers that
+     * depend on it — but it is wrong here: an identity on the deployment's admin allowlist may have no employee
+     * record at all (`IdentityResolver#applyIdentity` sets `employeeID` to null and `roles` to empty for exactly
+     * that case, before the framework's `applyAdminRole` adds the `admin` role), and it exists so a deployment with
+     * broken employee data can still be repaired. `userID` is the raw framework login identity (`User#asJSON`, set
+     * before this app's own login hook runs) — the same field `admin-config-handlers.js` reads for its own audit
+     * attribution.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {{ userID: string }}
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} (401) when unauthenticated, or (403) when authenticated but not an admin.
+     * @private
+     */
+    #requireAdmin( session ) {
+        const userID = session?.user?.userID;
+        if ( !userID ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+        }
+        const userRoles = Array.isArray( session?.user?.roles ) ? session.user.roles : [];
+        if ( !userRoles.includes( "admin" ) ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
+        }
+        return { userID };
     }
 
     /**
