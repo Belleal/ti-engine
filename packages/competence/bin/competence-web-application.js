@@ -325,7 +325,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "cycle-setup": "cycles",
                     "employee-management": "employee-management",
                     "admin-config": "administration",
-                    "employee-import": "administration",
+                    // Its own key, not "administration": this map decides which sidebar ITEM highlights, and
+                    // "administration" is Configuration's key. A sub-screen maps to its parent's key (see
+                    // "cycle-setup" and "competency-text-editor"); a top-level item maps to itself.
+                    "employee-import": "employee-import",
                     "competency-text-editor": "administration",
                     "archetype-assignment": "administration",
                     "archetype-editor": "administration",
