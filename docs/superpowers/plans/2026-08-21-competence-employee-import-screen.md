@@ -257,6 +257,7 @@ git commit -m "refactor(competence): share the whole-file import checks between 
 **Files:**
 - Modify: `packages/competence/bin/competence-web-application.js`
 - Create: `packages/competence/test/employee-import-screen.test.js`
+- Modify: `packages/competence/application/organization-import.js` and `packages/competence/bin/build/import-organization.js` — the three pure mapping-rejection helpers (`mapRowsToEmployeeIDs`, `toMappingRejection`, `excludeMappingErrorsFromAbsent`) move from the CLI onto the shared singleton so both drivers call one copy. Added after the task shipped with them reimplemented inline; recorded here so the declared scope matches what landed.
 
 **Interfaces:**
 - Consumes: `findEncodingFailure`, `findHeaderFailure` (Task 1); the existing `parseDelimited` / `toRecords` / `mapRows` / `reconcile` / `applyPlan`; `dataManager.instance.fetchEmployees` / `saveEmployee` / `appendAuditEntry`; `organizationManager.instance.buildOrganizationChart`.
@@ -916,7 +917,19 @@ The markup references one component method the component in Step 2 does not yet 
 
 **Before committing, verify every class and directive against a shipped fragment.** `ti-data-list`, `ti-status-pill`, `ti-form-error`, `ti-form-hint`, `ti-modal-backdrop` and the `upload` icon are used above because they follow the framework's naming, but confirm each exists in `packages/web-framework/bin/static/ti-framework.css` (and the competence stylesheet) and substitute the nearest real primitive where one does not. Do not invent a new CSS class to make the markup above work — prefer an existing primitive, and say in your report which substitutions you made.
 
-- [ ] **Step 4: Extend the fragment-binding guard**
+- [ ] **Step 4: Pin `absent` through the real handler**
+
+`#projectImportPlan` threads `plan.absent` into the payload, and the panel you just built renders it — but no test asserts it through the actual service. Every existing case checks `counts`, `rejections`, `applied` or the stored employees. If the threading is wrong the list silently renders empty and nothing fails.
+
+Add one case to `packages/competence/test/employee-import-screen.test.js`: seed an employee into the store, preview a CSV that does **not** contain that employee's `employee_id`, and assert the returned `absent` array contains exactly that id. Reuse the file's existing fixtures and session helpers rather than adding new ones.
+
+```bash
+node --test packages/competence/test/employee-import-screen.test.js
+```
+
+Expected: green, with the new case covering `absent`.
+
+- [ ] **Step 5: Extend the fragment-binding guard**
 
 `packages/competence/test/fragment-input-bindings.test.js` exists because three Written Feedback textareas silently dropped every keystroke — they bound a `ti-input` event that is never dispatched, and nothing caught it until a user reported lost input. This screen binds a **file input**, which is the same class of hazard: a wrong event name produces a control that looks fine and does nothing.
 
@@ -933,7 +946,7 @@ node --test packages/competence/test/fragment-input-bindings.test.js
 
 Expected: green, with the new assertions covering the new fragment.
 
-- [ ] **Step 5: Verify in a browser**
+- [ ] **Step 6: Verify in a browser**
 
 Bring the stack up and check the screen end to end. Docker is available; run `docker compose up --build` from the repo root and open `http://localhost:3000`.
 
@@ -948,7 +961,7 @@ Sign in as an identity listed in `TI_WEB_AUTH_ADMINS`, open Administration → E
 
 Capture a screenshot of the plan view. **Note:** a coordinate click can silently no-op in this environment — drive the walkthrough with `javascript_tool` `element.click()` rather than coordinate clicks.
 
-- [ ] **Step 6: Run the suite and lint**
+- [ ] **Step 7: Run the suite and lint**
 
 ```bash
 npm test -w @ti-engine/competence
@@ -960,10 +973,10 @@ npm run lint
 
 Expected: green, 0 lint errors.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add packages/competence/bin/static/fragments/frame-employee-import.html packages/competence/bin/static/scripts/competence-user-interface.js packages/competence/bin/competence-web-application.js
+git add packages/competence/bin/static/fragments/frame-employee-import.html packages/competence/test/employee-import-screen.test.js packages/competence/bin/static/scripts/competence-user-interface.js packages/competence/bin/competence-web-application.js
 git commit -m "feat(competence): add the employee import admin screen (CA-108)"
 ```
 
