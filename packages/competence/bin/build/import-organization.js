@@ -401,7 +401,7 @@ function run() {
         process.stderr.write( `Unable to read '${ args.file }': ${ error.message }\n` );
         return Promise.resolve( 2 );
     }
-    if ( text.includes( "�" ) ) {
+    if ( organizationImport.instance.findEncodingFailure( text ) ) {
         process.stderr.write( "The file is not valid UTF-8. Re-export it as UTF-8 — a Windows-1251 export would store names as mojibake.\n" );
         return Promise.resolve( 2 );
     }
@@ -414,19 +414,14 @@ function run() {
     );
     const { header, records } = organizationImport.instance.toRecords( parsed.rows, parsed.lines );
 
-    const missing = organizationImport.instance.COLUMNS.required.filter( ( column ) => !header.includes( column ) );
-    if ( missing.length > 0 ) {
-        process.stderr.write( `The header is missing required column(s): ${ missing.join( ", " ) }\n` );
+    const headerFailure = organizationImport.instance.findHeaderFailure( header );
+    if ( headerFailure && headerFailure.code === "missing-columns" ) {
+        process.stderr.write( `The header is missing required column(s): ${ headerFailure.columns.join( ", " ) }\n` );
         process.stderr.write( "Run with --template to see the expected header row.\n" );
         return Promise.resolve( 2 );
     }
-
-    // A duplicate header cell is whole-file fatal, not a per-row rejection. `toRecords` keys records by header
-    // cell, so two columns normalizing to the same key silently overwrite — the earlier column's data vanishes
-    // with no error anywhere. Detect it here rather than in `toRecords`, which has no channel to report it.
-    const duplicated = header.filter( ( column, index ) => column.length > 0 && header.indexOf( column ) !== index );
-    if ( duplicated.length > 0 ) {
-        process.stderr.write( `The header repeats column(s): ${ Array.from( new Set( duplicated ) ).join( ", " ) }\n` );
+    if ( headerFailure && headerFailure.code === "duplicate-columns" ) {
+        process.stderr.write( `The header repeats column(s): ${ headerFailure.columns.join( ", " ) }\n` );
         process.stderr.write( "Header names are matched case-insensitively after trimming, so 'Note' and 'NOTE' collide.\n" );
         return Promise.resolve( 2 );
     }

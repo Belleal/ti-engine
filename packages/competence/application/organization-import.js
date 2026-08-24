@@ -359,6 +359,48 @@ class OrganizationImport {
     }
 
     /**
+     * Whether the file's text shows evidence of a decoding failure. Node's `'utf8'` decoding substitutes U+FFFD for
+     * an undecodable byte instead of throwing, so a CP1251 export of Cyrillic names arrives as a string full of
+     * replacement characters rather than as an error — and would otherwise be written to the store as mojibake.
+     * Returns a code, not prose: each driver phrases it for its own audience. Pure.
+     *
+     * @method
+     * @param {string} [text]
+     * @returns {{code: string}|null}
+     * @public
+     */
+    findEncodingFailure( text ) {
+        return String( text == null ? "" : text ).includes( "�" ) ? { code: "not-utf8" } : null;
+    }
+
+    /**
+     * Whether the parsed header is unusable as a whole, as opposed to a row being invalid. Two conditions qualify,
+     * checked in this order:
+     *  - a required column is absent, so no row could ever be mapped;
+     *  - a column is repeated, which is fatal rather than per-row because {@link OrganizationImport#toRecords} keys
+     *    each record by header cell — two columns normalizing to the same key silently overwrite, and the earlier
+     *    column's data vanishes with no error anywhere.
+     * Empty header cells are ignored: a trailing delimiter produces them and they name nothing. Pure.
+     *
+     * @method
+     * @param {Array<string>} [header]
+     * @returns {{code: string, columns: Array<string>}|null}
+     * @public
+     */
+    findHeaderFailure( header ) {
+        const cells = Array.isArray( header ) ? header : [];
+        const missing = REQUIRED_COLUMNS.filter( ( column ) => !cells.includes( column ) );
+        if ( missing.length > 0 ) {
+            return { code: "missing-columns", columns: missing };
+        }
+        const duplicated = cells.filter( ( column, index ) => column.length > 0 && cells.indexOf( column ) !== index );
+        if ( duplicated.length > 0 ) {
+            return { code: "duplicate-columns", columns: Array.from( new Set( duplicated ) ) };
+        }
+        return null;
+    }
+
+    /**
      * Classifies every mapped employee against the current store, returning a plan rather than performing any write.
      * The plan is what makes dry-run free: the preview and the applied change come from this one function, so a
      * dry-run cannot diverge from what apply does. Pure.
