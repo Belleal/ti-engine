@@ -514,6 +514,25 @@ Three behaviors are worth understanding before the first real import:
   (`specialization` is different: an empty cell there is applied and does clear a previously-set specialization,
   turning the person into a generalist.)
 
+### The Employee Import screen
+
+**Administration → Employee Import** (admin-only) is the same importer without a shell. It accepts the same CSV,
+subject to the same column contract, encoding rule and reconciliation logic described above — the handler behind it
+calls the identical `organization-import` pipeline the CLI does, not a parallel implementation, so a file that is
+clean for one is clean for the other. Choosing a file previews the plan (counts, rejections, and everyone on record
+but absent from the file) without writing anything, the same as a dry run; **Apply import** then re-derives that
+same plan from the CSV on the server rather than trusting the one the browser is showing, and only then writes it.
+
+**An apply through the screen is exactly as irreversible as `--apply` — and the screen cannot take a Redis snapshot
+for you.** Back up Redis first (§15), exactly as you would before the CLI's `--apply`; neither path leaves a restore
+action to undo an import.
+
+**The one way it differs from the CLI: no restart.** The screen's apply runs inside the already-running server, so
+it rebuilds the organization chart and the login email index itself before returning — an imported employee is
+immediately reachable and can sign in without anyone restarting anything. Every org-chart rebuild call site is
+in-process; a CLI `--apply` writes to Redis from a separate process and has no way to trigger one, which is exactly
+why the CLI section above tells you to restart.
+
 ### Unresolved-manager warnings
 
 On every startup, the app cross-checks each organization unit's `managerID` against the employee store and logs one
