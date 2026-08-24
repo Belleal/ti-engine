@@ -92,6 +92,24 @@ describe( "employee import screen — preview", () => {
         assert.equal( rejection.row, 4 );
     } );
 
+    // CA-107's review (findings 2 and 3) fixed exactly this for the CLI: a mapping-stage error (raised inside
+    // mapRow, before an Employee ever exists) carries only the row number, not the id, even though the raw
+    // employee_id cell is sitting right there in the source row. Pinning it here too, since #deriveImportPlan
+    // mirrors the CLI's lookup rather than sharing it.
+    it( "labels a mapping-stage rejection (bad work_mode) by the row's real employee_id, not '(unmapped)'", async () => {
+        const badWorkMode = [
+            "employee_id,email,first_name,last_name,work_mode,work_location,organization_unit_id,role_family,level,stage",
+            "90005,distinctive.mapping.reject@example.com,First,Last,Bogus,On-site,1-1-1,SE,R,2"
+        ].join( "\n" );
+
+        const result = await app.processServiceRequest( adminSession(), "preview-employee-import", { csv: badWorkMode } );
+
+        assert.equal( result.counts.rejected, 1 );
+        assert.equal( result.rejections[ 0 ].employeeID, "90005" );
+        assert.equal( result.rejections[ 0 ].row, 2 );
+        assert.equal( result.rejections[ 0 ].code, "not-a-permitted-value" );
+    } );
+
     it( "rejects a header missing a required column as a whole-file failure", async () => {
         const bad = "employee_id,email\n90001,a@b.co";
         await assert.rejects( () => app.processServiceRequest( adminSession(), "preview-employee-import", { csv: bad } ) );
