@@ -7,7 +7,7 @@
 | **Status** | Approved (brainstorming) — pending spec review |
 | **Version targets** | competence `3.22.0` → `3.23.0` (minor). No `web-framework` change |
 | **Author** | Boris Kostadinov (with Claude) |
-| **Tracking** | YouTrack `CA-###` — to be created (subtask of `CA-6` Employee & Organization Management) |
+| **Tracking** | YouTrack [`CA-108`](https://belleal.youtrack.cloud/issue/CA-108) (subtask of `CA-6` Employee & Organization Management) |
 | **Follows** | [`2026-08-19-competence-org-chart-import-design.md`](2026-08-19-competence-org-chart-import-design.md) (CA-107) |
 
 ---
