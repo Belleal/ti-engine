@@ -1,0 +1,105 @@
+<div class="ti-page" x-data="competenceEmployeeImport">
+
+    <div class="ti-page-head">
+        <div>
+            <div class="ti-page-eyebrow" x-text-label="interface.employee-import.eyebrow">Administration</div>
+            <h1 class="ti-page-title" x-text-label="interface.employee-import.title">Employee Import</h1>
+            <p class="ti-page-subtitle" x-text-label="interface.employee-import.intro">Upload a UTF-8 CSV exported from the employee import template. Applying an import cannot be undone.</p>
+        </div>
+    </div>
+
+    <section class="ti-panel">
+        <div class="ti-panel-head bar">
+            <div class="ti-panel-head-icon">
+                <span class="ti-icon folder md" aria-hidden="true"></span>
+            </div>
+            <div class="ti-panel-head-text">
+                <div class="ti-panel-title" x-text-label="interface.employee-import.choose">Choose CSV file</div>
+                <div class="ti-panel-subtitle">
+                    <template x-if="fileName">
+                        <span x-text="fileName"></span>
+                    </template>
+                    <template x-if="!fileName">
+                        <span x-text-label="interface.employee-import.no-file">No file chosen</span>
+                    </template>
+                </div>
+            </div>
+        </div>
+        <div class="competence-panel-body">
+            <p class="ti-panel-body-intro" x-text-label="interface.employee-import.export-hint">Export from the template with File &gt; Save As &gt; CSV UTF-8. Another encoding stores names incorrectly and is refused.</p>
+            <div class="ti-form-row">
+                <input class="ti-input" type="file" accept=".csv,text/csv" x-bind:disabled="busy" @change="chooseFile($event)">
+            </div>
+            <template x-if="busy">
+                <p class="ti-form-hint" x-text-label="interface.employee-import.working">Working…</p>
+            </template>
+            <template x-if="error">
+                <p class="ti-form-error" x-text="error"></p>
+            </template>
+        </div>
+    </section>
+
+    <template x-if="hasPlan()">
+        <section class="ti-panel">
+            <div class="ti-panel-head bar">
+                <div class="ti-panel-head-icon">
+                    <span class="ti-icon check-clipboard md" aria-hidden="true"></span>
+                </div>
+                <div class="ti-panel-head-text">
+                    <div class="ti-panel-title" x-text-label="interface.employee-import.plan-title">Import plan</div>
+                    <div class="ti-panel-subtitle" x-text="pendingSummary()"></div>
+                </div>
+                <div class="ti-panel-head-aside">
+                    <template x-if="canApply()">
+                        <button class="ti-btn primary" type="button" @click="beginApply()" x-text-label="interface.employee-import.apply">Apply import</button>
+                    </template>
+                    <template x-if="wasApplied()">
+                        <span class="ti-status-pill success" x-text="appliedSummary()"></span>
+                    </template>
+                </div>
+            </div>
+            <div class="competence-panel-body">
+
+                <template x-if="plan.rejections.length > 0">
+                    <div>
+                        <div class="ti-kv-label" x-text-label="interface.employee-import.rejections-title">Rejected rows</div>
+                        <p class="ti-panel-body-intro" x-text-label="interface.employee-import.rejections-intro">Fix these in the spreadsheet and upload again. Re-uploading is safe — rows already written come back as unchanged.</p>
+                        <ul class="ti-form-section">
+                            <template x-for="entry in plan.rejections" x-bind:key="entry.employeeID + ':' + entry.row">
+                                <li class="ti-form-readonly" x-text="rejectionLabel(entry)"></li>
+                            </template>
+                        </ul>
+                    </div>
+                </template>
+
+                <template x-if="plan.absent.length > 0">
+                    <div>
+                        <div class="ti-kv-label" x-text-label="interface.employee-import.absent-title">In the system but not in this file</div>
+                        <p class="ti-panel-body-intro" x-text-label="interface.employee-import.absent-intro">These are left untouched — a departure is never inferred from an omission. Mark a leaver with employment_status=terminated.</p>
+                        <p class="ti-kv-value" x-text="absentSummary()"></p>
+                    </div>
+                </template>
+
+            </div>
+        </section>
+    </template>
+
+    <template x-if="confirming">
+        <div class="ti-modal-backdrop">
+            <div class="ti-modal" role="dialog" aria-modal="true">
+                <div class="ti-modal-head">
+                    <div class="ti-modal-title" x-text-label="interface.employee-import.confirm-title">Apply this import?</div>
+                </div>
+                <div class="ti-modal-body">
+                    <p class="ti-kv-value" x-text="pendingSummary()"></p>
+                    <p class="ti-form-error" x-text-label="interface.employee-import.confirm-warning">There is no rollback. A Redis backup taken before applying is the only way to undo this.</p>
+                </div>
+                <div class="ti-modal-foot">
+                    <button class="ti-btn" type="button" @click="cancelApply()" x-text-label="interface.employee-import.cancel">Cancel</button>
+                    <button class="ti-btn primary" type="button" x-bind:disabled="busy" @click="confirmApply()" x-text-label="interface.employee-import.confirm">Apply</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+</div>

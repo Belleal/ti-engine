@@ -7319,6 +7319,10 @@
         "en": "Configuration",
         "bg": "Конфигурация"
       },
+      "employee-import": {
+        "en": "Employee Import",
+        "bg": "Импорт на служители"
+      },
       "competency-text-editor": {
         "en": "Competency Texts",
         "bg": "Текстове на компетенции"

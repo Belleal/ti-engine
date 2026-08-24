@@ -34,6 +34,7 @@ const path = require( "node:path" );
 
 const FRAGMENTS_DIR = path.join( path.resolve( __dirname, ".." ), "bin", "static", "fragments" );
 const EVALUATION_FRAGMENT = path.join( FRAGMENTS_DIR, "frame-competence-evaluation.html" );
+const EMPLOYEE_IMPORT_FRAGMENT = path.join( FRAGMENTS_DIR, "frame-employee-import.html" );
 
 // Alpine binds a listener for a DOM event named after the `@`/`x-on:` directive. `ti-input` is never dispatched,
 // so both spellings of a handler for it are always dead. Match either, with any modifier suffix (e.g. `.stop`).
@@ -107,6 +108,35 @@ describe( "Fragment input bindings", () => {
         assert.ok( scoresSection, "expected to find the Scores consent (withdrawal) panel's <section x-show=\"...\">" );
         assert.ok( !/canEdit/.test( scoresSection[ 0 ] ),
             `Scores withdrawal panel must stay independent of canEdit — withdrawal cannot be conditional on workflow state: ${ scoresSection[ 0 ] }` );
+    } );
+
+    // Employee-import CSV picker (CA-108) — the same hazard class this suite exists for, on a control type it had
+    // not covered yet. A file input that bound the dead `ti-input` event would look completely normal (browser
+    // still shows "Choose file" / the file name) while chooseFile() never ran, so no preview would ever appear and
+    // nothing would say why. `[^>]*` spans newlines (see the consent-radio test above) though this tag happens to
+    // sit on one line.
+    it( "the employee-import file input binds the native change event, not the dead ti-input event", () => {
+        const markup = fs.readFileSync( EMPLOYEE_IMPORT_FRAGMENT, "utf8" );
+        const fileInputs = markup.match( /<input[^>]*type="file"[^>]*>/g ) || [];
+        assert.ok( fileInputs.length >= 1, "expected the CSV file input on the employee-import fragment" );
+        for ( const input of fileInputs ) {
+            assert.ok( /(?:@|x-on:)change\s*=/.test( input ), `file input must bind the native change event: ${ input }` );
+            assert.ok( !DEAD_TI_INPUT_BINDING.test( input ), `file input must not bind the never-dispatched ti-input event: ${ input }` );
+        }
+    } );
+
+    // The employee-import fragment is new (CA-108) and runs under the same Alpine CSP build as every other screen:
+    // an inline style="..." is rejected outright, and "?." in a template expression is rejected by the CSP
+    // expression evaluator (Array/Object/etc. are unavailable there too, which is why every derived value on this
+    // screen is a plain component method rather than an inline expression).
+    it( "the employee-import fragment carries no inline style attribute", () => {
+        const markup = fs.readFileSync( EMPLOYEE_IMPORT_FRAGMENT, "utf8" );
+        assert.equal( /style\s*=\s*"/.test( markup ), false, "CSP forbids inline style attributes on this screen; use a CSS class instead" );
+    } );
+
+    it( "the employee-import fragment contains no optional chaining", () => {
+        const markup = fs.readFileSync( EMPLOYEE_IMPORT_FRAGMENT, "utf8" );
+        assert.equal( markup.includes( "?." ), false, "Alpine's CSP expression evaluator rejects optional chaining in template expressions" );
     } );
 
 } );

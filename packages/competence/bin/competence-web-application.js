@@ -143,6 +143,11 @@ class CompetenceWebApplication extends TiWebAppManager {
             path: "fragments/frame-admin-config.html",
             roles: [ "admin" ]
         } );
+        this.addFragment( "employee-import", {
+            title: "Employee Import",
+            path: "fragments/frame-employee-import.html",
+            roles: [ "admin" ]
+        } );
         this.addFragment( "competency-text-editor", {
             title: "Competency Texts",
             path: "fragments/frame-competency-text-editor.html",
@@ -320,6 +325,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "cycle-setup": "cycles",
                     "employee-management": "employee-management",
                     "admin-config": "administration",
+                    "employee-import": "administration",
                     "competency-text-editor": "administration",
                     "archetype-assignment": "administration",
                     "archetype-editor": "administration",

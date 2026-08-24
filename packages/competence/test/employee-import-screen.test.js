@@ -107,6 +107,25 @@ describe( "employee import screen — preview", () => {
         assert.equal( stored.length, 0, "preview must not write" );
     } );
 
+    // #projectImportPlan threads plan.absent straight into the payload, but until now nothing asserted that
+    // through the real handler -- every other case here checks counts, rejections, applied or the stored
+    // employees. If that threading were wrong (e.g. dropped, or re-keyed) the panel would silently render an
+    // empty "not in this file" list and no test would fail.
+    it( "reports a stored employee missing from the file as absent, by employeeID, without writing", async () => {
+        const seeded = {
+            employeeID: "90099",
+            email: "already.stored@example.com",
+            employmentStatus: "active",
+            personal: { firstName: "Already", lastName: "Stored", workMode: "Full-time", workLocation: "On-site" },
+            career: { organizationUnitID: "1-1-1", roleFamily: "SE", specialization: null, level: "R", stage: 2 }
+        };
+        await dataManager.instance.saveEmployee( seeded );
+
+        const result = await app.processServiceRequest( adminSession(), "preview-employee-import", { csv: CSV } );
+
+        assert.deepEqual( result.absent, [ "90099" ] );
+    } );
+
     it( "leaks no personal field into the payload", async () => {
         const result = await app.processServiceRequest( adminSession(), "preview-employee-import", { csv: CSV_WITH_REJECT } );
         const serialized = JSON.stringify( result );

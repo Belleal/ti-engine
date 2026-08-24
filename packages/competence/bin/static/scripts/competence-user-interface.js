@@ -6122,6 +6122,143 @@ const configureRoleFamilies = () => {
 };
 
 /**
+ * Alpine component for the admin employee-import screen (frame-employee-import.html). Reads the chosen CSV in the
+ * browser and posts its TEXT through the ordinary service call — there is no multipart handling in the framework,
+ * and none is needed at this size. Preview writes nothing; applying re-derives the plan server-side, so the plan
+ * shown here is never an input to the write.
+ *
+ * @returns {Object}
+ */
+function configureEmployeeImport() {
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    // express.json caps a request body at 1mb. Guard well inside it: 512KB of CSV is over 4000 employees, and
+    // failing here with a clear message beats a raw 413 from the server.
+    const MAX_CSV_BYTES = 512 * 1024;
+
+    return {
+        csv: "",
+        fileName: "",
+        busy: false,
+        error: "",
+        plan: null,
+        confirming: false,
+
+        reset() {
+            this.csv = "";
+            this.fileName = "";
+            this.error = "";
+            this.plan = null;
+            this.confirming = false;
+        },
+
+        chooseFile( event ) {
+            const file = event && event.target && event.target.files ? event.target.files[ 0 ] : null;
+            this.reset();
+            if ( !file ) {
+                return;
+            }
+            if ( file.size > MAX_CSV_BYTES ) {
+                this.error = tiApplication.getLabel( "interface.employee-import.error.too-large", "That file is too large to upload." );
+                return;
+            }
+            this.fileName = file.name;
+            const reader = new FileReader();
+            reader.onload = () => {
+                this.csv = String( reader.result || "" );
+                this.preview();
+            };
+            reader.onerror = () => {
+                this.error = tiApplication.getLabel( "interface.employee-import.error.unreadable", "That file could not be read." );
+            };
+            reader.readAsText( file, "utf-8" );
+        },
+
+        preview() {
+            if ( !this.csv ) {
+                return;
+            }
+            this.busy = true;
+            this.error = "";
+            tiApplication.sendRequest( "/app/preview-employee-import", "POST", { csv: this.csv } ).then( ( result ) => {
+                this.plan = ( result && result.data ) ? result.data : null;
+            } ).catch( ( error ) => {
+                this.plan = null;
+                this.error = tiApplication.formatException( error );
+            } ).finally( () => {
+                this.busy = false;
+            } );
+        },
+
+        beginApply() {
+            this.confirming = true;
+        },
+
+        cancelApply() {
+            this.confirming = false;
+        },
+
+        confirmApply() {
+            this.busy = true;
+            this.confirming = false;
+            tiApplication.sendRequest( "/app/apply-employee-import", "POST", { csv: this.csv } ).then( ( result ) => {
+                this.plan = ( result && result.data ) ? result.data : null;
+                tiApplication.notify( {
+                    message: tiApplication.getLabel( "interface.employee-import.applied", "Import applied." ),
+                    details: this.appliedSummary()
+                } );
+            } ).catch( ( error ) => {
+                this.error = tiApplication.formatException( error );
+            } ).finally( () => {
+                this.busy = false;
+            } );
+        },
+
+        // Alpine's CSP build cannot call Array/Object inside a template expression, so every derived value the
+        // fragment needs is a method here.
+        hasPlan() {
+            return this.plan !== null;
+        },
+
+        wasApplied() {
+            return this.plan !== null && this.plan.applied !== null;
+        },
+
+        canApply() {
+            return this.hasPlan() && !this.wasApplied() && !this.busy &&
+                ( this.plan.counts.create > 0 || this.plan.counts.update > 0 );
+        },
+
+        appliedSummary() {
+            if ( !this.wasApplied() ) {
+                return "";
+            }
+            const applied = this.plan.applied;
+            return applied.created + " created, " + applied.updated + " updated, " + applied.skipped + " unchanged";
+        },
+
+        pendingSummary() {
+            if ( !this.hasPlan() ) {
+                return "";
+            }
+            const counts = this.plan.counts;
+            return counts.create + " to create, " + counts.update + " to update, " +
+                counts.unchanged + " unchanged, " + counts.rejected + " rejected";
+        },
+
+        absentSummary() {
+            return this.hasPlan() ? this.plan.absent.join( ", " ) : "";
+        },
+
+        rejectionLabel( entry ) {
+            const where = entry.row ? tiApplication.getLabel( "interface.employee-import.line", "line" ) + " " + entry.row
+                : tiApplication.getLabel( "interface.employee-import.unknown-line", "unknown line" );
+            return where + ", employee_id '" + entry.employeeID + "': " + entry.message;
+        }
+    };
+}
+
+/**
  * Configures the Supervisor-only Evaluations Oversight screen: a table of the active cycle's
  * active (Open/In Review/Ready) evaluations with per-row actions — advance past a stalled
  * self-evaluation, complete the manager step (navigates to the evaluation form), or withdraw
@@ -6337,6 +6474,7 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceArchetypeAssignment", configureArchetypeAssignment );
     Alpine.data( "competenceArchetypeEditor", configureArchetypeEditor );
     Alpine.data( "competenceRoleFamilies", configureRoleFamilies );
+    Alpine.data( "competenceEmployeeImport", configureEmployeeImport );
     Alpine.data( "insightsCycle", configureInsightsCycle );
     Alpine.data( "insightsTeam", configureInsightsTeam );
     Alpine.data( "insightsTrends", configureTrendsScreen );
