@@ -27,7 +27,7 @@
                     </template>
                 </div>
             </div>
-            <template x-if="hasPlan()">
+            <template x-if="hasAsideContent()">
                 <div class="ti-panel-head-aside">
                     <template x-if="canApply()">
                         <button class="ti-btn primary" type="button" @click="beginApply()" x-text-label="interface.employee-import.apply">Apply import</button>
@@ -65,11 +65,11 @@
                         <div>
                             <div class="ti-kv-label" x-text-label="interface.employee-import.rejections-title">Rejected rows</div>
                             <p class="ti-form-hint" x-text-label="interface.employee-import.rejections-intro">Fix these in the spreadsheet and upload again. Re-uploading is safe — rows already written come back as unchanged.</p>
-                            <ul class="ti-form-section">
+                            <div class="ti-form-section">
                                 <template x-for="entry in plan.rejections" x-bind:key="entry.employeeID + ':' + entry.row">
-                                    <li class="ti-form-readonly" x-text="rejectionLabel(entry)"></li>
+                                    <div class="ti-form-readonly" x-text="rejectionLabel(entry)"></div>
                                 </template>
-                            </ul>
+                            </div>
                         </div>
                     </template>
 

@@ -6178,6 +6178,7 @@ function configureEmployeeImport() {
 
         preview() {
             if ( !this.csv ) {
+                this.error = tiApplication.getLabel( "interface.employee-import.error.empty", "That file is empty." );
                 return;
             }
             this.busy = true;
@@ -6249,6 +6250,14 @@ function configureEmployeeImport() {
         canApply() {
             return this.hasPlan() && !this.wasApplied() && !this.busy &&
                 ( this.plan.counts.create > 0 || this.plan.counts.update > 0 );
+        },
+
+        // The aside carries an unconditional left border, so it must only render when one of its two
+        // children actually will — canApply() and wasApplied() can both be false for the same plan (e.g.
+        // an all-rejected file, or re-uploading a file whose rows are all already applied), which is a
+        // different route to the same empty-bordered-strip artifact that gating on hasPlan() alone misses.
+        hasAsideContent() {
+            return this.canApply() || this.wasApplied();
         },
 
         appliedSummary() {
