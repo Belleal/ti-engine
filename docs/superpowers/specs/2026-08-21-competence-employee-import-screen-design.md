@@ -52,9 +52,17 @@ It also fixes something the CLI structurally cannot. Every org-chart and email-i
 | `express.json({ limit: "1mb" })` (`web-server.js:315`) | ~36KB for 300 employees, so roughly 25× headroom. A client-side size check must fail politely *before* the server would reject the body |
 | competence's runtime dependencies are `core`, `web-framework`, `graphology` | The CSV parser was hand-written to keep that list short. Nothing here may lengthen it |
 | `#requireRole( session, ...roles )` tests `roles.some( r => userRoles.includes( r ) )` | It accepts the string `"admin"` as-is; no new gating mechanism is needed |
-| `#requireSessionUser( session )` returns `{ userID, userRoles }`, and `userID` exists even for a break-glass admin with no employee record | Audit attribution works for every admin identity — and carries a real user rather than the CLI's literal `"import-cli"` |
+| ~~`#requireSessionUser( session )` returns `{ userID, userRoles }`, and `userID` exists even for a break-glass admin with no employee record~~ **This was wrong.** `userID` is `session.user.employeeID`, which is `null` for a break-glass admin, so the helper throws 401 for exactly that identity | Corrected during Task 2 (see §4.1). Audit attribution still works and still carries a real user rather than the CLI's literal `"import-cli"` — but through a separate guard, not this one |
 | The three whole-file failure conditions live **inline in the CLI** | Duplicating them in a handler guarantees drift. They move to the shared module (§5.3) |
 | Alpine runs in **CSP mode** | The fragment may carry no inline `style="..."` and no optional chaining in template expressions |
+
+### 4.1 Correction made during implementation — admin gating needs its own guard
+
+The table row above asserted that `#requireSessionUser` yields a usable `userID` for a break-glass admin. It does not: `userID` is `session.user.employeeID`, and `IdentityResolver` sets that to `null` (with `roles: []`) for an allowlisted identity holding no employee record. So the helper throws 401 for precisely the account this feature must admit — and `#requireRole` funnels through it, meaning an `admin`-gated handler could not have worked as this design first described.
+
+The first attempt at a remedy relaxed `#requireSessionUser` to `employeeID || userID`. That was rejected: the helper has **52 call sites**, 15 of which gate on authentication alone, and its refusal is a fail-closed guard — a session with no employee identity should not reach an employee-scoped handler. Loosening it for all 52 to serve 2 would have opened those 15 to a session whose "employee ID" is an email.
+
+The shipped resolution is a separate `#requireAdmin( session )` used only by the two import services. It reads the framework `userID` directly, checks the `admin` role, and deliberately does not route through `#requireSessionUser`, which keeps that guard intact for every other caller. A regression test pins the fail-closed property: a break-glass-shaped session must still be refused by an employee-scoped handler, asserting the specific `E_SEC_UNAUTHORIZED_ACCESS` code rather than merely that it rejects — under the relaxed version the call still rejected, just with a different error, so a bare rejection assertion would have passed.
 
 ## 5. Design
 
