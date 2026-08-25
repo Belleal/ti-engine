@@ -148,7 +148,7 @@ describe( "config-registration (competence)", () => {
             Object.keys( registered ).sort(),
             [ "active-competency-sets", "competence-labels", "competencies", "organization-structure", "relevancy-archetypes", "research-consent", "role-families", "role-family-competencies", "stage-levels", "work-sites" ]
         );
-        assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "relevancy-archetype", "role-families" ] );
+        assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "relevancy-archetype", "role-families", "work-sites" ] );
         assert.deepEqual( editors[ "competency-text" ].documents, [ "competencies", "competence-labels" ] );
         assert.ok( registered[ "relevancy-archetypes" ].validators.length >= 1, "relevancy-archetypes carries the referential-integrity validator" );
         assert.ok( registered[ "role-families" ].validators.length >= 1, "role-families carries the referential-integrity validator" );

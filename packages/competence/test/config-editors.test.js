@@ -257,7 +257,7 @@ describe( "config-editors — composeRelevancyArchetype / decomposeRelevancyArch
         const editors = {};
         const stubApp = { registerConfigEditor( key, definition ) { editors[ key ] = definition; return this; } };
         registerCompetenceEditors( stubApp );
-        assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "relevancy-archetype", "role-families" ] );
+        assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "relevancy-archetype", "role-families", "work-sites" ] );
         assert.deepEqual( editors[ "archetype-assignment" ].metadata.writes, [ "competencies" ] );
         assert.deepEqual( editors[ "relevancy-archetype" ].metadata.writes, [ "relevancy-archetypes", "competence-labels" ] );
         assert.deepEqual( editors[ "role-families" ].metadata.writes, [ "role-families", "competence-labels" ] );
