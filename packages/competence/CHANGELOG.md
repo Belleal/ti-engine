@@ -39,9 +39,15 @@ the exact same rules, and rejected by the exact same whole-file and per-row chec
   problem in exactly 2 of them. `#requireSessionUser` stays exactly as strict as before; only the import services
   carry the admin fallback, and a regression test pins the specific 401/`E_SEC_UNAUTHORIZED_ACCESS` shape a
   break-glass-shaped session must still get from every other handler (CA-108)
+* fix(competence): tell the operator, when an apply fails part-way, that rows may already have been written and
+  there is no rollback — and drop the now-stale plan, which still holds the pre-apply counts and would otherwise
+  keep advertising work that is already done. `applyPlan` writes sequentially; an operator told only "it failed"
+  may restore the snapshot `INSTALL.md` told them to take and destroy everything written since. Re-uploading the
+  same file is the safe recovery: rows already written come back as unchanged (CA-108)
 * docs(competence): document the screen as the alternative to the CLI importer in `INSTALL.md` §11 — same rules,
-  same irreversibility, back up first, no restart needed — and add its 25 interface/error labels (en + bg) to
-  `competence-labels.json` (CA-108)
+  same irreversibility, back up first, and the three respects in which it differs (no restart, a 512KB file cap, no
+  `--delimiter` override) — name it in `README.md` as the one admin screen that writes employee data rather than
+  configuration, and add its 25 interface/error labels (en + bg) to `competence-labels.json` (CA-108)
 * build(release): bump package version from `3.22.0` to `3.23.0`
 
 ## Version 3.22.0
