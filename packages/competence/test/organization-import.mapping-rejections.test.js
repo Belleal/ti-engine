@@ -59,6 +59,7 @@ describe( "organizationImport.toMappingRejection", () => {
         );
         assert.deepEqual( rejection, {
             employeeID: "1",
+            unmapped: false,
             row: 2,
             code: "not-an-integer",
             message: "stage: 'stage' must contain only digits"
@@ -73,6 +74,7 @@ describe( "organizationImport.toMappingRejection", () => {
             byRow
         );
         assert.equal( rejection.employeeID, "(unmapped)" );
+        assert.equal( rejection.unmapped, true, "the placeholder is for display; `unmapped` is what consumers branch on" );
     } );
 
     it( "never surfaces any column value other than employee_id", () => {
@@ -99,10 +101,19 @@ describe( "organizationImport.excludeMappingErrorsFromAbsent", () => {
         assert.deepEqual( organizationImport.instance.excludeMappingErrorsFromAbsent( [ "9" ], [] ), [ "9" ] );
     } );
 
-    it( "only subtracts real employeeIDs a rejection named, never the '(unmapped)' placeholder itself", () => {
-        const mappingRejections = [ { employeeID: "(unmapped)", row: 4, code: "required", message: "employee_id: ..." } ];
+    it( "subtracts nobody for a rejection whose row carried no id at all", () => {
+        const mappingRejections = [ { employeeID: "(unmapped)", unmapped: true, row: 4, code: "required", message: "employee_id: ..." } ];
         const result = organizationImport.instance.excludeMappingErrorsFromAbsent( [ "(unmapped)", "7" ], mappingRejections );
         assert.deepEqual( result, [ "(unmapped)", "7" ] );
+    } );
+
+    it( "still subtracts an employee whose real id happens to equal the '(unmapped)' placeholder", () => {
+        // `employee_id` need only be non-empty, so this id is legal. Branching on the placeholder string instead
+        // of the `unmapped` flag reported this person as absent from the file while their rejected row sat in the
+        // list directly above it -- telling the operator to chase a leaver who is right there.
+        const mappingRejections = [ { employeeID: "(unmapped)", unmapped: false, row: 4, code: "not-an-integer", message: "stage: ..." } ];
+        const result = organizationImport.instance.excludeMappingErrorsFromAbsent( [ "(unmapped)", "7" ], mappingRejections );
+        assert.deepEqual( result, [ "7" ] );
     } );
 
     it( "treats a non-array absent or mappingRejections as empty rather than throwing", () => {

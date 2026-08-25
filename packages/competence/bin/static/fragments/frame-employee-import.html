@@ -43,7 +43,8 @@
             <p class="ti-form-hint" x-text-label="interface.employee-import.export-hint">Export from the template with File &gt; Save As &gt; CSV UTF-8. Another encoding stores names incorrectly and is refused.</p>
 
             <div class="ti-form-row">
-                <input class="ti-input" type="file" accept=".csv,text/csv" x-bind:disabled="busy" @change="chooseFile($event)">
+                <label class="ti-field-label" for="employee-import-file" x-text-label="interface.employee-import.file-label">Employee CSV file</label>
+                <input class="ti-input" id="employee-import-file" type="file" accept=".csv,text/csv" x-bind:disabled="busy" @change="chooseFile($event)">
             </div>
 
             <template x-if="busy">

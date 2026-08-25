@@ -9837,6 +9837,18 @@
         "en": "unknown line",
         "bg": "неизвестен ред"
       },
+      "file-label": {
+        "en": "Employee CSV file",
+        "bg": "CSV файл със служители"
+      },
+      "pending-summary": {
+        "en": "{create} to create, {update} to update, {unchanged} unchanged, {rejected} rejected",
+        "bg": "{create} за създаване, {update} за обновяване, {unchanged} без промяна, {rejected} отхвърлени"
+      },
+      "applied-summary": {
+        "en": "{created} created, {updated} updated, {skipped} unchanged",
+        "bg": "{created} създадени, {updated} обновени, {skipped} без промяна"
+      },
       "confirm-title": {
         "en": "Apply this import?",
         "bg": "Да се приложи ли този импорт?"

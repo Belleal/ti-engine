@@ -10,14 +10,18 @@ the exact same rules, and rejected by the exact same whole-file and per-row chec
 
 * feat(competence): add the **Employee Import** admin screen (Administration → Employee Import) and its two
   admin-gated services, `preview-employee-import` and `apply-employee-import`. The browser reads the chosen file
-  and posts its text through the ordinary service call, capped client-side at 512KB — no multipart handling and no
-  new runtime dependency were needed at this size. Preview writes nothing; **Apply import** re-derives the plan
+  and posts its text through the ordinary service call, capped client-side at 512KB on disk and again at 1MB on the
+  serialized body — JSON escaping expands quotes, backslashes and newlines, so a pathological file could clear the
+  first check and still be refused by `express.json` as a raw 413, which carries nothing localized to show. No
+  multipart handling and no new runtime dependency were needed at this size. Preview writes nothing; **Apply import** re-derives the plan
   from that same CSV text through one `#deriveImportPlan` helper that takes no other input, so a plan a client
   posted back is never trusted — it would pass every check precisely because the checks already ran (CA-108)
 * feat(competence): reduce the plan crossing to the browser to counts, rejections and absent identifiers only —
-  `#projectImportPlan` carries no employee record and no personal field, because this payload is rendered in a page
-  and gets pasted into tickets. An `employee_id` is the one identifier that crosses, since the operator supplied it
-  rather than it being personal data (CA-108)
+  `#projectImportPlan` carries no employee record, no name, email, birth date or grade. `employee_id` is the one
+  field that crosses. That is **data minimisation, not an exemption**: an identification number is an identifier
+  under GDPR Art. 4(1), so the payload is pseudonymised personal data and keeps the same handling obligations as
+  any other employee data — including when it is screenshotted or pasted into a ticket. What minimisation buys is
+  that such a disclosure carries opaque ids and nothing that identifies anyone without the HR key (CA-108)
 * feat(competence): rebuild the organization chart — and with it the login email index — synchronously at the end
   of a successful apply, so an employee the screen just wrote is reachable and can sign in with **no restart**.
   This is the one respect in which the screen differs from the CLI: a CLI `--apply` writes to Redis from a separate
@@ -32,6 +36,12 @@ the exact same rules, and rejected by the exact same whole-file and per-row chec
   only mirrored the CLI's logic. A mapping-stage rejection — one that fails before an `Employee` object ever
   exists, such as an invalid `work_mode` — is now labeled by its row's real `employee_id` on the screen exactly as
   on the CLI, instead of regressing to a literal "(unmapped)" (CA-108)
+* fix(competence): stop treating the `(unmapped)` rejection placeholder as a control value. `employee_id` need
+  only be non-empty, so an employee may legitimately hold that literal id; `excludeMappingErrorsFromAbsent`
+  compared against the string and would have reported exactly that person as absent from the file while their
+  rejected row sat in the list directly above — telling the operator to chase a leaver who is right there. The
+  placeholder stays for display and the fact moves out of band, onto a `unmapped` flag. Present since 3.22.0, in
+  the CLI-local version of this helper (CA-108)
 * fix(competence): gate the two import services through a dedicated `#requireAdmin` check rather than widening the
   shared `#requireSessionUser` guard. A break-glass admin has no employee record by design, and the first shape of
   the fix fell back to `session.user.userID` inside `#requireSessionUser` itself to admit one — which would have

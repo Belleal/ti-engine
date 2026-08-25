@@ -501,9 +501,11 @@ Three conditions fail the whole file rather than the one row responsible, becaus
 supplied rather than one flawed record among good ones: the file is not valid UTF-8, the header is missing a
 required column, or the header repeats a column (case-insensitively — `Note` and `NOTE` collide). All three exit `2`.
 
-**No personal data is ever printed.** A rejection is identified only by `employee_id` and its source line number —
-never a name, email, birth date or grade — because this runs against real HR data and a terminal or CI log is not a
-place for it.
+**Only an `employee_id` is ever printed.** A rejection is identified by that and its source line number — never a
+name, email, birth date or grade — because this runs against real HR data and a terminal or CI log is not a place
+for it. Treat the output accordingly: an identification number is an identifier under GDPR Art. 4(1), so a
+rejection list is pseudonymised personal data, not anonymous. It is safe to *reason about* without exposing anyone,
+and it still belongs in a log, ticket or screenshot only where employee data is allowed to go.
 
 Three behaviors are worth understanding before the first real import:
 

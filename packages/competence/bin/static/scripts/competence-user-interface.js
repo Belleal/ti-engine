@@ -6133,8 +6133,16 @@ function configureEmployeeImport() {
     const tiApplication = Alpine.store( "tiApplication" );
 
     // express.json caps a request body at 1mb. Guard well inside it: 512KB of CSV is over 4000 employees, and
-    // failing here with a clear message beats a raw 413 from the server.
+    // failing here with a clear message beats a raw 413 from the server -- which arrives as a plain express error
+    // page rather than the framework's exception envelope, so formatException has nothing localized to show.
     const MAX_CSV_BYTES = 512 * 1024;
+
+    // `file.size` is the file on disk; the request body is JSON.stringify( { csv } ), and JSON escaping expands
+    // `"`, `\` and every newline to two bytes each. A real CSV grows by its line count -- nothing -- but a
+    // pathological one is bounded only by 2x, so a 512KB file can clear the disk check and still exceed the 1mb
+    // body limit. Measure the bytes actually posted, after reading, and refuse with the same clear message.
+    const serializedByteLength = ( csv ) => new TextEncoder().encode( JSON.stringify( { csv: csv } ) ).length;
+    const MAX_BODY_BYTES = 1024 * 1024;
 
     return {
         csv: "",
@@ -6171,7 +6179,13 @@ function configureEmployeeImport() {
             this.fileName = file.name;
             const reader = new FileReader();
             reader.onload = () => {
-                this.csv = String( reader.result || "" );
+                const text = String( reader.result || "" );
+                if ( serializedByteLength( text ) > MAX_BODY_BYTES ) {
+                    this.reset();
+                    this.error = tiApplication.getLabel( "interface.employee-import.error.too-large", "That file is too large to upload." );
+                    return;
+                }
+                this.csv = text;
                 this.preview();
             };
             reader.onerror = () => {
@@ -6271,12 +6285,20 @@ function configureEmployeeImport() {
             return this.canApply() || this.wasApplied();
         },
 
+        // Both summaries go through a single label with {placeholders} rather than concatenating count + word,
+        // which is the repo's established getLabel(...).replace("{x}", …) pattern. Concatenation would have
+        // hard-coded English word order into a bilingual screen: these two strings are the panel subtitle, the
+        // confirmation modal's body, and the post-apply pill -- the three places an operator actually reads the
+        // outcome -- and a Bulgarian operator would have read every one of them in English.
         appliedSummary() {
             if ( !this.wasApplied() ) {
                 return "";
             }
             const applied = this.plan.applied;
-            return applied.created + " created, " + applied.updated + " updated, " + applied.skipped + " unchanged";
+            return tiApplication.getLabel( "interface.employee-import.applied-summary", "{created} created, {updated} updated, {skipped} unchanged" )
+                .replace( "{created}", String( applied.created ) )
+                .replace( "{updated}", String( applied.updated ) )
+                .replace( "{skipped}", String( applied.skipped ) );
         },
 
         pendingSummary() {
@@ -6284,8 +6306,11 @@ function configureEmployeeImport() {
                 return "";
             }
             const counts = this.plan.counts;
-            return counts.create + " to create, " + counts.update + " to update, " +
-                counts.unchanged + " unchanged, " + counts.rejected + " rejected";
+            return tiApplication.getLabel( "interface.employee-import.pending-summary", "{create} to create, {update} to update, {unchanged} unchanged, {rejected} rejected" )
+                .replace( "{create}", String( counts.create ) )
+                .replace( "{update}", String( counts.update ) )
+                .replace( "{unchanged}", String( counts.unchanged ) )
+                .replace( "{rejected}", String( counts.rejected ) );
         },
 
         absentSummary() {

@@ -119,6 +119,7 @@ describe( "mapping-error rejection labeling and the absent-list disagreement (fi
         );
         assert.deepEqual( rejection, {
             employeeID: "1",
+            unmapped: false,
             row: 2,
             code: "not-an-integer",
             message: "stage: 'stage' must contain only digits"
@@ -133,6 +134,7 @@ describe( "mapping-error rejection labeling and the absent-list disagreement (fi
             byRow
         );
         assert.equal( rejection.employeeID, "(unmapped)" );
+        assert.equal( rejection.unmapped, true );
     } );
 
     it( "toMappingRejection never surfaces any column value other than employee_id", () => {
@@ -155,8 +157,8 @@ describe( "mapping-error rejection labeling and the absent-list disagreement (fi
         assert.deepEqual( cli.excludeMappingErrorsFromAbsent( [ "9" ], [] ), [ "9" ] );
     } );
 
-    it( "excludeMappingErrorsFromAbsent only subtracts real employeeIDs a rejection named, never the '(unmapped)' placeholder itself", () => {
-        const mappingRejections = [ { employeeID: "(unmapped)", row: 4, code: "required", message: "employee_id: ..." } ];
+    it( "excludeMappingErrorsFromAbsent subtracts nobody for a rejection whose row carried no id at all", () => {
+        const mappingRejections = [ { employeeID: "(unmapped)", unmapped: true, row: 4, code: "required", message: "employee_id: ..." } ];
         const result = cli.excludeMappingErrorsFromAbsent( [ "(unmapped)", "7" ], mappingRejections );
         assert.deepEqual( result, [ "(unmapped)", "7" ] );
     } );

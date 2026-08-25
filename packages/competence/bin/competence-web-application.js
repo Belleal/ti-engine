@@ -4175,8 +4175,11 @@ class CompetenceWebApplication extends TiWebAppManager {
 
     /**
      * Reduces a plan to what may cross to a browser: counts, rejections and absent identifiers. No employee record,
-     * and no personal field — this payload is rendered in a page and pasted into tickets. An `employee_id` is an
-     * identifier the operator supplied rather than personal data, which is why it is the one field that crosses.
+     * no name, no email, no birth date, no grade. What does cross is `employee_id`, and that is a minimised payload
+     * rather than a non-personal one: GDPR Art. 4(1) names an identification number as an identifier of an
+     * identifiable person, so this is pseudonymised personal data and stays subject to the same handling as any
+     * other. The point of the chokepoint is that a page, a screenshot or a pasted ticket then discloses an opaque
+     * id and nothing that identifies anyone without the HR key — not that the payload is free to travel.
      *
      * @method
      * @param {Object} plan

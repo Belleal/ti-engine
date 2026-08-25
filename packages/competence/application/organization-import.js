@@ -382,21 +382,30 @@ class OrganizationImport {
      * Turns one mapping-stage error into the same rejection shape {@link OrganizationImport#reconcile} produces,
      * labeled by the row's real `employee_id` whenever the row provided one. `mapRow` rejects before ever building
      * an `Employee`, so its error carries only the row number, not the id — even though the raw CSV cell is sitting
-     * right there in the source record. Falls back to `'(unmapped)'` only when the id is genuinely absent (e.g. the
-     * row failed on the empty `employee_id` column itself), never for any other reason. The raw value is printed
-     * verbatim: it is an identifier the operator supplied, not personal data, and no other cell is ever surfaced.
-     * Pure.
+     * right there in the source record. Falls back to the display placeholder `'(unmapped)'` only when the id is
+     * genuinely absent (e.g. the row failed on the empty `employee_id` column itself), never for any other reason.
+     * The raw value is printed verbatim and no other cell is ever surfaced. That is data minimisation, not an
+     * exemption: an `employee_id` is an identification number, and GDPR Art. 4(1) names exactly that as an
+     * identifier of an identifiable person, so a rejection list is pseudonymised personal data and is handled as
+     * such. What minimisation buys is that it carries no name, email, birth date or grade — nothing that
+     * identifies anyone without the HR key. Pure.
+     * <br/>
+     * `unmapped` carries the same fact as the placeholder, out of band. The placeholder is a *display* string and
+     * nothing may branch on it: the import contract requires only that `employee_id` be non-empty, so a real
+     * employee could legitimately hold the literal id `(unmapped)`, and a consumer comparing the string would then
+     * mistake that person's row for a row that had no id at all.
      *
      * @method
      * @param {Object} error - One entry from {@link OrganizationImport#mapRows}'s `errors`.
      * @param {Map<number, string>} rowEmployeeIDs - From {@link OrganizationImport#mapRowsToEmployeeIDs}.
-     * @returns {Object}
+     * @returns {{employeeID: string, unmapped: boolean, row: number, code: string, message: string}}
      * @public
      */
     toMappingRejection( error, rowEmployeeIDs ) {
         const rawID = rowEmployeeIDs.get( error.row );
         return {
             employeeID: rawID ? rawID : "(unmapped)",
+            unmapped: !rawID,
             row: error.row,
             code: error.code,
             message: `${ error.column }: ${ error.message }`
@@ -412,6 +421,12 @@ class OrganizationImport {
      * employee_id. This lives here rather than inside reconcile() because reconcile() is a verified pure function
      * that correctly knows nothing about rows that never reached it — the two lists only disagree once a driver
      * merges the mapping errors in, so this is where the disagreement must be resolved too. Pure.
+     * <br/>
+     * A rejection whose row carried no id at all names nobody, so it can subtract nobody. That is read from the
+     * `unmapped` flag rather than by comparing `employeeID` to the `(unmapped)` placeholder: `employee_id` need
+     * only be non-empty, so an employee may legitimately hold that literal id, and a string comparison would then
+     * refuse to subtract the one person it was meant to — reporting them absent while their rejected row sits in
+     * the list directly above.
      *
      * @method
      * @param {Array<string>} absent - `plan.absent`, from {@link OrganizationImport#reconcile}.
@@ -422,8 +437,8 @@ class OrganizationImport {
     excludeMappingErrorsFromAbsent( absent, mappingRejections ) {
         const mappingErrorIDs = new Set(
             ( Array.isArray( mappingRejections ) ? mappingRejections : [] )
+                .filter( ( rejection ) => rejection && !rejection.unmapped )
                 .map( ( rejection ) => rejection.employeeID )
-                .filter( ( id ) => id !== "(unmapped)" )
         );
         return ( Array.isArray( absent ) ? absent : [] ).filter( ( id ) => !mappingErrorIDs.has( id ) );
     }
