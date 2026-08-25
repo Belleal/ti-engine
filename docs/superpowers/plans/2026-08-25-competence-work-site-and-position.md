@@ -331,7 +331,7 @@ git commit -m "feat(competence): register work-sites as a store-backed configura
 
 ---
 
-## Task 2: The removal guard
+## Task 2: The removal guard, on a shared employee-reference helper
 
 **Files:**
 - Create: `packages/competence/test/work-sites-referential-integrity.test.js`
@@ -340,11 +340,25 @@ git commit -m "feat(competence): register work-sites as a store-backed configura
 
 **Interfaces:**
 - Consumes: `validators.fetchEmployeesForValidation()` — the existing overridable seam, already exported.
-- Produces: `validators.workSitesReferentialIntegrity( value, context ) → Promise<Array<ValidationIssue>>`.
+- Produces: `withEmployeeReferences( issues, inspect ) → Promise<Array<ValidationIssue>>` (module-private) and `validators.workSitesReferentialIntegrity( value, context ) → Promise<Array<ValidationIssue>>`.
 
-This is a separate task from Task 1 because its fail-closed semantics are the reviewable decision: a reviewer could accept the document and reject this.
+**This task refactors a shipped validator.** `roleFamiliesReferentialIntegrity` and the new work-sites guard would otherwise share ~18 near-identical lines — the seam call, the fail-closed catch, and the de-duplication filter. The project owner decided the shared scaffolding is extracted **now** rather than duplicated. That means `roleFamiliesReferentialIntegrity` changes, so its existing coverage is the safety net: **14 cases in `packages/competence/test/config-management.test.js` must still pass, unmodified.** If making them pass requires editing them, stop and report — the refactor was supposed to preserve behaviour exactly.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Read what you are extracting from**
+
+```bash
+sed -n '276,347p' packages/competence/application/config-validators.js
+```
+
+That is `roleFamiliesReferentialIntegrity` in full. Three parts are the shared scaffolding:
+
+1. `Promise.resolve().then( () => module.exports.fetchEmployeesForValidation() ).then( ( employees ) => employees || [] )` — the deferred call, written that way so a *synchronous* throw from a test stub and an async rejection both reach the catch.
+2. The `.catch()` that pushes the "could not be verified" issue and returns `[]` — the fail-closed branch.
+3. The trailing de-duplication filter keyed on `issue.path`.
+
+What is **not** shared: role families additionally consult `context.getConfig( "active-competency-sets" )` before reaching employees, and the two inspect different fields.
+
+- [ ] **Step 2: Write the failing test for the new validator**
 
 Create `packages/competence/test/work-sites-referential-integrity.test.js` (AGPL header from `packages/competence/application/employee-rules.js`):
 
@@ -362,9 +376,8 @@ Create `packages/competence/test/work-sites-referential-integrity.test.js` (AGPL
  * tree must exist before any employee can reference it, and therefore deadlocks. This is a REMOVAL check. It fires
  * only when something is being taken away, and a fresh install takes nothing away.
  *
- * Modelled on roleFamiliesReferentialIntegrity, including the property that matters most: an employee fetch that
- * genuinely FAILS blocks the save rather than being skipped. Skipping would let a transient cache error orphan
- * every employee on a site.
+ * The property that matters most: an employee fetch that genuinely FAILS blocks the save rather than being
+ * skipped. Skipping would let a transient cache error orphan every employee on a site.
  */
 
 const { describe, it, afterEach } = require( "node:test" );
@@ -444,43 +457,35 @@ describe( "workSitesReferentialIntegrity", () => {
 } );
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] **Step 3: Run it to verify it fails**
 
 Run: `node --test packages/competence/test/work-sites-referential-integrity.test.js`
 Expected: FAIL — `validators.workSitesReferentialIntegrity is not a function`
 
-- [ ] **Step 3: Write the validator**
+- [ ] **Step 4: Extract the shared helper**
 
-In `packages/competence/application/config-validators.js`, immediately after `workSiteIdMatchesKey`:
+In `packages/competence/application/config-validators.js`, add above `roleFamiliesReferentialIntegrity`:
 
 ```js
 /**
- * work-sites: a site may only be removed when no employee is assigned to it. Employee references are read through
- * {@link fetchEmployeesForValidation}, the same overridable seam {@link roleFamiliesReferentialIntegrity} uses, and
- * with the same fail-closed contract: an absent data layer resolves to [] so config-only validation still works,
- * while a genuine fetch failure is reported as a **blocking** issue rather than skipped — a transient cache error
- * must not be the thing that lets a removal orphan every employee on a site.
+ * Runs a per-employee reference check against the live employee records, owning the three parts every such check
+ * needs to get right: the deferred seam call, the fail-closed branch, and de-duplication by path.
  * <br/>
- * This is a *removal* check, which is why it can be a validator at all. CA-107's unresolved-manager rule is a
- * *presence* check — "every unit's managerID must resolve to an employee" — and had to become a startup diagnostic
- * because it fires on a fresh install, where the tree must exist before any employee can reference it. Nothing is
- * removed on a fresh install, so this one never fires there.
+ * **Fail-closed is the load-bearing property.** {@link fetchEmployeesForValidation} resolves `[]` when the data
+ * layer is simply absent — outside the running service — so config-only validation still works. Reaching the catch
+ * therefore means a *genuine* fetch failure against an operational data layer, and the removal is refused rather
+ * than allowed: a transient cache error must not be the thing that orphans employee records.
  * <br/>
- * Issues are de-duplicated by path, so a site held by two hundred people is reported once. No message names an
- * employee: the text reaches an admin screen, and a site code is configuration while a person is not.
+ * The seam call is deferred through `Promise.resolve()` so that a synchronous throw (from a test stub) and an
+ * async rejection both route to the same branch.
  *
  * @method
- * @param {Object} value - The pending work-sites document being validated.
- * @param {ValidatorContext} context
+ * @param {Array<ValidationIssue>} issues - Issues collected so far; appended to and returned de-duplicated.
+ * @param {function(Object, Array<ValidationIssue>): void} inspect - Called once per employee to append any issue.
  * @returns {Promise<Array<ValidationIssue>>}
- * @public
+ * @private
  */
-function workSitesReferentialIntegrity( value, context ) {
-    const issues = [];
-    const sites = value || {};
-
-    // Defer the call so that a synchronous throw (e.g. from a test stub) and an async rejection both route to the
-    // fail-closed branch below.
+function withEmployeeReferences( issues, inspect ) {
     return Promise.resolve()
         .then( () => module.exports.fetchEmployeesForValidation() )
         .then( ( employees ) => employees || [] )
@@ -494,16 +499,8 @@ function workSitesReferentialIntegrity( value, context ) {
         } )
         .then( ( employees ) => {
             for ( const employee of employees ) {
-                const workSite = employee && employee.personal && employee.personal.workSite;
-                if ( workSite && !sites[ workSite ] ) {
-                    issues.push( {
-                        path: `.${ workSite }`,
-                        message: `work site '${ workSite }' is assigned to an employee and cannot be removed`,
-                        code: "reference-integrity"
-                    } );
-                }
+                inspect( employee, issues );
             }
-
             const seen = {};
             return issues.filter( ( issue ) => {
                 if ( seen[ issue.path ] ) {
@@ -516,18 +513,83 @@ function workSitesReferentialIntegrity( value, context ) {
 }
 ```
 
-The `context` parameter is unused but kept in the signature for consistency with every other referential validator; ESLint's config does not flag unused parameters as errors here (only `no-unused-vars` warnings on variables, of which the repo already carries 26).
+- [ ] **Step 5: Rewrite the shipped validator to use it**
 
-- [ ] **Step 4: Export it**
+Replace `roleFamiliesReferentialIntegrity`'s employee half. Its active-competency-sets half is unchanged; only the tail changes, from the inline scaffolding to:
 
-Add `workSitesReferentialIntegrity` to the `module.exports` block, after `workSiteIdMatchesKey`.
+```js
+        return withEmployeeReferences( issues, ( employee, collected ) => {
+            const career = employee && employee.career;
+            if ( !career || !career.roleFamily ) {
+                return;
+            }
+            const family = families[ career.roleFamily ];
+            if ( !family ) {
+                collected.push( { path: `.${ career.roleFamily }`, message: `role family '${ career.roleFamily }' is assigned to an employee and cannot be removed`, code: "reference-integrity" } );
+            } else if ( career.specialization && !( family.specializations || {} )[ career.specialization ] ) {
+                collected.push( { path: `.${ career.roleFamily }.specializations.${ career.specialization }`, message: `specialization '${ career.roleFamily }.${ career.specialization }' is assigned to an employee and cannot be removed`, code: "reference-integrity" } );
+            }
+        } );
+```
 
-- [ ] **Step 5: Run the test to verify it passes**
+Every issue message must stay **byte-identical** to what it was. The 14 existing cases assert on them, and this is a behaviour-preserving refactor — a changed message is a behaviour change wearing a refactor's clothes.
 
-Run: `node --test packages/competence/test/work-sites-referential-integrity.test.js`
-Expected: PASS, 8 tests.
+Note the structural change: the active-sets `.then()` previously returned the employees array and a second `.then()` consumed it. Now the first `.then()` returns `withEmployeeReferences(...)` directly. Read the existing promise chain carefully before restructuring it, and keep the active-sets checks running *before* the employee fetch, exactly as now.
 
-- [ ] **Step 6: Wire it into the registration**
+- [ ] **Step 6: Prove the refactor preserved behaviour**
+
+Run: `node --test packages/competence/test/config-management.test.js`
+Expected: PASS, all 14 cases, **with the test file unmodified**. If a case fails, the refactor changed behaviour — fix the code, never the test. If you believe a test is genuinely wrong, stop and report rather than editing it.
+
+- [ ] **Step 7: Write the new validator on the same helper**
+
+After `workSiteIdMatchesKey`:
+
+```js
+/**
+ * work-sites: a site may only be removed when no employee is assigned to it. Shares the seam, the fail-closed
+ * branch and the de-duplication with {@link roleFamiliesReferentialIntegrity} through
+ * {@link withEmployeeReferences}, so the two cannot drift on the part that is easy to get wrong.
+ * <br/>
+ * This is a *removal* check, which is why it can be a validator at all. CA-107's unresolved-manager rule is a
+ * *presence* check — "every unit's managerID must resolve to an employee" — and had to become a startup diagnostic
+ * because it fires on a fresh install, where the tree must exist before any employee can reference it. Nothing is
+ * removed on a fresh install, so this one never fires there.
+ * <br/>
+ * No message names an employee: the text reaches an admin screen, and a site code is configuration while a person
+ * is not.
+ *
+ * @method
+ * @param {Object} value - The pending work-sites document being validated.
+ * @param {ValidatorContext} context
+ * @returns {Promise<Array<ValidationIssue>>}
+ * @public
+ */
+function workSitesReferentialIntegrity( value, context ) {
+    const sites = value || {};
+    return withEmployeeReferences( [], ( employee, collected ) => {
+        const workSite = employee && employee.personal && employee.personal.workSite;
+        if ( workSite && !sites[ workSite ] ) {
+            collected.push( {
+                path: `.${ workSite }`,
+                message: `work site '${ workSite }' is assigned to an employee and cannot be removed`,
+                code: "reference-integrity"
+            } );
+        }
+    } );
+}
+```
+
+The `context` parameter is unused but kept for consistency with every other referential validator.
+
+Add `workSitesReferentialIntegrity` to `module.exports`, after `workSiteIdMatchesKey`. Do **not** export `withEmployeeReferences` — nothing outside this module calls it, and exporting it would invite a caller that bypasses the fail-closed contract.
+
+- [ ] **Step 8: Run both suites**
+
+Run: `node --test packages/competence/test/work-sites-referential-integrity.test.js` — expected PASS, 8 cases.
+Run: `node --test packages/competence/test/config-management.test.js` — expected PASS, unmodified.
+
+- [ ] **Step 9: Wire it into the registration**
 
 In `packages/competence/application/config-registration.js`, change the `work-sites` registration's `validators` array from:
 
@@ -541,17 +603,27 @@ to:
         validators: [ validators.workSiteIdMatchesKey, validators.workSitesReferentialIntegrity ],
 ```
 
-- [ ] **Step 7: Run the full suite**
+- [ ] **Step 10: Run the full suite and lint**
 
 Run: `npm test -w @ti-engine/competence`
 Expected: PASS, at least 798 tests.
 
-- [ ] **Step 8: Commit**
+Run: `npm run lint`
+Expected: 0 errors.
+
+- [ ] **Step 11: Commit**
+
+Two commits, because the refactor and the feature are separately reviewable and separately revertable:
 
 ```bash
+git add packages/competence/application/config-validators.js
+git commit -m "refactor(competence): share the employee-reference scaffolding between referential validators (CA-109)"
+
 git add packages/competence/application/config-validators.js packages/competence/application/config-registration.js packages/competence/test/work-sites-referential-integrity.test.js
 git commit -m "feat(competence): refuse to remove a work site an employee is assigned to (CA-109)"
 ```
+
+If the first `git add` would stage both validators at once because they live in one file, commit once instead with the `feat` message and note in the report that the refactor could not be separated.
 
 ---
 
