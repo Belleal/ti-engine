@@ -70,8 +70,8 @@ The shipped resolution is a separate `#requireAdmin( session )` used only by the
 
 One fragment and two services:
 
-- `addFragment( "employee-import", { title, path: "fragments/frame-employee-import.html", roles: [ "admin" ] } )`, with `"employee-import": "administration"` added to the sidebar-section map so it sits beside the existing configuration screens.
-- `preview-employee-import` and `apply-employee-import`, both entering the existing service dispatch chain and both opening with `this.#requireRole( session, "admin" )`.
+- `addFragment( "employee-import", { title, path: "fragments/frame-employee-import.html", roles: [ "admin" ] } )`, with ~~`"employee-import": "administration"` added to the sidebar-section map so it sits beside the existing configuration screens~~ **`"employee-import": "employee-import"`** added to `sidebarNavMapping`. The map is not a section map: it decides which sidebar **item** highlights, and `"administration"` is the Configuration item's own key. Mapping to it made Configuration light up whenever the import screen was open. A *sub*-screen maps to its parent's key (`"cycle-setup"`, `"competency-text-editor"`); a top-level item maps to itself, and this screen is top-level. Fixed in `33e9bee`.
+- `preview-employee-import` and `apply-employee-import`, both entering the existing service dispatch chain and both opening with ~~`this.#requireRole( session, "admin" )`~~ **`this.#requireAdmin( session )`** — `#requireRole` funnels through `#requireSessionUser` and so could not have admitted a break-glass admin at all. See §4.1 for why, and for why the fix is a second guard rather than a change to the shared one.
 
 The browser reads the chosen file with `FileReader.readAsText`, checks its size, and posts the text. No new transport.
 

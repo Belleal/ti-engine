@@ -184,6 +184,17 @@ describe( "employee import screen — apply", () => {
         assert.deepEqual( stored.map( ( e ) => e.employeeID ).sort(), [ "90001", "90002" ] );
     } );
 
+    it( "leaks no personal field into the applied payload either", async () => {
+        // The preview payload is pinned above. Apply returns everything preview does PLUS `applied`, so the
+        // branch's load-bearing privacy property needs pinning on both services, not one.
+        const result = await app.processServiceRequest( adminSession(), "apply-employee-import", { csv: CSV_WITH_REJECT } );
+        const serialized = JSON.stringify( result );
+
+        for ( const secret of [ "Zelenka", "Vorobyeva", "Bartholomew", "Quintavalle", "Mireille", "Aubertin", "example.com" ] ) {
+            assert.equal( serialized.includes( secret ), false, `applied payload leaked '${ secret }'` );
+        }
+    } );
+
     it( "attributes the audit entries to the acting admin", async () => {
         await app.processServiceRequest( adminSession(), "apply-employee-import", { csv: CSV } );
         const entries = await dataManager.instance.getAuditEntriesForEmployee( "90001" );

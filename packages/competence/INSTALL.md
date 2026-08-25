@@ -409,9 +409,14 @@ reaches it once `deploy.sh` is re-run.
 
 ### Importing employee data
 
-Once the organization structure reflects your organization, load employees with the bundled CLI,
-`bin/build/import-organization.js` (`npm run import:org`). It reads a CSV export from your HRIS, reconciles it
-against whatever is already in Redis, and either prints or applies the resulting plan — it never touches employee
+Once the organization structure reflects your organization, load employees either from the **Employee Import
+screen** in the application (admin-only, no shell needed — see "The Employee Import screen" below) or with the
+bundled CLI. Both run the same importer against the same CSV; the CLI is described first because it is the path
+that works before anyone can sign in, and it is the one to use when you want a shell, a Redis snapshot taken
+first, and a scriptable exit code.
+
+The CLI is `bin/build/import-organization.js` (`npm run import:org`). It reads a CSV export from your HRIS,
+reconciles it against whatever is already in Redis, and either prints or applies the resulting plan — it never touches employee
 data on its own. Run it with access to the same Redis your deployment uses: `docker exec` into the running
 container (the image's `WORKDIR` is already the competence package directory, so the command below runs as-is), or
 run it from any host with the Redis connection variables (§7, "Redis") pointed at that Redis. A file is not already
@@ -527,11 +532,23 @@ same plan from the CSV on the server rather than trusting the one the browser is
 for you.** Back up Redis first (§15), exactly as you would before the CLI's `--apply`; neither path leaves a restore
 action to undo an import.
 
-**The one way it differs from the CLI: no restart.** The screen's apply runs inside the already-running server, so
-it rebuilds the organization chart and the login email index itself before returning — an imported employee is
-immediately reachable and can sign in without anyone restarting anything. Every org-chart rebuild call site is
-in-process; a CLI `--apply` writes to Redis from a separate process and has no way to trigger one, which is exactly
-why the CLI section above tells you to restart.
+**It differs from the CLI in three ways, and only three:**
+
+- **No restart.** The screen's apply runs inside the already-running server, so it rebuilds the organization chart
+  and the login email index itself before returning — an imported employee is immediately reachable and can sign in
+  without anyone restarting anything. Every org-chart rebuild call site is in-process; a CLI `--apply` writes to
+  Redis from a separate process and has no way to trigger one, which is exactly why the CLI section above tells you
+  to restart.
+- **A 512 KB file-size limit.** The browser refuses a larger file before uploading it, with "That file is too
+  large to upload." The cap sits well inside the server's 1 MB request-body limit so the refusal is a clear message
+  rather than a rejected request; 512 KB of this CSV is well over 4000 employees, so a file that trips it is far
+  more likely to be the wrong file than a real staff list. The CLI reads from disk and has no such limit — use it
+  for a genuinely larger import.
+- **No delimiter override.** Detection from the header row is all the screen has; there is no equivalent of the
+  CLI's `--delimiter ";"`. In practice detection handles both `,` and the `;` a European-locale Excel export
+  produces. If it ever picks wrong for your export the whole file is refused up front with "The header is missing
+  required columns" naming every required column, because the header row parsed as one unsplit cell — run that file
+  through the CLI with an explicit `--delimiter`.
 
 ### Unresolved-manager warnings
 
