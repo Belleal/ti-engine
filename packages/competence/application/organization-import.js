@@ -21,6 +21,13 @@ const GENDERS = Object.freeze( [ "M", "F" ] );
 const EMPLOYMENT_STATUSES = Object.freeze( [ "active", "on-leave", "terminated" ] );
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+// Cyrillic letters whose uppercase glyph is indistinguishable from a Latin one in every common font. Used ONLY to
+// explain a failed match (see foldConfusables) — never to resolve one.
+const CONFUSABLE_TO_LATIN = Object.freeze( {
+    "А": "A", "В": "B", "Е": "E", "К": "K", "М": "M", "Н": "H",
+    "О": "O", "Р": "P", "С": "C", "Т": "T", "У": "Y", "Х": "X"
+} );
+
 // `mapRow` OMITS these three fields entirely — it never writes an explicit `null` — when their CSV cell is blank.
 // That is deliberate: `employee.schema.json` types `personal.birthDate` and `career.startingDate` as
 // `format: "date"` strings (and `personal.gender` as a plain string), none of them with `"null"` in their `type`,
@@ -376,6 +383,51 @@ class OrganizationImport {
     }
 
     /**
+     * Replaces every Cyrillic character that is glyph-identical to a Latin one with that Latin letter. Pure.
+     * <br/>
+     * **This exists to phrase an error, never to accept a value.** The real HR data contains a Stara Zagora site
+     * coded `О5` with a Cyrillic О while every sibling uses a Latin O; the two render identically and compare
+     * unequal, so an unknown-code rejection would list `O5` as permitted, pixel-identical to what the operator
+     * typed. Folding lets {@link OrganizationImport#describeWorkSiteMiss} say which character is wrong. Folding to
+     * *match* would be the synonym table this module refuses everywhere else, and would file a person under a site
+     * they were never assigned to.
+     *
+     * @method
+     * @param {string} [text]
+     * @returns {string}
+     * @public
+     */
+    foldConfusables( text ) {
+        return String( text == null ? "" : text ).replace( /[Ѐ-ӿ]/g, ( character ) => CONFUSABLE_TO_LATIN[ character ] || character );
+    }
+
+    /**
+     * Explains why a work-site code matched nothing, or returns `null` when it in fact matched. Pure.
+     * <br/>
+     * Returns `{ code: "confusable-character", match }` when the code folds onto a real site — the operator typed a
+     * lookalike letter — and `{ code: "unknown-work-site", match: null }` otherwise. A non-null return always means
+     * the value is **rejected**; the distinction only changes what the operator is told.
+     *
+     * @method
+     * @param {string} rawCode - The code as supplied.
+     * @param {Object<string, WorkSite>} sites - The work-sites nomenclature.
+     * @returns {{code: string, match: string|null}|null}
+     * @public
+     */
+    describeWorkSiteMiss( rawCode, sites ) {
+        const known = sites || {};
+        const code = String( rawCode == null ? "" : rawCode );
+        if ( known[ code ] ) {
+            return null;
+        }
+        const folded = this.foldConfusables( code );
+        if ( folded !== code && known[ folded ] ) {
+            return { code: "confusable-character", match: folded };
+        }
+        return { code: "unknown-work-site", match: null };
+    }
+
+    /**
      * Builds a `row number → raw employee_id` lookup from the parsed records, so a mapping-stage rejection — whose
      * error object carries only the row number and column (see {@link OrganizationImport#mapRow}) — can still be
      * labeled by the id the operator actually put in that row, and so that same id can be reconciled against
@@ -595,6 +647,18 @@ class OrganizationImport {
 
             const violation = employeeRules.instance.validateEmployee( candidate, context );
             if ( violation ) {
+                // A confusable work-site code (CA-109) gets its own message naming the offending character, with a
+                // rejection `code` that deliberately does NOT start with "error." — `rejectionLabel` on the import
+                // screen resolves any "error."-prefixed code through the label table, which would silently discard
+                // this prose (and does today the moment `error.employee.invalid-work-site` gains a label of its
+                // own). The value is still rejected exactly like any other violation; only the wording changes.
+                if ( violation === "error.employee.invalid-work-site" ) {
+                    const miss = this.describeWorkSiteMiss( candidate.personal && candidate.personal.workSite, context.workSites );
+                    if ( miss && miss.code === "confusable-character" ) {
+                        reject( candidate, miss.code, `work_site '${ candidate.personal.workSite }' uses a Cyrillic character; the permitted code '${ miss.match }' is spelled with Latin letters` );
+                        continue;
+                    }
+                }
                 reject( candidate, violation, `record is not valid: ${ violation }` );
                 continue;
             }
