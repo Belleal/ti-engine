@@ -6144,6 +6144,9 @@ function configureEmployeeImport() {
         errorDetail: "",
         plan: null,
         confirming: false,
+        // Set only when an APPLY fails. A preview failure writes nothing, so it must not raise the
+        // partial-write warning -- that warning tells the operator not to restore their backup.
+        applyFailed: false,
 
         reset() {
             this.csv = "";
@@ -6152,6 +6155,7 @@ function configureEmployeeImport() {
             this.errorDetail = "";
             this.plan = null;
             this.confirming = false;
+            this.applyFailed = false;
         },
 
         chooseFile( event ) {
@@ -6213,6 +6217,13 @@ function configureEmployeeImport() {
                 } );
             } ).catch( ( error ) => {
                 this.applyError( error );
+                // applyPlan writes sequentially and there is no rollback, so a failure part-way through a bulk
+                // apply leaves the earlier records committed. Say so: INSTALL.md tells the admin to snapshot Redis
+                // before applying, and an operator told only "it failed" may restore that snapshot and destroy
+                // everything written since. Also drop the now-stale plan, which still holds the PRE-apply counts
+                // and would otherwise keep advertising "2 to create" after one was created.
+                this.applyFailed = true;
+                this.plan = null;
             } ).finally( () => {
                 this.busy = false;
             } );
@@ -6284,7 +6295,15 @@ function configureEmployeeImport() {
         rejectionLabel( entry ) {
             const where = entry.row ? tiApplication.getLabel( "interface.employee-import.line", "line" ) + " " + entry.row
                 : tiApplication.getLabel( "interface.employee-import.unknown-line", "unknown line" );
-            return where + ", employee_id '" + entry.employeeID + "': " + entry.message;
+            // A reconcile-stage rejection's `code` IS a localization key — `employee-rules.validateEmployee`
+            // returns keys rather than prose, and `reconcile` puts the key straight into `message` too, so
+            // rendering `message` raw shows the operator "error.employee.invalid-organization-unit". Resolve it.
+            // A mapping-stage rejection's `code` is a bare word ("required", "not-a-date") and its `message`
+            // already reads as prose, so the fallback is what keeps those rendering exactly as they do now.
+            const reason = ( entry.code && entry.code.indexOf( "error." ) === 0 )
+                ? tiApplication.getLabel( entry.code, entry.message )
+                : entry.message;
+            return where + ", employee_id '" + entry.employeeID + "': " + reason;
         }
     };
 }
