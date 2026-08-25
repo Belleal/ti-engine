@@ -13,10 +13,11 @@ const REQUIRED_COLUMNS = Object.freeze( [
     "employee_id", "email", "first_name", "last_name", "work_mode", "work_location",
     "organization_unit_id", "role_family", "level", "stage"
 ] );
-const OPTIONAL_COLUMNS = Object.freeze( [ "employment_status", "birth_date", "gender", "specialization", "starting_date" ] );
+const OPTIONAL_COLUMNS = Object.freeze( [ "employment_status", "birth_date", "gender", "specialization", "starting_date", "work_site", "position_name" ] );
 
 const WORK_MODES = Object.freeze( [ "Full-time", "Part-time", "Contract" ] );
 const WORK_LOCATIONS = Object.freeze( [ "On-site", "Hybrid", "Remote" ] );
+const GENDERS = Object.freeze( [ "M", "F" ] );
 const EMPLOYMENT_STATUSES = Object.freeze( [ "active", "on-leave", "terminated" ] );
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -34,10 +35,17 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 // cell (its schema type permits `null`), and under merge-patch an explicit `null` DELETES the key — so
 // specialization genuinely converges to `null` in storage and must keep being compared like every other field.
 // Adding it here would make specialization changes silently un-importable.
+// <br/>
+// `personal.workSite` and `career.positionName` (CA-109) join them for the same mechanical reason and one
+// deliberate one: an HR export that omits a column's values must not wipe every office assignment in a single
+// irreversible apply. The cost is that neither field can be CLEARED by re-importing a blank cell — that is
+// Employee Management's job, exactly as it already is for birthDate and gender.
 const LEAVE_UNCHANGED_WHEN_OMITTED = Object.freeze( [
     { group: "personal", field: "birthDate" },
     { group: "personal", field: "gender" },
-    { group: "career", field: "startingDate" }
+    { group: "career", field: "startingDate" },
+    { group: "personal", field: "workSite" },
+    { group: "career", field: "positionName" }
 ] );
 
 /**
@@ -283,6 +291,12 @@ class OrganizationImport {
             return fail( "work_location", "not-a-permitted-value", `'work_location' must be one of: ${ WORK_LOCATIONS.join( ", " ) }` );
         }
 
+        const rawGender = read( "gender" );
+        const gender = rawGender.length === 0 ? "" : this.#matchEnum( rawGender, GENDERS );
+        if ( rawGender.length > 0 && !gender ) {
+            return fail( "gender", "not-a-permitted-value", `'gender' must be one of: ${ GENDERS.join( ", " ) }` );
+        }
+
         const rawStatus = read( "employment_status" );
         const employmentStatus = rawStatus.length === 0 ? "active" : this.#matchEnum( rawStatus, EMPLOYMENT_STATUSES );
         if ( !employmentStatus ) {
@@ -304,8 +318,9 @@ class OrganizationImport {
 
         const specialization = read( "specialization" );
         const birthDate = read( "birth_date" );
-        const gender = read( "gender" );
         const startingDate = read( "starting_date" );
+        const workSite = read( "work_site" );
+        const positionName = read( "position_name" );
 
         const employee = {
             // The source line number travels with the record so `reconcile` can name the offending line without
@@ -321,7 +336,8 @@ class OrganizationImport {
                 workMode: workMode,
                 workLocation: workLocation,
                 ...( birthDate ? { birthDate: birthDate } : {} ),
-                ...( gender ? { gender: gender } : {} )
+                ...( gender ? { gender: gender } : {} ),
+                ...( workSite ? { workSite: workSite } : {} )
             },
             career: {
                 organizationUnitID: read( "organization_unit_id" ),
@@ -329,7 +345,8 @@ class OrganizationImport {
                 specialization: specialization.length > 0 ? specialization.toUpperCase() : null,
                 level: read( "level" ).toUpperCase(),
                 stage: stage,
-                ...( startingDate ? { startingDate: startingDate } : {} )
+                ...( startingDate ? { startingDate: startingDate } : {} ),
+                ...( positionName ? { positionName: positionName } : {} )
             }
         };
         return { employee: employee, error: null };
@@ -731,7 +748,7 @@ class OrganizationImport {
      * Whether a stored record and a candidate are identical for import purposes. Compares the fields the importer
      * writes, ignoring key order and any property the importer never sets. Pure.
      * <br/>
-     * Mirrors the writer's merge-patch semantics for the three fields named in {@link LEAVE_UNCHANGED_WHEN_OMITTED}
+     * Mirrors the writer's merge-patch semantics for the fields named in {@link LEAVE_UNCHANGED_WHEN_OMITTED}
      * (module-level, top of this file): when `candidate` omits one of them, it compares as equal to whatever
      * `previous` holds on that field alone — a write of `candidate` can never change it, so a diff there would be
      * fictitious. When `candidate` does carry a value for one of those fields, it compares normally, same as every
@@ -754,7 +771,8 @@ class OrganizationImport {
                 workMode: employee.personal && employee.personal.workMode,
                 workLocation: employee.personal && employee.personal.workLocation,
                 birthDate: ( employee.personal && employee.personal.birthDate ) || null,
-                gender: ( employee.personal && employee.personal.gender ) || null
+                gender: ( employee.personal && employee.personal.gender ) || null,
+                workSite: ( employee.personal && employee.personal.workSite ) || null
             },
             career: {
                 organizationUnitID: employee.career && employee.career.organizationUnitID,
@@ -762,7 +780,8 @@ class OrganizationImport {
                 specialization: ( employee.career && employee.career.specialization ) || null,
                 level: employee.career && employee.career.level,
                 stage: employee.career && employee.career.stage,
-                startingDate: ( employee.career && employee.career.startingDate ) || null
+                startingDate: ( employee.career && employee.career.startingDate ) || null,
+                positionName: ( employee.career && employee.career.positionName ) || null
             }
         } );
 
