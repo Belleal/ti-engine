@@ -9809,6 +9809,10 @@
         "en": "Import applied.",
         "bg": "Импортът е приложен."
       },
+      "apply-failed": {
+        "en": "Some rows may already have been written. There is no rollback. Re-uploading the same file is safe — rows already written come back as unchanged, so only the rest are attempted again.",
+        "bg": "Възможно е част от редовете вече да са записани. Няма възстановяване. Повторното качване на същия файл е безопасно — вече записаните редове се отчитат като непроменени и се опитват само останалите."
+      },
       "rejections-title": {
         "en": "Rejected rows",
         "bg": "Отхвърлени редове"

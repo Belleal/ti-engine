@@ -56,6 +56,9 @@
                     <template x-if="errorDetail">
                         <p class="ti-form-hint" x-text="errorDetail"></p>
                     </template>
+                    <template x-if="applyFailed">
+                        <p class="ti-form-error" x-text-label="interface.employee-import.apply-failed">Some rows may already have been written. There is no rollback. Re-uploading the same file is safe — rows already written come back as unchanged, so only the rest are attempted again.</p>
+                    </template>
                 </div>
             </template>
 
