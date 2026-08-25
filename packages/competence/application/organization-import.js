@@ -359,6 +359,133 @@ class OrganizationImport {
     }
 
     /**
+     * Builds a `row number → raw employee_id` lookup from the parsed records, so a mapping-stage rejection — whose
+     * error object carries only the row number and column (see {@link OrganizationImport#mapRow}) — can still be
+     * labeled by the id the operator actually put in that row, and so that same id can be reconciled against
+     * `plan.absent` (see {@link OrganizationImport#excludeMappingErrorsFromAbsent} below). Shared by every driver
+     * (the CLI and the employee-import screen) so the row→id lookup is defined exactly once. Pure.
+     *
+     * @method
+     * @param {Array<Object>} records - From {@link OrganizationImport#toRecords}.
+     * @returns {Map<number, string>} Row number → trimmed `employee_id` (empty string when the cell itself was blank).
+     * @public
+     */
+    mapRowsToEmployeeIDs( records ) {
+        const byRow = new Map();
+        for ( const record of ( Array.isArray( records ) ? records : [] ) ) {
+            byRow.set( record.__row, String( record.employee_id == null ? "" : record.employee_id ).trim() );
+        }
+        return byRow;
+    }
+
+    /**
+     * Turns one mapping-stage error into the same rejection shape {@link OrganizationImport#reconcile} produces,
+     * labeled by the row's real `employee_id` whenever the row provided one. `mapRow` rejects before ever building
+     * an `Employee`, so its error carries only the row number, not the id — even though the raw CSV cell is sitting
+     * right there in the source record. Falls back to the display placeholder `'(unmapped)'` only when the id is
+     * genuinely absent (e.g. the row failed on the empty `employee_id` column itself), never for any other reason.
+     * The raw value is printed verbatim and no other cell is ever surfaced. That is data minimisation, not an
+     * exemption: an `employee_id` is an identification number, and GDPR Art. 4(1) names exactly that as an
+     * identifier of an identifiable person, so a rejection list is pseudonymised personal data and is handled as
+     * such. What minimisation buys is that it carries no name, email, birth date or grade — nothing that
+     * identifies anyone without the HR key. Pure.
+     * <br/>
+     * `unmapped` carries the same fact as the placeholder, out of band. The placeholder is a *display* string and
+     * nothing may branch on it: the import contract requires only that `employee_id` be non-empty, so a real
+     * employee could legitimately hold the literal id `(unmapped)`, and a consumer comparing the string would then
+     * mistake that person's row for a row that had no id at all.
+     *
+     * @method
+     * @param {Object} error - One entry from {@link OrganizationImport#mapRows}'s `errors`.
+     * @param {Map<number, string>} rowEmployeeIDs - From {@link OrganizationImport#mapRowsToEmployeeIDs}.
+     * @returns {{employeeID: string, unmapped: boolean, row: number, code: string, message: string}}
+     * @public
+     */
+    toMappingRejection( error, rowEmployeeIDs ) {
+        const rawID = rowEmployeeIDs.get( error.row );
+        return {
+            employeeID: rawID ? rawID : "(unmapped)",
+            unmapped: !rawID,
+            row: error.row,
+            code: error.code,
+            message: `${ error.column }: ${ error.message }`
+        };
+    }
+
+    /**
+     * Removes from `absent` every id a mapping-stage rejection already accounts for. A row that fails mapping never
+     * becomes an `Employee`, so it never reaches {@link OrganizationImport#reconcile} and its id is never added to
+     * reconcile's own seenIDs; when that same id also belongs to a currently-stored employee, reconcile reports it
+     * as "absent from the file" even though the row is right there, just rejected at an earlier stage. Left alone,
+     * the plan would tell the operator to terminate a leaver right next to a rejection naming that same
+     * employee_id. This lives here rather than inside reconcile() because reconcile() is a verified pure function
+     * that correctly knows nothing about rows that never reached it — the two lists only disagree once a driver
+     * merges the mapping errors in, so this is where the disagreement must be resolved too. Pure.
+     * <br/>
+     * A rejection whose row carried no id at all names nobody, so it can subtract nobody. That is read from the
+     * `unmapped` flag rather than by comparing `employeeID` to the `(unmapped)` placeholder: `employee_id` need
+     * only be non-empty, so an employee may legitimately hold that literal id, and a string comparison would then
+     * refuse to subtract the one person it was meant to — reporting them absent while their rejected row sits in
+     * the list directly above.
+     *
+     * @method
+     * @param {Array<string>} absent - `plan.absent`, from {@link OrganizationImport#reconcile}.
+     * @param {Array<Object>} mappingRejections - From {@link OrganizationImport#toMappingRejection}.
+     * @returns {Array<string>}
+     * @public
+     */
+    excludeMappingErrorsFromAbsent( absent, mappingRejections ) {
+        const mappingErrorIDs = new Set(
+            ( Array.isArray( mappingRejections ) ? mappingRejections : [] )
+                .filter( ( rejection ) => rejection && !rejection.unmapped )
+                .map( ( rejection ) => rejection.employeeID )
+        );
+        return ( Array.isArray( absent ) ? absent : [] ).filter( ( id ) => !mappingErrorIDs.has( id ) );
+    }
+
+    /**
+     * Whether the file's text shows evidence of a decoding failure. Node's `'utf8'` decoding substitutes U+FFFD for
+     * an undecodable byte instead of throwing, so a CP1251 export of Cyrillic names arrives as a string full of
+     * replacement characters rather than as an error — and would otherwise be written to the store as mojibake.
+     * Returns a code, not prose: each driver phrases it for its own audience. Pure.
+     *
+     * @method
+     * @param {string} [text]
+     * @returns {{code: string}|null}
+     * @public
+     */
+    findEncodingFailure( text ) {
+        return String( text == null ? "" : text ).includes( "�" ) ? { code: "not-utf8" } : null;
+    }
+
+    /**
+     * Whether the parsed header is unusable as a whole, as opposed to a row being invalid. Two conditions qualify,
+     * checked in this order:
+     *  - a required column is absent, so no row could ever be mapped;
+     *  - a column is repeated, which is fatal rather than per-row because {@link OrganizationImport#toRecords} keys
+     *    each record by header cell — two columns normalizing to the same key silently overwrite, and the earlier
+     *    column's data vanishes with no error anywhere.
+     * Empty header cells are ignored: a trailing delimiter produces them and they name nothing. Pure.
+     *
+     * @method
+     * @param {Array<string>} [header]
+     * @returns {{code: string, columns: Array<string>}|null}
+     * @public
+     */
+    findHeaderFailure( header ) {
+        const cells = Array.isArray( header ) ? header : [];
+        const missing = REQUIRED_COLUMNS.filter( ( column ) => !cells.includes( column ) );
+        if ( missing.length > 0 ) {
+            return { code: "missing-columns", columns: missing };
+        }
+        const duplicated = cells.filter( ( column, index ) => column.length > 0 && cells.indexOf( column ) !== index );
+        if ( duplicated.length > 0 ) {
+            return { code: "duplicate-columns", columns: Array.from( new Set( duplicated ) ) };
+        }
+        return null;
+    }
+
+    /**
      * Classifies every mapped employee against the current store, returning a plan rather than performing any write.
      * The plan is what makes dry-run free: the preview and the applied change come from this one function, so a
      * dry-run cannot diverge from what apply does. Pure.

@@ -409,9 +409,14 @@ reaches it once `deploy.sh` is re-run.
 
 ### Importing employee data
 
-Once the organization structure reflects your organization, load employees with the bundled CLI,
-`bin/build/import-organization.js` (`npm run import:org`). It reads a CSV export from your HRIS, reconciles it
-against whatever is already in Redis, and either prints or applies the resulting plan — it never touches employee
+Once the organization structure reflects your organization, load employees either from the **Employee Import
+screen** in the application (admin-only, no shell needed — see "The Employee Import screen" below) or with the
+bundled CLI. Both run the same importer against the same CSV; the CLI is described first because it is the path
+that works before anyone can sign in, and it is the one to use when you want a shell, a Redis snapshot taken
+first, and a scriptable exit code.
+
+The CLI is `bin/build/import-organization.js` (`npm run import:org`). It reads a CSV export from your HRIS,
+reconciles it against whatever is already in Redis, and either prints or applies the resulting plan — it never touches employee
 data on its own. Run it with access to the same Redis your deployment uses: `docker exec` into the running
 container (the image's `WORKDIR` is already the competence package directory, so the command below runs as-is), or
 run it from any host with the Redis connection variables (§7, "Redis") pointed at that Redis. A file is not already
@@ -496,9 +501,11 @@ Three conditions fail the whole file rather than the one row responsible, becaus
 supplied rather than one flawed record among good ones: the file is not valid UTF-8, the header is missing a
 required column, or the header repeats a column (case-insensitively — `Note` and `NOTE` collide). All three exit `2`.
 
-**No personal data is ever printed.** A rejection is identified only by `employee_id` and its source line number —
-never a name, email, birth date or grade — because this runs against real HR data and a terminal or CI log is not a
-place for it.
+**Only an `employee_id` is ever printed.** A rejection is identified by that and its source line number — never a
+name, email, birth date or grade — because this runs against real HR data and a terminal or CI log is not a place
+for it. Treat the output accordingly: an identification number is an identifier under GDPR Art. 4(1), so a
+rejection list is pseudonymised personal data, not anonymous. It is safe to *reason about* without exposing anyone,
+and it still belongs in a log, ticket or screenshot only where employee data is allowed to go.
 
 Three behaviors are worth understanding before the first real import:
 
@@ -513,6 +520,37 @@ Three behaviors are worth understanding before the first real import:
   importer cannot clear one of those three fields for someone; do that from Employee Management instead.
   (`specialization` is different: an empty cell there is applied and does clear a previously-set specialization,
   turning the person into a generalist.)
+
+### The Employee Import screen
+
+**Administration → Employee Import** (admin-only) is the same importer without a shell. It accepts the same CSV,
+subject to the same column contract, encoding rule and reconciliation logic described above — the handler behind it
+calls the identical `organization-import` pipeline the CLI does, not a parallel implementation, so a file that is
+clean for one is clean for the other. Choosing a file previews the plan (counts, rejections, and everyone on record
+but absent from the file) without writing anything, the same as a dry run; **Apply import** then re-derives that
+same plan from the CSV on the server rather than trusting the one the browser is showing, and only then writes it.
+
+**An apply through the screen is exactly as irreversible as `--apply` — and the screen cannot take a Redis snapshot
+for you.** Back up Redis first (§15), exactly as you would before the CLI's `--apply`; neither path leaves a restore
+action to undo an import.
+
+**It differs from the CLI in three ways, and only three:**
+
+- **No restart.** The screen's apply runs inside the already-running server, so it rebuilds the organization chart
+  and the login email index itself before returning — an imported employee is immediately reachable and can sign in
+  without anyone restarting anything. Every org-chart rebuild call site is in-process; a CLI `--apply` writes to
+  Redis from a separate process and has no way to trigger one, which is exactly why the CLI section above tells you
+  to restart.
+- **A 512 KB file-size limit.** The browser refuses a larger file before uploading it, with "That file is too
+  large to upload." The cap sits well inside the server's 1 MB request-body limit so the refusal is a clear message
+  rather than a rejected request; 512 KB of this CSV is well over 4000 employees, so a file that trips it is far
+  more likely to be the wrong file than a real staff list. The CLI reads from disk and has no such limit — use it
+  for a genuinely larger import.
+- **No delimiter override.** Detection from the header row is all the screen has; there is no equivalent of the
+  CLI's `--delimiter ";"`. In practice detection handles both `,` and the `;` a European-locale Excel export
+  produces. If it ever picks wrong for your export the whole file is refused up front with "The header is missing
+  required columns" naming every required column, because the header row parsed as one unsplit cell — run that file
+  through the CLI with an explicit `--delimiter`.
 
 ### Unresolved-manager warnings
 

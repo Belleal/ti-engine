@@ -2,6 +2,64 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.23.0
+
+An admin can now load an employee CSV from the browser instead of a shell. **Administration → Employee Import**
+(admin-only) wraps the CA-107 importer behind two new services — preview and apply — so a file is reconciled by
+the exact same rules, and rejected by the exact same whole-file and per-row checks, whichever way it arrives.
+
+* feat(competence): add the **Employee Import** admin screen (Administration → Employee Import) and its two
+  admin-gated services, `preview-employee-import` and `apply-employee-import`. The browser reads the chosen file
+  and posts its text through the ordinary service call, capped client-side at 512KB on disk and again at 1MB on the
+  serialized body — JSON escaping expands quotes, backslashes and newlines, so a pathological file could clear the
+  first check and still be refused by `express.json` as a raw 413, which carries nothing localized to show. No
+  multipart handling and no new runtime dependency were needed at this size. Preview writes nothing; **Apply import** re-derives the plan
+  from that same CSV text through one `#deriveImportPlan` helper that takes no other input, so a plan a client
+  posted back is never trusted — it would pass every check precisely because the checks already ran (CA-108)
+* feat(competence): reduce the plan crossing to the browser to counts, rejections and absent identifiers only —
+  `#projectImportPlan` carries no employee record, no name, email, birth date or grade. `employee_id` is the one
+  field that crosses. That is **data minimisation, not an exemption**: an identification number is an identifier
+  under GDPR Art. 4(1), so the payload is pseudonymised personal data and keeps the same handling obligations as
+  any other employee data — including when it is screenshotted or pasted into a ticket. What minimisation buys is
+  that such a disclosure carries opaque ids and nothing that identifies anyone without the HR key (CA-108)
+* feat(competence): rebuild the organization chart — and with it the login email index — synchronously at the end
+  of a successful apply, so an employee the screen just wrote is reachable and can sign in with **no restart**.
+  This is the one respect in which the screen differs from the CLI: a CLI `--apply` writes to Redis from a separate
+  process with no way to trigger either rebuild, and the running server stays stale until someone restarts it
+  (CA-108)
+* refactor(competence): move the whole-file checks (`findEncodingFailure`, `findHeaderFailure`) onto the shared
+  `OrganizationImport` module. Each returns a `{ code }` rather than prose, so the CLI and the new web handler
+  phrase the same failure — not valid UTF-8, a missing required column, a repeated column — for their own audience
+  instead of duplicating the detection logic a second time (CA-108)
+* refactor(competence): move the mapping-rejection helpers (`mapRowsToEmployeeIDs`, `toMappingRejection`,
+  `excludeMappingErrorsFromAbsent`) onto `OrganizationImport` too, replacing an inline copy in the web handler that
+  only mirrored the CLI's logic. A mapping-stage rejection — one that fails before an `Employee` object ever
+  exists, such as an invalid `work_mode` — is now labeled by its row's real `employee_id` on the screen exactly as
+  on the CLI, instead of regressing to a literal "(unmapped)" (CA-108)
+* fix(competence): stop treating the `(unmapped)` rejection placeholder as a control value. `employee_id` need
+  only be non-empty, so an employee may legitimately hold that literal id; `excludeMappingErrorsFromAbsent`
+  compared against the string and would have reported exactly that person as absent from the file while their
+  rejected row sat in the list directly above — telling the operator to chase a leaver who is right there. The
+  placeholder stays for display and the fact moves out of band, onto a `unmapped` flag. Present since 3.22.0, in
+  the CLI-local version of this helper (CA-108)
+* fix(competence): gate the two import services through a dedicated `#requireAdmin` check rather than widening the
+  shared `#requireSessionUser` guard. A break-glass admin has no employee record by design, and the first shape of
+  the fix fell back to `session.user.userID` inside `#requireSessionUser` itself to admit one — which would have
+  loosened a fail-closed guard shared by 15 other direct call sites (37 more through `#requireRole`) to solve a
+  problem in exactly 2 of them. `#requireSessionUser` stays exactly as strict as before; only the import services
+  carry the admin fallback, and a regression test pins the specific 401/`E_SEC_UNAUTHORIZED_ACCESS` shape a
+  break-glass-shaped session must still get from every other handler (CA-108)
+* fix(competence): tell the operator, when an apply fails part-way, that rows may already have been written and
+  there is no rollback — and drop the now-stale plan, which still holds the pre-apply counts and would otherwise
+  keep advertising work that is already done. `applyPlan` writes sequentially; an operator told only "it failed"
+  may restore the snapshot `INSTALL.md` told them to take and destroy everything written since. Re-uploading the
+  same file is the safe recovery: rows already written come back as unchanged (CA-108)
+* docs(competence): document the screen as the alternative to the CLI importer in `INSTALL.md` §11 — same rules,
+  same irreversibility, back up first, and the three respects in which it differs (no restart, a 512KB file cap, no
+  `--delimiter` override) — name it in `README.md` as the one admin screen that writes employee data rather than
+  configuration, and add its 25 interface/error labels (en + bg) to `competence-labels.json` (CA-108)
+* build(release): bump package version from `3.22.0` to `3.23.0`
+
 ## Version 3.22.0
 
 A real organization can now be loaded into a deployment. The org unit tree becomes a store-backed configuration

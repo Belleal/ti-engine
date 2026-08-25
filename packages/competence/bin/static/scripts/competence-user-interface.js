@@ -6122,6 +6122,218 @@ const configureRoleFamilies = () => {
 };
 
 /**
+ * Alpine component for the admin employee-import screen (frame-employee-import.html). Reads the chosen CSV in the
+ * browser and posts its TEXT through the ordinary service call — there is no multipart handling in the framework,
+ * and none is needed at this size. Preview writes nothing; applying re-derives the plan server-side, so the plan
+ * shown here is never an input to the write.
+ *
+ * @returns {Object}
+ */
+function configureEmployeeImport() {
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    // express.json caps a request body at 1mb. Guard well inside it: 512KB of CSV is over 4000 employees, and
+    // failing here with a clear message beats a raw 413 from the server -- which arrives as a plain express error
+    // page rather than the framework's exception envelope, so formatException has nothing localized to show.
+    const MAX_CSV_BYTES = 512 * 1024;
+
+    // `file.size` is the file on disk; the request body is JSON.stringify( { csv } ), and JSON escaping expands
+    // `"`, `\` and every newline to two bytes each. A real CSV grows by its line count -- nothing -- but a
+    // pathological one is bounded only by 2x, so a 512KB file can clear the disk check and still exceed the 1mb
+    // body limit. Measure the bytes actually posted, after reading, and refuse with the same clear message.
+    const serializedByteLength = ( csv ) => new TextEncoder().encode( JSON.stringify( { csv: csv } ) ).length;
+    const MAX_BODY_BYTES = 1024 * 1024;
+
+    return {
+        csv: "",
+        fileName: "",
+        busy: false,
+        error: "",
+        errorDetail: "",
+        plan: null,
+        confirming: false,
+        // Set only when an APPLY fails. A preview failure writes nothing, so it must not raise the
+        // partial-write warning -- that warning tells the operator not to restore their backup.
+        applyFailed: false,
+
+        reset() {
+            this.csv = "";
+            this.fileName = "";
+            this.error = "";
+            this.errorDetail = "";
+            this.plan = null;
+            this.confirming = false;
+            this.applyFailed = false;
+        },
+
+        chooseFile( event ) {
+            const file = event && event.target && event.target.files ? event.target.files[ 0 ] : null;
+            this.reset();
+            if ( !file ) {
+                return;
+            }
+            if ( file.size > MAX_CSV_BYTES ) {
+                this.error = tiApplication.getLabel( "interface.employee-import.error.too-large", "That file is too large to upload." );
+                return;
+            }
+            this.fileName = file.name;
+            const reader = new FileReader();
+            reader.onload = () => {
+                const text = String( reader.result || "" );
+                if ( serializedByteLength( text ) > MAX_BODY_BYTES ) {
+                    this.reset();
+                    this.error = tiApplication.getLabel( "interface.employee-import.error.too-large", "That file is too large to upload." );
+                    return;
+                }
+                this.csv = text;
+                this.preview();
+            };
+            reader.onerror = () => {
+                this.error = tiApplication.getLabel( "interface.employee-import.error.unreadable", "That file could not be read." );
+            };
+            reader.readAsText( file, "utf-8" );
+        },
+
+        preview() {
+            if ( !this.csv ) {
+                this.error = tiApplication.getLabel( "interface.employee-import.error.empty", "That file is empty." );
+                return;
+            }
+            this.busy = true;
+            this.error = "";
+            this.errorDetail = "";
+            tiApplication.sendRequest( "/app/preview-employee-import", "POST", { csv: this.csv } ).then( ( result ) => {
+                this.plan = ( result && result.data ) ? result.data : null;
+            } ).catch( ( error ) => {
+                this.plan = null;
+                this.applyError( error );
+            } ).finally( () => {
+                this.busy = false;
+            } );
+        },
+
+        beginApply() {
+            this.confirming = true;
+        },
+
+        cancelApply() {
+            this.confirming = false;
+        },
+
+        confirmApply() {
+            this.busy = true;
+            this.confirming = false;
+            tiApplication.sendRequest( "/app/apply-employee-import", "POST", { csv: this.csv } ).then( ( result ) => {
+                this.plan = ( result && result.data ) ? result.data : null;
+                tiApplication.notify( {
+                    message: tiApplication.getLabel( "interface.employee-import.applied", "Import applied." ),
+                    details: this.appliedSummary()
+                } );
+            } ).catch( ( error ) => {
+                this.applyError( error );
+                // applyPlan writes sequentially and there is no rollback, so a failure part-way through a bulk
+                // apply leaves the earlier records committed. Say so: INSTALL.md tells the admin to snapshot Redis
+                // before applying, and an operator told only "it failed" may restore that snapshot and destroy
+                // everything written since. Also drop the now-stale plan, which still holds the PRE-apply counts
+                // and would otherwise keep advertising "2 to create" after one was created.
+                this.applyFailed = true;
+                this.plan = null;
+            } ).finally( () => {
+                this.busy = false;
+            } );
+        },
+
+        // Splits formatException's `{ message, details }` into the two fields the fragment renders on separate
+        // lines, then folds in the offending column names the handler attaches for a missing/duplicate header
+        // (error.exception.data.columns) so the operator is told which columns, not just that the header is bad.
+        // Guarded because most exceptions carry no columns at all.
+        applyError( error ) {
+            const formatted = tiApplication.formatException( error );
+            this.error = formatted.message;
+            this.errorDetail = this.describeErrorColumns( error, formatted.details );
+        },
+
+        describeErrorColumns( error, details ) {
+            const data = error && error.exception && error.exception.data;
+            const columns = ( data && Array.isArray( data.columns ) ) ? data.columns : [];
+            if ( columns.length === 0 ) {
+                return details;
+            }
+            return details + ": " + columns.join( ", " );
+        },
+
+        // Alpine's CSP build cannot call Array/Object inside a template expression, so every derived value the
+        // fragment needs is a method here.
+        hasPlan() {
+            return this.plan !== null;
+        },
+
+        wasApplied() {
+            return this.plan !== null && this.plan.applied !== null;
+        },
+
+        canApply() {
+            return this.hasPlan() && !this.wasApplied() && !this.busy &&
+                ( this.plan.counts.create > 0 || this.plan.counts.update > 0 );
+        },
+
+        // The aside carries an unconditional left border, so it must only render when one of its two
+        // children actually will — canApply() and wasApplied() can both be false for the same plan (e.g.
+        // an all-rejected file, or re-uploading a file whose rows are all already applied), which is a
+        // different route to the same empty-bordered-strip artifact that gating on hasPlan() alone misses.
+        hasAsideContent() {
+            return this.canApply() || this.wasApplied();
+        },
+
+        // Both summaries go through a single label with {placeholders} rather than concatenating count + word,
+        // which is the repo's established getLabel(...).replace("{x}", …) pattern. Concatenation would have
+        // hard-coded English word order into a bilingual screen: these two strings are the panel subtitle, the
+        // confirmation modal's body, and the post-apply pill -- the three places an operator actually reads the
+        // outcome -- and a Bulgarian operator would have read every one of them in English.
+        appliedSummary() {
+            if ( !this.wasApplied() ) {
+                return "";
+            }
+            const applied = this.plan.applied;
+            return tiApplication.getLabel( "interface.employee-import.applied-summary", "{created} created, {updated} updated, {skipped} unchanged" )
+                .replace( "{created}", String( applied.created ) )
+                .replace( "{updated}", String( applied.updated ) )
+                .replace( "{skipped}", String( applied.skipped ) );
+        },
+
+        pendingSummary() {
+            if ( !this.hasPlan() ) {
+                return "";
+            }
+            const counts = this.plan.counts;
+            return tiApplication.getLabel( "interface.employee-import.pending-summary", "{create} to create, {update} to update, {unchanged} unchanged, {rejected} rejected" )
+                .replace( "{create}", String( counts.create ) )
+                .replace( "{update}", String( counts.update ) )
+                .replace( "{unchanged}", String( counts.unchanged ) )
+                .replace( "{rejected}", String( counts.rejected ) );
+        },
+
+        absentSummary() {
+            return this.hasPlan() ? this.plan.absent.join( ", " ) : "";
+        },
+
+        rejectionLabel( entry ) {
+            const where = entry.row ? tiApplication.getLabel( "interface.employee-import.line", "line" ) + " " + entry.row
+                : tiApplication.getLabel( "interface.employee-import.unknown-line", "unknown line" );
+            // A reconcile-stage rejection's `code` IS a localization key — `employee-rules.validateEmployee`
+            // returns keys rather than prose, and `reconcile` puts the key straight into `message` too, so
+            // rendering `message` raw shows the operator "error.employee.invalid-organization-unit". Resolve it.
+            // A mapping-stage rejection's `code` is a bare word ("required", "not-a-date") and its `message`
+            // already reads as prose, so the fallback is what keeps those rendering exactly as they do now.
+            const reason = ( entry.code && entry.code.indexOf( "error." ) === 0 )
+                ? tiApplication.getLabel( entry.code, entry.message )
+                : entry.message;
+            return where + ", employee_id '" + entry.employeeID + "': " + reason;
+        }
+    };
+}
+
+/**
  * Configures the Supervisor-only Evaluations Oversight screen: a table of the active cycle's
  * active (Open/In Review/Ready) evaluations with per-row actions — advance past a stalled
  * self-evaluation, complete the manager step (navigates to the evaluation form), or withdraw
@@ -6337,6 +6549,7 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceArchetypeAssignment", configureArchetypeAssignment );
     Alpine.data( "competenceArchetypeEditor", configureArchetypeEditor );
     Alpine.data( "competenceRoleFamilies", configureRoleFamilies );
+    Alpine.data( "competenceEmployeeImport", configureEmployeeImport );
     Alpine.data( "insightsCycle", configureInsightsCycle );
     Alpine.data( "insightsTeam", configureInsightsTeam );
     Alpine.data( "insightsTrends", configureTrendsScreen );

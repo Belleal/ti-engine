@@ -4988,6 +4988,20 @@
         "bg": "Друг служител вече използва този имейл адрес. Имейлите трябва да са уникални — споделен адрес спира достъпа и на двамата служители."
       }
     },
+    "employee-import": {
+      "not-utf8": {
+        "en": "The file is not valid UTF-8. Re-export it as CSV UTF-8 — another encoding would store names incorrectly.",
+        "bg": "Файлът не е валиден UTF-8. Експортирайте го отново като CSV UTF-8 — друго кодиране би съхранило имената неправилно."
+      },
+      "missing-columns": {
+        "en": "The header is missing required columns.",
+        "bg": "В заглавния ред липсват задължителни колони."
+      },
+      "duplicate-columns": {
+        "en": "The header repeats a column. Names are matched case-insensitively after trimming, so 'Note' and 'NOTE' collide.",
+        "bg": "Заглавният ред повтаря колона. Имената се сравняват без значение на регистъра след премахване на крайните празни символи, затова 'Note' и 'NOTE' се считат за еднакви."
+      }
+    },
     "calendar": {
       "slot-not-found": {
         "en": "The selected slot was not found.",
@@ -7318,6 +7332,10 @@
       "admin-config": {
         "en": "Configuration",
         "bg": "Конфигурация"
+      },
+      "employee-import": {
+        "en": "Employee Import",
+        "bg": "Импорт на служители"
       },
       "competency-text-editor": {
         "en": "Competency Texts",
@@ -9738,6 +9756,114 @@
           "en": "Employee record updated.",
           "bg": "Записът на служителя е обновен."
         }
+      }
+    },
+    "employee-import": {
+      "eyebrow": {
+        "en": "Administration",
+        "bg": "Администрация"
+      },
+      "title": {
+        "en": "Employee Import",
+        "bg": "Импорт на служители"
+      },
+      "intro": {
+        "en": "Upload a UTF-8 CSV exported from the employee import template. Applying an import cannot be undone.",
+        "bg": "Качете CSV файл в UTF-8, експортиран от шаблона за импортиране на служители. Прилагането на импортирането е необратимо."
+      },
+      "choose": {
+        "en": "Choose CSV file",
+        "bg": "Изберете CSV файл"
+      },
+      "no-file": {
+        "en": "No file chosen",
+        "bg": "Не е избран файл"
+      },
+      "apply": {
+        "en": "Apply import",
+        "bg": "Приложи импорта"
+      },
+      "export-hint": {
+        "en": "Export from the template with File > Save As > CSV UTF-8. Another encoding stores names incorrectly and is refused.",
+        "bg": "Експортирайте от шаблона чрез File > Save As > CSV UTF-8. Друго кодиране съхранява имената неправилно и се отхвърля."
+      },
+      "working": {
+        "en": "Working…",
+        "bg": "Обработва…"
+      },
+      "error": {
+        "too-large": {
+          "en": "That file is too large to upload.",
+          "bg": "Файлът е твърде голям за качване."
+        },
+        "unreadable": {
+          "en": "That file could not be read.",
+          "bg": "Файлът не можа да бъде прочетен."
+        },
+        "empty": {
+          "en": "That file is empty.",
+          "bg": "Файлът е празен."
+        }
+      },
+      "applied": {
+        "en": "Import applied.",
+        "bg": "Импортът е приложен."
+      },
+      "apply-failed": {
+        "en": "Some rows may already have been written. There is no rollback. Re-uploading the same file is safe — rows already written come back as unchanged, so only the rest are attempted again.",
+        "bg": "Възможно е част от редовете вече да са записани. Няма възстановяване. Повторното качване на същия файл е безопасно — вече записаните редове се отчитат като непроменени и се опитват само останалите."
+      },
+      "rejections-title": {
+        "en": "Rejected rows",
+        "bg": "Отхвърлени редове"
+      },
+      "rejections-intro": {
+        "en": "Fix these in the spreadsheet and upload again. Re-uploading is safe — rows already written come back as unchanged.",
+        "bg": "Коригирайте тези редове в таблицата и качете отново. Повторното качване е безопасно — вече записаните редове се връщат като непроменени."
+      },
+      "absent-title": {
+        "en": "In the system but not in this file",
+        "bg": "В системата, но не и в този файл"
+      },
+      "absent-intro": {
+        "en": "These are left untouched — a departure is never inferred from an omission. Mark a leaver with employment_status=terminated.",
+        "bg": "Те остават непроменени — напускане никога не се приема въз основа на отсъствие от файла. Отбележете напускащ служител с employment_status=terminated."
+      },
+      "line": {
+        "en": "line",
+        "bg": "ред"
+      },
+      "unknown-line": {
+        "en": "unknown line",
+        "bg": "неизвестен ред"
+      },
+      "file-label": {
+        "en": "Employee CSV file",
+        "bg": "CSV файл със служители"
+      },
+      "pending-summary": {
+        "en": "{create} to create, {update} to update, {unchanged} unchanged, {rejected} rejected",
+        "bg": "{create} за създаване, {update} за обновяване, {unchanged} без промяна, {rejected} отхвърлени"
+      },
+      "applied-summary": {
+        "en": "{created} created, {updated} updated, {skipped} unchanged",
+        "bg": "{created} създадени, {updated} обновени, {skipped} без промяна"
+      },
+      "confirm-title": {
+        "en": "Apply this import?",
+        "bg": "Да се приложи ли този импорт?"
+      },
+      "confirm-warning": {
+        "en": "There is no rollback. A Redis backup taken before applying is the only way to undo this.",
+        "bg": "Няма връщане назад. Единственият начин да отмените това е резервно копие на Redis, направено преди прилагането."
+      },
+      "cancel": {
+        "en": "Cancel",
+        "bg": "Отказ"
+      },
+      "confirm": {
+        "en": "Apply",
+        "bg": "Приложи"
       }
     },
     "insights": {

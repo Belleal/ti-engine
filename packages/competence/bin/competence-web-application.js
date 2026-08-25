@@ -13,6 +13,7 @@ const _ = require( "lodash" );
 const configurationLoader = require( "#configuration-loader" );
 const dataManager = require( "#data-manager" );
 const organizationManager = require( "#organization-manager" );
+const organizationImport = require( "#organization-import" );
 const competenceFramework = require( "#competence-framework" );
 const taskResolver = require( "#task-resolver" );
 const resultsAnalytics = require( "#results-analytics" );
@@ -140,6 +141,11 @@ class CompetenceWebApplication extends TiWebAppManager {
         this.addFragment( "admin-config", {
             title: "Configuration",
             path: "fragments/frame-admin-config.html",
+            roles: [ "admin" ]
+        } );
+        this.addFragment( "employee-import", {
+            title: "Employee Import",
+            path: "fragments/frame-employee-import.html",
             roles: [ "admin" ]
         } );
         this.addFragment( "competency-text-editor", {
@@ -319,6 +325,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                     "cycle-setup": "cycles",
                     "employee-management": "employee-management",
                     "admin-config": "administration",
+                    // Its own key, not "administration": this map decides which sidebar ITEM highlights, and
+                    // "administration" is Configuration's key. A sub-screen maps to its parent's key (see
+                    // "cycle-setup" and "competency-text-editor"); a top-level item maps to itself.
+                    "employee-import": "employee-import",
                     "competency-text-editor": "administration",
                     "archetype-assignment": "administration",
                     "archetype-editor": "administration",
@@ -577,6 +587,10 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#createEmployee( session, params );
         } else if ( service === "update-employee" ) {
             return this.#updateEmployee( session, params );
+        } else if ( service === "preview-employee-import" ) {
+            return this.#previewEmployeeImport( session, params );
+        } else if ( service === "apply-employee-import" ) {
+            return this.#applyEmployeeImport( session, params );
         } else if ( service === "grant-supervisor" ) {
             return this.#grantSupervisor( session, params );
         } else if ( service === "revoke-supervisor" ) {
@@ -4106,6 +4120,144 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
+     * Produces a reconciliation plan from raw CSV text. The ONLY input is the text — no caller may supply a plan.
+     * That is deliberate: preview and apply both route through here, so a plan posted back by a client is never an
+     * input to a write. A client-supplied plan would pass every check precisely because the checks already ran.
+     *
+     * @method
+     * @param {string} csv
+     * @returns {Promise<Object>} The plan from {@link OrganizationImport#reconcile}, with mapping errors merged in.
+     * @private
+     */
+    #deriveImportPlan( csv ) {
+        const text = String( csv == null ? "" : csv );
+        if ( organizationImport.instance.findEncodingFailure( text ) ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS,
+                { details: "error.employee-import.not-utf8" }, exceptions.httpCode.C_422 );
+        }
+
+        const parsed = organizationImport.instance.parseDelimited( text, { withLines: true } );
+        const { header, records } = organizationImport.instance.toRecords( parsed.rows, parsed.lines );
+
+        const headerFailure = organizationImport.instance.findHeaderFailure( header );
+        if ( headerFailure ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, {
+                details: `error.employee-import.${ headerFailure.code }`,
+                columns: headerFailure.columns
+            }, exceptions.httpCode.C_422 );
+        }
+
+        const { employees, errors } = organizationImport.instance.mapRows( records );
+
+        // Row -> raw employee_id, so a mapping-stage error (which knows only its row number -- mapRow rejects
+        // before ever building an Employee) can still be labeled by the row's real employee_id. Shares
+        // OrganizationImport#mapRowsToEmployeeIDs/#toMappingRejection/#excludeMappingErrorsFromAbsent with the
+        // operator CLI rather than mirroring them (CA-107 review findings 2 and 3): falling back to the error's row
+        // number alone would silently re-report every mapping-stage rejection as "(unmapped)", and would stop a
+        // mapping-rejected row's still-stored id from being excluded from `absent` below.
+        const rowEmployeeIDs = organizationImport.instance.mapRowsToEmployeeIDs( records );
+
+        return dataManager.instance.fetchEmployees().then( ( existing ) => {
+            const plan = organizationImport.instance.reconcile( employees, existing, {
+                roleFamilies: configurationLoader.configRoleFamilies,
+                organizationStructure: configurationLoader.configOrganizationStructure
+            } );
+
+            // Mapping errors never reached reconcile, so merge them into one list the operator can read as the whole
+            // truth — and drop their ids from `absent`, which would otherwise advise terminating an employee whose
+            // row is present but unmapped. Shares the merge logic with the CLI exactly.
+            const mappingRejections = errors.map( ( error ) => organizationImport.instance.toMappingRejection( error, rowEmployeeIDs ) );
+            plan.rejected = mappingRejections.concat( plan.rejected );
+            plan.absent = organizationImport.instance.excludeMappingErrorsFromAbsent( plan.absent, mappingRejections );
+            return plan;
+        } );
+    }
+
+    /**
+     * Reduces a plan to what may cross to a browser: counts, rejections and absent identifiers. No employee record,
+     * no name, no email, no birth date, no grade. What does cross is `employee_id`, and that is a minimised payload
+     * rather than a non-personal one: GDPR Art. 4(1) names an identification number as an identifier of an
+     * identifiable person, so this is pseudonymised personal data and stays subject to the same handling as any
+     * other. The point of the chokepoint is that a page, a screenshot or a pasted ticket then discloses an opaque
+     * id and nothing that identifies anyone without the HR key — not that the payload is free to travel.
+     *
+     * @method
+     * @param {Object} plan
+     * @param {Object} [applied] Result of {@link OrganizationImport#applyPlan}, or null for a preview.
+     * @returns {Object}
+     * @private
+     */
+    #projectImportPlan( plan, applied ) {
+        return {
+            counts: {
+                create: plan.create.length,
+                update: plan.update.length,
+                unchanged: plan.unchanged.length,
+                rejected: plan.rejected.length
+            },
+            rejections: plan.rejected.map( ( entry ) => ( {
+                employeeID: String( entry.employeeID ),
+                row: ( entry.row === undefined ) ? null : entry.row,
+                code: entry.code,
+                message: entry.message
+            } ) ),
+            absent: plan.absent.map( ( id ) => String( id ) ),
+            applied: applied ? applied : null
+        };
+    }
+
+    /**
+     * Previews an employee import. Admin-gated, writes nothing.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.csv
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #previewEmployeeImport( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireAdmin( session );
+            this.#deriveImportPlan( params ? params.csv : "" ).then( ( plan ) => {
+                resolve( this.#projectImportPlan( plan, null ) );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Applies an employee import. Admin-gated. Re-derives the plan from the CSV — see {@link #deriveImportPlan} —
+     * writes the good rows, reports the rejected ones, then rebuilds the organization chart so imported employees
+     * are reachable and can sign in without a restart, which the CLI cannot do.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params
+     * @param {string} params.csv
+     * @returns {Promise<Object>}
+     * @private
+     */
+    #applyEmployeeImport( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const { userID } = this.#requireAdmin( session );
+            this.#deriveImportPlan( params ? params.csv : "" ).then( ( plan ) => {
+                return organizationImport.instance.applyPlan( plan, {
+                    save: ( employee ) => dataManager.instance.saveEmployee( employee ),
+                    audit: ( entry ) => dataManager.instance.appendAuditEntry( Object.assign( { changedBy: userID }, entry ) )
+                } ).then( ( applied ) => {
+                    return organizationManager.instance.buildOrganizationChart().then( () => {
+                        resolve( this.#projectImportPlan( plan, applied ) );
+                    } );
+                } );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
      * Projects an employee record for the master list. Strips internal-only data, resolves localized labels, and
      * surfaces the resolved manager (via the org chart).
      *
@@ -4593,6 +4745,36 @@ class CompetenceWebApplication extends TiWebAppManager {
             throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
         }
         return context;
+    }
+
+    /**
+     * Gates an admin-only service and returns the acting administrator's framework identity.
+     * <br/>
+     * Deliberately NOT routed through {@link #requireSessionUser}, which demands an `employeeID` and refuses a
+     * session without one. That refusal is a fail-closed guard worth keeping for the employee-scoped handlers that
+     * depend on it — but it is wrong here: an identity on the deployment's admin allowlist may have no employee
+     * record at all (`IdentityResolver#applyIdentity` sets `employeeID` to null and `roles` to empty for exactly
+     * that case, before the framework's `applyAdminRole` adds the `admin` role), and it exists so a deployment with
+     * broken employee data can still be repaired. `userID` is the raw framework login identity (`User#asJSON`, set
+     * before this app's own login hook runs) — the same field `admin-config-handlers.js` reads for its own audit
+     * attribution.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {{ userID: string }}
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} (401) when unauthenticated, or (403) when authenticated but not an admin.
+     * @private
+     */
+    #requireAdmin( session ) {
+        const userID = session?.user?.userID;
+        if ( !userID ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+        }
+        const userRoles = Array.isArray( session?.user?.roles ) ? session.user.roles : [];
+        if ( !userRoles.includes( "admin" ) ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
+        }
+        return { userID };
     }
 
     /**

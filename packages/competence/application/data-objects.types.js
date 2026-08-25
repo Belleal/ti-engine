@@ -114,7 +114,12 @@
  * @property {string} entryID - UUID.
  * @property {"employee"|"cycle"|"activeCompetencySet"|"evaluation"} subjectType
  * @property {string} subjectID - Identifier of the subject entity.
- * @property {string} changedBy - Employee ID of the actor.
+ * @property {string} changedBy - Employee ID of the actor, for a change made in the application. An importer
+ *                                writes a non-employee actor identity instead: the CLI writes the literal
+ *                                `"import-cli"`, and the admin import screen writes the acting administrator's
+ *                                framework login identity, which for a break-glass admin is not an employee at
+ *                                all. Consumers resolving this as an employee ID must tolerate a miss — the
+ *                                Employee Management history panel already falls back to the raw value.
  * @property {string} timestamp - ISO-8601 timestamp.
  * @property {string} field - Dot-path of the field that changed.
  * @property {*} oldValue

@@ -1,0 +1,243 @@
+/*
+ * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+ * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
+
+const { describe, it, before, beforeEach } = require( "node:test" );
+const assert = require( "node:assert/strict" );
+
+const exceptions = require( "@ti-engine/core/exceptions" );
+const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
+
+let cacheStub;
+let app;
+let dataManager;
+let organizationManager;
+
+// A CSV whose values are deliberately distinctive, so a leak into the payload is unmistakable.
+const CSV = [
+    "employee_id,email,first_name,last_name,work_mode,work_location,organization_unit_id,role_family,level,stage",
+    "90001,zelenka.vorobyeva@example.com,Zelenka,Vorobyeva,Full-time,On-site,1-1-1,SE,R,2",
+    "90002,bartholomew.quintavalle@example.com,Bartholomew,Quintavalle,Contract,Remote,1-1-2,PM,S,1"
+].join( "\n" );
+
+// A third row whose organization_unit_id does not exist, so it rejects while the other two stand.
+const CSV_WITH_REJECT = CSV + "\n90003,mireille.aubertin@example.com,Mireille,Aubertin,Full-time,Hybrid,9-9,SE,R,2";
+
+const adminSession = () => ( { user: { userID: "admin@example.com", roles: [ "admin" ] } } );
+const employeeSession = () => ( { user: { userID: "1", employeeID: "1", roles: [ 1 ] } } );
+
+// Shaped exactly like IdentityResolver#applyIdentity's break-glass admin outcome once applyAdminRole has run:
+// employeeID null, no application roles, plus the framework's "admin" string role. userID is a real, attributable
+// framework identity throughout.
+const breakGlassAdminSession = () => ( { user: { userID: "admin@example.com", employeeID: null, roles: [ "admin" ] } } );
+
+before( () => {
+    cacheStub = installInMemoryCache();
+    dataManager = require( "#data-manager" );
+    organizationManager = require( "#organization-manager" );
+    const CompetenceWebApplication = require( "../bin/competence-web-application" );
+    // `Object.create( CompetenceWebApplication.prototype )` (the harness this suite started from) cannot reach any
+    // handler that calls a private method of this class: private methods are gated by a per-instance "brand" that
+    // only [[Construct]] installs, and Object.create() skips the constructor entirely. Confirmed directly — calling
+    // an existing private-method chain (create-employee -> #requireRole) on such an object throws synchronously
+    // with "TypeError: Receiver must be an instance of class CompetenceWebApplication", before any Promise is even
+    // returned. `competence-web-application.consent-fallback.test.js` solves the same problem the same way: a real
+    // `new CompetenceWebApplication(...)`, whose constructor only registers fragments + config documents (no I/O),
+    // so a single shared instance is safe to reuse across every test in this file.
+    app = new CompetenceWebApplication( "test-competence-employee-import" );
+} );
+
+beforeEach( async () => {
+    cacheStub.storage = {};
+    await cacheStub.setJSON( "ti:competence:data:employees", {} );
+    await organizationManager.instance.buildOrganizationChart();
+} );
+
+describe( "employee import screen — access", () => {
+
+    it( "refuses preview to a session without the admin role", async () => {
+        await assert.rejects( () => app.processServiceRequest( employeeSession(), "preview-employee-import", { csv: CSV } ) );
+    } );
+
+    it( "refuses apply to a session without the admin role", async () => {
+        await assert.rejects( () => app.processServiceRequest( employeeSession(), "apply-employee-import", { csv: CSV } ) );
+    } );
+
+} );
+
+describe( "employee import screen — fail-closed session guard (CA-108 regression)", () => {
+
+    // #requireSessionUser briefly fell back to session.user.userID when employeeID was absent, so that a break-glass
+    // admin (no employee record by design) could reach an admin-gated import screen. The fix moved that fallback
+    // into its own #requireAdmin gate instead of loosening #requireSessionUser — which every OTHER employee-scoped
+    // handler still routes through. This pins that #requireSessionUser itself stays fail-closed: a session shaped
+    // exactly like that break-glass admin (employeeID: null, "admin" in roles, a real userID) must still be refused
+    // by a handler that gates on authentication alone, such as #loadEmployeeList (dispatched as "load-employee-list"
+    // and one of #requireSessionUser's 15 direct call sites) — never admitted with userID standing in for an
+    // employee identity. Asserting the specific 401/E_SEC_UNAUTHORIZED_ACCESS shape (rather than a bare "rejects")
+    // matters here: were the fallback reinstated, this same session would sail past the guard and fail later
+    // instead — e.g. a 404 while resolving an organization unit for the bogus "employeeID" — which would still
+    // reject, just not for the reason this test exists to pin.
+    it( "refuses a break-glass admin session (no employeeID) on an employee-scoped handler that gates on authentication alone", async () => {
+        await assert.rejects(
+            app.processDataRequest( breakGlassAdminSession(), "load-employee-list" ),
+            ( error ) => {
+                assert.equal( error.code, exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
+                assert.equal( error.httpCode, exceptions.httpCode.C_401 );
+                return true;
+            }
+        );
+    } );
+
+} );
+
+describe( "employee import screen — preview", () => {
+
+    it( "returns counts for a clean file and writes nothing", async () => {
+        const result = await app.processServiceRequest( adminSession(), "preview-employee-import", { csv: CSV } );
+
+        assert.equal( result.counts.create, 2 );
+        assert.equal( result.counts.rejected, 0 );
+        assert.equal( result.applied, null );
+        const stored = await dataManager.instance.fetchEmployees();
+        assert.equal( stored.length, 0, "preview must not write" );
+    } );
+
+    // #projectImportPlan threads plan.absent straight into the payload, but until now nothing asserted that
+    // through the real handler -- every other case here checks counts, rejections, applied or the stored
+    // employees. If that threading were wrong (e.g. dropped, or re-keyed) the panel would silently render an
+    // empty "not in this file" list and no test would fail.
+    it( "reports a stored employee missing from the file as absent, by employeeID, without writing", async () => {
+        const seeded = {
+            employeeID: "90099",
+            email: "already.stored@example.com",
+            employmentStatus: "active",
+            personal: { firstName: "Already", lastName: "Stored", workMode: "Full-time", workLocation: "On-site" },
+            career: { organizationUnitID: "1-1-1", roleFamily: "SE", specialization: null, level: "R", stage: 2 }
+        };
+        await dataManager.instance.saveEmployee( seeded );
+
+        const result = await app.processServiceRequest( adminSession(), "preview-employee-import", { csv: CSV } );
+
+        assert.deepEqual( result.absent, [ "90099" ] );
+    } );
+
+    it( "leaks no personal field into the payload", async () => {
+        const result = await app.processServiceRequest( adminSession(), "preview-employee-import", { csv: CSV_WITH_REJECT } );
+        const serialized = JSON.stringify( result );
+
+        for ( const secret of [ "Zelenka", "Vorobyeva", "Bartholomew", "Quintavalle", "Mireille", "Aubertin", "example.com" ] ) {
+            assert.equal( serialized.includes( secret ), false, `payload leaked '${ secret }'` );
+        }
+    } );
+
+    it( "names a rejected row by employee_id and source line", async () => {
+        const result = await app.processServiceRequest( adminSession(), "preview-employee-import", { csv: CSV_WITH_REJECT } );
+        const rejection = result.rejections.find( ( entry ) => entry.employeeID === "90003" );
+
+        assert.ok( rejection, "the invalid row must be reported" );
+        assert.equal( rejection.row, 4 );
+    } );
+
+    // CA-107's review (findings 2 and 3) fixed exactly this for the CLI: a mapping-stage error (raised inside
+    // mapRow, before an Employee ever exists) carries only the row number, not the id, even though the raw
+    // employee_id cell is sitting right there in the source row. Pinning it here too, since #deriveImportPlan
+    // mirrors the CLI's lookup rather than sharing it.
+    it( "labels a mapping-stage rejection (bad work_mode) by the row's real employee_id, not '(unmapped)'", async () => {
+        const badWorkMode = [
+            "employee_id,email,first_name,last_name,work_mode,work_location,organization_unit_id,role_family,level,stage",
+            "90005,distinctive.mapping.reject@example.com,First,Last,Bogus,On-site,1-1-1,SE,R,2"
+        ].join( "\n" );
+
+        const result = await app.processServiceRequest( adminSession(), "preview-employee-import", { csv: badWorkMode } );
+
+        assert.equal( result.counts.rejected, 1 );
+        assert.equal( result.rejections[ 0 ].employeeID, "90005" );
+        assert.equal( result.rejections[ 0 ].row, 2 );
+        assert.equal( result.rejections[ 0 ].code, "not-a-permitted-value" );
+    } );
+
+    it( "rejects a header missing a required column as a whole-file failure", async () => {
+        const bad = "employee_id,email\n90001,a@b.co";
+        await assert.rejects( () => app.processServiceRequest( adminSession(), "preview-employee-import", { csv: bad } ) );
+    } );
+
+    it( "rejects text carrying replacement characters as a whole-file failure", async () => {
+        const bad = CSV.replace( "Zelenka", "��" );
+        await assert.rejects( () => app.processServiceRequest( adminSession(), "preview-employee-import", { csv: bad } ) );
+    } );
+
+} );
+
+describe( "employee import screen — apply", () => {
+
+    it( "writes the good rows and reports the rejected one", async () => {
+        const result = await app.processServiceRequest( adminSession(), "apply-employee-import", { csv: CSV_WITH_REJECT } );
+
+        assert.equal( result.applied.created, 2 );
+        assert.equal( result.counts.rejected, 1 );
+        const stored = await dataManager.instance.fetchEmployees();
+        assert.deepEqual( stored.map( ( e ) => e.employeeID ).sort(), [ "90001", "90002" ] );
+    } );
+
+    it( "leaks no personal field into the applied payload either", async () => {
+        // The preview payload is pinned above. Apply returns everything preview does PLUS `applied`, so the
+        // branch's load-bearing privacy property needs pinning on both services, not one.
+        const result = await app.processServiceRequest( adminSession(), "apply-employee-import", { csv: CSV_WITH_REJECT } );
+        const serialized = JSON.stringify( result );
+
+        for ( const secret of [ "Zelenka", "Vorobyeva", "Bartholomew", "Quintavalle", "Mireille", "Aubertin", "example.com" ] ) {
+            assert.equal( serialized.includes( secret ), false, `applied payload leaked '${ secret }'` );
+        }
+    } );
+
+    it( "attributes the audit entries to the acting admin", async () => {
+        await app.processServiceRequest( adminSession(), "apply-employee-import", { csv: CSV } );
+        const entries = await dataManager.instance.getAuditEntriesForEmployee( "90001" );
+
+        assert.ok( entries.length > 0, "an audit entry must be written" );
+        assert.equal( entries[ 0 ].changedBy, "admin@example.com" );
+    } );
+
+    it( "IGNORES a plan posted by the client and applies what the CSV derives", async () => {
+        const fabricated = {
+            create: [ { employeeID: "66666", email: "attacker@example.com", personal: {}, career: {} } ],
+            update: [], unchanged: [], rejected: [], absent: []
+        };
+        await app.processServiceRequest( adminSession(), "apply-employee-import", { csv: CSV, plan: fabricated } );
+
+        const stored = await dataManager.instance.fetchEmployees();
+        assert.deepEqual( stored.map( ( e ) => e.employeeID ).sort(), [ "90001", "90002" ] );
+        assert.equal( stored.some( ( e ) => e.employeeID === "66666" ), false, "a client-supplied plan must never be written" );
+    } );
+
+    it( "rebuilds the organization chart so an imported employee is reachable without a restart", async () => {
+        const prototype = Object.getPrototypeOf( organizationManager.instance );
+        const original = prototype.buildOrganizationChart;
+        let calls = 0;
+        prototype.buildOrganizationChart = function ( ...args ) {
+            calls++;
+            return original.apply( this, args );
+        };
+        try {
+            await app.processServiceRequest( adminSession(), "apply-employee-import", { csv: CSV } );
+            assert.ok( calls >= 1, "the chart must be rebuilt after a successful apply" );
+        } finally {
+            prototype.buildOrganizationChart = original;
+        }
+    } );
+
+    it( "is idempotent — applying the same CSV twice creates nothing the second time", async () => {
+        await app.processServiceRequest( adminSession(), "apply-employee-import", { csv: CSV } );
+        const second = await app.processServiceRequest( adminSession(), "apply-employee-import", { csv: CSV } );
+
+        assert.equal( second.applied.created, 0 );
+        assert.equal( second.applied.updated, 0 );
+        assert.equal( second.counts.unchanged, 2 );
+    } );
+
+} );
