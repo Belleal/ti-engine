@@ -38,7 +38,7 @@ office may hold different arrangements. Folding either into the other would lose
 | The repository `Belleal/ti-engine` is **public** | The real office and client list is not committed (§5.2) |
 | `mapRow` normalizes enums mechanically and **never** by synonym table | `Male` is rejected, not mapped to `M`. Guessing what a value meant is how a person is recorded wrong |
 | `LEAVE_UNCHANGED_WHEN_OMITTED` exists because Redis `JSON.MERGE` leaves an omitted key untouched | Both new fields join it, so a blank cell cannot clear a stored value (§8) |
-| CA-107 settled: validators block on document-intrinsic properties, cross-store references are **reported** | "No employee references a removed site" is not a validator (§5.3) |
+| `roleFamiliesReferentialIntegrity` already validates a removal against employee records, through the overridable `fetchEmployeesForValidation` seam | "No employee references a removed site" **is** a validator, modelled on it (§5.3) |
 | The Configuration screen is a **launcher of dedicated editors**, not a generic form | Registering the document alone would give the owner no way to edit it. A screen is in scope (§6) |
 | Alpine runs in **CSP mode** | The new fragment may carry no inline `style="..."`, no optional chaining, and no `Array`/`Object` in template expressions |
 
@@ -80,11 +80,31 @@ One blocking semantic validator, `workSiteIdMatchesKey`: a site's `id` must equa
 `organizationIdMatchesKey` and exists for the same reason — the schema cannot express the constraint, and the key is
 what an operator actually edits, so the two can silently disagree.
 
-**Deliberately not a validator: "no employee references a removed site."** That is a cross-store reference. CA-107
-settled the principle when the unresolved-manager check became a startup diagnostic rather than a validator:
-blocking a configuration document's save on employee data deadlocks a fresh install, because the configuration must
-exist before an employee record can reference it. The protection lives in the editor instead (§6), where a live
-employee count is available and refusing costs nothing.
+A second blocking validator, `workSitesReferentialIntegrity`: **a site may not be removed while an employee
+references it.**
+
+~~Deliberately not a validator. That is a cross-store reference, and CA-107 settled the principle when the
+unresolved-manager check became a startup diagnostic: blocking a configuration save on employee data deadlocks a
+fresh install. The protection lives in the editor instead.~~ **Corrected while planning.** That reasoning does not
+survive contact with `roleFamiliesReferentialIntegrity`, which already does exactly this — reading employees through
+the overridable `fetchEmployeesForValidation` seam.
+
+The distinction CA-107 actually established is between a **presence** check and a **removal** check. "Every unit's
+`managerID` must resolve to an employee" is a presence check: it fires on a fresh install, where the tree must exist
+before any employee can reference it, so it deadlocks. "This site is still assigned to somebody" fires only when
+something is being removed, and a fresh install removes nothing.
+
+So it is a validator, modelled on the role-families one and inheriting its two properties:
+
+- `fetchEmployeesForValidation` resolves `[]` when the data layer is genuinely absent (outside the running service),
+  so config-only validation still works.
+- A genuine fetch failure is reported as a **blocking issue**, not skipped — refusing a removal that might orphan
+  employee records beats allowing it silently.
+
+Issues are de-duplicated by path, so a site held by two hundred people is reported once.
+
+Putting it here rather than in the editor is the point: a validator is a chokepoint every write path crosses — the
+screen, the raw admin API, and a validated restore — while an editor-side check guards only the screen.
 
 ## 6. The Work Sites screen
 
@@ -93,8 +113,9 @@ composite editor with `compose` / `decompose` over the document, reached through
 `/admin/config/editors/work-sites`. Going through that API rather than a competence service is what makes the screen
 inherit versioning, validation, audit and validated restore instead of reimplementing them.
 
-The screen lists code, type and both names, and supports add, rename, retype and remove. **A removal is refused
-while employees reference the site**, reporting the count and never the people.
+The screen lists code, type and both names, and supports add, rename, retype and remove. A removal of a site still
+assigned to somebody is refused by `workSitesReferentialIntegrity` (§5.3) and surfaced as a save error naming the
+site — the screen renders the refusal rather than performing its own check, so the rule has exactly one home.
 
 Its `sidebarNavMapping` entry maps to its own key — `"work-sites": "work-sites"` — not to `"administration"`. That
 map decides which sidebar *item* highlights, and `"administration"` is the Configuration item's own key; CA-108
@@ -179,7 +200,10 @@ documentation artifact, not part of the Node build or CI.
 - The confusable message names the character rather than listing lookalike codes, and the value stays **rejected**.
 - `LEAVE_UNCHANGED_WHEN_OMITTED`: a blank `work_site` or `position_name` leaves the stored value, and a record
   carrying either re-imports as `unchanged` rather than reclassifying as `update` forever.
-- Editor `compose` / `decompose` round-trip; removal refused while in use, with a count and no personal data.
+- Editor `compose` / `decompose` round-trip.
+- `workSitesReferentialIntegrity`: removal of an unreferenced site allowed; removal of a referenced one refused;
+  an absent data layer skips the check; a rejecting data layer **blocks** rather than passing; two employees on one
+  site produce one issue, not two.
 - Static wiring guard for the new screen — fragment registered, sidebar mapped, topbar title present.
 - The fragment is CSP-clean.
 - Every new label carries both `en` and `bg`.
