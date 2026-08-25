@@ -4160,7 +4160,8 @@ class CompetenceWebApplication extends TiWebAppManager {
         return dataManager.instance.fetchEmployees().then( ( existing ) => {
             const plan = organizationImport.instance.reconcile( employees, existing, {
                 roleFamilies: configurationLoader.configRoleFamilies,
-                organizationStructure: configurationLoader.configOrganizationStructure
+                organizationStructure: configurationLoader.configOrganizationStructure,
+                workSites: configurationLoader.configWorkSites
             } );
 
             // Mapping errors never reached reconcile, so merge them into one list the operator can read as the whole
@@ -4648,7 +4649,8 @@ class CompetenceWebApplication extends TiWebAppManager {
     #validateEmployeeFields( employee ) {
         return employeeRules.instance.validateEmployee( employee, {
             roleFamilies: configurationLoader.configRoleFamilies,
-            organizationStructure: configurationLoader.configOrganizationStructure
+            organizationStructure: configurationLoader.configOrganizationStructure,
+            workSites: configurationLoader.configWorkSites
         } );
     }
 

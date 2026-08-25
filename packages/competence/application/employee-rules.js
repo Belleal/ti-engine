@@ -10,10 +10,12 @@
  * @typedef {Object} EmployeeRulesContext
  * @property {Object} roleFamilies - The role-families configuration, keyed by family code.
  * @property {Object} organizationStructure - The organization unit tree, keyed by unit ID.
+ * @property {Object} workSites - The work-sites nomenclature, keyed by site code.
  */
 
 const WORK_MODES = Object.freeze( [ "Full-time", "Part-time", "Contract" ] );
 const WORK_LOCATIONS = Object.freeze( [ "On-site", "Hybrid", "Remote" ] );
+const GENDERS = Object.freeze( [ "M", "F" ] );
 const EMPLOYMENT_STATUSES = Object.freeze( [ "active", "on-leave", "terminated" ] );
 const LEVELS = Object.freeze( [ "N", "J", "R", "S", "X", "T" ] );
 // N (Intern), X (Expert) and T (Manager) are single-stage rungs of the ladder; J, R and S carry stages 1-3.
@@ -60,6 +62,7 @@ class EmployeeRules {
         const ctx = context || {};
         const families = ctx.roleFamilies || {};
         const structure = ctx.organizationStructure || {};
+        const sites = ctx.workSites || {};
 
         const firstName = employee && employee.personal && employee.personal.firstName;
         const lastName = employee && employee.personal && employee.personal.lastName;
@@ -74,6 +77,14 @@ class EmployeeRules {
         const workLocation = employee.personal.workLocation;
         if ( !WORK_LOCATIONS.includes( workLocation ) ) {
             return "error.employee.invalid-work-location";
+        }
+        const workSite = employee.personal.workSite;
+        if ( workSite && !sites[ workSite ] ) {
+            return "error.employee.invalid-work-site";
+        }
+        const gender = employee.personal.gender;
+        if ( gender && !GENDERS.includes( gender ) ) {
+            return "error.employee.invalid-gender";
         }
 
         const employmentStatus = employee.employmentStatus || "active";
