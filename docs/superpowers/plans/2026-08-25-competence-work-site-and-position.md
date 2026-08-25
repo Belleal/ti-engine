@@ -2055,7 +2055,34 @@ sed -n '3920,3935p;4310,4330p;4395,4410p;4495,4510p' packages/competence/bin/com
 
 These are, in order: the create-employee defaults, the draft projection, the read-only detail rows, and the `options` payload. Every change below lands in one of them.
 
-- [ ] **Step 2: Add the work-site options**
+- [ ] **Step 2: Make `#createEmployee` read the two new fields**
+
+**Found by the Task 3 review; this is the one place in the feature where data is silently lost.** `#createEmployee`
+(~line 3920) builds the new record from a **fixed object literal**. It is not a generic copy — a field it does not
+name is dropped with no error. `gender` is already read there, so it is fine; `workSite` and `positionName` are not.
+Without this step, an admin fills in the create modal (Step 5), presses save, and the two values vanish silently.
+
+In the `personal` block, after the `gender` spread:
+
+```js
+                        ...( input.personal?.workSite ? { workSite: input.personal.workSite } : {} )
+```
+
+In the `career` block, after the `startingDate` spread:
+
+```js
+                        ...( input.career?.positionName ? { positionName: String( input.career.positionName ).trim() } : {} )
+```
+
+The conditional-spread idiom is what the surrounding lines already use, and it matters here beyond style: writing
+`workSite: input.personal?.workSite` unconditionally would store `undefined`, which `#validateEmployeeFields` treats
+as absent but which then serializes into the record. Follow the existing shape exactly.
+
+`#updateEmployee` needs no equivalent change — it goes through a generic field-path setter that already handles any
+path the schema permits. Verify that claim rather than trusting it: find `#updateEmployee` and confirm it writes by
+path rather than by literal.
+
+- [ ] **Step 3: Add the work-site options**
 
 In the `options` payload (~line 4503), after `workLocations`:
 
@@ -2071,7 +2098,7 @@ In the `options` payload (~line 4503), after `workLocations`:
 
 **Resolve the name server-side**, to the single active language, exactly as the `organizationUnits` projection twenty lines above already does. The method opens with `const language = session?.language;`, so the binding is already in scope. Role families go through `localization.getLabel` instead only because their names are label keys; a work site's name is stored inline, so there is no key to look up. Sending the `{ en, bg }` pair down and picking in the browser would put the same decision in two places.
 
-- [ ] **Step 3: Add the fields to the draft projection**
+- [ ] **Step 4: Add the fields to the draft projection**
 
 In the draft projection (~line 4320):
 
@@ -2086,7 +2113,7 @@ and in the career half of the same projection, `positionName: employee?.career?.
 
 **This file is server-side JavaScript, not an Alpine template** — optional chaining is fine here and is already used on these very lines. The CSP restriction applies only to fragment expressions.
 
-- [ ] **Step 4: Add the read-only detail rows**
+- [ ] **Step 5: Add the read-only detail rows**
 
 After the `work-location` row (~line 4403):
 
@@ -2119,7 +2146,7 @@ Add the private helper near `#validateEmployeeFields`:
     }
 ```
 
-- [ ] **Step 5: Add the fields to the fragment**
+- [ ] **Step 6: Add the fields to the fragment**
 
 In `packages/competence/bin/static/fragments/frame-employee-management.html`, after the work-location block (~line 231–237), add three blocks in the same shape. Read the existing block first and mirror it exactly, including the `isFieldEditable` binding:
 
@@ -2168,13 +2195,13 @@ Add `workSiteOptionLabel` to the Employee Management Alpine component. It must s
         },
 ```
 
-- [ ] **Step 6: Add the labels**
+- [ ] **Step 7: Add the labels**
 
 Insert into `competence-labels.json` under `interface.employee-management`: `form.work-site` (Work site / Работен обект), `form.position-name` (Position (contract) / Длъжност (по договор)), `form.gender` (Gender / Пол), `work-site.none` (— none — / — няма —), `gender.none` (— not specified — / — не е посочен —).
 
 Verify as in Task 7, Step 3: valid JSON, 0 removed lines.
 
-- [ ] **Step 7: Verify in the running app**
+- [ ] **Step 8: Verify in the running app**
 
 ```bash
 docker compose up --build -d
@@ -2184,13 +2211,13 @@ Then browse to `http://localhost:3000`. Sign in as an admin, open **Administrati
 
 **Drive the walkthrough with `javascript_tool` `element.click()`** — the Browser pane's coordinate clicks are unreliable on this app and silently no-op.
 
-- [ ] **Step 8: Run the full suite and lint**
+- [ ] **Step 9: Run the full suite and lint**
 
 Run: `npm test -w @ti-engine/competence` — expected PASS, at least 847 tests (this task adds no test file; its behaviour is covered by Task 3's rules tests and the wiring test's label check).
 
 Run: `npm run lint` — expected 0 errors.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
 git add packages/competence/bin/competence-web-application.js packages/competence/bin/static/fragments/frame-employee-management.html packages/competence/bin/static/scripts/competence-user-interface.js packages/competence/bin/localization/competence-labels.json
