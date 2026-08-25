@@ -639,6 +639,39 @@ function workSiteIdMatchesKey( value ) {
 }
 
 /**
+ * work-sites: a site may only be removed when no employee is assigned to it. Shares the seam, the fail-closed
+ * branch and the de-duplication with {@link roleFamiliesReferentialIntegrity} through
+ * {@link withEmployeeReferences}, so the two cannot drift on the part that is easy to get wrong.
+ * <br/>
+ * This is a *removal* check, which is why it can be a validator at all. CA-107's unresolved-manager rule is a
+ * *presence* check — "every unit's managerID must resolve to an employee" — and had to become a startup diagnostic
+ * because it fires on a fresh install, where the tree must exist before any employee can reference it. Nothing is
+ * removed on a fresh install, so this one never fires there.
+ * <br/>
+ * No message names an employee: the text reaches an admin screen, and a site code is configuration while a person
+ * is not.
+ *
+ * @method
+ * @param {Object} value - The pending work-sites document being validated.
+ * @param {ValidatorContext} context
+ * @returns {Promise<Array<ValidationIssue>>}
+ * @public
+ */
+function workSitesReferentialIntegrity( value, context ) {
+    const sites = value || {};
+    return withEmployeeReferences( [], ( employee, collected ) => {
+        const workSite = employee && employee.personal && employee.personal.workSite;
+        if ( workSite && !sites[ workSite ] ) {
+            collected.push( {
+                path: `.${ workSite }`,
+                message: `work site '${ workSite }' is assigned to an employee and cannot be removed`,
+                code: "reference-integrity"
+            } );
+        }
+    } );
+}
+
+/**
  * Employee source for {@link roleFamiliesReferentialIntegrity}, isolated as a seam so it can be overridden in tests
  * (the data-manager singleton is frozen and cannot be stubbed directly). Resolves to [] when the data layer is absent
  * (e.g. outside the running service); a genuine fetch failure is allowed to reject so the caller can fail closed.
@@ -676,5 +709,6 @@ module.exports = {
     organizationParentChildSymmetry,
     organizationNoCycles,
     organizationIdMatchesKey,
-    workSiteIdMatchesKey
+    workSiteIdMatchesKey,
+    workSitesReferentialIntegrity
 };

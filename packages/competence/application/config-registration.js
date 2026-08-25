@@ -111,7 +111,7 @@ function registerCompetenceConfig( app ) {
     } );
     app.registerConfigDocument( "work-sites", {
         schema: workSitesSchema,
-        validators: [ validators.workSiteIdMatchesKey ],
+        validators: [ validators.workSiteIdMatchesKey, validators.workSitesReferentialIntegrity ],
         defaultValue: configurationLoader.fileDefaults[ "work-sites" ],
         metadata: { path: "bin/config/config.work-sites.json", label: "work.sites", editable: true, driftTracked: false }
     } );
