@@ -588,6 +588,34 @@ function organizationIdMatchesKey( value ) {
 }
 
 /**
+ * work-sites: every site's `id` must equal its map key. Same constraint, and the same reason, as
+ * {@link organizationIdMatchesKey}: JSON Schema cannot express "this property's value equals its property name", and
+ * the map key is what an operator actually edits — an employee's `personal.workSite` is matched against the key, so
+ * a site whose `id` disagrees with it is a site nobody can be assigned to.
+ *
+ * Document-intrinsic — no `context` parameter needed; see {@link organizationSingleRoot}.
+ *
+ * @method
+ * @param {Object} value
+ * @returns {Promise<Array<ValidationIssue>>}
+ * @public
+ */
+function workSiteIdMatchesKey( value ) {
+    const issues = [];
+    for ( const [ rawID, siteEntry ] of Object.entries( value || {} ) ) {
+        const declared = siteEntry && siteEntry.id;
+        if ( declared !== rawID ) {
+            issues.push( {
+                path: `.${ rawID }`,
+                message: `work site id '${ declared === undefined ? "(absent)" : declared }' does not match its key '${ rawID }'`,
+                code: "id-key-mismatch"
+            } );
+        }
+    }
+    return Promise.resolve( issues );
+}
+
+/**
  * Employee source for {@link roleFamiliesReferentialIntegrity}, isolated as a seam so it can be overridden in tests
  * (the data-manager singleton is frozen and cannot be stubbed directly). Resolves to [] when the data layer is absent
  * (e.g. outside the running service); a genuine fetch failure is allowed to reject so the caller can fail closed.
@@ -624,5 +652,6 @@ module.exports = {
     organizationSingleRoot,
     organizationParentChildSymmetry,
     organizationNoCycles,
-    organizationIdMatchesKey
+    organizationIdMatchesKey,
+    workSiteIdMatchesKey
 };

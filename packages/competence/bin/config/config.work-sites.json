@@ -1,0 +1,17 @@
+{
+  "HQ": {
+    "id": "HQ",
+    "type": "office",
+    "name": { "en": "Head Office", "bg": "Централно управление" }
+  },
+  "OF1": {
+    "id": "OF1",
+    "type": "office",
+    "name": { "en": "Branch Office", "bg": "Клонов офис" }
+  },
+  "CL1": {
+    "id": "CL1",
+    "type": "client",
+    "name": { "en": "Client Site", "bg": "Клиентски обект" }
+  }
+}

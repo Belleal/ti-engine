@@ -16,6 +16,7 @@
     "#config-role-families": "./bin/config/config.role-families.json",
     "#config-role-family-competencies": "./bin/config/config.role-family-competencies.json",
     "#config-stage-levels": "./bin/config/config.stage-levels.json",
+    "#config-work-sites": "./bin/config/config.work-sites.json",
     "#configuration-loader": "./application/configuration-loader.js",
     "#cycle-setup-tools": "./application/cycle-setup-tools.js",
     "#data-employees": "./bin/data/seeders/employees.json",

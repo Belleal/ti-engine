@@ -24,6 +24,8 @@ module.exports.configRoleFamilies = tools.deepFreeze( require( "#config-role-fam
 module.exports.configRoleFamilyCompetencies = tools.deepFreeze( require( "#config-role-family-competencies" ) );
 /** @type {ConfigStageLevels} */
 module.exports.configStageLevels = tools.deepFreeze( require( "#config-stage-levels" ) );
+/** @type {Object<string, WorkSite>} The work-site nomenclature: site code → its type and inline bilingual name. */
+module.exports.configWorkSites = tools.deepFreeze( require( "#config-work-sites" ) );
 
 /**
  * Enum for the organization role values.
@@ -253,7 +255,8 @@ const STORE_BACKED = {
     "role-family-competencies": "configRoleFamilyCompetencies",
     "stage-levels": "configStageLevels",
     "research-consent": "configResearchConsent",
-    "organization-structure": "configOrganizationStructure"
+    "organization-structure": "configOrganizationStructure",
+    "work-sites": "configWorkSites"
 };
 const fileDefaults = {};
 Object.entries( STORE_BACKED ).forEach( ( [ configKey, property ] ) => {

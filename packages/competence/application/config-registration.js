@@ -41,6 +41,7 @@ const roleFamilyCompetenciesSchema = require( "../bin/data/schemas/role-family-c
 const stageLevelsSchema = require( "../bin/data/schemas/stage-levels.schema.json" );
 const researchConsentSchema = require( "../bin/data/schemas/research-consent.schema.json" );
 const organizationStructureSchema = require( "../bin/data/schemas/organization-structure.schema.json" );
+const workSitesSchema = require( "../bin/data/schemas/work-sites.schema.json" );
 const competenceLabels = require( "../bin/localization/competence-labels.json" );
 
 // competence-labels.json has no dedicated JSON Schema (its structure is large and open-ended). Structural validity is
@@ -107,6 +108,12 @@ function registerCompetenceConfig( app ) {
         validators: [ validators.organizationSingleRoot, validators.organizationParentChildSymmetry, validators.organizationNoCycles, validators.organizationIdMatchesKey ],
         defaultValue: configurationLoader.fileDefaults[ "organization-structure" ],
         metadata: { path: "bin/config/config.organization-structure.json", label: "organization.structure", editable: true, driftTracked: false }
+    } );
+    app.registerConfigDocument( "work-sites", {
+        schema: workSitesSchema,
+        validators: [ validators.workSiteIdMatchesKey ],
+        defaultValue: configurationLoader.fileDefaults[ "work-sites" ],
+        metadata: { path: "bin/config/config.work-sites.json", label: "work.sites", editable: true, driftTracked: false }
     } );
 
     // Composite (entity) editors — e.g. the competency-text editor that the BG-review screen edits.
