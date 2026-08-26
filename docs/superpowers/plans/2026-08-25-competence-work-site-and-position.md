@@ -2549,7 +2549,38 @@ Add a `## Version 3.24.0` section above 3.23.0 with a short lede and one bullet 
 
 In `packages/competence/package.json`, `"version": "3.23.0"` → `"version": "3.24.0"`.
 
-- [ ] **Step 6: Full verification**
+- [ ] **Step 6: Two cleanups found during review**
+
+Both are small, both were deferred here deliberately so they land in one commit rather than interrupting a task.
+
+**(a) Clearing a work site or position from the UI should omit the key, not store `""`.**
+`#setFieldByPath` in `packages/competence/bin/competence-web-application.js` (~line 4614) keeps an explicit
+allowlist of paths that are *deleted* when cleared rather than set to the empty string. It names `email`,
+`personal.birthDate`, `personal.gender` and `career.startingDate`. Add the two new fields:
+
+```js
+            } else if ( path === "email" || path === "personal.birthDate" || path === "personal.gender" || path === "career.startingDate" || path === "personal.workSite" || path === "career.positionName" ) {
+```
+
+Why it matters even though nothing currently breaks: the CSV importer *omits* these keys rather than writing
+`""`, so without this the same logical state is stored two different ways depending on which write path produced
+it. `employee.schema.json` also types `personal.workSite` with `minLength: 1`, so `""` is schema-invalid — latent
+today because that schema is only enforced in a seeder test, but a trap for whoever adds write-time validation.
+The spec makes Employee Management the *designated* way to clear these fields, so it should produce the same
+result the importer does.
+
+**(b) Use the `#alias` form in two new test files.** The plan's own Global Constraints require `#alias` imports
+for internal modules, and four CA-109 test files were specified with relative paths. Two are fixable:
+
+- `packages/competence/test/work-site-confusables.test.js` — `require( "../application/organization-import" )` → `require( "#organization-import" )`
+- `packages/competence/test/employee-new-fields.test.js` — `require( "../application/employee-rules" )` → `require( "#employee-rules" )` and `require( "../application/organization-import" )` → `require( "#organization-import" )`
+
+Leave `work-sites-config.test.js` and `work-sites-referential-integrity.test.js` alone: they import
+`config-validators`, which has **no alias** in the package's `imports` map, and adding one is out of scope.
+
+Run `node --test` on both edited files afterwards to confirm they still resolve.
+
+- [ ] **Step 7: Full verification**
 
 ```bash
 npm test -w @ti-engine/competence
@@ -2562,14 +2593,14 @@ Expected: all pass, lint 0 errors. Do **not** run `npm run check:types`.
 
 Confirm the user-guide freshness guard still passes — it is part of the suite and fails if a generated fragment is stale. If it fails, run `npm run build:guide` and commit the regenerated fragments.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add packages/competence/INSTALL.md packages/competence/README.md packages/competence/CHANGELOG.md packages/competence/package.json
 git commit -m "build(release): document work sites and position name, and release competence 3.24.0 (CA-109)"
 ```
 
-- [ ] **Step 8: Push and open the PR**
+- [ ] **Step 9: Push and open the PR**
 
 ```bash
 git push -u origin feat/work-site-and-position
@@ -2577,7 +2608,7 @@ git push -u origin feat/work-site-and-position
 
 Then open a PR to `master` titled `feat(competence): add work site nomenclature, position name and an M/F gender constraint (CA-109)`. **Do not add a `Co-Authored-By: Claude` trailer** anywhere.
 
-- [ ] **Step 9: Update YouTrack**
+- [ ] **Step 10: Update YouTrack**
 
 Move CA-109 to `Stage: Review`, add a comment linking the PR and recording any deviation from this plan. Do not log time — the owner does that.
 
