@@ -6122,6 +6122,197 @@ const configureRoleFamilies = () => {
 };
 
 /**
+ * Alpine component for the Work Sites admin screen (frame-work-sites.html). Reads and writes the work-sites
+ * nomenclature through the framework's composite-editor API, so versioning, validation, audit and validated restore
+ * come from the config subsystem rather than being reimplemented here.
+ *
+ * The submitted list is the complete set — an omitted code is a removal — and a removal of a site somebody is
+ * assigned to is refused by `workSitesReferentialIntegrity` and rendered here as a save error. This component
+ * deliberately performs no such check of its own: the rule has one home, and a second copy would let the two drift
+ * while guarding only this screen.
+ *
+ * Per-row fields bind with x-bind:value + @input/@change rather than x-model — mirrors the per-spec fields in
+ * configureRoleFamilies and the per-row select in configureArchetypeAssignment; x-model on a control repeated by
+ * x-for is avoided throughout this file (see the same note beside configureConsentRegister's cycle select).
+ *
+ * @returns {Object}
+ */
+function configureWorkSites() {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+    const EDITOR_KEY = "work-sites";
+
+    return {
+        loaded: false,
+        saving: false,
+        sites: [],
+        versions: {},
+        saveErrors: [],
+
+        init() {
+            const onInitialized = () => {
+                if ( !tiApplication.hasRole( "admin" ) ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.not-authorized", "Administrator access required." ) );
+                    tiApplication.openScreen( "dashboard" );
+                    return;
+                }
+                this.loadData();
+            };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        getLabel( key, fallback = "" ) {
+            return tiApplication.getLabel( key, fallback );
+        },
+
+        loadData() {
+            tiApplication.sendRequest( "/admin/config/editors/" + EDITOR_KEY ).then( ( result ) => {
+                const data = ( result && result.data ) || {};
+                // composeView wraps the editor's compose() result under `data.rows`; this editor returns { sites }.
+                const view = ( data.rows && typeof data.rows === "object" && !Array.isArray( data.rows ) ) ? data.rows : {};
+                this.sites = Array.isArray( view.sites ) ? tiToolbox.structuredClone( view.sites ) : [];
+                this.versions = data.versions ? tiToolbox.structuredClone( data.versions ) : {};
+                this.saveErrors = [];
+                this.loaded = true;
+            } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
+                this.loaded = true;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                const httpCode = error && error.exception && error.exception.httpCode;
+                if ( httpCode === 401 || httpCode === 403 ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
+        },
+
+        // Alpine's CSP build cannot call Array/Object inside a template expression, so every derived value the
+        // fragment needs is a method here.
+        isEmpty() {
+            return this.sites.length === 0;
+        },
+
+        countSummary() {
+            return tiApplication.getLabel( "interface.work-sites.count", "{n} sites" ).replace( "{n}", String( this.sites.length ) );
+        },
+
+        addSite() {
+            this.sites.push( { code: "", type: "office", name: { en: "", bg: "" } } );
+        },
+
+        removeSite( index ) {
+            // Removing the row is all this does. Whether the removal is ALLOWED is the validator's answer, and it
+            // arrives on save — a site still assigned to somebody comes back as a save error, not a client-side veto.
+            this.sites.splice( index, 1 );
+        },
+
+        setSiteCode( index, value ) {
+            if ( this.sites[ index ] ) {
+                this.sites[ index ].code = value;
+            }
+        },
+
+        setSiteType( index, value ) {
+            if ( this.sites[ index ] ) {
+                this.sites[ index ].type = ( value === "client" ) ? "client" : "office";
+            }
+        },
+
+        setSiteName( index, language, value ) {
+            const site = this.sites[ index ];
+            if ( !site ) {
+                return;
+            }
+            if ( !site.name ) {
+                site.name = { en: "", bg: "" };
+            }
+            site.name[ language ] = value;
+        },
+
+        save() {
+            this.saveErrors = this.localIssues();
+            if ( this.saveErrors.length > 0 ) {
+                return;
+            }
+            this.saving = true;
+            const body = {
+                edited: { sites: this.sites },
+                expectedVersions: this.versions,
+                note: tiApplication.getLabel( "interface.work-sites.save-note", "Work sites edit" )
+            };
+            tiApplication.sendRequest( "/admin/config/editors/" + EDITOR_KEY, "POST", body ).then( ( result ) => {
+                this.saving = false;
+                const data = ( result && result.data ) || {};
+                // A REFUSED save arrives HERE with ok === false and HTTP 200 — not in the catch. This is the branch
+                // that renders "work site 'HQ' is assigned to an employee and cannot be removed".
+                if ( data.ok === false ) {
+                    this.saveErrors = this.flattenErrors( data.errors );
+                    tiApplication.notify( tiApplication.getLabel( "interface.work-sites.save-invalid", "Some changes are invalid — see the issues listed." ) );
+                    return;
+                }
+                tiApplication.notify( tiApplication.getLabel( "interface.work-sites.saved", "Work sites saved." ) );
+                this.loadData();
+            } ).catch( ( error ) => {
+                this.saving = false;
+                const httpCode = error && error.exception && error.exception.httpCode;
+                if ( httpCode === 409 ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.work-sites.save-conflict", "Configuration changed elsewhere — reloading the latest version." ) );
+                    this.loadData();
+                    return;
+                }
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        // Server issues are keyed by document, each carrying { path, message }. The path is ".<code>" for a site
+        // issue and "." for the fail-closed "could not be verified" one; strip the dot so the tag reads as a code.
+        flattenErrors( errors ) {
+            const out = [];
+            const byKey = errors || {};
+            Object.keys( byKey ).forEach( ( key ) => {
+                ( byKey[ key ] || [] ).forEach( ( issue ) => {
+                    const rawPath = ( issue && ( issue.path || issue.dataPath ) ) || "";
+                    const parts = rawPath.split( "." ).filter( Boolean );
+                    out.push( { label: parts[ 0 ] || "—", message: ( issue && issue.message ) || "" } );
+                } );
+            } );
+            return out;
+        },
+
+        // Only the two things the server cannot phrase better than the form can: an empty code, and a duplicate one.
+        // Everything else — including whether a removal is allowed — is the validator's answer, rendered above.
+        localIssues() {
+            const issues = [];
+            const seen = {};
+            for ( const site of this.sites ) {
+                const code = ( site.code || "" ).trim();
+                if ( code.length === 0 ) {
+                    issues.push( { label: "—", message: tiApplication.getLabel( "interface.work-sites.code-required", "Every site needs a code." ) } );
+                    continue;
+                }
+                if ( seen[ code ] ) {
+                    issues.push( { label: code, message: tiApplication.getLabel( "interface.work-sites.code-duplicate", "This code is used twice." ) } );
+                }
+                seen[ code ] = true;
+                if ( !site.name || !( site.name.en || "" ).trim() || !( site.name.bg || "" ).trim() ) {
+                    issues.push( { label: code, message: tiApplication.getLabel( "interface.work-sites.name-required", "Both an English and a Bulgarian name are required." ) } );
+                }
+            }
+            return issues;
+        }
+    };
+}
+
+/**
  * Alpine component for the admin employee-import screen (frame-employee-import.html). Reads the chosen CSV in the
  * browser and posts its TEXT through the ordinary service call — there is no multipart handling in the framework,
  * and none is needed at this size. Preview writes nothing; applying re-derives the plan server-side, so the plan
@@ -6549,6 +6740,7 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceArchetypeAssignment", configureArchetypeAssignment );
     Alpine.data( "competenceArchetypeEditor", configureArchetypeEditor );
     Alpine.data( "competenceRoleFamilies", configureRoleFamilies );
+    Alpine.data( "competenceWorkSites", configureWorkSites );
     Alpine.data( "competenceEmployeeImport", configureEmployeeImport );
     Alpine.data( "insightsCycle", configureInsightsCycle );
     Alpine.data( "insightsTeam", configureInsightsTeam );

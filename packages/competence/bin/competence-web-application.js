@@ -148,6 +148,11 @@ class CompetenceWebApplication extends TiWebAppManager {
             path: "fragments/frame-employee-import.html",
             roles: [ "admin" ]
         } );
+        this.addFragment( "work-sites", {
+            title: "Work Sites",
+            path: "fragments/frame-work-sites.html",
+            roles: [ "admin" ]
+        } );
         this.addFragment( "competency-text-editor", {
             title: "Competency Texts",
             path: "fragments/frame-competency-text-editor.html",
@@ -329,6 +334,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     // "administration" is Configuration's key. A sub-screen maps to its parent's key (see
                     // "cycle-setup" and "competency-text-editor"); a top-level item maps to itself.
                     "employee-import": "employee-import",
+                    "work-sites": "work-sites",
                     "competency-text-editor": "administration",
                     "archetype-assignment": "administration",
                     "archetype-editor": "administration",

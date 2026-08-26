@@ -1,0 +1,62 @@
+<div class="ti-page" x-data="competenceWorkSites">
+
+    <div class="ti-page-head">
+        <div>
+            <div class="ti-page-eyebrow" x-text-label="interface.work-sites.eyebrow">Administration</div>
+            <h1 class="ti-page-title" x-text-label="interface.work-sites.title">Work Sites</h1>
+            <p class="ti-page-subtitle" x-text-label="interface.work-sites.intro">The offices and client premises an employee can be assigned to. A site that is still assigned to someone cannot be removed.</p>
+        </div>
+    </div>
+
+    <section class="ti-panel">
+        <div class="ti-panel-head bar">
+            <div class="ti-panel-head-text">
+                <div class="ti-panel-title" x-text-label="interface.work-sites.title">Work Sites</div>
+                <div class="ti-panel-subtitle" x-text="countSummary()"></div>
+            </div>
+            <div class="ti-panel-head-aside">
+                <button class="ti-btn" type="button" @click="addSite()" x-text-label="interface.work-sites.add">Add site</button>
+                <button class="ti-btn primary" type="button" x-bind:disabled="saving" @click="save()" x-text-label="interface.work-sites.save">Save</button>
+            </div>
+        </div>
+
+        <div class="competence-panel-body">
+            <template x-if="saveErrors.length > 0">
+                <div class="ti-form-section">
+                    <template x-for="(issue, idx) in saveErrors" x-bind:key="idx">
+                        <div class="ti-form-readonly">
+                            <span class="ti-tag mono" x-text="issue.label"></span>
+                            <span class="ti-form-error" x-text="issue.message"></span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <template x-if="isEmpty()">
+                <p class="ti-form-hint" x-text-label="interface.work-sites.empty">No sites configured yet.</p>
+            </template>
+
+            <template x-for="(site, index) in sites" x-bind:key="index">
+                <div class="ti-form-row">
+                    <label class="ti-field-label" x-text-label="interface.work-sites.code">Code</label>
+                    <input class="ti-input" type="text" x-bind:value="site.code" @input="setSiteCode(index, $event.target.value)">
+
+                    <label class="ti-field-label" x-text-label="interface.work-sites.type">Type</label>
+                    <select class="ti-select" x-bind:value="site.type" @change="setSiteType(index, $event.target.value)">
+                        <option value="office" x-text-label="interface.work-sites.type-office">Office</option>
+                        <option value="client" x-text-label="interface.work-sites.type-client">Client</option>
+                    </select>
+
+                    <label class="ti-field-label" x-text-label="interface.work-sites.name-en">Name (EN)</label>
+                    <input class="ti-input" type="text" x-bind:value="site.name.en" @input="setSiteName(index, 'en', $event.target.value)">
+
+                    <label class="ti-field-label" x-text-label="interface.work-sites.name-bg">Name (BG)</label>
+                    <input class="ti-input" type="text" x-bind:value="site.name.bg" @input="setSiteName(index, 'bg', $event.target.value)">
+
+                    <button class="ti-btn" type="button" @click="removeSite(index)" x-text-label="interface.work-sites.remove">Remove</button>
+                </div>
+            </template>
+        </div>
+    </section>
+
+</div>

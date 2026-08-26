@@ -4986,6 +4986,14 @@
       "duplicate-email": {
         "en": "Another employee already uses this email address. Emails must be unique — a shared address prevents both employees from signing in.",
         "bg": "Друг служител вече използва този имейл адрес. Имейлите трябва да са уникални — споделен адрес спира достъпа и на двамата служители."
+      },
+      "invalid-work-site": {
+        "en": "Selected work site does not exist.",
+        "bg": "Избраният работен обект не съществува."
+      },
+      "invalid-gender": {
+        "en": "Gender must be M or F.",
+        "bg": "Полът трябва да е M или F."
       }
     },
     "employee-import": {
@@ -7336,6 +7344,10 @@
       "employee-import": {
         "en": "Employee Import",
         "bg": "Импорт на служители"
+      },
+      "work-sites": {
+        "en": "Work Sites",
+        "bg": "Работни обекти"
       },
       "competency-text-editor": {
         "en": "Competency Texts",
@@ -9864,6 +9876,92 @@
       "confirm": {
         "en": "Apply",
         "bg": "Приложи"
+      }
+    },
+    "work-sites": {
+      "eyebrow": {
+        "en": "Administration",
+        "bg": "Администрация"
+      },
+      "title": {
+        "en": "Work Sites",
+        "bg": "Работни обекти"
+      },
+      "intro": {
+        "en": "The offices and client premises an employee can be assigned to. A site that is still assigned to someone cannot be removed.",
+        "bg": "Офисите и обектите на клиенти, към които може да бъде назначен служител. Обект, към който все още е назначен служител, не може да бъде премахнат."
+      },
+      "add": {
+        "en": "Add site",
+        "bg": "Добави обект"
+      },
+      "code": {
+        "en": "Code",
+        "bg": "Код"
+      },
+      "type": {
+        "en": "Type",
+        "bg": "Тип"
+      },
+      "type-office": {
+        "en": "Office",
+        "bg": "Офис"
+      },
+      "type-client": {
+        "en": "Client",
+        "bg": "Клиент"
+      },
+      "name-en": {
+        "en": "Name (EN)",
+        "bg": "Име (EN)"
+      },
+      "name-bg": {
+        "en": "Name (BG)",
+        "bg": "Име (BG)"
+      },
+      "remove": {
+        "en": "Remove",
+        "bg": "Премахни"
+      },
+      "save": {
+        "en": "Save",
+        "bg": "Запази"
+      },
+      "saved": {
+        "en": "Saved",
+        "bg": "Записано"
+      },
+      "empty": {
+        "en": "No sites configured yet",
+        "bg": "Все още няма конфигурирани обекти"
+      },
+      "code-required": {
+        "en": "Every site needs a code.",
+        "bg": "Всеки обект трябва да има код."
+      },
+      "code-duplicate": {
+        "en": "This code is used twice.",
+        "bg": "Този код се използва два пъти."
+      },
+      "name-required": {
+        "en": "Both an English and a Bulgarian name are required.",
+        "bg": "Необходими са и английско, и българско име."
+      },
+      "save-note": {
+        "en": "Work sites edit",
+        "bg": "Редакция на работни обекти"
+      },
+      "save-invalid": {
+        "en": "Some changes are invalid — see the issues listed.",
+        "bg": "Някои промени са невалидни — вижте посочените проблеми."
+      },
+      "save-conflict": {
+        "en": "Configuration changed elsewhere — reloading the latest version.",
+        "bg": "Конфигурацията е променена другаде — презареждане на последната версия."
+      },
+      "count": {
+        "en": "{n} sites",
+        "bg": "{n} обекта"
       }
     },
     "insights": {
