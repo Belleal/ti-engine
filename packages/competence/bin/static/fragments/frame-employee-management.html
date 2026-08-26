@@ -236,6 +236,34 @@
                                                 </template>
                                             </select>
                                         </div>
+
+                                        <div class="ti-form-row">
+                                            <label class="ti-field-label" x-text-label="interface.employee-management.form.work-site"></label>
+                                            <select class="ti-select" x-model="draft.personal.workSite"
+                                                    x-bind:disabled="!isFieldEditable('personal.workSite')">
+                                                <option value="" x-text-label="interface.employee-management.work-site.none"></option>
+                                                <template x-for="site in options.workSites" x-bind:key="site.code">
+                                                    <option x-bind:value="site.code" x-text="workSiteOptionLabel(site)"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+
+                                        <div class="ti-form-row">
+                                            <label class="ti-field-label" x-text-label="interface.employee-management.form.gender"></label>
+                                            <select class="ti-select" x-model="draft.personal.gender"
+                                                    x-bind:disabled="!isFieldEditable('personal.gender')">
+                                                <option value="" x-text-label="interface.employee-management.gender.none"></option>
+                                                <template x-for="value in options.genders" x-bind:key="value">
+                                                    <option x-bind:value="value" x-text="value"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+
+                                        <div class="ti-form-row">
+                                            <label class="ti-field-label" x-text-label="interface.employee-management.form.position-name"></label>
+                                            <input class="ti-input" type="text" x-model="draft.career.positionName"
+                                                   x-bind:disabled="!isFieldEditable('career.positionName')">
+                                        </div>
                                     </div>
                                 </div>
 
@@ -634,6 +662,28 @@
                                     <option x-bind:value="location" x-text="getLabel('interface.employee-management.work-location.' + location)"></option>
                                 </template>
                             </select>
+                        </div>
+                        <div class="ti-form-row">
+                            <label class="ti-field-label" x-text-label="interface.employee-management.form.work-site"></label>
+                            <select class="ti-select" x-model="modal.payload.personal.workSite">
+                                <option value="" x-text-label="interface.employee-management.work-site.none"></option>
+                                <template x-for="site in options.workSites" x-bind:key="site.code">
+                                    <option x-bind:value="site.code" x-text="workSiteOptionLabel(site)"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="ti-form-row">
+                            <label class="ti-field-label" x-text-label="interface.employee-management.form.gender"></label>
+                            <select class="ti-select" x-model="modal.payload.personal.gender">
+                                <option value="" x-text-label="interface.employee-management.gender.none"></option>
+                                <template x-for="value in options.genders" x-bind:key="value">
+                                    <option x-bind:value="value" x-text="value"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="ti-form-row">
+                            <label class="ti-field-label" x-text-label="interface.employee-management.form.position-name"></label>
+                            <input class="ti-input" type="text" x-model="modal.payload.career.positionName">
                         </div>
                         <div class="ti-form-row">
                             <label class="ti-field-label" x-text-label="interface.employee-management.form.role-family"></label>

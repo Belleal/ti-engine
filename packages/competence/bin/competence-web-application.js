@@ -3933,7 +3933,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                         workMode: input.personal?.workMode || "Full-time",
                         workLocation: input.personal?.workLocation || "On-site",
                         ...( input.personal?.birthDate ? { birthDate: input.personal.birthDate } : {} ),
-                        ...( input.personal?.gender ? { gender: input.personal.gender } : {} )
+                        ...( input.personal?.gender ? { gender: input.personal.gender } : {} ),
+                        ...( input.personal?.workSite ? { workSite: input.personal.workSite } : {} )
                     },
                     career: {
                         organizationUnitID: String( input.career?.organizationUnitID || "" ).trim(),
@@ -3941,7 +3942,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                         specialization: input.career?.specialization || null,
                         level: String( input.career?.level || "" ).trim(),
                         stage: Number( input.career?.stage ),
-                        ...( input.career?.startingDate ? { startingDate: input.career.startingDate } : {} )
+                        ...( input.career?.startingDate ? { startingDate: input.career.startingDate } : {} ),
+                        ...( input.career?.positionName ? { positionName: String( input.career.positionName ).trim() } : {} )
                     }
                 };
                 // Strip undefined fields so the persisted record is clean.
@@ -4323,9 +4325,13 @@ class CompetenceWebApplication extends TiWebAppManager {
                 firstName: employee?.personal?.firstName || "",
                 lastName: employee?.personal?.lastName || "",
                 birthDate: employee?.personal?.birthDate || null,
-                gender: employee?.personal?.gender || null,
+                // "" (not null) to match the select-bound convention used by workMode/workLocation/workSite below —
+                // gender is now editable via a <select x-model="draft.personal.gender">, and a null draft value
+                // there fails to match any <option>, leaving the control's displayed state undefined.
+                gender: employee?.personal?.gender || "",
                 workMode: employee?.personal?.workMode || "",
-                workLocation: employee?.personal?.workLocation || ""
+                workLocation: employee?.personal?.workLocation || "",
+                workSite: employee?.personal?.workSite || ""
             },
             career: {
                 organizationUnitID: employee?.career?.organizationUnitID || "",
@@ -4333,7 +4339,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                 specialization: employee?.career?.specialization || null,
                 level: employee?.career?.level || "",
                 stage: employee?.career?.stage || null,
-                startingDate: employee?.career?.startingDate || null
+                startingDate: employee?.career?.startingDate || null,
+                positionName: employee?.career?.positionName || ""
             }
         };
     }
@@ -4407,7 +4414,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                 { label: label( "interface.employee-management.form.last-name" ), value: detail.personal.lastName },
                 { label: label( "interface.employee-management.form.email" ), value: detail.email, wide: true },
                 { label: label( "interface.employee-management.form.work-mode" ), value: optionLabel( "work-mode", detail.personal.workMode ) },
-                { label: label( "interface.employee-management.form.work-location" ), value: optionLabel( "work-location", detail.personal.workLocation ) }
+                { label: label( "interface.employee-management.form.work-location" ), value: optionLabel( "work-location", detail.personal.workLocation ) },
+                { label: label( "interface.employee-management.form.work-site" ), value: this.#resolveWorkSiteName( detail.personal.workSite, language ) },
+                { label: label( "interface.employee-management.form.position-name" ), value: detail.career.positionName || "—" },
+                { label: label( "interface.employee-management.form.gender" ), value: detail.personal.gender || "—" }
             ]
         }, {
             title: label( "interface.employee-management.form.section-career" ),
@@ -4508,7 +4518,13 @@ class CompetenceWebApplication extends TiWebAppManager {
             organizationUnits,
             employmentStatuses: [ "active", "on-leave", "terminated" ],
             workModes: [ "Full-time", "Part-time", "Contract" ],
-            workLocations: [ "On-site", "Hybrid", "Remote" ]
+            workLocations: [ "On-site", "Hybrid", "Remote" ],
+            genders: [ "M", "F" ],
+            workSites: Object.entries( configurationLoader.configWorkSites ).map( ( [ code, site ] ) => ( {
+                code: code,
+                type: site.type,
+                name: ( site.name && site.name[ language ] ) ? site.name[ language ] : ( ( site.name && site.name.en ) || code )
+            } ) ).sort( ( a, b ) => ( a.name || "" ).localeCompare( b.name || "" ) )
         };
     }
 
@@ -4658,6 +4674,25 @@ class CompetenceWebApplication extends TiWebAppManager {
             organizationStructure: configurationLoader.configOrganizationStructure,
             workSites: configurationLoader.configWorkSites
         } );
+    }
+
+    /**
+     * Resolves a work-site code to its localized name, falling back to the raw code. A code that no longer resolves
+     * is shown as-is rather than blanked: the validator prevents removing an assigned site, so a miss here means
+     * data written before this feature or restored around it — and an operator needs to see the value to fix it.
+     *
+     * @method
+     * @param {string} [code]
+     * @param {string} language
+     * @returns {string}
+     * @private
+     */
+    #resolveWorkSiteName( code, language ) {
+        if ( !code ) {
+            return "—";
+        }
+        const site = configurationLoader.configWorkSites[ code ];
+        return ( site && site.name && site.name[ language ] ) ? site.name[ language ] : code;
     }
 
     /**

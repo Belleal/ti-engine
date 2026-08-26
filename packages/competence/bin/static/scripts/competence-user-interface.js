@@ -4050,7 +4050,7 @@ const configureEmployeeManagement = () => {
         loaded: false,
         scope: "",
         employees: [],
-        options: { roleFamilies: [], stageLevels: [], organizationUnits: [], employmentStatuses: [], workModes: [], workLocations: [] },
+        options: { roleFamilies: [], stageLevels: [], organizationUnits: [], employmentStatuses: [], workModes: [], workLocations: [], genders: [], workSites: [] },
         filters: { search: "", roleFamily: "", specialization: "", stageLevel: "", employmentStatus: "" },
         selectedEmployeeID: null,
         detail: emptyDetail(),
@@ -4435,6 +4435,8 @@ const configureEmployeeManagement = () => {
                 [ "personal.lastName", employee.personal.lastName, draft.personal.lastName ],
                 [ "personal.workMode", employee.personal.workMode, draft.personal.workMode ],
                 [ "personal.workLocation", employee.personal.workLocation, draft.personal.workLocation ],
+                [ "personal.workSite", employee.personal.workSite, draft.personal.workSite ],
+                [ "personal.gender", employee.personal.gender, draft.personal.gender ],
                 [ "email", employee.email, draft.email ],
                 [ "employmentStatus", employee.employmentStatus, draft.employmentStatus ],
                 [ "career.roleFamily", employee.career.roleFamily, draft.career.roleFamily ],
@@ -4442,7 +4444,8 @@ const configureEmployeeManagement = () => {
                 [ "career.level", employee.career.level, draft.career.level ],
                 [ "career.stage", employee.career.stage, draft.career.stage ],
                 [ "career.startingDate", employee.career.startingDate, draft.career.startingDate ],
-                [ "career.organizationUnitID", employee.career.organizationUnitID, draft.career.organizationUnitID ]
+                [ "career.organizationUnitID", employee.career.organizationUnitID, draft.career.organizationUnitID ],
+                [ "career.positionName", employee.career.positionName, draft.career.positionName ]
             ];
             const diff = [];
             for ( const [ path, oldVal, newVal ] of fields ) {
@@ -4486,8 +4489,8 @@ const configureEmployeeManagement = () => {
                 payload: {
                     email: "",
                     employmentStatus: "active",
-                    personal: { firstName: "", lastName: "", workMode: "Full-time", workLocation: "On-site" },
-                    career: { roleFamily: "", specialization: "", stageLevel: "", organizationUnitID: "", startingDate: "" }
+                    personal: { firstName: "", lastName: "", workMode: "Full-time", workLocation: "On-site", workSite: "", gender: "" },
+                    career: { roleFamily: "", specialization: "", stageLevel: "", organizationUnitID: "", startingDate: "", positionName: "" }
                 },
                 errorMessage: "",
                 busy: false
@@ -4525,7 +4528,8 @@ const configureEmployeeManagement = () => {
                     specialization: payload.career.specialization || null,
                     level,
                     stage,
-                    startingDate: payload.career.startingDate || undefined
+                    startingDate: payload.career.startingDate || undefined,
+                    positionName: payload.career.positionName || undefined
                 }
             };
 
@@ -4570,6 +4574,16 @@ const configureEmployeeManagement = () => {
         formatInFlightCount( n ) {
             const tmpl = tiApplication.getLabel( "interface.employee-management.role-family-change.in-flight-count", "{n} in-flight evaluation(s) will continue with the original set." );
             return tmpl.replace( "{n}", String( n ) );
+        },
+
+        // `site.name` arrives from the server already resolved to the session language (#buildEmployeeFormOptions
+        // in competence-web-application.js), so this only prefixes the type — otherwise an office and a client
+        // site with similar names are indistinguishable in the list.
+        workSiteOptionLabel( site ) {
+            const type = ( site.type === "client" )
+                ? tiApplication.getLabel( "interface.work-sites.type-client", "Client" )
+                : tiApplication.getLabel( "interface.work-sites.type-office", "Office" );
+            return type + " · " + site.name;
         },
 
         getLabel( key, fallback = "" ) {

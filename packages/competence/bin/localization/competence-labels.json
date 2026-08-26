@@ -9416,6 +9416,14 @@
           "en": "Gender",
           "bg": "Пол"
         },
+        "work-site": {
+          "en": "Work site",
+          "bg": "Работен обект"
+        },
+        "position-name": {
+          "en": "Position (contract)",
+          "bg": "Длъжност (по договор)"
+        },
         "role-family": {
           "en": "Role family",
           "bg": "Семейство роли"
@@ -9513,6 +9521,18 @@
         "Remote": {
           "en": "Remote",
           "bg": "Дистанционно"
+        }
+      },
+      "work-site": {
+        "none": {
+          "en": "— none —",
+          "bg": "— няма —"
+        }
+      },
+      "gender": {
+        "none": {
+          "en": "— not specified —",
+          "bg": "— не е посочен —"
         }
       },
       "supervisor": {
@@ -9752,6 +9772,14 @@
           "career.organizationUnitID": {
             "en": "Organization unit",
             "bg": "Организационна единица"
+          },
+          "personal.workSite": {
+            "en": "Work site",
+            "bg": "Работен обект"
+          },
+          "career.positionName": {
+            "en": "Position (contract)",
+            "bg": "Длъжност (по договор)"
           },
           "supervisorRole": {
             "en": "Supervisor role",
