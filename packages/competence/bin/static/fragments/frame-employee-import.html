@@ -40,6 +40,10 @@
         </div>
 
         <div class="competence-panel-body">
+            <div class="ti-form-row">
+                <button class="ti-btn" type="button" @click="downloadTemplate()" x-text-label="interface.employee-import.download-template">Download CSV template</button>
+            </div>
+
             <p class="ti-form-hint" x-text-label="interface.employee-import.export-hint">Export from the template with File &gt; Save As &gt; CSV UTF-8. Another encoding stores names incorrectly and is refused.</p>
 
             <div class="ti-form-row">

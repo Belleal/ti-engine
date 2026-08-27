@@ -9823,6 +9823,10 @@
         "en": "Apply import",
         "bg": "Приложи импорта"
       },
+      "download-template": {
+        "en": "Download CSV template",
+        "bg": "Изтегли CSV шаблон"
+      },
       "export-hint": {
         "en": "Export from the template with File > Save As > CSV UTF-8. Another encoding stores names incorrectly and is refused.",
         "bg": "Експортирайте от шаблона чрез File > Save As > CSV UTF-8. Друго кодиране съхранява имената неправилно и се отхвърля."

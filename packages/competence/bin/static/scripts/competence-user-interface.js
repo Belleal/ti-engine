@@ -6371,6 +6371,27 @@ function configureEmployeeImport() {
             this.applyFailed = false;
         },
 
+        // Builds the file in the browser from the header the server derives, so the column list can never drift
+        // from what the importer actually accepts.
+        downloadTemplate() {
+            tiApplication.sendRequest( "/app/template-employee-import", "POST", {} ).then( ( result ) => {
+                const header = ( result && result.data && result.data.header ) ? result.data.header : "";
+                // The BOM is what makes Excel open a UTF-8 CSV as UTF-8 rather than as the system codepage — the
+                // exact failure the importer's not-utf8 check exists to catch.
+                const blob = new Blob( [ "﻿" + header + "\n" ], { type: "text/csv;charset=utf-8" } );
+                const url = URL.createObjectURL( blob );
+                const anchor = document.createElement( "a" );
+                anchor.href = url;
+                anchor.download = "employees-template.csv";
+                document.body.appendChild( anchor );
+                anchor.click();
+                document.body.removeChild( anchor );
+                URL.revokeObjectURL( url );
+            } ).catch( ( error ) => {
+                this.applyError( error );
+            } );
+        },
+
         chooseFile( event ) {
             const file = event && event.target && event.target.files ? event.target.files[ 0 ] : null;
             this.reset();

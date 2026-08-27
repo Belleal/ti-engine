@@ -597,6 +597,8 @@ class CompetenceWebApplication extends TiWebAppManager {
             return this.#previewEmployeeImport( session, params );
         } else if ( service === "apply-employee-import" ) {
             return this.#applyEmployeeImport( session, params );
+        } else if ( service === "template-employee-import" ) {
+            return this.#templateEmployeeImport( session );
         } else if ( service === "grant-supervisor" ) {
             return this.#grantSupervisor( session, params );
         } else if ( service === "revoke-supervisor" ) {
@@ -4213,6 +4215,24 @@ class CompetenceWebApplication extends TiWebAppManager {
             absent: plan.absent.map( ( id ) => String( id ) ),
             applied: applied ? applied : null
         };
+    }
+
+    /**
+     * Returns the CSV header row the importer expects, derived from the column contract rather than a literal so it
+     * cannot go stale when a column is added. Admin-gated like the other two import services — it discloses nothing
+     * sensitive, but there is no reason for a non-admin to reach an admin screen's endpoint.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<{header: string}>}
+     * @private
+     */
+    #templateEmployeeImport( session ) {
+        return new Promise( ( resolve ) => {
+            this.#requireAdmin( session );
+            const columns = organizationImport.instance.COLUMNS;
+            resolve( { header: columns.required.concat( columns.optional ).join( "," ) } );
+        } );
     }
 
     /**
