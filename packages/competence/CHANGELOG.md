@@ -2,6 +2,52 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.24.0
+
+Employee records gain a configurable work-site nomenclature and a free-text contract position name, and `gender`
+is constrained to `M` / `F` (or blank) on every write path. `work-sites` is the tenth registered configuration
+document and the ninth store-backed one, edited live from a new **Administration → Work Sites** screen. **Migration
+note:** a deployment whose stored employee records carry a `gender` value other than `M` or `F` must have them
+corrected — the field is now constrained, so the next write of such a record fails validation.
+
+* feat(competence): register `work-sites` as the tenth configuration document — the ninth store-backed one — keyed
+  by site code, each entry a `type` (`office` / `client`) and an inline bilingual `{ en, bg }` name so an edit takes
+  effect on save rather than needing an export → commit → redeploy. Two blocking semantic validators:
+  `workSiteIdMatchesKey` (a site's `id` must equal its map key, mirroring `organizationIdMatchesKey`) and
+  `workSitesReferentialIntegrity` (a site assigned to an employee cannot be removed). The second is built on
+  `withEmployeeReferences`, a fail-closed employee-fetch helper extracted from the existing
+  `roleFamiliesReferentialIntegrity` so both validators share one path instead of diverging copies. Registered
+  `driftTracked: false`, the same posture as the organization structure — it holds deployment data, not release
+  content (CA-109)
+* feat(competence): add `personal.workSite` and `career.positionName` to the employee record — both optional. A
+  site code is a different fact from `work_location`'s On-site/Hybrid/Remote *arrangement*: it records the *place*,
+  and a Hybrid employee still reports to a specific office. `positionName` is free text, exactly as written in the
+  contract, and lives in `career` without being an input to grading (CA-109)
+* feat(competence): constrain `gender` to `M` / `F` / blank in `employee-rules.validateEmployee` — the one
+  chokepoint both the CSV importer and Employee Management call — and in the employee JSON schema, so the two write
+  paths cannot disagree about what is valid. An unknown `work_site` is rejected through the same function, via a
+  new `workSites` property on `EmployeeRulesContext` (CA-109)
+* feat(competence): add the **Work Sites** admin screen (Administration → Work Sites, admin-only) — a registered
+  composite editor listing code, type and both names, with add/rename/retype/remove. A removal refused by
+  `workSitesReferentialIntegrity` surfaces as a save error naming the site; the screen renders the refusal rather
+  than performing its own check, so the rule keeps exactly one home (CA-109)
+* fix(competence): phrase a better rejection when a CSV `work_site` cell is typed with a Cyrillic look-alike of a
+  real code, by folding ~12 Cyrillic/Latin confusable characters — real HR data mixes alphabets, and a Stara Zagora
+  office coded with a Cyrillic `О` renders identically to the Latin `O` used by its siblings. Folding only phrases
+  the rejection message; the value stays rejected either way, naming the offending character instead of listing
+  permitted codes that would otherwise look like an exact match on screen (CA-109)
+* feat(competence): accept `work_site` and `position_name` as optional CSV columns, and constrain `gender` there
+  too. Both new columns join `LEAVE_UNCHANGED_WHEN_OMITTED`: a blank cell leaves the stored value exactly as it is,
+  so neither field can be cleared by re-import — Employee Management is the designated way to clear them (CA-109)
+* feat(competence): add a **Download CSV template** button to the Employee Import screen, returning the header row
+  live from the same column list the CLI's `--template` reads, so the two can never drift apart (CA-109)
+* build(competence): extend the HR employee-import XLSX template with `work_site` (free text — valid codes are
+  per-deployment configuration, not something to bake into a committed file) and `position_name` (free text)
+  columns, and constrain the existing `gender` column to a genuine `M`/`F` dropdown. Adds
+  `docs/templates/build-import-template.py`, a committed, idempotent generator that extends the workbook rather
+  than rebuilding it, so the next column-contract change does not mean hand-rebuilding the template again (CA-109)
+* build(release): bump package version from `3.23.0` to `3.24.0`
+
 ## Version 3.23.0
 
 An admin can now load an employee CSV from the browser instead of a shell. **Administration → Employee Import**

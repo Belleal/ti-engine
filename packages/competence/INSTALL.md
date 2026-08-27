@@ -451,9 +451,11 @@ node bin/build/import-organization.js --template > employees.csv
 | `stage`                | yes      | `1`–`3`; `N`, `X` and `T` admit only stage `1`                                       |
 | `employment_status`    | no       | `active` (default) / `on-leave` / `terminated`                                      |
 | `birth_date`           | no       | `YYYY-MM-DD`                                                                         |
-| `gender`               | no       | Free text                                                                            |
+| `gender`               | no       | `M` or `F`, or blank                                                                 |
 | `specialization`       | no       | One of the role family's configured specializations; an empty cell means a generalist |
 | `starting_date`        | no       | `YYYY-MM-DD`                                                                         |
+| `work_site`            | no       | Must exist in the current work-site nomenclature (**Administration → Work Sites**). Blank leaves any stored value unchanged |
+| `position_name`        | no       | Free text, as written in the contract. Blank leaves any stored value unchanged      |
 
 Enum columns are matched case-insensitively after trimming (`full time`, `FULL-TIME` and `Full-time` all match), but
 never guessed at: a value that still does not match is rejected with the permitted values named, rather than mapped
@@ -551,6 +553,35 @@ action to undo an import.
   produces. If it ever picks wrong for your export the whole file is refused up front with "The header is missing
   required columns" naming every required column, because the header row parsed as one unsplit cell — run that file
   through the CLI with an explicit `--delimiter`.
+
+### Work Sites
+
+**Administration → Work Sites** (admin-only) edits the work-site nomenclature — the office or client premises an
+employee reports to. This is a different fact from `work_location` (`On-site` / `Hybrid` / `Remote`), which records
+the *arrangement* rather than the *place*: a Hybrid employee still reports to a specific office, and two people at
+the same office can hold different arrangements. Each site is a code, a `type` (`office` or `client`), and a
+bilingual `{ en, bg }` name; unlike role-family text, site names are stored inline, so an edit takes effect on save
+with no export → commit → redeploy step.
+
+**The file baked into the image is a generic demo default** — `HQ`, `OF1`, `CL1` — the same posture as the
+organization structure (earlier in this section): it exists only to seed a first run. Enter your real sites through
+the screen; the stored value wins from the first save onward, and because the `ti-engine` repository is public, the
+real office and client list is never committed to it.
+
+**A site still assigned to an employee cannot be removed.** The screen refuses the save with an error naming the
+site, for example `work site 'HQ' is assigned to an employee and cannot be removed` — reassign or clear every
+affected employee's `work_site` first (Employee Import or Employee Management), then remove the site.
+
+**A confusable character is named, not silently accepted.** The CSV importer folds look-alike Cyrillic/Latin
+letters (for example Cyrillic `О` U+041E vs. Latin `O` U+004F, visually identical in every common font) only to
+explain a rejection — never to accept the value. A `work_site` cell typed with a Cyrillic look-alike of a real code
+is still rejected, but the message names the offending character instead of listing the permitted codes (which
+would otherwise show what looks like an exact match on screen), for example: `work_site 'О5' uses a Cyrillic
+character; the permitted code 'O5' is spelled with Latin letters`.
+
+**Migration note — gender.** `gender` is now constrained to `M` or `F` (or blank) on both write paths — the CSV
+importer and Employee Management. A deployment whose stored employee records already carry some other value must
+have them corrected: the field is now constrained, so the next write of such a record fails validation.
 
 ### Unresolved-manager warnings
 

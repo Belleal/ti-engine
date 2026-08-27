@@ -21,7 +21,7 @@
 const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 
-const organizationImport = require( "../application/organization-import" );
+const organizationImport = require( "#organization-import" );
 
 const CYRILLIC_O5 = "О5";
 const LATIN_O5 = "O5";

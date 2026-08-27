@@ -18,7 +18,7 @@
 const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 
-const employeeRules = require( "../application/employee-rules" );
+const employeeRules = require( "#employee-rules" );
 
 const CONTEXT = {
     roleFamilies: { SE: { specializations: { BACKEND: {} } } },
@@ -86,7 +86,7 @@ describe( "validateEmployee — positionName", () => {
 
 } );
 
-const organizationImport = require( "../application/organization-import" );
+const organizationImport = require( "#organization-import" );
 
 const row = ( overrides ) => ( {
     __row: 2,

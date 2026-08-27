@@ -4631,7 +4631,7 @@ class CompetenceWebApplication extends TiWebAppManager {
             // For specialization specifically, store null. For optional scalars (email, birthDate), delete the key.
             if ( path === "career.specialization" ) {
                 current[ lastPart ] = null;
-            } else if ( path === "email" || path === "personal.birthDate" || path === "personal.gender" || path === "career.startingDate" ) {
+            } else if ( path === "email" || path === "personal.birthDate" || path === "personal.gender" || path === "career.startingDate" || path === "personal.workSite" || path === "career.positionName" ) {
                 delete current[ lastPart ];
             } else {
                 current[ lastPart ] = value;
