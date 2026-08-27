@@ -15,7 +15,7 @@
  * re-imported. validateEmployee is what both of them call.
  */
 
-const { describe, it } = require( "node:test" );
+const { describe, it, beforeEach } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 
 const employeeRules = require( "#employee-rules" );
@@ -189,6 +189,113 @@ describe( "blank cells cannot clear a stored value", () => {
         } );
         assert.equal( plan.unchanged.length, 1, "a blank cell must not read as a change" );
         assert.equal( plan.update.length, 0 );
+    } );
+
+} );
+
+/*
+ * Task 11 review fix (CA-109): #setFieldByPath in competence-web-application.js was briefly changed to CLEAR
+ * personal.workSite / career.positionName by `delete`-ing the key from the outgoing object, on the theory that this
+ * would make Employee Management produce the same shape the CSV importer produces (which also omits the key on a
+ * blank cell -- see "blank cells cannot clear a stored value" above). That reasoning missed a consequence:
+ * DataManager#saveEmployee persists through cache.editJSON, which issues a Redis JSON.MERGE -- RFC 7386 merge-patch
+ * semantics, where a key ABSENT from the outgoing object is left untouched in storage, and only an explicit `null`
+ * deletes it (the identical mechanism documented in application/organization-import.js:31-49). Deleting the key
+ * made a "successful" clear silently keep the OLD stored value -- a phantom success. The fix (reverted in this same
+ * commit) is for #setFieldByPath to keep writing an explicit empty string for these two fields, exactly as it
+ * already did before that change, and exactly as it still does for every field NOT on the delete-on-clear
+ * allowlist. The two describe blocks below pin, respectively, the underlying mechanism and the observable fix.
+ */
+
+const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
+const dataManager = require( "#data-manager" );
+const configurationLoader = require( "#configuration-loader" );
+const CompetenceWebApplication = require( "../bin/competence-web-application.js" );
+
+const MERGE_PATCH_EMPLOYEE_ID = "9001";
+
+describe( "DataManager#saveEmployee — an omitted key is left untouched under merge-patch (CA-109 Task 11)", () => {
+
+    beforeEach( () => {
+        installInMemoryCache();
+    } );
+
+    it( "an outgoing record whose personal object omits workSite does not erase a stored one", async () => {
+        await dataManager.instance.saveEmployee( {
+            employeeID: MERGE_PATCH_EMPLOYEE_ID, email: "a@b.com", employmentStatus: "active",
+            personal: { firstName: "A", lastName: "B", workMode: "Full-time", workLocation: "On-site", workSite: "HQ" },
+            career: { organizationUnitID: "1-1", roleFamily: "SE", level: "R", stage: 2 }
+        } );
+
+        // `personal` is present in this second patch, but its `workSite` key is entirely absent -- exactly the
+        // shape `delete current[ lastPart ]` produces for a field on #setFieldByPath's delete-on-clear allowlist.
+        await dataManager.instance.saveEmployee( {
+            employeeID: MERGE_PATCH_EMPLOYEE_ID,
+            personal: { firstName: "A", lastName: "B", workMode: "Full-time", workLocation: "On-site" }
+        } );
+
+        const stored = await dataManager.instance.fetchEmployee( MERGE_PATCH_EMPLOYEE_ID );
+        assert.equal( stored.personal.workSite, "HQ",
+            "an omitted key must be left untouched by the merge, never read as 'the caller wants this cleared'" );
+    } );
+
+    it( "an outgoing record whose career object omits positionName does not erase a stored one", async () => {
+        await dataManager.instance.saveEmployee( {
+            employeeID: MERGE_PATCH_EMPLOYEE_ID, email: "a@b.com", employmentStatus: "active",
+            personal: { firstName: "A", lastName: "B", workMode: "Full-time", workLocation: "On-site" },
+            career: { organizationUnitID: "1-1", roleFamily: "SE", level: "R", stage: 2, positionName: "Team Lead" }
+        } );
+
+        await dataManager.instance.saveEmployee( {
+            employeeID: MERGE_PATCH_EMPLOYEE_ID,
+            career: { organizationUnitID: "1-1", roleFamily: "SE", level: "R", stage: 2 }
+        } );
+
+        const stored = await dataManager.instance.fetchEmployee( MERGE_PATCH_EMPLOYEE_ID );
+        assert.equal( stored.career.positionName, "Team Lead",
+            "an omitted key must be left untouched by the merge, never read as 'the caller wants this cleared'" );
+    } );
+
+} );
+
+describe( "Employee Management clear must actually reach the store (CA-109 Task 11 regression)", () => {
+
+    const app = new CompetenceWebApplication( "test-employee-merge-patch-clear" );
+    const SUPERVISOR_SESSION = { language: "en", user: { employeeID: "9999", roles: [ configurationLoader.roleCode.SUPERVISOR ] } };
+
+    const seed = () => ( {
+        employeeID: MERGE_PATCH_EMPLOYEE_ID, email: "merge.patch.clear@example.com", employmentStatus: "active",
+        personal: { firstName: "A", lastName: "B", workMode: "Full-time", workLocation: "On-site", workSite: "HQ" },
+        career: { organizationUnitID: "1-1", roleFamily: "SE", specialization: "BACKEND", level: "R", stage: 2, positionName: "Team Lead" }
+    } );
+
+    beforeEach( async () => {
+        installInMemoryCache();
+        await dataManager.instance.saveEmployee( seed() );
+    } );
+
+    it( "clearing personal.workSite through update-employee overwrites the stored value", async () => {
+        await app.processServiceRequest( SUPERVISOR_SESSION, "update-employee", {
+            employeeID: MERGE_PATCH_EMPLOYEE_ID,
+            fields: { "personal.workSite": "" }
+        } );
+
+        const stored = await dataManager.instance.fetchEmployee( MERGE_PATCH_EMPLOYEE_ID );
+        // If personal.workSite were ever re-added to #setFieldByPath's delete-on-clear allowlist, the field would
+        // be DELETED from the outgoing object instead of set to "" -- omitted from the saveEmployee() patch, and
+        // therefore left untouched by the merge (see the describe block above). The stale "HQ" would silently
+        // survive and this assertion would fail -- this is the exact CRITICAL defect Task 11's review caught.
+        assert.equal( stored.personal.workSite, "", "the stored value must be overwritten, not left as 'HQ'" );
+    } );
+
+    it( "clearing career.positionName through update-employee overwrites the stored value", async () => {
+        await app.processServiceRequest( SUPERVISOR_SESSION, "update-employee", {
+            employeeID: MERGE_PATCH_EMPLOYEE_ID,
+            fields: { "career.positionName": "" }
+        } );
+
+        const stored = await dataManager.instance.fetchEmployee( MERGE_PATCH_EMPLOYEE_ID );
+        assert.equal( stored.career.positionName, "", "the stored value must be overwritten, not left as 'Team Lead'" );
     } );
 
 } );

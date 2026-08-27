@@ -569,8 +569,10 @@ the screen; the stored value wins from the first save onward, and because the `t
 real office and client list is never committed to it.
 
 **A site still assigned to an employee cannot be removed.** The screen refuses the save with an error naming the
-site, for example `work site 'HQ' is assigned to an employee and cannot be removed` — reassign or clear every
-affected employee's `work_site` first (Employee Import or Employee Management), then remove the site.
+site, for example `work site 'HQ' is assigned to an employee and cannot be removed` — reassign every affected
+employee's `work_site` to a different code (Employee Import or Employee Management), or clear it from Employee
+Management (a blank cell on import leaves the stored value unchanged, so re-importing cannot clear it), then remove
+the site.
 
 **A confusable character is named, not silently accepted.** The CSV importer folds look-alike Cyrillic/Latin
 letters (for example Cyrillic `О` U+041E vs. Latin `O` U+004F, visually identical in every common font) only to

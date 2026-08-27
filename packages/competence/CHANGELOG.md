@@ -38,7 +38,10 @@ corrected — the field is now constrained, so the next write of such a record f
   permitted codes that would otherwise look like an exact match on screen (CA-109)
 * feat(competence): accept `work_site` and `position_name` as optional CSV columns, and constrain `gender` there
   too. Both new columns join `LEAVE_UNCHANGED_WHEN_OMITTED`: a blank cell leaves the stored value exactly as it is,
-  so neither field can be cleared by re-import — Employee Management is the designated way to clear them (CA-109)
+  so neither field can be cleared by re-import. Employee Management remains the way to clear either one — it must
+  write an explicit empty string rather than omit the key, because `DataManager#saveEmployee` persists through a
+  Redis `JSON.MERGE` (RFC 7386 merge-patch), under which an omitted key is left untouched and only an explicit
+  `null` deletes it (CA-109)
 * feat(competence): add a **Download CSV template** button to the Employee Import screen, returning the header row
   live from the same column list the CLI's `--template` reads, so the two can never drift apart (CA-109)
 * build(competence): extend the HR employee-import XLSX template with `work_site` (free text — valid codes are
