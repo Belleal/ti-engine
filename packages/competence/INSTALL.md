@@ -519,9 +519,13 @@ Three behaviors are worth understanding before the first real import:
   person to the importer.
 - **A blank optional cell means leave unchanged, not clear.** For `birth_date`, `gender` and `starting_date`, an
   empty cell leaves whatever is already stored for that person exactly as it is — it does not erase it. This
-  importer cannot clear one of those three fields for someone; do that from Employee Management instead.
-  (`specialization` is different: an empty cell there is applied and does clear a previously-set specialization,
-  turning the person into a generalist.)
+  importer cannot clear one of those three fields for someone. **Nor, at present, can Employee Management** —
+  it clears them by omitting the key, and an employee record is written as a merge-patch, where an omitted key
+  means "leave as it is". The screen reports success and shows the field blank, but the stored value survives and
+  reappears on the next load. Correcting that is tracked separately; until then, treat those three as set-only.
+  `work_site` and `position_name` are **not** affected — they are cleared by writing an empty value, which the
+  merge does apply. (`specialization` is different again: an empty cell in the CSV is applied and does clear a
+  previously-set specialization, turning the person into a generalist.)
 
 ### The Employee Import screen
 
