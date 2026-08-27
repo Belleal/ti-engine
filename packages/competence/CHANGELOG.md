@@ -2,6 +2,21 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.24.1
+
+The Employee Management **Audit** tab now names the field that changed instead of printing its raw path. The labels
+were there all along; the client-side label resolver could not reach a key that itself contains a dot, so the
+fallback — the field path — rendered every time. Found while verifying the 3.24.0 work-site edits, but not caused by
+them: the defect is as old as the audit labels. Fixed in `@ti-engine/web-framework` 1.25.1; requires
+`@ti-engine/web-framework` >= 1.25.1.
+
+* test(competence): add `test/employee-audit-field-labels.test.js`, an end-to-end guard over the audit field
+  labels. It takes the field list from the screen's own `computeDiff` table and the label-group prefix from
+  `getAuditFieldLabel`, builds the catalogue through `localization.getAllLabels` exactly as a session receives it,
+  and resolves each key through the real `getLabel` out of the web-framework browser bundle — so a new editable
+  field without a label, a label missing its Bulgarian copy, and a regression in the resolver each fail here. The
+  two sides were individually correct and only their meeting point was broken, which is why nothing caught it
+
 ## Version 3.24.0
 
 Employee records gain a configurable work-site nomenclature and a free-text contract position name, and `gender`
