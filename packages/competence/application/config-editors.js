@@ -575,7 +575,11 @@ function composeWorkSites( docs ) {
  * would let the two drift while making the screen the only guarded path.
  * <br/>
  * `id` is stamped from the row's `code` rather than trusted from the payload: they must be equal or
- * `workSiteIdMatchesKey` blocks the save, and deriving it removes the chance for them to disagree at all.
+ * `workSiteIdMatchesKey` blocks the save, and deriving it removes the chance for them to disagree at all. The code
+ * is trimmed before it becomes the key/`id`: the CSV importer trims every cell before matching, so a padded code
+ * saved verbatim (`" HQ "`) would be a site no import row could ever equal — the client's own duplicate check in
+ * `localIssues()` already trims for the same reason, and the server must agree with it. A code that is empty after
+ * trimming is skipped, same as one that was empty (or absent) to begin with.
  *
  * @method
  * @param {Array<Object>|{sites: Array<Object>}} editedView rows from {@link composeWorkSites}
@@ -592,9 +596,13 @@ function decomposeWorkSites( editedView, docs ) {
         if ( !row || !row.code ) {
             return;
         }
-        const stored = existing[ row.code ] || {};
-        next[ row.code ] = {
-            id: row.code,
+        const code = String( row.code ).trim();
+        if ( !code ) {
+            return;
+        }
+        const stored = existing[ code ] || {};
+        next[ code ] = {
+            id: code,
             type: row.type === "client" ? "client" : "office",
             name: mergeLeaf( row.name, stored.name )
         };

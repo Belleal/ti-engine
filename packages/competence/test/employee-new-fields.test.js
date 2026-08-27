@@ -49,7 +49,8 @@ describe( "validateEmployee — workSite", () => {
 
     it( "rejects any site when the context carries no nomenclature", () => {
         // A caller that forgets to pass workSites must fail closed, not silently accept every value.
-        const { workSites, ...withoutSites } = CONTEXT;
+        const withoutSites = { ...CONTEXT };
+        delete withoutSites.workSites;
         assert.equal( employeeRules.instance.validateEmployee( employee( { workSite: "HQ" } ), withoutSites ),
             "error.employee.invalid-work-site" );
     } );

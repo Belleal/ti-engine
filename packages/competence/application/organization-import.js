@@ -404,14 +404,17 @@ class OrganizationImport {
     /**
      * Explains why a work-site code matched nothing, or returns `null` when it in fact matched. Pure.
      * <br/>
-     * Returns `{ code: "confusable-character", match }` when the code folds onto a real site — the operator typed a
-     * lookalike letter — and `{ code: "unknown-work-site", match: null }` otherwise. A non-null return always means
-     * the value is **rejected**; the distinction only changes what the operator is told.
+     * Returns `{ code: "confusable-character", match, cyrillicChar, latinChar }` when the code folds onto a real
+     * site — the operator typed a lookalike letter — naming, via the same {@link CONFUSABLE_TO_LATIN} table
+     * `foldConfusables` used, the specific Cyrillic character found and the Latin one it should be, so the caller
+     * can phrase an error that shows the difference rather than two strings that render identically. Otherwise
+     * returns `{ code: "unknown-work-site", match: null }`. A non-null return always means the value is
+     * **rejected**; the distinction only changes what the operator is told.
      *
      * @method
      * @param {string} rawCode - The code as supplied.
      * @param {Object<string, WorkSite>} sites - The work-sites nomenclature.
-     * @returns {{code: string, match: string|null}|null}
+     * @returns {{code: string, match: string|null, cyrillicChar: string, latinChar: string}|{code: string, match: null}|null}
      * @public
      */
     describeWorkSiteMiss( rawCode, sites ) {
@@ -422,7 +425,8 @@ class OrganizationImport {
         }
         const folded = this.foldConfusables( code );
         if ( folded !== code && known[ folded ] ) {
-            return { code: "confusable-character", match: folded };
+            const cyrillicChar = Array.from( code ).find( ( character ) => CONFUSABLE_TO_LATIN[ character ] );
+            return { code: "confusable-character", match: folded, cyrillicChar: cyrillicChar, latinChar: CONFUSABLE_TO_LATIN[ cyrillicChar ] };
         }
         return { code: "unknown-work-site", match: null };
     }
@@ -655,7 +659,7 @@ class OrganizationImport {
                 if ( violation === "error.employee.invalid-work-site" ) {
                     const miss = this.describeWorkSiteMiss( candidate.personal && candidate.personal.workSite, context.workSites );
                     if ( miss && miss.code === "confusable-character" ) {
-                        reject( candidate, miss.code, `work_site '${ candidate.personal.workSite }' uses a Cyrillic character; the permitted code '${ miss.match }' is spelled with Latin letters` );
+                        reject( candidate, miss.code, `work_site '${ candidate.personal.workSite }' uses a Cyrillic ${ miss.cyrillicChar }; the permitted code '${ miss.match }' uses a Latin ${ miss.latinChar }` );
                         continue;
                     }
                 }

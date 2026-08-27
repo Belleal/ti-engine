@@ -82,6 +82,21 @@ describe( "decomposeWorkSites", () => {
         assert.deepEqual( result[ "work-sites" ], {} );
     } );
 
+    it( "trims a padded code before storing it as the key and the id", () => {
+        // The CSV importer trims every cell before matching, so a padded key would be a site no import row could
+        // ever equal — the same reason the client's own duplicate check in localIssues() trims before comparing.
+        const view = { sites: [ { code: " O3 ", type: "office", name: { en: "Plovdiv", bg: "Пловдив" } } ] };
+        const result = editors.decomposeWorkSites( view, DOCS );
+        assert.equal( Object.hasOwn( result[ "work-sites" ], "O3" ), true );
+        assert.equal( result[ "work-sites" ].O3.id, "O3" );
+        assert.equal( Object.hasOwn( result[ "work-sites" ], " O3 " ), false );
+    } );
+
+    it( "skips a whitespace-only code rather than writing a padded key", () => {
+        const result = editors.decomposeWorkSites( { sites: [ { code: "   ", type: "office", name: { en: "x", bg: "y" } } ] }, DOCS );
+        assert.deepEqual( result[ "work-sites" ], {} );
+    } );
+
     it( "accepts a bare array as well as the wrapped view", () => {
         const result = editors.decomposeWorkSites( [ { code: "HQ", type: "office", name: { en: "A", bg: "Б" } } ], DOCS );
         assert.equal( result[ "work-sites" ].HQ.name.en, "A" );

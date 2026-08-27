@@ -650,14 +650,15 @@ function workSiteIdMatchesKey( value ) {
  * <br/>
  * No message names an employee: the text reaches an admin screen, and a site code is configuration while a person
  * is not.
+ * <br/>
+ * Document-intrinsic — no `context` parameter needed; see {@link organizationSingleRoot}.
  *
  * @method
  * @param {Object} value - The pending work-sites document being validated.
- * @param {ValidatorContext} context
  * @returns {Promise<Array<ValidationIssue>>}
  * @public
  */
-function workSitesReferentialIntegrity( value, context ) {
+function workSitesReferentialIntegrity( value ) {
     const sites = value || {};
     return withEmployeeReferences( [], ( employee, collected ) => {
         const workSite = employee && employee.personal && employee.personal.workSite;

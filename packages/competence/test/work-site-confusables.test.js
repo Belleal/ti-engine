@@ -60,6 +60,8 @@ describe( "describeWorkSiteMiss", () => {
         const detail = organizationImport.instance.describeWorkSiteMiss( CYRILLIC_O5, SITES );
         assert.equal( detail.code, "confusable-character" );
         assert.equal( detail.match, LATIN_O5 );
+        assert.equal( detail.cyrillicChar, "О", "must name the actual Cyrillic О (U+041E), not a generic label" );
+        assert.equal( detail.latinChar, "O", "must name the Latin O (U+004F) it should be" );
     } );
 
     it( "reports a plain miss as a plain miss", () => {
@@ -95,8 +97,9 @@ describe( "a confusable code end to end", () => {
         } );
         assert.equal( plan.rejected.length, 1, "the value is rejected, never folded into a match" );
         assert.equal( plan.create.length, 0 );
-        assert.match( plan.rejected[ 0 ].message, /Cyrillic/ );
-        assert.match( plan.rejected[ 0 ].message, /Latin/ );
+        // The exact characters, not just the word "Cyrillic" — an operator staring at two identical-looking
+        // strings can't tell what to change unless the message names which glyph is which.
+        assert.equal( plan.rejected[ 0 ].message, "work_site 'О5' uses a Cyrillic О; the permitted code 'O5' uses a Latin O" );
     } );
 
 } );

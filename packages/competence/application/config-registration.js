@@ -15,16 +15,17 @@
  * Editable: the dictionary, its localization, the relevancy archetypes, the active competency sets, the role
  * families (the nine disciplines are fixed by schema; their text and their specializations are editable), the
  * research-consent statement (guarded by the consentTextVersionBumped validator so its text can't change without a
- * version bump), and the organization structure (guarded by the four structural validators — single root,
- * parent/child symmetry, acyclicity, and id/key agreement — from {@link module:config-validators}). The role-family
- * competency pool and the stage levels are registered read-only — versioned, validated, restorable, and exportable,
- * but not exposed for inline editing yet.
+ * version bump), the organization structure (guarded by the four structural validators — single root, parent/child
+ * symmetry, acyclicity, and id/key agreement — from {@link module:config-validators}), and the work sites (guarded
+ * by id/key agreement and a referential-integrity check that blocks removing a site an employee is assigned to).
+ * The role-family competency pool and the stage levels are registered read-only — versioned, validated, restorable,
+ * and exportable, but not exposed for inline editing yet.
  * <br/>
- * The organization structure is also registered with `metadata.driftTracked: false`: unlike the other documents,
- * which hold vendor-shipped product content, it holds this deployment's own org chart — a real company's structure
- * differs from the shipped demo tree by definition and forever, so including it in the drift report would drown the
- * signal for documents where a difference genuinely means "a release changed something this deployment is not
- * serving".
+ * The organization structure and the work sites are also registered with `metadata.driftTracked: false`: unlike
+ * the other documents, which hold vendor-shipped product content, these two hold this deployment's own operational
+ * data — its actual org chart and its actual list of physical sites — which differ from the shipped demo values by
+ * definition and forever, so including them in the drift report would drown the signal for documents where a
+ * difference genuinely means "a release changed something this deployment is not serving".
  *
  * @module config-registration
  */

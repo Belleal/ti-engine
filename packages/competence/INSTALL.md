@@ -581,9 +581,9 @@ the site.
 **A confusable character is named, not silently accepted.** The CSV importer folds look-alike Cyrillic/Latin
 letters (for example Cyrillic `О` U+041E vs. Latin `O` U+004F, visually identical in every common font) only to
 explain a rejection — never to accept the value. A `work_site` cell typed with a Cyrillic look-alike of a real code
-is still rejected, but the message names the offending character instead of listing the permitted codes (which
-would otherwise show what looks like an exact match on screen), for example: `work_site 'О5' uses a Cyrillic
-character; the permitted code 'O5' is spelled with Latin letters`.
+is still rejected, but the message names the specific offending character and the Latin one it should be instead of
+listing the permitted codes (which would otherwise show what looks like an exact match on screen), for example:
+`work_site 'О5' uses a Cyrillic О; the permitted code 'O5' uses a Latin O`.
 
 **Migration note — gender.** `gender` is now constrained to `M` or `F` (or blank) on both write paths — the CSV
 importer and Employee Management. A deployment whose stored employee records already carry some other value must
