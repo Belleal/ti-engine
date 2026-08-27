@@ -673,7 +673,8 @@ function workSitesReferentialIntegrity( value ) {
 }
 
 /**
- * Employee source for {@link roleFamiliesReferentialIntegrity}, isolated as a seam so it can be overridden in tests
+ * Employee source for {@link roleFamiliesReferentialIntegrity} and {@link workSitesReferentialIntegrity} — both
+ * reach it through {@link withEmployeeReferences} — isolated as a seam so it can be overridden in tests
  * (the data-manager singleton is frozen and cannot be stubbed directly). Resolves to [] when the data layer is absent
  * (e.g. outside the running service); a genuine fetch failure is allowed to reject so the caller can fail closed.
  *

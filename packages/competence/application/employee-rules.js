@@ -23,9 +23,10 @@ const SINGLE_STAGE_LEVELS = Object.freeze( [ "N", "X", "T" ] );
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
- * Pure validation rules for an employee record. Performs no I/O — the caller injects the role-families and
- * organization-structure configuration (mirrors the {@link RoleResolver} pattern), so every rule is unit-testable
- * with plain objects and the web UI, the CSV importer and any future sync driver all decide validity identically.
+ * Pure validation rules for an employee record. Performs no I/O — the caller injects the role-families, the
+ * organization-structure and the work-sites configuration (mirrors the {@link RoleResolver} pattern), so every rule
+ * is unit-testable with plain objects and the web UI, the CSV importer and any future sync driver all decide
+ * validity identically.
  *
  * @class EmployeeRules
  * @singleton
