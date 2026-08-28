@@ -238,24 +238,92 @@ Shared competencies*. That is deliberate, and the two things it balances are wor
 The generator handles the repetition: a code may appear under several families, and only a *conflicting* archetype
 between two rows is an error. Keep the archetype identical in both tables.
 
+---
+
+# Assignments — Increment 3 (XD family and the management set)
+
+## Assignments — XD family-specific
+
+*Experience Design, 24 competencies (Increment 3).*
+
+**E1 — Theoretical knowledge**
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E1-58 | User-centred design principles and process | A | foundational |
+| E1-59 | Human perception and cognition in design | A | foundational |
+| E1-60 | Interaction design patterns and conventions | A | foundational |
+| E1-61 | Visual design fundamentals | A | foundational |
+| E1-62 | Information architecture | B | structuring complexity is a seniority skill |
+| E1-63 | Accessibility standards and inclusive design | **C** | compliance obligation at every level — see note |
+| E1-64 | User research methods | B | |
+| E1-65 | Design systems and component libraries | A | used from day one |
+| E1-66 | Usability principles and heuristics | A | foundational |
+
+**E2 — Applied skills**
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E2-64 | Planning and conducting user research | B | |
+| E2-65 | Synthesising research into insights | B | |
+| E2-66 | Wireframing and prototyping | E | |
+| E2-67 | Interaction and interface design | E | |
+| E2-68 | Visual design execution | **E** | not D — see note |
+| E2-69 | Usability testing and evaluation | E | |
+| E2-70 | Design specification and developer handoff | E | |
+| E2-71 | Contributing to and maintaining design systems | B | contribution and governance rise |
+| E2-72 | Accessibility implementation and validation | **C** | compliance obligation at every level |
+
+**E3 & I1**
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E3-31 | Applying accumulated design experience | B | |
+| E3-32 | Knowledge and use of design tools | A | |
+| E3-33 | Designing within technical and business constraints | B | negotiating constraint is a seniority skill |
+| I1-11 | Adhering to the internal design process | C | |
+| I1-12 | Participating in design critique and review | B | |
+| I1-13 | Adhering to design documentation and handoff standards | D | |
+
+## Assignments — Shared competencies (management set)
+
+*The five management competencies, all on **H**. Shared rather than family-specific: every family has a
+T-track, and a head of department is evaluated on these whichever discipline they came up through.*
+
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| C3-8 | Developing and leading managers | H | management of managers, distinct from C3-3 |
+| C3-9 | Talent management and succession planning | H | |
+| I2-12 | Departmental capacity and resource planning | H | |
+| I2-13 | Strategic alignment and objective cascade | H | |
+| C2-7 | Cross-functional collaboration and organizational influence | H | |
+
+These five are what carry the genuine T1/T2 difference. Written as rows rather than prose because the generator
+reads assignments from tables — a prose statement is invisible to it, and an unassigned dictionary code aborts the
+build rather than defaulting silently.
+
+## Judgment calls worth reviewing
+
+**Accessibility on C, not B.** E1-63 and E2-72 are weighted steady-high across every level rather than rising with seniority. This is deliberate: accessibility is a regulatory obligation on public-sector digital services, not a refinement that senior designers add. A junior producing inaccessible work is a compliance failure, not an understandable gap. Weighting it as C says so in the scoring.
+
+**Visual design execution on E, not D.** D would have execution declining after J3, which is right for debugging or commit conventions but wrong for designers — a senior designer still executes, at higher quality and on harder problems. E peaks at R1–S2 and tapers only modestly.
+
+**QE E2 is heavily E (8 of 10).** Expected, and correct: applied testing skills peak in the productive middle. The two exceptions are planning and metrics, both on B, because those are where seniority genuinely changes what the person does.
+
 ## Distribution check
 
 | Archetype | Count |
 |---|---|
-| A — Foundational-plateau | 16 |
-| B — Rising-with-seniority | 46 |
-| C — Steady-high | 20 |
-| D — Early-emphasis-then-assumed | 6 |
-| E — Mid-weighted | 36 |
+| A — Foundational-plateau | 23 |
+| B — Rising-with-seniority | 54 |
+| C — Steady-high | 23 |
+| D — Early-emphasis-then-assumed | 7 |
+| E — Mid-weighted | 41 |
 | F — Rising, expert-leaning | 18 |
 | G — Rising, manager-leaning | 4 |
-| H — Management-track | 0 |
-| **Total** | **146** |
+| H — Management-track | 5 |
+| **Total** | **175** |
 
-*146 = 31 shared + 38 SE + 29 BA + 25 PM + 26 QE — each competency counted once. Ten assignments
-were revised in the CA-111 model update (seven QE, plus the three cross-cutting architecture codes moving from B
-to F). H is defined and carries a curve but is not yet assigned: it belongs to the five management competencies,
-whose content lands with the rest of Increment 3. Re-derive this table mechanically after every increment.*
+*175 = 36 shared + 38 SE + 29 BA + 25 PM + 26 QE + 24 XD — each competency counted once. The shared
+total now includes the three cross-cutting architecture codes and the five management competencies. Re-derive
+this table mechanically after every increment rather than adjusting it by hand.*
 
 *Correction note (QE increment): the previous version of this table read A 14 · B 40 · C 21 · D 5 · E 22 · F 6 · G 5 = 113, which did not match the assignment tables above it on any row and reconciled against a family split that no longer held. The counts here are derived mechanically from the assignment tables and should be re-derived, not hand-adjusted, whenever an increment lands.*
 

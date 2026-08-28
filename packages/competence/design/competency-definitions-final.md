@@ -39,7 +39,8 @@ Applying that principle:
 | PM Expertise | ✅ drafted | ✅ drafted | ✅ drafted | ✅ drafted | — |
 | BA Expertise | ✅ drafted | ✅ drafted | ✅ drafted | ✅ drafted | — |
 | SE Expertise (review) | ✅ refined | ✅ refined | ✅ refined | ✅ rebuilt | — |
-| **QE Expertise** | **✅ drafted** | **✅ drafted** | **✅ drafted** | **✅ drafted** | — |
+| **QE Expertise** | ✅ drafted | ✅ drafted | ✅ drafted | ✅ drafted | — |
+| **XD Expertise** | **✅ drafted** | **✅ drafted** | **✅ drafted** | **✅ drafted** | — |
 | Shared core | ✅ E1 cross-cutting | — | ✅ E3 cross-cutting | — | ✅ I2/I3/C1/C2/C3 (+C1-8 escalation) |
 
 *Codes: kept competencies retain their existing code for traceability; merged competencies take the lowest contributing code; new competencies get the next free code in the subcategory. Final renumbering (if any) is decided at assembly time.*
@@ -1557,3 +1558,354 @@ Applying that principle:
 ---
 
 **Architecture complete** — 3 shared cross-cutting E2 · 4 SE.ARCHITECTURE · 5 BA.SOLUTION_ARCHITECTURE = **12 competencies**. Each architect draws 7 on top of their family baseline, comfortably within the 30 cap.
+
+---
+
+# Management competencies (shared, T-track)
+
+*Five shared competencies carrying the genuine difference between team lead (T1) and head of department (T2), without duplicating ~110 near-identical anchors across a new stage-letter. Placement: Shared Competencies, within their existing subcategories. Codes continue above all previously-used numbers to avoid collision with retired codes.*
+
+*All five use the new relevancy archetype **H (Management-track)** — negligible for individual contributors, substantial at T1, peaking at T2.*
+
+### C3-8 · Developing and leading managers
+
+**Description:** Encompasses the ability to lead people who themselves lead others — coaching team leads in their own leadership practice, holding them accountable for developing their teams rather than stepping in to do it, and building leadership capability at the level below. This is management of managers, distinct from managing contributors directly (C3-3).
+
+- **N:** Not applicable in practice; may observe how leaders are developed.
+- **J:** Not applicable in practice; begins to notice the difference between leading work and leading people.
+- **R:** Occasionally supports a less-experienced lead informally, without responsibility for their development.
+- **S:** Informally coaches emerging leads and models leadership practice, though without formal accountability.
+- **X:** Influences leadership practice through expertise and example rather than line responsibility.
+- **T:** Develops and holds accountable the leaders reporting to them, coaches their leadership practice rather than doing it for them, and builds a leadership bench across the area of responsibility.
+
+### C3-9 · Talent management and succession planning
+
+**Description:** Encompasses the ability to plan for the capability an organizational unit will need over time — identifying critical roles and key people, assessing succession risk, developing successors deliberately, and acting on retention and capability gaps before they become failures.
+
+- **N:** Not applicable in practice.
+- **J:** Not applicable in practice.
+- **R:** Aware of team capability gaps and raises them.
+- **S:** Identifies capability and succession risks in their area and contributes to addressing them.
+- **X:** Advises on critical technical capability and succession risk for specialist roles.
+- **T:** Plans capability and succession deliberately across the unit, identifies critical roles and successors, and acts on retention and development risk before it becomes disruption.
+
+### I2-12 · Departmental capacity and resource planning
+
+**Description:** Encompasses the ability to plan capacity and resources across multiple teams — forecasting demand, allocating headcount and capability, resolving contention between competing priorities, and making the trade-offs visible to those affected.
+
+- **N:** Not applicable in practice.
+- **J:** Not applicable in practice.
+- **R:** Understands their own team's capacity constraints and flags them.
+- **S:** Contributes to capacity planning within a team and anticipates resourcing conflicts.
+- **X:** Advises on specialist capability needs and technical resourcing.
+- **T:** Plans capacity and allocates resources across teams, resolves contention between competing demands, and makes allocation trade-offs transparent and defensible.
+
+### I2-13 · Strategic alignment and objective cascade
+
+**Description:** Encompasses the ability to translate organizational strategy into concrete objectives for teams and individuals — connecting daily work to organizational direction, communicating the reasoning behind priorities, and ensuring the connection is understood rather than merely announced.
+
+- **N:** Understands their own tasks without needing the strategic connection.
+- **J:** Begins to see how their work connects to wider goals when explained.
+- **R:** Understands how their work serves organizational objectives and explains it to others.
+- **S:** Connects team work to organizational direction and helps colleagues see the link.
+- **X:** Aligns technical direction with organizational strategy and advises on strategic technical priorities.
+- **T:** Translates organizational strategy into clear objectives across teams, communicates the reasoning rather than only the instruction, and verifies that the connection is genuinely understood.
+
+### C2-7 · Cross-functional collaboration and organizational influence
+
+**Description:** Encompasses the ability to work effectively with peers across organizational boundaries — negotiating priorities and shared commitments between departments, building the relationships that make cross-boundary work possible, and influencing outcomes without authority over the other party.
+
+- **N:** Interacts within their own team under guidance.
+- **J:** Works with adjacent teams on straightforward matters with supervision.
+- **R:** Collaborates independently with other teams on typical shared work.
+- **S:** Navigates complex cross-team situations with competing priorities and builds durable working relationships.
+- **X:** Influences across the organization through recognized expertise and shapes cross-functional technical decisions.
+- **T:** Negotiates priorities and commitments with peer departments, builds the relationships that make cross-boundary delivery work, and represents their unit's interests while protecting the organizational outcome.
+
+---
+
+**Management set complete** — 5 shared competencies (C3-8, C3-9, I2-12, I2-13, C2-7).
+
+*Note on the N–X anchors: for these five, the individual-contributor levels describe genuine exposure rather than pretending the competency is irrelevant, but archetype H weights them low enough that they contribute little to an IC's score. The T anchor is where the substance sits, and T1 versus T2 is carried by relevancy weighting (8 versus 10) rather than by separate text.*
+
+---
+
+# XD — Experience Design
+
+*Baseline draws on the shared canonical competencies plus the family-specific set below. Specializations (RESEARCH / INTERACTION / VISUAL / SERVICE) not yet built — optional for go-live.*
+
+## E1 — Theoretical knowledge
+
+### E1-58 · User-centred design principles and process
+
+**Description:** Encompasses understanding of the philosophy and process of user-centred design — grounding decisions in evidence about real users rather than assumption or personal preference, working iteratively through research, design, and evaluation, and involving users throughout rather than only at the end.
+
+- **N:** Understands that design should serve users and follows a given process step under guidance.
+- **J:** Understands the main phases of the design process and works within them on straightforward tasks with supervision.
+- **R:** Independently applies user-centred process to typical work, grounding decisions in evidence rather than preference.
+- **S:** Applies and adapts the process to complex or constrained situations, defends evidence-based decisions under pressure, and mentors others.
+- **X:** Recognized authority; shapes how the organization practises user-centred design.
+- **T:** Ensures the team works from user evidence rather than assumption and aligns design practice with organizational standards.
+
+### E1-59 · Human perception and cognition in design
+
+**Description:** Encompasses knowledge of how people perceive, attend to, and process information — visual hierarchy, Gestalt grouping principles, cognitive load, memory limits, and mental models — and how these constrain what an interface can reasonably ask of a user.
+
+- **N:** Aware that perception and attention affect design and applies given rules under guidance.
+- **J:** Understands basic principles such as hierarchy and grouping and applies them to straightforward work with supervision.
+- **R:** Independently applies perceptual and cognitive principles to typical designs and explains choices in those terms.
+- **S:** Applies advanced understanding to complex or information-dense designs, reduces cognitive load deliberately, and mentors others.
+- **X:** Recognized authority; advises the organization on cognitive and perceptual aspects of design.
+- **T:** Ensures the team designs with cognitive load in mind and aligns practice with usability standards.
+
+### E1-60 · Interaction design patterns and conventions
+
+**Description:** Encompasses knowledge of established interaction patterns and platform conventions — navigation models, form behaviour, feedback and state, error recovery — together with the judgment of when to follow convention for learnability and when deviation is genuinely warranted.
+
+- **N:** Knows common patterns and applies a prescribed one under guidance.
+- **J:** Recognizes and applies standard patterns to straightforward interactions with supervision.
+- **R:** Independently selects appropriate patterns for typical interactions and follows platform conventions correctly.
+- **S:** Applies patterns to complex interactions, judges when deviation is warranted, and mentors others.
+- **X:** Recognized authority; defines interaction pattern standards across the organization.
+- **T:** Ensures the team applies consistent patterns and aligns interaction practice with organizational conventions.
+
+### E1-61 · Visual design fundamentals
+
+**Description:** Encompasses knowledge of typography, colour, layout, spacing, and composition — how they establish hierarchy, convey meaning and tone, and produce interfaces that are legible and coherent rather than merely decorated.
+
+- **N:** Knows basic visual principles and applies given styles under guidance.
+- **J:** Applies typography, colour, and layout rules to straightforward work with supervision.
+- **R:** Independently produces coherent, legible visual design for typical work with deliberate hierarchy.
+- **S:** Commands visual craft on complex or brand-sensitive work, resolves difficult composition problems, and mentors others.
+- **X:** Recognized authority; sets visual standards and language across the organization.
+- **T:** Ensures the team's visual work is coherent and aligns visual language with brand and organizational standards.
+
+### E1-62 · Information architecture
+
+**Description:** Encompasses knowledge of structuring and organizing content and functionality so people can find what they need — navigation models, taxonomies, labelling, and hierarchy — and understanding of how structure determines findability.
+
+- **N:** Understands that content needs structure and works within a given architecture under guidance.
+- **J:** Proposes simple structures for straightforward content with supervision.
+- **R:** Independently designs information architecture for typical products, with navigation and labelling that support findability.
+- **S:** Structures complex or large-scale content and functionality, resolves difficult categorization problems, and mentors others.
+- **X:** Recognized authority; defines information architecture standards across the organization.
+- **T:** Ensures the team designs coherent structures and aligns architecture with content strategy.
+
+### E1-63 · Accessibility standards and inclusive design
+
+**Description:** Encompasses knowledge of accessibility standards — the WCAG success criteria and the obligations applying to public-sector digital services — together with understanding of assistive technologies and how design decisions affect people with a range of visual, motor, auditory, and cognitive abilities.
+
+- **N:** Aware that accessibility requirements exist and follows given rules under guidance.
+- **J:** Knows the main accessibility requirements and applies common ones to straightforward work with supervision.
+- **R:** Independently designs to the applicable accessibility standard for typical work and understands how assistive technologies interpret an interface.
+- **S:** Designs for accessibility in complex situations, resolves conflicts between accessibility and other design goals, and mentors others.
+- **X:** Recognized authority on accessibility; advises the organization on standards and compliance obligations.
+- **T:** Ensures the team meets accessibility obligations and aligns practice with regulatory requirements.
+
+### E1-64 · User research methods
+
+**Description:** Encompasses knowledge of methods for learning about users — interviews, contextual enquiry, surveys, diary studies, analytics, and usability testing — including what each method can and cannot tell you, and the sampling and bias considerations that determine whether findings are trustworthy.
+
+- **N:** Knows that research methods differ and follows a prescribed method under guidance.
+- **J:** Understands common methods and selects among them for straightforward questions with supervision.
+- **R:** Independently selects appropriate methods for typical research questions and understands their limitations.
+- **S:** Designs research approaches for complex or ambiguous questions, combines methods deliberately, and mentors others in method selection.
+- **X:** Recognized authority; defines research practice and standards across the organization.
+- **T:** Ensures the team uses appropriate methods and aligns research effort with product and organizational needs.
+
+### E1-65 · Design systems and component libraries
+
+**Description:** Encompasses knowledge of design systems — tokens, components, patterns, and the documentation and governance that keep them coherent — and understanding of how systems produce consistency at scale and where they constrain rather than help.
+
+- **N:** Understands that a design system exists and uses given components under guidance.
+- **J:** Uses the design system correctly for straightforward work with supervision.
+- **R:** Independently works within the design system for typical work and recognizes when a component does not fit.
+- **S:** Reasons about system structure and governance on complex work, extends the system soundly, and mentors others.
+- **X:** Recognized authority; defines design system architecture and governance across the organization.
+- **T:** Ensures the team works consistently within the design system and aligns contributions with system governance.
+
+### E1-66 · Usability principles and heuristics
+
+**Description:** Encompasses knowledge of established usability principles and heuristics — visibility of system status, match to real-world concepts, user control, consistency, error prevention and recovery — and the ability to recognize where an interface violates them.
+
+- **N:** Knows a few basic usability principles and identifies obvious problems under guidance.
+- **J:** Understands the main heuristics and applies them to straightforward evaluation with supervision.
+- **R:** Independently evaluates typical interfaces against usability principles and identifies substantive problems.
+- **S:** Evaluates complex interfaces, distinguishes serious usability failures from cosmetic issues, and mentors others.
+- **X:** Recognized authority; sets usability standards and evaluation practice across the organization.
+- **T:** Ensures the team designs against usability principles and aligns quality expectations accordingly.
+
+## E2 — Applied skills
+
+### E2-64 · Planning and conducting user research
+
+**Description:** Encompasses the applied skill of preparing and running research sessions — defining the question, recruiting appropriate participants, writing protocols and discussion guides, facilitating without leading, and handling participant data ethically and lawfully.
+
+- **N:** Assists in research sessions with note-taking and logistics under guidance.
+- **J:** Conducts simple sessions from a provided protocol with supervision.
+- **R:** Independently plans and conducts research for typical questions, recruits appropriately, and facilitates without leading participants.
+- **S:** Runs research in complex or sensitive situations, handles difficult participants and topics, and mentors others.
+- **X:** Recognized expert; shapes how research is conducted across the organization.
+- **T:** Ensures the team conducts research rigorously and ethically and aligns research activity with product needs.
+
+### E2-65 · Synthesising research into insights
+
+**Description:** Encompasses the applied skill of turning raw research material into actionable insight — analysing sessions systematically, identifying patterns, producing artifacts such as personas or journey maps where they earn their place, and distinguishing what the evidence supports from what the designer would prefer it to say.
+
+- **N:** Records observations and helps sort them under guidance.
+- **J:** Identifies obvious patterns in straightforward research with supervision.
+- **R:** Independently analyses typical research, produces defensible insights, and separates evidence from interpretation.
+- **S:** Synthesises complex or contradictory research, produces insight that changes direction, and mentors others in analysis.
+- **X:** Recognized authority; sets synthesis practice and standards across the organization.
+- **T:** Ensures the team draws defensible conclusions from research and aligns insight with product decisions.
+
+### E2-66 · Wireframing and prototyping
+
+**Description:** Encompasses the applied skill of producing wireframes and prototypes at the fidelity appropriate to the question being answered — low fidelity for structure and flow, higher fidelity for interaction and testing — without over-investing in polish before the concept is validated.
+
+- **N:** Produces simple wireframes from a given structure under guidance.
+- **J:** Produces wireframes and basic prototypes for straightforward flows with supervision.
+- **R:** Independently produces wireframes and prototypes at appropriate fidelity for typical work.
+- **S:** Prototypes complex interactions and multi-path flows, chooses fidelity strategically, and mentors others.
+- **X:** Recognized authority on prototyping practice across the organization.
+- **T:** Ensures the team prototypes efficiently at appropriate fidelity and aligns effort with validation needs.
+
+### E2-67 · Interaction and interface design
+
+**Description:** Encompasses the applied skill of designing how an interface behaves — flows, states, transitions, empty and loading conditions, validation and error recovery — treating the paths that are not the happy path as deliberately as the ones that are.
+
+- **N:** Designs simple screens from a given pattern under guidance, covering only the main path.
+- **J:** Designs straightforward interactions with supervision, though edge cases and error states are often missed.
+- **R:** Independently designs typical interactions including states, edge cases, and error recovery.
+- **S:** Designs complex, multi-path interactions, resolves difficult behavioural questions, and mentors others.
+- **X:** Recognized authority; sets interaction design standards across the organization.
+- **T:** Ensures the team designs complete interactions rather than happy paths and aligns behaviour with product standards.
+
+### E2-68 · Visual design execution
+
+**Description:** Encompasses the applied skill of producing finished visual design — applying the visual language consistently, achieving precision in spacing, typography, and alignment, and delivering interfaces that hold together across screens and states.
+
+- **N:** Applies given styles to simple screens under guidance; execution requires correction.
+- **J:** Produces visually acceptable straightforward screens with supervision.
+- **R:** Independently produces polished, consistent visual design for typical work.
+- **S:** Executes visual design on complex or high-visibility work to a high standard and mentors others in craft.
+- **X:** Recognized authority; sets visual execution standards across the organization.
+- **T:** Ensures the team's visual output is consistent and polished and aligns execution with brand standards.
+
+### E2-69 · Usability testing and evaluation
+
+**Description:** Encompasses the applied skill of evaluating designs against real use — planning and running usability tests, conducting heuristic evaluation, interpreting what observed behaviour actually means, and translating findings into specific design changes.
+
+- **N:** Observes usability sessions and records findings under guidance.
+- **J:** Runs simple usability tests from a provided script with supervision.
+- **R:** Independently plans, runs, and interprets usability tests for typical work and turns findings into design changes.
+- **S:** Evaluates complex products, distinguishes serious failures from noise, and mentors others in evaluation.
+- **X:** Recognized authority; defines evaluation practice across the organization.
+- **T:** Ensures the team validates designs against real use rather than assumption.
+
+### E2-70 · Design specification and developer handoff
+
+**Description:** Encompasses the applied skill of documenting a design so engineers can build it correctly — specifying spacing, states, behaviour, responsive rules, and edge cases — and supporting engineers through implementation rather than handing over and withdrawing.
+
+- **N:** Provides basic design files and answers simple questions under guidance.
+- **J:** Produces straightforward specifications with supervision, though states and edge cases are often under-specified.
+- **R:** Independently specifies typical designs completely and supports engineers through implementation.
+- **S:** Specifies complex designs unambiguously, anticipates implementation questions, and mentors others in handoff practice.
+- **X:** Recognized authority; defines specification and handoff standards across the organization.
+- **T:** Ensures the team specifies designs completely and aligns handoff practice with engineering needs.
+
+### E2-71 · Contributing to and maintaining design systems
+
+**Description:** Encompasses the applied skill of building and maintaining design system assets — creating components that generalize properly, documenting usage and constraints, and keeping the system coherent as it grows rather than accumulating one-off variants.
+
+- **N:** Uses system components correctly under guidance without contributing to them.
+- **J:** Makes simple contributions to the system with supervision.
+- **R:** Independently contributes well-formed, documented components for typical needs.
+- **S:** Designs components that generalize across complex use, governs coherence, and mentors others.
+- **X:** Recognized authority; owns design system architecture and governance across the organization.
+- **T:** Ensures the team contributes soundly to the system and aligns contributions with governance.
+
+### E2-72 · Accessibility implementation and validation
+
+**Description:** Encompasses the applied skill of producing designs that meet accessibility requirements in practice — specifying focus order, keyboard interaction, alternative text, contrast, and semantic structure — and validating against the applicable standard, including with assistive technology.
+
+- **N:** Applies given accessibility rules such as contrast to simple work under guidance.
+- **J:** Applies common accessibility requirements to straightforward work with supervision but misses less obvious ones.
+- **R:** Independently designs and specifies for accessibility on typical work and validates against the applicable standard.
+- **S:** Resolves complex accessibility problems, validates with assistive technology, and mentors others.
+- **X:** Recognized authority; leads accessibility compliance across the organization.
+- **T:** Ensures the team's output meets accessibility obligations and aligns validation with regulatory requirements.
+
+## E3 — Practical experience *(discipline-specific)*
+
+### E3-31 · Applying accumulated design experience
+
+**Description:** Encompasses the practical judgment that accumulates from designing real products over time — recognizing which patterns suit which problems, anticipating where users will struggle before testing confirms it, and knowing which design arguments are worth having.
+
+- **N:** Has limited design experience and applies lessons from training or a single project under guidance.
+- **J:** Draws on experience from a few projects for familiar problems but relies on guidance when unfamiliar.
+- **R:** Applies experience across a range of work to make sound design decisions independently and avoid known pitfalls.
+- **S:** Draws on deep, varied experience to navigate ambiguous design problems, anticipates user difficulty early, and mentors others with concrete examples.
+- **X:** Recognized for exceptional design judgment; advises across the organization and codifies experience into reusable guidance.
+- **T:** Applies and shares accumulated experience to guide the team and aligns design decisions with organizational lessons.
+
+### E3-32 · Knowledge and use of design tools
+
+**Description:** Encompasses the practical ability to use the design toolchain the organization relies on — design and prototyping tools, collaboration and handoff platforms, and research repositories — efficiently and to the standard the team expects, including file structure and library hygiene.
+
+- **N:** Uses basic tool features for simple tasks under guidance.
+- **J:** Uses the main features on straightforward work with supervision, though not always efficiently.
+- **R:** Independently uses the toolchain effectively for typical work, including collaboration and handoff features.
+- **S:** Exploits advanced capabilities, establishes efficient file and library structures, and mentors others.
+- **X:** Recognized authority; evaluates and introduces tools and defines toolchain standards across the organization.
+- **T:** Ensures consistent, effective tool use across the team and aligns tooling with organizational standards.
+
+### E3-33 · Designing within technical and business constraints
+
+**Description:** Encompasses the practical ability to produce designs that can actually be built and delivered — understanding technical feasibility and cost, negotiating with engineering and product colleagues, and finding solutions that serve users well within real constraints rather than proposing ideals that get discarded.
+
+- **N:** Designs with little awareness of feasibility and relies on others to identify constraints.
+- **J:** Recognizes obvious constraints with supervision but often proposes work that proves impractical.
+- **R:** Independently designs within realistic technical and business constraints for typical work and negotiates trade-offs.
+- **S:** Finds strong solutions under severe constraint on complex work, negotiates effectively with engineering and product, and mentors others.
+- **X:** Recognized for exceptional judgment in balancing user needs against constraint; advises on the most constrained problems.
+- **T:** Ensures the team designs realistically and aligns design ambition with delivery capability.
+
+## I1 — Processes
+
+### I1-11 · Adhering to the internal design process
+
+**Description:** Encompasses the commitment and ability to follow the organization's internal design process — its stages, deliverables, review points, and the designer's role within the wider SDLC — so that design work integrates predictably with delivery.
+
+- **N:** Follows the main process steps with guidance and reminders.
+- **J:** Follows the design process on routine work with occasional correction.
+- **R:** Independently adheres to the full design process and the designer's role in the SDLC for typical work.
+- **S:** Applies the process rigorously on complex work, identifies gaps, and mentors others.
+- **X:** Shapes and improves the design process across the organization.
+- **T:** Ensures the team adheres consistently to the design process and aligns process use with organizational standards.
+
+### I1-12 · Participating in design critique and review
+
+**Description:** Encompasses the discipline of taking part in design critique — presenting work for scrutiny, giving specific and constructive feedback grounded in principles rather than taste, and receiving critique without defensiveness.
+
+- **N:** Attends critique and observes under guidance, contributing occasional comments.
+- **J:** Presents straightforward work and gives basic feedback with supervision.
+- **R:** Independently presents work for critique and gives specific, principle-based feedback on typical work.
+- **S:** Critiques complex work incisively, raises the standard of discussion, and mentors others in effective critique.
+- **X:** Shapes critique practice across the organization.
+- **T:** Ensures the team practises constructive critique and aligns it with quality standards.
+
+### I1-13 · Adhering to design documentation and handoff standards
+
+**Description:** Encompasses the commitment to follow the organization's standards for design artifacts — file organization, naming, versioning, specification completeness, and traceability from research through to delivered design — so that work is findable, transferable, and auditable.
+
+- **N:** Follows basic documentation standards with guidance and reminders.
+- **J:** Follows artifact standards on routine work with occasional correction.
+- **R:** Independently and consistently follows documentation and file standards for typical work.
+- **S:** Applies and refines standards on complex work, ensures traceability, and mentors others.
+- **X:** Defines design documentation standards across the organization.
+- **T:** Ensures the team adheres to artifact standards and aligns documentation with organizational requirements.
+
+---
+
+**XD baseline complete** — E1 (9) · E2 (9) · E3 (3) · I1 (3) = **24 family-specific competencies**, plus the shared canonical set. Specializations RESEARCH / INTERACTION / VISUAL / SERVICE still to build.

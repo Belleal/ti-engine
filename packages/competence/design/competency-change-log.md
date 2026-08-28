@@ -144,8 +144,7 @@ Competency texts are **labels**, and the affected config documents are **store-b
 ## Increment 3 — Management set + T2 stage-level + XD family
 
 **Date:** 26 July 2026
-**Status:** 🔨 **partially implemented** — the framework change landed in competence **v3.26.0** (CA-111); the
-management set and the XD family follow in the same increment.
+**Status:** ✅ **implemented** in competence **v3.26.0** (CA-111). Dictionary 146 → **175**.
 
 ### 3a. Framework — the T stage-letter gains a second sub-level ✅ implemented
 
@@ -194,7 +193,7 @@ The architecture change reverses the split chosen while implementing Increment 2
 twelve are deep capabilities where the individual-contributor expert is the authority, and F is right precisely
 because it declines on the management track — a head of department is not the architecture authority.
 
-### 3d. Added — management competencies (5, shared) ⏳ pending
+### 3d. Added — management competencies (5, shared) ✅ implemented
 
 | Code | Name | Archetype |
 |---|---|---|
@@ -207,9 +206,15 @@ because it declines on the management track — a head of department is not the 
 *Codes deliberately continue above all previously-used numbers to avoid collision with retired codes (C2-6, C3-6,
 C3-7, I2-7…I2-11 are retired).*
 
-### 3e. Added — XD family baseline (24) ⏳ pending
+### 3e. Added — XD family baseline (24) ✅ implemented
 
-E1-58…E1-66 (9) · E2-64…E2-72 (9) · E3-31…E3-33 (3) · I1-11…I1-13 (3).
+E1-58…E1-66 (9) · E2-64…E2-72 (9) · E3-31…E3-33 (3) · I1-11…I1-13 (3). A 22-code baseline for 2026-H2
+covers all nine subcategories and sits inside the cap of 30, mirroring the SE and QE baselines so a designer and an
+engineer are measured on the same shared core.
+
+**Configuring XD includes it in the cycle.** Exclusion is derived — a family is excluded exactly when it has no
+active set — so three tests that used XD as their stock "unconfigured family" stopped working. They now derive one
+instead of naming it, which is what keeps them working when DA, IO, MC or PD is built.
 
 Accessibility appears twice by design — E1-63 (standards knowledge) and E2-72 (implementation and validation) —
 reflecting the public-sector obligation, and both are weighted **C** rather than B: a junior producing inaccessible

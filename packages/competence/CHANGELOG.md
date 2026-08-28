@@ -40,10 +40,26 @@ new behavioural anchors in each language.
 * test(competence): derive the stage-level list and its length from the ladder in six test files rather than
   restating twelve keys. Every one of them would have gone stale on this change, which is how they were written and
   how they would go stale again (CA-111)
+* feat(competence): add the **five management competencies** (`C3-8` Developing and leading managers, `C3-9` Talent
+  management and succession planning, `I2-12` Departmental capacity and resource planning, `I2-13` Strategic
+  alignment and objective cascade, `C2-7` Cross-functional collaboration and organizational influence), all on
+  archetype **H**. These are what carry the real T1/T2 difference — shared rather than family-specific, because
+  every family has a T-track and a head of department is evaluated on them whichever discipline they came up
+  through (CA-111)
+* feat(competence): add the **XD (Experience Design) family baseline** — 24 competencies across E1 (9), E2 (9),
+  E3 (3) and I1 (3), with a 22-code baseline for `2026-H2` covering all nine subcategories inside the cap of 30.
+  Accessibility appears twice by design, `E1-63` (standards knowledge) and `E2-72` (implementation and validation),
+  and both are weighted **C** rather than B: a junior producing inaccessible work is a compliance failure on a
+  public-sector service, not an understandable gap, and the weighting should say so. Dictionary 146 → **175**
+  (CA-111)
+* fix(competence): teach three lock-validation tests to derive an unconfigured family rather than naming XD.
+  Exclusion is derived — a family is excluded exactly when it has no active set — so configuring XD correctly
+  included it in the seeded cycle and broke every test using it as the stock unconfigured example. Deriving keeps
+  them working when DA, IO, MC or PD is built (CA-111)
+* fix(competence): make the relevancy generator tolerate a bolded archetype cell, as it already does for the id and
+  the weights. The model document bolds an assignment it wants a reviewer to notice — accessibility on C rather
+  than B, visual execution on E rather than D — and a bolded cell was silently dropping the assignment (CA-111)
 * build(release): bump package version from `3.25.0` to `3.26.0`
-
-**Still to land in this increment:** the five management competencies on archetype H, and the XD family baseline
-(24 competencies).
 
 ## Version 3.25.0
 

@@ -150,9 +150,10 @@ describe( "CompetenceFramework — lockCycle normalizes empty specializations", 
     } );
 
     it( "does not touch excluded families' specializations", async () => {
+        const family = unconfiguredFamily();
         await competenceFramework.instance.lockCycle( "2026-H2", "20" );
-        const afterXD = await dataManager.instance.getActiveCompetencySetsForFamily( "XD", "2026-H2" );
-        assert.deepEqual( Object.keys( afterXD ), [], "excluded family specializations stay absent (never auto-marked)" );
+        const after = await dataManager.instance.getActiveCompetencySetsForFamily( family, "2026-H2" );
+        assert.deepEqual( Object.keys( after ), [], `excluded family ${ family } keeps its specializations absent (never auto-marked)` );
     } );
 
     it( "normalizes specializations from the stored role-family source, even when it diverges from static config", async () => {
@@ -236,3 +237,24 @@ describe( "DataManager — team-feedback deadline derivation", () => {
     } );
 
 } );
+
+/**
+ * A role family that is still unconfigured for the cycle — no active set, so the seeded cycle excludes it.
+ *
+ * Derived rather than named. These tests used XD as the stock example until CA-111 gave it a baseline, at which
+ * point it became configured and the seed stopped excluding it (exclusion is derived from "has no active set").
+ * Hard-coding the next unpopulated family would just move the same breakage to whenever that one gets built.
+ *
+ * @returns {string}
+ */
+function unconfiguredFamily() {
+    const activeSets = require( "#config-active-competency-sets" );
+    const families = Object.keys( require( "#config-role-families" ) );
+    const found = families.find( ( family ) => {
+        const entry = activeSets[ family ];
+        if ( !entry ) return true;
+        return !Object.values( entry ).some( ( byCycle ) => Array.isArray( byCycle && byCycle[ "2026-H2" ] ) && byCycle[ "2026-H2" ].length > 0 );
+    } );
+    assert.ok( found, "every family is configured — these tests need one that is not" );
+    return found;
+}

@@ -105,8 +105,12 @@ for ( const line of readFile( MODEL_FILE ).split( /\r?\n/ ) ) {
         } );
         curves[ id ] = weights;
         archetypeMeta[ id ] = { name: columns[ 1 ], description: columns[ columns.length - 1 ] };
-    } else if ( columns.length === 4 && /^[EIC][1-3]-\d+$/.test( columns[ 0 ] ) && /^[A-H]$/.test( columns[ 2 ] ) ) {
+    } else if ( columns.length === 4 && /^[EIC][1-3]-\d+$/.test( columns[ 0 ] ) && /^\*{0,2}[A-H]\*{0,2}$/.test( columns[ 2 ] ) ) {
         const code = columns[ 0 ];
+        // Same emphasis tolerance as the id and the weights: the doc bolds an archetype it wants a reviewer to
+        // notice (accessibility on C rather than B, visual execution on E rather than D), and a bolded cell must
+        // not silently drop the assignment.
+        columns[ 2 ] = columns[ 2 ].replace( /\*/g, "" );
         if ( assignments[ code ] && assignments[ code ] !== columns[ 2 ] ) {
             issues.push( `conflicting archetype for ${ code }` );
         }
