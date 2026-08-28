@@ -808,6 +808,50 @@
       "I2-13": {
         "en": "Strategic alignment and objective cascade",
         "bg": "Стратегическо съответствие и каскадиране на целите"
+      },
+      "E2-73": {
+        "en": "Data modelling and schema design",
+        "bg": "Моделиране на данни и проектиране на схеми"
+      },
+      "E2-74": {
+        "en": "Database performance tuning and query optimisation",
+        "bg": "Оптимизация на производителността на базата данни и на заявките"
+      },
+      "E2-75": {
+        "en": "Database reliability, backup and recovery design",
+        "bg": "Надеждност на базата данни, резервни копия и възстановяване"
+      },
+      "E2-76": {
+        "en": "Database migration and change management",
+        "bg": "Миграции и управление на промените в базата данни"
+      },
+      "E2-77": {
+        "en": "Database security and access control",
+        "bg": "Сигурност и контрол на достъпа в базата данни"
+      },
+      "E2-78": {
+        "en": "Model integration and prompt engineering",
+        "bg": "Интеграция на модели и инженерство на промптове"
+      },
+      "E2-79": {
+        "en": "Retrieval and context engineering",
+        "bg": "Извличане и инженерство на контекста"
+      },
+      "E2-80": {
+        "en": "Agent and tool orchestration",
+        "bg": "Оркестрация на агенти и инструменти"
+      },
+      "E2-81": {
+        "en": "Evaluating non-deterministic systems",
+        "bg": "Оценяване на недетерминистични системи"
+      },
+      "E2-82": {
+        "en": "AI safety, guardrails and responsible deployment",
+        "bg": "Безопасност на AI, предпазни механизми и отговорно внедряване"
+      },
+      "E2-83": {
+        "en": "Model selection and cost-performance optimisation",
+        "bg": "Избор на модел и оптимизация на съотношението цена/производителност"
       }
     },
     "description": {
@@ -1510,6 +1554,50 @@
       "I2-13": {
         "en": "Encompasses the ability to translate organizational strategy into concrete objectives for teams and individuals — connecting daily work to organizational direction, communicating the reasoning behind priorities, and ensuring the connection is understood rather than merely announced.",
         "bg": "Обхваща умението организационната стратегия да се превежда в конкретни цели за екипите и отделните хора — свързване на ежедневната работа с посоката на организацията, комуникиране на съображенията зад приоритетите и осигуряване тази връзка да бъде разбрана, а не просто оповестена."
+      },
+      "E2-73": {
+        "en": "Encompasses the ability to design conceptual, logical, and physical data models — entities, relationships, keys, and constraints — and to make deliberate normalisation and denormalisation decisions that serve both data integrity and query performance rather than defaulting to one or the other.",
+        "bg": "Обхваща умението да се проектират концептуални, логически и физически модели на данни — същности, връзки, ключове и ограничения — и да се вземат осъзнати решения за нормализация и денормализация, които обслужват както целостта на данните, така и производителността на заявките, вместо да се залага само на едното."
+      },
+      "E2-74": {
+        "en": "Encompasses the ability to diagnose and improve database performance — reading execution plans, designing and maintaining indexes, managing statistics and partitioning, and rewriting queries — so that systems perform acceptably at production scale rather than only against test data.",
+        "bg": "Обхваща умението да се диагностицира и подобрява производителността на базата данни — разчитане на планове за изпълнение, проектиране и поддържане на индекси, управление на статистиките и партиционирането и пренаписване на заявки — така че системите да работят приемливо в производствен мащаб, а не само върху тестови данни."
+      },
+      "E2-75": {
+        "en": "Encompasses the ability to design for data durability and availability — backup and recovery strategy, replication and high-availability configuration, and defined recovery objectives — and to verify by testing that recovery actually works rather than assuming it does.",
+        "bg": "Обхваща умението да се проектира за трайност и достъпност на данните — стратегия за резервни копия и възстановяване, конфигуриране на репликация и висока достъпност и дефинирани цели за възстановяване — и да се потвърждава чрез изпитване, че възстановяването действително работи, вместо това да се приема за даденост."
+      },
+      "E2-76": {
+        "en": "Encompasses the ability to plan and execute schema and data migrations — versioning schema changes, sequencing upgrades, moving data between systems or versions, and keeping systems available and consistent through the transition, including rollback.",
+        "bg": "Обхваща умението да се планират и извършват миграции на схеми и данни — версиониране на промените по схемата, подреждане на обновленията, прехвърляне на данни между системи или версии и запазване на достъпността и целостта през прехода, включително връщане назад."
+      },
+      "E2-77": {
+        "en": "Encompasses the ability to secure data at the database layer — privilege and role design, encryption at rest and in transit, auditing, and masking or anonymising sensitive data — in line with applicable data-protection obligations.",
+        "bg": "Обхваща умението данните да се защитават на ниво база данни — проектиране на права и роли, криптиране при съхранение и при пренос, одитиране и маскиране или анонимизиране на чувствителни данни — в съответствие с приложимите задължения за защита на данните."
+      },
+      "E2-78": {
+        "en": "Encompasses the ability to integrate language and other AI models into working software — designing prompts and structured outputs, handling model APIs, latency, and failure modes — and building dependable behaviour on top of a probabilistic component.",
+        "bg": "Обхваща умението езикови и други AI модели да се интегрират в работещ софтуер — проектиране на промптове и структурирани изходи, работа с API на моделите, латентност и режими на отказ — и изграждане на надеждно поведение върху вероятностен компонент."
+      },
+      "E2-79": {
+        "en": "Encompasses the ability to design how relevant information reaches a model — chunking and embedding strategy, vector and hybrid search, ranking, and context assembly within window constraints — so that responses are grounded in the right material rather than plausible invention.",
+        "bg": "Обхваща умението да се проектира как относимата информация достига до модела — стратегия за разделяне на части и вграждания, векторно и хибридно търсене, класиране и сглобяване на контекста в рамките на прозореца — така че отговорите да стъпват на правилния материал, а не на правдоподобна измислица."
+      },
+      "E2-80": {
+        "en": "Encompasses the ability to design systems where a model plans and acts through tools — defining tool interfaces, managing multi-step execution and state, handling partial failure, and bounding autonomy so that behaviour remains predictable and safe.",
+        "bg": "Обхваща умението да се проектират системи, в които моделът планира и действа чрез инструменти — дефиниране на интерфейсите на инструментите, управление на многостъпковото изпълнение и състоянието, обработка на частични откази и ограничаване на автономността, така че поведението да остане предвидимо и безопасно."
+      },
+      "E2-81": {
+        "en": "Encompasses the ability to establish whether an AI system actually works — building evaluation sets and rubrics, measuring quality across varied inputs, detecting regression between model or prompt versions, and reasoning about behaviour that differs run to run. Conventional testing assumes determinism; this is the discipline that replaces that assumption.",
+        "bg": "Обхваща умението да се установява дали една AI система действително работи — изграждане на набори и критерии за оценка, измерване на качеството при разнообразни входове, откриване на влошаване между версии на модела или промпта и разсъждаване за поведение, което се различава при всяко изпълнение. Класическото тестване предполага детерминизъм; това е дисциплината, която замества това допускане."
+      },
+      "E2-82": {
+        "en": "Encompasses the ability to identify and mitigate the ways an AI system can cause harm — prompt injection and misuse, unsafe or fabricated output, inappropriate disclosure of personal data — and to implement guardrails, human oversight, and transparency proportionate to the risk and to applicable regulation.",
+        "bg": "Обхваща умението да се разпознават и ограничават начините, по които една AI система може да причини вреда — внедряване на зловредни промптове и злоупотреба, опасен или измислен изход, неуместно разкриване на лични данни — и да се въвеждат предпазни механизми, човешки надзор и прозрачност, съразмерни на риска и на приложимата нормативна уредба."
+      },
+      "E2-83": {
+        "en": "Encompasses the ability to choose models and configurations for a given task — balancing capability against cost, latency, and operational constraint — and to optimise running systems through caching, routing, batching, and right-sizing so that quality is achieved economically.",
+        "bg": "Обхваща умението да се избират модели и конфигурации за дадена задача — балансиране на възможностите спрямо цената, латентността и експлоатационните ограничения — и да се оптимизират работещите системи чрез кеширане, маршрутизиране, групиране и правилно оразмеряване, така че качеството да се постига икономично."
       }
     },
     "scope": {
@@ -6062,6 +6150,292 @@
           "en": "Translates organizational strategy into clear objectives across teams, communicates the reasoning rather than only the instruction, and verifies that the connection is genuinely understood.",
           "bg": "Превежда стратегията на организацията в ясни цели за екипите, комуникира съображенията, а не само указанието, и проверява дали връзката е действително разбрана."
         }
+      },
+      "E2-73": {
+        "N": {
+          "en": "Reads existing schemas and makes simple prescribed changes under guidance.",
+          "bg": "Чете съществуващи схеми и прави прости предписани промени под ръководство."
+        },
+        "J": {
+          "en": "Designs straightforward tables and relationships with supervision, though normalisation decisions need correction.",
+          "bg": "Проектира несложни таблици и връзки с надзор, но решенията за нормализация се нуждаят от корекции."
+        },
+        "R": {
+          "en": "Independently designs sound schemas for typical systems, with appropriate keys, constraints, and normalisation.",
+          "bg": "Самостоятелно проектира обосновани схеми за типични системи, с подходящи ключове, ограничения и нормализация."
+        },
+        "S": {
+          "en": "Designs complex data models across large or integrated systems, makes deliberate denormalisation trade-offs, and mentors others.",
+          "bg": "Проектира сложни модели на данни в големи или интегрирани системи, прави осъзнати компромиси с денормализацията и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority on data modelling; defines modelling standards and conventions across the organization.",
+          "bg": "Признат авторитет по моделиране на данни; определя стандартите и конвенциите за моделиране в организацията."
+        },
+        "T": {
+          "en": "Ensures the team designs sound data models and aligns modelling practice with organizational standards.",
+          "bg": "Осигурява екипът да проектира обосновани модели на данни и уеднаквява практиката с организационните стандарти."
+        }
+      },
+      "E2-74": {
+        "N": {
+          "en": "Runs provided queries and reports slowness under guidance without diagnosing it.",
+          "bg": "Изпълнява предоставени заявки и сигнализира за бавна работа под ръководство, без да я диагностицира."
+        },
+        "J": {
+          "en": "Identifies obviously inefficient queries with supervision and applies simple indexing fixes.",
+          "bg": "Разпознава очевидно неефективни заявки с надзор и прилага прости индекси като решение."
+        },
+        "R": {
+          "en": "Independently diagnoses typical performance problems from execution plans and applies effective indexing and query changes.",
+          "bg": "Самостоятелно диагностицира типични проблеми с производителността по плана за изпълнение и прилага действащи промени в индексите и заявките."
+        },
+        "S": {
+          "en": "Tunes complex performance problems at production scale, applies partitioning and advanced techniques, and mentors others in diagnosis.",
+          "bg": "Оптимизира сложни проблеми с производителността в производствен мащаб, прилага партициониране и разширени техники и напътства други в диагностиката."
+        },
+        "X": {
+          "en": "Recognized authority on database performance; resolves the most difficult problems and sets tuning standards across the organization.",
+          "bg": "Признат авторитет по производителност на бази данни; решава най-трудните проблеми и определя стандартите за оптимизация в организацията."
+        },
+        "T": {
+          "en": "Ensures the team addresses performance systematically and aligns tuning practice with operational requirements.",
+          "bg": "Осигурява екипът да подхожда систематично към производителността и уеднаквява практиката с експлоатационните изисквания."
+        }
+      },
+      "E2-75": {
+        "N": {
+          "en": "Executes given backup procedures under guidance.",
+          "bg": "Изпълнява зададени процедури за резервни копия под ръководство."
+        },
+        "J": {
+          "en": "Performs routine backup and recovery operations with supervision.",
+          "bg": "Извършва рутинни операции по архивиране и възстановяване с надзор."
+        },
+        "R": {
+          "en": "Independently designs and operates backup and recovery for typical systems and verifies recovery by testing.",
+          "bg": "Самостоятелно проектира и поддържа архивирането и възстановяването за типични системи и потвърждава възстановяването чрез изпитване."
+        },
+        "S": {
+          "en": "Designs high-availability and recovery architectures for critical systems against defined objectives, and mentors others.",
+          "bg": "Проектира архитектури за висока достъпност и възстановяване на критични системи спрямо дефинирани цели и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines reliability and recovery standards across the organization.",
+          "bg": "Признат авторитет; определя стандартите за надеждност и възстановяване в организацията."
+        },
+        "T": {
+          "en": "Ensures the team's systems are genuinely recoverable and aligns reliability design with business continuity requirements.",
+          "bg": "Осигурява системите на екипа да са действително възстановими и уеднаквява проектирането за надеждност с изискванията за непрекъснатост на дейността."
+        }
+      },
+      "E2-76": {
+        "N": {
+          "en": "Applies given migration scripts under guidance.",
+          "bg": "Прилага зададени миграционни скриптове под ръководство."
+        },
+        "J": {
+          "en": "Executes straightforward schema changes with supervision.",
+          "bg": "Изпълнява несложни промени по схемата с надзор."
+        },
+        "R": {
+          "en": "Independently plans and executes typical migrations, versioning changes and preserving data consistency.",
+          "bg": "Самостоятелно планира и извършва типични миграции, версионира промените и запазва целостта на данните."
+        },
+        "S": {
+          "en": "Plans complex or large-volume migrations with minimal downtime, handles rollback credibly, and mentors others.",
+          "bg": "Планира сложни или обемни миграции с минимално прекъсване, осигурява надеждно връщане назад и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines migration and schema-versioning standards across the organization.",
+          "bg": "Признат авторитет; определя стандартите за миграции и версиониране на схеми в организацията."
+        },
+        "T": {
+          "en": "Ensures the team manages database change safely and aligns migration practice with the release process.",
+          "bg": "Осигурява екипът да управлява промените по базите данни безопасно и уеднаквява практиката с процеса на издаване."
+        }
+      },
+      "E2-77": {
+        "N": {
+          "en": "Follows given access rules and requests privileges under guidance.",
+          "bg": "Следва зададени правила за достъп и заявява права под ръководство."
+        },
+        "J": {
+          "en": "Applies standard privilege and role patterns with supervision.",
+          "bg": "Прилага стандартни модели на права и роли с надзор."
+        },
+        "R": {
+          "en": "Independently designs appropriate access control for typical systems and applies encryption, auditing, and masking where required.",
+          "bg": "Самостоятелно проектира подходящ контрол на достъпа за типични системи и прилага криптиране, одитиране и маскиране, където се изисква."
+        },
+        "S": {
+          "en": "Designs security for complex or sensitive data estates, resolves tension between access needs and protection, and mentors others.",
+          "bg": "Проектира сигурността на сложни или чувствителни масиви от данни, разрешава напрежението между нуждата от достъп и защитата и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines database security standards and advises on data-protection compliance.",
+          "bg": "Признат авторитет; определя стандартите за сигурност на базите данни и консултира по съответствието със защитата на данните."
+        },
+        "T": {
+          "en": "Ensures the team's databases meet security and data-protection obligations.",
+          "bg": "Осигурява базите данни на екипа да отговарят на задълженията за сигурност и защита на данните."
+        }
+      },
+      "E2-78": {
+        "N": {
+          "en": "Uses provided prompts and model calls under guidance.",
+          "bg": "Използва предоставени промптове и извиквания на модели под ръководство."
+        },
+        "J": {
+          "en": "Writes straightforward prompts and integrations with supervision, though output reliability is inconsistent.",
+          "bg": "Пише несложни промптове и интеграции с надзор, но надеждността на изхода е непостоянна."
+        },
+        "R": {
+          "en": "Independently designs prompts and integrations producing reliable, structured output for typical use cases, handling malformed responses and failures.",
+          "bg": "Самостоятелно проектира промптове и интеграции, даващи надежден структуриран изход за типични случаи, и обработва неправилни отговори и откази."
+        },
+        "S": {
+          "en": "Engineers robust integrations for complex or high-volume use, improves reliability systematically rather than by trial and error, and mentors others.",
+          "bg": "Изгражда устойчиви интеграции за сложна или високообемна употреба, подобрява надеждността систематично, а не чрез проба-грешка, и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines model integration patterns and prompt standards across the organization.",
+          "bg": "Признат авторитет; определя моделите за интеграция и стандартите за промптове в организацията."
+        },
+        "T": {
+          "en": "Ensures the team builds reliable model integrations and aligns practice with organizational standards.",
+          "bg": "Осигурява екипът да изгражда надеждни интеграции с модели и уеднаквява практиката с организационните стандарти."
+        }
+      },
+      "E2-79": {
+        "N": {
+          "en": "Uses an existing retrieval pipeline under guidance.",
+          "bg": "Използва съществуващ процес за извличане под ръководство."
+        },
+        "J": {
+          "en": "Makes straightforward changes to retrieval configuration with supervision.",
+          "bg": "Прави несложни промени в конфигурацията на извличането с надзор."
+        },
+        "R": {
+          "en": "Independently designs retrieval for typical use cases, choosing chunking, embedding, and ranking approaches that measurably improve grounding.",
+          "bg": "Самостоятелно проектира извличането за типични случаи, като избира подходи за разделяне, вграждане и класиране, които измеримо подобряват обосноваването."
+        },
+        "S": {
+          "en": "Designs retrieval over complex or large corpora, diagnoses grounding failures systematically, and mentors others.",
+          "bg": "Проектира извличане върху сложни или големи масиви, диагностицира систематично отказите в обосноваването и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines retrieval architecture and standards across the organization.",
+          "bg": "Признат авторитет; определя архитектурата и стандартите за извличане в организацията."
+        },
+        "T": {
+          "en": "Ensures the team builds well-grounded systems and aligns retrieval practice with quality expectations.",
+          "bg": "Осигурява екипът да изгражда добре обосновани системи и уеднаквява практиката с очакванията за качество."
+        }
+      },
+      "E2-80": {
+        "N": {
+          "en": "Works within an existing agent implementation under guidance.",
+          "bg": "Работи в рамките на съществуваща агентна реализация под ръководство."
+        },
+        "J": {
+          "en": "Adds simple tools or steps with supervision.",
+          "bg": "Добавя прости инструменти или стъпки с надзор."
+        },
+        "R": {
+          "en": "Independently designs tool interfaces and multi-step flows for typical use cases, handling failure and state correctly.",
+          "bg": "Самостоятелно проектира интерфейси на инструменти и многостъпкови потоци за типични случаи, като обработва коректно отказите и състоянието."
+        },
+        "S": {
+          "en": "Designs complex agentic systems, bounds autonomy deliberately, diagnoses emergent failure, and mentors others.",
+          "bg": "Проектира сложни агентни системи, ограничава автономността целенасочено, диагностицира възникващи откази и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines agent architecture and autonomy standards across the organization.",
+          "bg": "Признат авторитет; определя агентната архитектура и стандартите за автономност в организацията."
+        },
+        "T": {
+          "en": "Ensures the team builds predictable agentic systems and aligns autonomy decisions with organizational risk appetite.",
+          "bg": "Осигурява екипът да изгражда предвидими агентни системи и уеднаквява решенията за автономност с допустимия за организацията риск."
+        }
+      },
+      "E2-81": {
+        "N": {
+          "en": "Runs provided evaluations and reports results under guidance.",
+          "bg": "Изпълнява предоставени оценки и докладва резултатите под ръководство."
+        },
+        "J": {
+          "en": "Performs simple, largely manual evaluation with supervision, relying on spot checks.",
+          "bg": "Извършва прости, предимно ръчни оценки с надзор, като разчита на извадкови проверки."
+        },
+        "R": {
+          "en": "Independently builds evaluation sets and rubrics for typical use cases and detects regression between versions.",
+          "bg": "Самостоятелно изгражда набори и критерии за оценка за типични случаи и открива влошаване между версиите."
+        },
+        "S": {
+          "en": "Designs rigorous evaluation for complex systems, quantifies both quality and variance, and mentors others in evaluating non-determinism.",
+          "bg": "Проектира строга оценка за сложни системи, количествено изразява както качеството, така и разсейването, и напътства други в оценяването на недетерминизъм."
+        },
+        "X": {
+          "en": "Recognized authority; defines evaluation methodology and quality standards across the organization.",
+          "bg": "Признат авторитет; определя методологията за оценка и стандартите за качество в организацията."
+        },
+        "T": {
+          "en": "Ensures the team evaluates rather than assumes, and aligns evaluation rigour with release decisions.",
+          "bg": "Осигурява екипът да оценява, вместо да предполага, и обвързва строгостта на оценката с решенията за издаване."
+        }
+      },
+      "E2-82": {
+        "N": {
+          "en": "Follows given safety rules and escalates concerns under guidance.",
+          "bg": "Следва зададени правила за безопасност и ескалира опасенията под ръководство."
+        },
+        "J": {
+          "en": "Applies standard guardrails to straightforward systems with supervision.",
+          "bg": "Прилага стандартни предпазни механизми при несложни системи с надзор."
+        },
+        "R": {
+          "en": "Independently identifies plausible misuse and failure modes for typical systems and implements proportionate guardrails and oversight.",
+          "bg": "Самостоятелно разпознава правдоподобните злоупотреби и режими на отказ при типични системи и въвежда съразмерни предпазни механизми и надзор."
+        },
+        "S": {
+          "en": "Assesses risk for complex or sensitive deployments, designs layered mitigations, and mentors others in responsible practice.",
+          "bg": "Оценява риска при сложни или чувствителни внедрявания, проектира многослойни мерки и напътства други в отговорната практика."
+        },
+        "X": {
+          "en": "Recognized authority; defines AI safety standards and advises the organization on regulatory obligations.",
+          "bg": "Признат авторитет; определя стандартите за безопасност на AI и консултира организацията относно нормативните задължения."
+        },
+        "T": {
+          "en": "Ensures the team deploys responsibly and aligns safety practice with organizational and regulatory requirements.",
+          "bg": "Осигурява екипът да внедрява отговорно и уеднаквява практиката по безопасност с организационните и нормативните изисквания."
+        }
+      },
+      "E2-83": {
+        "N": {
+          "en": "Uses the model and settings specified by others under guidance.",
+          "bg": "Използва модела и настройките, зададени от други, под ръководство."
+        },
+        "J": {
+          "en": "Compares models on obvious criteria with supervision.",
+          "bg": "Сравнява модели по очевидни критерии с надзор."
+        },
+        "R": {
+          "en": "Independently selects models and settings appropriate to typical tasks, balancing quality, cost, and latency.",
+          "bg": "Самостоятелно избира модели и настройки, подходящи за типични задачи, като балансира качество, цена и латентност."
+        },
+        "S": {
+          "en": "Optimises complex or high-volume systems through routing, caching, and right-sizing, and mentors others in cost-aware design.",
+          "bg": "Оптимизира сложни или високообемни системи чрез маршрутизиране, кеширане и правилно оразмеряване и напътства други в проектирането с оглед на разходите."
+        },
+        "X": {
+          "en": "Recognized authority; shapes model strategy and cost governance across the organization.",
+          "bg": "Признат авторитет; оформя стратегията за моделите и управлението на разходите в организацията."
+        },
+        "T": {
+          "en": "Ensures the team makes cost-aware model decisions and aligns spend with organizational constraints.",
+          "bg": "Осигурява екипът да взема решения за моделите с оглед на разходите и съизмерва разхода с ограниченията на организацията."
+        }
       }
     }
   },
@@ -6704,6 +7078,14 @@
           "ARCHITECTURE": {
             "en": "Architecture",
             "bg": "Архитектура"
+          },
+          "DATABASE_ARCHITECTURE": {
+            "en": "Database Architecture",
+            "bg": "Архитектура на бази данни"
+          },
+          "AI_ENGINEERING": {
+            "en": "AI Engineering",
+            "bg": "AI инженерство"
           }
         },
         "description": {
@@ -6730,6 +7112,14 @@
           "ARCHITECTURE": {
             "en": "Designs the structure of software systems — decomposition, boundaries, quality attributes and evolution — and governs that the built system matches the intended design.",
             "bg": "Проектира структурата на софтуерните системи — декомпозиция, граници, атрибути на качеството и развитие — и следи изграденото да съответства на предвиденото проектно решение."
+          },
+          "DATABASE_ARCHITECTURE": {
+            "en": "Designs and operates the data layer — modelling and schema design, performance tuning, reliability and recovery, migration, and security — as an engineering discipline rather than as analysis.",
+            "bg": "Проектира и поддържа слоя на данните — моделиране и проектиране на схеми, оптимизация на производителността, надеждност и възстановяване, миграции и сигурност — като инженерна дисциплина, а не като анализ."
+          },
+          "AI_ENGINEERING": {
+            "en": "Builds AI-native systems on existing models — integration and prompting, retrieval and context, agents and tools, evaluation of non-deterministic behaviour, safety guardrails, and cost-aware model selection. Model training itself belongs to Data Analytics.",
+            "bg": "Изгражда AI-ориентирани системи върху съществуващи модели — интеграция и промптове, извличане и контекст, агенти и инструменти, оценка на недетерминистично поведение, предпазни механизми за безопасност и избор на модел с оглед на разходите. Самото обучение на модели е в обхвата на Data Analytics."
           }
         }
       }

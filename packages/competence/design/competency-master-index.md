@@ -2,7 +2,7 @@
 
 Authoritative code → name → applicability reference. Full descriptions and stage-level anchors live in `competency-definitions-final.md`; Bulgarian in `competency-bg-translations.md`; archetypes in `competency-relevancy-model.md`; deltas in `competency-change-log.md`.
 
-**Reflects Increments 1–3** (QE · architecture · management set · T2 · XD). Regenerated from the definitions file, not reconstructed from memory.
+**Reflects Increments 1–4** (QE · architecture · management set · T2 · XD · SE specializations). Regenerated from the definitions file, not reconstructed from memory.
 
 ---
 
@@ -13,7 +13,7 @@ Authoritative code → name → applicability reference. Full descriptions and s
 - **Gaps are intentional.** Dropped or merged competencies leave their numbers vacant. New codes continue above all previously-used numbers, including retired ones.
 - **Applicability is not encoded in the code.** It lives in `config.competency-relevancy.json` (per-family pool and weights) and `config.active-competency-sets.json` (per-cycle selection).
 
-**Next free codes:** `E1-67` · `E2-73` · `E3-34` · `I1-14` · `I2-14` · `I3-4` · `C1-9` · `C2-8` · `C3-10`
+**Next free codes:** `E1-67` · `E2-84` · `E3-34` · `I1-14` · `I2-14` · `I3-4` · `C1-9` · `C2-8` · `C3-10`
 
 ## Stage-levels (13 sub-levels)
 
@@ -41,7 +41,9 @@ A competency is **shared** when its meaning is identical across families, even w
 | XD family-specific | 9 | 9 | 3 | 3 | — | — | — | — | — | **24** |
 | SE.ARCHITECTURE spec. | — | 4 | — | — | — | — | — | — | — | **4** |
 | BA.SOLUTION_ARCHITECTURE spec. | — | 5 | — | — | — | — | — | — | — | **5** |
-| **Distinct total** | | | | | | | | | | **175** |
+| SE.DATABASE_ARCHITECTURE spec. | — | 5 | — | — | — | — | — | — | — | **5** |
+| SE.AI_ENGINEERING spec. | — | 6 | — | — | — | — | — | — | — | **6** |
+| **Distinct total** | | | | | | | | | | **186** |
 
 *Shared totals include the three cross-cutting architecture competencies (E2-52/53/54) and the five management competencies (C2-7, C3-8, C3-9, I2-12, I2-13).*
 
@@ -84,8 +86,8 @@ A competency is **shared** when its meaning is identical across families, even w
 ### Specializations
 - `BACKEND` · `FRONTEND` · `MOBILE` · `FULLSTACK` · `EMBEDDED` — defined, no content
 - **`ARCHITECTURE`** — E2-55 System decomposition and boundary design · E2-56 Architectural governance and design review · E2-57 Scalability and resilience design · E2-58 Architecture evolution and migration planning *(plus shared E2-52/53/54)*. **Software Architect = SE × ARCHITECTURE × X1**
-- `DATABASE_ARCHITECTURE` — approved, **content pending** (~4)
-- `AI_ENGINEERING` — approved, **content pending** (~6)
+- **`DATABASE_ARCHITECTURE`** — E2-73 Data modelling and schema design · E2-74 Database performance tuning and query optimisation · E2-75 Database reliability, backup and recovery design · E2-76 Database migration and change management · E2-77 Database security and access control *(plus shared E2-52/53/54)*
+- **`AI_ENGINEERING`** — E2-78 Model integration and prompt engineering · E2-79 Retrieval and context engineering · E2-80 Agent and tool orchestration · E2-81 Evaluating non-deterministic systems · E2-82 AI safety, guardrails and responsible deployment · E2-83 Model selection and cost-performance optimisation. *Builds on existing models; model training belongs to DA.*
 
 ---
 
@@ -178,11 +180,10 @@ Intentionally vacant. Content dropped, merged, or moved.
 
 | Item | Status |
 |---|---|
-| Bulgarian translations | **67 competencies untranslated** — QE (26), architecture (12), management (5), XD (24) |
-| `SE.DATABASE_ARCHITECTURE` | Placement approved; content pending (~4) |
-| `SE.AI_ENGINEERING` | Placement approved; content pending (~6) |
+| Bulgarian translations | **78 competencies untranslated** — QE (26), architecture (12), management (5), XD (24), SE specializations (11) |
+
 | DA · MC · PD · IO families | Not started |
 | Technical Communication (TC) | Family decision pending |
-| Specialization content | None built except the two architecture specializations |
+| Specialization content | Built: SE.ARCHITECTURE, SE.DATABASE_ARCHITECTURE, SE.AI_ENGINEERING, BA.SOLUTION_ARCHITECTURE. None for other specializations. |
 | e-CF mappings | Placeholders only |
 | Relevancy calibration | Archetype defaults; calibrate after cycle 1 |

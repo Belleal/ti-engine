@@ -1909,3 +1909,142 @@ Applying that principle:
 ---
 
 **XD baseline complete** — E1 (9) · E2 (9) · E3 (3) · I1 (3) = **24 family-specific competencies**, plus the shared canonical set. Specializations RESEARCH / INTERACTION / VISUAL / SERVICE still to build.
+
+---
+
+# SE specializations — Database Architecture & AI Engineering
+
+*Both sit in the SE family and add to SE baseline. Neither introduces new shared competencies. Codes continue from E2-73.*
+
+## SE · DATABASE_ARCHITECTURE specialization
+
+*Oracle-centred database architecture: engineering work, not analysis. Draws the three shared cross-cutting architecture competencies (E2-52/53/54) in addition to the five below.*
+
+### E2-73 · Data modelling and schema design
+
+**Description:** Encompasses the ability to design conceptual, logical, and physical data models — entities, relationships, keys, and constraints — and to make deliberate normalisation and denormalisation decisions that serve both data integrity and query performance rather than defaulting to one or the other.
+
+- **N:** Reads existing schemas and makes simple prescribed changes under guidance.
+- **J:** Designs straightforward tables and relationships with supervision, though normalisation decisions need correction.
+- **R:** Independently designs sound schemas for typical systems, with appropriate keys, constraints, and normalisation.
+- **S:** Designs complex data models across large or integrated systems, makes deliberate denormalisation trade-offs, and mentors others.
+- **X:** Recognized authority on data modelling; defines modelling standards and conventions across the organization.
+- **T:** Ensures the team designs sound data models and aligns modelling practice with organizational standards.
+
+### E2-74 · Database performance tuning and query optimisation
+
+**Description:** Encompasses the ability to diagnose and improve database performance — reading execution plans, designing and maintaining indexes, managing statistics and partitioning, and rewriting queries — so that systems perform acceptably at production scale rather than only against test data.
+
+- **N:** Runs provided queries and reports slowness under guidance without diagnosing it.
+- **J:** Identifies obviously inefficient queries with supervision and applies simple indexing fixes.
+- **R:** Independently diagnoses typical performance problems from execution plans and applies effective indexing and query changes.
+- **S:** Tunes complex performance problems at production scale, applies partitioning and advanced techniques, and mentors others in diagnosis.
+- **X:** Recognized authority on database performance; resolves the most difficult problems and sets tuning standards across the organization.
+- **T:** Ensures the team addresses performance systematically and aligns tuning practice with operational requirements.
+
+### E2-75 · Database reliability, backup and recovery design
+
+**Description:** Encompasses the ability to design for data durability and availability — backup and recovery strategy, replication and high-availability configuration, and defined recovery objectives — and to verify by testing that recovery actually works rather than assuming it does.
+
+- **N:** Executes given backup procedures under guidance.
+- **J:** Performs routine backup and recovery operations with supervision.
+- **R:** Independently designs and operates backup and recovery for typical systems and verifies recovery by testing.
+- **S:** Designs high-availability and recovery architectures for critical systems against defined objectives, and mentors others.
+- **X:** Recognized authority; defines reliability and recovery standards across the organization.
+- **T:** Ensures the team's systems are genuinely recoverable and aligns reliability design with business continuity requirements.
+
+### E2-76 · Database migration and change management
+
+**Description:** Encompasses the ability to plan and execute schema and data migrations — versioning schema changes, sequencing upgrades, moving data between systems or versions, and keeping systems available and consistent through the transition, including rollback.
+
+- **N:** Applies given migration scripts under guidance.
+- **J:** Executes straightforward schema changes with supervision.
+- **R:** Independently plans and executes typical migrations, versioning changes and preserving data consistency.
+- **S:** Plans complex or large-volume migrations with minimal downtime, handles rollback credibly, and mentors others.
+- **X:** Recognized authority; defines migration and schema-versioning standards across the organization.
+- **T:** Ensures the team manages database change safely and aligns migration practice with the release process.
+
+### E2-77 · Database security and access control
+
+**Description:** Encompasses the ability to secure data at the database layer — privilege and role design, encryption at rest and in transit, auditing, and masking or anonymising sensitive data — in line with applicable data-protection obligations.
+
+- **N:** Follows given access rules and requests privileges under guidance.
+- **J:** Applies standard privilege and role patterns with supervision.
+- **R:** Independently designs appropriate access control for typical systems and applies encryption, auditing, and masking where required.
+- **S:** Designs security for complex or sensitive data estates, resolves tension between access needs and protection, and mentors others.
+- **X:** Recognized authority; defines database security standards and advises on data-protection compliance.
+- **T:** Ensures the team's databases meet security and data-protection obligations.
+
+## SE · AI_ENGINEERING specialization
+
+*Building AI-native systems on existing models — not model training, which would belong to DA. Draws shared E2-53 and E2-54 naturally; E2-52 where the work is architectural.*
+
+### E2-78 · Model integration and prompt engineering
+
+**Description:** Encompasses the ability to integrate language and other AI models into working software — designing prompts and structured outputs, handling model APIs, latency, and failure modes — and building dependable behaviour on top of a probabilistic component.
+
+- **N:** Uses provided prompts and model calls under guidance.
+- **J:** Writes straightforward prompts and integrations with supervision, though output reliability is inconsistent.
+- **R:** Independently designs prompts and integrations producing reliable, structured output for typical use cases, handling malformed responses and failures.
+- **S:** Engineers robust integrations for complex or high-volume use, improves reliability systematically rather than by trial and error, and mentors others.
+- **X:** Recognized authority; defines model integration patterns and prompt standards across the organization.
+- **T:** Ensures the team builds reliable model integrations and aligns practice with organizational standards.
+
+### E2-79 · Retrieval and context engineering
+
+**Description:** Encompasses the ability to design how relevant information reaches a model — chunking and embedding strategy, vector and hybrid search, ranking, and context assembly within window constraints — so that responses are grounded in the right material rather than plausible invention.
+
+- **N:** Uses an existing retrieval pipeline under guidance.
+- **J:** Makes straightforward changes to retrieval configuration with supervision.
+- **R:** Independently designs retrieval for typical use cases, choosing chunking, embedding, and ranking approaches that measurably improve grounding.
+- **S:** Designs retrieval over complex or large corpora, diagnoses grounding failures systematically, and mentors others.
+- **X:** Recognized authority; defines retrieval architecture and standards across the organization.
+- **T:** Ensures the team builds well-grounded systems and aligns retrieval practice with quality expectations.
+
+### E2-80 · Agent and tool orchestration
+
+**Description:** Encompasses the ability to design systems where a model plans and acts through tools — defining tool interfaces, managing multi-step execution and state, handling partial failure, and bounding autonomy so that behaviour remains predictable and safe.
+
+- **N:** Works within an existing agent implementation under guidance.
+- **J:** Adds simple tools or steps with supervision.
+- **R:** Independently designs tool interfaces and multi-step flows for typical use cases, handling failure and state correctly.
+- **S:** Designs complex agentic systems, bounds autonomy deliberately, diagnoses emergent failure, and mentors others.
+- **X:** Recognized authority; defines agent architecture and autonomy standards across the organization.
+- **T:** Ensures the team builds predictable agentic systems and aligns autonomy decisions with organizational risk appetite.
+
+### E2-81 · Evaluating non-deterministic systems
+
+**Description:** Encompasses the ability to establish whether an AI system actually works — building evaluation sets and rubrics, measuring quality across varied inputs, detecting regression between model or prompt versions, and reasoning about behaviour that differs run to run. Conventional testing assumes determinism; this is the discipline that replaces that assumption.
+
+- **N:** Runs provided evaluations and reports results under guidance.
+- **J:** Performs simple, largely manual evaluation with supervision, relying on spot checks.
+- **R:** Independently builds evaluation sets and rubrics for typical use cases and detects regression between versions.
+- **S:** Designs rigorous evaluation for complex systems, quantifies both quality and variance, and mentors others in evaluating non-determinism.
+- **X:** Recognized authority; defines evaluation methodology and quality standards across the organization.
+- **T:** Ensures the team evaluates rather than assumes, and aligns evaluation rigour with release decisions.
+
+### E2-82 · AI safety, guardrails and responsible deployment
+
+**Description:** Encompasses the ability to identify and mitigate the ways an AI system can cause harm — prompt injection and misuse, unsafe or fabricated output, inappropriate disclosure of personal data — and to implement guardrails, human oversight, and transparency proportionate to the risk and to applicable regulation.
+
+- **N:** Follows given safety rules and escalates concerns under guidance.
+- **J:** Applies standard guardrails to straightforward systems with supervision.
+- **R:** Independently identifies plausible misuse and failure modes for typical systems and implements proportionate guardrails and oversight.
+- **S:** Assesses risk for complex or sensitive deployments, designs layered mitigations, and mentors others in responsible practice.
+- **X:** Recognized authority; defines AI safety standards and advises the organization on regulatory obligations.
+- **T:** Ensures the team deploys responsibly and aligns safety practice with organizational and regulatory requirements.
+
+### E2-83 · Model selection and cost-performance optimisation
+
+**Description:** Encompasses the ability to choose models and configurations for a given task — balancing capability against cost, latency, and operational constraint — and to optimise running systems through caching, routing, batching, and right-sizing so that quality is achieved economically.
+
+- **N:** Uses the model and settings specified by others under guidance.
+- **J:** Compares models on obvious criteria with supervision.
+- **R:** Independently selects models and settings appropriate to typical tasks, balancing quality, cost, and latency.
+- **S:** Optimises complex or high-volume systems through routing, caching, and right-sizing, and mentors others in cost-aware design.
+- **X:** Recognized authority; shapes model strategy and cost governance across the organization.
+- **T:** Ensures the team makes cost-aware model decisions and aligns spend with organizational constraints.
+
+---
+
+**SE specializations complete** — DATABASE_ARCHITECTURE (5) · AI_ENGINEERING (6) = **11 competencies**.

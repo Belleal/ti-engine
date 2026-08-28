@@ -32,6 +32,16 @@
         "name": "role-family.SE.specialization.name.ARCHITECTURE",
         "description": "role-family.SE.specialization.description.ARCHITECTURE",
         "eCFMapping": []
+      },
+      "DATABASE_ARCHITECTURE": {
+        "name": "role-family.SE.specialization.name.DATABASE_ARCHITECTURE",
+        "description": "role-family.SE.specialization.description.DATABASE_ARCHITECTURE",
+        "eCFMapping": []
+      },
+      "AI_ENGINEERING": {
+        "name": "role-family.SE.specialization.name.AI_ENGINEERING",
+        "description": "role-family.SE.specialization.description.AI_ENGINEERING",
+        "eCFMapping": []
       }
     }
   },

@@ -307,23 +307,56 @@ build rather than defaulting silently.
 
 **QE E2 is heavily E (8 of 10).** Expected, and correct: applied testing skills peak in the productive middle. The two exceptions are planning and metrics, both on B, because those are where seniority genuinely changes what the person does.
 
+---
+
+## Assignments — SE family-specific (Increment 4 specializations)
+
+*The two SE specializations closed out in Increment 4. Listed as rows rather than prose so the generator sees them:
+an assignment stated only in prose is invisible to it, and an unassigned dictionary code aborts the build.*
+
+**SE.DATABASE_ARCHITECTURE (5) — all F**
+
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E2-73 | Data modelling and schema design | F | |
+| E2-74 | Database performance tuning and query optimisation | F | |
+| E2-75 | Database reliability, backup and recovery design | F | |
+| E2-76 | Database migration and change management | F | |
+| E2-77 | Database security and access control | F | |
+
+Deep technical capabilities where the IC expert is the organizational authority, peaking at X1 and declining on the
+management track — the same reasoning as the architecture specializations.
+
+**SE.AI_ENGINEERING (6)**
+
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E2-78 | Model integration and prompt engineering | F | |
+| E2-79 | Retrieval and context engineering | F | |
+| E2-80 | Agent and tool orchestration | F | |
+| E2-81 | Evaluating non-deterministic systems | F | |
+| E2-82 | AI safety, guardrails and responsible deployment | **C** | obligation at every level — see note |
+| E2-83 | Model selection and cost-performance optimisation | F | |
+
+**Why E2-82 is C, not F.** Safety weighted as steady-high across all levels rather than rising with seniority, on the same principle applied to accessibility (E1-63, E2-72). A junior shipping an unguarded system is a governance failure, not a developmental gap. Weighting it as C states that in the scoring rather than leaving it to be inferred.
+
 ## Distribution check
 
 | Archetype | Count |
 |---|---|
 | A — Foundational-plateau | 23 |
 | B — Rising-with-seniority | 54 |
-| C — Steady-high | 23 |
+| C — Steady-high | 24 |
 | D — Early-emphasis-then-assumed | 7 |
 | E — Mid-weighted | 41 |
-| F — Rising, expert-leaning | 18 |
+| F — Rising, expert-leaning | 28 |
 | G — Rising, manager-leaning | 4 |
 | H — Management-track | 5 |
-| **Total** | **175** |
+| **Total** | **186** |
 
-*175 = 36 shared + 38 SE + 29 BA + 25 PM + 26 QE + 24 XD — each competency counted once. The shared
-total now includes the three cross-cutting architecture codes and the five management competencies. Re-derive
-this table mechanically after every increment rather than adjusting it by hand.*
+*186 = 36 shared + 49 SE + 29 BA + 25 PM + 26 QE + 24 XD — each competency counted once. SE now includes
+its four specializations (ARCHITECTURE 4, DATABASE_ARCHITECTURE 5, AI_ENGINEERING 6). Re-derive this table
+mechanically after every increment rather than adjusting it by hand.*
 
 *Correction note (QE increment): the previous version of this table read A 14 · B 40 · C 21 · D 5 · E 22 · F 6 · G 5 = 113, which did not match the assignment tables above it on any row and reconciled against a family split that no longer held. The counts here are derived mechanically from the assignment tables and should be re-derived, not hand-adjusted, whenever an increment lands.*
 

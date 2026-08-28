@@ -2,6 +2,38 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.27.0
+
+Increment 4 closes the two SE specializations left pending since Increment 3: **Database Architecture** and **AI
+Engineering**. Eleven competencies take the dictionary from 175 to **186**, and SE now carries four specializations
+with content.
+
+* feat(competence): add `SE.DATABASE_ARCHITECTURE` with five competencies (`E2-73` … `E2-77`) — data modelling and
+  schema design, performance tuning and query optimisation, reliability/backup/recovery design, migration and
+  change management, and security and access control. Treated as an engineering discipline rather than analysis,
+  which is why it sits under SE (CA-112)
+* feat(competence): add `SE.AI_ENGINEERING` with six competencies (`E2-78` … `E2-83`) — model integration and
+  prompt engineering, retrieval and context engineering, agent and tool orchestration, evaluating non-deterministic
+  systems, AI safety and guardrails, and model selection and cost optimisation. Scoped to **building on existing
+  models**; model training belongs to the DA family (CA-112)
+* feat(competence): weight `E2-82` AI safety on archetype **C** (steady-high) while the other ten are **F**. Same
+  principle as accessibility in Increment 3: a junior shipping an unguarded system is a governance failure, not a
+  developmental gap that seniority closes, and a steady-high weighting states that in the scoring rather than
+  leaving it to be inferred (CA-112)
+* feat(competence): seed specialization sets for `2026-H2` — `DATABASE_ARCHITECTURE` 8 codes (its five plus the
+  three shared cross-cutting architecture competencies) and `AI_ENGINEERING` 6. Note that
+  DATABASE_ARCHITECTURE lands **exactly on the cap**: 22 baseline + 8 = 30. Any future addition to the SE baseline
+  will push it over and fail cycle-lock validation (CA-112)
+* fix(competence): write the Increment 4 archetype assignments as table **rows** rather than the prose the model
+  document used for the database five ("all → F"). The generator reads assignments from tables; a prose statement
+  is invisible to it and an unassigned dictionary code aborts the build. This is the third increment where prose
+  assignments would have been silently dropped (CA-112)
+* docs(competence): all eleven carry a complete name, description and six anchors in both languages, and the
+  design records are brought up to date — definitions and master index taken wholesale, the change log and
+  relevancy model **grafted** rather than replaced, since the working copies would have deleted the twelve
+  architecture and five management assignment rows already in the repo (CA-112)
+* build(release): bump package version from `3.26.0` to `3.27.0`
+
 ## Version 3.26.0
 
 The **T stage-letter gains a second sub-level**: `T1` is Team Lead, `T2` is Head of Department. Scope text is

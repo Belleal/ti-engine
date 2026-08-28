@@ -231,7 +231,48 @@ work is a compliance failure, not an understandable gap, and the weighting shoul
 
 ---
 
-## Increment 4 — `[QE specializations, or DA / IO / MC / PD, as built]`
+## Increment 4 — SE specializations: Database Architecture & AI Engineering
+
+**Date:** 28 August 2026
+**Implemented:** competence **v3.27.0** (CA-112)
+**Status:** ✅ **implemented.** Closes the two items left pending from Increment 3.
+
+### 4a. Added — new competencies (11)
+
+| Specialization | Codes | Names |
+|---|---|---|
+| **SE.DATABASE_ARCHITECTURE** (5) | E2-73 … E2-77 | Data modelling and schema design · Database performance tuning and query optimisation · Database reliability, backup and recovery design · Database migration and change management · Database security and access control |
+| **SE.AI_ENGINEERING** (6) | E2-78 … E2-83 | Model integration and prompt engineering · Retrieval and context engineering · Agent and tool orchestration · Evaluating non-deterministic systems · AI safety, guardrails and responsible deployment · Model selection and cost-performance optimisation |
+
+### 4b. Archetypes
+
+All → **F** (rising, expert-leaning), except **E2-82 AI safety → C** (steady-high), on the same principle as
+accessibility: a safety obligation applies at every level rather than rising with seniority. A junior shipping an
+unguarded system is a governance failure, not a developmental gap, and the weighting says so.
+
+### 4c. Scoping notes
+
+- **DATABASE_ARCHITECTURE** draws the three shared cross-cutting architecture competencies (E2-52/53/54) in
+  addition to its five, giving 8 on top of the SE baseline.
+- **AI_ENGINEERING** covers building on existing models. **Model training and development belong to DA**, not here.
+- Neither specialization introduces new shared competencies.
+
+### 4d. Config impact — as implemented
+
+| File | Action |
+|---|---|
+| `config.competencies.json` | **+11** entries (E2-73 … E2-83); dictionary 175 → **186** |
+| `competence-labels.json` | **+11 × 8 strings × 2 languages**, plus the two specializations' name/description pairs |
+| `config.role-families.json` | **Added** `SE.DATABASE_ARCHITECTURE` and `SE.AI_ENGINEERING` |
+| `competency-relevancy-model.md` | Assignments added **as rows**, not prose. The database five were specified as "all → F" in prose, which the generator cannot see — the same shape that silently dropped assignments in Increment 3 |
+| `config.role-family-competencies.json` · `relevancyArchetype` fields | **Generated** from the model doc (working rule 6). SE pool 74 → **85** |
+| `config.active-competency-sets.json` | Specialization sets for 2026-H2: DATABASE_ARCHITECTURE 8 (its 5 + the 3 shared), AI_ENGINEERING 6 |
+
+**Next code positions after Increment 4:** E1-67 · **E2-84** · E3-34 · I1-14 · C2-8 · C3-10 · I2-14
+
+---
+
+## Increment 5 — `[QE specializations, or DA / IO / MC / PD, as built]`
 
 *Reserved.*
 
