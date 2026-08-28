@@ -838,7 +838,7 @@
         "T": "competency.scope.E1-49.T"
       },
       "eCFMapping": [],
-      "relevancyArchetype": "E"
+      "relevancyArchetype": "A"
     },
     "E1-50": {
       "name": "competency.name.E1-50",
@@ -886,7 +886,7 @@
         "T": "competency.scope.E1-52.T"
       },
       "eCFMapping": [],
-      "relevancyArchetype": "B"
+      "relevancyArchetype": "A"
     },
     "E1-53": {
       "name": "competency.name.E1-53",
@@ -902,7 +902,7 @@
         "T": "competency.scope.E1-53.T"
       },
       "eCFMapping": [],
-      "relevancyArchetype": "E"
+      "relevancyArchetype": "B"
     },
     "E1-54": {
       "name": "competency.name.E1-54",
@@ -934,7 +934,7 @@
         "T": "competency.scope.E1-55.T"
       },
       "eCFMapping": [],
-      "relevancyArchetype": "F"
+      "relevancyArchetype": "B"
     },
     "E1-56": {
       "name": "competency.name.E1-56",
@@ -1542,7 +1542,7 @@
         "T": "competency.scope.E2-46.T"
       },
       "eCFMapping": [],
-      "relevancyArchetype": "C"
+      "relevancyArchetype": "E"
     },
     "E2-47": {
       "name": "competency.name.E2-47",
@@ -1622,7 +1622,7 @@
         "T": "competency.scope.E2-51.T"
       },
       "eCFMapping": [],
-      "relevancyArchetype": "E"
+      "relevancyArchetype": "B"
     },
     "E3-1": {
       "name": "competency.name.E3-1",
@@ -2054,7 +2054,7 @@
         "T": "competency.scope.I1-10.T"
       },
       "eCFMapping": [],
-      "relevancyArchetype": "C"
+      "relevancyArchetype": "D"
     },
     "I2-1": {
       "name": "competency.name.I2-1",
@@ -2214,7 +2214,7 @@
         "T": "competency.scope.E2-52.T"
       },
       "eCFMapping": [],
-      "relevancyArchetype": "B"
+      "relevancyArchetype": "F"
     },
     "E2-53": {
       "name": "competency.name.E2-53",
@@ -2230,7 +2230,7 @@
         "T": "competency.scope.E2-53.T"
       },
       "eCFMapping": [],
-      "relevancyArchetype": "B"
+      "relevancyArchetype": "F"
     },
     "E2-54": {
       "name": "competency.name.E2-54",
@@ -2246,7 +2246,7 @@
         "T": "competency.scope.E2-54.T"
       },
       "eCFMapping": [],
-      "relevancyArchetype": "B"
+      "relevancyArchetype": "F"
     },
     "E2-55": {
       "name": "competency.name.E2-55",

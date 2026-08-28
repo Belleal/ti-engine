@@ -5376,12 +5376,12 @@
         "bg": "Невалидно ниво."
       },
       "invalid-stage": {
-        "en": "Stage must be between 1 and 3.",
-        "bg": "Степента трябва да е между 1 и 3."
+        "en": "Stage must be a whole number, 1 or higher.",
+        "bg": "Степента трябва да е цяло число, 1 или по-голямо."
       },
       "invalid-stage-for-level": {
-        "en": "Levels N, X and T only support stage 1.",
-        "bg": "Нива N, X и T поддържат само степен 1."
+        "en": "That stage is not available for the selected level.",
+        "bg": "Тази степен не е налична за избраното ниво."
       },
       "invalid-organization-unit": {
         "en": "Selected organization unit does not exist.",
@@ -10774,36 +10774,44 @@
       "G": {
         "en": "Rising, manager-leaning",
         "bg": "Нарастващо, с насоченост към мениджъра"
+      },
+      "H": {
+        "en": "**Management-track** *(new)*",
+        "bg": "Управленски път"
       }
     },
     "description": {
       "A": {
-        "en": "Fundamentals important from day one that stay important (core knowledge, everyday tools)",
+        "en": "Fundamentals important from day one that stay important",
         "bg": "Основи, важни от първия ден, които остават важни (основни знания, всекидневни инструменти)."
       },
       "B": {
-        "en": "Capabilities expected to grow markedly with level (advanced knowledge, strategy, experience, most interpersonal growth)",
+        "en": "Capabilities expected to grow markedly with level",
         "bg": "Способности, които се очаква да нарастват значително с нивото (задълбочени знания, стратегия, опит, по-голямата част от междуличностното развитие)."
       },
       "C": {
-        "en": "Consistently important at all levels (ethics, deadlines, core communication, process adherence)",
+        "en": "Consistently important at all levels (ethics, deadlines, core communication)",
         "bg": "Последователно важни на всички нива (етика, срокове, основна комуникация, спазване на процеси)."
       },
       "D": {
-        "en": "Hands-on mechanics evaluated heavily early, mastered/assumed later (basic coding mechanics, conventions)",
+        "en": "Hands-on mechanics evaluated heavily early, assumed later",
         "bg": "Практически механики, оценявани силно в началото, усвоени/подразбиращи се по-късно (базови умения за писане на код, конвенции)."
       },
       "E": {
-        "en": "Applied skills peaking at regular/senior (core \"doing\" competencies of each discipline)",
+        "en": "Applied skills peaking at regular/senior",
         "bg": "Приложни умения, достигащи пик при стандартно/старши ниво (основните „изпълнителски“ компетентности на всяка дисциплина)."
       },
       "F": {
-        "en": "Deep technical capabilities where the IC expert is the authority (architecture, R&D, technical debt)",
+        "en": "Deep technical capabilities where the IC expert is the authority",
         "bg": "Дълбоки технически способности, при които експертът (IC) е авторитетът (архитектура, R&D, технически дълг)."
       },
       "G": {
-        "en": "People/team capabilities where the manager track is the peak (delegation, leadership, developing & motivating others)",
+        "en": "People/team capabilities peaking on the management track",
         "bg": "Способности за работа с хора и екипи, при които мениджърският път е пикът (делегиране, лидерство, развиване и мотивиране на други)."
+      },
+      "H": {
+        "en": "Management-of-managers capabilities: negligible for ICs, substantial at T1, peaking at T2",
+        "bg": "Способности за управление на управляващи: пренебрежими за индивидуалните сътрудници, съществени при ръководител на екип (T1) и с пик при ръководител на отдел (T2)."
       }
     }
   },

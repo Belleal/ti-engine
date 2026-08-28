@@ -28,7 +28,7 @@ const NOT_STARTED_LABEL = "Not started";
 // The 12 flattened stage-level rungs (the archetype curve keys), in ladder order. Mirrors config.stage-levels.json /
 // the archetype weight keys; kept as a constant so R5 always renders all 12 boxes (even empty levels) for the drift
 // narrative. The resolve wiring may override via filter.stageLevels, but this is the canonical order.
-const STAGE_LEVELS = Object.freeze( [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1" ] );
+const STAGE_LEVELS = Object.freeze( [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1", "T2" ] );
 
 // Small-cell suppression floor (resolved decision §7.5) — a level/cell with fewer reported rows is suppressed.
 const MIN_COHORT_SIZE = 3;

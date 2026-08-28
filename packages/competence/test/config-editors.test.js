@@ -8,6 +8,7 @@
 
 const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
+const configurationLoader = require( "#configuration-loader" );
 const {
     SCOPE_LEVELS, ARCHETYPE_STAGE_LEVELS,
     composeCompetencyText, decomposeCompetencyText,
@@ -220,12 +221,12 @@ describe( "config-editors — composeArchetypeAssignment / decomposeArchetypeAss
 
 describe( "config-editors — composeRelevancyArchetype / decomposeRelevancyArchetype", () => {
 
-    it( "projects curves with bilingual name/description, twelve weights, and assignment counts", () => {
+    it( "projects curves with bilingual name/description, a weight per stage sub-level, and assignment counts", () => {
         const view = composeRelevancyArchetype( archetypeFixture() );
         assert.deepEqual( view.stageLevels, ARCHETYPE_STAGE_LEVELS );
         const a = view.rows.find( ( r ) => r.id === "A" );
         assert.deepEqual( a.name, { en: "Alpha", bg: "Алфа" } );
-        assert.equal( Object.keys( a.weights ).length, 12 );
+        assert.equal( Object.keys( a.weights ).length, configurationLoader.getArchetypeStageLevels().length );
         assert.equal( a.weights.T1, 6 );
         assert.equal( a.assignedCount, 2, "A is assigned to E1-1 and C1-1" );
         assert.equal( view.rows.find( ( r ) => r.id === "B" ).assignedCount, 1 );

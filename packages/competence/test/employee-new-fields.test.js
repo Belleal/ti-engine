@@ -310,3 +310,33 @@ describe( "Employee Management clear must actually reach the store (CA-109 Task 
     } );
 
 } );
+
+describe( "validateEmployee — stage against the ladder", () => {
+
+    // The bound used to be a hard-coded 1-3 plus a list of single-stage rungs. That silently accepted T3 the
+    // moment CA-111 gave T two sub-levels: nothing tied the check to the ladder that defines them. It is now
+    // derived, so a rung gaining or losing a sub-level cannot leave the validator behind.
+    const ladder = configurationLoader.getStageLevelLadder().reduce( ( map, entry ) => {
+        map[ entry.code ] = entry.stages.length;
+        return map;
+    }, {} );
+
+    for ( const [ level, count ] of Object.entries( ladder ) ) {
+        it( `accepts every stage ${ level } declares and rejects the one past it`, () => {
+            for ( let stage = 1; stage <= count; stage++ ) {
+                assert.equal( employeeRules.instance.validateEmployee( employee( {}, { level: level, stage: stage } ), CONTEXT ), null,
+                    `${ level }${ stage } is declared by the ladder and must be valid` );
+            }
+            assert.equal( employeeRules.instance.validateEmployee( employee( {}, { level: level, stage: count + 1 } ), CONTEXT ),
+                "error.employee.invalid-stage-for-level", `${ level }${ count + 1 } is past what ${ level } declares` );
+        } );
+    }
+
+    it( "rejects a zero, negative or non-integer stage outright", () => {
+        for ( const stage of [ 0, -1, 1.5, "2", null ] ) {
+            assert.equal( employeeRules.instance.validateEmployee( employee( {}, { level: "R", stage: stage } ), CONTEXT ),
+                "error.employee.invalid-stage", `stage ${ JSON.stringify( stage ) } must be rejected` );
+        }
+    } );
+
+} );

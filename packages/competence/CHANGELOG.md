@@ -2,6 +2,49 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.26.0
+
+The **T stage-letter gains a second sub-level**: `T1` is Team Lead, `T2` is Head of Department. Scope text is
+untouched — both read the same `T` anchors, since scope is defined per letter while relevancy is defined per
+sub-level — so the two are distinguished by weighting rather than by a seventh letter that would have needed ~146
+new behavioural anchors in each language.
+
+* refactor(competence)!: rename the performance bands from `T1`–`T5` to **`P1`–`P5`**. They collided with the stage
+  ladder: `T1` was both the Team Lead sub-level and the first performance band, and both meanings already sat a few
+  lines apart in `results-analytics.js`. Adding `T2` would have made one token mean "Head of Department" and
+  "performance band 2" in the same file. **BREAKING** for stored data — the band code is persisted as every
+  evaluation score's `interpretation` and as the `tBandMix` key inside the per-cycle `ResultsSnapshot`, which is
+  immutable and not back-fillable, so a development deployment must clear its evaluations and snapshots. Done now
+  precisely because once a real cycle closes its snapshot is frozen with the old vocabulary. A guard test pins the
+  two vocabularies apart, checking the letter as well as the token (CA-111)
+* feat(competence): add `T2` to the stage ladder as `T.stages: 2`. The ladder is data, so
+  `getArchetypeStageLevels()` emits thirteen keys with no code change; the archetype schema gains `T2` as a required
+  weight, which is mandatory rather than cosmetic since the weights object is `additionalProperties: false` (CA-111)
+* feat(competence): add relevancy archetype **H — Management-track**
+  (`N1 2 · J1 2 · J2 2 · J3 2 · R1 2 · R2 3 · R3 3 · S1 4 · S2 4 · S3 5 · X1 4 · T1 8 · T2 10`) and a `T2` weight on
+  all seven existing archetypes. The shape is deliberate: hands-on curves (A, D, E, F) decline from T1 to T2 while
+  people and conceptual curves (B, C, G, H) hold or rise, so a head of department is scored on a different balance
+  of capabilities rather than uniformly higher than a team lead (CA-111)
+* fix(competence): validate an employee's stage against the ladder's own declared sub-level count instead of a
+  hard-coded `1..3` bound plus a list of single-stage rungs. The old form silently accepted `T3` the moment `T`
+  gained a second sub-level — nothing tied the bound to the ladder that defines it. A rung gaining or losing a
+  sub-level can no longer leave the validator behind (CA-111)
+* fix(competence): revise ten archetype assignments from the updated model document — seven QE (`E1-49` E→A,
+  `E1-52` B→A, `E1-53` E→B, `E1-55` F→B, `E2-46` C→E, `E2-51` E→B, `I1-10` C→D) and the three cross-cutting
+  architecture codes (`E2-52`/`E2-53`/`E2-54` B→F). The architecture change reverses the split chosen while
+  implementing CA-110: all twelve are deep capabilities where the IC expert is the authority, and F is right
+  precisely because it declines on the management track (CA-111)
+* fix(competence): make the relevancy generator tolerate markdown emphasis in a weight cell. The model document
+  bolds its newest column to draw the reviewer's eye, exactly as it bolds the archetype id, and a bolded weight was
+  parsing as `NaN` (CA-111)
+* test(competence): derive the stage-level list and its length from the ladder in six test files rather than
+  restating twelve keys. Every one of them would have gone stale on this change, which is how they were written and
+  how they would go stale again (CA-111)
+* build(release): bump package version from `3.25.0` to `3.26.0`
+
+**Still to land in this increment:** the five management competencies on archetype H, and the XD family baseline
+(24 competencies).
+
 ## Version 3.25.0
 
 Increment 2 of the competency model: the **architecture competencies** and the two specializations that carry them.

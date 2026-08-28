@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ti-engine.dev/schemas/competence/relevancy-archetypes.json",
   "title": "Relevancy Archetypes Configuration",
-  "description": "Relevancy curve archetypes. Each archetype maps to a 12 stage-level weight curve; competencies reference an archetype by id (config.competencies.json relevancyArchetype) and the effective per-stage-level relevancy is resolved from the archetype's curve.",
+  "description": "Relevancy curve archetypes. Each archetype maps to a 13 stage-level weight curve; competencies reference an archetype by id (config.competencies.json relevancyArchetype) and the effective per-stage-level relevancy is resolved from the archetype's curve.",
   "type": "object",
   "patternProperties": {
     "^[A-Za-z0-9_-]+$": {
@@ -39,22 +39,50 @@
         "S2",
         "S3",
         "X1",
-        "T1"
+        "T1",
+        "T2"
       ],
       "additionalProperties": false,
       "properties": {
-        "N1": { "$ref": "#/$defs/score" },
-        "J1": { "$ref": "#/$defs/score" },
-        "J2": { "$ref": "#/$defs/score" },
-        "J3": { "$ref": "#/$defs/score" },
-        "R1": { "$ref": "#/$defs/score" },
-        "R2": { "$ref": "#/$defs/score" },
-        "R3": { "$ref": "#/$defs/score" },
-        "S1": { "$ref": "#/$defs/score" },
-        "S2": { "$ref": "#/$defs/score" },
-        "S3": { "$ref": "#/$defs/score" },
-        "X1": { "$ref": "#/$defs/score" },
-        "T1": { "$ref": "#/$defs/score" }
+        "N1": {
+          "$ref": "#/$defs/score"
+        },
+        "J1": {
+          "$ref": "#/$defs/score"
+        },
+        "J2": {
+          "$ref": "#/$defs/score"
+        },
+        "J3": {
+          "$ref": "#/$defs/score"
+        },
+        "R1": {
+          "$ref": "#/$defs/score"
+        },
+        "R2": {
+          "$ref": "#/$defs/score"
+        },
+        "R3": {
+          "$ref": "#/$defs/score"
+        },
+        "S1": {
+          "$ref": "#/$defs/score"
+        },
+        "S2": {
+          "$ref": "#/$defs/score"
+        },
+        "S3": {
+          "$ref": "#/$defs/score"
+        },
+        "X1": {
+          "$ref": "#/$defs/score"
+        },
+        "T1": {
+          "$ref": "#/$defs/score"
+        },
+        "T2": {
+          "$ref": "#/$defs/score"
+        }
       }
     },
     "score": {

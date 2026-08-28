@@ -8,6 +8,7 @@
 
 const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
+const configurationLoader = require( "#configuration-loader" );
 
 const exceptions = require( "@ti-engine/core/exceptions" );
 const resultsAnalytics = require( "#results-analytics" );
@@ -561,10 +562,10 @@ describe( "ResultsAnalytics.computeLevelDistribution (R5)", () => {
 
     const groupById = ( report, id ) => report.groups.find( ( g ) => g.id === id );
 
-    it( "produces all 12 stage-level groups in ladder order + the T3=105 reference", () => {
+    it( "produces every stage-level group in ladder order + the P3=105 reference", () => {
         const report = resultsAnalyticsInstance.computeLevelDistribution( [], {} );
-        assert.equal( report.groups.length, 12 );
-        assert.deepEqual( report.groups.map( ( g ) => g.id ), [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1" ] );
+        assert.equal( report.groups.length, configurationLoader.getArchetypeStageLevels().length );
+        assert.deepEqual( report.groups.map( ( g ) => g.id ), configurationLoader.getArchetypeStageLevels() );
         assert.deepEqual( report.reference, [ { v: 105, label: "P3" } ] );
         assert.equal( report.groups[ 0 ].suppressed, true );   // empty level
         assert.equal( report.groups[ 0 ].n, 0 );

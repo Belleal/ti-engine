@@ -141,7 +141,92 @@ Competency texts are **labels**, and the affected config documents are **store-b
 
 ---
 
-## Increment 3 — `[QE specializations, or XD / DA / IO / MC / PD, as built]`
+## Increment 3 — Management set + T2 stage-level + XD family
+
+**Date:** 26 July 2026
+**Status:** 🔨 **partially implemented** — the framework change landed in competence **v3.26.0** (CA-111); the
+management set and the XD family follow in the same increment.
+
+### 3a. Framework — the T stage-letter gains a second sub-level ✅ implemented
+
+`T` becomes `T1` (Team Lead) and `T2` (Head of Department). **Scope text is unchanged** — both read the same `T`
+anchors, because scope is defined per letter while relevancy is defined per sub-level. Only relevancy gains a
+column.
+
+| File | Action |
+|---|---|
+| `config.stage-levels.json` | `T.stages` 1 → 2. The ladder is data, so `getArchetypeStageLevels()` now emits 13 keys with no code change |
+| `relevancy-archetypes.schema.json` | `T2` added to `required` and `properties` — the weights object is `additionalProperties: false`, so without this every curve fails validation |
+| `config.relevancy-archetypes.json` · `relevancyArchetype` fields | **Generated** from the model doc, never hand-edited (working rule 6) |
+| Scope text / labels | **No change.** No new anchors, no Bulgarian retranslation |
+
+*Rationale for T2 over a seventh `M` letter is in `competency-relevancy-model.md`: a new letter would have needed
+~146 new anchors in each language, most of them the T anchor with "team" swapped for "department" — near-duplicates
+that fail the specific-example test and teach raters the instrument does not discriminate.*
+
+**Two things the change forced, neither of them anticipated by this document:**
+
+- **The performance bands were renamed `T1`–`T5` → `P1`–`P5`.** They and the stage sub-levels both used `T1`, and
+  both meanings already sat a few lines apart in `results-analytics.js`. Adding `T2` would have made one token mean
+  "Head of Department" and "performance band 2" in the same file. Done before any real cycle closes, because the
+  band code is persisted as each score's `interpretation` and as the `tBandMix` key inside the immutable,
+  non-back-fillable `ResultsSnapshot`. A guard test now pins the two vocabularies apart.
+- **Stage validation is now ladder-driven.** It was a hard-coded `1..3` bound plus a list of single-stage rungs,
+  which silently accepted `T3` the moment `T` gained a second sub-level. It now reads each rung's declared stage
+  count, so a rung gaining or losing one cannot leave the validator behind.
+
+### 3b. New relevancy archetype ✅ implemented
+
+**H — Management-track:** `N1 2 · J1 2 · J2 2 · J3 2 · R1 2 · R2 3 · R3 3 · S1 4 · S2 4 · S3 5 · X1 4 · T1 8 · T2 10`
+
+All seven existing archetypes also gained a T2 value. The shape is deliberate: hands-on curves (**A**, **D**, **E**,
+**F**) decline from T1 to T2 while people and conceptual curves (**B**, **C**, **G**, **H**) hold or rise, so a head
+of department is scored on a different balance rather than uniformly higher than a team lead.
+
+H is defined and carries a curve but is not yet assigned — it belongs to the five management competencies below.
+
+### 3c. Ten previously-assigned archetypes revised ✅ implemented
+
+The model update changed ten assignments that had already shipped: seven QE (E1-49 E→A, E1-52 B→A, E1-53 E→B,
+E1-55 F→B, E2-46 C→E, E2-51 E→B, I1-10 C→D) and the three cross-cutting architecture codes (E2-52/53/54 B→F).
+
+The architecture change reverses the split chosen while implementing Increment 2. The document's reasoning: all
+twelve are deep capabilities where the individual-contributor expert is the authority, and F is right precisely
+because it declines on the management track — a head of department is not the architecture authority.
+
+### 3d. Added — management competencies (5, shared) ⏳ pending
+
+| Code | Name | Archetype |
+|---|---|---|
+| C3-8 | Developing and leading managers | H |
+| C3-9 | Talent management and succession planning | H |
+| I2-12 | Departmental capacity and resource planning | H |
+| I2-13 | Strategic alignment and objective cascade | H |
+| C2-7 | Cross-functional collaboration and organizational influence | H |
+
+*Codes deliberately continue above all previously-used numbers to avoid collision with retired codes (C2-6, C3-6,
+C3-7, I2-7…I2-11 are retired).*
+
+### 3e. Added — XD family baseline (24) ⏳ pending
+
+E1-58…E1-66 (9) · E2-64…E2-72 (9) · E3-31…E3-33 (3) · I1-11…I1-13 (3).
+
+Accessibility appears twice by design — E1-63 (standards knowledge) and E2-72 (implementation and validation) —
+reflecting the public-sector obligation, and both are weighted **C** rather than B: a junior producing inaccessible
+work is a compliance failure, not an understandable gap, and the weighting should say so.
+
+### 3f. Approved but content pending — do not implement yet
+
+| Specialization | Placement | Status |
+|---|---|---|
+| `SE.DATABASE_ARCHITECTURE` | SE family | Placement approved; ~4 competencies **not yet written** |
+| `SE.AI_ENGINEERING` | SE family | Placement approved; ~6 competencies **not yet written** |
+
+**Next code positions after Increment 3:** E1-67 · E2-73 · E3-34 · I1-14 · C2-8 · C3-10 · I2-14
+
+---
+
+## Increment 4 — `[QE specializations, or DA / IO / MC / PD, as built]`
 
 *Reserved.*
 

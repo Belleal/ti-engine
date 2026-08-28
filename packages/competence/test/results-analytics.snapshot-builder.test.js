@@ -8,6 +8,7 @@
 
 const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
+const configurationLoader = require( "#configuration-loader" );
 
 const resultsAnalytics = require( "#results-analytics" );
 
@@ -57,11 +58,11 @@ describe( "ResultsAnalytics.buildResultsSnapshot — locked shape", () => {
         assert.deepEqual( snap.byRoleFamily, {} );
         assert.deepEqual( snap.byOrgUnit, {} );
 
-        // R5 (CA-67): levelDistribution + byStageLevel are populated from the frame; an unscored frame yields all 12
-        // rungs suppressed (n:0) but the stable axis is present.
-        assert.equal( Object.keys( snap.byStageLevel ).length, 12 );
+        // R5 (CA-67): levelDistribution + byStageLevel are populated from the frame; an unscored frame yields every
+        // rung suppressed (n:0) but the stable axis is present.
+        assert.equal( Object.keys( snap.byStageLevel ).length, configurationLoader.getArchetypeStageLevels().length );
         assert.deepEqual( snap.byStageLevel.N1, { n: 0, suppressed: true } );   // CA-X4 review: small cells carry the suppressed flag (parity with byRoleFamily/byOrgUnit)
-        assert.equal( snap.reports.levelDistribution.groups.length, 12 );
+        assert.equal( snap.reports.levelDistribution.groups.length, configurationLoader.getArchetypeStageLevels().length );
         assert.deepEqual( snap.reports.levelDistribution.reference, [ { v: 105, label: "P3" } ] );
 
         // R4 (CA-67): heatmap + bySubcategory present; an unscored frame yields no cells and an empty-but-keyed axis.
