@@ -13,12 +13,12 @@ Authoritative code → name → applicability reference for the rebuilt competen
 
 | Group | E1 | E2 | E3 | I1 | I2 | I3 | C1 | C2 | C3 | Total |
 |---|---|---|---|---|---|---|---|---|---|---|
-| SE family-specific | 9 | 14 | 5 | 3 | — | — | — | — | — | 31 |
-| BA family-specific | 7 | 9 | 3 | 2 | — | — | — | — | — | 21 |
+| SE family-specific | 9 | 18 | 5 | 3 | — | — | — | — | — | 35 |
+| BA family-specific | 7 | 14 | 3 | 2 | — | — | — | — | — | 26 |
 | PM family-specific | 12 | 8 | 3 | 2 | — | — | — | — | — | 25 |
 | QE family-specific | 10 | 10 | 3 | 3 | — | — | — | — | — | 26 |
-| Shared canonical | 1 | — | 3 | — | 6 | 3 | 8 | 5 | 5 | 31 |
-| **Distinct total** | | | | | | | | | | **134** |
+| Shared canonical | 1 | 3 | 3 | — | 6 | 3 | 8 | 5 | 5 | 34 |
+| **Distinct total** | | | | | | | | | | **146** |
 
 Each family, in practice, draws its own Expertise + I1 plus whichever shared canonical competencies HR selects → roughly 55–60 competencies available per family before the per-cycle cap (default 30) is applied.
 
@@ -75,6 +75,14 @@ Each family, in practice, draws its own Expertise + I1 plus whichever shared can
 
 ---
 
+**E2 — SE.ARCHITECTURE specialization**
+| Code | Name |
+|---|---|
+| E2-55 | System decomposition and boundary design |
+| E2-56 | Architectural governance and design review |
+| E2-57 | Scalability and resilience design |
+| E2-58 | Architecture evolution and migration planning |
+
 ## BA — Business Analysis (family-specific)
 
 *`E1-10 Business and IT domain knowledge` was promoted to Shared Canonical in the QE increment; BA continues to reference it from there.*
@@ -117,6 +125,15 @@ Each family, in practice, draws its own Expertise + I1 plus whichever shared can
 | I1-5 | Change management in the business-analysis context |
 
 ---
+
+**E2 — BA.SOLUTION_ARCHITECTURE specialization**
+| Code | Name |
+|---|---|
+| E2-59 | Cross-system and cross-institutional solution design |
+| E2-60 | Interoperability and standards compliance |
+| E2-61 | Solution feasibility, sizing and costing |
+| E2-62 | Vendor and product evaluation |
+| E2-63 | Client-facing solution justification |
 
 ## PM — Project & Delivery Management (family-specific)
 
@@ -214,6 +231,16 @@ Each family, in practice, draws its own Expertise + I1 plus whichever shared can
 ## Shared Canonical (available to all families)
 
 *Referenced by every family that needs them; selected into a family's active set per cycle by HR. Written once, family-agnostic.*
+
+**E2 (cross-cutting) — Applied skills**
+
+*Written once; drawn on by SE.ARCHITECTURE and BA.SOLUTION_ARCHITECTURE only — not by every family, unlike the groups above.*
+
+| Code | Name |
+|---|---|
+| E2-52 | Architecture documentation and decision records |
+| E2-53 | Quality attribute and trade-off analysis |
+| E2-54 | Technology evaluation and selection |
 
 **E1 (cross-cutting) — Theoretical knowledge**
 | Code | Name |

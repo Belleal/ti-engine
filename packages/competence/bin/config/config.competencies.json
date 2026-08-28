@@ -2199,6 +2199,198 @@
       },
       "eCFMapping": [],
       "relevancyArchetype": "E"
+    },
+    "E2-52": {
+      "name": "competency.name.E2-52",
+      "description": "competency.description.E2-52",
+      "category": "E",
+      "subcategory": "E2",
+      "scope": {
+        "N": "competency.scope.E2-52.N",
+        "J": "competency.scope.E2-52.J",
+        "R": "competency.scope.E2-52.R",
+        "S": "competency.scope.E2-52.S",
+        "X": "competency.scope.E2-52.X",
+        "T": "competency.scope.E2-52.T"
+      },
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
+    },
+    "E2-53": {
+      "name": "competency.name.E2-53",
+      "description": "competency.description.E2-53",
+      "category": "E",
+      "subcategory": "E2",
+      "scope": {
+        "N": "competency.scope.E2-53.N",
+        "J": "competency.scope.E2-53.J",
+        "R": "competency.scope.E2-53.R",
+        "S": "competency.scope.E2-53.S",
+        "X": "competency.scope.E2-53.X",
+        "T": "competency.scope.E2-53.T"
+      },
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
+    },
+    "E2-54": {
+      "name": "competency.name.E2-54",
+      "description": "competency.description.E2-54",
+      "category": "E",
+      "subcategory": "E2",
+      "scope": {
+        "N": "competency.scope.E2-54.N",
+        "J": "competency.scope.E2-54.J",
+        "R": "competency.scope.E2-54.R",
+        "S": "competency.scope.E2-54.S",
+        "X": "competency.scope.E2-54.X",
+        "T": "competency.scope.E2-54.T"
+      },
+      "eCFMapping": [],
+      "relevancyArchetype": "B"
+    },
+    "E2-55": {
+      "name": "competency.name.E2-55",
+      "description": "competency.description.E2-55",
+      "category": "E",
+      "subcategory": "E2",
+      "scope": {
+        "N": "competency.scope.E2-55.N",
+        "J": "competency.scope.E2-55.J",
+        "R": "competency.scope.E2-55.R",
+        "S": "competency.scope.E2-55.S",
+        "X": "competency.scope.E2-55.X",
+        "T": "competency.scope.E2-55.T"
+      },
+      "eCFMapping": [],
+      "relevancyArchetype": "F"
+    },
+    "E2-56": {
+      "name": "competency.name.E2-56",
+      "description": "competency.description.E2-56",
+      "category": "E",
+      "subcategory": "E2",
+      "scope": {
+        "N": "competency.scope.E2-56.N",
+        "J": "competency.scope.E2-56.J",
+        "R": "competency.scope.E2-56.R",
+        "S": "competency.scope.E2-56.S",
+        "X": "competency.scope.E2-56.X",
+        "T": "competency.scope.E2-56.T"
+      },
+      "eCFMapping": [],
+      "relevancyArchetype": "F"
+    },
+    "E2-57": {
+      "name": "competency.name.E2-57",
+      "description": "competency.description.E2-57",
+      "category": "E",
+      "subcategory": "E2",
+      "scope": {
+        "N": "competency.scope.E2-57.N",
+        "J": "competency.scope.E2-57.J",
+        "R": "competency.scope.E2-57.R",
+        "S": "competency.scope.E2-57.S",
+        "X": "competency.scope.E2-57.X",
+        "T": "competency.scope.E2-57.T"
+      },
+      "eCFMapping": [],
+      "relevancyArchetype": "F"
+    },
+    "E2-58": {
+      "name": "competency.name.E2-58",
+      "description": "competency.description.E2-58",
+      "category": "E",
+      "subcategory": "E2",
+      "scope": {
+        "N": "competency.scope.E2-58.N",
+        "J": "competency.scope.E2-58.J",
+        "R": "competency.scope.E2-58.R",
+        "S": "competency.scope.E2-58.S",
+        "X": "competency.scope.E2-58.X",
+        "T": "competency.scope.E2-58.T"
+      },
+      "eCFMapping": [],
+      "relevancyArchetype": "F"
+    },
+    "E2-59": {
+      "name": "competency.name.E2-59",
+      "description": "competency.description.E2-59",
+      "category": "E",
+      "subcategory": "E2",
+      "scope": {
+        "N": "competency.scope.E2-59.N",
+        "J": "competency.scope.E2-59.J",
+        "R": "competency.scope.E2-59.R",
+        "S": "competency.scope.E2-59.S",
+        "X": "competency.scope.E2-59.X",
+        "T": "competency.scope.E2-59.T"
+      },
+      "eCFMapping": [],
+      "relevancyArchetype": "F"
+    },
+    "E2-60": {
+      "name": "competency.name.E2-60",
+      "description": "competency.description.E2-60",
+      "category": "E",
+      "subcategory": "E2",
+      "scope": {
+        "N": "competency.scope.E2-60.N",
+        "J": "competency.scope.E2-60.J",
+        "R": "competency.scope.E2-60.R",
+        "S": "competency.scope.E2-60.S",
+        "X": "competency.scope.E2-60.X",
+        "T": "competency.scope.E2-60.T"
+      },
+      "eCFMapping": [],
+      "relevancyArchetype": "F"
+    },
+    "E2-61": {
+      "name": "competency.name.E2-61",
+      "description": "competency.description.E2-61",
+      "category": "E",
+      "subcategory": "E2",
+      "scope": {
+        "N": "competency.scope.E2-61.N",
+        "J": "competency.scope.E2-61.J",
+        "R": "competency.scope.E2-61.R",
+        "S": "competency.scope.E2-61.S",
+        "X": "competency.scope.E2-61.X",
+        "T": "competency.scope.E2-61.T"
+      },
+      "eCFMapping": [],
+      "relevancyArchetype": "F"
+    },
+    "E2-62": {
+      "name": "competency.name.E2-62",
+      "description": "competency.description.E2-62",
+      "category": "E",
+      "subcategory": "E2",
+      "scope": {
+        "N": "competency.scope.E2-62.N",
+        "J": "competency.scope.E2-62.J",
+        "R": "competency.scope.E2-62.R",
+        "S": "competency.scope.E2-62.S",
+        "X": "competency.scope.E2-62.X",
+        "T": "competency.scope.E2-62.T"
+      },
+      "eCFMapping": [],
+      "relevancyArchetype": "F"
+    },
+    "E2-63": {
+      "name": "competency.name.E2-63",
+      "description": "competency.description.E2-63",
+      "category": "E",
+      "subcategory": "E2",
+      "scope": {
+        "N": "competency.scope.E2-63.N",
+        "J": "competency.scope.E2-63.J",
+        "R": "competency.scope.E2-63.R",
+        "S": "competency.scope.E2-63.S",
+        "X": "competency.scope.E2-63.X",
+        "T": "competency.scope.E2-63.T"
+      },
+      "eCFMapping": [],
+      "relevancyArchetype": "F"
     }
   }
 }

@@ -82,7 +82,66 @@ Competency texts are **labels**, and the affected config documents are **store-b
 
 ---
 
-## Increment 2 — `[XD / DA / IO / MC / PD, as built]`
+## Increment 2 — Architecture (SE.ARCHITECTURE + BA.SOLUTION_ARCHITECTURE)
+
+**Date:** 26 July 2026
+**Implemented:** competence **v3.25.0** (CA-110)
+**Status:** ✅ **complete and implemented** — 12 competencies and the two specializations that carry them.
+
+### 2a. Added — new competencies (12)
+
+| Group | Codes | Placement |
+|---|---|---|
+| **Cross-cutting E2** (3) | E2-52 Architecture documentation and decision records · E2-53 Quality attribute and trade-off analysis · E2-54 Technology evaluation and selection | **Shared** — new "E2 (cross-cutting)" group; referenced by both architecture specializations |
+| **SE.ARCHITECTURE** (4) | E2-55 System decomposition and boundary design · E2-56 Architectural governance and design review · E2-57 Scalability and resilience design · E2-58 Architecture evolution and migration planning | SE specialization |
+| **BA.SOLUTION_ARCHITECTURE** (5) | E2-59 Cross-system and cross-institutional solution design · E2-60 Interoperability and standards compliance · E2-61 Solution feasibility, sizing and costing · E2-62 Vendor and product evaluation · E2-63 Client-facing solution justification | BA specialization |
+
+### 2b. Structural / policy
+
+- **New shared group:** "E2 (cross-cutting) — Applied skills". Third application of the meaning-identity principle, after cross-cutting E1 and E3.
+- **New specializations:** `SE.ARCHITECTURE` and `BA.SOLUTION_ARCHITECTURE`. Neither existed previously — SE had Backend/Frontend/Mobile/Full-stack/Embedded; BA had Requirements/Process/Product Ownership/Data BA/Doc Proc.
+- **Architect roles resolved** as Role Family × Specialization × Stage-Level, not as seniority alone:
+  - Software Architect = **SE × ARCHITECTURE × X1**
+  - Solutions Architect = **BA × SOLUTION_ARCHITECTURE × (R | S | X)**
+- **Shared in the dictionary is not shared in the pool.** The three cross-cutting codes are written once, but they are listed under the **SE and BA** assignment tables in `competency-relevancy-model.md` rather than under *Shared*. That document's *Shared* section means "in every family's pool", and putting them there would let a PM or QE active set legitimately include architecture documentation. See the note in that file.
+
+### 2c. Stage-letter mapping — organizational rule
+
+| Position | Stage-letter |
+|---|---|
+| Проектант, информационни системи | **R** |
+| Старши проектант, информационни системи | **S** |
+| Главен проектант, информационни системи | **X** |
+
+**General rule established:** distinct job positions requiring distinct competency expectations must map to distinct stage-**letters**, because scope text is defined per letter (N/J/R/S/X/T) while relevancy weights are defined per sub-level (N1…T1). Two positions on S1 and S3 would read identical behavioural anchors. This yields **five distinguishable grades per track** (N, J, R, S, plus X or T) — verify the organization's full position catalogue against this limit before the cycle.
+
+*Corollary benefit:* sub-levels provide within-grade progression (R1 → R2 → R3) without changing competency expectations.
+
+### 2d. Config impact — as implemented
+
+| File | Action |
+|---|---|
+| `config.competencies.json` | **+12** entries (E2-52 … E2-63); dictionary 134 → **146** |
+| `competence-labels.json` | **+12 × 8 strings × 2 languages**, plus the two specializations' name/description pairs |
+| `config.role-families.json` | **Added** `SE.ARCHITECTURE` and `BA.SOLUTION_ARCHITECTURE` with localization keys and empty eCF mappings |
+| `competency-relevancy-model.md` | Assignments added under SE and BA: **B** for the three cross-cutting, **F** for the nine specialization-specific. Distribution check re-derived mechanically |
+| `config.role-family-competencies.json` · `relevancyArchetype` fields | **Generated**, not hand-edited — `npm run build:relevancy` from the model doc (working rule 6). SE pool 62 → **69**, BA 52 → **60**; PM/QE/others unchanged |
+| `config.active-competency-sets.json` | Added `SE.ARCHITECTURE` (7 codes) and `BA.SOLUTION_ARCHITECTURE` (8) for 2026-H2. Verified against the cap of 30: SE 22 + 7 = 29, BA 21 + 8 = 29 |
+
+*Note: earlier drafts of this table named `config.competency-relevancy.json`. That file no longer exists — relevancy is `config.relevancy-archetypes.json` (curves) plus a per-competency `relevancyArchetype`, and the pools are `config.role-family-competencies.json`.*
+
+### 2e. Verification after implementation
+
+- Content-integrity test passes: complete, non-empty en+bg name, description and six anchors for all 146.
+- The three cross-cutting codes appear in the SE and BA pools and in **no** other family's.
+- Both new specialization sets sit under the active-set cap with the family baseline.
+- Bulgarian was written in the same increment as the English (working rule 4), and is pending the owner's native review through the Archetype/Competency Text screens.
+
+**Next code positions after Increment 2:** E1-58 · **E2-64** · E3-31 · I1-11
+
+---
+
+## Increment 3 — `[QE specializations, or XD / DA / IO / MC / PD, as built]`
 
 *Reserved.*
 

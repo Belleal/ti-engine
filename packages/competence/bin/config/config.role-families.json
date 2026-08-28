@@ -27,6 +27,11 @@
         "name": "role-family.SE.specialization.name.EMBEDDED",
         "description": "role-family.SE.specialization.description.EMBEDDED",
         "eCFMapping": []
+      },
+      "ARCHITECTURE": {
+        "name": "role-family.SE.specialization.name.ARCHITECTURE",
+        "description": "role-family.SE.specialization.description.ARCHITECTURE",
+        "eCFMapping": []
       }
     }
   },
@@ -83,6 +88,11 @@
       "DOC_PROC": {
         "name": "role-family.BA.specialization.name.DOC_PROC",
         "description": "role-family.BA.specialization.description.DOC_PROC",
+        "eCFMapping": []
+      },
+      "SOLUTION_ARCHITECTURE": {
+        "name": "role-family.BA.specialization.name.SOLUTION_ARCHITECTURE",
+        "description": "role-family.BA.specialization.description.SOLUTION_ARCHITECTURE",
         "eCFMapping": []
       }
     }

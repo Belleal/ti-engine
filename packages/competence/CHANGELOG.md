@@ -2,6 +2,43 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.25.0
+
+Increment 2 of the competency model: the **architecture competencies** and the two specializations that carry them.
+Twelve new entries take the dictionary from 134 to 146, and architect roles become expressible as Role Family ×
+Specialization × Stage-Level rather than as seniority alone.
+
+* feat(competence): add twelve architecture competencies, `E2-52` … `E2-63` — three cross-cutting (architecture
+  documentation and decision records, quality-attribute and trade-off analysis, technology evaluation and
+  selection), four for `SE.ARCHITECTURE` (system decomposition and boundary design, architectural governance and
+  design review, scalability and resilience design, architecture evolution and migration planning), and five for
+  `BA.SOLUTION_ARCHITECTURE` (cross-system and cross-institutional solution design, interoperability and standards
+  compliance, solution feasibility/sizing/costing, vendor and product evaluation, client-facing solution
+  justification). Each carries a name, a description and six behavioural anchors in **both** languages (CA-110)
+* feat(competence): add the specializations `SE.ARCHITECTURE` and `BA.SOLUTION_ARCHITECTURE`, neither of which
+  existed. This is what makes an architect a *position* rather than a seniority: Software Architect resolves as
+  SE × ARCHITECTURE × X1, Solutions Architect as BA × SOLUTION_ARCHITECTURE × (R | S | X) (CA-110)
+* feat(competence): seed active competency sets for both specializations in `2026-H2` — 7 codes for
+  `SE.ARCHITECTURE`, 8 for `BA.SOLUTION_ARCHITECTURE`. Both sit inside the per-cycle cap of 30 alongside their
+  family baseline (SE 22 + 7, BA 21 + 8) (CA-110)
+* feat(competence): assign relevancy archetypes — **B** (rising with seniority) for the three cross-cutting
+  entries, **F** (rising, expert-leaning) for the nine specialization-specific ones. Assigned through
+  `design/competency-relevancy-model.md` and materialised by `npm run build:relevancy`, never hand-edited into the
+  generated config, so the reviewable source stays the source (CA-110)
+* fix(competence): scope the three cross-cutting architecture codes to the **SE and BA pools only**. They are
+  shared in the dictionary — written once, one code, one set of anchors — but the relevancy model's *Shared*
+  section means "in every family's applicability pool", and listing them there would have let a PM or QE active
+  set legitimately include architecture documentation. Pools: SE 62 → 69, BA 52 → 60, every other family unchanged
+  (CA-110)
+* test(competence): derive the empty-specialization expectation in the lock-normalization tests from what is
+  actually seeded rather than hard-coding "baseline only". Those two tests asserted a precondition this increment
+  legitimately invalidates; shipping a set for a further specialization will no longer make them wrong (CA-110)
+* docs(competence): bring `design/` up to date — the twelve definitions and their Bulgarian, Increment 2 written
+  into the change log in place of its reserved slot, the master index gaining the three new groups and a corrected
+  totals row, and the relevancy model's distribution check re-derived mechanically rather than hand-adjusted
+  (CA-110)
+* build(release): bump package version from `3.24.1` to `3.25.0`
+
 ## Version 3.24.1
 
 The Employee Management **Audit** tab now names the field that changed instead of printing its raw path. The labels

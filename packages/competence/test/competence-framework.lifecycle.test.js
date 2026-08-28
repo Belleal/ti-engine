@@ -107,18 +107,32 @@ describe( "CompetenceFramework — cycle lifecycle state machine", () => {
 
 describe( "CompetenceFramework — lockCycle normalizes empty specializations", () => {
 
-    // Seeded 2026-H2: SE/BA/PM/QE carry a baseline only (every specialization absent); XD/DA/IO/MC/PD are excluded.
+    // Seeded 2026-H2: SE/BA/PM/QE carry a baseline, and since CA-110 the two architecture specializations
+    // (SE.ARCHITECTURE, BA.SOLUTION_ARCHITECTURE) also ship with a set; every other specialization is absent.
+    // XD/DA/IO/MC/PD are excluded. The expectation is derived from what is actually seeded rather than hard-coded,
+    // so shipping a set for another specialization does not make this test wrong — only the ones that START empty
+    // are the ones lock has to mark.
     it( "marks every empty specialization of an included family as intentionally empty ([])", async () => {
-        const beforeBA = await dataManager.instance.getActiveCompetencySetsForFamily( "BA", "2026-H2" );
-        assert.deepEqual( Object.keys( beforeBA ).sort(), [ "baseline" ], "BA specializations start absent (baseline only)" );
+        const families = [ "SE", "BA", "PM" ];
+        const before = {};
+        for ( const family of families ) {
+            before[ family ] = await dataManager.instance.getActiveCompetencySetsForFamily( family, "2026-H2" );
+        }
+        const startsEmpty = ( family, spec ) => !Object.prototype.hasOwnProperty.call( before[ family ], spec );
+        assert.ok( families.some( ( family ) => configurationLoader.getSpecializationCodes( family ).some( ( spec ) => startsEmpty( family, spec ) ) ),
+            "at least one specialization must start absent, or this test asserts nothing" );
 
         await competenceFramework.instance.lockCycle( "2026-H2", "20" );
 
-        for ( const family of [ "SE", "BA", "PM" ] ) {
+        for ( const family of families ) {
             const after = await dataManager.instance.getActiveCompetencySetsForFamily( family, "2026-H2" );
             for ( const spec of configurationLoader.getSpecializationCodes( family ) ) {
                 assert.ok( Object.prototype.hasOwnProperty.call( after, spec ), `${ family }/${ spec } must be persisted after lock` );
-                assert.deepEqual( after[ spec ], [], `${ family }/${ spec } must be an explicit empty set` );
+                if ( startsEmpty( family, spec ) ) {
+                    assert.deepEqual( after[ spec ], [], `${ family }/${ spec } must be an explicit empty set` );
+                } else {
+                    assert.deepEqual( after[ spec ], before[ family ][ spec ], `${ family }/${ spec } was configured and must keep its codes` );
+                }
             }
         }
     } );
@@ -167,7 +181,8 @@ describe( "CompetenceFramework — lockCycle normalizes empty specializations", 
         await assert.rejects( () => competenceFramework.instance.lockCycle( "2026-H2", "20" ) );
 
         const afterBA = await dataManager.instance.getActiveCompetencySetsForFamily( "BA", "2026-H2" );
-        assert.deepEqual( Object.keys( afterBA ).sort(), [ "baseline" ], "no specializations marked when the lock is rejected" );
+        // Whatever BA shipped with, and nothing more: a rejected lock must add no intentionally-empty markers.
+        assert.deepEqual( Object.keys( afterBA ).sort(), [ "SOLUTION_ARCHITECTURE", "baseline" ], "no specializations marked when the lock is rejected" );
         const cycle = await dataManager.instance.getCycle( "2026-H2" );
         assert.equal( cycle.status, configurationLoader.cycleStatus.PLANNING );
     } );

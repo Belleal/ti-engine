@@ -104,6 +104,13 @@ Because selection handles family relevance, **relevancy curves are assigned once
 | I1-1 | Adhering to internal SDLC process | C | |
 | I1-2 | Performing code review | B | reviewing responsibility grows |
 | I1-3 | Adhering to coding & commit conventions | D | baseline discipline, checked early |
+| E2-52 | Architecture documentation & decision records | B | cross-cutting architecture; listed under SE and BA because only those two draw on it |
+| E2-53 | Quality attribute & trade-off analysis | B | cross-cutting architecture; listed under SE and BA because only those two draw on it |
+| E2-54 | Technology evaluation & selection | B | cross-cutting architecture; listed under SE and BA because only those two draw on it |
+| E2-55 | System decomposition & boundary design | F | SE.ARCHITECTURE; architecture judgment, expert-leaning |
+| E2-56 | Architectural governance & design review | F | SE.ARCHITECTURE; architecture judgment, expert-leaning |
+| E2-57 | Scalability & resilience design | F | SE.ARCHITECTURE; architecture judgment, expert-leaning |
+| E2-58 | Architecture evolution & migration planning | F | SE.ARCHITECTURE; architecture judgment, expert-leaning |
 
 ## Assignments — BA family-specific
 
@@ -130,6 +137,14 @@ Because selection handles family relevance, **relevancy curves are assigned once
 | E3-11 | Documenting completed analysis in system | C | |
 | I1-4 | Adhering to the BA process | C | |
 | I1-5 | Change management (BA context) | B | |
+| E2-52 | Architecture documentation & decision records | B | cross-cutting architecture; listed under SE and BA because only those two draw on it |
+| E2-53 | Quality attribute & trade-off analysis | B | cross-cutting architecture; listed under SE and BA because only those two draw on it |
+| E2-54 | Technology evaluation & selection | B | cross-cutting architecture; listed under SE and BA because only those two draw on it |
+| E2-59 | Cross-system & cross-institutional solution design | F | BA.SOLUTION_ARCHITECTURE; architecture judgment, expert-leaning |
+| E2-60 | Interoperability & standards compliance | F | BA.SOLUTION_ARCHITECTURE; architecture judgment, expert-leaning |
+| E2-61 | Solution feasibility, sizing & costing | F | BA.SOLUTION_ARCHITECTURE; architecture judgment, expert-leaning |
+| E2-62 | Vendor & product evaluation | F | BA.SOLUTION_ARCHITECTURE; architecture judgment, expert-leaning |
+| E2-63 | Client-facing solution justification | F | BA.SOLUTION_ARCHITECTURE; architecture judgment, expert-leaning |
 
 ## Assignments — PM family-specific
 
@@ -194,20 +209,36 @@ Because selection handles family relevance, **relevancy curves are assigned once
 
 ---
 
+## A note on the cross-cutting architecture codes
+
+`E2-52`, `E2-53` and `E2-54` appear under **both** the SE and BA assignment tables rather than under *Assignments —
+Shared competencies*. That is deliberate, and the two things it balances are worth keeping straight:
+
+- They are **shared in the dictionary** — written once, one code, one set of anchors. That is the canonicalization
+  principle in `competency-definitions-final.md`, and it holds.
+- They are **not shared in the pool**. The *Shared* section of this document means "in every family's applicability
+  pool", and these three belong only to the families that actually draw on them. Listing them there would put
+  architecture documentation into the PM and QE pools, where an active set could then legitimately include it.
+
+The generator handles the repetition: a code may appear under several families, and only a *conflicting* archetype
+between two rows is an error. Keep the archetype identical in both tables.
+
 ## Distribution check
 
 | Archetype | Count |
 |---|---|
 | A — Foundational-plateau | 14 |
-| B — Rising-with-seniority | 44 |
+| B — Rising-with-seniority | 47 |
 | C — Steady-high | 22 |
 | D — Early-emphasis-then-assumed | 5 |
 | E — Mid-weighted | 38 |
-| F — Rising, expert-leaning | 7 |
+| F — Rising, expert-leaning | 16 |
 | G — Rising, manager-leaning | 4 |
-| **Total** | **134** |
+| **Total** | **146** |
 
-*134 = 31 shared + 31 SE + 21 BA + 25 PM + 26 QE — each competency listed exactly once, which is what the table counts. The distribution is dominated by B (rising) and E (mid-weighted), which is expected for a professional competency model: most capabilities either grow with seniority or peak in the productive middle.*
+*146 = 31 shared + 38 SE + 29 BA + 25 PM + 26 QE — each competency listed exactly once in the
+dictionary, which is what this table counts. The three cross-cutting architecture codes appear in two assignment
+tables but are counted once here. The distribution stays dominated by B (rising) and E (mid-weighted).*
 
 *Correction note (QE increment): the previous version of this table read A 14 · B 40 · C 21 · D 5 · E 22 · F 6 · G 5 = 113, which did not match the assignment tables above it on any row and reconciled against a family split that no longer held. The counts here are derived mechanically from the assignment tables and should be re-derived, not hand-adjusted, whenever an increment lands.*
 

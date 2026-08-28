@@ -501,6 +501,54 @@
         "en": "Quality metrics and status reporting",
         "bg": "Метрики за качество и докладване на състоянието"
       },
+      "E2-52": {
+        "en": "Architecture documentation and decision records",
+        "bg": "Документиране на архитектурата и записи на решенията"
+      },
+      "E2-53": {
+        "en": "Quality attribute and trade-off analysis",
+        "bg": "Анализ на атрибутите на качеството и компромисите"
+      },
+      "E2-54": {
+        "en": "Technology evaluation and selection",
+        "bg": "Оценка и избор на технологии"
+      },
+      "E2-55": {
+        "en": "System decomposition and boundary design",
+        "bg": "Декомпозиция на системи и проектиране на границите"
+      },
+      "E2-56": {
+        "en": "Architectural governance and design review",
+        "bg": "Архитектурно управление и преглед на проектните решения"
+      },
+      "E2-57": {
+        "en": "Scalability and resilience design",
+        "bg": "Проектиране за мащабируемост и устойчивост"
+      },
+      "E2-58": {
+        "en": "Architecture evolution and migration planning",
+        "bg": "Развитие на архитектурата и планиране на миграции"
+      },
+      "E2-59": {
+        "en": "Cross-system and cross-institutional solution design",
+        "bg": "Проектиране на решения между системи и институции"
+      },
+      "E2-60": {
+        "en": "Interoperability and standards compliance",
+        "bg": "Оперативна съвместимост и съответствие със стандарти"
+      },
+      "E2-61": {
+        "en": "Solution feasibility, sizing and costing",
+        "bg": "Осъществимост, оразмеряване и остойностяване на решения"
+      },
+      "E2-62": {
+        "en": "Vendor and product evaluation",
+        "bg": "Оценка на доставчици и продукти"
+      },
+      "E2-63": {
+        "en": "Client-facing solution justification",
+        "bg": "Обосноваване на решението пред клиента"
+      },
       "E3-28": {
         "en": "Applying accumulated quality engineering experience",
         "bg": "Прилагане на натрупания опит в инженерството на качеството"
@@ -1038,6 +1086,54 @@
       "E2-51": {
         "en": "Encompasses the applied skill of selecting, producing, and interpreting quality metrics — coverage, defect density and trends, pass rates, escape rates — and reporting quality status so that it informs decisions rather than merely describing activity.",
         "bg": "Обхваща приложното умение за избор, изготвяне и интерпретиране на метрики за качество — покритие, плътност и тенденции на дефектите, процент на успешните тестове, процент на пропуснатите дефекти — и за докладване на състоянието на качеството така, че то да подпомага решения, а не просто да описва дейност."
+      },
+      "E2-52": {
+        "en": "Encompasses the applied skill of producing and maintaining the artifacts that make an architecture understandable and its decisions traceable — diagrams at appropriate levels of abstraction, and decision records capturing context, options considered, rationale, and consequences — and keeping them current as the design evolves.",
+        "bg": "Обхваща приложното умение за изготвяне и поддържане на артефактите, които правят архитектурата разбираема, а решенията ѝ проследими — диаграми на подходящо ниво на абстракция и записи на решенията, съдържащи контекста, разгледаните варианти, обосновката и последиците — както и поддържането им актуални с развитието на проекта."
+      },
+      "E2-53": {
+        "en": "Encompasses the applied skill of analysing competing non-functional requirements — performance, scalability, security, maintainability, cost — making the trade-offs between them explicit, and justifying the chosen balance against business priorities rather than technical preference.",
+        "bg": "Обхваща приложното умение за анализ на конкуриращи се нефункционални изисквания — производителност, мащабируемост, сигурност, поддържаемост, цена — за явно формулиране на компромисите между тях и за обосноваване на избрания баланс спрямо бизнес приоритетите, а не спрямо технологични предпочитания."
+      },
+      "E2-54": {
+        "en": "Encompasses the applied skill of assessing technologies and platforms against requirements and constraints — capability, maturity, cost, support, skills availability, and lock-in risk — and making or recommending selections defensible on evidence rather than familiarity or preference.",
+        "bg": "Обхваща приложното умение за оценка на технологични варианти спрямо реалните нужди — зрялост, съответствие с наличните умения, цена на притежание, стратегия за оттегляне — и за вземане на защитими решения за избор, документирани така, че да могат да бъдат преразгледани по-късно."
+      },
+      "E2-55": {
+        "en": "Encompasses the ability to divide a system into components, services, and modules with well-chosen responsibilities and interfaces — deciding where boundaries fall, what each part owns, and how coupling and cohesion are managed across the whole.",
+        "bg": "Обхваща умението да се разлага система на компоненти с ясни отговорности и явни граници — определяне какво принадлежи къде, как компонентите си взаимодействат и къде минават границите, така че системата да остане разбираема и променяема."
+      },
+      "E2-56": {
+        "en": "Encompasses the ability to review designs against architectural standards and principles, give authoritative technical direction, and hold the line on architectural integrity when delivery pressure argues for shortcuts.",
+        "bg": "Обхваща умението да се поддържа съответствието на реализацията с предвидената архитектура — провеждане на прегледи на проектни решения, прилагане на архитектурни принципи и разпознаване кога отклонението е обосновано и кога е ерозия."
+      },
+      "E2-57": {
+        "en": "Encompasses the ability to design systems that maintain acceptable behaviour under load and degrade gracefully under failure — capacity planning, redundancy, failure isolation, recovery, and the operational consequences of design choices.",
+        "bg": "Обхваща умението да се проектират системи, които запазват приемливо поведение под натоварване и се влошават плавно при отказ — планиране на капацитета, резервираност, изолиране на отказите, възстановяване и експлоатационните последици от проектните решения."
+      },
+      "E2-58": {
+        "en": "Encompasses the ability to plan how an architecture changes over time — sequencing incremental change, planning migration from legacy systems, keeping systems operational through transition, and managing architectural debt deliberately rather than by accumulation.",
+        "bg": "Обхваща умението да се променя съществуваща архитектура без спиране на доставката — планиране на поетапни преходи, поддържане на съвместимост по време на миграция и последователно оттегляне на заместеното."
+      },
+      "E2-59": {
+        "en": "Encompasses the ability to design solutions spanning multiple systems and — in public-sector contexts — multiple institutions, defining how new components, existing systems, and external registers fit together to meet a business need end to end.",
+        "bg": "Обхваща умението да се проектират решения, обхващащи няколко системи и организации — определяне на потоците от данни, отговорностите и интеграционните точки между страни, които не са под общо управление, така че цялото да работи като едно решение."
+      },
+      "E2-60": {
+        "en": "Encompasses the ability to design solutions that comply with applicable interoperability standards, data exchange formats, and integration requirements — particularly those governing public-sector systems and inter-institutional data exchange.",
+        "bg": "Обхваща умението да се проектират решения, отговарящи на приложимите стандарти за обмен и оперативна съвместимост — формати, протоколи, идентификация и нормативни изисквания — така че съответствието да е заложено в проекта, а не установявано впоследствие."
+      },
+      "E2-61": {
+        "en": "Encompasses the ability to assess whether a proposed solution is achievable within its constraints and to estimate what it will require — effort, infrastructure, licensing, and ongoing operational cost — so that proposals rest on grounded assessment rather than optimism.",
+        "bg": "Обхваща умението да се преценява дали предложено решение е постижимо в рамките на ограниченията си и да се оценява какво ще изисква — усилие, инфраструктура, лицензи и текущи експлоатационни разходи — така че предложенията да стъпват на обоснована преценка, а не на оптимизъм."
+      },
+      "E2-62": {
+        "en": "Encompasses the ability to evaluate third-party products and vendors for fit within a solution — functional fit, integration capability, support and roadmap, total cost of ownership, and dependency risk — structuring the assessment so the selection is defensible under procurement scrutiny.",
+        "bg": "Обхваща умението да се оценяват външни продукти и доставчици спрямо реалната нужда — функционално покритие, зрялост, поддръжка, зависимост от доставчика и обща цена — и да се обосновава изборът между готово решение и собствена разработка."
+      },
+      "E2-63": {
+        "en": "Encompasses the ability to present and defend a proposed solution to clients, institutional stakeholders, and evaluation committees — explaining the design, its rationale, and its trade-offs in terms the audience can assess, and responding credibly to challenge.",
+        "bg": "Обхваща умението да се представя и защитава предложено решение пред клиенти и заинтересовани страни без техническа подготовка — изясняване какво решава то, какво струва, какви компромиси носи и защо е предпочетено пред алтернативите, на език, който аудиторията разбира."
       },
       "E3-28": {
         "en": "Encompasses the practical judgment that accumulates from testing real systems over time — knowing where defects tend to cluster, which changes carry hidden risk, and which areas of a product historically break — and using that instinct to direct attention where scripted coverage would not have looked.",
@@ -3733,6 +3829,318 @@
           "bg": "Осигурява смисленото, а не механично докладване на качеството от екипа и го уеднаквява с нуждите на управлението."
         }
       },
+      "E2-52": {
+        "N": {
+          "en": "Reads architecture documentation and produces simple diagrams from templates under guidance.",
+          "bg": "Чете архитектурна документация и изготвя прости диаграми по образец под ръководство."
+        },
+        "J": {
+          "en": "Produces basic diagrams and records straightforward decisions with supervision, though rationale is often thin.",
+          "bg": "Изготвя базови диаграми и записва несложни решения с надзор, но обосновката често е повърхностна."
+        },
+        "R": {
+          "en": "Independently documents architecture for typical work, with clear diagrams and decision records that capture rationale and trade-offs.",
+          "bg": "Самостоятелно документира архитектурата при типична работа, с ясни диаграми и записи на решенията, отразяващи обосновка и компромиси."
+        },
+        "S": {
+          "en": "Documents complex architectures across multiple views and audiences, keeps records current through change, and mentors others.",
+          "bg": "Документира сложни архитектури в множество изгледи и за различни аудитории, поддържа записите актуални при промени и напътства други."
+        },
+        "X": {
+          "en": "Defines architecture documentation and decision-record standards across the organization.",
+          "bg": "Дефинира стандартите на организацията за архитектурна документация и записи на решенията."
+        },
+        "T": {
+          "en": "Ensures the team documents architecture consistently and aligns documentation with governance and audit needs.",
+          "bg": "Осигурява екипът да документира архитектурата последователно и уеднаквява документацията с нуждите на управлението и одита."
+        }
+      },
+      "E2-53": {
+        "N": {
+          "en": "Aware that design choices involve trade-offs and identifies obvious ones under guidance.",
+          "bg": "Осъзнава, че проектните решения носят компромиси, и разпознава очевидните под ръководство."
+        },
+        "J": {
+          "en": "Identifies straightforward trade-offs with supervision but tends to optimise for a single attribute.",
+          "bg": "Разпознава несложни компромиси с надзор, но склонен да оптимизира само по един атрибут."
+        },
+        "R": {
+          "en": "Independently analyses competing quality attributes for typical work, makes trade-offs explicit, and justifies the balance chosen.",
+          "bg": "Самостоятелно анализира конкуриращи се атрибути на качеството при типична работа, формулира компромисите явно и обосновава избрания баланс."
+        },
+        "S": {
+          "en": "Analyses complex or conflicting attribute requirements across systems, quantifies trade-offs where possible, and mentors others.",
+          "bg": "Анализира сложни или противоречащи си изисквания към атрибутите в рамките на няколко системи, количествено оценява компромисите където е възможно, и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; sets how the organization reasons about architectural trade-offs.",
+          "bg": "Признат авторитет; определя как организацията разсъждава за архитектурните компромиси."
+        },
+        "T": {
+          "en": "Ensures the team makes trade-offs explicit and aligns architectural balance with business priorities.",
+          "bg": "Осигурява екипът да формулира компромисите явно и уеднаквява архитектурния баланс с бизнес приоритетите."
+        }
+      },
+      "E2-54": {
+        "N": {
+          "en": "Compares technologies on obvious criteria under guidance.",
+          "bg": "Събира информация за технологични варианти по зададени критерии под ръководство."
+        },
+        "J": {
+          "en": "Evaluates straightforward options against given criteria with supervision.",
+          "bg": "Сравнява несложни варианти с надзор, но оценката е предимно по функционалност."
+        },
+        "R": {
+          "en": "Independently evaluates technology options for typical work against defined criteria and makes a defensible recommendation.",
+          "bg": "Самостоятелно оценява технологии при типичен избор, отчита цената на притежание и уменията на екипа, и документира решението."
+        },
+        "S": {
+          "en": "Leads evaluation of complex or strategic technology choices, weighs long-term and lock-in risk, and mentors others in structured evaluation.",
+          "bg": "Води оценки при сложен или високорисков избор, отчита стратегията за оттегляне и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; shapes technology strategy and selection standards across the organization.",
+          "bg": "Признат авторитет; определя технологичната стратегия и критериите за оценка на организацията."
+        },
+        "T": {
+          "en": "Ensures the team evaluates technology rigorously rather than by familiarity, and aligns selections with organizational strategy.",
+          "bg": "Осигурява екипът да избира технологии по обективни критерии, а не по предпочитание, и уеднаквява избора със стратегията."
+        }
+      },
+      "E2-55": {
+        "N": {
+          "en": "Understands that systems are divided into parts and works within a given decomposition under guidance.",
+          "bg": "Разбира съществуваща декомпозиция и разпознава границите на компонентите под ръководство."
+        },
+        "J": {
+          "en": "Proposes simple decompositions for straightforward components with supervision.",
+          "bg": "Предлага несложна декомпозиция с надзор, но границите често са размити."
+        },
+        "R": {
+          "en": "Independently decomposes typical systems with sound boundaries and interfaces, managing coupling deliberately.",
+          "bg": "Самостоятелно декомпозира системи с типична сложност, с ясни отговорности и защитими граници."
+        },
+        "S": {
+          "en": "Decomposes complex, multi-team systems, resolves difficult boundary questions, and mentors others.",
+          "bg": "Декомпозира сложни системи, разпознава неудачни граници преди да се затвърдят и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority on decomposition; sets boundary and interface standards across the organization.",
+          "bg": "Признат авторитет; определя принципите на декомпозиция в организацията."
+        },
+        "T": {
+          "en": "Ensures the team designs sound boundaries and aligns decomposition with organizational architecture.",
+          "bg": "Осигурява екипът да работи с ясни граници на компонентите и уеднаквява декомпозицията с начина, по който екипът е организиран."
+        }
+      },
+      "E2-56": {
+        "N": {
+          "en": "Attends design reviews and observes under guidance.",
+          "bg": "Участва в прегледи на проектни решения и разбира прилаганите принципи под ръководство."
+        },
+        "J": {
+          "en": "Participates in reviews of straightforward designs with supervision.",
+          "bg": "Дава несложна обратна връзка при прегледи с надзор, предимно по конкретиката."
+        },
+        "R": {
+          "en": "Independently reviews typical designs against standards and gives clear, actionable direction.",
+          "bg": "Самостоятелно преглежда проектни решения при типична работа и разпознава отклоненията от архитектурата."
+        },
+        "S": {
+          "en": "Reviews complex designs, handles contested decisions under delivery pressure, and mentors others in effective review.",
+          "bg": "Води прегледи на сложни решения, преценява кое отклонение е приемливо, и напътства други в даването на обратна връзка."
+        },
+        "X": {
+          "en": "Owns architectural governance across the organization and arbitrates the most significant design decisions.",
+          "bg": "Признат авторитет; определя модела на архитектурно управление в организацията."
+        },
+        "T": {
+          "en": "Ensures the team's designs meet architectural standards and aligns governance with delivery reality.",
+          "bg": "Осигурява екипът да прилага прегледите последователно и уеднаквява управлението с темпото на доставка."
+        }
+      },
+      "E2-57": {
+        "N": {
+          "en": "Aware of basic scalability and failure concepts and follows given patterns under guidance.",
+          "bg": "Познава базовите концепции за мащабируемост и откази и следва зададени шаблони под ръководство."
+        },
+        "J": {
+          "en": "Applies simple resilience patterns to straightforward designs with supervision.",
+          "bg": "Прилага прости модели за устойчивост при несложни решения с надзор."
+        },
+        "R": {
+          "en": "Independently designs for realistic load and failure scenarios in typical systems.",
+          "bg": "Самостоятелно проектира за реалистични сценарии на натоварване и отказ в типични системи."
+        },
+        "S": {
+          "en": "Designs for demanding scalability and resilience requirements across complex systems, anticipates failure modes, and mentors others.",
+          "bg": "Проектира при взискателни изисквания за мащабируемост и устойчивост в сложни системи, предвижда режимите на отказ и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; sets scalability and resilience standards across the organization.",
+          "bg": "Признат авторитет; определя стандартите за мащабируемост и устойчивост в организацията."
+        },
+        "T": {
+          "en": "Ensures the team designs for load and failure rather than the happy path, aligned with operational requirements.",
+          "bg": "Осигурява екипът да проектира за натоварване и откази, а не само за безпроблемния сценарий, съобразно експлоатационните изисквания."
+        }
+      },
+      "E2-58": {
+        "N": {
+          "en": "Understands that architectures change over time and executes a given migration step under guidance.",
+          "bg": "Разбира защо е необходима миграция и изпълнява отделни стъпки под ръководство."
+        },
+        "J": {
+          "en": "Contributes to simple migration steps with supervision.",
+          "bg": "Изпълнява несложни стъпки от миграция с надзор, но не предвижда съвместимостта."
+        },
+        "R": {
+          "en": "Independently plans incremental architectural change for typical systems, keeping them operational through transition.",
+          "bg": "Самостоятелно планира и провежда миграции с типичен обхват, като запазва системата работеща през целия преход."
+        },
+        "S": {
+          "en": "Plans complex, multi-stage migrations from legacy estates, manages architectural debt deliberately, and mentors others.",
+          "bg": "Планира сложни или дългосрочни миграции, управлява съвместимостта и оттеглянето, и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; owns architectural roadmaps and modernization strategy across the organization.",
+          "bg": "Признат авторитет; определя как организацията развива архитектурите си."
+        },
+        "T": {
+          "en": "Ensures the team plans architectural change deliberately and aligns evolution with modernization goals.",
+          "bg": "Осигурява екипът да планира миграциите поетапно и уеднаквява развитието на архитектурата с приоритетите на доставката."
+        }
+      },
+      "E2-59": {
+        "N": {
+          "en": "Understands that solutions span systems and works within a given design under guidance.",
+          "bg": "Разбира съществуващи интеграции между системи и подпомага описването им под ръководство."
+        },
+        "J": {
+          "en": "Contributes to straightforward multi-system designs with supervision.",
+          "bg": "Проектира несложни интеграции с надзор, предимно между системи в рамките на организацията."
+        },
+        "R": {
+          "en": "Independently designs solutions across systems for typical needs, defining clearly how the parts fit together and where responsibility sits.",
+          "bg": "Самостоятелно проектира решения между няколко системи при типичен обхват, с ясни отговорности и интеграционни точки."
+        },
+        "S": {
+          "en": "Designs complex solutions spanning multiple systems and institutions, resolves conflicting constraints between parties, and mentors others.",
+          "bg": "Проектира сложни решения между институции, договаря отговорностите между страните и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority on solution design; leads the most complex cross-institutional solutions and sets the organization's design approach.",
+          "bg": "Признат авторитет; консултира по най-мащабните решения между институции."
+        },
+        "T": {
+          "en": "Ensures the team designs coherent cross-system solutions and aligns them with organizational architecture.",
+          "bg": "Осигурява екипът да проектира отвъд собствената система и уеднаквява решенията с ангажиментите между институциите."
+        }
+      },
+      "E2-60": {
+        "N": {
+          "en": "Aware that interoperability standards apply and follows given requirements under guidance.",
+          "bg": "Познава относимите стандарти и проверява несложни изисквания спрямо тях под ръководство."
+        },
+        "J": {
+          "en": "Applies common standards to straightforward integrations with supervision.",
+          "bg": "Прилага познати стандарти при несложна работа с надзор."
+        },
+        "R": {
+          "en": "Independently designs to the relevant interoperability standards for typical solutions and verifies compliance.",
+          "bg": "Самостоятелно проектира съобразно приложимите стандарти при типична работа и обосновава как решението ги удовлетворява."
+        },
+        "S": {
+          "en": "Designs for complex, multi-standard environments, resolves conflicts between competing requirements, and mentors others.",
+          "bg": "Работи със сложни или конкуриращи се изисквания за съответствие, преценява как да бъдат съвместени и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority on interoperability; advises the organization and client institutions on standards strategy.",
+          "bg": "Признат авторитет; консултира организацията по стандартите за оперативна съвместимост и нормативната рамка."
+        },
+        "T": {
+          "en": "Ensures the team designs to applicable standards and aligns compliance with regulatory obligations.",
+          "bg": "Осигурява екипът да отчита съответствието от началото на проектирането, а не като последваща проверка."
+        }
+      },
+      "E2-61": {
+        "N": {
+          "en": "Contributes simple estimates to a provided structure under guidance.",
+          "bg": "Допринася с прости оценки в предоставена структура под ръководство."
+        },
+        "J": {
+          "en": "Assesses feasibility of straightforward solutions with supervision, though sizing tends to be optimistic.",
+          "bg": "Преценява осъществимостта на несложни решения с надзор, но оразмеряването клони към оптимистично."
+        },
+        "R": {
+          "en": "Independently assesses feasibility and produces realistic sizing and cost estimates for typical solutions.",
+          "bg": "Самостоятелно преценява осъществимостта и изготвя реалистично оразмеряване и оценка на разходите за типични решения."
+        },
+        "S": {
+          "en": "Assesses complex or novel solutions, quantifies uncertainty rather than hiding it, and mentors others in realistic estimation.",
+          "bg": "Преценява сложни или нови решения, количествено изразява несигурността вместо да я скрива, и напътства други в реалистичното оценяване."
+        },
+        "X": {
+          "en": "Recognized authority on solution feasibility; advises on the largest and most uncertain proposals.",
+          "bg": "Признат авторитет по осъществимост на решения; консултира по най-големите и най-несигурните предложения."
+        },
+        "T": {
+          "en": "Ensures the team produces grounded feasibility and cost assessments aligned with commercial reality.",
+          "bg": "Осигурява екипът да изготвя обосновани оценки за осъществимост и разходи, съобразени с търговската реалност."
+        }
+      },
+      "E2-62": {
+        "N": {
+          "en": "Compares products on obvious criteria under guidance.",
+          "bg": "Събира информация за продукти и доставчици по зададени критерии под ръководство."
+        },
+        "J": {
+          "en": "Evaluates straightforward products against given criteria with supervision.",
+          "bg": "Сравнява несложни варианти с надзор, предимно по функционално покритие."
+        },
+        "R": {
+          "en": "Independently evaluates products and vendors for typical solutions and documents a defensible recommendation.",
+          "bg": "Самостоятелно оценява продукти и доставчици при типичен избор и обосновава решението „готово решение или собствена разработка“."
+        },
+        "S": {
+          "en": "Leads evaluation of complex or strategic vendor decisions, assesses dependency and continuity risk, and mentors others.",
+          "bg": "Води оценки при сложен или високорисков избор, отчита зависимостта от доставчика и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; shapes vendor evaluation practice and advises on strategic supplier decisions.",
+          "bg": "Признат авторитет; определя критериите на организацията за оценка на доставчици."
+        },
+        "T": {
+          "en": "Ensures the team evaluates vendors rigorously and aligns selections with procurement requirements.",
+          "bg": "Осигурява екипът да оценява доставчиците обективно и уеднаквява избора с дългосрочните ангажименти."
+        }
+      },
+      "E2-63": {
+        "N": {
+          "en": "Observes solution presentations and contributes prepared material under guidance.",
+          "bg": "Подпомага изготвянето на материали за представяне пред клиент под ръководство."
+        },
+        "J": {
+          "en": "Presents straightforward solution elements to familiar audiences with supervision.",
+          "bg": "Представя несложни решения с надзор, но обяснението остава предимно техническо."
+        },
+        "R": {
+          "en": "Independently presents and justifies typical solutions to client stakeholders, handling routine challenge.",
+          "bg": "Самостоятелно представя и обосновава решения пред клиента при типична работа, на разбираем за аудиторията език."
+        },
+        "S": {
+          "en": "Defends complex solutions to senior or sceptical audiences, handles difficult challenge, and mentors others.",
+          "bg": "Защитава сложни или спорни решения пред високопоставени заинтересовани страни, отговаря на възражения обосновано и напътства други."
+        },
+        "X": {
+          "en": "Recognized as the organization's authority in defending solutions in the highest-stakes settings.",
+          "bg": "Признат авторитет; представя решения при най-значимите ангажименти на организацията."
+        },
+        "T": {
+          "en": "Ensures the team can justify its solutions credibly and aligns messaging with commercial positioning.",
+          "bg": "Осигурява екипът да обосновава решенията пред клиента разбираемо и уеднаквява представянето с отношенията с клиента."
+        }
+      },
       "E3-28": {
         "N": {
           "en": "Has limited testing experience and applies lessons from training or a single product under guidance.",
@@ -5306,6 +5714,10 @@
           "EMBEDDED": {
             "en": "Embedded",
             "bg": "Вградени"
+          },
+          "ARCHITECTURE": {
+            "en": "Architecture",
+            "bg": "Архитектура"
           }
         },
         "description": {
@@ -5328,6 +5740,10 @@
           "EMBEDDED": {
             "en": "Firmware and constrained-device software development.",
             "bg": "Разработка на firmware и софтуер за устройства с ограничени ресурси."
+          },
+          "ARCHITECTURE": {
+            "en": "Designs the structure of software systems — decomposition, boundaries, quality attributes and evolution — and governs that the built system matches the intended design.",
+            "bg": "Проектира структурата на софтуерните системи — декомпозиция, граници, атрибути на качеството и развитие — и следи изграденото да съответства на предвиденото проектно решение."
           }
         }
       }
@@ -5394,6 +5810,10 @@
           "DOC_PROC": {
             "en": "Documentation & Procedures",
             "bg": "Документация и процедури"
+          },
+          "SOLUTION_ARCHITECTURE": {
+            "en": "Solution Architecture",
+            "bg": "Архитектура на решения"
           }
         },
         "description": {
@@ -5416,6 +5836,10 @@
           "DOC_PROC": {
             "en": "Documentation, procedures, and knowledge-base authoring.",
             "bg": "Документация, процедури и създаване на бази знания."
+          },
+          "SOLUTION_ARCHITECTURE": {
+            "en": "Designs solutions spanning several systems and institutions — interoperability, standards compliance, feasibility and cost — and justifies the chosen solution to the client.",
+            "bg": "Проектира решения, обхващащи няколко системи и институции — оперативна съвместимост, съответствие със стандарти, осъществимост и разходи — и обосновава избраното решение пред клиента."
           }
         }
       }

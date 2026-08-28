@@ -1406,3 +1406,154 @@ Applying that principle:
 ---
 
 **QE baseline complete** — E1 (10) · E2 (10) · E3 (3) · I1 (3) = **26 family-specific competencies**, plus the 30 shared canonical (including cross-cutting E1-10 and E3-22/23/25). Specializations MANUAL / AUTOMATION / PERFORMANCE / SECURITY still to build.
+
+---
+
+# Architecture — Shared group and two specializations
+
+*Three competencies are **cross-cutting E2** (shared, referenced by both architecture specializations); the remainder are specialization-specific. Placement in config: the shared three go to the Shared Competencies section as a new "E2 (cross-cutting)" group; the rest sit under their specialization in `config.active-competency-sets.json`.*
+
+**Stage-letter mapping — BA.SOLUTION_ARCHITECTURE:** Проектант = **R** · Старши проектант = **S** · Главен проектант = **X**. The R/S/X anchors below carry the entire distinction between the three grades.
+**SE.ARCHITECTURE** operates at **X1** (Software Architect).
+
+## E2 (cross-cutting) — shared by both architecture specializations
+
+### E2-52 · Architecture documentation and decision records
+
+**Description:** Encompasses the applied skill of producing and maintaining the artifacts that make an architecture understandable and its decisions traceable — diagrams at appropriate levels of abstraction, and decision records capturing context, options considered, rationale, and consequences — and keeping them current as the design evolves.
+
+- **N:** Reads architecture documentation and produces simple diagrams from templates under guidance.
+- **J:** Produces basic diagrams and records straightforward decisions with supervision, though rationale is often thin.
+- **R:** Independently documents architecture for typical work, with clear diagrams and decision records that capture rationale and trade-offs.
+- **S:** Documents complex architectures across multiple views and audiences, keeps records current through change, and mentors others.
+- **X:** Defines architecture documentation and decision-record standards across the organization.
+- **T:** Ensures the team documents architecture consistently and aligns documentation with governance and audit needs.
+
+### E2-53 · Quality attribute and trade-off analysis
+
+**Description:** Encompasses the applied skill of analysing competing non-functional requirements — performance, scalability, security, maintainability, cost — making the trade-offs between them explicit, and justifying the chosen balance against business priorities rather than technical preference.
+
+- **N:** Aware that design choices involve trade-offs and identifies obvious ones under guidance.
+- **J:** Identifies straightforward trade-offs with supervision but tends to optimise for a single attribute.
+- **R:** Independently analyses competing quality attributes for typical work, makes trade-offs explicit, and justifies the balance chosen.
+- **S:** Analyses complex or conflicting attribute requirements across systems, quantifies trade-offs where possible, and mentors others.
+- **X:** Recognized authority; sets how the organization reasons about architectural trade-offs.
+- **T:** Ensures the team makes trade-offs explicit and aligns architectural balance with business priorities.
+
+### E2-54 · Technology evaluation and selection
+
+**Description:** Encompasses the applied skill of assessing technologies and platforms against requirements and constraints — capability, maturity, cost, support, skills availability, and lock-in risk — and making or recommending selections defensible on evidence rather than familiarity or preference.
+
+- **N:** Compares technologies on obvious criteria under guidance.
+- **J:** Evaluates straightforward options against given criteria with supervision.
+- **R:** Independently evaluates technology options for typical work against defined criteria and makes a defensible recommendation.
+- **S:** Leads evaluation of complex or strategic technology choices, weighs long-term and lock-in risk, and mentors others in structured evaluation.
+- **X:** Recognized authority; shapes technology strategy and selection standards across the organization.
+- **T:** Ensures the team evaluates technology rigorously rather than by familiarity, and aligns selections with organizational strategy.
+
+## SE · ARCHITECTURE specialization
+
+### E2-55 · System decomposition and boundary design
+
+**Description:** Encompasses the ability to divide a system into components, services, and modules with well-chosen responsibilities and interfaces — deciding where boundaries fall, what each part owns, and how coupling and cohesion are managed across the whole.
+
+- **N:** Understands that systems are divided into parts and works within a given decomposition under guidance.
+- **J:** Proposes simple decompositions for straightforward components with supervision.
+- **R:** Independently decomposes typical systems with sound boundaries and interfaces, managing coupling deliberately.
+- **S:** Decomposes complex, multi-team systems, resolves difficult boundary questions, and mentors others.
+- **X:** Recognized authority on decomposition; sets boundary and interface standards across the organization.
+- **T:** Ensures the team designs sound boundaries and aligns decomposition with organizational architecture.
+
+### E2-56 · Architectural governance and design review
+
+**Description:** Encompasses the ability to review designs against architectural standards and principles, give authoritative technical direction, and hold the line on architectural integrity when delivery pressure argues for shortcuts.
+
+- **N:** Attends design reviews and observes under guidance.
+- **J:** Participates in reviews of straightforward designs with supervision.
+- **R:** Independently reviews typical designs against standards and gives clear, actionable direction.
+- **S:** Reviews complex designs, handles contested decisions under delivery pressure, and mentors others in effective review.
+- **X:** Owns architectural governance across the organization and arbitrates the most significant design decisions.
+- **T:** Ensures the team's designs meet architectural standards and aligns governance with delivery reality.
+
+### E2-57 · Scalability and resilience design
+
+**Description:** Encompasses the ability to design systems that maintain acceptable behaviour under load and degrade gracefully under failure — capacity planning, redundancy, failure isolation, recovery, and the operational consequences of design choices.
+
+- **N:** Aware of basic scalability and failure concepts and follows given patterns under guidance.
+- **J:** Applies simple resilience patterns to straightforward designs with supervision.
+- **R:** Independently designs for realistic load and failure scenarios in typical systems.
+- **S:** Designs for demanding scalability and resilience requirements across complex systems, anticipates failure modes, and mentors others.
+- **X:** Recognized authority; sets scalability and resilience standards across the organization.
+- **T:** Ensures the team designs for load and failure rather than the happy path, aligned with operational requirements.
+
+### E2-58 · Architecture evolution and migration planning
+
+**Description:** Encompasses the ability to plan how an architecture changes over time — sequencing incremental change, planning migration from legacy systems, keeping systems operational through transition, and managing architectural debt deliberately rather than by accumulation.
+
+- **N:** Understands that architectures change over time and executes a given migration step under guidance.
+- **J:** Contributes to simple migration steps with supervision.
+- **R:** Independently plans incremental architectural change for typical systems, keeping them operational through transition.
+- **S:** Plans complex, multi-stage migrations from legacy estates, manages architectural debt deliberately, and mentors others.
+- **X:** Recognized authority; owns architectural roadmaps and modernization strategy across the organization.
+- **T:** Ensures the team plans architectural change deliberately and aligns evolution with modernization goals.
+
+## BA · SOLUTION_ARCHITECTURE specialization
+
+### E2-59 · Cross-system and cross-institutional solution design
+
+**Description:** Encompasses the ability to design solutions spanning multiple systems and — in public-sector contexts — multiple institutions, defining how new components, existing systems, and external registers fit together to meet a business need end to end.
+
+- **N:** Understands that solutions span systems and works within a given design under guidance.
+- **J:** Contributes to straightforward multi-system designs with supervision.
+- **R:** Independently designs solutions across systems for typical needs, defining clearly how the parts fit together and where responsibility sits.
+- **S:** Designs complex solutions spanning multiple systems and institutions, resolves conflicting constraints between parties, and mentors others.
+- **X:** Recognized authority on solution design; leads the most complex cross-institutional solutions and sets the organization's design approach.
+- **T:** Ensures the team designs coherent cross-system solutions and aligns them with organizational architecture.
+
+### E2-60 · Interoperability and standards compliance
+
+**Description:** Encompasses the ability to design solutions that comply with applicable interoperability standards, data exchange formats, and integration requirements — particularly those governing public-sector systems and inter-institutional data exchange.
+
+- **N:** Aware that interoperability standards apply and follows given requirements under guidance.
+- **J:** Applies common standards to straightforward integrations with supervision.
+- **R:** Independently designs to the relevant interoperability standards for typical solutions and verifies compliance.
+- **S:** Designs for complex, multi-standard environments, resolves conflicts between competing requirements, and mentors others.
+- **X:** Recognized authority on interoperability; advises the organization and client institutions on standards strategy.
+- **T:** Ensures the team designs to applicable standards and aligns compliance with regulatory obligations.
+
+### E2-61 · Solution feasibility, sizing and costing
+
+**Description:** Encompasses the ability to assess whether a proposed solution is achievable within its constraints and to estimate what it will require — effort, infrastructure, licensing, and ongoing operational cost — so that proposals rest on grounded assessment rather than optimism.
+
+- **N:** Contributes simple estimates to a provided structure under guidance.
+- **J:** Assesses feasibility of straightforward solutions with supervision, though sizing tends to be optimistic.
+- **R:** Independently assesses feasibility and produces realistic sizing and cost estimates for typical solutions.
+- **S:** Assesses complex or novel solutions, quantifies uncertainty rather than hiding it, and mentors others in realistic estimation.
+- **X:** Recognized authority on solution feasibility; advises on the largest and most uncertain proposals.
+- **T:** Ensures the team produces grounded feasibility and cost assessments aligned with commercial reality.
+
+### E2-62 · Vendor and product evaluation
+
+**Description:** Encompasses the ability to evaluate third-party products and vendors for fit within a solution — functional fit, integration capability, support and roadmap, total cost of ownership, and dependency risk — structuring the assessment so the selection is defensible under procurement scrutiny.
+
+- **N:** Compares products on obvious criteria under guidance.
+- **J:** Evaluates straightforward products against given criteria with supervision.
+- **R:** Independently evaluates products and vendors for typical solutions and documents a defensible recommendation.
+- **S:** Leads evaluation of complex or strategic vendor decisions, assesses dependency and continuity risk, and mentors others.
+- **X:** Recognized authority; shapes vendor evaluation practice and advises on strategic supplier decisions.
+- **T:** Ensures the team evaluates vendors rigorously and aligns selections with procurement requirements.
+
+### E2-63 · Client-facing solution justification
+
+**Description:** Encompasses the ability to present and defend a proposed solution to clients, institutional stakeholders, and evaluation committees — explaining the design, its rationale, and its trade-offs in terms the audience can assess, and responding credibly to challenge.
+
+- **N:** Observes solution presentations and contributes prepared material under guidance.
+- **J:** Presents straightforward solution elements to familiar audiences with supervision.
+- **R:** Independently presents and justifies typical solutions to client stakeholders, handling routine challenge.
+- **S:** Defends complex solutions to senior or sceptical audiences, handles difficult challenge, and mentors others.
+- **X:** Recognized as the organization's authority in defending solutions in the highest-stakes settings.
+- **T:** Ensures the team can justify its solutions credibly and aligns messaging with commercial positioning.
+
+---
+
+**Architecture complete** — 3 shared cross-cutting E2 · 4 SE.ARCHITECTURE · 5 BA.SOLUTION_ARCHITECTURE = **12 competencies**. Each architect draws 7 on top of their family baseline, comfortably within the 30 cap.
