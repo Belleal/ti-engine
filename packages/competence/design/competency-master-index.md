@@ -11,7 +11,7 @@ Authoritative code → name → applicability reference. Full descriptions and s
 - **Flat, globally-unique codes** within each subcategory (`E1-n`, `E2-n`, `E3-n`, `I1-n`, `I2-n`, `I3-n`, `C1-n`, `C2-n`, `C3-n`). No namespacing by family.
 - **No collisions.** Families occupy distinct numeric ranges; shared sets are single sequences.
 - **Gaps are intentional.** Dropped or merged competencies leave their numbers vacant. New codes continue above all previously-used numbers, including retired ones.
-- **Applicability is not encoded in the code.** It lives in `config.competency-relevancy.json` (per-family pool and weights) and `config.active-competency-sets.json` (per-cycle selection).
+- **Applicability is not encoded in the code.** It lives in `config.role-family-competencies.json` (per-family pool), `config.relevancy-archetypes.json` together with each competency's `relevancyArchetype` pointer (weights), and `config.active-competency-sets.json` (per-cycle selection).
 
 **Next free codes:** `E1-67` · `E2-84` · `E3-34` · `I1-14` · `I2-14` · `I3-4` · `C1-9` · `C2-8` · `C3-10`
 
@@ -51,11 +51,11 @@ A competency is **shared** when its meaning is identical across families, even w
 
 ---
 
-## Shared canonical (available to all families)
+## Shared canonical (available to all families, except where noted)
 
 **E1 (cross-cutting)** — E1-10 Business and IT domain knowledge
 
-**E2 (cross-cutting — architecture)** — E2-52 Architecture documentation and decision records · E2-53 Quality attribute and trade-off analysis · E2-54 Technology evaluation and selection
+**E2 (cross-cutting — architecture)** — E2-52 Architecture documentation and decision records · E2-53 Quality attribute and trade-off analysis · E2-54 Technology evaluation and selection. *Shared in the dictionary but applicable to the SE and BA pools only — a PM or XD active set must not be able to draw them.*
 
 **E3 (cross-cutting)** — E3-22 Facilitation · E3-23 Leadership and influencing · E3-25 Negotiation and conflict resolution
 

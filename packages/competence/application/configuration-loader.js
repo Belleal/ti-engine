@@ -129,7 +129,7 @@ module.exports.getStageLevelLadder = () => {
 
 /**
  * Returns the flattened stage-level identifiers used as relevancy-archetype curve keys — every `<level><stage>`
- * combination in ladder order, e.g. `[ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1" ]`.
+ * combination in ladder order, e.g. `[ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1", "T2" ]`.
  *
  * @method
  * @returns {Array<string>}

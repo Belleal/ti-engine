@@ -316,7 +316,7 @@ function decomposeArchetypeAssignment( editedView, docs ) {
  * ========================================================================== */
 
 /**
- * Projects the relevancy archetypes — id, bilingual name/description, the twelve stage-level weights, and the number of
+ * Projects the relevancy archetypes — id, bilingual name/description, the thirteen stage-level weights, and the number of
  * competencies currently assigned (so the UI can guard "remove only when unassigned"). **Writes the archetypes config
  * and the archetype labels.**
  *

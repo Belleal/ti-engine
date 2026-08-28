@@ -1557,7 +1557,7 @@ Applying that principle:
 
 ---
 
-**Architecture complete** — 3 shared cross-cutting E2 · 4 SE.ARCHITECTURE · 5 BA.SOLUTION_ARCHITECTURE = **12 competencies**. Each architect draws 7 on top of their family baseline, comfortably within the 30 cap.
+**Architecture complete** — 3 shared cross-cutting E2 · 4 SE.ARCHITECTURE · 5 BA.SOLUTION_ARCHITECTURE = **12 competencies**. A software architect draws 7 on top of the SE baseline (29 of the 30 cap); a solution architect draws 8 on top of the BA baseline (29 of the 30 cap).
 
 ---
 
@@ -1566,6 +1566,8 @@ Applying that principle:
 *Five shared competencies carrying the genuine difference between team lead (T1) and head of department (T2), without duplicating ~110 near-identical anchors across a new stage-letter. Placement: Shared Competencies, within their existing subcategories. Codes continue above all previously-used numbers to avoid collision with retired codes.*
 
 *All five use the new relevancy archetype **H (Management-track)** — negligible for individual contributors, substantial at T1, peaking at T2.*
+
+## Management — shared competencies carrying the T1/T2 distinction
 
 ### C3-8 · Developing and leading managers
 

@@ -854,14 +854,14 @@ const configureCompetenceEvaluation = () => {
             return ( team && team.cumulative ) || "";
         },
 
-        // T-band cascade mirroring the server EXACTLY: ascending T1→T5, first band where score <= threshold, else T5.
+        // Band cascade mirroring the server EXACTLY: ascending P1→P5, first band where score <= threshold, else P5.
         tBand( score ) {
             const thresholds = ( tiApplication.configuration && tiApplication.configuration.performanceThresholds ) || {
-                T1: 76,
-                T2: 89,
-                T3: 105,
-                T4: 119,
-                T5: 150
+                P1: 76,
+                P2: 89,
+                P3: 105,
+                P4: 119,
+                P5: 150
             };
             const order = [ "P1", "P2", "P3", "P4", "P5" ];
             for ( let i = 0; i < order.length; i++ ) {
@@ -869,7 +869,7 @@ const configureCompetenceEvaluation = () => {
                     return order[ i ];
                 }
             }
-            return "T5";
+            return "P5";
         },
 
         // Maturity-step expected grade weight for a competency (mirrors results-analytics.expectedGradeForArchetype):
@@ -5249,7 +5249,7 @@ const configureArchetypeAssignment = () => {
     const tiApplication = Alpine.store( "tiApplication" );
 
     const EDITOR_KEY = "archetype-assignment";
-    const STAGE_LEVELS = [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1" ];
+    const STAGE_LEVELS = [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1", "T2" ];
 
     return {
         loaded: false,
@@ -5507,7 +5507,7 @@ const configureArchetypeAssignment = () => {
 
 /**
  * Alpine component for the relevancy archetype (curve) editor (frame-archetype-editor.html). Loads the
- * `relevancy-archetype` composite editor (each curve's id, bilingual name/description, twelve stage-level weights, and
+ * `relevancy-archetype` composite editor (each curve's id, bilingual name/description, thirteen stage-level weights, and
  * assignment count), and lets an admin edit weights/names, add a new archetype, or remove one that is unassigned. The
  * submitted set is the complete set, so the whole row list is sent on save (decompose treats omitted ids as removed,
  * guarded server-side by archetypesReferentialIntegrity). Admin-gated.

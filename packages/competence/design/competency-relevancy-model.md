@@ -32,7 +32,7 @@ Because selection handles family relevance, **relevancy curves are assigned once
 
 ### Why T2 rather than a new stage-letter
 
-Scope text is defined per **letter** (N/J/R/S/X/T); relevancy is defined per **sub-level**. A separate `M` letter would have required a seventh anchor for every competency — roughly 146 new strings in English and the same in Bulgarian — and for most competencies (time management, ethics, communication, deadlines) the M anchor would have been the T anchor with "team" replaced by "department." Near-duplicate anchors that fail the specific-example test teach raters that parts of the instrument do not discriminate.
+Scope text is defined per **letter** (N/J/R/S/X/T); relevancy is defined per **sub-level**. A separate `M` letter would have required a seventh anchor for every competency — roughly 186 new strings in English and the same in Bulgarian — one per competency in the dictionary — and for most competencies (time management, ethics, communication, deadlines) the M anchor would have been the T anchor with "team" replaced by "department." Near-duplicate anchors that fail the specific-example test teach raters that parts of the instrument do not discriminate.
 
 Instead, the genuine differences are carried by **five dedicated management competencies** (C3-8, C3-9, I2-12, I2-13, C2-7) on archetype H, and T1 versus T2 is distinguished by weighting.
 
@@ -42,9 +42,9 @@ Note the shape across archetypes: hands-on and technical curves (**D**, **E**, *
 
 ### Implementation note
 
-Every existing competency needs a **T2 value added** to its relevancy entry in `config.competency-relevancy.json`. This is mechanically derivable from each competency's assigned archetype — no scope text changes, no new anchors. `config.stage-levels.json` needs `T2` added under the T letter.
+Every existing competency needs a **T2 value added** to its relevancy entry, materialized into `config.relevancy-archetypes.json`. This is mechanically derivable from each competency's assigned archetype — no scope text changes, no new anchors. `config.stage-levels.json` needs `T2` added under the T letter.
 
-*Archetypes A–E have `X1 ≈ T1` (the two senior tracks weight the competency similarly). F and G are the only track-divergent shapes.*
+*Archetypes A–E have `X1 ≈ T1` (the two senior tracks weight the competency similarly). F, G and H are the track-divergent shapes — F leans to the IC track, G and H to the management track.*
 
 ---
 

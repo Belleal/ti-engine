@@ -21,7 +21,35 @@
 const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 
+const fs = require( "node:fs" );
+const path = require( "node:path" );
+
 const configurationLoader = require( "#configuration-loader" );
+
+const PACKAGE_ROOT = path.resolve( __dirname, ".." );
+const WEB_APPLICATION_FILE = path.join( PACKAGE_ROOT, "bin", "competence-web-application.js" );
+const UI_SCRIPT_FILE = path.join( PACKAGE_ROOT, "bin", "static", "scripts", "competence-user-interface.js" );
+
+/**
+ * Returns the band keys of a `performanceThresholds` fallback object literal, or null when the source carries no
+ * such fallback. The fallback is the `|| { ... }` arm following the setting lookup.
+ *
+ * @param {string} source - File contents to scan.
+ * @returns {Array<string>|null} The declared band keys, or null when there is no fallback to check.
+ */
+function fallbackBandKeys( source ) {
+    const match = /performanceThresholds[^{]*\|\|\s*\{([^}]*)\}/.exec( source );
+    return match ? ( match[ 1 ].match( /([A-Z]\d+)\s*:/g ) || [] ).map( ( key ) => key.replace( /\s*:$/, "" ) ) : null;
+}
+
+/**
+ * Returns the configured performance band codes.
+ *
+ * @returns {Array<string>} Band codes such as `P1`..`P5`.
+ */
+function configuredBands() {
+    return Object.keys( configurationLoader.performanceThreshold ).filter( ( key ) => /^[A-Z]\d+$/.test( key ) );
+}
 
 describe( "Stage sub-levels and performance bands occupy separate namespaces", () => {
 
@@ -43,6 +71,48 @@ describe( "Stage sub-levels and performance bands occupy separate namespaces", (
             .filter( ( k ) => /^[A-Z]\d+$/.test( k ) ).map( ( b ) => b.replace( /\d+$/, "" ) ) );
         const overlap = [ ...bandLetters ].filter( ( letter ) => stageLetters.has( letter ) );
         assert.deepEqual( overlap, [], `letter reused across both vocabularies: ${ overlap.join( ", " ) }` );
+    } );
+
+    it( "keeps every hard-coded threshold fallback on the configured band vocabulary", () => {
+        // The rename reached the configuration and the server enum but left `T1`..`T5` behind in two fallback
+        // literals — one per tier. Neither arm is normally reached, so no existing test noticed.
+        const bands = configuredBands().slice().sort();
+        for ( const file of [ WEB_APPLICATION_FILE, UI_SCRIPT_FILE ] ) {
+            const declared = fallbackBandKeys( fs.readFileSync( file, "utf8" ) );
+            if ( declared === null ) {
+                continue;
+            }
+            assert.deepEqual( declared.slice().sort(), bands,
+                `${ path.basename( file ) } falls back on bands the configuration does not define` );
+        }
+    } );
+
+    it( "returns a configured band from the client-side cascade's terminal arm", () => {
+        // `tBand()` exhausts the ascending cascade for any score above the top threshold and returns a literal.
+        // That arm is live for every top performer, and it returned the pre-rename `T5` well after the rename.
+        const source = fs.readFileSync( UI_SCRIPT_FILE, "utf8" );
+        const cascade = /tBand\s*\([^)]*\)\s*\{[\s\S]*?\n {8}\},/.exec( source );
+        assert.ok( cascade, "the client-side band cascade must be present" );
+
+        const returned = ( cascade[ 0 ].match( /return\s+"([A-Z]\d+)"/g ) || [] )
+            .map( ( statement ) => statement.replace( /^return\s+"/, "" ).replace( /"$/, "" ) );
+        assert.ok( returned.length > 0, "the cascade must return at least one literal band" );
+
+        const bands = configuredBands();
+        const unknown = returned.filter( ( band ) => !bands.includes( band ) );
+        assert.deepEqual( unknown, [], `the cascade returns bands the configuration does not define: ${ unknown.join( ", " ) }` );
+    } );
+
+    it( "keeps the client-side stage ladder in step with the configured one", () => {
+        // The archetype-assignment editor restates the sub-levels rather than reading them from its view, so a new
+        // sub-level stays invisible there until the literal is updated. `T2` was missing for exactly that reason.
+        const source = fs.readFileSync( UI_SCRIPT_FILE, "utf8" );
+        const declared = /const STAGE_LEVELS = \[([^\]]*)\]/.exec( source );
+        assert.ok( declared, "the client must declare its stage-level list" );
+
+        const levels = ( declared[ 1 ].match( /"([^"]+)"/g ) || [] ).map( ( level ) => level.replace( /"/g, "" ) );
+        assert.deepEqual( levels, configurationLoader.getArchetypeStageLevels(),
+            "the client stage list has drifted from the configured ladder" );
     } );
 
 } );

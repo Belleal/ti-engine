@@ -320,7 +320,7 @@
 
 /**
  * @typedef {Object} RelevancyArchetype
- * @property {CompetencyRelevancy} weights - The twelve stage-level weights (N1..T1) for this archetype.
+ * @property {CompetencyRelevancy} weights - The thirteen stage-level weights (N1..T2) for this archetype.
  */
 
 /**
