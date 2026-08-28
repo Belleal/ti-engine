@@ -47,6 +47,16 @@ describe( "validateEmployee — workSite", () => {
             "error.employee.invalid-work-site" );
     } );
 
+    for ( const value of [ "toString", "constructor", "hasOwnProperty", "valueOf" ] ) {
+        it( `rejects '${ value }' instead of matching it against Object.prototype's own member (CodeRabbit CA-109)`, () => {
+            // `sites[ "toString" ]` resolves the inherited Object.prototype.toString and reads as "known" even
+            // against an EMPTY nomenclature -- a bracket lookup on a plain object must never stand in for
+            // membership. Object.hasOwn is what closes this off.
+            assert.equal( employeeRules.instance.validateEmployee( employee( { workSite: value } ), CONTEXT ),
+                "error.employee.invalid-work-site" );
+        } );
+    }
+
     it( "rejects any site when the context carries no nomenclature", () => {
         // A caller that forgets to pass workSites must fail closed, not silently accept every value.
         const withoutSites = { ...CONTEXT };

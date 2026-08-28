@@ -38,20 +38,20 @@
 
             <template x-for="(site, index) in sites" x-bind:key="index">
                 <div class="ti-form-row">
-                    <label class="ti-field-label" x-text-label="interface.work-sites.code">Code</label>
-                    <input class="ti-input" type="text" x-bind:value="site.code" @input="setSiteCode(index, $event.target.value)">
+                    <label class="ti-field-label" x-bind:for="'work-site-code-' + index" x-text-label="interface.work-sites.code">Code</label>
+                    <input class="ti-input" type="text" x-bind:id="'work-site-code-' + index" x-bind:value="site.code" @input="setSiteCode(index, $event.target.value)">
 
-                    <label class="ti-field-label" x-text-label="interface.work-sites.type">Type</label>
-                    <select class="ti-select" x-bind:value="site.type" @change="setSiteType(index, $event.target.value)">
+                    <label class="ti-field-label" x-bind:for="'work-site-type-' + index" x-text-label="interface.work-sites.type">Type</label>
+                    <select class="ti-select" x-bind:id="'work-site-type-' + index" x-bind:value="site.type" @change="setSiteType(index, $event.target.value)">
                         <option value="office" x-text-label="interface.work-sites.type-office">Office</option>
                         <option value="client" x-text-label="interface.work-sites.type-client">Client</option>
                     </select>
 
-                    <label class="ti-field-label" x-text-label="interface.work-sites.name-en">Name (EN)</label>
-                    <input class="ti-input" type="text" x-bind:value="site.name.en" @input="setSiteName(index, 'en', $event.target.value)">
+                    <label class="ti-field-label" x-bind:for="'work-site-name-en-' + index" x-text-label="interface.work-sites.name-en">Name (EN)</label>
+                    <input class="ti-input" type="text" x-bind:id="'work-site-name-en-' + index" x-bind:value="site.name.en" @input="setSiteName(index, 'en', $event.target.value)">
 
-                    <label class="ti-field-label" x-text-label="interface.work-sites.name-bg">Name (BG)</label>
-                    <input class="ti-input" type="text" x-bind:value="site.name.bg" @input="setSiteName(index, 'bg', $event.target.value)">
+                    <label class="ti-field-label" x-bind:for="'work-site-name-bg-' + index" x-text-label="interface.work-sites.name-bg">Name (BG)</label>
+                    <input class="ti-input" type="text" x-bind:id="'work-site-name-bg-' + index" x-bind:value="site.name.bg" @input="setSiteName(index, 'bg', $event.target.value)">
 
                     <button class="ti-btn" type="button" @click="removeSite(index)" x-text-label="interface.work-sites.remove">Remove</button>
                 </div>

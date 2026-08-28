@@ -423,7 +423,9 @@ run it from any host with the Redis connection variables (§7, "Redis") pointed 
 inside the container — copy it in first with `docker cp employees.csv <container>:/tmp/employees.csv`.
 
 **Handing the work to HR.** `docs/templates/employee-import-template.xlsx` is a ready-made spreadsheet to give to
-whoever collects the data. It carries the columns in the right order, dropdowns for every fixed-vocabulary field,
+whoever collects the data. It carries the columns in the right order, dropdowns for every fixed-vocabulary field —
+except `work_site`, deliberately left free text, since the valid codes are per-deployment configuration
+(**Administration → Work Sites**) and a committed dropdown would carry the demo codes into every real install —
 text-formatted ID and date columns so Excel cannot strip a leading zero or reformat a date, duplicate-email and
 duplicate-ID highlighting, and its own export instructions. Fill in the organization-unit table on its *Valid
 values* sheet before sending it, since those IDs come from your configured structure and the template cannot know

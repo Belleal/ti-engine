@@ -80,7 +80,11 @@ class EmployeeRules {
             return "error.employee.invalid-work-location";
         }
         const workSite = employee.personal.workSite;
-        if ( workSite && !sites[ workSite ] ) {
+        // Object.hasOwn, not `!sites[ workSite ]`: a plain object's bracket lookup also resolves inherited
+        // properties, so a work site (or role family / specialization / organization unit, below) named "toString"
+        // or "constructor" would find Object.prototype's own member and read as "known" against an empty
+        // nomenclature. Own-property checking closes that off without rejecting any legitimate code.
+        if ( workSite && !Object.hasOwn( sites, workSite ) ) {
             return "error.employee.invalid-work-site";
         }
         const gender = employee.personal.gender;
@@ -95,11 +99,11 @@ class EmployeeRules {
 
         const career = employee.career || {};
         const roleFamily = career.roleFamily;
-        if ( !roleFamily || !families[ roleFamily ] ) {
+        if ( !roleFamily || !Object.hasOwn( families, roleFamily ) ) {
             return "error.employee.invalid-role-family";
         }
         const specialization = career.specialization || null;
-        if ( specialization && !( families[ roleFamily ].specializations || {} )[ specialization ] ) {
+        if ( specialization && !Object.hasOwn( families[ roleFamily ].specializations || {}, specialization ) ) {
             return "error.employee.invalid-specialization";
         }
 
@@ -116,7 +120,7 @@ class EmployeeRules {
         }
 
         const organizationUnitID = career.organizationUnitID;
-        if ( !organizationUnitID || !structure[ organizationUnitID ] ) {
+        if ( !organizationUnitID || !Object.hasOwn( structure, organizationUnitID ) ) {
             return "error.employee.invalid-organization-unit";
         }
 

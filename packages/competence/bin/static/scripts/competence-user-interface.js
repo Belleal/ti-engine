@@ -6306,17 +6306,19 @@ function configureWorkSites() {
         // Everything else — including whether a removal is allowed — is the validator's answer, rendered above.
         localIssues() {
             const issues = [];
-            const seen = {};
+            // A Set, not a plain object: a first site code of "toString" or "constructor" would otherwise match
+            // Object.prototype's own member and read as an already-seen duplicate.
+            const seen = new Set();
             for ( const site of this.sites ) {
                 const code = ( site.code || "" ).trim();
                 if ( code.length === 0 ) {
                     issues.push( { label: "—", message: tiApplication.getLabel( "interface.work-sites.code-required", "Every site needs a code." ) } );
                     continue;
                 }
-                if ( seen[ code ] ) {
+                if ( seen.has( code ) ) {
                     issues.push( { label: code, message: tiApplication.getLabel( "interface.work-sites.code-duplicate", "This code is used twice." ) } );
                 }
-                seen[ code ] = true;
+                seen.add( code );
                 if ( !site.name || !( site.name.en || "" ).trim() || !( site.name.bg || "" ).trim() ) {
                     issues.push( { label: code, message: tiApplication.getLabel( "interface.work-sites.name-required", "Both an English and a Bulgarian name are required." ) } );
                 }
