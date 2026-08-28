@@ -49,7 +49,7 @@ describe( "ResultsAnalytics.buildResultsSnapshot — locked shape", () => {
 
         // CA-X0: the cross-cycle substrate is now COMPUTED (was stubbed). These frame rows are unscored, so there are
         // no reported rows: score aggregates are empty/zero-filled and the org/role breakdowns have no groups.
-        const zeroBands = { T1: 0, T2: 0, T3: 0, T4: 0, T5: 0 };
+        const zeroBands = { P1: 0, P2: 0, P3: 0, P4: 0, P5: 0 };
         assert.deepEqual( snap.overall, { finalScore: {}, tBandMix: zeroBands } );
         assert.deepEqual( snap.byCategory, { E: { tBandMix: zeroBands }, I: { tBandMix: zeroBands }, C: { tBandMix: zeroBands } } );
         assert.deepEqual( snap.ladderOrdinalHistogram, { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 } );
@@ -62,7 +62,7 @@ describe( "ResultsAnalytics.buildResultsSnapshot — locked shape", () => {
         assert.equal( Object.keys( snap.byStageLevel ).length, 12 );
         assert.deepEqual( snap.byStageLevel.N1, { n: 0, suppressed: true } );   // CA-X4 review: small cells carry the suppressed flag (parity with byRoleFamily/byOrgUnit)
         assert.equal( snap.reports.levelDistribution.groups.length, 12 );
-        assert.deepEqual( snap.reports.levelDistribution.reference, [ { v: 105, label: "T3" } ] );
+        assert.deepEqual( snap.reports.levelDistribution.reference, [ { v: 105, label: "P3" } ] );
 
         // R4 (CA-67): heatmap + bySubcategory present; an unscored frame yields no cells and an empty-but-keyed axis.
         assert.equal( snap.reports.heatmap.rows.length, 9 );

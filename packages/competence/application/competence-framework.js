@@ -28,11 +28,11 @@ const evaluationWeights = tools.deepFreeze( {
 } );
 
 const performanceThresholds = tools.deepFreeze( {
-    [ configurationLoader.performanceThreshold.T1 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T1" ) ?? 76,
-    [ configurationLoader.performanceThreshold.T2 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T2" ) ?? 89,
-    [ configurationLoader.performanceThreshold.T3 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T3" ) ?? 105,
-    [ configurationLoader.performanceThreshold.T4 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T4" ) ?? 119,
-    [ configurationLoader.performanceThreshold.T5 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.T5" ) ?? 150
+    [ configurationLoader.performanceThreshold.P1 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.P1" ) ?? 76,
+    [ configurationLoader.performanceThreshold.P2 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.P2" ) ?? 89,
+    [ configurationLoader.performanceThreshold.P3 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.P3" ) ?? 105,
+    [ configurationLoader.performanceThreshold.P4 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.P4" ) ?? 119,
+    [ configurationLoader.performanceThreshold.P5 ]: configurationLoader.getSetting( "performanceAppraisals.performanceThresholds.P5" ) ?? 150
 } );
 
 const SUBCATEGORIES = Object.freeze( [ "E1", "E2", "E3", "I1", "I2", "I3", "C1", "C2", "C3" ] );
@@ -842,7 +842,7 @@ class CompetenceFramework {
                 }
             } );
             if ( !interpretation ) {
-                interpretation = configurationLoader.performanceThreshold.T5;
+                interpretation = configurationLoader.performanceThreshold.P5;
             }
 
             evaluation.scores[ categoryCode ] = { score: categoryScore, interpretation };
@@ -861,7 +861,7 @@ class CompetenceFramework {
                 finalInterpretation = thresholdCode;
             }
         } );
-        evaluation.finalScore.interpretation = finalInterpretation || configurationLoader.performanceThreshold.T5;
+        evaluation.finalScore.interpretation = finalInterpretation || configurationLoader.performanceThreshold.P5;
 
         logger.log( "Final evaluation scores:", logger.logSeverity.DEBUG, { categories: evaluation.scores, final: evaluation.finalScore } );
     }

@@ -38,7 +38,7 @@ const MIN_COHORT_SIZE = 3;
 const LADDER_ORDINAL = Object.freeze( { N: 1, J: 2, R: 3, S: 4, X: 5, T: 5 } );
 
 // The T-band axis for tBandMix histograms (stable across cycles).
-const T_BANDS = Object.freeze( [ "T1", "T2", "T3", "T4", "T5" ] );
+const PERFORMANCE_BANDS = Object.freeze( [ "P1", "P2", "P3", "P4", "P5" ] );
 
 /**
  * Population standard deviation of a numeric array, rounded to 3 decimals. Returns null for an empty array. Pure.
@@ -332,7 +332,7 @@ class ResultsAnalytics {
      * @method
      * @param {Array<Object>} frame - CohortRow[]; rows carry finalScore.score, stageLevel, status, isScored, and
      *   competencies[code].{category, relevancy, relevancyCurve}.
-     * @param {Object} [filter] - optional { stageLevels:[...], minCohortSize:number, t3:number }.
+     * @param {Object} [filter] - optional { stageLevels:[...], minCohortSize:number, p3:number }.
      * @returns {Object} { groups:[{id,label,n,min?,q1?,median?,q3?,max?,mean?,expected?,suppressed?}], reference:[{v,label}] }
      * @public
      */
@@ -340,7 +340,7 @@ class ResultsAnalytics {
         const rows = Array.isArray( frame ) ? frame : [];
         const levels = ( filter && Array.isArray( filter.stageLevels ) && filter.stageLevels.length ) ? filter.stageLevels : STAGE_LEVELS;
         const minCohort = ( filter && typeof filter.minCohortSize === "number" ) ? filter.minCohortSize : MIN_COHORT_SIZE;
-        const t3 = ( filter && typeof filter.t3 === "number" ) ? filter.t3 : 105;
+        const p3 = ( filter && typeof filter.p3 === "number" ) ? filter.p3 : 105;
 
         const byLevel = new Map();
         for ( const level of levels ) { byLevel.set( level, [] ); }
@@ -371,7 +371,7 @@ class ResultsAnalytics {
             };
         } );
 
-        return { groups: groups, reference: [ { v: t3, label: "T3" } ] };
+        return { groups: groups, reference: [ { v: p3, label: "P3" } ] };
     }
 
     /**
@@ -618,7 +618,7 @@ class ResultsAnalytics {
     #tBandMix( rows, field ) {
         const key = field || "finalInterpretation";
         const mix = {};
-        for ( const band of T_BANDS ) { mix[ band ] = 0; }
+        for ( const band of PERFORMANCE_BANDS ) { mix[ band ] = 0; }
         for ( const r of rows ) {
             const band = r[ key ];
             if ( band && mix[ band ] !== undefined ) { mix[ band ]++; }
@@ -1325,7 +1325,7 @@ class ResultsAnalytics {
             }
             series = [ { key: "mean", tone: "grade-s", values: values, band: band } ];
         } else if ( metric === "tBandMix" ) {
-            const bands = [ "T1", "T2", "T3", "T4", "T5" ];
+            const bands = [ "P1", "P2", "P3", "P4", "P5" ];
             series = bands.map( ( band, i ) => ( { key: band, tone: ( i <= 1 ? "grade-n" : ( i === 2 ? "grade-r" : "grade-s" ) ), values: windowed.map( ( s ) => {
                 const mix = ( s.overall && s.overall.tBandMix ) ? s.overall.tBandMix : null;
                 if ( isLegacy( s ) || !mix ) { return null; }

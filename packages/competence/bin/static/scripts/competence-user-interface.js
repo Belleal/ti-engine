@@ -863,7 +863,7 @@ const configureCompetenceEvaluation = () => {
                 T4: 119,
                 T5: 150
             };
-            const order = [ "T1", "T2", "T3", "T4", "T5" ];
+            const order = [ "P1", "P2", "P3", "P4", "P5" ];
             for ( let i = 0; i < order.length; i++ ) {
                 if ( typeof thresholds[ order[ i ] ] === "number" && score <= thresholds[ order[ i ] ] ) {
                     return order[ i ];
@@ -907,7 +907,7 @@ const configureCompetenceEvaluation = () => {
             const cfg = tiApplication.configuration || {};
             const gradeWeights = cfg.gradeWeights || { S: 1.3, R: 1.0, U: 0.6, N: 0.0 };
             const evalWeights = cfg.evaluationWeights || { self: 0.2, team: 0.3, manager: 0.5 };
-            const scoreMax = Number( cfg.performanceThresholds && cfg.performanceThresholds.T5 ) || 150;
+            const scoreMax = Number( cfg.performanceThresholds && cfg.performanceThresholds.P5 ) || 150;
             const maxGrade = ( typeof gradeWeights.S === "number" ) ? gradeWeights.S : 1.3;
             const snapshot = Array.isArray( ev.snapshot ) ? ev.snapshot : [];
             const stageLevel = ev.stageLevel || "";
@@ -1013,7 +1013,7 @@ const configureCompetenceEvaluation = () => {
             }
 
             // Hero: the server's authoritative finalScore + its band. interpretationName is a label KEY
-            // (e.g. "framework.performance.threshold.name.T3") — resolve it through getLabel, never render it raw.
+            // (e.g. "framework.performance.threshold.name.P3") — resolve it through getLabel, never render it raw.
             const finalScore = ev.finalScore.score;
             const bandCode = ev.finalScore.interpretation || this.tBand( finalScore );
             const finalScoreLabel = tiApplication.getLabel( "interface.evaluation.results.final-score", "Final score" );
@@ -2632,7 +2632,7 @@ const configureInsightsTeam = () => configureInsightsScreen( { shellEndpoint: "l
  */
 const configureTrendsScreen = () => {
     const tiApplication = Alpine.store( "tiApplication" );
-    const BAND_TONES = { T1: "grade-n", T2: "grade-n", T3: "grade-r", T4: "grade-s", T5: "grade-s" };
+    const BAND_TONES = { P1: "grade-n", P2: "grade-n", P3: "grade-r", P4: "grade-s", P5: "grade-s" };
     const ORDINAL_TONES = { "1": "grade-n", "2": "grade-n", "3": "grade-r", "4": "grade-s", "5": "grade-s" };
 
     return {

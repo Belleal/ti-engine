@@ -42,8 +42,8 @@ function evaluationFixture( over = {} ) {
         specialization: ( over.specialization !== undefined ) ? over.specialization : null,
         stageLevel: stageLevel,
         interviewDate: ( over.interviewDate !== undefined ) ? over.interviewDate : "2026-06-10",
-        finalScore: ( over.finalScore !== undefined ) ? over.finalScore : { score: 100, interpretation: "T3" },
-        scores: over.scores || { E: { score: 100, interpretation: "T3" }, I: { score: 100, interpretation: "T3" }, C: { score: 100, interpretation: "T3" } },
+        finalScore: ( over.finalScore !== undefined ) ? over.finalScore : { score: 100, interpretation: "P3" },
+        scores: over.scores || { E: { score: 100, interpretation: "P3" }, I: { score: 100, interpretation: "P3" }, C: { score: 100, interpretation: "P3" } },
         grades: ( over.grades !== undefined ) ? over.grades : {
             "E1-1": { employee: "S", manager: "R", team: { cumulative: "R", individual: [ "R", "S" ] } }
         },
@@ -550,7 +550,7 @@ describe( "ResultsAnalytics.computeLevelDistribution (R5)", () => {
             stageLevel: stageLevel,
             status: ( over.status !== undefined ) ? over.status : "Ready",
             isScored: ( over.isScored !== undefined ) ? over.isScored : true,
-            finalScore: { score: score, interpretation: over.interpretation || "T3" },
+            finalScore: { score: score, interpretation: over.interpretation || "P3" },
             competencies: {
                 "E1-1": { category: "E", relevancy: rel, relevancyCurve: curve },
                 "I1-1": { category: "I", relevancy: rel, relevancyCurve: curve },
@@ -565,7 +565,7 @@ describe( "ResultsAnalytics.computeLevelDistribution (R5)", () => {
         const report = resultsAnalyticsInstance.computeLevelDistribution( [], {} );
         assert.equal( report.groups.length, 12 );
         assert.deepEqual( report.groups.map( ( g ) => g.id ), [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1" ] );
-        assert.deepEqual( report.reference, [ { v: 105, label: "T3" } ] );
+        assert.deepEqual( report.reference, [ { v: 105, label: "P3" } ] );
         assert.equal( report.groups[ 0 ].suppressed, true );   // empty level
         assert.equal( report.groups[ 0 ].n, 0 );
     } );
