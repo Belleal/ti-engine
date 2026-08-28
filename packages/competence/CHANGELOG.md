@@ -20,10 +20,20 @@ with content.
   principle as accessibility in Increment 3: a junior shipping an unguarded system is a governance failure, not a
   developmental gap that seniority closes, and a steady-high weighting states that in the scoring rather than
   leaving it to be inferred (CA-112)
-* feat(competence): seed specialization sets for `2026-H2` — `DATABASE_ARCHITECTURE` 8 codes (its five plus the
-  three shared cross-cutting architecture competencies) and `AI_ENGINEERING` 6. Note that
-  DATABASE_ARCHITECTURE lands **exactly on the cap**: 22 baseline + 8 = 30. Any future addition to the SE baseline
-  will push it over and fail cycle-lock validation (CA-112)
+* feat(competence): seed specialization sets for `2026-H2` — `DATABASE_ARCHITECTURE` 8 codes and
+  `AI_ENGINEERING` 9, each drawing the three shared cross-cutting architecture competencies on top of its own.
+  Resolved sizes are 30 and 31 against the SE baseline of 22 (CA-112)
+* feat(config)!: raise `performanceAppraisals.activeCompetencySetCap` from 30 to **32**. `AI_ENGINEERING` draws all
+  three shared architecture competencies, which resolves to 31 — and because `validateCycleForLock` checks every
+  specialization of an included family while `excludedFamilies` only excludes whole families, a single oversized
+  specialization blocks the entire SE family from locking a cycle. The set definition states which competencies
+  apply; the cap is a tunable that should not shape it. Raised to 32 rather than 31 so the next addition does not
+  immediately re-block. This lengthens the maximum appraisal form for every family (CA-112)
+* fix(competence): finish the `T1`..`T5` → `P1`..`P5` band rename begun in CA-111. The client-side cascade returned
+  the literal `"T5"` from its terminal arm — live for every score above the top threshold — and both tiers kept a
+  `T1`..`T5` fallback for `performanceThresholds`. The archetype-assignment editor also restated the stage
+  sub-levels and so never showed `T2`, and `evaluation.schema.json` still declared the old `interpretation` enum.
+  Three guards added, each verified to fail against the code as it stood (CA-111)
 * fix(competence): write the Increment 4 archetype assignments as table **rows** rather than the prose the model
   document used for the database five ("all → F"). The generator reads assignments from tables; a prose statement
   is invisible to it and an unassigned dictionary code aborts the build. This is the third increment where prose

@@ -1557,7 +1557,7 @@ Applying that principle:
 
 ---
 
-**Architecture complete** — 3 shared cross-cutting E2 · 4 SE.ARCHITECTURE · 5 BA.SOLUTION_ARCHITECTURE = **12 competencies**. A software architect draws 7 on top of the SE baseline (29 of the 30 cap); a solution architect draws 8 on top of the BA baseline (29 of the 30 cap).
+**Architecture complete** — 3 shared cross-cutting E2 · 4 SE.ARCHITECTURE · 5 BA.SOLUTION_ARCHITECTURE = **12 competencies**. A software architect draws 7 on top of the SE baseline (29 of the 32 cap); a solution architect draws 8 on top of the BA baseline (29 of the 32 cap).
 
 ---
 
@@ -1979,7 +1979,7 @@ Applying that principle:
 
 ## SE · AI_ENGINEERING specialization
 
-*Building AI-native systems on existing models — not model training, which would belong to DA. Draws shared E2-53 and E2-54 naturally; E2-52 where the work is architectural.*
+*Building AI-native systems on existing models — not model training, which would belong to DA. Draws all three shared cross-cutting architecture competencies (E2-52/53/54) in addition to the six below.*
 
 ### E2-78 · Model integration and prompt engineering
 

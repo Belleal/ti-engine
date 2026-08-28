@@ -87,7 +87,7 @@ A competency is **shared** when its meaning is identical across families, even w
 - `BACKEND` · `FRONTEND` · `MOBILE` · `FULLSTACK` · `EMBEDDED` — defined, no content
 - **`ARCHITECTURE`** — E2-55 System decomposition and boundary design · E2-56 Architectural governance and design review · E2-57 Scalability and resilience design · E2-58 Architecture evolution and migration planning *(plus shared E2-52/53/54)*. **Software Architect = SE × ARCHITECTURE × X1**
 - **`DATABASE_ARCHITECTURE`** — E2-73 Data modelling and schema design · E2-74 Database performance tuning and query optimisation · E2-75 Database reliability, backup and recovery design · E2-76 Database migration and change management · E2-77 Database security and access control *(plus shared E2-52/53/54)*
-- **`AI_ENGINEERING`** — E2-78 Model integration and prompt engineering · E2-79 Retrieval and context engineering · E2-80 Agent and tool orchestration · E2-81 Evaluating non-deterministic systems · E2-82 AI safety, guardrails and responsible deployment · E2-83 Model selection and cost-performance optimisation. *Builds on existing models; model training belongs to DA.*
+- **`AI_ENGINEERING`** — E2-78 Model integration and prompt engineering · E2-79 Retrieval and context engineering · E2-80 Agent and tool orchestration · E2-81 Evaluating non-deterministic systems · E2-82 AI safety, guardrails and responsible deployment · E2-83 Model selection and cost-performance optimisation *(plus shared E2-52/53/54)*. *Builds on existing models; model training belongs to DA.*
 
 ---
 

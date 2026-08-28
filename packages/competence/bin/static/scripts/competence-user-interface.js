@@ -3381,7 +3381,7 @@ const configureCycleSetup = () => {
         cycleID: null,
         cycle: {},
         isReadOnly: false,
-        cap: 30,
+        cap: 32,
         families: [],
         sets: {},
         competenciesByCode: {},
@@ -3443,7 +3443,7 @@ const configureCycleSetup = () => {
         applyData( data ) {
             this.cycle = data.cycle ? tiToolbox.structuredClone( data.cycle ) : {};
             this.isReadOnly = data.isReadOnly === true;
-            this.cap = typeof data.cap === "number" ? data.cap : 30;
+            this.cap = typeof data.cap === "number" ? data.cap : 32;
             this.families = Array.isArray( data.families ) ? tiToolbox.structuredClone( data.families ) : [];
             this.sets = data.sets ? tiToolbox.structuredClone( data.sets ) : {};
             this.competenciesByCode = data.competenciesByCode ? tiToolbox.structuredClone( data.competenciesByCode ) : {};

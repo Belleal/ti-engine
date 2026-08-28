@@ -17,7 +17,7 @@
     "maxTeamEvaluationMembers": 5,
     "teamFeedbackWindowDays": 14,
     "allowFinalizeTeamWithoutSubmissions": true,
-    "activeCompetencySetCap": 30,
+    "activeCompetencySetCap": 32,
     "numberOfNextPeriodGoals": 5,
     "alignmentQuadrantMidpoint": 1.0,
     "interviewCalendar": {

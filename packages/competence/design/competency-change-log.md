@@ -266,7 +266,23 @@ unguarded system is a governance failure, not a developmental gap, and the weigh
 | `config.role-families.json` | **Added** `SE.DATABASE_ARCHITECTURE` and `SE.AI_ENGINEERING` |
 | `competency-relevancy-model.md` | Assignments added **as rows**, not prose. The database five were specified as "all → F" in prose, which the generator cannot see — the same shape that silently dropped assignments in Increment 3 |
 | `config.role-family-competencies.json` · `relevancyArchetype` fields | **Generated** from the model doc (working rule 6). SE pool 74 → **85** |
-| `config.active-competency-sets.json` | Specialization sets for 2026-H2: DATABASE_ARCHITECTURE 8 (its 5 + the 3 shared), AI_ENGINEERING 6 |
+| `config.active-competency-sets.json` | Specialization sets for 2026-H2: DATABASE_ARCHITECTURE 8 (its 5 + the 3 shared), AI_ENGINEERING 9 (its 6 + the 3 shared). Resolved against the SE baseline of 22: 30 and 31 |
+| `config.application.json` | `performanceAppraisals.activeCompetencySetCap` raised **30 → 32** — see the note below |
+
+**On the cap.** `AI_ENGINEERING` draws all three shared architecture competencies, the same as the three
+architecture specializations, which takes its resolved set to 31. Rather than trim the set to fit, the cap was
+raised — the set definition states which competencies apply to a specialization, and the cap is an application-level
+tunable that should not shape that definition.
+
+The trim option was not merely unattractive, it was misdirected: `validateCycleForLock` checks **every**
+specialization of an included family, and `cycle.excludedFamilies` excludes only whole families. A single
+oversized specialization therefore blocks every SE employee from a cycle, including those carrying no
+specialization at all. The competency to remove would have had to come out of the SE **baseline**, hitting
+everyone, to make room in one specialization.
+
+Raised to 32 rather than 31 so that the next shared competency does not immediately re-block SE. The cost is real:
+the cap bounds how long an appraisal form can get, and 30 competencies × 6 anchors is already substantial to rate.
+`ARCHITECTURE` and `SOLUTION_ARCHITECTURE` sit at 29 and `DATABASE_ARCHITECTURE` at 30, so headroom stays thin.
 
 **Next code positions after Increment 4:** E1-67 · **E2-84** · E3-34 · I1-14 · C2-8 · C3-10 · I2-14
 
