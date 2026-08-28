@@ -20,7 +20,7 @@ Authoritative code → name → applicability reference for the rebuilt competen
 | Shared canonical | 1 | 3 | 3 | — | 6 | 3 | 8 | 5 | 5 | 34 |
 | **Distinct total** | | | | | | | | | | **146** |
 
-Each family, in practice, draws its own Expertise + I1 plus whichever shared canonical competencies HR selects → roughly 55–60 competencies available per family before the per-cycle cap (default 30) is applied.
+Each family, in practice, draws its own Expertise + I1 plus whichever shared canonical competencies HR selects. The resulting applicability pool is **SE 69 · BA 60 · QE 57 · PM 56**, and **31** for each of the five not-yet-populated families (the shared core alone) — all before the per-cycle cap (default 30) is applied. The pool sizes are generated into `config.role-family-competencies.json`; re-derive them from there rather than editing this line by hand.
 
 ---
 
