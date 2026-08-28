@@ -854,22 +854,22 @@ const configureCompetenceEvaluation = () => {
             return ( team && team.cumulative ) || "";
         },
 
-        // T-band cascade mirroring the server EXACTLY: ascending T1→T5, first band where score <= threshold, else T5.
+        // Band cascade mirroring the server EXACTLY: ascending P1→P5, first band where score <= threshold, else P5.
         tBand( score ) {
             const thresholds = ( tiApplication.configuration && tiApplication.configuration.performanceThresholds ) || {
-                T1: 76,
-                T2: 89,
-                T3: 105,
-                T4: 119,
-                T5: 150
+                P1: 76,
+                P2: 89,
+                P3: 105,
+                P4: 119,
+                P5: 150
             };
-            const order = [ "T1", "T2", "T3", "T4", "T5" ];
+            const order = [ "P1", "P2", "P3", "P4", "P5" ];
             for ( let i = 0; i < order.length; i++ ) {
                 if ( typeof thresholds[ order[ i ] ] === "number" && score <= thresholds[ order[ i ] ] ) {
                     return order[ i ];
                 }
             }
-            return "T5";
+            return "P5";
         },
 
         // Maturity-step expected grade weight for a competency (mirrors results-analytics.expectedGradeForArchetype):
@@ -907,7 +907,7 @@ const configureCompetenceEvaluation = () => {
             const cfg = tiApplication.configuration || {};
             const gradeWeights = cfg.gradeWeights || { S: 1.3, R: 1.0, U: 0.6, N: 0.0 };
             const evalWeights = cfg.evaluationWeights || { self: 0.2, team: 0.3, manager: 0.5 };
-            const scoreMax = Number( cfg.performanceThresholds && cfg.performanceThresholds.T5 ) || 150;
+            const scoreMax = Number( cfg.performanceThresholds && cfg.performanceThresholds.P5 ) || 150;
             const maxGrade = ( typeof gradeWeights.S === "number" ) ? gradeWeights.S : 1.3;
             const snapshot = Array.isArray( ev.snapshot ) ? ev.snapshot : [];
             const stageLevel = ev.stageLevel || "";
@@ -1013,7 +1013,7 @@ const configureCompetenceEvaluation = () => {
             }
 
             // Hero: the server's authoritative finalScore + its band. interpretationName is a label KEY
-            // (e.g. "framework.performance.threshold.name.T3") — resolve it through getLabel, never render it raw.
+            // (e.g. "framework.performance.threshold.name.P3") — resolve it through getLabel, never render it raw.
             const finalScore = ev.finalScore.score;
             const bandCode = ev.finalScore.interpretation || this.tBand( finalScore );
             const finalScoreLabel = tiApplication.getLabel( "interface.evaluation.results.final-score", "Final score" );
@@ -2632,7 +2632,7 @@ const configureInsightsTeam = () => configureInsightsScreen( { shellEndpoint: "l
  */
 const configureTrendsScreen = () => {
     const tiApplication = Alpine.store( "tiApplication" );
-    const BAND_TONES = { T1: "grade-n", T2: "grade-n", T3: "grade-r", T4: "grade-s", T5: "grade-s" };
+    const BAND_TONES = { P1: "grade-n", P2: "grade-n", P3: "grade-r", P4: "grade-s", P5: "grade-s" };
     const ORDINAL_TONES = { "1": "grade-n", "2": "grade-n", "3": "grade-r", "4": "grade-s", "5": "grade-s" };
 
     return {
@@ -3381,7 +3381,7 @@ const configureCycleSetup = () => {
         cycleID: null,
         cycle: {},
         isReadOnly: false,
-        cap: 30,
+        cap: 32,
         families: [],
         sets: {},
         competenciesByCode: {},
@@ -3443,7 +3443,7 @@ const configureCycleSetup = () => {
         applyData( data ) {
             this.cycle = data.cycle ? tiToolbox.structuredClone( data.cycle ) : {};
             this.isReadOnly = data.isReadOnly === true;
-            this.cap = typeof data.cap === "number" ? data.cap : 30;
+            this.cap = typeof data.cap === "number" ? data.cap : 32;
             this.families = Array.isArray( data.families ) ? tiToolbox.structuredClone( data.families ) : [];
             this.sets = data.sets ? tiToolbox.structuredClone( data.sets ) : {};
             this.competenciesByCode = data.competenciesByCode ? tiToolbox.structuredClone( data.competenciesByCode ) : {};
@@ -5249,7 +5249,7 @@ const configureArchetypeAssignment = () => {
     const tiApplication = Alpine.store( "tiApplication" );
 
     const EDITOR_KEY = "archetype-assignment";
-    const STAGE_LEVELS = [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1" ];
+    const STAGE_LEVELS = [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1", "T2" ];
 
     return {
         loaded: false,
@@ -5507,7 +5507,7 @@ const configureArchetypeAssignment = () => {
 
 /**
  * Alpine component for the relevancy archetype (curve) editor (frame-archetype-editor.html). Loads the
- * `relevancy-archetype` composite editor (each curve's id, bilingual name/description, twelve stage-level weights, and
+ * `relevancy-archetype` composite editor (each curve's id, bilingual name/description, thirteen stage-level weights, and
  * assignment count), and lets an admin edit weights/names, add a new archetype, or remove one that is unassigned. The
  * submitted set is the complete set, so the whole row list is sent on save (decompose treats omitted ids as removed,
  * guarded server-side by archetypesReferentialIntegrity). Admin-gated.

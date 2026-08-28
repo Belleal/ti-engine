@@ -98,14 +98,16 @@ describe( "employeeRules.validateEmployee", () => {
         assert.equal( employeeRules.instance.validateEmployee( employee( { level: "Z" } ), CONTEXT ), "error.employee.invalid-level" );
     } );
 
-    // Boundary tests for the stage field's valid range (1-3)
+    // Boundary tests for the stage field. The upper bound is no longer a fixed 1-3: since CA-111 each rung
+    // declares its own sub-level count in the ladder (N and X one, J/R/S three, T two), so "too high" is
+    // reported as invalid-stage-for-level and only a non-positive or non-integer stage is invalid-stage.
 
     it( "rejects a stage below the permitted range (0)", () => {
         assert.equal( employeeRules.instance.validateEmployee( employee( { stage: 0 } ), CONTEXT ), "error.employee.invalid-stage" );
     } );
 
-    it( "rejects a stage above the permitted range (4)", () => {
-        assert.equal( employeeRules.instance.validateEmployee( employee( { stage: 4 } ), CONTEXT ), "error.employee.invalid-stage" );
+    it( "rejects a stage above what the level declares (4 on a three-stage rung)", () => {
+        assert.equal( employeeRules.instance.validateEmployee( employee( { stage: 4 } ), CONTEXT ), "error.employee.invalid-stage-for-level" );
     } );
 
     // Adjacent-rule-boundary precedence tests: when two adjacent rules in the sequence are both violated,
@@ -139,8 +141,22 @@ describe( "employeeRules.validateEmployee", () => {
         assert.equal( employeeRules.instance.validateEmployee( employee( { level: "Z", stage: 1.5 } ), CONTEXT ), "error.employee.invalid-level" );
     } );
 
-    it( "enforces that invalid-stage takes precedence over invalid-stage-for-level (8→9)", () => {
-        assert.equal( employeeRules.instance.validateEmployee( employee( { level: "X", stage: 4 } ), CONTEXT ), "error.employee.invalid-stage" );
+    // Formerly a precedence test (8→9): X with stage 4 violated both the fixed 1-3 bound and the single-stage
+    // rule, and asserted the earlier one won. Since CA-111 the two rules are DISJOINT — invalid-stage covers a
+    // non-positive or non-integer stage, invalid-stage-for-level covers a stage past what the rung declares — so
+    // no input can violate both and there is no precedence left to assert. What replaces it is the disjointness
+    // itself, which is the property a future re-ordering would actually break.
+    it( "separates a malformed stage from one the level does not offer (8 vs 9)", () => {
+        // Malformed: reported as invalid-stage whatever the level, including a single-stage rung.
+        for ( const level of [ "X", "R", "T" ] ) {
+            assert.equal( employeeRules.instance.validateEmployee( employee( { level: level, stage: 0 } ), CONTEXT ),
+                "error.employee.invalid-stage", `stage 0 on ${ level } is malformed, not level-specific` );
+        }
+        // Well-formed but past the rung's declared count: reported as invalid-stage-for-level.
+        assert.equal( employeeRules.instance.validateEmployee( employee( { level: "X", stage: 4 } ), CONTEXT ),
+            "error.employee.invalid-stage-for-level" );
+        assert.equal( employeeRules.instance.validateEmployee( employee( { level: "T", stage: 3 } ), CONTEXT ),
+            "error.employee.invalid-stage-for-level", "T declares two sub-levels since CA-111, so T3 is out of range" );
     } );
 
     it( "enforces that invalid-stage-for-level takes precedence over invalid-organization-unit (9→10)", () => {

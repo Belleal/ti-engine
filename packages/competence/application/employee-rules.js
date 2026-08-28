@@ -13,13 +13,22 @@
  * @property {Object} workSites - The work-sites nomenclature, keyed by site code.
  */
 
+const configurationLoader = require( "#configuration-loader" );
+
 const WORK_MODES = Object.freeze( [ "Full-time", "Part-time", "Contract" ] );
 const WORK_LOCATIONS = Object.freeze( [ "On-site", "Hybrid", "Remote" ] );
 const GENDERS = Object.freeze( [ "M", "F" ] );
 const EMPLOYMENT_STATUSES = Object.freeze( [ "active", "on-leave", "terminated" ] );
 const LEVELS = Object.freeze( [ "N", "J", "R", "S", "X", "T" ] );
-// N (Intern), X (Expert) and T (Manager) are single-stage rungs of the ladder; J, R and S carry stages 1-3.
-const SINGLE_STAGE_LEVELS = Object.freeze( [ "N", "X", "T" ] );
+// How many sub-levels each rung carries, read from the ladder rather than restated. It used to be a
+// hard-coded 1-3 bound plus a list of single-stage rungs, which silently accepted T3 the moment CA-111
+// gave T two sub-levels instead of one: nothing tied the bound to the ladder that actually defines it.
+// N and X carry one, J/R/S three, T two (T1 Team Lead, T2 Head of Department -- same scope anchors,
+// distinguished by relevancy weighting, since scope is defined per letter).
+const STAGES_PER_LEVEL = Object.freeze( configurationLoader.getStageLevelLadder().reduce( ( map, entry ) => {
+    map[ entry.code ] = entry.stages.length;
+    return map;
+}, {} ) );
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
@@ -112,10 +121,10 @@ class EmployeeRules {
         if ( !LEVELS.includes( level ) ) {
             return "error.employee.invalid-level";
         }
-        if ( !Number.isInteger( stage ) || stage < 1 || stage > 3 ) {
+        if ( !Number.isInteger( stage ) || stage < 1 ) {
             return "error.employee.invalid-stage";
         }
-        if ( SINGLE_STAGE_LEVELS.includes( level ) && stage !== 1 ) {
+        if ( stage > ( STAGES_PER_LEVEL[ level ] || 1 ) ) {
             return "error.employee.invalid-stage-for-level";
         }
 

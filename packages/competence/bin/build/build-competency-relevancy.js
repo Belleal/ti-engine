@@ -55,7 +55,7 @@ for ( const [ code, definition ] of Object.entries( stageLevelsConfig ) ) {
     }
 }
 const ARCHETYPE_ROW_COLUMNS = LEVELS.length + 3; // id + name + one weight per level + description
-const ARCHETYPE_IDS = [ "A", "B", "C", "D", "E", "F", "G" ];
+const ARCHETYPE_IDS = [ "A", "B", "C", "D", "E", "F", "G", "H" ];
 
 // ---- parse the model doc: archetype curves + per-competency assignments + pool membership ----
 const curves = {};
@@ -95,16 +95,22 @@ for ( const line of readFile( MODEL_FILE ).split( /\r?\n/ ) ) {
     }
     const columns = cells.map( ( cell ) => cell.trim() );
 
-    if ( columns.length === ARCHETYPE_ROW_COLUMNS && /^\*\*[A-G]\*\*$/.test( columns[ 0 ] ) ) {
+    if ( columns.length === ARCHETYPE_ROW_COLUMNS && /^\*\*[A-H]\*\*$/.test( columns[ 0 ] ) ) {
         const id = columns[ 0 ].replace( /\*/g, "" );
         const weights = {};
         LEVELS.forEach( ( level, index ) => {
-            weights[ level ] = Number( columns[ 2 + index ] );
+            // Strip markdown emphasis before parsing: the doc bolds the newest column to draw the reviewer's
+            // eye (e.g. `**8**`), exactly as it bolds the archetype id, and a bolded weight must not become NaN.
+            weights[ level ] = Number( columns[ 2 + index ].replace( /\*/g, "" ) );
         } );
         curves[ id ] = weights;
         archetypeMeta[ id ] = { name: columns[ 1 ], description: columns[ columns.length - 1 ] };
-    } else if ( columns.length === 4 && /^[EIC][1-3]-\d+$/.test( columns[ 0 ] ) && /^[A-G]$/.test( columns[ 2 ] ) ) {
+    } else if ( columns.length === 4 && /^[EIC][1-3]-\d+$/.test( columns[ 0 ] ) && /^\*{0,2}[A-H]\*{0,2}$/.test( columns[ 2 ] ) ) {
         const code = columns[ 0 ];
+        // Same emphasis tolerance as the id and the weights: the doc bolds an archetype it wants a reviewer to
+        // notice (accessibility on C rather than B, visual execution on E rather than D), and a bolded cell must
+        // not silently drop the assignment.
+        columns[ 2 ] = columns[ 2 ].replace( /\*/g, "" );
         if ( assignments[ code ] && assignments[ code ] !== columns[ 2 ] ) {
             issues.push( `conflicting archetype for ${ code }` );
         }
@@ -188,7 +194,8 @@ const archetypeBg = {
     D: { name: "Ранен акцент, после подразбиращо се", description: "Практически механики, оценявани силно в началото, усвоени/подразбиращи се по-късно (базови умения за писане на код, конвенции)." },
     E: { name: "Със среден акцент", description: "Приложни умения, достигащи пик при стандартно/старши ниво (основните „изпълнителски“ компетентности на всяка дисциплина)." },
     F: { name: "Нарастващо, с насоченост към експерта", description: "Дълбоки технически способности, при които експертът (IC) е авторитетът (архитектура, R&D, технически дълг)." },
-    G: { name: "Нарастващо, с насоченост към мениджъра", description: "Способности за работа с хора и екипи, при които мениджърският път е пикът (делегиране, лидерство, развиване и мотивиране на други)." }
+    G: { name: "Нарастващо, с насоченост към мениджъра", description: "Способности за работа с хора и екипи, при които мениджърският път е пикът (делегиране, лидерство, развиване и мотивиране на други)." },
+    H: { name: "Управленски път", description: "Способности за управление на управляващи: пренебрежими за индивидуалните сътрудници, съществени при ръководител на екип (T1) и с пик при ръководител на отдел (T2)." }
 };
 const labelsRaw = readFile( LABELS_FILE );
 const labels = JSON.parse( labelsRaw );

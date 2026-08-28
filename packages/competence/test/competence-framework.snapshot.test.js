@@ -14,7 +14,11 @@ const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
 let competenceFramework;
 let dataManager;
 
-const REQUIRED_RELEVANCY_KEYS = [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1" ];
+const configurationLoader = require( "#configuration-loader" );
+
+// Derived, not restated: the ladder is data ({ T: { stages: 2 } } added T2 in CA-111), and a
+// hard-coded copy silently disagrees with it the next time a level gains a sub-level.
+const REQUIRED_RELEVANCY_KEYS = configurationLoader.getArchetypeStageLevels();
 const REQUIRED_SCOPE_KEYS = [ "N", "J", "R", "S", "X", "T" ];
 
 before( async () => {

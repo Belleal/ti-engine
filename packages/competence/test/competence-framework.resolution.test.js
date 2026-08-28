@@ -67,10 +67,11 @@ describe( "CompetenceFramework.getActiveCompetencySet — resolution semantics",
     } );
 
     it( "throws when the baseline for the family + cycle is missing or empty", async () => {
+        const family = unconfiguredFamily();
         await assert.rejects(
-            async () => competenceFramework.instance.getActiveCompetencySet( "XD", null, "2026-H2" ),
+            async () => competenceFramework.instance.getActiveCompetencySet( family, null, "2026-H2" ),
             ( err ) => /baseline/i.test( err?.data?.details || err?.message || "" ),
-            "Expected a missing-baseline error for family XD in cycle 2026-H2"
+            `Expected a missing-baseline error for family ${ family } in cycle 2026-H2`
         );
     } );
 
@@ -84,3 +85,24 @@ describe( "CompetenceFramework.getActiveCompetencySet — resolution semantics",
     } );
 
 } );
+
+/**
+ * A role family that is still unconfigured for the cycle — no active set, so the seeded cycle excludes it.
+ *
+ * Derived rather than named. These tests used XD as the stock example until CA-111 gave it a baseline, at which
+ * point it became configured and the seed stopped excluding it (exclusion is derived from "has no active set").
+ * Hard-coding the next unpopulated family would just move the same breakage to whenever that one gets built.
+ *
+ * @returns {string}
+ */
+function unconfiguredFamily() {
+    const activeSets = require( "#config-active-competency-sets" );
+    const families = Object.keys( require( "#config-role-families" ) );
+    const found = families.find( ( family ) => {
+        const entry = activeSets[ family ];
+        if ( !entry ) return true;
+        return !Object.values( entry ).some( ( byCycle ) => Array.isArray( byCycle && byCycle[ "2026-H2" ] ) && byCycle[ "2026-H2" ].length > 0 );
+    } );
+    assert.ok( found, "every family is configured — these tests need one that is not" );
+    return found;
+}

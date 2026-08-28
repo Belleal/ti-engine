@@ -20,8 +20,8 @@ describe( "ResultsAnalytics.buildEmployeeHistory (CA-X4)", () => {
 
     it( "shapes a chronological finalScore line over the reported cycles only", () => {
         const evaluations = [
-            { cycleID: "2026-H2", cycleDate: "2026-11-30", status: READY, finalScore: { score: 112, interpretation: "T4" } },
-            { cycleID: "2025-H2", cycleDate: "2025-11-30", status: CLOSED, finalScore: { score: 98, interpretation: "T3" } },
+            { cycleID: "2026-H2", cycleDate: "2026-11-30", status: READY, finalScore: { score: 112, interpretation: "P4" } },
+            { cycleID: "2025-H2", cycleDate: "2025-11-30", status: CLOSED, finalScore: { score: 98, interpretation: "P3" } },
             { cycleID: "2026-H1", cycleDate: "2026-05-30", status: OPEN, finalScore: null }   // not reported — excluded
         ];
         const h = resultsAnalytics.instance.buildEmployeeHistory( evaluations );
@@ -33,7 +33,7 @@ describe( "ResultsAnalytics.buildEmployeeHistory (CA-X4)", () => {
 
     it( "returns noHistory when fewer than two reported cycles exist", () => {
         const evaluations = [
-            { cycleID: "2026-H2", cycleDate: "2026-11-30", status: READY, finalScore: { score: 112, interpretation: "T4" } },
+            { cycleID: "2026-H2", cycleDate: "2026-11-30", status: READY, finalScore: { score: 112, interpretation: "P4" } },
             { cycleID: "2026-H1", cycleDate: "2026-05-30", status: OPEN, finalScore: null }
         ];
         assert.deepEqual( resultsAnalytics.instance.buildEmployeeHistory( evaluations ), { noHistory: true } );

@@ -100,24 +100,27 @@ describe( "CompetenceFramework.validateCycleForLock — validation rules in pass
     // ----- Rule 4: No empty baseline -----
 
     it( "rule 4 (no empty baseline): rejects a family that has specialization data but an empty baseline", async () => {
-        // The seed excludes XD (an unpopulated family); include it, then give it a specialization but no baseline.
+        // The seed excludes any unpopulated family; include one, then give it a specialization but no baseline.
+        const family = unconfiguredFamily();
+        const specialization = Object.keys( require( "#config-role-families" )[ family ].specializations )[ 0 ];
         const cycle = await dataManager.instance.getCycle( "2026-H2" );
-        await dataManager.instance.setCycleExcludedFamilies( "2026-H2", cycle.excludedFamilies.filter( ( f ) => f !== "XD" ) );
-        await dataManager.instance.setActiveCompetencySet( "XD", "VISUAL", "2026-H2", [ "C1-4" ] );
+        await dataManager.instance.setCycleExcludedFamilies( "2026-H2", cycle.excludedFamilies.filter( ( f ) => f !== family ) );
+        await dataManager.instance.setActiveCompetencySet( family, specialization, "2026-H2", [ "C1-4" ] );
         const result = await competenceFramework.instance.validateCycleForLock( "2026-H2" );
-        const ruleErrors = result.errors.filter( ( e ) => e.rule === "no-empty-baseline" && e.family === "XD" );
+        const ruleErrors = result.errors.filter( ( e ) => e.rule === "no-empty-baseline" && e.family === family );
         assert.equal( ruleErrors.length, 1 );
     } );
 
     // ----- Rule 6: inclusion (excluded families are skipped; an included empty family blocks the lock) -----
 
     it( "rule 6 (inclusion): an included family with no competencies blocks the lock", async () => {
-        // Include XD (the seed excludes it) without configuring anything — it must now block the lock.
+        // Include an unconfigured family (the seed excludes it) without configuring anything — it must block the lock.
+        const family = unconfiguredFamily();
         const cycle = await dataManager.instance.getCycle( "2026-H2" );
-        await dataManager.instance.setCycleExcludedFamilies( "2026-H2", cycle.excludedFamilies.filter( ( f ) => f !== "XD" ) );
+        await dataManager.instance.setCycleExcludedFamilies( "2026-H2", cycle.excludedFamilies.filter( ( f ) => f !== family ) );
         const result = await competenceFramework.instance.validateCycleForLock( "2026-H2" );
         assert.equal( result.valid, false );
-        const notConfigured = result.errors.filter( ( e ) => e.rule === "family-not-configured" && e.family === "XD" );
+        const notConfigured = result.errors.filter( ( e ) => e.rule === "family-not-configured" && e.family === family );
         assert.equal( notConfigured.length, 1 );
     } );
 
@@ -132,3 +135,24 @@ describe( "CompetenceFramework.validateCycleForLock — validation rules in pass
     } );
 
 } );
+
+/**
+ * A role family that is still unconfigured for the cycle — no active set, so the seeded cycle excludes it.
+ *
+ * Derived rather than named. These tests used XD as the stock example until CA-111 gave it a baseline, at which
+ * point it became configured and the seed stopped excluding it (exclusion is derived from "has no active set").
+ * Hard-coding the next unpopulated family would just move the same breakage to whenever that one gets built.
+ *
+ * @returns {string}
+ */
+function unconfiguredFamily() {
+    const activeSets = require( "#config-active-competency-sets" );
+    const families = Object.keys( require( "#config-role-families" ) );
+    const found = families.find( ( family ) => {
+        const entry = activeSets[ family ];
+        if ( !entry ) return true;
+        return !Object.values( entry ).some( ( byCycle ) => Array.isArray( byCycle && byCycle[ "2026-H2" ] ) && byCycle[ "2026-H2" ].length > 0 );
+    } );
+    assert.ok( found, "every family is configured — these tests need one that is not" );
+    return found;
+}

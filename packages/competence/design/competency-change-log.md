@@ -82,7 +82,213 @@ Competency texts are **labels**, and the affected config documents are **store-b
 
 ---
 
-## Increment 2 — `[XD / DA / IO / MC / PD, as built]`
+## Increment 2 — Architecture (SE.ARCHITECTURE + BA.SOLUTION_ARCHITECTURE)
+
+**Date:** 26 July 2026
+**Implemented:** competence **v3.25.0** (CA-110)
+**Status:** ✅ **complete and implemented** — 12 competencies and the two specializations that carry them.
+
+### 2a. Added — new competencies (12)
+
+| Group | Codes | Placement |
+|---|---|---|
+| **Cross-cutting E2** (3) | E2-52 Architecture documentation and decision records · E2-53 Quality attribute and trade-off analysis · E2-54 Technology evaluation and selection | **Shared** — new "E2 (cross-cutting)" group; referenced by both architecture specializations |
+| **SE.ARCHITECTURE** (4) | E2-55 System decomposition and boundary design · E2-56 Architectural governance and design review · E2-57 Scalability and resilience design · E2-58 Architecture evolution and migration planning | SE specialization |
+| **BA.SOLUTION_ARCHITECTURE** (5) | E2-59 Cross-system and cross-institutional solution design · E2-60 Interoperability and standards compliance · E2-61 Solution feasibility, sizing and costing · E2-62 Vendor and product evaluation · E2-63 Client-facing solution justification | BA specialization |
+
+### 2b. Structural / policy
+
+- **New shared group:** "E2 (cross-cutting) — Applied skills". Third application of the meaning-identity principle, after cross-cutting E1 and E3.
+- **New specializations:** `SE.ARCHITECTURE` and `BA.SOLUTION_ARCHITECTURE`. Neither existed previously — SE had Backend/Frontend/Mobile/Full-stack/Embedded; BA had Requirements/Process/Product Ownership/Data BA/Doc Proc.
+- **Architect roles resolved** as Role Family × Specialization × Stage-Level, not as seniority alone:
+  - Software Architect = **SE × ARCHITECTURE × X1**
+  - Solutions Architect = **BA × SOLUTION_ARCHITECTURE × (R | S | X)**
+- **Shared in the dictionary is not shared in the pool.** The three cross-cutting codes are written once, but they are listed under the **SE and BA** assignment tables in `competency-relevancy-model.md` rather than under *Shared*. That document's *Shared* section means "in every family's pool", and putting them there would let a PM or QE active set legitimately include architecture documentation. See the note in that file.
+
+### 2c. Stage-letter mapping — organizational rule
+
+| Position | Stage-letter |
+|---|---|
+| Проектант, информационни системи | **R** |
+| Старши проектант, информационни системи | **S** |
+| Главен проектант, информационни системи | **X** |
+
+**General rule established:** distinct job positions requiring distinct competency expectations must map to distinct stage-**letters**, because scope text is defined per letter (N/J/R/S/X/T) while relevancy weights are defined per sub-level (N1…T1). Two positions on S1 and S3 would read identical behavioural anchors. This yields **five distinguishable grades per track** (N, J, R, S, plus X or T) — verify the organization's full position catalogue against this limit before the cycle.
+
+*Corollary benefit:* sub-levels provide within-grade progression (R1 → R2 → R3) without changing competency expectations.
+
+### 2d. Config impact — as implemented
+
+| File | Action |
+|---|---|
+| `config.competencies.json` | **+12** entries (E2-52 … E2-63); dictionary 134 → **146** |
+| `competence-labels.json` | **+12 × 8 strings × 2 languages**, plus the two specializations' name/description pairs |
+| `config.role-families.json` | **Added** `SE.ARCHITECTURE` and `BA.SOLUTION_ARCHITECTURE` with localization keys and empty eCF mappings |
+| `competency-relevancy-model.md` | Assignments added under SE and BA: **B** for the three cross-cutting, **F** for the nine specialization-specific. Distribution check re-derived mechanically |
+| `config.role-family-competencies.json` · `relevancyArchetype` fields | **Generated**, not hand-edited — `npm run build:relevancy` from the model doc (working rule 6). SE pool 62 → **69**, BA 52 → **60**; PM/QE/others unchanged |
+| `config.active-competency-sets.json` | Added `SE.ARCHITECTURE` (7 codes) and `BA.SOLUTION_ARCHITECTURE` (8) for 2026-H2. Verified against the cap of 30: SE 22 + 7 = 29, BA 21 + 8 = 29 |
+
+*Note: earlier drafts of this table named `config.competency-relevancy.json`. That file no longer exists — relevancy is `config.relevancy-archetypes.json` (curves) plus a per-competency `relevancyArchetype`, and the pools are `config.role-family-competencies.json`.*
+
+### 2e. Verification after implementation
+
+- Content-integrity test passes: complete, non-empty en+bg name, description and six anchors for all 146.
+- The three cross-cutting codes appear in the SE and BA pools and in **no** other family's.
+- Both new specialization sets sit under the active-set cap with the family baseline.
+- Bulgarian was written in the same increment as the English (working rule 4), and is pending the owner's native review through the Archetype/Competency Text screens.
+
+**Next code positions after Increment 2:** E1-58 · **E2-64** · E3-31 · I1-11
+
+---
+
+## Increment 3 — Management set + T2 stage-level + XD family
+
+**Date:** 26 July 2026
+**Status:** ✅ **implemented** in competence **v3.26.0** (CA-111). Dictionary 146 → **175**.
+
+### 3a. Framework — the T stage-letter gains a second sub-level ✅ implemented
+
+`T` becomes `T1` (Team Lead) and `T2` (Head of Department). **Scope text is unchanged** — both read the same `T`
+anchors, because scope is defined per letter while relevancy is defined per sub-level. Only relevancy gains a
+column.
+
+| File | Action |
+|---|---|
+| `config.stage-levels.json` | `T.stages` 1 → 2. The ladder is data, so `getArchetypeStageLevels()` now emits 13 keys with no code change |
+| `relevancy-archetypes.schema.json` | `T2` added to `required` and `properties` — the weights object is `additionalProperties: false`, so without this every curve fails validation |
+| `config.relevancy-archetypes.json` · `relevancyArchetype` fields | **Generated** from the model doc, never hand-edited (working rule 6) |
+| Scope text / labels | **No change.** No new anchors, no Bulgarian retranslation |
+
+*Rationale for T2 over a seventh `M` letter is in `competency-relevancy-model.md`: a new letter would have needed
+~146 new anchors in each language, most of them the T anchor with "team" swapped for "department" — near-duplicates
+that fail the specific-example test and teach raters the instrument does not discriminate.*
+
+**Two things the change forced, neither of them anticipated by this document:**
+
+- **The performance bands were renamed `T1`–`T5` → `P1`–`P5`.** They and the stage sub-levels both used `T1`, and
+  both meanings already sat a few lines apart in `results-analytics.js`. Adding `T2` would have made one token mean
+  "Head of Department" and "performance band 2" in the same file. Done before any real cycle closes, because the
+  band code is persisted as each score's `interpretation` and as the `tBandMix` key inside the immutable,
+  non-back-fillable `ResultsSnapshot`. A guard test now pins the two vocabularies apart.
+- **Stage validation is now ladder-driven.** It was a hard-coded `1..3` bound plus a list of single-stage rungs,
+  which silently accepted `T3` the moment `T` gained a second sub-level. It now reads each rung's declared stage
+  count, so a rung gaining or losing one cannot leave the validator behind.
+
+### 3b. New relevancy archetype ✅ implemented
+
+**H — Management-track:** `N1 2 · J1 2 · J2 2 · J3 2 · R1 2 · R2 3 · R3 3 · S1 4 · S2 4 · S3 5 · X1 4 · T1 8 · T2 10`
+
+All seven existing archetypes also gained a T2 value. The shape is deliberate: hands-on curves (**A**, **D**, **E**,
+**F**) decline from T1 to T2 while people and conceptual curves (**B**, **C**, **G**, **H**) hold or rise, so a head
+of department is scored on a different balance rather than uniformly higher than a team lead.
+
+H is defined and carries a curve but is not yet assigned — it belongs to the five management competencies below.
+
+### 3c. Ten previously-assigned archetypes revised ✅ implemented
+
+The model update changed ten assignments that had already shipped: seven QE (E1-49 E→A, E1-52 B→A, E1-53 E→B,
+E1-55 F→B, E2-46 C→E, E2-51 E→B, I1-10 C→D) and the three cross-cutting architecture codes (E2-52/53/54 B→F).
+
+The architecture change reverses the split chosen while implementing Increment 2. The document's reasoning: all
+twelve are deep capabilities where the individual-contributor expert is the authority, and F is right precisely
+because it declines on the management track — a head of department is not the architecture authority.
+
+### 3d. Added — management competencies (5, shared) ✅ implemented
+
+| Code | Name | Archetype |
+|---|---|---|
+| C3-8 | Developing and leading managers | H |
+| C3-9 | Talent management and succession planning | H |
+| I2-12 | Departmental capacity and resource planning | H |
+| I2-13 | Strategic alignment and objective cascade | H |
+| C2-7 | Cross-functional collaboration and organizational influence | H |
+
+*Codes deliberately continue above all previously-used numbers to avoid collision with retired codes (C2-6, C3-6,
+C3-7, I2-7…I2-11 are retired).*
+
+### 3e. Added — XD family baseline (24) ✅ implemented
+
+E1-58…E1-66 (9) · E2-64…E2-72 (9) · E3-31…E3-33 (3) · I1-11…I1-13 (3). A 22-code baseline for 2026-H2
+covers all nine subcategories and sits inside the cap of 30, mirroring the SE and QE baselines so a designer and an
+engineer are measured on the same shared core.
+
+**Configuring XD includes it in the cycle.** Exclusion is derived — a family is excluded exactly when it has no
+active set — so three tests that used XD as their stock "unconfigured family" stopped working. They now derive one
+instead of naming it, which is what keeps them working when DA, IO, MC or PD is built.
+
+Accessibility appears twice by design — E1-63 (standards knowledge) and E2-72 (implementation and validation) —
+reflecting the public-sector obligation, and both are weighted **C** rather than B: a junior producing inaccessible
+work is a compliance failure, not an understandable gap, and the weighting should say so.
+
+### 3f. Approved but content pending — do not implement yet
+
+| Specialization | Placement | Status |
+|---|---|---|
+| `SE.DATABASE_ARCHITECTURE` | SE family | Placement approved; ~4 competencies **not yet written** |
+| `SE.AI_ENGINEERING` | SE family | Placement approved; ~6 competencies **not yet written** |
+
+**Next code positions after Increment 3:** E1-67 · E2-73 · E3-34 · I1-14 · C2-8 · C3-10 · I2-14
+
+---
+
+## Increment 4 — SE specializations: Database Architecture & AI Engineering
+
+**Date:** 28 August 2026
+**Implemented:** competence **v3.27.0** (CA-112)
+**Status:** ✅ **implemented.** Closes the two items left pending from Increment 3.
+
+### 4a. Added — new competencies (11)
+
+| Specialization | Codes | Names |
+|---|---|---|
+| **SE.DATABASE_ARCHITECTURE** (5) | E2-73 … E2-77 | Data modelling and schema design · Database performance tuning and query optimisation · Database reliability, backup and recovery design · Database migration and change management · Database security and access control |
+| **SE.AI_ENGINEERING** (6) | E2-78 … E2-83 | Model integration and prompt engineering · Retrieval and context engineering · Agent and tool orchestration · Evaluating non-deterministic systems · AI safety, guardrails and responsible deployment · Model selection and cost-performance optimisation |
+
+### 4b. Archetypes
+
+All → **F** (rising, expert-leaning), except **E2-82 AI safety → C** (steady-high), on the same principle as
+accessibility: a safety obligation applies at every level rather than rising with seniority. A junior shipping an
+unguarded system is a governance failure, not a developmental gap, and the weighting says so.
+
+### 4c. Scoping notes
+
+- **DATABASE_ARCHITECTURE** draws the three shared cross-cutting architecture competencies (E2-52/53/54) in
+  addition to its five, giving 8 on top of the SE baseline.
+- **AI_ENGINEERING** covers building on existing models. **Model training and development belong to DA**, not here.
+- Neither specialization introduces new shared competencies.
+
+### 4d. Config impact — as implemented
+
+| File | Action |
+|---|---|
+| `config.competencies.json` | **+11** entries (E2-73 … E2-83); dictionary 175 → **186** |
+| `competence-labels.json` | **+11 × 8 strings × 2 languages**, plus the two specializations' name/description pairs |
+| `config.role-families.json` | **Added** `SE.DATABASE_ARCHITECTURE` and `SE.AI_ENGINEERING` |
+| `competency-relevancy-model.md` | Assignments added **as rows**, not prose. The database five were specified as "all → F" in prose, which the generator cannot see — the same shape that silently dropped assignments in Increment 3 |
+| `config.role-family-competencies.json` · `relevancyArchetype` fields | **Generated** from the model doc (working rule 6). SE pool 74 → **85** |
+| `config.active-competency-sets.json` | Specialization sets for 2026-H2: DATABASE_ARCHITECTURE 8 (its 5 + the 3 shared), AI_ENGINEERING 9 (its 6 + the 3 shared). Resolved against the SE baseline of 22: 30 and 31 |
+| `config.application.json` | `performanceAppraisals.activeCompetencySetCap` raised **30 → 32** — see the note below |
+
+**On the cap.** `AI_ENGINEERING` draws all three shared architecture competencies, the same as the three
+architecture specializations, which takes its resolved set to 31. Rather than trim the set to fit, the cap was
+raised — the set definition states which competencies apply to a specialization, and the cap is an application-level
+tunable that should not shape that definition.
+
+The trim option was not merely unattractive, it was misdirected: `validateCycleForLock` checks **every**
+specialization of an included family, and `cycle.excludedFamilies` excludes only whole families. A single
+oversized specialization therefore blocks every SE employee from a cycle, including those carrying no
+specialization at all. The competency to remove would have had to come out of the SE **baseline**, hitting
+everyone, to make room in one specialization.
+
+Raised to 32 rather than 31 so that the next shared competency does not immediately re-block SE. The cost is real:
+the cap bounds how long an appraisal form can get, and 30 competencies × 6 anchors is already substantial to rate.
+`ARCHITECTURE` and `SOLUTION_ARCHITECTURE` sit at 29 and `DATABASE_ARCHITECTURE` at 30, so headroom stays thin.
+
+**Next code positions after Increment 4:** E1-67 · **E2-84** · E3-34 · I1-14 · C2-8 · C3-10 · I2-14
+
+---
+
+## Increment 5 — `[QE specializations, or DA / IO / MC / PD, as built]`
 
 *Reserved.*
 

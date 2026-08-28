@@ -35,10 +35,10 @@ function row( o ) {
 // Reported rows: SE/u1 ×3 (R,S,X), BA/u2 ×1 (T, suppressed), plus a non-scored OPEN SE row that must be excluded.
 function buildFrame() {
     return [
-        row( { id: "a", status: CLOSED, roleFamily: "SE", level: "R", unit: "u1", unitName: "Unit One", score: 100, band: "T3", e: 100, i: 96, c: 108 } ),
-        row( { id: "b", status: READY, roleFamily: "SE", level: "S", unit: "u1", unitName: "Unit One", score: 120, band: "T5", e: 120, i: 116, c: 128 } ),
-        row( { id: "c", status: CLOSED, roleFamily: "SE", level: "X", unit: "u1", unitName: "Unit One", score: 110, band: "T4", e: 110, i: 106, c: 118 } ),
-        row( { id: "d", status: READY, roleFamily: "BA", level: "T", unit: "u2", unitName: "Unit Two", score: 90, band: "T3", e: 90, i: 86, c: 98 } ),
+        row( { id: "a", status: CLOSED, roleFamily: "SE", level: "R", unit: "u1", unitName: "Unit One", score: 100, band: "P3", e: 100, i: 96, c: 108 } ),
+        row( { id: "b", status: READY, roleFamily: "SE", level: "S", unit: "u1", unitName: "Unit One", score: 120, band: "P5", e: 120, i: 116, c: 128 } ),
+        row( { id: "c", status: CLOSED, roleFamily: "SE", level: "X", unit: "u1", unitName: "Unit One", score: 110, band: "P4", e: 110, i: 106, c: 118 } ),
+        row( { id: "d", status: READY, roleFamily: "BA", level: "T", unit: "u2", unitName: "Unit Two", score: 90, band: "P3", e: 90, i: 86, c: 98 } ),
         row( { id: "e", status: OPEN, roleFamily: "SE", level: "J", unit: "u1", unitName: "Unit One", score: null } )
     ];
 }
@@ -65,7 +65,7 @@ describe( "ResultsAnalytics — cross-cycle snapshot substrate (CA-X0)", () => {
     } );
 
     it( "computes overall.tBandMix as zero-filled counts of finalInterpretation", () => {
-        assert.deepEqual( buildSnapshot().overall.tBandMix, { T1: 0, T2: 0, T3: 2, T4: 1, T5: 1 } );
+        assert.deepEqual( buildSnapshot().overall.tBandMix, { P1: 0, P2: 0, P3: 2, P4: 1, P5: 1 } );
     } );
 
     it( "computes ladderOrdinalHistogram with X and T collapsed into ordinal 5, plus the mean rung", () => {
@@ -80,7 +80,7 @@ describe( "ResultsAnalytics — cross-cycle snapshot substrate (CA-X0)", () => {
         assert.equal( byCat.E.mean, 105 );
         assert.equal( byCat.I.mean, 101 );
         assert.equal( byCat.C.mean, 113 );
-        assert.deepEqual( byCat.E.tBandMix, { T1: 0, T2: 0, T3: 2, T4: 1, T5: 1 } );
+        assert.deepEqual( byCat.E.tBandMix, { P1: 0, P2: 0, P3: 2, P4: 1, P5: 1 } );
     } );
 
     it( "computes byRoleFamily and suppresses families below the cohort floor", () => {
@@ -110,8 +110,8 @@ describe( "ResultsAnalytics — buildCohortFrame carries scores + organizationUn
             roleFamily: "SE", stageLevel: "R2",
             grades: { "E1-1": { employee: "S", manager: "R", team: { cumulative: "R" } } },
             snapshot: [ { code: "E1-1", category: "E", subcategory: "E1", relevancy: { R2: 0.8 } } ],
-            finalScore: { score: 112, interpretation: "T4" },
-            scores: { E: { score: 115, interpretation: "T4" }, I: { score: 108, interpretation: "T4" }, C: { score: 113, interpretation: "T4" } }
+            finalScore: { score: 112, interpretation: "P4" },
+            scores: { E: { score: 115, interpretation: "P4" }, I: { score: 108, interpretation: "P4" }, C: { score: 113, interpretation: "P4" } }
         };
         const filter = {
             resolveOrgUnit: () => "u1",

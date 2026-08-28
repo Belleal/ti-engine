@@ -2,6 +2,144 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.27.0
+
+Increment 4 closes the two SE specializations left pending since Increment 3: **Database Architecture** and **AI
+Engineering**. Eleven competencies take the dictionary from 175 to **186**, and SE now carries four specializations
+with content.
+
+* feat(competence): add `SE.DATABASE_ARCHITECTURE` with five competencies (`E2-73` … `E2-77`) — data modelling and
+  schema design, performance tuning and query optimisation, reliability/backup/recovery design, migration and
+  change management, and security and access control. Treated as an engineering discipline rather than analysis,
+  which is why it sits under SE (CA-112)
+* feat(competence): add `SE.AI_ENGINEERING` with six competencies (`E2-78` … `E2-83`) — model integration and
+  prompt engineering, retrieval and context engineering, agent and tool orchestration, evaluating non-deterministic
+  systems, AI safety and guardrails, and model selection and cost optimisation. Scoped to **building on existing
+  models**; model training belongs to the DA family (CA-112)
+* feat(competence): weight `E2-82` AI safety on archetype **C** (steady-high) while the other ten are **F**. Same
+  principle as accessibility in Increment 3: a junior shipping an unguarded system is a governance failure, not a
+  developmental gap that seniority closes, and a steady-high weighting states that in the scoring rather than
+  leaving it to be inferred (CA-112)
+* feat(competence): seed specialization sets for `2026-H2` — `DATABASE_ARCHITECTURE` 8 codes and
+  `AI_ENGINEERING` 9, each drawing the three shared cross-cutting architecture competencies on top of its own.
+  Resolved sizes are 30 and 31 against the SE baseline of 22 (CA-112)
+* feat(config)!: raise `performanceAppraisals.activeCompetencySetCap` from 30 to **32**. `AI_ENGINEERING` draws all
+  three shared architecture competencies, which resolves to 31 — and because `validateCycleForLock` checks every
+  specialization of an included family while `excludedFamilies` only excludes whole families, a single oversized
+  specialization blocks the entire SE family from locking a cycle. The set definition states which competencies
+  apply; the cap is a tunable that should not shape it. Raised to 32 rather than 31 so the next addition does not
+  immediately re-block. This lengthens the maximum appraisal form for every family (CA-112)
+* fix(competence): finish the `T1`..`T5` → `P1`..`P5` band rename begun in CA-111. The client-side cascade returned
+  the literal `"T5"` from its terminal arm — live for every score above the top threshold — and both tiers kept a
+  `T1`..`T5` fallback for `performanceThresholds`. The archetype-assignment editor also restated the stage
+  sub-levels and so never showed `T2`, and `evaluation.schema.json` still declared the old `interpretation` enum.
+  Three guards added, each verified to fail against the code as it stood (CA-111)
+* fix(competence): write the Increment 4 archetype assignments as table **rows** rather than the prose the model
+  document used for the database five ("all → F"). The generator reads assignments from tables; a prose statement
+  is invisible to it and an unassigned dictionary code aborts the build. This is the third increment where prose
+  assignments would have been silently dropped (CA-112)
+* docs(competence): all eleven carry a complete name, description and six anchors in both languages, and the
+  design records are brought up to date — definitions and master index taken wholesale, the change log and
+  relevancy model **grafted** rather than replaced, since the working copies would have deleted the twelve
+  architecture and five management assignment rows already in the repo (CA-112)
+* build(release): bump package version from `3.26.0` to `3.27.0`
+
+## Version 3.26.0
+
+The **T stage-letter gains a second sub-level**: `T1` is Team Lead, `T2` is Head of Department. Scope text is
+untouched — both read the same `T` anchors, since scope is defined per letter while relevancy is defined per
+sub-level — so the two are distinguished by weighting rather than by a seventh letter that would have needed ~146
+new behavioural anchors in each language.
+
+* refactor(competence)!: rename the performance bands from `T1`–`T5` to **`P1`–`P5`**. They collided with the stage
+  ladder: `T1` was both the Team Lead sub-level and the first performance band, and both meanings already sat a few
+  lines apart in `results-analytics.js`. Adding `T2` would have made one token mean "Head of Department" and
+  "performance band 2" in the same file. **BREAKING** for stored data — the band code is persisted as every
+  evaluation score's `interpretation` and as the `tBandMix` key inside the per-cycle `ResultsSnapshot`, which is
+  immutable and not back-fillable, so a development deployment must clear its evaluations and snapshots. Done now
+  precisely because once a real cycle closes its snapshot is frozen with the old vocabulary. A guard test pins the
+  two vocabularies apart, checking the letter as well as the token (CA-111)
+* feat(competence): add `T2` to the stage ladder as `T.stages: 2`. The ladder is data, so
+  `getArchetypeStageLevels()` emits thirteen keys with no code change; the archetype schema gains `T2` as a required
+  weight, which is mandatory rather than cosmetic since the weights object is `additionalProperties: false` (CA-111)
+* feat(competence): add relevancy archetype **H — Management-track**
+  (`N1 2 · J1 2 · J2 2 · J3 2 · R1 2 · R2 3 · R3 3 · S1 4 · S2 4 · S3 5 · X1 4 · T1 8 · T2 10`) and a `T2` weight on
+  all seven existing archetypes. The shape is deliberate: hands-on curves (A, D, E, F) decline from T1 to T2 while
+  people and conceptual curves (B, C, G, H) hold or rise, so a head of department is scored on a different balance
+  of capabilities rather than uniformly higher than a team lead (CA-111)
+* fix(competence): validate an employee's stage against the ladder's own declared sub-level count instead of a
+  hard-coded `1..3` bound plus a list of single-stage rungs. The old form silently accepted `T3` the moment `T`
+  gained a second sub-level — nothing tied the bound to the ladder that defines it. A rung gaining or losing a
+  sub-level can no longer leave the validator behind (CA-111)
+* fix(competence): revise ten archetype assignments from the updated model document — seven QE (`E1-49` E→A,
+  `E1-52` B→A, `E1-53` E→B, `E1-55` F→B, `E2-46` C→E, `E2-51` E→B, `I1-10` C→D) and the three cross-cutting
+  architecture codes (`E2-52`/`E2-53`/`E2-54` B→F). The architecture change reverses the split chosen while
+  implementing CA-110: all twelve are deep capabilities where the IC expert is the authority, and F is right
+  precisely because it declines on the management track (CA-111)
+* fix(competence): make the relevancy generator tolerate markdown emphasis in a weight cell. The model document
+  bolds its newest column to draw the reviewer's eye, exactly as it bolds the archetype id, and a bolded weight was
+  parsing as `NaN` (CA-111)
+* test(competence): derive the stage-level list and its length from the ladder in six test files rather than
+  restating twelve keys. Every one of them would have gone stale on this change, which is how they were written and
+  how they would go stale again (CA-111)
+* feat(competence): add the **five management competencies** (`C3-8` Developing and leading managers, `C3-9` Talent
+  management and succession planning, `I2-12` Departmental capacity and resource planning, `I2-13` Strategic
+  alignment and objective cascade, `C2-7` Cross-functional collaboration and organizational influence), all on
+  archetype **H**. These are what carry the real T1/T2 difference — shared rather than family-specific, because
+  every family has a T-track and a head of department is evaluated on them whichever discipline they came up
+  through (CA-111)
+* feat(competence): add the **XD (Experience Design) family baseline** — 24 competencies across E1 (9), E2 (9),
+  E3 (3) and I1 (3), with a 22-code baseline for `2026-H2` covering all nine subcategories inside the cap of 30.
+  Accessibility appears twice by design, `E1-63` (standards knowledge) and `E2-72` (implementation and validation),
+  and both are weighted **C** rather than B: a junior producing inaccessible work is a compliance failure on a
+  public-sector service, not an understandable gap, and the weighting should say so. Dictionary 146 → **175**
+  (CA-111)
+* fix(competence): teach three lock-validation tests to derive an unconfigured family rather than naming XD.
+  Exclusion is derived — a family is excluded exactly when it has no active set — so configuring XD correctly
+  included it in the seeded cycle and broke every test using it as the stock unconfigured example. Deriving keeps
+  them working when DA, IO, MC or PD is built (CA-111)
+* fix(competence): make the relevancy generator tolerate a bolded archetype cell, as it already does for the id and
+  the weights. The model document bolds an assignment it wants a reviewer to notice — accessibility on C rather
+  than B, visual execution on E rather than D — and a bolded cell was silently dropping the assignment (CA-111)
+* build(release): bump package version from `3.25.0` to `3.26.0`
+
+## Version 3.25.0
+
+Increment 2 of the competency model: the **architecture competencies** and the two specializations that carry them.
+Twelve new entries take the dictionary from 134 to 146, and architect roles become expressible as Role Family ×
+Specialization × Stage-Level rather than as seniority alone.
+
+* feat(competence): add twelve architecture competencies, `E2-52` … `E2-63` — three cross-cutting (architecture
+  documentation and decision records, quality-attribute and trade-off analysis, technology evaluation and
+  selection), four for `SE.ARCHITECTURE` (system decomposition and boundary design, architectural governance and
+  design review, scalability and resilience design, architecture evolution and migration planning), and five for
+  `BA.SOLUTION_ARCHITECTURE` (cross-system and cross-institutional solution design, interoperability and standards
+  compliance, solution feasibility/sizing/costing, vendor and product evaluation, client-facing solution
+  justification). Each carries a name, a description and six behavioural anchors in **both** languages (CA-110)
+* feat(competence): add the specializations `SE.ARCHITECTURE` and `BA.SOLUTION_ARCHITECTURE`, neither of which
+  existed. This is what makes an architect a *position* rather than a seniority: Software Architect resolves as
+  SE × ARCHITECTURE × X1, Solutions Architect as BA × SOLUTION_ARCHITECTURE × (R | S | X) (CA-110)
+* feat(competence): seed active competency sets for both specializations in `2026-H2` — 7 codes for
+  `SE.ARCHITECTURE`, 8 for `BA.SOLUTION_ARCHITECTURE`. Both sit inside the per-cycle cap of 30 alongside their
+  family baseline (SE 22 + 7, BA 21 + 8) (CA-110)
+* feat(competence): assign relevancy archetypes — **B** (rising with seniority) for the three cross-cutting
+  entries, **F** (rising, expert-leaning) for the nine specialization-specific ones. Assigned through
+  `design/competency-relevancy-model.md` and materialised by `npm run build:relevancy`, never hand-edited into the
+  generated config, so the reviewable source stays the source (CA-110)
+* fix(competence): scope the three cross-cutting architecture codes to the **SE and BA pools only**. They are
+  shared in the dictionary — written once, one code, one set of anchors — but the relevancy model's *Shared*
+  section means "in every family's applicability pool", and listing them there would have let a PM or QE active
+  set legitimately include architecture documentation. Pools: SE 62 → 69, BA 52 → 60, every other family unchanged
+  (CA-110)
+* test(competence): derive the empty-specialization expectation in the lock-normalization tests from what is
+  actually seeded rather than hard-coding "baseline only". Those two tests asserted a precondition this increment
+  legitimately invalidates; shipping a set for a further specialization will no longer make them wrong (CA-110)
+* docs(competence): bring `design/` up to date — the twelve definitions and their Bulgarian, Increment 2 written
+  into the change log in place of its reserved slot, the master index gaining the three new groups and a corrected
+  totals row, and the relevancy model's distribution check re-derived mechanically rather than hand-adjusted
+  (CA-110)
+* build(release): bump package version from `3.24.1` to `3.25.0`
+
 ## Version 3.24.1
 
 The Employee Management **Audit** tab now names the field that changed instead of printing its raw path. The labels

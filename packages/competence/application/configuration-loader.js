@@ -129,7 +129,7 @@ module.exports.getStageLevelLadder = () => {
 
 /**
  * Returns the flattened stage-level identifiers used as relevancy-archetype curve keys — every `<level><stage>`
- * combination in ladder order, e.g. `[ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1" ]`.
+ * combination in ladder order, e.g. `[ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1", "T2" ]`.
  *
  * @method
  * @returns {Array<string>}
@@ -214,11 +214,11 @@ module.exports.evaluationGrade = evaluationGradeEnum;
  * @typedef {PerformanceThresholdValue} PerformanceThreshold
  */
 const performanceThresholdEnum = tools.enum( {
-    T1: [ "T1", "framework.performance.threshold.name.T1", "framework.performance.threshold.description.T1" ],
-    T2: [ "T2", "framework.performance.threshold.name.T2", "framework.performance.threshold.description.T2" ],
-    T3: [ "T3", "framework.performance.threshold.name.T3", "framework.performance.threshold.description.T3" ],
-    T4: [ "T4", "framework.performance.threshold.name.T4", "framework.performance.threshold.description.T4" ],
-    T5: [ "T5", "framework.performance.threshold.name.T5", "framework.performance.threshold.description.T5" ]
+    P1: [ "P1", "framework.performance.threshold.name.P1", "framework.performance.threshold.description.P1" ],
+    P2: [ "P2", "framework.performance.threshold.name.P2", "framework.performance.threshold.description.P2" ],
+    P3: [ "P3", "framework.performance.threshold.name.P3", "framework.performance.threshold.description.P3" ],
+    P4: [ "P4", "framework.performance.threshold.name.P4", "framework.performance.threshold.description.P4" ],
+    P5: [ "P5", "framework.performance.threshold.name.P5", "framework.performance.threshold.description.P5" ]
 } );
 module.exports.performanceThreshold = performanceThresholdEnum;
 

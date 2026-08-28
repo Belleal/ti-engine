@@ -15,7 +15,7 @@ const resultsAnalytics = require( "#results-analytics" );
 function snap( over ) {
     return Object.assign( {
         cycleID: over.cycleID, chronoKey: over.chronoKey, schemaVersion: ( over.schemaVersion !== undefined ) ? over.schemaVersion : 2,
-        overall: { finalScore: {}, tBandMix: { T1: 0, T2: 0, T3: 0, T4: 0, T5: 0 } },
+        overall: { finalScore: {}, tBandMix: { P1: 0, P2: 0, P3: 0, P4: 0, P5: 0 } },
         bySubcategory: {}, ladderOrdinalHistogram: {}, byRoleFamily: {}, byOrgUnit: {}
     }, over );
 }

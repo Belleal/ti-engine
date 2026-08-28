@@ -329,7 +329,11 @@ describe( "Role-family competency pool integrity", () => {
 
 describe( "Relevancy archetypes resolve for every competency", () => {
 
-    const LEVELS = [ "N1", "J1", "J2", "J3", "R1", "R2", "R3", "S1", "S2", "S3", "X1", "T1" ];
+    const configurationLoader = require( "#configuration-loader" );
+
+// Derived, not restated: the ladder is data ({ T: { stages: 2 } } added T2 in CA-111), and a
+// hard-coded copy silently disagrees with it the next time a level gains a sub-level.
+const LEVELS = configurationLoader.getArchetypeStageLevels();
 
     it( "every competency references an archetype defined in config.relevancy-archetypes.json", () => {
         const competencies = readJSON( path.join( CONFIG_DIR, "config.competencies.json" ) ).competencies;

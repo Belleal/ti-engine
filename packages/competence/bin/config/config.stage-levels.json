@@ -60,7 +60,7 @@
     "name": "Manager",
     "description": "A professional with very rich experience in the position who acquired additional experience as a manager and leader of a team or a unit. They have successfully managed a multitude of complex projects and tasks, demonstrating skills for strategic planning and coordination. They have acquired a higher education degree in the corresponding field and possess relevant professional certificates that complement their competencies both as a specialist and a manager.",
     "grade": 5,
-    "stages": 1,
+    "stages": 2,
     "previous": [
       "S"
     ],

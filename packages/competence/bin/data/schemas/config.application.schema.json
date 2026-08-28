@@ -109,28 +109,28 @@
           "type": "object",
           "description": "Threshold scores for performance levels",
           "properties": {
-            "T1": {
+            "P1": {
               "type": "number"
             },
-            "T2": {
+            "P2": {
               "type": "number"
             },
-            "T3": {
+            "P3": {
               "type": "number"
             },
-            "T4": {
+            "P4": {
               "type": "number"
             },
-            "T5": {
+            "P5": {
               "type": "number"
             }
           },
           "required": [
-            "T1",
-            "T2",
-            "T3",
-            "T4",
-            "T5"
+            "P1",
+            "P2",
+            "P3",
+            "P4",
+            "P5"
           ],
           "additionalProperties": false
         }
