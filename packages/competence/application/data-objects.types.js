@@ -42,6 +42,14 @@
  */
 
 /**
+ * @typedef {Object} WorkSite
+ * @property {string} id - Site code; equals its map key (enforced by `workSiteIdMatchesKey`).
+ * @property {"office"|"client"} type - A company office, or client premises.
+ * @property {{en: string, bg: string}} name - Inline bilingual display name. Inline rather than a localization key
+ *                                             so an edit takes effect on save rather than after a redeploy.
+ */
+
+/**
  * @typedef {Object} RoleFamily
  * @property {string} name - Localization key for the family name.
  * @property {string} description - Localization key for the family description.
@@ -234,9 +242,11 @@
  * @property {string} firstName - First name of the employee.
  * @property {string} lastName - Last name of the employee.
  * @property {string} [birthDate] - Birth date of the employee.
- * @property {string} [gender] - Gender of the employee.
+ * @property {"M"|"F"} [gender] - Gender of the employee. Absent when unspecified.
  * @property {string} workMode - Work mode of the employee (e.g., "Full-time", "Part-time", "Contract").
  * @property {string} workLocation - Work location of the employee (e.g., "Remote", "On-site").
+ * @property {string} [workSite] - Work-site code, from the work-sites configuration. The place the employee reports
+ *                                 to, as opposed to `workLocation`, which is the On-site/Hybrid/Remote arrangement.
  */
 
 /**
@@ -244,6 +254,8 @@
  * @property {string} organizationUnitID - Organization unit ID.
  * @property {RoleFamilyCodeValue} roleFamily - Role family code.
  * @property {SpecializationCodeValue|null} [specialization] - Specialization code, or null/absent for a generalist within the family.
+ * @property {string} [positionName] - The position as written in the employee's contract. Free text; not an input
+ *                                     to grading.
  * @property {CareerLevelCodeValue} level - Stage-level code.
  * @property {CareerLevelStageCodeValue} stage - Progression stage within the level.
  * @property {string} [startingDate] - Date of joining the company (YYYY-MM-DD).

@@ -307,7 +307,8 @@ function runAgainstStore( args, records, employees, errors ) {
         return configurationLoader.initialize().then( () => dataManager.instance.fetchEmployees() ).then( ( existing ) => {
             const plan = organizationImport.instance.reconcile( employees, existing, {
                 roleFamilies: configurationLoader.configRoleFamilies,
-                organizationStructure: configurationLoader.configOrganizationStructure
+                organizationStructure: configurationLoader.configOrganizationStructure,
+                workSites: configurationLoader.configWorkSites
             } );
 
             // Mapping errors are rejections too — merge them so one list is the whole truth, each labeled by the

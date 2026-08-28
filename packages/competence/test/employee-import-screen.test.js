@@ -95,6 +95,44 @@ describe( "employee import screen — fail-closed session guard (CA-108 regressi
 
 } );
 
+describe( "employee import screen — template", () => {
+
+    it( "refuses the template to a session without the admin role", async () => {
+        await assert.rejects( () => app.processServiceRequest( employeeSession(), "template-employee-import", {} ) );
+    } );
+
+    it( "returns the header derived from the column contract", async () => {
+        const result = await app.processServiceRequest( adminSession(), "template-employee-import", {} );
+
+        // Deliberately a literal, not a re-derivation from OrganizationImport#COLUMNS: this pins the string an
+        // operator actually downloads. `bin/build/import-organization.js --template` prints this exact same line
+        // (both read the identical `columns.required.concat( columns.optional ).join( "," )` expression off the
+        // one COLUMNS getter), which is what keeps the download and the CLI's own expectation from ever diverging.
+        assert.equal( result.header, "employee_id,email,first_name,last_name,work_mode,work_location," +
+            "organization_unit_id,role_family,level,stage,employment_status,birth_date,gender,specialization," +
+            "starting_date,work_site,position_name" );
+    } );
+
+    // The button that serves this endpoint (downloadTemplate() in competence-user-interface.js) prefixes the header
+    // with a UTF-8 BOM before offering it as a download, so Excel opens the saved file as UTF-8 rather than the
+    // system codepage. That BOM must not survive as part of the first header cell if the same file is filled in and
+    // re-uploaded unchanged, or "employee_id" would stop matching and the whole file would be rejected as missing
+    // every required column. OrganizationImport#parseDelimited already strips a leading BOM from the raw text before
+    // the header is ever read (see "strips a UTF-8 BOM…" in organization-import.parse.test.js) — this test proves
+    // that holds end to end through the real preview handler, not just the pure parser in isolation.
+    it( "round-trips: the downloaded (BOM-prefixed) header is accepted back by preview", async () => {
+        const template = await app.processServiceRequest( adminSession(), "template-employee-import", {} );
+        const refilled = "﻿" + template.header + "\n" +
+            "90010,template.roundtrip@example.com,Template,Roundtrip,Full-time,On-site,1-1-1,SE,R,2";
+
+        const result = await app.processServiceRequest( adminSession(), "preview-employee-import", { csv: refilled } );
+
+        assert.equal( result.counts.rejected, 0 );
+        assert.equal( result.counts.create, 1 );
+    } );
+
+} );
+
 describe( "employee import screen — preview", () => {
 
     it( "returns counts for a clean file and writes nothing", async () => {

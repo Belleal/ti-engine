@@ -58,7 +58,11 @@
         },
         "gender": {
           "type": "string",
-          "description": "Gender of the employee"
+          "enum": [
+            "M",
+            "F"
+          ],
+          "description": "Gender of the employee. Constrained to M/F so the importer and Employee Management cannot disagree about what is valid; absent when unspecified."
         },
         "workMode": {
           "type": "string",
@@ -77,6 +81,11 @@
             "Remote"
           ],
           "description": "Work location arrangement"
+        },
+        "workSite": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Work-site code — the office or client premises this employee reports to. Distinct from workLocation, which records the On-site/Hybrid/Remote arrangement. Runtime-validated against the work-sites configuration."
         }
       }
     },
@@ -117,6 +126,10 @@
             "null"
           ],
           "description": "Specialization code within the role family (e.g., BACKEND for SE). Null indicates a generalist within the family. Runtime-validated against the role-families configuration."
+        },
+        "positionName": {
+          "type": "string",
+          "description": "The employee's position exactly as written in their contract. Free text, and deliberately not an input to grading — roleFamily, level and stage are what the appraisal system uses."
         },
         "level": {
           "type": "string",

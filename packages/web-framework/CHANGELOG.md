@@ -2,6 +2,22 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.25.1
+
+* fix(ti-framework): resolve a label key whose own name contains a literal dot. `getLabel` split the key on every
+  dot and descended one object level per segment, so a group storing flat dotted keys — because the key IS a dotted
+  path in the consuming application's domain, e.g. audit-log field labels keyed by employee field path
+  (`"personal.workSite"`, `"career.roleFamily"`) — could never be reached. The miss was silent: the caller's
+  fallback rendered instead, which is why competence's Employee Management audit tab had shown every changed field
+  as its raw field path for as long as those labels have existed. Resolution now tries the longest literal key that
+  matches at each level, shortens a segment at a time, and backtracks when a matched branch turns out not to hold
+  the rest of the key — so a purely nested catalogue resolves exactly as before, a literal dotted key wins over the
+  nested path of the same name, and a genuinely absent key still returns the fallback
+* test(ti-framework): cover `tiApplication.getLabel` against the store the browser actually gets. `ti-framework.js`
+  is a plain browser script with no module exports, so `test/helpers/ti-framework-sandbox.js` loads it in a Node
+  sandbox, fires `alpine:init` and hands back the registered stores — exercising the shipped resolver rather than
+  asserting against its source text, which is what let this defect sit unnoticed
+
 ## Version 1.25.0
 
 * feat(config-management): surface a `driftTracked` flag on the `getDrift` / `listDrift` payloads, defaulting to

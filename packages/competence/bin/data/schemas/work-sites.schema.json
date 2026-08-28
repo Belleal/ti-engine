@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ti-engine.dev/schemas/competence/work-sites.json",
+  "title": "Work Sites",
+  "description": "The work-site nomenclature, keyed by site code. A site is a place an employee reports to — distinct from personal.workLocation, which records the On-site/Hybrid/Remote arrangement. Names are stored inline rather than as localization keys so an edit takes effect on save; label-keyed text needs an export, commit and redeploy to appear. That a site's `id` equals its map key, and that a site in use cannot be removed, are enforced by semantic validators, not by this schema.",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "required": [ "id", "type", "name" ],
+    "additionalProperties": false,
+    "properties": {
+      "id": { "type": "string", "minLength": 1, "description": "Site code; must equal the map key" },
+      "type": { "type": "string", "enum": [ "office", "client" ], "description": "A company office, or client premises the employee works from" },
+      "name": {
+        "type": "object",
+        "required": [ "en", "bg" ],
+        "additionalProperties": false,
+        "description": "Inline bilingual display name; both sides required and non-empty",
+        "properties": {
+          "en": { "type": "string", "minLength": 1 },
+          "bg": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

@@ -13,12 +13,20 @@ const REQUIRED_COLUMNS = Object.freeze( [
     "employee_id", "email", "first_name", "last_name", "work_mode", "work_location",
     "organization_unit_id", "role_family", "level", "stage"
 ] );
-const OPTIONAL_COLUMNS = Object.freeze( [ "employment_status", "birth_date", "gender", "specialization", "starting_date" ] );
+const OPTIONAL_COLUMNS = Object.freeze( [ "employment_status", "birth_date", "gender", "specialization", "starting_date", "work_site", "position_name" ] );
 
 const WORK_MODES = Object.freeze( [ "Full-time", "Part-time", "Contract" ] );
 const WORK_LOCATIONS = Object.freeze( [ "On-site", "Hybrid", "Remote" ] );
+const GENDERS = Object.freeze( [ "M", "F" ] );
 const EMPLOYMENT_STATUSES = Object.freeze( [ "active", "on-leave", "terminated" ] );
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Cyrillic letters whose uppercase glyph is indistinguishable from a Latin one in every common font. Used ONLY to
+// explain a failed match (see foldConfusables) — never to resolve one.
+const CONFUSABLE_TO_LATIN = Object.freeze( {
+    "А": "A", "В": "B", "Е": "E", "К": "K", "М": "M", "Н": "H",
+    "О": "O", "Р": "P", "С": "C", "Т": "T", "У": "Y", "Х": "X"
+} );
 
 // `mapRow` OMITS these three fields entirely — it never writes an explicit `null` — when their CSV cell is blank.
 // That is deliberate: `employee.schema.json` types `personal.birthDate` and `career.startingDate` as
@@ -34,10 +42,17 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 // cell (its schema type permits `null`), and under merge-patch an explicit `null` DELETES the key — so
 // specialization genuinely converges to `null` in storage and must keep being compared like every other field.
 // Adding it here would make specialization changes silently un-importable.
+// <br/>
+// `personal.workSite` and `career.positionName` (CA-109) join them for the same mechanical reason and one
+// deliberate one: an HR export that omits a column's values must not wipe every office assignment in a single
+// irreversible apply. The cost is that neither field can be CLEARED by re-importing a blank cell — that is
+// Employee Management's job, exactly as it already is for birthDate and gender.
 const LEAVE_UNCHANGED_WHEN_OMITTED = Object.freeze( [
     { group: "personal", field: "birthDate" },
     { group: "personal", field: "gender" },
-    { group: "career", field: "startingDate" }
+    { group: "career", field: "startingDate" },
+    { group: "personal", field: "workSite" },
+    { group: "career", field: "positionName" }
 ] );
 
 /**
@@ -283,6 +298,12 @@ class OrganizationImport {
             return fail( "work_location", "not-a-permitted-value", `'work_location' must be one of: ${ WORK_LOCATIONS.join( ", " ) }` );
         }
 
+        const rawGender = read( "gender" );
+        const gender = rawGender.length === 0 ? "" : this.#matchEnum( rawGender, GENDERS );
+        if ( rawGender.length > 0 && !gender ) {
+            return fail( "gender", "not-a-permitted-value", `'gender' must be one of: ${ GENDERS.join( ", " ) }` );
+        }
+
         const rawStatus = read( "employment_status" );
         const employmentStatus = rawStatus.length === 0 ? "active" : this.#matchEnum( rawStatus, EMPLOYMENT_STATUSES );
         if ( !employmentStatus ) {
@@ -304,8 +325,9 @@ class OrganizationImport {
 
         const specialization = read( "specialization" );
         const birthDate = read( "birth_date" );
-        const gender = read( "gender" );
         const startingDate = read( "starting_date" );
+        const workSite = read( "work_site" );
+        const positionName = read( "position_name" );
 
         const employee = {
             // The source line number travels with the record so `reconcile` can name the offending line without
@@ -321,7 +343,8 @@ class OrganizationImport {
                 workMode: workMode,
                 workLocation: workLocation,
                 ...( birthDate ? { birthDate: birthDate } : {} ),
-                ...( gender ? { gender: gender } : {} )
+                ...( gender ? { gender: gender } : {} ),
+                ...( workSite ? { workSite: workSite } : {} )
             },
             career: {
                 organizationUnitID: read( "organization_unit_id" ),
@@ -329,7 +352,8 @@ class OrganizationImport {
                 specialization: specialization.length > 0 ? specialization.toUpperCase() : null,
                 level: read( "level" ).toUpperCase(),
                 stage: stage,
-                ...( startingDate ? { startingDate: startingDate } : {} )
+                ...( startingDate ? { startingDate: startingDate } : {} ),
+                ...( positionName ? { positionName: positionName } : {} )
             }
         };
         return { employee: employee, error: null };
@@ -356,6 +380,55 @@ class OrganizationImport {
             }
         }
         return { employees: employees, errors: errors };
+    }
+
+    /**
+     * Replaces every Cyrillic character that is glyph-identical to a Latin one with that Latin letter. Pure.
+     * <br/>
+     * **This exists to phrase an error, never to accept a value.** The real HR data contains a Stara Zagora site
+     * coded `О5` with a Cyrillic О while every sibling uses a Latin O; the two render identically and compare
+     * unequal, so an unknown-code rejection would list `O5` as permitted, pixel-identical to what the operator
+     * typed. Folding lets {@link OrganizationImport#describeWorkSiteMiss} say which character is wrong. Folding to
+     * *match* would be the synonym table this module refuses everywhere else, and would file a person under a site
+     * they were never assigned to.
+     *
+     * @method
+     * @param {string} [text]
+     * @returns {string}
+     * @public
+     */
+    foldConfusables( text ) {
+        return String( text == null ? "" : text ).replace( /[Ѐ-ӿ]/g, ( character ) => CONFUSABLE_TO_LATIN[ character ] || character );
+    }
+
+    /**
+     * Explains why a work-site code matched nothing, or returns `null` when it in fact matched. Pure.
+     * <br/>
+     * Returns `{ code: "confusable-character", match, cyrillicChar, latinChar }` when the code folds onto a real
+     * site — the operator typed a lookalike letter — naming, via the same {@link CONFUSABLE_TO_LATIN} table
+     * `foldConfusables` used, the specific Cyrillic character found and the Latin one it should be, so the caller
+     * can phrase an error that shows the difference rather than two strings that render identically. Otherwise
+     * returns `{ code: "unknown-work-site", match: null }`. A non-null return always means the value is
+     * **rejected**; the distinction only changes what the operator is told.
+     *
+     * @method
+     * @param {string} rawCode - The code as supplied.
+     * @param {Object<string, WorkSite>} sites - The work-sites nomenclature.
+     * @returns {{code: string, match: string|null, cyrillicChar: string, latinChar: string}|{code: string, match: null}|null}
+     * @public
+     */
+    describeWorkSiteMiss( rawCode, sites ) {
+        const known = sites || {};
+        const code = String( rawCode == null ? "" : rawCode );
+        if ( known[ code ] ) {
+            return null;
+        }
+        const folded = this.foldConfusables( code );
+        if ( folded !== code && known[ folded ] ) {
+            const cyrillicChar = Array.from( code ).find( ( character ) => CONFUSABLE_TO_LATIN[ character ] );
+            return { code: "confusable-character", match: folded, cyrillicChar: cyrillicChar, latinChar: CONFUSABLE_TO_LATIN[ cyrillicChar ] };
+        }
+        return { code: "unknown-work-site", match: null };
     }
 
     /**
@@ -578,6 +651,18 @@ class OrganizationImport {
 
             const violation = employeeRules.instance.validateEmployee( candidate, context );
             if ( violation ) {
+                // A confusable work-site code (CA-109) gets its own message naming the offending character, with a
+                // rejection `code` that deliberately does NOT start with "error." — `rejectionLabel` on the import
+                // screen resolves any "error."-prefixed code through the label table, which would silently discard
+                // this prose (and does today the moment `error.employee.invalid-work-site` gains a label of its
+                // own). The value is still rejected exactly like any other violation; only the wording changes.
+                if ( violation === "error.employee.invalid-work-site" ) {
+                    const miss = this.describeWorkSiteMiss( candidate.personal && candidate.personal.workSite, context.workSites );
+                    if ( miss && miss.code === "confusable-character" ) {
+                        reject( candidate, miss.code, `work_site '${ candidate.personal.workSite }' uses a Cyrillic ${ miss.cyrillicChar }; the permitted code '${ miss.match }' uses a Latin ${ miss.latinChar }` );
+                        continue;
+                    }
+                }
                 reject( candidate, violation, `record is not valid: ${ violation }` );
                 continue;
             }
@@ -731,7 +816,7 @@ class OrganizationImport {
      * Whether a stored record and a candidate are identical for import purposes. Compares the fields the importer
      * writes, ignoring key order and any property the importer never sets. Pure.
      * <br/>
-     * Mirrors the writer's merge-patch semantics for the three fields named in {@link LEAVE_UNCHANGED_WHEN_OMITTED}
+     * Mirrors the writer's merge-patch semantics for the fields named in {@link LEAVE_UNCHANGED_WHEN_OMITTED}
      * (module-level, top of this file): when `candidate` omits one of them, it compares as equal to whatever
      * `previous` holds on that field alone — a write of `candidate` can never change it, so a diff there would be
      * fictitious. When `candidate` does carry a value for one of those fields, it compares normally, same as every
@@ -754,7 +839,8 @@ class OrganizationImport {
                 workMode: employee.personal && employee.personal.workMode,
                 workLocation: employee.personal && employee.personal.workLocation,
                 birthDate: ( employee.personal && employee.personal.birthDate ) || null,
-                gender: ( employee.personal && employee.personal.gender ) || null
+                gender: ( employee.personal && employee.personal.gender ) || null,
+                workSite: ( employee.personal && employee.personal.workSite ) || null
             },
             career: {
                 organizationUnitID: employee.career && employee.career.organizationUnitID,
@@ -762,7 +848,8 @@ class OrganizationImport {
                 specialization: ( employee.career && employee.career.specialization ) || null,
                 level: employee.career && employee.career.level,
                 stage: employee.career && employee.career.stage,
-                startingDate: ( employee.career && employee.career.startingDate ) || null
+                startingDate: ( employee.career && employee.career.startingDate ) || null,
+                positionName: ( employee.career && employee.career.positionName ) || null
             }
         } );
 

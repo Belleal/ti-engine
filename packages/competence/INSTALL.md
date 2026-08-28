@@ -423,7 +423,9 @@ run it from any host with the Redis connection variables (§7, "Redis") pointed 
 inside the container — copy it in first with `docker cp employees.csv <container>:/tmp/employees.csv`.
 
 **Handing the work to HR.** `docs/templates/employee-import-template.xlsx` is a ready-made spreadsheet to give to
-whoever collects the data. It carries the columns in the right order, dropdowns for every fixed-vocabulary field,
+whoever collects the data. It carries the columns in the right order, dropdowns for every fixed-vocabulary field —
+except `work_site`, deliberately left free text, since the valid codes are per-deployment configuration
+(**Administration → Work Sites**) and a committed dropdown would carry the demo codes into every real install —
 text-formatted ID and date columns so Excel cannot strip a leading zero or reformat a date, duplicate-email and
 duplicate-ID highlighting, and its own export instructions. Fill in the organization-unit table on its *Valid
 values* sheet before sending it, since those IDs come from your configured structure and the template cannot know
@@ -451,9 +453,11 @@ node bin/build/import-organization.js --template > employees.csv
 | `stage`                | yes      | `1`–`3`; `N`, `X` and `T` admit only stage `1`                                       |
 | `employment_status`    | no       | `active` (default) / `on-leave` / `terminated`                                      |
 | `birth_date`           | no       | `YYYY-MM-DD`                                                                         |
-| `gender`               | no       | Free text                                                                            |
+| `gender`               | no       | `M` or `F`, or blank                                                                 |
 | `specialization`       | no       | One of the role family's configured specializations; an empty cell means a generalist |
 | `starting_date`        | no       | `YYYY-MM-DD`                                                                         |
+| `work_site`            | no       | Must exist in the current work-site nomenclature (**Administration → Work Sites**). Blank leaves any stored value unchanged |
+| `position_name`        | no       | Free text, as written in the contract. Blank leaves any stored value unchanged      |
 
 Enum columns are matched case-insensitively after trimming (`full time`, `FULL-TIME` and `Full-time` all match), but
 never guessed at: a value that still does not match is rejected with the permitted values named, rather than mapped
@@ -517,9 +521,13 @@ Three behaviors are worth understanding before the first real import:
   person to the importer.
 - **A blank optional cell means leave unchanged, not clear.** For `birth_date`, `gender` and `starting_date`, an
   empty cell leaves whatever is already stored for that person exactly as it is — it does not erase it. This
-  importer cannot clear one of those three fields for someone; do that from Employee Management instead.
-  (`specialization` is different: an empty cell there is applied and does clear a previously-set specialization,
-  turning the person into a generalist.)
+  importer cannot clear one of those three fields for someone. **Nor, at present, can Employee Management** —
+  it clears them by omitting the key, and an employee record is written as a merge-patch, where an omitted key
+  means "leave as it is". The screen reports success and shows the field blank, but the stored value survives and
+  reappears on the next load. Correcting that is tracked separately; until then, treat those three as set-only.
+  `work_site` and `position_name` are **not** affected — they are cleared by writing an empty value, which the
+  merge does apply. (`specialization` is different again: an empty cell in the CSV is applied and does clear a
+  previously-set specialization, turning the person into a generalist.)
 
 ### The Employee Import screen
 
@@ -551,6 +559,37 @@ action to undo an import.
   produces. If it ever picks wrong for your export the whole file is refused up front with "The header is missing
   required columns" naming every required column, because the header row parsed as one unsplit cell — run that file
   through the CLI with an explicit `--delimiter`.
+
+### Work Sites
+
+**Administration → Work Sites** (admin-only) edits the work-site nomenclature — the office or client premises an
+employee reports to. This is a different fact from `work_location` (`On-site` / `Hybrid` / `Remote`), which records
+the *arrangement* rather than the *place*: a Hybrid employee still reports to a specific office, and two people at
+the same office can hold different arrangements. Each site is a code, a `type` (`office` or `client`), and a
+bilingual `{ en, bg }` name; unlike role-family text, site names are stored inline, so an edit takes effect on save
+with no export → commit → redeploy step.
+
+**The file baked into the image is a generic demo default** — `HQ`, `OF1`, `CL1` — the same posture as the
+organization structure (earlier in this section): it exists only to seed a first run. Enter your real sites through
+the screen; the stored value wins from the first save onward, and because the `ti-engine` repository is public, the
+real office and client list is never committed to it.
+
+**A site still assigned to an employee cannot be removed.** The screen refuses the save with an error naming the
+site, for example `work site 'HQ' is assigned to an employee and cannot be removed` — reassign every affected
+employee's `work_site` to a different code (Employee Import or Employee Management), or clear it from Employee
+Management (a blank cell on import leaves the stored value unchanged, so re-importing cannot clear it), then remove
+the site.
+
+**A confusable character is named, not silently accepted.** The CSV importer folds look-alike Cyrillic/Latin
+letters (for example Cyrillic `О` U+041E vs. Latin `O` U+004F, visually identical in every common font) only to
+explain a rejection — never to accept the value. A `work_site` cell typed with a Cyrillic look-alike of a real code
+is still rejected, but the message names the specific offending character and the Latin one it should be instead of
+listing the permitted codes (which would otherwise show what looks like an exact match on screen), for example:
+`work_site 'О5' uses a Cyrillic О; the permitted code 'O5' uses a Latin O`.
+
+**Migration note — gender.** `gender` is now constrained to `M` or `F` (or blank) on both write paths — the CSV
+importer and Employee Management. A deployment whose stored employee records already carry some other value must
+have them corrected: the field is now constrained, so the next write of such a record fails validation.
 
 ### Unresolved-manager warnings
 

@@ -541,6 +541,77 @@ function decomposeRoleFamilies( editedView, docs ) {
 }
 
 /* ============================================================================
+ * work-sites — the office/client nomenclature (add/edit/remove; text stored inline)
+ * ========================================================================== */
+
+/**
+ * Projects the work-sites document as a flat list of editable rows.
+ *
+ * @method
+ * @param {Object} docs `{ "work-sites" }`
+ * @returns {{sites: Array<Object>}}
+ * @public
+ */
+function composeWorkSites( docs ) {
+    const sites = ( docs && docs[ "work-sites" ] ) || {};
+    const rows = Object.keys( sites ).map( ( code ) => {
+        const entry = sites[ code ] || {};
+        return {
+            code: code,
+            type: entry.type === "client" ? "client" : "office",
+            name: pair( entry.name )
+        };
+    } );
+    return { sites: rows };
+}
+
+/**
+ * Rebuilds the work-sites document from the edited rows. **The submitted list is the complete set** — a code that
+ * is not in it is removed. That differs deliberately from {@link decomposeRoleFamilies}, whose family identities are
+ * fixed by schema: a work site exists precisely so an admin can add and remove it.
+ * <br/>
+ * Removal is safe here only because `workSitesReferentialIntegrity` refuses to drop a site an employee is assigned
+ * to. This function deliberately does **not** repeat that check — the rule has one home, and duplicating it here
+ * would let the two drift while making the screen the only guarded path.
+ * <br/>
+ * `id` is stamped from the row's `code` rather than trusted from the payload: they must be equal or
+ * `workSiteIdMatchesKey` blocks the save, and deriving it removes the chance for them to disagree at all. The code
+ * is trimmed before it becomes the key/`id`: the CSV importer trims every cell before matching, so a padded code
+ * saved verbatim (`" HQ "`) would be a site no import row could ever equal — the client's own duplicate check in
+ * `localIssues()` already trims for the same reason, and the server must agree with it. A code that is empty after
+ * trimming is skipped, same as one that was empty (or absent) to begin with.
+ *
+ * @method
+ * @param {Array<Object>|{sites: Array<Object>}} editedView rows from {@link composeWorkSites}
+ * @param {Object} docs current `{ "work-sites" }`
+ * @returns {Object<string, Object>} `{ "work-sites": newValue }`
+ * @public
+ */
+function decomposeWorkSites( editedView, docs ) {
+    const rows = Array.isArray( editedView ) ? editedView : ( ( editedView && editedView.sites ) || [] );
+    const existing = ( docs && docs[ "work-sites" ] ) || {};
+    const next = {};
+
+    rows.forEach( ( row ) => {
+        if ( !row || !row.code ) {
+            return;
+        }
+        const code = String( row.code ).trim();
+        if ( !code ) {
+            return;
+        }
+        const stored = existing[ code ] || {};
+        next[ code ] = {
+            id: code,
+            type: row.type === "client" ? "client" : "office",
+            name: mergeLeaf( row.name, stored.name )
+        };
+    } );
+
+    return { "work-sites": next };
+}
+
+/* ============================================================================
  * Editor definitions + registration
  * ========================================================================== */
 
@@ -597,6 +668,19 @@ const roleFamiliesEditor = {
 };
 
 /**
+ * The `work-sites` composite editor definition (the office/client nomenclature; text stored inline, not in labels).
+ *
+ * @constant
+ * @type {Object}
+ */
+const workSitesEditor = {
+    documents: [ "work-sites" ],
+    compose: composeWorkSites,
+    decompose: decomposeWorkSites,
+    metadata: { label: "work.sites", writes: [ "work-sites" ] }
+};
+
+/**
  * Registers competence's composite editors with the framework config service.
  *
  * @method
@@ -609,6 +693,7 @@ function registerCompetenceEditors( app ) {
     app.registerConfigEditor( "archetype-assignment", archetypeAssignmentEditor );
     app.registerConfigEditor( "relevancy-archetype", relevancyArchetypeEditor );
     app.registerConfigEditor( "role-families", roleFamiliesEditor );
+    app.registerConfigEditor( "work-sites", workSitesEditor );
     return app;
 }
 
@@ -623,9 +708,12 @@ module.exports = {
     decomposeRelevancyArchetype,
     composeRoleFamilies,
     decomposeRoleFamilies,
+    composeWorkSites,
+    decomposeWorkSites,
     competencyTextEditor,
     archetypeAssignmentEditor,
     relevancyArchetypeEditor,
     roleFamiliesEditor,
+    workSitesEditor,
     registerCompetenceEditors
 };

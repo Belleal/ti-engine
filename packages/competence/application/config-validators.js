@@ -274,13 +274,59 @@ function archetypesReferentialIntegrity( value, context ) {
 }
 
 /**
+ * Runs a per-employee reference check against the live employee records, owning the three parts every such check
+ * needs to get right: the deferred seam call, the fail-closed branch, and de-duplication by path.
+ * <br/>
+ * **Fail-closed is the load-bearing property.** {@link fetchEmployeesForValidation} resolves `[]` when the data
+ * layer is simply absent — outside the running service — so config-only validation still works. Reaching the catch
+ * therefore means a *genuine* fetch failure against an operational data layer, and the removal is refused rather
+ * than allowed: a transient cache error must not be the thing that orphans employee records.
+ * <br/>
+ * The seam call is deferred through `Promise.resolve()` so that a synchronous throw (from a test stub) and an
+ * async rejection both route to the same branch.
+ *
+ * @method
+ * @param {Array<ValidationIssue>} issues - Issues collected so far; appended to and returned de-duplicated.
+ * @param {function(Object, Array<ValidationIssue>): void} inspect - Called once per employee to append any issue.
+ * @returns {Promise<Array<ValidationIssue>>}
+ * @private
+ */
+function withEmployeeReferences( issues, inspect ) {
+    return Promise.resolve()
+        .then( () => module.exports.fetchEmployeesForValidation() )
+        .then( ( employees ) => employees || [] )
+        .catch( () => {
+            issues.push( {
+                path: ".",
+                message: "employee references could not be verified against the data layer; the change was rejected to avoid orphaning employee records — retry once the data layer is reachable",
+                code: "reference-integrity"
+            } );
+            return [];
+        } )
+        .then( ( employees ) => {
+            for ( const employee of employees ) {
+                inspect( employee, issues );
+            }
+            const seen = {};
+            return issues.filter( ( issue ) => {
+                if ( seen[ issue.path ] ) {
+                    return false;
+                }
+                seen[ issue.path ] = true;
+                return true;
+            } );
+        } );
+}
+
+/**
  * role-families: a role family or specialization may only be removed when nothing references it — neither an active
  * competency set nor an employee. Active-set references are read from config (cross-document context); employee
- * references are read from the data layer. The employee check fails closed: when the data layer is genuinely absent
- * (e.g. outside the running service) {@link fetchEmployeesForValidation} resolves to [] and the check is skipped so
- * config-only validation still works, but a genuine fetch failure (e.g. a transient cache error) is reported as a
- * blocking issue rather than silently allowing a possibly orphaning removal. Issues are de-duplicated by path so a
- * family used by many employees is reported once.
+ * references are read from the data layer through {@link withEmployeeReferences}, which owns the fail-closed
+ * behaviour: when the data layer is genuinely absent (e.g. outside the running service)
+ * {@link fetchEmployeesForValidation} resolves to [] and the check is skipped so config-only validation still works,
+ * but a genuine fetch failure (e.g. a transient cache error) is reported as a blocking issue rather than silently
+ * allowing a possibly orphaning removal. Issues are de-duplicated by path so a family used by many employees is
+ * reported once.
  *
  * @method
  * @param {ConfigRoleFamilies} value - The pending role-families document being validated.
@@ -308,40 +354,17 @@ function roleFamiliesReferentialIntegrity( value, context ) {
             }
         }
 
-        // Read employee references through the overridable seam. Defer the call so that a synchronous throw (e.g. from a
-        // test stub) and an async rejection both route to the fail-closed branch below.
-        return Promise.resolve()
-            .then( () => module.exports.fetchEmployeesForValidation() )
-            .then( ( employees ) => employees || [] )
-            .catch( () => {
-                // Fail closed: employee references could not be verified, so refuse the removal rather than risk
-                // orphaning employee records. fetchEmployeesForValidation resolves to [] without rejecting when the
-                // data layer is simply absent, so reaching here means a genuine fetch failure against an operational
-                // data layer.
-                issues.push( { path: ".", message: "employee references could not be verified against the data layer; the change was rejected to avoid orphaning employee records — retry once the data layer is reachable", code: "reference-integrity" } );
-                return [];
-            } );
-    } ).then( ( employees ) => {
-        for ( const employee of employees ) {
+        return withEmployeeReferences( issues, ( employee, collected ) => {
             const career = employee && employee.career;
             if ( !career || !career.roleFamily ) {
-                continue;
+                return;
             }
             const family = families[ career.roleFamily ];
             if ( !family ) {
-                issues.push( { path: `.${ career.roleFamily }`, message: `role family '${ career.roleFamily }' is assigned to an employee and cannot be removed`, code: "reference-integrity" } );
+                collected.push( { path: `.${ career.roleFamily }`, message: `role family '${ career.roleFamily }' is assigned to an employee and cannot be removed`, code: "reference-integrity" } );
             } else if ( career.specialization && !( family.specializations || {} )[ career.specialization ] ) {
-                issues.push( { path: `.${ career.roleFamily }.specializations.${ career.specialization }`, message: `specialization '${ career.roleFamily }.${ career.specialization }' is assigned to an employee and cannot be removed`, code: "reference-integrity" } );
+                collected.push( { path: `.${ career.roleFamily }.specializations.${ career.specialization }`, message: `specialization '${ career.roleFamily }.${ career.specialization }' is assigned to an employee and cannot be removed`, code: "reference-integrity" } );
             }
-        }
-
-        const seen = {};
-        return issues.filter( ( issue ) => {
-            if ( seen[ issue.path ] ) {
-                return false;
-            }
-            seen[ issue.path ] = true;
-            return true;
         } );
     } );
 }
@@ -588,7 +611,70 @@ function organizationIdMatchesKey( value ) {
 }
 
 /**
- * Employee source for {@link roleFamiliesReferentialIntegrity}, isolated as a seam so it can be overridden in tests
+ * work-sites: every site's `id` must equal its map key. Same constraint, and the same reason, as
+ * {@link organizationIdMatchesKey}: JSON Schema cannot express "this property's value equals its property name", and
+ * the map key is what an operator actually edits — an employee's `personal.workSite` is matched against the key, so
+ * a site whose `id` disagrees with it is a site nobody can be assigned to.
+ *
+ * Document-intrinsic — no `context` parameter needed; see {@link organizationSingleRoot}.
+ *
+ * @method
+ * @param {Object} value
+ * @returns {Promise<Array<ValidationIssue>>}
+ * @public
+ */
+function workSiteIdMatchesKey( value ) {
+    const issues = [];
+    for ( const [ rawID, siteEntry ] of Object.entries( value || {} ) ) {
+        const declared = siteEntry && siteEntry.id;
+        if ( declared !== rawID ) {
+            issues.push( {
+                path: `.${ rawID }`,
+                message: `work site id '${ declared === undefined ? "(absent)" : declared }' does not match its key '${ rawID }'`,
+                code: "id-key-mismatch"
+            } );
+        }
+    }
+    return Promise.resolve( issues );
+}
+
+/**
+ * work-sites: a site may only be removed when no employee is assigned to it. Shares the seam, the fail-closed
+ * branch and the de-duplication with {@link roleFamiliesReferentialIntegrity} through
+ * {@link withEmployeeReferences}, so the two cannot drift on the part that is easy to get wrong.
+ * <br/>
+ * This is a *removal* check, which is why it can be a validator at all. CA-107's unresolved-manager rule is a
+ * *presence* check — "every unit's managerID must resolve to an employee" — and had to become a startup diagnostic
+ * because it fires on a fresh install, where the tree must exist before any employee can reference it. Nothing is
+ * removed on a fresh install, so this one never fires there.
+ * <br/>
+ * No message names an employee: the text reaches an admin screen, and a site code is configuration while a person
+ * is not.
+ * <br/>
+ * Document-intrinsic — no `context` parameter needed; see {@link organizationSingleRoot}.
+ *
+ * @method
+ * @param {Object} value - The pending work-sites document being validated.
+ * @returns {Promise<Array<ValidationIssue>>}
+ * @public
+ */
+function workSitesReferentialIntegrity( value ) {
+    const sites = value || {};
+    return withEmployeeReferences( [], ( employee, collected ) => {
+        const workSite = employee && employee.personal && employee.personal.workSite;
+        if ( workSite && !sites[ workSite ] ) {
+            collected.push( {
+                path: `.${ workSite }`,
+                message: `work site '${ workSite }' is assigned to an employee and cannot be removed`,
+                code: "reference-integrity"
+            } );
+        }
+    } );
+}
+
+/**
+ * Employee source for {@link roleFamiliesReferentialIntegrity} and {@link workSitesReferentialIntegrity} — both
+ * reach it through {@link withEmployeeReferences} — isolated as a seam so it can be overridden in tests
  * (the data-manager singleton is frozen and cannot be stubbed directly). Resolves to [] when the data layer is absent
  * (e.g. outside the running service); a genuine fetch failure is allowed to reject so the caller can fail closed.
  *
@@ -624,5 +710,7 @@ module.exports = {
     organizationSingleRoot,
     organizationParentChildSymmetry,
     organizationNoCycles,
-    organizationIdMatchesKey
+    organizationIdMatchesKey,
+    workSiteIdMatchesKey,
+    workSitesReferentialIntegrity
 };

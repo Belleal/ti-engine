@@ -15,16 +15,17 @@
  * Editable: the dictionary, its localization, the relevancy archetypes, the active competency sets, the role
  * families (the nine disciplines are fixed by schema; their text and their specializations are editable), the
  * research-consent statement (guarded by the consentTextVersionBumped validator so its text can't change without a
- * version bump), and the organization structure (guarded by the four structural validators — single root,
- * parent/child symmetry, acyclicity, and id/key agreement — from {@link module:config-validators}). The role-family
- * competency pool and the stage levels are registered read-only — versioned, validated, restorable, and exportable,
- * but not exposed for inline editing yet.
+ * version bump), the organization structure (guarded by the four structural validators — single root, parent/child
+ * symmetry, acyclicity, and id/key agreement — from {@link module:config-validators}), and the work sites (guarded
+ * by id/key agreement and a referential-integrity check that blocks removing a site an employee is assigned to).
+ * The role-family competency pool and the stage levels are registered read-only — versioned, validated, restorable,
+ * and exportable, but not exposed for inline editing yet.
  * <br/>
- * The organization structure is also registered with `metadata.driftTracked: false`: unlike the other documents,
- * which hold vendor-shipped product content, it holds this deployment's own org chart — a real company's structure
- * differs from the shipped demo tree by definition and forever, so including it in the drift report would drown the
- * signal for documents where a difference genuinely means "a release changed something this deployment is not
- * serving".
+ * The organization structure and the work sites are also registered with `metadata.driftTracked: false`: unlike
+ * the other documents, which hold vendor-shipped product content, these two hold this deployment's own operational
+ * data — its actual org chart and its actual list of physical sites — which differ from the shipped demo values by
+ * definition and forever, so including them in the drift report would drown the signal for documents where a
+ * difference genuinely means "a release changed something this deployment is not serving".
  *
  * @module config-registration
  */
@@ -41,6 +42,7 @@ const roleFamilyCompetenciesSchema = require( "../bin/data/schemas/role-family-c
 const stageLevelsSchema = require( "../bin/data/schemas/stage-levels.schema.json" );
 const researchConsentSchema = require( "../bin/data/schemas/research-consent.schema.json" );
 const organizationStructureSchema = require( "../bin/data/schemas/organization-structure.schema.json" );
+const workSitesSchema = require( "../bin/data/schemas/work-sites.schema.json" );
 const competenceLabels = require( "../bin/localization/competence-labels.json" );
 
 // competence-labels.json has no dedicated JSON Schema (its structure is large and open-ended). Structural validity is
@@ -107,6 +109,12 @@ function registerCompetenceConfig( app ) {
         validators: [ validators.organizationSingleRoot, validators.organizationParentChildSymmetry, validators.organizationNoCycles, validators.organizationIdMatchesKey ],
         defaultValue: configurationLoader.fileDefaults[ "organization-structure" ],
         metadata: { path: "bin/config/config.organization-structure.json", label: "organization.structure", editable: true, driftTracked: false }
+    } );
+    app.registerConfigDocument( "work-sites", {
+        schema: workSitesSchema,
+        validators: [ validators.workSiteIdMatchesKey, validators.workSitesReferentialIntegrity ],
+        defaultValue: configurationLoader.fileDefaults[ "work-sites" ],
+        metadata: { path: "bin/config/config.work-sites.json", label: "work.sites", editable: true, driftTracked: false }
     } );
 
     // Composite (entity) editors — e.g. the competency-text editor that the BG-review screen edits.

@@ -800,6 +800,57 @@ const configureApplication = () => {
     const tiToolbox = Alpine.store( "tiToolbox" );
 
     /**
+     * Marker returned by {@link resolveLabel} when a key is not present in the labels object. A dedicated sentinel
+     * rather than `undefined` so that backtracking can never be confused by a stored value.
+     *
+     * @constant
+     * @private
+     */
+    const LABEL_NOT_FOUND = Object.freeze( {} );
+
+    /**
+     * Resolves a label key against a labels object, trying the longest literal key that matches at each level and
+     * shortening on a miss.
+     * <br/>
+     * A labels catalogue is not always purely nested: a group may store flat keys that themselves contain a dot,
+     * because the key IS a dotted path in the application's own domain — competence keys its audit-log field labels
+     * by employee field path ("personal.workSite", "career.roleFamily"). Descending exactly one object level per dot
+     * can never reach those, and the miss is silent: the caller's fallback renders instead. So each level tries the
+     * whole remaining key first, shortens a segment at a time, and backtracks whenever a matched branch turns out
+     * not to hold the rest of the key.
+     *
+     * @method
+     * @param {Object} labels
+     * @param {String[]} keys
+     * @returns {String|Object} The resolved value, or {@link LABEL_NOT_FOUND}.
+     * @private
+     */
+    const resolveLabel = ( labels, keys ) => {
+        if ( !labels || typeof labels !== "object" || keys.length === 0 ) {
+            return LABEL_NOT_FOUND;
+        }
+        for ( let length = keys.length; length > 0; length-- ) {
+            const key = keys.slice( 0, length ).join( "." );
+            if ( !Object.prototype.hasOwnProperty.call( labels, key ) ) {
+                continue;
+            }
+            const value = labels[ key ];
+            const remainder = keys.slice( length );
+            if ( typeof value === "string" ) {
+                if ( remainder.length === 0 ) {
+                    return value;
+                }
+            } else if ( value && typeof value === "object" ) {
+                const resolved = resolveLabel( value, remainder );
+                if ( resolved !== LABEL_NOT_FOUND ) {
+                    return resolved;
+                }
+            }
+        }
+        return LABEL_NOT_FOUND;
+    };
+
+    /**
      * Used to extract a label from a nested labels object.
      *
      * @method
@@ -810,17 +861,8 @@ const configureApplication = () => {
      * @private
      */
     const extractLabel = ( labels, keys, fallback ) => {
-        let key = keys.shift();
-        if ( labels && typeof labels === "object" && key && Object.prototype.hasOwnProperty.call( labels, key ) ) {
-            const value = labels[ key ];
-            if ( typeof value === "string" ) {
-                return keys.length === 0 ? value : fallback;
-            }
-            if ( value && typeof value === "object" ) {
-                return extractLabel( value, keys, fallback );
-            }
-        }
-        return fallback;
+        const resolved = resolveLabel( labels, keys );
+        return ( typeof resolved === "string" ) ? resolved : fallback;
     };
 
     /**

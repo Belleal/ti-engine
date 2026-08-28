@@ -260,6 +260,34 @@ describe( "organizationImport.reconcile — blank optional cell means leave-unch
         assert.equal( plan.update[ 0 ].employee.personal.birthDate, "1985-01-01" );
     } );
 
+    // personal.workSite and career.positionName (CA-109) join the same LEAVE_UNCHANGED_WHEN_OMITTED mechanism as
+    // birthDate/gender/startingDate above. The two cases directly above this one only prove the OMITTED direction;
+    // without #isSameRecord's normalize() also comparing these two fields when they ARE supplied, a genuine change
+    // would silently compare as "unchanged" forever — and applyPlan() never writes an "unchanged" row, so the
+    // change would never reach the store. These two pin the other direction for the two new fields.
+    it( "still classifies a different incoming personal.workSite as an update — the omission rule must not make the field un-importable", () => {
+        const stored = employee();
+        stored.personal.workSite = "HQ";
+        const incoming = employee();
+        incoming.personal.workSite = "BRANCH";
+        const context = Object.assign( {}, CONTEXT, { workSites: { HQ: {}, BRANCH: {} } } );
+        const plan = organizationImport.instance.reconcile( [ incoming ], [ stored ], context );
+        assert.equal( plan.update.length, 1 );
+        assert.equal( plan.unchanged.length, 0 );
+        assert.equal( plan.update[ 0 ].employee.personal.workSite, "BRANCH" );
+    } );
+
+    it( "still classifies a different incoming career.positionName as an update — the omission rule must not make the field un-importable", () => {
+        const stored = employee();
+        stored.career.positionName = "Expert";
+        const incoming = employee();
+        incoming.career.positionName = "Senior Expert";
+        const plan = organizationImport.instance.reconcile( [ incoming ], [ stored ], CONTEXT );
+        assert.equal( plan.update.length, 1 );
+        assert.equal( plan.unchanged.length, 0 );
+        assert.equal( plan.update[ 0 ].employee.career.positionName, "Senior Expert" );
+    } );
+
     it( "still classifies an explicit null career.specialization as an update — the omission rule must not extend to specialization", () => {
         // Unlike the three fields above, mapRow sets specialization to an explicit `null` on a blank cell (its
         // schema type permits null), and merge-patch DELETES a key on an explicit null — so it genuinely converges
