@@ -17,14 +17,16 @@ package) — the header text differs by license.
 ## Monorepo Layout
 
 ```
-ti-engine/                         npm workspace root (v1.2.7; workspaces = packages/*)
+ti-engine/                         npm workspace root (v1.2.10; workspaces = packages/*)
 ├── packages/
-│   ├── core/          v1.8.0      Framework foundation (Redis messaging, lifecycle, utils)
-│   ├── web-framework/ v1.19.0     Express server + auth + admin config-management + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
-│   ├── web-content/   v0.2.0      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture (WIP)
-│   ├── competence/    v3.16.0     HR competency appraisal application (108-competency dictionary); ships as a container image
-│   └── tester/        v1.3.3      Reference/example service implementation
-├── .github/workflows/             ci.yml (lint/test/build) · cd.yml (competence image → GHCR + Artifact Registry) · codeql-analysis.yml
+│   ├── core/          v1.11.1     Framework foundation (Redis messaging, lifecycle, utils) + shipped TypeScript declarations
+│   ├── web-framework/ v1.25.1     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
+│   ├── web-content/   v0.3.1      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture (WIP)
+│   ├── competence/    v3.28.0     HR competency appraisal application (209-competency dictionary, six populated families); ships as a container image
+│   └── tester/        v1.3.5      Reference/example service implementation
+├── .github/workflows/             ci.yml (lint/test/build) · cd.yml (competence image → GHCR + Artifact Registry) · codeql-analysis.yml · npm-publish.yml · cla.yml
+├── CLA.md · CONTRIBUTING.md       Contributor License Agreement (enforced by cla.yml) + contribution guide
+├── LICENSE.md                     The per-package license table (Apache-2.0 × 4, AGPL-3.0-or-later for competence)
 ├── docker-compose.yml             Dev stack for competence (app + Redis Stack); dev flags + throwaway secrets — never production
 ├── docs/superpowers/              specs/ (design records, 2026-07 onward) + plans/ (implementation plans)
 ├── package.json                   Workspace root; devDeps: ESLint 10 (@eslint/js, @eslint/json, globals), Prettier 3
@@ -35,7 +37,9 @@ Dependency direction: `core` is standalone → `web-framework` depends on `core`
 
 Node: the workspace root and `competence` require **`>=20.19.0`**; `core` and `web-content` require `>=20.12` (core because of native `process.loadEnvFile`, adopted in core 1.7.0); `web-framework` declares `>=20`. Develop on ≥20.19 to satisfy all of them.
 
-Branches: `current` is the active feature branch; `master` is the release branch (PR target).
+Branches: `master` is the release branch and the PR target. Work lands on a topic branch (`feat/...`, `fix/...`)
+opened against it. A long-lived `current` integration branch was used historically and appears throughout the git
+history and older PR bodies; it is no longer the working branch.
 
 ---
 
@@ -49,10 +53,23 @@ Branches: `current` is the active feature branch; `master` is the release branch
 - **Never promise `immutable` for a URL that isn't content-addressed** — a lesson learned the hard way in both `web-framework` 1.19.0 and `web-content` (browsers honour `immutable` through a manual reload, so a shipped fix never reaches a returning visitor).
 - **`.run/*.run.xml` are git-tracked but carry live local credentials** in the working tree — never commit changes to them.
 - **deepFreeze on config** — once settings/config are loaded they are immutable; never mutate them in place.
+- **Commit as the maintainer, disclose the assist in trailers.** `cla.yml` runs the CLA Assistant on every PR and
+  fails it unless each commit author has signed `CLA.md`; the allowlist holds `Belleal` only. The CLA's §1 defines a
+  contributor as "the individual … or the legal entity" — an agent is neither and holds no rights to grant, so the
+  correct resolution is to author the commit as the maintainer rather than to exempt a bot identity. **Set
+  `git config user.name "Boris Kostadinov"` and `git config user.email "kostadinov.boris@gmail.com"` before the
+  first commit of a session**, and keep the `Co-Authored-By:` / `Claude-Session:` trailers, which are what record
+  the assist. A commit authored as `Claude <noreply@anthropic.com>` fails `CLAssistant` and needs re-authoring
+  (`git rebase <base> --exec 'git commit --amend --no-edit --reset-author'`) before the PR can go green.
+- **Config shipped in a release does not reach a seeded deployment on its own.** The store writes a file default
+  only when a document has never been written, so a competency or setting added in a release is invisible on any
+  environment started before it. That is what the **Configuration drift** panel (web-framework 1.24.0 /
+  competence 3.20.0) exists to reconcile — never assume a shipped config change is live, and never tell an operator
+  to wipe the Redis volume as the remedy.
 
 ---
 
-## Package: core (v1.8.0)
+## Package: core (v1.11.1)
 
 **Role**: Foundational framework. All other packages depend on it. Standalone (no intra-repo deps).
 
@@ -86,7 +103,20 @@ Branches: `current` is the active feature branch; `master` is the release branch
 | `utils/cache.js` | `CommonMemoryCache` singleton — RedisJSON wrapper (`getJSON`/`setJSON`/`editJSON`/`mergeJSON`; array-path support) |
 | `integrations/redis-integration.js` | ioredis client with connection pooling (RedisJSON: `JSON.MERGE`, `JSON.MGET`) |
 
-**Public exports** (`package.json` `exports`): `.` (start-instance), `./tools`, `./cache`, `./exceptions`, `./logger`, `./localization`, `./service-instance`, `./service-consumer`, `./service-provider`.
+**Public exports** (`package.json` `exports`): `.` (start-instance), `./tools`, `./cache`, `./exceptions`, `./logger`, `./localization`, `./service-instance`, `./service-consumer`, `./service-provider`, `./definitions` (the shared typedefs).
+
+**Since the skill's last sync (1.9.0 → 1.11.1):**
+- **TypeScript declarations ship with the package** (1.9.0, fixed in 1.9.1), generated from the JSDoc by
+  `.github/scripts/build-types.js` into `types/`. They are **committed**, and `npm run check:types` fails on stale
+  output — so regenerate rather than hand-edit. The gate type-checks a generated consumer with `skipLibCheck: false`
+  and **nothing pinned**, because the first two attempts passed only by configuring the check into passing; a
+  declaration naming a Node global needs an emitted `/// <reference types="node" />`, which the build script adds.
+- `localization.getLabel( label, language, fallback )` takes an **optional third argument** returned when the key is
+  absent, instead of the `!!! label not found !!!` placeholder (1.10.0).
+- `tools.decycle` silently dropped a key named `__proto__` and corrupted the surrounding document — it built its
+  replica with `{}` and bracket assignment, so that one name hit the inherited setter. Now `Object.create(null)`
+  (1.11.0).
+- Relicensed **GPL-3.0-or-later → Apache-2.0** (1.11.1).
 
 **Exception families** (`utils/exceptions.js`) — the class is `TiException` (renamed from `Exception` in 1.4.0); `raise()` accepts an optional `httpCode`:
 - `E_GEN_*` 1000–1010 (general; incl. `E_GEN_NOT_IMPLEMENTED` 1010)
@@ -129,7 +159,7 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 ---
 
-## Package: web-framework (v1.19.0)
+## Package: web-framework (v1.25.1)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs + a CSP-safe **charting primitive library** (`ti-charts.js`) + the container-deployment surface (`TI_WEB_*` env overrides, `GET /health`) and the **route-registration seams** (1.17.0) a subclass uses to mount its own routes — what `web-content` is built on.
 
@@ -157,7 +187,27 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 | `design/admin-config-management.md` | Design doc + implementation log for the config-management feature |
 | `test/*.test.js` | `node --test` suites for the config subsystem + authorization + `ti-charts` (layout math + render structure) + the serving/deployment surface (`web-server-env-overrides`, `web-server.static-cache`, `web-server.route-seams`, `web-server.unprotected-routes`, `web-handlers.health`, `web-handlers.origin`, `web-app-manager.auth-visibility`, `auth-manager`) |
 
-**Public exports**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`.
+**Public exports**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`, `./definitions`.
+
+**Since the skill's last sync (1.20.0 → 1.25.1):**
+- **Configuration drift** (1.24.0, `#config-drift`) — a pure structural diff between a document's registered **file
+  default** and its **stored** value, exposed through `getDrift` / `listDrift` and an audited apply that routes
+  through the normal change-set machinery (so it is versioned, appears in the change feed, and can be restored). It
+  exists because the store seeds a file default **only on first write**: before this, a config change shipped in a
+  release could never reach an already-seeded deployment, and restore could not help because the oldest version *is*
+  the stale one. Arrays of primitives are **set-diffed** (`+27 codes`, not "changed"); arrays of objects compare
+  atomically. 1.25.0 adds a `driftTracked` flag so a document can opt out via `metadata.driftTracked: false`.
+- **Real local authentication** (1.23.0). It had never been implemented — the constructor overwrote whatever was
+  configured with `admin`/`admin` behind a "for testing purposes only" TODO, and compared with plain `===`.
+- **`augmentSession` may refuse a sign-in**, fail-closed, and sign-in failures present identically across every auth
+  method (1.22.0) — a prerequisite for local auth not leaking which half of a credential was wrong.
+- **Profile and About screens** (1.21.0) — provided to every consumer; Profile had been a two-line placeholder
+  fragment since the shell was written.
+- TypeScript declarations ship (1.20.0/1.20.1), same gate as core.
+- **`getLabel` and literal dots** (1.25.1): it split a key on every dot and descended one object level per segment,
+  so a group storing flat dotted keys (because the key *is* a dotted string) never resolved. Relevant to any label
+  group keyed by competency code or config path.
+- Relicensed **Apache-2.0** (1.24.1).
 
 **Config-management subsystem** (the reusable machinery; competence is its first consumer):
 - An app subclass calls `TiWebAppManager.registerConfigDocument(key, {...})` (schema, semantic validators, file default, editor metadata) and `registerConfigEditor(name, editor)` (composite/entity editors) during init.
@@ -194,7 +244,7 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 ---
 
-## Package: web-content (v0.2.0 — WIP)
+## Package: web-content (v0.3.1 — WIP)
 
 **Role**: A **content-publishing engine** — turns registered content sources into a public, server-rendered website: path-index routing, deny-by-default visibility, SEO documents (canonical / `hreflang` / Open Graph / JSON-LD), feeds, and email capture. Layered on `web-framework` the way competence is, but **public-by-default** instead of protect-by-default: it is the first consumer of the 1.17.0 route seams and needs web-framework **≥ 1.17.0**. Node `>= 20.12`. Built for the standalone author's site, which lives outside this repo (its own specs are referenced as `Site/docs/`).
 
@@ -247,13 +297,46 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 ---
 
-## Package: competence (v3.16.0)
+## Package: competence (v3.28.0)
 
 **Role**: Complete HR application for competency-based performance appraisals. Models competencies in three dimensions — **Role Family × Specialization × Stage-Level** — with a first-class appraisal **Cycle** (`PLANNING → ACTIVE → CLOSED`). Evaluations snapshot their resolved competency set at creation so later configuration drift never affects in-flight evaluations. Depends on `core` + `web-framework`; uses `graphology` for the org graph, and `marked` as a **build-time devDependency** (Help-screen generation only — not a runtime dep). Node `>=20.19.0`. Ships as the container image `ghcr.io/belleal/ti-engine-competence` (also mirrored to Artifact Registry) and deploys to a scale-to-zero Cloud Run test environment — see *Deployment* below.
 
-**v3.0.0 = the 108-competency content rebuild** (from the prior 164): SE 31, BA 22, PM 25, plus 30 shared canonical, regenerated from the source-of-truth docs in `design/`. Six families (QE/XD/DA/IO/MC/PD) are defined but unpopulated. This was a content replacement — config shapes, schemas, and framework logic were unchanged — but old competency codes were dropped/renumbered, so stored evaluations keyed by old codes need migration.
+**The competency dictionary is 209 competencies across six populated families.** v3.0.0 rebuilt it to 108
+(SE 31 · BA 21 · PM 25 · 30 shared) from the source-of-truth docs in `design/`; five **increments** have since taken
+it to 209, and each is recorded as a precise delta in `design/competency-change-log.md` — read that first when
+touching content, it is the map:
 
-**Relevancy model**: per-family competency importance is expressed via **editable archetype curves** in `config.relevancy-archetypes.json` plus a per-competency `relevancyArchetype` pointer. (This superseded the earlier materialized `config.competency-relevancy.json`, which no longer exists.) `bin/build/build-competency-relevancy.js` is the re-runnable generator/expander for archetype-derived data.
+| Increment | Version | Added |
+|---|---|---|
+| 1 | 3.17.0 | **QE** family (26); `E1-10` promoted from BA-specific to shared canonical |
+| 2 | 3.25.0 | **Architecture** (12): 3 cross-cutting E2 + `SE.ARCHITECTURE` (4) + `BA.SOLUTION_ARCHITECTURE` (5) |
+| 3 | 3.26.0 | Management set (5, archetype **H**) + the **T2** stage sub-level + **XD** family (24) |
+| 4 | 3.27.0 | `SE.DATABASE_ARCHITECTURE` (5) + `SE.AI_ENGINEERING` (6) |
+| 5 | 3.28.0 | **DA** family (23) |
+
+Current totals: 39 shared · SE 31 · BA 21 · PM 25 · QE 26 · XD 24 · DA 23 · plus 20 in four SE/BA specializations.
+**IO · MC · PD remain defined but unpopulated.** Every increment after v3.0.0 has been **purely additive** — no code
+dropped or renumbered — so none required evaluation-data migration; only the v3.0.0 rebuild did.
+
+**Content work is document-driven.** `design/competency-definitions-final.md` (EN) and `competency-bg-translations.md`
+(BG) are the text; `competency-relevancy-model.md` carries the archetype assignment tables and is the **generator's
+input**; `competency-master-index.md` is the code map. Adding a family means writing all four, then running the
+generator — never hand-editing `config.role-family-competencies.json` or a `relevancyArchetype` field.
+
+> **Two traps in the model doc.** (1) A competency's **pool membership is decided by which `## Assignments — …`
+> section its row sits under** — moving a row from a family section to *Shared* is what promotes it into every
+> family's pool, and is the whole mechanism behind E1-10's canonicalization. (2) The *Distribution check* table must
+> be **re-derived mechanically and de-duplicated by code**: `E2-52/53/54` deliberately appear under both SE and BA,
+> so the tables hold 212 rows for 209 distinct competencies, and counting rows overstates archetype F by three. That
+> table has been silently wrong twice.
+
+**Relevancy model**: competency importance is expressed via **editable archetype curves** in
+`config.relevancy-archetypes.json` plus a per-competency `relevancyArchetype` pointer. (This superseded the earlier
+materialized `config.competency-relevancy.json`, which no longer exists.) `bin/build/build-competency-relevancy.js`
+is the re-runnable generator. Relevancy is **global per competency** — the same curve wherever the competency is
+used; the per-family file holds **pools only**, so per-family curve divergence would need a weight file
+reintroduced. **Eight archetypes A–H**, each carrying **13 weights** (`N1 … T1 T2`); **H** (management-track) was
+added with the management set and is negligible for ICs, substantial at T1, peaking at T2.
 
 **Competency pool** (restored in 3.1.0 as `config.role-family-competencies.json`, shape `{ <family>: [codes] }`): the per-family *applicability universe* — which competencies a family may draw on. Populated families carry family-specific + the 30 shared canonical (SE 61 / BA 52 / PM 55); the six unpopulated families carry the 30 shared only. The **pool** (which competencies *can* apply to a family) is distinct from **relevancy** (how much each *matters*, which is global via archetypes). The `build-competency-relevancy.js` generator emits both from `design/competency-relevancy-model.md`. The pool backs the `pool-membership` lock rule and scopes the Cycle Setup competency picker; it is registered as a store-backed, exportable/restorable config document (read-only — no inline editor yet).
 
@@ -283,6 +366,18 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 **Hosted test environment on Google Cloud Run (3.16.0, CA-94 — spec `docs/superpowers/specs/2026-07-29-competence-gcp-scale-to-zero-design.md`)**: a shared test environment that costs approximately nothing when idle — a single Cloud Run instance holding the app plus a `redis:8-alpine` sidecar, with Redis snapshotting onto a mounted Cloud Storage bucket so cycles, evaluations and feedback are *intended* to survive scale-to-zero. **Treat that durability as unproven**: the snapshot-to-object-storage path is unverified against a live deployment, and `INSTALL.md` **Method D** documents the loss window it carries, along with the cold-start cost, the IAP coupling and the locked-out recovery procedure. **Identity-Aware Proxy** fronts it with an email allowlist and the app itself is **Google-sign-in only** there (a different posture from the image's Azure default). `deploy/gcp/` holds the artifacts: `service.yaml` (the Cloud Run manifest — placeholder tokens substituted by the script, never applied directly, never a secret value), the one-time idempotent `bootstrap.sh` (every step probes for existing state; secrets are generated by `openssl` straight into Secret Manager and never printed; `SKIP_BUDGET=1` / `BUDGET_NAME` defer to a budget you already own) and `deploy.sh`, **both supporting `DRY_RUN=1` to preview every command without touching the cloud**, plus `README.md` (operator overview) and `WALKTHROUGH.md` (first-time setup). CD publishes the image to **Artifact Registry alongside GHCR from a single build**, authenticated with **Workload Identity Federation** (no stored credentials), and excludes `**/deploy` from the build context. Note the two enabling framework fixes: `TI_WEB_AUTH_ADMINS` (1.18.0) so a container can name an admin at all, and the absolute-callback-URL crash fix (1.18.1/CA-97) that `deploy.sh`'s patched-in callback depends on.
 
+**Profile & About screens (3.18.0)** — the user menu gains a working **My Profile** (employee card) and **About Competence**, built on the web-framework 1.21.0 screens.
+
+**Login identity resolution (3.19.0, CA-100 — spec `2026-08-13-competence-login-identity-resolution-design.md`)**: identity now comes from the login. `augmentSession` previously fell back to a hard-coded employee `"20"` whenever the dev test panel was off, so every real sign-in was the same person. `application/identity-resolver.js` maps the authenticated identity to an employee record; an unresolvable identity is **refused**, using the web-framework 1.22.0 fail-closed `augmentSession` contract.
+
+**Configuration drift reconciliation (3.20.0, CA-103 — spec `2026-08-14-config-drift-reconciliation-design.md`)**: the **Configuration drift** panel on the admin configuration screen lists every document whose stored value differs from the default shipped with this build, with per-document counts, an expandable list of changed paths, and an **audited apply** that routes through the normal change-set machinery. Startup logs one `WARNING` per drifted document so the condition is visible where nobody is watching an admin screen (never-stored logs at `INFO`; a drift-computation failure never gates boot). **This is the supported answer to "a release added competencies but the deployment still shows the old set" — not wiping the Redis volume.** Requires web-framework ≥ 1.24.0. 3.20.2 then decoupled the User Guide build from the package version, which had made every version bump a CI failure.
+
+**Org-chart import (3.22.0, CA-106 — spec `2026-08-19-competence-org-chart-import-design.md`)**: the org unit tree becomes a **store-backed configuration document** (`organization-structure`), so a real organization can be loaded into a deployment instead of being baked into a file. `application/organization-import.js` + `organization-rules.js` carry the import and the structural rules.
+
+**Employee import (3.23.0, CA-108 — spec `2026-08-21-competence-employee-import-screen-design.md`)**: **Administration → Employee Import** loads an employee CSV from the browser rather than a shell, with a **preview** stage before an **apply** stage, prose rejection reasons, and a downloadable current-header template. A failed import warns that rows may already have been written.
+
+**Work sites, position name, gender (3.24.0, CA-109 — spec `2026-08-25-competence-work-site-and-position-design.md`)**: employee records gain a configurable **work-site nomenclature** (store-backed `work-sites` document + a Work Sites admin screen + a composite editor), a free-text contract **position name**, and a constrained `gender`. A referential validator **refuses to remove a work site an employee is assigned to**. 3.24.1 made the Employee Management **Audit** tab name the changed field instead of printing its raw path.
+
 **Key files**:
 | File | Purpose |
 |------|---------|
@@ -296,6 +391,11 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 | `application/task-resolver.js` | Pure singleton; derives dashboard **tasks** (`team-feedback` / `team-finalize`; `interview-schedule` / `interview-scheduled` self/manager — 3.10.0; `interview-close` / `evaluation-closed` — 3.11.0; the Supervisor aggregates `overdue-self` / `overdue-manager` — 3.12.0) from evaluation/workflow state with injected org lookups — persistence-free and unit-tested (3.3.0; seed for the future web-framework tasks module) |
 | `application/results-analytics.js` | Pure frozen-singleton (3.4.0); cohort-frame + report computes, the live/snapshot `resolve()`, `buildResultsSnapshot`/`persistResultsSnapshot`, `computeTrend` (cross-cycle), `buildEmployeeHistory`. See *Statistics & Results reporting* above |
 | `application/research-consent.js` | Pure frozen-singleton (3.15.0) owning every research-consent rule — `hashText`, record construction, `resolveEffective`, `requireDecision`, `isNoOpDecision`, `buildConsentRegister`, `filterConsentedEvaluations`. See *Research-use consent* above |
+| `application/identity-resolver.js` | Maps an authenticated identity to an employee record; an unresolvable identity is refused (3.19.0) |
+| `application/organization-import.js` / `organization-rules.js` | Org-chart CSV import + the structural rules behind it (3.22.0) |
+| `application/employee-rules.js` | Employee field rules — validation, constrained `gender`, work-site and position handling (3.24.0) |
+| `application/cycle-setup-tools.js` | Helpers behind the Cycle Setup screen |
+| `application/role-resolver.js` | Org-derived role resolution (EMPLOYEE / MANAGER / SUPERVISOR) + grants |
 | `application/data-objects.types.js` | Shared JSDoc typedefs for data objects |
 | `bin/competence-web-server.js` | Main entry point (extends ServiceConsumer); `onStart` initializes data-manager → org chart → role grants → `configurationLoader.initialize()` → `backfillMissingEvaluationDeadlines()` (3.12.0) |
 | `bin/competence-web-application.js` | UI renderer (extends TiWebAppManager); registers config via `registerCompetenceConfig`; serves all fragments |
@@ -322,9 +422,11 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 | `design/` | Source-of-truth content docs — see below |
 | `test/*.test.js` | `node --test` — JSON validation, content integrity, config-management/editors/live, framework resolution/validation/lifecycle/snapshot/finalize/closure/anonymize + **deadlines/backfill/scoring** (3.12.0), task-resolver, organization + role-grants + role-resolver, results-analytics (coverage/reports/snapshot-builder/substrate/persist/trend/history), fragment-input-bindings, the CA-91 guards (`employee-field-path-safety`, `in-memory-cache.proto-pollution`), and `user-guide-build` (3.14.0) |
 
-**UI fragments** (`bin/static/fragments/`): dashboard, employees-list, employee-management, cycles, cycle-setup, competence-evaluation (the grading screen; its **my-results** route reuses the fragment in results-only mode as the read-only **Scores** screen), new-evaluation, manager-calendar, interview-schedule, **evaluations-oversight** (SUPERVISOR-only stall-recovery cockpit, 3.12.0), **consent-register** (SUPERVISOR-only, 3.15.0), **process-guide** + the nine generated `guide/frame-help-*.html` Help chapters (public, 3.14.0); the **Insights** group (Manager/Supervisor): `frame-insights-cycle`, `frame-insights-team`, `frame-insights-trends` (SUPERVISOR-only); plus admin-gated config screens: **admin-config** (landing: export + change feed/restore), **competency-text-editor**, **archetype-assignment**, **archetype-editor**, **role-families**. Role-restricted screens declare a `roles` requirement enforced by the web-framework fragment gate (see *Role-based screen gate*, 1.13.0); admin screens live under an admin-only "Administration" sidebar section.
+**UI fragments** (`bin/static/fragments/`): dashboard, employees-list, employee-management, cycles, cycle-setup, competence-evaluation (the grading screen; its **my-results** route reuses the fragment in results-only mode as the read-only **Scores** screen), new-evaluation, manager-calendar, interview-schedule, **evaluations-oversight** (SUPERVISOR-only stall-recovery cockpit, 3.12.0), **consent-register** (SUPERVISOR-only, 3.15.0), **process-guide** + the nine generated `guide/frame-help-*.html` Help chapters (public, 3.14.0); the **Insights** group (Manager/Supervisor): `frame-insights-cycle`, `frame-insights-team`, `frame-insights-trends` (SUPERVISOR-only); plus admin-gated config screens: **admin-config** (landing: export + change feed/restore + the **Configuration drift** panel, 3.20.0), **competency-text-editor**, **archetype-assignment**, **archetype-editor**, **role-families**, **employee-import** (3.23.0) and **work-sites** (3.24.0). Role-restricted screens declare a `roles` requirement enforced by the web-framework fragment gate (see *Role-based screen gate*, 1.13.0); admin screens live under an admin-only "Administration" sidebar section.
 
-**Design docs** (`design/`, source of truth for content): `competency-definitions-final.md`, `competency-master-index.md`, `competency-bg-translations.md`, `competency-relevancy-model.md`; completed records are archived under `design/completed/` (the phase-0 inventories, `role-family-pool-restoration.md`, `dashboard-team-feedback-tasks.md`, and `statistics-and-results.md` — the reporting capability's meta + Phases 0–4 implementation log), and the YouTrack backfill log is `youtrack-backfill-inventory.md`. Per-feature design records for shipped work remain in `design/` root — `auto-org-derived-roles.md` (3.6.0), `screen-access-control.md` (3.8.0), `evaluation-scores-split.md` (3.9.0), `dashboard-interview-tasks.md` (3.10.0), `interview-closure.md` (3.11.0), `deadline-governance.md` (3.12.0 — **shipped**, meta status *Implemented*) — not moved to `completed/`. **From 3.13.0 on, new design records live at the repo root under `docs/superpowers/specs/`** rather than in the package: `2026-07-16-competence-docker-cicd-design.md` (CA-90), `2026-07-24-competence-user-guide-design.md` (CA-92), `2026-07-27-competence-research-consent-design.md` (CA-93), `2026-07-29-competence-gcp-scale-to-zero-design.md` (CA-94); implementation plans live alongside under `docs/superpowers/plans/`.
+**Design docs** (`design/`, source of truth for content): `competency-definitions-final.md`, `competency-master-index.md`, `competency-bg-translations.md`, `competency-relevancy-model.md`; completed records are archived under `design/completed/` (the phase-0 inventories, `role-family-pool-restoration.md`, `dashboard-team-feedback-tasks.md`, and `statistics-and-results.md` — the reporting capability's meta + Phases 0–4 implementation log), and the YouTrack backfill log is `youtrack-backfill-inventory.md`. Per-feature design records for shipped work remain in `design/` root — `auto-org-derived-roles.md` (3.6.0), `screen-access-control.md` (3.8.0), `evaluation-scores-split.md` (3.9.0), `dashboard-interview-tasks.md` (3.10.0), `interview-closure.md` (3.11.0), `deadline-governance.md` (3.12.0 — **shipped**, meta status *Implemented*) — not moved to `completed/`. **From 3.13.0 on, new design records live at the repo root under `docs/superpowers/specs/`** rather than in the package: `2026-07-16-competence-docker-cicd-design.md` (CA-90), `2026-07-24-competence-user-guide-design.md` (CA-92), `2026-07-27-competence-research-consent-design.md` (CA-93), `2026-07-29-competence-gcp-scale-to-zero-design.md` (CA-94), and from 3.18.0 on: `2026-08-13-profile-and-about-screens-design.md`, `2026-08-13-competence-login-identity-resolution-design.md`, `2026-08-13-local-user-directory-design.md`, `2026-08-14-config-drift-reconciliation-design.md` (CA-103), `2026-08-19-competence-org-chart-import-design.md` (CA-106), `2026-08-21-competence-employee-import-screen-design.md` (CA-108), `2026-08-25-competence-work-site-and-position-design.md` (CA-109); implementation plans live alongside under `docs/superpowers/plans/`.
+
+**`design/competency-change-log.md` is the increment ledger** — every competency-content delta after the v1.0 baseline, with the exact config impact and a verification list per increment. Start there for content work, and add an increment section when landing one.
 
 **Enums** (`configuration-loader.js`):
 - `RoleCode`: EMPLOYEE(1), MANAGER(2), SUPERVISOR(3), TEAM_MEMBER(4)
@@ -332,18 +434,33 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 - `CycleStatus`: PLANNING → ACTIVE → CLOSED — one-way; single-active-cycle invariant
 - `EvaluationStatus`: NOT_STARTED → OPEN → IN_REVIEW → READY → CLOSED / DELETED
 - `EvaluationGrade`: S(1.3), R(1.0), U(0.6), N(0.0) — `gradeWeights` used in scoring
-- `PerformanceThreshold`: T1–T5 (76, 89, 105, 119, 150)
+- `PerformanceThreshold`: **P1–P5** (76, 89, 105, 119, 150) — **renamed from T1–T5 in 3.26.0**, because `T1`/`T2`
+  became stage sub-levels and the collision made "T1" ambiguous between a performance band and Team Lead. A
+  `T1`–`T5` performance band in older code, docs, stored data or a conversation predates that rename.
 - `SlotStatus`: available / booked / busy / deleted (interview calendar)
 
 > **Enum value gotcha** — `tools.enum()` sets each member's runtime value to the **first element of its seed array, not the key**. So `EvaluationStatus.OPEN === "Open"` and `IN_REVIEW === "In Review"` (title-case), whereas `CycleStatus` values are uppercase (`"PLANNING"`, `"ACTIVE"`, `"CLOSED"`) and `SlotStatus` values are lowercase (`"available"`, `"booked"`, …). Backend code routes through `configurationLoader.<enum>.*` so it stays correct; **front-end and any hand-written string comparison must use the value (`"Open"`), not the key (`"OPEN"`)** — comparing to the key silently never matches (this caused a dashboard bug fixed in competence 3.2.4).
 
-**Stage-level ladder** (`config.stage-levels.json`): N=Intern(1), J=Junior Specialist(3), R=Specialist(3), S=Senior Specialist(3), X=Expert(1), T=Manager(1). Flattened to 12 archetype curve keys `N1, J1–J3, R1–R3, S1–S3, X1, T1`. These six levels also double as the scope anchors in the dictionary.
+**Stage-level ladder** (`config.stage-levels.json`): N=Intern(1), J=Junior Specialist(3), R=Specialist(3),
+S=Senior Specialist(3), X=Expert(1), **T=Manager(2)**. Flattened to **13** archetype curve keys
+`N1, J1–J3, R1–R3, S1–S3, X1, T1, T2`.
+
+**Scope anchors are defined per letter (six sets); relevancy weights per sub-level (thirteen values).** That
+asymmetry is the design: `T2` (Head of Department) was added in 3.26.0 rather than a seventh letter precisely so no
+new anchors were needed — a seventh letter would have required ~209 new strings in each language, most of them the
+T anchor with "team" swapped for "department", and near-duplicate anchors teach raters that the instrument does not
+discriminate. T1 and T2 therefore **share their scope text** and differ only by weighting, with the genuine
+difference carried by the five management competencies on archetype H.
+
+> Corollary, and an organizational rule the model now depends on: **distinct job positions needing distinct
+> competency expectations must map to distinct stage-letters**, since positions sharing a letter read identical
+> anchors. That yields five distinguishable grades per track (N, J, R, S, plus X or T).
 
 **Evaluation weights** (`performanceAppraisals.evaluationWeights`): self ×0.2 + team ×0.3 + manager ×0.5. Collective team mode grades by subcategory (3–5 members). **Since 3.12.0 the score renormalizes to the sources that actually participated** — a source counts only if it submitted ≥1 grade (and a team round finalized with zero submissions does not count), so an absent source no longer silently depresses the result by its own weight. Forward-only: already-stored scores and closed-cycle snapshots are not recomputed.
 
-**Store-backed configs**: `competencies`, `relevancy-archetypes`, `active-competency-sets`, `role-families`, `role-family-competencies` (read-only), `stage-levels` (read-only), `research-consent` (3.15.0 — per-locale statement + `enabled` kill switch, guarded by the `consentTextVersionBumped` validator) — editable via the admin config API once `configurationLoader.initialize()` has run. Until then (and without it) the exported config objects are the file defaults, so the app works before/without store init. Liveness nuance: archetype *assignment* + *weights* are store-backed (live for future evaluations); competency texts and archetype names/descriptions are *labels* (versioned/exportable, but need export → commit → redeploy to show).
+**Store-backed configs — ten documents**: `competencies`, `relevancy-archetypes`, `active-competency-sets`, `role-families`, `role-family-competencies` (read-only), `stage-levels` (read-only), `research-consent` (3.15.0 — per-locale statement + `enabled` kill switch, guarded by the `consentTextVersionBumped` validator), `competence-labels`, `organization-structure` (3.22.0) and `work-sites` (3.24.0) — editable via the admin config API once `configurationLoader.initialize()` has run. Until then (and without it) the exported config objects are the file defaults, so the app works before/without store init. Liveness nuance: archetype *assignment* + *weights* are store-backed (live for future evaluations); competency texts and archetype names/descriptions are *labels* (versioned/exportable, but need export → commit → redeploy to show).
 
-**Cycle lock validation & family exclusion**: `validateCycleForLock(cycleID)` is a pure structured validator returning `{ valid, errors: [{ family, specialization?, rule, detail }] }`. Six rules: `baseline-floor-coverage` (each of the nine subcategories present in the baseline), `cap` (resolved set ≤ `activeCompetencySetCap`, default 30), `reference-integrity` (codes exist in the dictionary), `no-empty-baseline` (a family with specialization data needs a non-empty baseline), `pool-membership` (every code ∈ the family's pool — added 3.1.0), and `family-not-configured` (an *included* family must be configured — added 3.2.0). A family can be **excluded** from a cycle via `cycle.excludedFamilies` (`DataManager.setCycleExcludedFamilies`; Supervisor + PLANNING only, toggled on the Cycle Setup baseline editor) — excluded families are skipped by validation and hidden in the tree, so a cycle can lock with only the families that can be completed. Un-marking an intentionally-empty specialization clears it via `DataManager.deleteActiveCompetencySet`.
+**Cycle lock validation & family exclusion**: `validateCycleForLock(cycleID)` is a pure structured validator returning `{ valid, errors: [{ family, specialization?, rule, detail }] }`. Six rules: `baseline-floor-coverage` (each of the nine subcategories present in the baseline), `cap` (resolved set ≤ `activeCompetencySetCap`, **now 32**), `reference-integrity` (codes exist in the dictionary), `no-empty-baseline` (a family with specialization data needs a non-empty baseline), `pool-membership` (every code ∈ the family's pool — added 3.1.0), and `family-not-configured` (an *included* family must be configured — added 3.2.0). A family can be **excluded** from a cycle via `cycle.excludedFamilies` (`DataManager.setCycleExcludedFamilies`; Supervisor + PLANNING only, toggled on the Cycle Setup baseline editor) — excluded families are skipped by validation and hidden in the tree, so a cycle can lock with only the families that can be completed. Un-marking an intentionally-empty specialization clears it via `DataManager.deleteActiveCompetencySet`.
 
 **Test & build commands**:
 ```bash
@@ -355,7 +472,7 @@ npm start              # run the instance without Docker (bin/competence-web-ser
 
 ---
 
-## Package: tester (v1.3.3)
+## Package: tester (v1.3.5)
 
 **Role**: Working example of a ServiceProvider with cross-service calls. Run to smoke-test the framework.
 
@@ -385,6 +502,19 @@ npm start              # run the instance without Docker (bin/competence-web-ser
 - Bumping a version means updating that package's `package.json` version **and** its `CHANGELOG.md`.
 - **`web-content` is pre-1.0**, so breaking changes land inside `0.x` — marked `!` on the commit and called out as **BREAKING** in the changelog body (e.g. the 0.2.0 path-decoding change) rather than forcing a major bump. Note that `web-framework` did the same for the 1.19.0 `/static` cache default: a `fix(web-server)!` inside a minor bump, because the framework is the one deciding the default.
 - **A version bump can be a release trigger.** Pushing a `competence-v*` tag to `master` makes CD publish the image to GHCR **and** Artifact Registry as `:X.Y.Z` + `:latest`; a plain `master` push publishes only `:edge` + `:sha`. So tag deliberately.
+
+### Contribution gates on every PR
+
+- **`cla.yml` (CLA Assistant)** fails a PR unless every commit author has signed `CLA.md`; the allowlist is
+  `Belleal` alone. See the commit-authorship convention above — the fix is to author as the maintainer, not to
+  widen the allowlist.
+- **CodeRabbit** reviews each PR and runs `markdownlint-cli2` over changed markdown. **MD022** (a heading must be
+  surrounded by blank lines) is the one that bites documentation edits; several pre-existing violations live in
+  `competency-master-index.md` and the BG translations doc, so only the ones inside your diff get flagged.
+- CI also runs **CodeQL**, a Debricked vulnerability scan, `lint-and-test` and `docker-build`.
+- **Tag pushes are rejected for agent sessions** (HTTP 403 on the tag ref) even though branch pushes succeed, so a
+  `competence-v*` release tag — the thing that publishes `:X.Y.Z` and `:latest` — has to be pushed by the
+  maintainer. A plain `master` push only publishes `:edge` and `:sha`.
 
 ### Publishing to npm — automatic on merge into `master`
 
@@ -441,7 +571,13 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Adding/changing config**: edit `bin/config/*.json`, update the JSON schema in `bin/data/schemas/`, add/adjust the enum or loader helper in `configuration-loader.js`, and — if it should be admin-editable — register it in `config-registration.js` (document + schema + semantic validator + optional composite editor).
 4. **New admin-editable entity**: register a config document and, for structured editing, a composite editor in `config-editors.js`; add referential-integrity guards in `config-validators.js`.
-5. **Competency content**: drive changes from the `design/` source-of-truth docs; re-run `bin/build/build-competency-relevancy.js` for archetype-derived data; the content-integrity test guards against empty names/descriptions/scopes.
+5. **Competency content**: drive changes from the `design/` source-of-truth docs and record the delta in
+   `design/competency-change-log.md`. The order is: definitions (EN) → BG translations → assignment rows in
+   `competency-relevancy-model.md` → dictionary + label entries → active set → master index → re-run
+   `bin/build/build-competency-relevancy.js`. **Bulgarian is not optional and not deferrable** — the
+   content-integrity test requires non-empty `en`+`bg` name, description and all six anchors for *every* competency
+   in the catalog, so a placeholder cannot ship. Extract strings from the docs by script rather than retyping them,
+   so config and source cannot drift.
 6. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test` at the root fans out across workspaces; `npm run lint` runs ESLint over everything.
 7. **Bumping versions**: update the affected package's `package.json` + `CHANGELOG.md`.
 8. **Design-first**: for non-trivial work, start from / update the relevant design record — package `design/*.md` or repo-root `docs/superpowers/specs/` (see Conventions) — and land small checkpointed commits. Never commit `.run/*.run.xml` (live creds).
