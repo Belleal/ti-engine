@@ -396,19 +396,22 @@ imply juniors may publish unreliable figures.
 
 | Archetype | Count |
 |---|---|
-| A — Foundational-plateau | 23 |
-| B — Rising-with-seniority | 54 |
-| C — Steady-high | 24 |
-| D — Early-emphasis-then-assumed | 7 |
-| E — Mid-weighted | 41 |
+| A — Foundational-plateau | 27 |
+| B — Rising-with-seniority | 62 |
+| C — Steady-high | 27 |
+| D — Early-emphasis-then-assumed | 8 |
+| E — Mid-weighted | 48 |
 | F — Rising, expert-leaning | 28 |
 | G — Rising, manager-leaning | 4 |
 | H — Management-track | 5 |
-| **Total** | **186** |
+| **Total** | **209** |
 
-*186 = 36 shared + 49 SE + 29 BA + 25 PM + 26 QE + 24 XD — each competency counted once. SE now includes
-its four specializations (ARCHITECTURE 4, DATABASE_ARCHITECTURE 5, AI_ENGINEERING 6). Re-derive this table
-mechanically after every increment rather than adjusting it by hand.*
+*209 = 36 shared + 49 SE + 29 BA + 25 PM + 26 QE + 24 XD + 23 DA − 3. SE includes its four specializations
+(ARCHITECTURE 4, DATABASE_ARCHITECTURE 5, AI_ENGINEERING 6). The subtraction is `E2-52`/`E2-53`/`E2-54`, which
+are listed under **both** the SE and BA tables on purpose (see the note above) — 212 assignment rows resolve to
+209 distinct competencies, matching the dictionary exactly. Re-derive this table mechanically after every
+increment rather than adjusting it by hand, and **de-duplicate by code when you do**: counting rows overstates
+F by three.*
 
 *Correction note (QE increment): the previous version of this table read A 14 · B 40 · C 21 · D 5 · E 22 · F 6 · G 5 = 113, which did not match the assignment tables above it on any row and reconciled against a family split that no longer held. The counts here are derived mechanically from the assignment tables and should be re-derived, not hand-adjusted, whenever an increment lands.*
 

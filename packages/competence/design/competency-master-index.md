@@ -178,6 +178,7 @@ A competency is **shared** when its meaning is identical across families, even w
 **Boundaries:** DA owns model *development*; `SE.AI_ENGINEERING` owns building on *existing* models. E1-67 is dimensional/analytical modelling; `SE.DATABASE_ARCHITECTURE` E2-73 is transactional schema design.
 
 ### Specializations
+
 `ENGINEERING` · `ANALYTICS` · `ML` · `RESEARCH` — defined, no content
 
 ---
