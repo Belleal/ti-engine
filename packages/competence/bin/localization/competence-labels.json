@@ -944,6 +944,98 @@
       "I1-16": {
         "en": "Adhering to data documentation and lineage standards",
         "bg": "Спазване на стандартите за документация и произход на данните"
+      },
+      "E1-76": {
+        "en": "Audience analysis and segmentation",
+        "bg": "Анализ и сегментиране на аудиторията"
+      },
+      "E1-77": {
+        "en": "Communication and messaging principles",
+        "bg": "Принципи на комуникацията и изграждането на послания"
+      },
+      "E1-78": {
+        "en": "Brand identity and positioning",
+        "bg": "Идентичност и позициониране на бранда"
+      },
+      "E1-79": {
+        "en": "Marketing and communication channels",
+        "bg": "Маркетингови и комуникационни канали"
+      },
+      "E1-80": {
+        "en": "Content strategy and planning",
+        "bg": "Стратегия и планиране на съдържанието"
+      },
+      "E1-81": {
+        "en": "Digital marketing concepts",
+        "bg": "Концепции на дигиталния маркетинг"
+      },
+      "E1-82": {
+        "en": "Communications measurement and analytics",
+        "bg": "Измерване и анализ на комуникациите"
+      },
+      "E1-83": {
+        "en": "Public-sector communication rules and obligations",
+        "bg": "Правила и задължения при комуникацията в публичния сектор"
+      },
+      "E1-84": {
+        "en": "Crisis and reputation management principles",
+        "bg": "Принципи на управлението на кризи и репутация"
+      },
+      "E2-92": {
+        "en": "Writing for a defined audience and purpose",
+        "bg": "Писане за определена аудитория и цел"
+      },
+      "E2-93": {
+        "en": "Editing and quality control of content",
+        "bg": "Редактиране и контрол на качеството на съдържанието"
+      },
+      "E2-94": {
+        "en": "Planning and running communication campaigns",
+        "bg": "Планиране и провеждане на комуникационни кампании"
+      },
+      "E2-95": {
+        "en": "Managing communication channels and publishing",
+        "bg": "Управление на комуникационните канали и публикуването"
+      },
+      "E2-96": {
+        "en": "Applying and maintaining brand consistency",
+        "bg": "Прилагане и поддържане на последователност на бранда"
+      },
+      "E2-97": {
+        "en": "Media and external stakeholder relations",
+        "bg": "Връзки с медиите и външните заинтересовани страни"
+      },
+      "E2-98": {
+        "en": "Measuring and reporting communication performance",
+        "bg": "Измерване и отчитане на резултатите от комуникацията"
+      },
+      "E2-99": {
+        "en": "Translating technical subject matter for non-specialist audiences",
+        "bg": "Претворяване на техническа материя за неспециализирана аудитория"
+      },
+      "E3-37": {
+        "en": "Applying accumulated communications experience",
+        "bg": "Прилагане на натрупания опит в комуникациите"
+      },
+      "E3-38": {
+        "en": "Knowledge and use of marketing and communications tools",
+        "bg": "Познаване и използване на инструментите за маркетинг и комуникации"
+      },
+      "E3-39": {
+        "en": "Judging reputational risk and sensitivity",
+        "bg": "Преценка за репутационен риск и чувствителност"
+      },
+      "I1-17": {
+        "en": "Adhering to the internal communications process",
+        "bg": "Спазване на вътрешния процес за комуникации"
+      },
+      "I1-18": {
+        "en": "Participating in content review and approval",
+        "bg": "Участие в преглед и одобряване на съдържание"
+      },
+      "I1-19": {
+        "en": "Adhering to brand, legal and compliance standards in communications",
+        "bg": "Спазване на брандовите, правните и регулаторните стандарти в комуникациите"
       }
     },
     "description": {
@@ -1782,6 +1874,98 @@
       "I1-16": {
         "en": "Encompasses the commitment to follow the organization's standards for documenting data assets and analyses — definitions, transformation logic, lineage from source to output, and assumptions — so that work is reproducible, auditable, and intelligible to someone else later.",
         "bg": "Обхваща ангажираността за следване на стандартите на организацията за документиране на активите от данни и анализите — дефиниции, логика на трансформациите, произход от източника до резултата и допускания — така че работата да е възпроизводима, одитируема и разбираема за друг човек по-късно."
+      },
+      "E1-76": {
+        "en": "Encompasses knowledge of identifying and understanding the audiences an organization communicates with — segmenting by need, behaviour, and relationship to the organization, and understanding what each group already believes and cares about before deciding what to say to them.",
+        "bg": "Обхваща познанието за разпознаване и разбиране на аудиториите, с които организацията общува — сегментиране по потребности, поведение и отношение към организацията, и разбиране какво всяка група вече вярва и от какво се интересува, преди да се реши какво да ѝ бъде казано."
+      },
+      "E1-77": {
+        "en": "Encompasses knowledge of how messages are constructed to be understood and remembered — clarity, structure, framing, tone, and the difference between informing and persuading — together with the ethical line between legitimate persuasion and misleading.",
+        "bg": "Обхваща познанието как посланията се изграждат така, че да бъдат разбрани и запомнени — яснота, структура, поднасяне, тон и разликата между информиране и убеждаване — заедно с етичната граница между легитимното убеждаване и подвеждането."
+      },
+      "E1-78": {
+        "en": "Encompasses knowledge of what a brand consists of — visual and verbal identity, values, positioning relative to alternatives — and of how consistency across touchpoints builds recognition while inconsistency erodes it.",
+        "bg": "Обхваща познанието от какво се състои един бранд — визуална и вербална идентичност, ценности, позициониране спрямо алтернативите — и как последователността през всички допирни точки изгражда разпознаваемост, докато непоследователността я руши."
+      },
+      "E1-79": {
+        "en": "Encompasses knowledge of the channels available to reach an audience — owned, earned, and paid; digital and traditional — their respective reach, cost, credibility, and constraints, and how channels combine into a coherent mix rather than competing.",
+        "bg": "Обхваща познанието на каналите за достигане до аудитория — собствени, спечелени и платени; дигитални и традиционни — техния обхват, цена, достоверност и ограничения, и как каналите се съчетават в съгласуван микс, вместо да се конкурират."
+      },
+      "E1-80": {
+        "en": "Encompasses knowledge of planning content over time — content types and formats, editorial calendars, lifecycle and repurposing, and matching content to where an audience is in its relationship with the organization.",
+        "bg": "Обхваща познанието за планиране на съдържанието във времето — видове и формати съдържание, редакционни календари, жизнен цикъл и повторно използване, и съобразяване на съдържанието с етапа, на който аудиторията се намира в отношението си с организацията."
+      },
+      "E1-81": {
+        "en": "Encompasses knowledge of how digital channels work — search visibility, organic and paid distribution, social platform mechanics, email, and the analytics that show what is actually happening — sufficient to plan and interpret digital activity.",
+        "bg": "Обхваща познанието как работят дигиталните канали — видимост в търсачките, органично и платено разпространение, механиката на социалните платформи, електронна поща и аналитиката, която показва какво действително се случва — достатъчно за планиране и интерпретиране на дигитална активност."
+      },
+      "E1-82": {
+        "en": "Encompasses knowledge of measuring communication effectiveness — reach, engagement, conversion, and sentiment — and of the harder question of attribution: distinguishing what communication actually changed from what merely coincided with it.",
+        "bg": "Обхваща познанието за измерване на ефективността на комуникацията — обхват, ангажираност, реализации и нагласи — и на по-трудния въпрос за атрибуцията: разграничаването на онова, което комуникацията действително е променила, от онова, което просто е съвпаднало с нея."
+      },
+      "E1-83": {
+        "en": "Encompasses knowledge of the constraints governing communication by a state-owned organization — procurement rules applying to advertising and communications spend, political neutrality requirements, transparency and disclosure duties, accessibility obligations on public-facing communication, and data protection rules governing marketing and contact data.",
+        "bg": "Обхваща познанието на ограниченията, които уреждат комуникацията на организация с държавно участие — правилата за обществени поръчки при разходите за реклама и комуникация, изискванията за политически неутралитет, задълженията за прозрачност и оповестяване, изискванията за достъпност на публичната комуникация и правилата за защита на данните при маркетинговите и контактните данни."
+      },
+      "E1-84": {
+        "en": "Encompasses knowledge of how organizational reputation is damaged and defended — recognising what escalates a situation, principles of timely and honest response, holding statements, and the internal coordination a credible response requires.",
+        "bg": "Обхваща познанието как репутацията на организацията се уврежда и защитава — разпознаване какво ескалира дадена ситуация, принципите на навременния и честен отговор, първоначалните изявления и вътрешната координация, която един достоверен отговор изисква."
+      },
+      "E2-92": {
+        "en": "Encompasses the applied skill of producing written communication that serves a specific audience and objective — choosing register and structure deliberately, making the point early, and cutting what does not serve the reader.",
+        "bg": "Обхваща приложното умение за създаване на писмена комуникация, която обслужва конкретна аудитория и цел — съзнателен избор на регистър и структура, извеждане на същественото напред и отстраняване на всичко, което не служи на четящия."
+      },
+      "E2-93": {
+        "en": "Encompasses the applied skill of improving others' content and safeguarding what goes out — checking accuracy, consistency, and compliance as well as language, and giving revision feedback that improves the writer as well as the draft.",
+        "bg": "Обхваща приложното умение за подобряване на чуждото съдържание и предпазване на онова, което излиза навън — проверка на точността, последователността и съответствието, наред с езика, и даване на обратна връзка при редакцията, която развива автора, а не само текста."
+      },
+      "E2-94": {
+        "en": "Encompasses the applied skill of taking a communication objective through to delivery — defining audience and message, selecting channels, sequencing activity, coordinating contributors, and running to schedule and budget.",
+        "bg": "Обхваща приложното умение да се преведе една комуникационна цел до реализация — дефиниране на аудитория и послание, избор на канали, подреждане на дейностите във времето, координиране на участниците и спазване на графика и бюджета."
+      },
+      "E2-95": {
+        "en": "Encompasses the applied skill of operating the organization's channels day to day — scheduling and publishing, maintaining site and social presence, moderating and responding, and keeping published material current and accurate.",
+        "bg": "Обхваща приложното умение за ежедневна работа с каналите на организацията — планиране и публикуване, поддържане на присъствието в сайта и социалните мрежи, модериране и отговаряне, и поддържане на публикуваните материали актуални и точни."
+      },
+      "E2-96": {
+        "en": "Encompasses the applied skill of producing work that is recognisably the organization's — applying visual and verbal identity correctly across formats and channels, and identifying and correcting off-brand material before it reaches an audience.",
+        "bg": "Обхваща приложното умение за създаване на резултати, които са разпознаваемо на организацията — коректно прилагане на визуалната и вербалната идентичност през формати и канали, и откриване и коригиране на несъответстващи на бранда материали, преди да достигнат аудиторията."
+      },
+      "E2-97": {
+        "en": "Encompasses the applied skill of dealing with journalists, partner organizations, and institutional stakeholders — preparing and giving statements, handling enquiries within agreed lines, and building the relationships that make coverage fair.",
+        "bg": "Обхваща приложното умение за работа с журналисти, партньорски организации и институционални заинтересовани страни — подготвяне и даване на изявления, обработване на запитвания в рамките на договорените позиции и изграждане на отношенията, които правят отразяването коректно."
+      },
+      "E2-98": {
+        "en": "Encompasses the applied skill of tracking and reporting what communication achieved — collecting and interpreting the relevant measures, and reporting honestly including when activity did not work.",
+        "bg": "Обхваща приложното умение за проследяване и отчитане на постигнатото от комуникацията — събиране и интерпретиране на относимите мерки и честно отчитане, включително когато дадена дейност не е проработила."
+      },
+      "E2-99": {
+        "en": "Encompasses the applied skill of working with engineers, analysts, and other specialists to understand what has been built or achieved, and rendering it accurately for an audience without that background — preserving truth while removing jargon, and knowing when a simplification has become wrong.",
+        "bg": "Обхваща приложното умение за работа с инженери, анализатори и други специалисти, за да се разбере какво е изградено или постигнато, и представянето му точно пред аудитория без такава подготовка — запазвайки истинността, но премахвайки жаргона, и разпознавайки кога едно опростяване вече е станало невярно."
+      },
+      "E3-37": {
+        "en": "Encompasses the practical judgment that accumulates from communicating in the real world — knowing which messages land and which fall flat, anticipating how an audience will react, and recognising when a plan that reads well will not survive contact with its audience.",
+        "bg": "Обхваща практическата преценка, която се натрупва от комуникиране в реална среда — знанието кои послания достигат и кои остават без ефект, предвиждането как ще реагира дадена аудитория и разпознаването кога план, който изглежда добре на хартия, няма да оцелее при среща с аудиторията си."
+      },
+      "E3-38": {
+        "en": "Encompasses the practical ability to use the toolchain the function relies on — content management and publishing systems, scheduling and social management tools, email platforms, analytics, and design and asset management tools.",
+        "bg": "Обхваща практическата способност за използване на инструментариума, на който функцията разчита — системи за управление на съдържание и публикуване, инструменти за планиране и управление на социални мрежи, платформи за електронна поща, аналитика и инструменти за дизайн и управление на активи."
+      },
+      "E3-39": {
+        "en": "Encompasses the practical ability to sense what will cause a problem before it does — recognising politically or institutionally sensitive material, anticipating how a message could be read against the organization, and escalating rather than proceeding when the risk is real.",
+        "bg": "Обхваща практическата способност да се усети какво ще създаде проблем, преди той да възникне — разпознаване на политически или институционално чувствителни материали, предвиждане как едно послание може да бъде разчетено срещу организацията, и ескалиране, вместо продължаване, когато рискът е реален."
+      },
+      "I1-17": {
+        "en": "Encompasses the commitment and ability to follow the organization's internal process for communication work — request intake, planning and scheduling, sign-off points, and the function's role in relation to other departments.",
+        "bg": "Обхваща ангажираността и способността за следване на вътрешния процес на организацията за комуникационна работа — приемане на заявки, планиране и график, точки за съгласуване и мястото на функцията спрямо останалите отдели."
+      },
+      "I1-18": {
+        "en": "Encompasses the discipline of subjecting communication to review before publication — submitting work for factual, legal, and brand checking, reviewing others' material constructively, and treating approval as a safeguard rather than an obstacle to be routed around under deadline pressure.",
+        "bg": "Обхваща дисциплината комуникацията да бъде подлагана на преглед преди публикуване — подаване на работата за фактическа, правна и брандова проверка, конструктивен преглед на чуждите материали и третиране на одобрението като предпазна мярка, а не като пречка, която да бъде заобиколена под натиска на срокове."
+      },
+      "I1-19": {
+        "en": "Encompasses the commitment to work within the organization's brand, legal, and regulatory requirements — clearance and disclosure obligations, accessibility of published material, permissions and rights for assets, and data protection in contact and marketing data.",
+        "bg": "Обхваща ангажираността работата да се извършва в рамките на брандовите, правните и регулаторните изисквания на организацията — задълженията за съгласуване и оповестяване, достъпността на публикуваните материали, правата и разрешенията за използваните активи и защитата на данните при контактните и маркетинговите данни."
       }
     },
     "scope": {
@@ -7217,6 +7401,604 @@
         "T": {
           "en": "Ensures the team documents to standard and aligns documentation with governance and audit requirements.",
           "bg": "Осигурява документирането според стандарта от екипа и уеднаквява документацията с изискванията за управление и одит."
+        }
+      },
+      "E1-76": {
+        "N": {
+          "en": "Understands that different audiences exist and works to a given audience definition under guidance.",
+          "bg": "Разбира, че съществуват различни аудитории, и работи по зададена дефиниция на аудиторията под ръководство."
+        },
+        "J": {
+          "en": "Understands basic segmentation and applies existing audience definitions with supervision.",
+          "bg": "Разбира базовото сегментиране и прилага съществуващи дефиниции на аудитории с надзор."
+        },
+        "R": {
+          "en": "Independently analyses and segments audiences for typical work and tailors approach accordingly.",
+          "bg": "Самостоятелно анализира и сегментира аудиториите при типична работа и съобразява подхода с тях."
+        },
+        "S": {
+          "en": "Analyses complex or conflicting audiences, resolves competing needs, and mentors others.",
+          "bg": "Анализира сложни или противоречиви аудитории, решава конкуриращи се потребности и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; shapes how the organization understands and segments its audiences.",
+          "bg": "Признат авторитет; оформя начина, по който организацията разбира и сегментира своите аудитории."
+        },
+        "T": {
+          "en": "Ensures the team works from real audience understanding rather than assumption.",
+          "bg": "Осигурява екипът да работи от реално познание за аудиторията, а не от допускания."
+        }
+      },
+      "E1-77": {
+        "N": {
+          "en": "Knows basic principles of clear communication and applies given messaging under guidance.",
+          "bg": "Познава базовите принципи на ясната комуникация и прилага зададени послания под ръководство."
+        },
+        "J": {
+          "en": "Constructs straightforward messages with supervision, applying clarity and tone guidance.",
+          "bg": "Изгражда несложни послания с надзор, прилагайки насоките за яснота и тон."
+        },
+        "R": {
+          "en": "Independently constructs clear, well-framed messages for typical purposes and audiences.",
+          "bg": "Самостоятелно изгражда ясни и добре поднесени послания за типични цели и аудитории."
+        },
+        "S": {
+          "en": "Constructs messaging for complex or sensitive situations, resolves framing dilemmas, and mentors others.",
+          "bg": "Изгражда послания за сложни или чувствителни ситуации, решава дилеми при поднасянето и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; sets messaging standards and principles across the organization.",
+          "bg": "Признат авторитет; задава стандартите и принципите за посланията в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team communicates clearly and honestly and aligns messaging with organizational positioning.",
+          "bg": "Осигурява ясната и честна комуникация на екипа и уеднаквява посланията с позиционирането на организацията."
+        }
+      },
+      "E1-78": {
+        "N": {
+          "en": "Understands that brand guidelines exist and follows them under guidance.",
+          "bg": "Разбира, че съществуват насоки за бранда, и ги следва под ръководство."
+        },
+        "J": {
+          "en": "Understands the organization's identity and applies guidelines to straightforward work with supervision.",
+          "bg": "Разбира идентичността на организацията и прилага насоките към несложна работа с надзор."
+        },
+        "R": {
+          "en": "Independently applies brand identity correctly and recognizes when work is off-brand.",
+          "bg": "Самостоятелно прилага коректно идентичността на бранда и разпознава работа, която се отклонява от нея."
+        },
+        "S": {
+          "en": "Reasons about positioning and brand expression in complex situations and mentors others.",
+          "bg": "Разсъждава за позиционирането и изразяването на бранда в сложни ситуации и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; shapes brand identity and positioning for the organization.",
+          "bg": "Признат авторитет; оформя идентичността и позиционирането на бранда на организацията."
+        },
+        "T": {
+          "en": "Ensures the team's output is consistently on-brand and aligns expression with organizational positioning.",
+          "bg": "Осигурява последователно съответстващи на бранда резултати от екипа и уеднаквява изразяването с позиционирането на организацията."
+        }
+      },
+      "E1-79": {
+        "N": {
+          "en": "Knows the main channels and uses a given one under guidance.",
+          "bg": "Познава основните канали и използва зададен канал под ръководство."
+        },
+        "J": {
+          "en": "Understands channel characteristics and works within a given mix with supervision.",
+          "bg": "Разбира характеристиките на каналите и работи в рамките на зададен микс с надзор."
+        },
+        "R": {
+          "en": "Independently selects appropriate channels for typical objectives and audiences.",
+          "bg": "Самостоятелно избира подходящи канали за типични цели и аудитории."
+        },
+        "S": {
+          "en": "Designs channel strategy for complex objectives, balances the mix deliberately, and mentors others.",
+          "bg": "Проектира стратегия за каналите при сложни цели, балансира микса съзнателно и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; sets channel strategy across the organization.",
+          "bg": "Признат авторитет; задава стратегията за каналите в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team selects channels purposefully and aligns the mix with organizational objectives.",
+          "bg": "Осигурява целенасочения избор на канали от екипа и уеднаквява микса с целите на организацията."
+        }
+      },
+      "E1-80": {
+        "N": {
+          "en": "Understands that content is planned and works to a given plan under guidance.",
+          "bg": "Разбира, че съдържанието се планира, и работи по зададен план под ръководство."
+        },
+        "J": {
+          "en": "Contributes to editorial planning for straightforward needs with supervision.",
+          "bg": "Допринася за редакционното планиране при несложни нужди с надзор."
+        },
+        "R": {
+          "en": "Independently plans content for typical objectives, with appropriate formats and sequencing.",
+          "bg": "Самостоятелно планира съдържание за типични цели, с подходящи формати и последователност."
+        },
+        "S": {
+          "en": "Designs content strategy for complex or long-running programmes and mentors others.",
+          "bg": "Проектира стратегия за съдържанието при сложни или дългосрочни програми и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines content strategy across the organization.",
+          "bg": "Признат авторитет; дефинира стратегията за съдържанието в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team plans content deliberately and aligns it with organizational objectives.",
+          "bg": "Осигурява целенасоченото планиране на съдържание от екипа и го уеднаквява с целите на организацията."
+        }
+      },
+      "E1-81": {
+        "N": {
+          "en": "Aware of the main digital channels and follows given procedures under guidance.",
+          "bg": "Осведомен е за основните дигитални канали и следва зададени процедури под ръководство."
+        },
+        "J": {
+          "en": "Understands basic digital concepts and executes straightforward activity with supervision.",
+          "bg": "Разбира базовите дигитални концепции и изпълнява несложна активност с надзор."
+        },
+        "R": {
+          "en": "Independently plans and interprets digital activity for typical objectives.",
+          "bg": "Самостоятелно планира и интерпретира дигитална активност за типични цели."
+        },
+        "S": {
+          "en": "Reasons about complex digital strategy and platform behaviour and mentors others.",
+          "bg": "Разсъждава за сложна дигитална стратегия и поведението на платформите и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; shapes digital strategy across the organization.",
+          "bg": "Признат авторитет; оформя дигиталната стратегия в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team applies digital practice competently and aligns activity with objectives.",
+          "bg": "Осигурява компетентното прилагане на дигиталната практика от екипа и уеднаквява активността с целите."
+        }
+      },
+      "E1-82": {
+        "N": {
+          "en": "Understands that communication is measured and records given metrics under guidance.",
+          "bg": "Разбира, че комуникацията се измерва, и записва зададени показатели под ръководство."
+        },
+        "J": {
+          "en": "Tracks basic metrics for straightforward activity with supervision.",
+          "bg": "Проследява базови показатели за несложна активност с надзор."
+        },
+        "R": {
+          "en": "Independently selects and interprets appropriate measures for typical activity, distinguishing activity from impact.",
+          "bg": "Самостоятелно избира и интерпретира подходящи мерки за типична активност, разграничавайки дейността от въздействието."
+        },
+        "S": {
+          "en": "Designs measurement for complex programmes, reasons about attribution honestly, and mentors others.",
+          "bg": "Проектира измерването за сложни програми, разсъждава честно за атрибуцията и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines the organization's communications measurement framework.",
+          "bg": "Признат авторитет; дефинира рамката за измерване на комуникациите на организацията."
+        },
+        "T": {
+          "en": "Ensures the team measures impact rather than activity and aligns reporting with organizational expectations.",
+          "bg": "Осигурява екипът да измерва въздействие, а не дейност, и уеднаквява отчитането с очакванията на организацията."
+        }
+      },
+      "E1-83": {
+        "N": {
+          "en": "Aware that public-sector communication is constrained and follows given rules under guidance.",
+          "bg": "Осведомен е, че комуникацията в публичния сектор е ограничена, и следва зададени правила под ръководство."
+        },
+        "J": {
+          "en": "Knows the main obligations and applies them to straightforward work with supervision.",
+          "bg": "Познава основните задължения и ги прилага към несложна работа с надзор."
+        },
+        "R": {
+          "en": "Independently identifies which obligations apply to typical work and complies without prompting.",
+          "bg": "Самостоятелно определя кои задължения са относими към типична работа и ги спазва без подсещане."
+        },
+        "S": {
+          "en": "Navigates complex or contested compliance situations, resolves tension between communication goals and constraints, and mentors others.",
+          "bg": "Ориентира се в сложни или оспорвани ситуации по съответствието, решава напрежението между комуникационните цели и ограниченията и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; advises the organization on communications compliance obligations.",
+          "bg": "Признат авторитет; консултира организацията относно задълженията за съответствие в комуникациите."
+        },
+        "T": {
+          "en": "Ensures the team's communications comply and aligns practice with regulatory and procurement requirements.",
+          "bg": "Осигурява съответствието на комуникациите на екипа и уеднаквява практиката с нормативните изисквания и тези за обществените поръчки."
+        }
+      },
+      "E1-84": {
+        "N": {
+          "en": "Understands that some situations are reputationally sensitive and escalates under guidance.",
+          "bg": "Разбира, че някои ситуации са чувствителни за репутацията, и ескалира под ръководство."
+        },
+        "J": {
+          "en": "Recognizes sensitive situations and follows established escalation with supervision.",
+          "bg": "Разпознава чувствителни ситуации и следва установената ескалация с надзор."
+        },
+        "R": {
+          "en": "Independently recognizes reputational risk in typical situations and responds or escalates appropriately.",
+          "bg": "Самостоятелно разпознава репутационния риск в типични ситуации и отговаря или ескалира по подходящ начин."
+        },
+        "S": {
+          "en": "Handles significant reputational situations, drafts response under pressure, and mentors others.",
+          "bg": "Справя се със значими репутационни ситуации, изготвя отговор под напрежение и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; leads crisis communication and defines response practice for the organization.",
+          "bg": "Признат авторитет; води кризисната комуникация и дефинира практиката за реакция в организацията."
+        },
+        "T": {
+          "en": "Ensures the team recognizes and escalates reputational risk and aligns response with organizational interests.",
+          "bg": "Осигурява екипът да разпознава и ескалира репутационния риск и уеднаквява реакцията с интересите на организацията."
+        }
+      },
+      "E2-92": {
+        "N": {
+          "en": "Writes simple copy from templates or examples under guidance; requires substantial editing.",
+          "bg": "Пише прости текстове по шаблони или примери под ръководство; изисква съществена редакция."
+        },
+        "J": {
+          "en": "Writes straightforward copy with supervision, though structure and register need correction.",
+          "bg": "Пише несложни текстове с надзор, макар структурата и регистърът да се нуждаят от корекция."
+        },
+        "R": {
+          "en": "Independently writes clear, purposeful copy for typical audiences that needs little editing.",
+          "bg": "Самостоятелно пише ясни и целенасочени текстове за типични аудитории, които се нуждаят от малко редакция."
+        },
+        "S": {
+          "en": "Writes for complex, senior, or sensitive audiences, adapts register precisely, and mentors others.",
+          "bg": "Пише за сложни, висши или чувствителни аудитории, адаптира регистъра прецизно и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; sets writing standards and produces the organization's most consequential communication.",
+          "bg": "Признат авторитет; задава стандартите за писане и създава най-отговорната комуникация на организацията."
+        },
+        "T": {
+          "en": "Ensures the team writes to a high standard and aligns written output with organizational voice.",
+          "bg": "Осигурява високото ниво на писане в екипа и уеднаквява писмените резултати с гласа на организацията."
+        }
+      },
+      "E2-93": {
+        "N": {
+          "en": "Proofreads for obvious errors under guidance.",
+          "bg": "Проверява за очевидни грешки под ръководство."
+        },
+        "J": {
+          "en": "Edits straightforward content with supervision, focusing mainly on language.",
+          "bg": "Редактира несложно съдържание с надзор, съсредоточен предимно върху езика."
+        },
+        "R": {
+          "en": "Independently edits typical content for accuracy, consistency, structure, and compliance.",
+          "bg": "Самостоятелно редактира типично съдържание за точност, последователност, структура и съответствие."
+        },
+        "S": {
+          "en": "Edits complex or sensitive content, makes difficult cuts, and develops writers through feedback.",
+          "bg": "Редактира сложно или чувствително съдържание, прави трудни съкращения и развива автори чрез обратна връзка."
+        },
+        "X": {
+          "en": "Recognized authority; sets editorial standards across the organization.",
+          "bg": "Признат авторитет; задава редакционните стандарти в цялата организация."
+        },
+        "T": {
+          "en": "Ensures nothing substandard is published and develops editorial capability in the team.",
+          "bg": "Осигурява нищо некачествено да не бъде публикувано и развива редакционния капацитет на екипа."
+        }
+      },
+      "E2-94": {
+        "N": {
+          "en": "Executes assigned campaign tasks under guidance.",
+          "bg": "Изпълнява възложени задачи по кампания под ръководство."
+        },
+        "J": {
+          "en": "Supports campaign delivery on straightforward activity with supervision.",
+          "bg": "Подпомага провеждането на кампании при несложна активност с надзор."
+        },
+        "R": {
+          "en": "Independently plans and runs campaigns for typical objectives, coordinating contributors and keeping to plan.",
+          "bg": "Самостоятелно планира и провежда кампании за типични цели, координира участниците и се придържа към плана."
+        },
+        "S": {
+          "en": "Runs complex or multi-channel campaigns, handles competing demands, and mentors others.",
+          "bg": "Провежда сложни или многоканални кампании, справя се с конкуриращи се изисквания и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; leads the organization's most significant communication programmes.",
+          "bg": "Признат авторитет; води най-значимите комуникационни програми на организацията."
+        },
+        "T": {
+          "en": "Ensures the team plans and delivers campaigns effectively and aligns activity with organizational objectives.",
+          "bg": "Осигурява ефективното планиране и провеждане на кампании от екипа и уеднаквява активността с целите на организацията."
+        }
+      },
+      "E2-95": {
+        "N": {
+          "en": "Publishes prepared material through a given channel under guidance.",
+          "bg": "Публикува подготвени материали през зададен канал под ръководство."
+        },
+        "J": {
+          "en": "Operates channels for routine activity with supervision.",
+          "bg": "Работи с каналите при рутинна активност с надзор."
+        },
+        "R": {
+          "en": "Independently manages channels for typical activity, including responses and moderation.",
+          "bg": "Самостоятелно управлява каналите при типична активност, включително отговорите и модерирането."
+        },
+        "S": {
+          "en": "Manages channels through demanding or sensitive periods, handles difficult public interaction, and mentors others.",
+          "bg": "Управлява каналите през натоварени или чувствителни периоди, справя се с трудни публични взаимодействия и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines channel operating standards across the organization.",
+          "bg": "Признат авторитет; дефинира стандартите за работа с каналите в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team's channels are well-operated and aligns channel management with organizational standards.",
+          "bg": "Осигурява добрата работа с каналите на екипа и уеднаквява управлението им с организационните стандарти."
+        }
+      },
+      "E2-96": {
+        "N": {
+          "en": "Applies given brand assets to simple work under guidance.",
+          "bg": "Прилага зададени брандови елементи към проста работа под ръководство."
+        },
+        "J": {
+          "en": "Applies brand guidelines to straightforward work with supervision.",
+          "bg": "Прилага насоките за бранда към несложна работа с надзор."
+        },
+        "R": {
+          "en": "Independently produces on-brand work across typical formats and identifies inconsistency.",
+          "bg": "Самостоятелно създава съответстваща на бранда работа в типични формати и открива несъответствията."
+        },
+        "S": {
+          "en": "Maintains brand consistency across complex or multi-party work and mentors others.",
+          "bg": "Поддържа последователност на бранда в сложна или многостранна работа и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; governs brand application across the organization.",
+          "bg": "Признат авторитет; управлява прилагането на бранда в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team's output is consistently on-brand and aligns application with brand governance.",
+          "bg": "Осигурява последователно съответстващи на бранда резултати от екипа и уеднаквява прилагането с управлението на бранда."
+        }
+      },
+      "E2-97": {
+        "N": {
+          "en": "Observes external interactions and prepares material under guidance.",
+          "bg": "Наблюдава външните взаимодействия и подготвя материали под ръководство."
+        },
+        "J": {
+          "en": "Handles routine enquiries within given lines with supervision.",
+          "bg": "Обработва рутинни запитвания в рамките на зададени позиции с надзор."
+        },
+        "R": {
+          "en": "Independently handles typical media and stakeholder interaction, stays within agreed positions, and knows when to escalate.",
+          "bg": "Самостоятелно се справя с типични взаимодействия с медии и заинтересовани страни, придържа се към договорените позиции и знае кога да ескалира."
+        },
+        "S": {
+          "en": "Handles difficult or hostile enquiries, manages significant relationships, and mentors others.",
+          "bg": "Справя се с трудни или враждебни запитвания, управлява значими отношения и напътства други."
+        },
+        "X": {
+          "en": "Recognized as the organization's authority in external relations; handles the most sensitive engagements.",
+          "bg": "Признат за авторитет на организацията във външните отношения; поема най-чувствителните ангажименти."
+        },
+        "T": {
+          "en": "Ensures the team handles external relations credibly and aligns engagement with organizational interests.",
+          "bg": "Осигурява достоверното водене на външните отношения от екипа и уеднаквява ангажиментите с интересите на организацията."
+        }
+      },
+      "E2-98": {
+        "N": {
+          "en": "Collects and records given metrics under guidance.",
+          "bg": "Събира и записва зададени показатели под ръководство."
+        },
+        "J": {
+          "en": "Produces basic performance reports with supervision, though interpretation is thin.",
+          "bg": "Изготвя базови отчети за резултатите с надзор, макар интерпретацията да е повърхностна."
+        },
+        "R": {
+          "en": "Independently measures and reports typical activity, interpreting results and drawing usable conclusions.",
+          "bg": "Самостоятелно измерва и отчита типична активност, интерпретира резултатите и извежда използваеми изводи."
+        },
+        "S": {
+          "en": "Designs measurement and reporting for complex programmes, reports unwelcome results honestly, and mentors others.",
+          "bg": "Проектира измерването и отчитането за сложни програми, отчита честно и нежеланите резултати и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; shapes performance reporting across the organization.",
+          "bg": "Признат авторитет; оформя отчитането на резултатите в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team reports performance honestly and aligns reporting with organizational expectations.",
+          "bg": "Осигурява честното отчитане на резултатите от екипа и го уеднаквява с очакванията на организацията."
+        }
+      },
+      "E2-99": {
+        "N": {
+          "en": "Relays technical material as provided under guidance, with limited comprehension.",
+          "bg": "Предава техническия материал както е предоставен, под ръководство, с ограничено разбиране."
+        },
+        "J": {
+          "en": "Produces straightforward non-technical explanations with supervision and specialist review.",
+          "bg": "Изготвя несложни нетехнически обяснения с надзор и преглед от специалист."
+        },
+        "R": {
+          "en": "Independently interviews specialists, understands the substance, and produces accurate accessible material for typical subjects.",
+          "bg": "Самостоятелно интервюира специалисти, разбира същността и изготвя точни и достъпни материали по типични теми."
+        },
+        "S": {
+          "en": "Renders complex or contested technical subject matter accurately for demanding audiences and mentors others.",
+          "bg": "Представя сложна или оспорвана техническа материя точно пред взискателни аудитории и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; trusted to represent the organization's most complex work publicly.",
+          "bg": "Признат авторитет; ползва се с доверие да представя публично най-сложната работа на организацията."
+        },
+        "T": {
+          "en": "Ensures the team's technical communication is accurate as well as accessible.",
+          "bg": "Осигурява техническата комуникация на екипа да е точна, а не само достъпна."
+        }
+      },
+      "E3-37": {
+        "N": {
+          "en": "Has limited experience and applies lessons from training or a single project under guidance.",
+          "bg": "Има ограничен опит и прилага поуки от обучение или от един проект под ръководство."
+        },
+        "J": {
+          "en": "Draws on experience from a few campaigns for familiar situations but relies on guidance when unfamiliar.",
+          "bg": "Ползва опит от няколко кампании за познати ситуации, но разчита на напътствия при непознати."
+        },
+        "R": {
+          "en": "Applies experience across a range of work to make sound communication decisions independently.",
+          "bg": "Прилага опит от разнообразна работа, за да взема самостоятелно издържани комуникационни решения."
+        },
+        "S": {
+          "en": "Draws on deep, varied experience to navigate difficult or unfamiliar situations, anticipates reaction accurately, and mentors others.",
+          "bg": "Ползва задълбочен и разнообразен опит, за да се ориентира в трудни или непознати ситуации, предвижда реакцията точно и напътства други."
+        },
+        "X": {
+          "en": "Recognized for exceptional communications judgment; advises across the organization.",
+          "bg": "Признат за изключителна преценка в комуникациите; консултира в цялата организация."
+        },
+        "T": {
+          "en": "Applies and shares accumulated experience to guide the team's communication decisions.",
+          "bg": "Прилага и споделя натрупания опит за насочване на комуникационните решения на екипа."
+        }
+      },
+      "E3-38": {
+        "N": {
+          "en": "Uses basic tool features for simple tasks under guidance.",
+          "bg": "Използва базови функции на инструментите за прости задачи под ръководство."
+        },
+        "J": {
+          "en": "Uses the main features on routine work with supervision, though not always efficiently.",
+          "bg": "Използва основните функции при рутинна работа с надзор, макар и не винаги ефективно."
+        },
+        "R": {
+          "en": "Independently uses the toolchain effectively for typical work.",
+          "bg": "Самостоятелно използва инструментариума ефективно при типична работа."
+        },
+        "S": {
+          "en": "Exploits advanced capabilities, establishes efficient working practice, and mentors others.",
+          "bg": "Използва усъвършенствани възможности, установява ефективна работна практика и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; evaluates and introduces tools and defines toolchain standards.",
+          "bg": "Признат авторитет; оценява и въвежда инструменти и дефинира стандартите за инструментариума."
+        },
+        "T": {
+          "en": "Ensures consistent, effective tool use across the team.",
+          "bg": "Осигурява последователното и ефективно използване на инструментите в екипа."
+        }
+      },
+      "E3-39": {
+        "N": {
+          "en": "Does not reliably recognize sensitivity; relies on others to catch problems.",
+          "bg": "Не разпознава надеждно чувствителността; разчита на други да уловят проблемите."
+        },
+        "J": {
+          "en": "Recognizes obvious sensitivity with supervision but misses subtler risk.",
+          "bg": "Разпознава очевидната чувствителност с надзор, но пропуска по-фините рискове."
+        },
+        "R": {
+          "en": "Independently recognizes reputational and political sensitivity in typical work and escalates appropriately.",
+          "bg": "Самостоятелно разпознава репутационната и политическата чувствителност при типична работа и ескалира по подходящ начин."
+        },
+        "S": {
+          "en": "Judges sensitivity in complex or ambiguous situations, weighs risk against communication value, and mentors others.",
+          "bg": "Преценява чувствителността в сложни или двусмислени ситуации, съпоставя риска с комуникационната стойност и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; called on to assess the organization's most sensitive communication.",
+          "bg": "Признат авторитет; търсен да оцени най-чувствителната комуникация на организацията."
+        },
+        "T": {
+          "en": "Ensures the team recognizes sensitivity early and supports members in escalating without hesitation.",
+          "bg": "Осигурява екипът да разпознава чувствителността рано и подкрепя членовете да ескалират без колебание."
+        }
+      },
+      "I1-17": {
+        "N": {
+          "en": "Follows the main process steps with guidance and reminders.",
+          "bg": "Следва основните стъпки на процеса с напътствия и напомняния."
+        },
+        "J": {
+          "en": "Follows the process on routine work with occasional correction.",
+          "bg": "Следва процеса при рутинна работа с епизодична корекция."
+        },
+        "R": {
+          "en": "Independently adheres to the full process for typical work.",
+          "bg": "Самостоятелно спазва пълния процес при типична работа."
+        },
+        "S": {
+          "en": "Applies the process rigorously on complex work, identifies gaps, and mentors others.",
+          "bg": "Прилага процеса прецизно при сложна работа, идентифицира пропуски и напътства други."
+        },
+        "X": {
+          "en": "Shapes and improves the communications process across the organization.",
+          "bg": "Оформя и подобрява процеса за комуникации в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team adheres consistently and aligns process use with organizational standards.",
+          "bg": "Осигурява последователното спазване от екипа и уеднаквява използването на процеса с организационните стандарти."
+        }
+      },
+      "I1-18": {
+        "N": {
+          "en": "Submits work for review as instructed under guidance.",
+          "bg": "Подава работата за преглед според указанията под ръководство."
+        },
+        "J": {
+          "en": "Participates in review of straightforward material with supervision.",
+          "bg": "Участва в прегледа на несложни материали с надзор."
+        },
+        "R": {
+          "en": "Independently submits work for appropriate review and reviews others' material constructively.",
+          "bg": "Самостоятелно подава работата за подходящ преглед и преглежда чуждите материали конструктивно."
+        },
+        "S": {
+          "en": "Reviews complex or sensitive material incisively, catches problems others miss, and mentors others.",
+          "bg": "Преглежда сложни или чувствителни материали проницателно, улавя проблеми, които други пропускат, и напътства други."
+        },
+        "X": {
+          "en": "Shapes review and approval practice across the organization.",
+          "bg": "Оформя практиката по преглед и одобряване в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team reviews before publishing and holds the line on approval under deadline pressure.",
+          "bg": "Осигурява прегледа преди публикуване в екипа и отстоява одобрението под натиска на сроковете."
+        }
+      },
+      "I1-19": {
+        "N": {
+          "en": "Follows given compliance rules with guidance and reminders.",
+          "bg": "Следва зададените правила за съответствие с напътствия и напомняния."
+        },
+        "J": {
+          "en": "Applies the main requirements to routine work with occasional correction.",
+          "bg": "Прилага основните изисквания към рутинна работа с епизодична корекция."
+        },
+        "R": {
+          "en": "Independently and consistently meets brand, legal, and compliance requirements in typical work.",
+          "bg": "Самостоятелно и последователно спазва брандовите, правните и регулаторните изисквания при типична работа."
+        },
+        "S": {
+          "en": "Navigates complex compliance situations, obtains difficult clearances, and mentors others.",
+          "bg": "Ориентира се в сложни ситуации по съответствието, осигурява трудни съгласувания и напътства други."
+        },
+        "X": {
+          "en": "Defines communications compliance standards across the organization.",
+          "bg": "Дефинира стандартите за съответствие в комуникациите в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team's output meets all obligations and aligns practice with legal and regulatory requirements.",
+          "bg": "Осигурява резултатите на екипа да отговарят на всички задължения и уеднаквява практиката с правните и регулаторните изисквания."
         }
       }
     }

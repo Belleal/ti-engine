@@ -392,24 +392,79 @@ data is a compliance breach, not a developmental gap.
 **E1-70 on C likewise.** Data quality is everyone's responsibility at every level; weighting it as rising would
 imply juniors may publish unreliable figures.
 
+# Assignments — Increment 6 (MC family)
+
+## Assignments — MC family-specific
+
+*Marketing & Communications, 23 competencies (Increment 6). The **first non-ICT family**: the shared canonical core
+transferred without modification, which is evidence that the canonicalization principle generalizes beyond the
+discipline it was derived from. Listed as rows rather than prose so the generator sees them.*
+
+**E1 — Theoretical knowledge**
+
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E1-76 | Audience analysis and segmentation | B | |
+| E1-77 | Communication and messaging principles | A | foundational |
+| E1-78 | Brand identity and positioning | A | foundational |
+| E1-79 | Marketing and communication channels | A | foundational |
+| E1-80 | Content strategy and planning | B | planning is a seniority skill |
+| E1-81 | Digital marketing concepts | A | |
+| E1-82 | Communications measurement and analytics | B | attribution reasoning deepens |
+| E1-83 | Public-sector communication rules and obligations | **C** | regulatory obligation — see note |
+| E1-84 | Crisis and reputation management principles | B | juniors do not handle crises |
+
+**E2 — Applied skills**
+
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E2-92 | Writing for a defined audience and purpose | E | core craft |
+| E2-93 | Editing and quality control of content | E | |
+| E2-94 | Planning and running communication campaigns | B | |
+| E2-95 | Managing communication channels and publishing | E | |
+| E2-96 | Applying and maintaining brand consistency | **C** | standard everyone must meet — see note |
+| E2-97 | Media and external stakeholder relations | B | juniors do not front the press |
+| E2-98 | Measuring and reporting communication performance | E | |
+| E2-99 | Translating technical subject matter for non-specialists | E | |
+
+**E3 & I1**
+
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E3-37 | Applying accumulated communications experience | B | experiential, rises by definition |
+| E3-38 | Knowledge and use of marketing and communications tools | A | daily use at every level |
+| E3-39 | Judging reputational risk and sensitivity | B | judgment competency |
+| I1-17 | Adhering to the internal communications process | C | |
+| I1-18 | Participating in content review and approval | B | |
+| I1-19 | Adhering to brand, legal and compliance standards | **C** | obligation, not refinement — see note |
+
+**Three on C.** `E1-83` and `I1-19` are regulatory and legal obligations; `E2-96` is a standard every piece of
+output must meet rather than a refinement seniors add. Consistent with accessibility (E1-63, E2-72), AI safety
+(E2-82) and data protection (E1-74) — the same obligation principle each time.
+
+**Note on E2-99.** *Translating technical subject matter for non-specialists* is family-specific and deliberately
+distinct from the shared C2 communication competencies: it concerns extracting substance from specialists and
+rendering it accurately for a lay audience, which is a defining demand on communications staff in a technology
+organization rather than general communication skill.
+
 ## Distribution check
 
 | Archetype | Count |
 |---|---|
-| A — Foundational-plateau | 27 |
-| B — Rising-with-seniority | 62 |
-| C — Steady-high | 27 |
+| A — Foundational-plateau | 32 |
+| B — Rising-with-seniority | 71 |
+| C — Steady-high | 31 |
 | D — Early-emphasis-then-assumed | 8 |
-| E — Mid-weighted | 48 |
+| E — Mid-weighted | 53 |
 | F — Rising, expert-leaning | 28 |
 | G — Rising, manager-leaning | 4 |
 | H — Management-track | 5 |
-| **Total** | **209** |
+| **Total** | **232** |
 
-*209 = 36 shared + 49 SE + 29 BA + 25 PM + 26 QE + 24 XD + 23 DA − 3. SE includes its four specializations
+*232 = 36 shared + 49 SE + 29 BA + 25 PM + 26 QE + 24 XD + 23 DA + 23 MC − 3. SE includes its four specializations
 (ARCHITECTURE 4, DATABASE_ARCHITECTURE 5, AI_ENGINEERING 6). The subtraction is `E2-52`/`E2-53`/`E2-54`, which
-are listed under **both** the SE and BA tables on purpose (see the note above) — 212 assignment rows resolve to
-209 distinct competencies, matching the dictionary exactly. Re-derive this table mechanically after every
+are listed under **both** the SE and BA tables on purpose (see the note above) — 235 assignment rows resolve to
+232 distinct competencies, matching the dictionary exactly. Re-derive this table mechanically after every
 increment rather than adjusting it by hand, and **de-duplicate by code when you do**: counting rows overstates
 F by three.*
 
