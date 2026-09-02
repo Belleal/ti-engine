@@ -2,6 +2,24 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.28.0
+
+Increment 5 adds the **Data & Analytics** family. Twenty-three competencies take the dictionary from 186 to **209**,
+and DA becomes the sixth populated role family — a data analyst could not be evaluated at all before this. The
+baseline is deliberately the common core across four dissimilar specializations: everyone who works with data
+queries it, prepares it, explores it, validates it and communicates from it. Depth belonging to one specialization
+only — advanced pipeline orchestration (ENGINEERING), inferential statistics and experimental design (RESEARCH),
+model development and deployment (ML) — is held back for the specialization sets, the same split QE used for
+automation. Purely additive: no code dropped or renumbered, so **no evaluation data migration** (CA-113).
+
+* feat(config): add the 23 DA family-specific competencies — E1-67…E1-75 (analytical data modelling, pipeline and integration concepts, storage and warehouse architecture, data quality and governance, statistical foundations, machine learning concepts, visualisation principles, data privacy and regulatory compliance, business metrics and measurement design), E2-84…E2-91 (analytical queries, data acquisition, cleaning and preparation, exploratory analysis, pipeline building, validation, reports and dashboards, communicating findings), E3-34…E3-36 (accumulated experience, tooling, judging data reliability and fitness for purpose) and I1-14…I1-16 (process adherence, analysis review, documentation and lineage standards)
+* feat(config): assign relevancy archetypes for all 23 (A ×4 · B ×8 · C ×3 · D ×1 · E ×7). **E1-70** (data quality and governance) and **E1-74** (data privacy and regulatory compliance) sit on **C** rather than B, on the obligation principle already applied to accessibility (E1-63, E2-72) and AI safety (E2-82): a junior publishing unreliable figures or mishandling personal data is a compliance failure, not a developmental gap, and the weighting should say so. DA's pool resolves to 59 competencies (23 family-specific + 36 shared); no other family's pool changes, since DA contributes nothing shared
+* feat(config): add the DA baseline active competency set for the `2026-H2` cycle — 23 codes satisfying nine-subcategory floor coverage within the cap of 32, composed from the scoping note's own list of what every data specialization does. The four DA specializations are left **absent** rather than empty, since the `no-empty-baseline` lock rule only engages once a family carries specialization data. The seeded cycle derives `excludedFamilies` from which families carry competencies, so DA is now automatically included in that cycle and participates in lock validation
+* feat(localization): add English and Bulgarian name, description and all six scope anchors for the 23 new competencies (368 strings)
+* docs(competence): record Increment 5 in the competency change log, and add the DA section to the master index (totals 186 → 209, next free codes advanced, DA removed from the unpopulated list)
+* docs(competence): correct the master index's *Outstanding* row, which claimed 78 competencies were untranslated. Bulgarian had in fact been kept current through Increment 4; the row now records translation as complete and names the test that enforces it
+* build(release): bump package version from `3.27.0` to `3.28.0`
+
 ## Version 3.27.0
 
 Increment 4 closes the two SE specializations left pending since Increment 3: **Database Architecture** and **AI

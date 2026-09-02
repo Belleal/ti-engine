@@ -2050,3 +2050,280 @@ Applying that principle:
 ---
 
 **SE specializations complete** — DATABASE_ARCHITECTURE (5) · AI_ENGINEERING (6) = **11 competencies**.
+
+---
+
+# DA — Data & Analytics
+
+*Baseline draws on the shared canonical competencies plus the family-specific set below. Specializations (ENGINEERING / ANALYTICS / ML / RESEARCH) not yet built.*
+
+**Scoping note.** DA spans four quite different specializations, so the baseline is deliberately the genuinely common core: everyone who works with data queries it, prepares it, explores it, validates it, and communicates from it. Depth that belongs to one specialization only — advanced pipeline orchestration (ENGINEERING), inferential statistics and experimental design (RESEARCH), model development and deployment (ML) — is held back for the specialization sets. E1 carries the concepts everyone should hold; the doing lives in the specializations. Same pattern as QE's automation split.
+
+**Boundary with SE.AI_ENGINEERING:** DA owns *model development* — training, evaluation, and deployment of models. SE.AI_ENGINEERING owns *building on existing models*. E1-72 gives DA baseline the conceptual grounding; hands-on model work belongs to the ML specialization.
+
+**Boundary with SE.DATABASE_ARCHITECTURE:** E1-67 concerns dimensional and analytical modelling (star schemas, facts and dimensions, slowly changing dimensions). Transactional schema design for OLTP systems is E2-73 in the SE family. Different disciplines despite the shared vocabulary.
+
+## E1 — Theoretical knowledge
+
+### E1-67 · Data modelling for analytics
+
+**Description:** Encompasses knowledge of how data is modelled for analytical use — dimensional modelling, fact and dimension tables, grain, slowly changing dimensions, and the trade-offs between normalised and denormalised structures when the purpose is analysis rather than transaction processing.
+
+- **N:** Reads existing analytical models and understands basic table relationships under guidance.
+- **J:** Understands dimensional concepts and works within an existing model on straightforward tasks with supervision.
+- **R:** Independently designs sound analytical models for typical needs, choosing appropriate grain and structure.
+- **S:** Designs complex analytical models across multiple subject areas, resolves difficult grain and conformance questions, and mentors others.
+- **X:** Recognized authority; defines analytical modelling standards across the organization.
+- **T:** Ensures the team models analytical data soundly and aligns modelling practice with organizational standards.
+
+### E1-68 · Data pipeline and integration concepts
+
+**Description:** Encompasses understanding of how data moves between systems — extraction, transformation and loading, batch versus streaming, incremental and full loads, idempotency, and the failure modes that make pipelines unreliable.
+
+- **N:** Understands that data moves between systems and follows a given process under guidance.
+- **J:** Understands basic pipeline concepts and works within existing pipelines with supervision.
+- **R:** Independently reasons about pipeline design for typical needs, including load strategy and failure handling.
+- **S:** Reasons about complex integration landscapes, anticipates failure and consistency problems, and mentors others.
+- **X:** Recognized authority; defines integration patterns and standards across the organization.
+- **T:** Ensures the team designs reliable data movement and aligns integration practice with organizational architecture.
+
+### E1-69 · Data storage and warehouse architecture
+
+**Description:** Encompasses knowledge of how analytical data is stored and organised — warehouse, lake, and lakehouse approaches, partitioning and file formats, separation of storage and compute — and the cost and performance consequences of these choices.
+
+- **N:** Aware that analytical data is stored differently from operational data; works within given structures under guidance.
+- **J:** Understands the main storage approaches and works within the existing architecture with supervision.
+- **R:** Independently makes sound storage and partitioning decisions for typical workloads.
+- **S:** Designs storage architecture for large or complex estates, reasons about cost and performance at scale, and mentors others.
+- **X:** Recognized authority; defines data storage architecture across the organization.
+- **T:** Ensures the team makes sound storage decisions and aligns architecture with cost and performance goals.
+
+### E1-70 · Data quality and governance
+
+**Description:** Encompasses knowledge of what makes data fit to use — completeness, accuracy, timeliness, consistency, and uniqueness — together with the governance apparatus that sustains it: ownership, lineage, cataloguing, and definitions that hold across the organization.
+
+- **N:** Understands that data can be wrong and reports obvious problems under guidance.
+- **J:** Understands the main quality dimensions and applies given governance rules with supervision.
+- **R:** Independently assesses data quality for typical work, understands lineage, and applies governance requirements.
+- **S:** Establishes quality and governance practice for complex data estates and mentors others.
+- **X:** Recognized authority; defines data governance and quality standards across the organization.
+- **T:** Ensures the team treats quality and governance as routine rather than exceptional.
+
+### E1-71 · Statistical foundations for analysis
+
+**Description:** Encompasses knowledge of the statistical concepts underpinning sound analysis — distributions, central tendency and dispersion, sampling, variability, significance, and the distinction between correlation and causation — sufficient to avoid drawing conclusions the data cannot support.
+
+- **N:** Knows basic descriptive measures and applies them under guidance.
+- **J:** Understands common descriptive statistics and applies them to straightforward analysis with supervision.
+- **R:** Independently applies appropriate statistical reasoning to typical analysis and recognizes when conclusions are unsupported.
+- **S:** Applies advanced statistical reasoning to complex analysis, identifies subtle inferential errors, and mentors others.
+- **X:** Recognized authority; sets standards for statistical rigour across the organization.
+- **T:** Ensures the team reasons soundly from data and aligns analytical rigour with decision stakes.
+
+### E1-72 · Machine learning concepts and model types
+
+**Description:** Encompasses understanding of machine learning approaches — supervised and unsupervised learning, common algorithm families, training and validation, overfitting, and feature engineering — sufficient to know what modelling can and cannot deliver and when to involve a specialist. *(Hands-on model development belongs to the ML specialization.)*
+
+- **N:** Aware that machine learning exists and can describe common applications under guidance.
+- **J:** Understands basic model types and the training process with supervision.
+- **R:** Independently reasons about whether a problem suits a modelling approach and understands the main limitations.
+- **S:** Reasons about complex modelling problems, evaluates proposed approaches critically, and mentors others.
+- **X:** Recognized authority; advises the organization on machine learning applicability and strategy.
+- **T:** Ensures the team applies modelling appropriately and aligns expectations with what modelling can deliver.
+
+### E1-73 · Data visualisation and communication principles
+
+**Description:** Encompasses knowledge of how to represent data visually so it informs rather than misleads — chart selection, visual encoding, scale and axis choices, and the common distortions that make a chart persuasive but wrong.
+
+- **N:** Knows basic chart types and uses given templates under guidance.
+- **J:** Selects appropriate charts for straightforward data with supervision.
+- **R:** Independently selects and constructs visualisations that represent typical data accurately and legibly.
+- **S:** Designs visualisation for complex or easily-misread data, avoids distortion deliberately, and mentors others.
+- **X:** Recognized authority; sets visualisation standards across the organization.
+- **T:** Ensures the team's visual output informs accurately and aligns with organizational standards.
+
+### E1-74 · Data privacy, protection and regulatory compliance
+
+**Description:** Encompasses knowledge of the obligations governing personal and sensitive data — lawful basis for processing, minimisation, retention limits, anonymisation and pseudonymisation, and subject rights — as they apply to analytical work in a public-sector context.
+
+- **N:** Aware that data protection rules exist and follows given handling rules under guidance.
+- **J:** Knows the main obligations and applies them to straightforward work with supervision.
+- **R:** Independently identifies what protection requirements apply to typical work and handles data accordingly.
+- **S:** Reasons about protection obligations in complex or sensitive situations, designs compliant approaches, and mentors others.
+- **X:** Recognized authority; advises the organization on data protection in analytical work.
+- **T:** Ensures the team handles data lawfully and aligns practice with regulatory obligations.
+
+### E1-75 · Business metrics and measurement design
+
+**Description:** Encompasses knowledge of how to define measures that mean something — operational definitions that survive scrutiny, leading versus lagging indicators, the gap between what is measurable and what matters, and the ways metrics distort behaviour once people are managed by them.
+
+- **N:** Understands that metrics have definitions and uses given ones under guidance.
+- **J:** Understands common business metrics and applies existing definitions with supervision.
+- **R:** Independently defines sound metrics for typical needs with unambiguous operational definitions.
+- **S:** Designs measurement for complex or contested areas, anticipates distortion, and mentors others.
+- **X:** Recognized authority; shapes how the organization defines and governs its measures.
+- **T:** Ensures the team defines metrics rigorously and aligns measurement with organizational objectives.
+
+## E2 — Applied skills
+
+### E2-84 · Writing and optimising analytical queries
+
+**Description:** Encompasses the applied skill of retrieving and aggregating data through queries — joins, aggregation, window functions, subqueries — and writing them so they are correct, readable, and perform acceptably against production volumes.
+
+- **N:** Writes simple queries from examples under guidance.
+- **J:** Writes straightforward queries with supervision, though correctness and efficiency need checking.
+- **R:** Independently writes correct, readable, reasonably efficient queries for typical analytical needs.
+- **S:** Writes and optimises complex queries against large volumes, diagnoses performance problems, and mentors others.
+- **X:** Recognized authority on analytical querying; sets query standards across the organization.
+- **T:** Ensures the team writes correct, efficient queries and aligns practice with performance expectations.
+
+### E2-85 · Data acquisition and source system integration
+
+**Description:** Encompasses the applied skill of obtaining data from its sources — operational databases, APIs, files, and external registers — understanding source semantics well enough to extract correctly, and handling access, format, and reliability constraints.
+
+- **N:** Extracts data from a prepared source under guidance.
+- **J:** Acquires data from straightforward sources with supervision.
+- **R:** Independently acquires data from typical sources, understands source semantics, and handles access and format issues.
+- **S:** Integrates complex, unreliable, or poorly-documented sources, and mentors others in source interpretation.
+- **X:** Recognized authority; defines acquisition and integration standards across the organization.
+- **T:** Ensures the team acquires data correctly and aligns integration with organizational architecture.
+
+### E2-86 · Data cleaning, transformation and preparation
+
+**Description:** Encompasses the applied skill of turning raw data into analysable form — handling missing values, duplicates, inconsistent encodings, and outliers — making the decisions explicit and reproducible rather than silently discarding what does not fit.
+
+- **N:** Applies prescribed cleaning steps under guidance.
+- **J:** Cleans straightforward data with supervision, though decisions may be undocumented.
+- **R:** Independently prepares typical datasets, handles anomalies deliberately, and documents the decisions taken.
+- **S:** Prepares complex or badly-formed data, resolves difficult anomaly decisions defensibly, and mentors others.
+- **X:** Recognized authority; sets data preparation standards across the organization.
+- **T:** Ensures the team prepares data reproducibly and aligns practice with quality expectations.
+
+### E2-87 · Exploratory data analysis
+
+**Description:** Encompasses the applied skill of investigating a dataset to understand its shape and content before drawing conclusions — profiling distributions, checking assumptions, finding patterns and anomalies, and forming questions the data can actually answer.
+
+- **N:** Runs prescribed summaries and reports what they show under guidance.
+- **J:** Explores straightforward datasets with supervision, though investigation is shallow.
+- **R:** Independently explores typical datasets systematically, checks assumptions, and identifies patterns worth pursuing.
+- **S:** Explores complex or unfamiliar data incisively, forms sharp questions, and mentors others in investigative technique.
+- **X:** Recognized authority; shapes exploratory practice across the organization.
+- **T:** Ensures the team investigates before concluding and aligns exploration with analytical needs.
+
+### E2-88 · Building and maintaining data pipelines
+
+**Description:** Encompasses the applied skill of implementing and operating pipelines that move and transform data — writing transformation logic, handling incremental loads and failures, and keeping pipelines running correctly once in production. *(Advanced orchestration at scale belongs to the ENGINEERING specialization.)*
+
+- **N:** Runs and monitors existing pipelines under guidance.
+- **J:** Makes straightforward changes to existing pipelines with supervision.
+- **R:** Independently builds and maintains pipelines for typical needs, handling incremental loads and failure recovery.
+- **S:** Builds complex or high-volume pipelines, designs for reliability and recovery, and mentors others.
+- **X:** Recognized authority; defines pipeline engineering standards across the organization.
+- **T:** Ensures the team's pipelines are reliable and aligns engineering practice with operational requirements.
+
+### E2-89 · Data validation and quality assurance
+
+**Description:** Encompasses the applied skill of verifying that data is correct before it is relied upon — reconciling against sources, testing transformations, checking for silent failures such as row loss or duplication, and building checks that catch problems before consumers do.
+
+- **N:** Performs prescribed checks and reports discrepancies under guidance.
+- **J:** Validates straightforward outputs with supervision, though checks may be superficial.
+- **R:** Independently validates typical work, reconciles against sources, and catches silent failures.
+- **S:** Designs validation for complex pipelines and analyses, builds automated checks, and mentors others.
+- **X:** Recognized authority; defines data validation standards across the organization.
+- **T:** Ensures the team validates before publishing and aligns validation rigour with the stakes of the output.
+
+### E2-90 · Creating reports, dashboards and visualisations
+
+**Description:** Encompasses the applied skill of building the artifacts through which people consume data — reports, dashboards, and visualisations that answer the questions the audience actually has, at a level of detail they can act on, and that remain correct as underlying data changes.
+
+- **N:** Builds simple reports from templates under guidance.
+- **J:** Builds straightforward reports and dashboards with supervision.
+- **R:** Independently builds clear, accurate reports and dashboards for typical needs, suited to their audience.
+- **S:** Designs reporting for complex or multi-audience needs, ensures durability as data evolves, and mentors others.
+- **X:** Recognized authority; sets reporting and dashboard standards across the organization.
+- **T:** Ensures the team's reporting is accurate and useful and aligns it with stakeholder needs.
+
+### E2-91 · Communicating analytical findings
+
+**Description:** Encompasses the applied skill of conveying what analysis shows to people who will act on it — leading with the finding rather than the method, conveying uncertainty honestly, and resisting the pull to overstate a result because a clear answer is wanted.
+
+- **N:** Reports what the analysis produced under guidance, without interpretation.
+- **J:** Explains straightforward findings to familiar audiences with supervision.
+- **R:** Independently communicates typical findings clearly to non-technical audiences, including limitations and uncertainty.
+- **S:** Communicates complex or unwelcome findings to senior audiences, holds the line on what the data supports, and mentors others.
+- **X:** Recognized authority; represents analysis in the highest-stakes settings and shapes how findings are communicated.
+- **T:** Ensures the team communicates findings honestly and aligns analytical communication with decision needs.
+
+## E3 — Practical experience *(discipline-specific)*
+
+### E3-34 · Applying accumulated data and analytics experience
+
+**Description:** Encompasses the practical judgment that accumulates from working with real data over time — recognising where datasets typically mislead, anticipating which analyses will prove inconclusive, and knowing which questions the available data can genuinely settle.
+
+- **N:** Has limited experience and applies lessons from training or a single project under guidance.
+- **J:** Draws on experience from a few projects for familiar problems but relies on guidance when unfamiliar.
+- **R:** Applies experience across a range of work to make sound analytical decisions independently and avoid known pitfalls.
+- **S:** Draws on deep, varied experience to navigate ambiguous problems, anticipates dead ends early, and mentors others with concrete examples.
+- **X:** Recognized for exceptional analytical judgment; advises across the organization and codifies experience into reusable guidance.
+- **T:** Applies and shares accumulated experience to direct the team's analytical effort.
+
+### E3-35 · Knowledge and use of data and analytics tools
+
+**Description:** Encompasses the practical ability to use the data toolchain the organization relies on — query and transformation tools, analysis environments, BI and visualisation platforms, and version control for analytical work — efficiently and to the standard the team expects.
+
+- **N:** Uses basic tool features for simple tasks under guidance.
+- **J:** Uses the main features on straightforward work with supervision, though not always efficiently.
+- **R:** Independently uses the toolchain effectively for typical work, including version control for analytical assets.
+- **S:** Exploits advanced capabilities, establishes efficient working practices, and mentors others.
+- **X:** Recognized authority; evaluates and introduces tools and defines toolchain standards across the organization.
+- **T:** Ensures consistent, effective tool use across the team.
+
+### E3-36 · Judging data reliability and fitness for purpose
+
+**Description:** Encompasses the practical ability to decide whether a dataset can bear the weight of the decision being placed on it — recognising when coverage is too thin, definitions have shifted, or collection is biased, and being willing to say the data will not answer the question rather than producing a confident-looking result anyway.
+
+- **N:** Takes data at face value and relies on others to judge its reliability.
+- **J:** Notices obvious data problems with supervision but tends to proceed regardless.
+- **R:** Independently assesses whether typical datasets are fit for the intended purpose and raises limitations before analysis proceeds.
+- **S:** Judges fitness for complex or high-stakes questions, recognizes subtle bias and definitional drift, and mentors others.
+- **X:** Recognized authority; called on to adjudicate whether data can support significant decisions.
+- **T:** Ensures the team assesses fitness before analysing and supports members in declining unsupportable requests.
+
+## I1 — Processes
+
+### I1-14 · Adhering to the internal data and analytics process
+
+**Description:** Encompasses the commitment and ability to follow the organization's internal process for data and analytical work — request intake, review points, publication and access approval, and the analyst's role within the wider delivery process.
+
+- **N:** Follows the main process steps with guidance and reminders.
+- **J:** Follows the process on routine work with occasional correction.
+- **R:** Independently adheres to the full process for typical work.
+- **S:** Applies the process rigorously on complex work, identifies gaps, and mentors others.
+- **X:** Shapes and improves the data and analytics process across the organization.
+- **T:** Ensures the team adheres consistently and aligns process use with organizational standards.
+
+### I1-15 · Participating in data and analysis review
+
+**Description:** Encompasses the discipline of subjecting analytical work to scrutiny before it is published — presenting method and assumptions for review, reviewing others' logic and queries constructively, and treating review as a safeguard against confidently wrong output rather than a formality.
+
+- **N:** Attends reviews and observes under guidance.
+- **J:** Submits straightforward work for review and gives basic feedback with supervision.
+- **R:** Independently submits work for review and reviews others' analysis constructively, checking method as well as results.
+- **S:** Reviews complex analysis incisively, catches subtle methodological errors, and mentors others in effective review.
+- **X:** Shapes analytical review practice across the organization.
+- **T:** Ensures the team reviews before publishing and aligns review rigour with the stakes of the output.
+
+### I1-16 · Adhering to data documentation and lineage standards
+
+**Description:** Encompasses the commitment to follow the organization's standards for documenting data assets and analyses — definitions, transformation logic, lineage from source to output, and assumptions — so that work is reproducible, auditable, and intelligible to someone else later.
+
+- **N:** Follows basic documentation standards with guidance and reminders.
+- **J:** Documents routine work with occasional correction, though lineage may be incomplete.
+- **R:** Independently and consistently documents typical work, including definitions, assumptions, and lineage.
+- **S:** Establishes documentation practice for complex work, ensures reproducibility, and mentors others.
+- **X:** Defines data documentation and lineage standards across the organization.
+- **T:** Ensures the team documents to standard and aligns documentation with governance and audit requirements.
+
+---
+
+**DA baseline complete** — E1 (9) · E2 (8) · E3 (3) · I1 (3) = **23 family-specific competencies**, plus the shared canonical set. Specializations ENGINEERING / ANALYTICS / ML / RESEARCH still to build.

@@ -288,9 +288,58 @@ the cap bounds how long an appraisal form can get, and 30 competencies × 6 anch
 
 ---
 
-## Increment 5 — `[QE specializations, or DA / IO / MC / PD, as built]`
+## Increment 5 — DA family (Data & Analytics)
 
-*Reserved.*
+**Date:** 28 August 2026
+**Implemented:** competence **v3.28.0**
+**Status:** ✅ **DA baseline complete and implemented** — 23 family-specific competencies. Specializations (ENGINEERING / ANALYTICS / ML / RESEARCH) still to build, and not required for DA to go live.
+**Baseline note:** Increments 1–4 were already implemented when this landed (dictionary at 186).
+
+### 5a. Added — DA baseline (23)
+
+| Subcategory | Codes | Count |
+|---|---|---|
+| E1 | E1-67 … E1-75 | 9 |
+| E2 | E2-84 … E2-91 | 8 |
+| E3 | E3-34 … E3-36 | 3 |
+| I1 | I1-14 … I1-16 | 3 |
+
+Dictionary 186 → **209**.
+
+### 5b. Scoping decisions
+
+- **Baseline is the common core across four dissimilar specializations.** Advanced pipeline orchestration (ENGINEERING), inferential statistics and experimental design (RESEARCH), and model development and deployment (ML) are deliberately held back for the specialization sets. E1 carries the concepts everyone should hold; the doing lives in specializations. Same pattern as QE's automation split.
+- **Boundary with `SE.AI_ENGINEERING` resolved:** DA owns model *development* (training, evaluation, deployment); SE.AI_ENGINEERING owns building on *existing* models. E1-72 provides DA's conceptual grounding; hands-on model work belongs to the ML specialization.
+- **Boundary with `SE.DATABASE_ARCHITECTURE`:** E1-67 is dimensional/analytical modelling; E2-73 is transactional OLTP schema design. Different disciplines despite shared vocabulary.
+
+### 5c. Archetypes
+
+Assigned in `competency-relevancy-model.md` under *Assignments — Increment 5 (DA family)*: A ×4 · B ×8 · C ×3 · D ×1 · E ×7. Two on **C** by the established obligation principle — **E1-74** (data privacy and regulatory compliance) and **E1-70** (data quality and governance) — consistent with accessibility (E1-63, E2-72) and AI safety (E2-82).
+
+### 5d. Config impact
+
+| File | Action | Hand-edited? |
+|---|---|---|
+| `config.competencies.json` | **+23** entries (E1-67…E1-75, E2-84…E2-91, E3-34…E3-36, I1-14…I1-16) → 209 total | Yes (entries); `relevancyArchetype` stamped by the generator |
+| `competence-labels.json` | **+23 × 8 strings × 2 languages** (368) | Yes |
+| `config.role-family-competencies.json` | DA pool 36 → **59** (23 family-specific + 36 shared). No other family's pool changes — DA adds nothing shared. | **No — generated** |
+| `config.relevancy-archetypes.json` | Curves unchanged; regenerated in place | **No — generated** |
+| `config.active-competency-sets.json` | **Added `DA` baseline** for `2026-H2` (23 codes), satisfying nine-subcategory floor coverage within the cap of 32. The four DA specializations are left **absent** rather than empty. | Yes |
+| `config.role-families.json` | **No change** — DA and its four specializations were already defined | — |
+| `competency-master-index.md` | Added the DA section; totals 186 → 209; next free codes advanced; DA removed from the unpopulated list | Yes |
+| `competency-relevancy-model.md` | Added *Assignments — Increment 5 (DA family)* — the section that performs the pool attribution | Yes — the generator's **source** |
+
+### 5e. Verification after implementation
+
+- ✅ Generator reports `209 / 209` assigned; DA pool = 59.
+- ✅ DA baseline satisfies floor coverage across all nine subcategories, 23 of the cap of 32.
+- ✅ Content-integrity test passes: every competency carries non-empty `en` and `bg` name, description and all six anchors.
+- ✅ Purely additive — no code dropped or renumbered, so **no evaluation data migration**.
+- ✅ The seeded cycle derives `excludedFamilies` from which families carry competencies, so DA is now automatically included in `2026-H2` and participates in lock validation.
+
+### 5f. Documentation correction
+
+The master index's *Outstanding* row claimed 78 competencies were untranslated. That was stale — Bulgarian had in fact been kept current through Increment 4. The row now records translation as complete and names the test that enforces it.
 
 ---
 

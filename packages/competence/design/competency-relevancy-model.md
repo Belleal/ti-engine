@@ -340,23 +340,78 @@ management track — the same reasoning as the architecture specializations.
 
 **Why E2-82 is C, not F.** Safety weighted as steady-high across all levels rather than rising with seniority, on the same principle applied to accessibility (E1-63, E2-72). A junior shipping an unguarded system is a governance failure, not a developmental gap. Weighting it as C states that in the scoring rather than leaving it to be inferred.
 
+# Assignments — Increment 5 (DA family)
+
+## Assignments — DA family-specific
+
+*Data & Analytics, 23 competencies (Increment 5). Listed as rows rather than prose so the generator sees them:
+an assignment stated only in prose is invisible to it, and an unassigned dictionary code aborts the build.*
+
+**E1 — Theoretical knowledge**
+
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E1-67 | Data modelling for analytics | B | design judgment grows with level |
+| E1-68 | Data pipeline and integration concepts | A | foundational |
+| E1-69 | Data storage and warehouse architecture | B | |
+| E1-70 | Data quality and governance | **C** | applies at every level — see note |
+| E1-71 | Statistical foundations for analysis | A | foundational to the discipline |
+| E1-72 | Machine learning concepts and model types | B | |
+| E1-73 | Data visualisation and communication principles | A | foundational |
+| E1-74 | Data privacy, protection and regulatory compliance | **C** | regulatory obligation — see note |
+| E1-75 | Business metrics and measurement design | B | |
+
+**E2 — Applied skills**
+
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E2-84 | Writing and optimising analytical queries | E | |
+| E2-85 | Data acquisition and source system integration | E | |
+| E2-86 | Data cleaning, transformation and preparation | E | |
+| E2-87 | Exploratory data analysis | E | |
+| E2-88 | Building and maintaining data pipelines | E | |
+| E2-89 | Data validation and quality assurance | E | |
+| E2-90 | Creating reports, dashboards and visualisations | E | |
+| E2-91 | Communicating analytical findings | B | influence over decisions grows sharply |
+
+**E3 & I1**
+
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E3-34 | Applying accumulated data and analytics experience | B | experiential, rises by definition |
+| E3-35 | Knowledge and use of data and analytics tools | A | daily use at every level |
+| E3-36 | Judging data reliability and fitness for purpose | B | judgment competency |
+| I1-14 | Adhering to the internal data and analytics process | C | |
+| I1-15 | Participating in data and analysis review | B | |
+| I1-16 | Adhering to data documentation and lineage standards | D | baseline discipline, checked early |
+
+**E1-74 on C, consistent with prior practice.** Data protection is a legal obligation, not a refinement seniors add
+— the same reasoning applied to accessibility (E1-63, E2-72) and AI safety (E2-82). A junior mishandling personal
+data is a compliance breach, not a developmental gap.
+
+**E1-70 on C likewise.** Data quality is everyone's responsibility at every level; weighting it as rising would
+imply juniors may publish unreliable figures.
+
 ## Distribution check
 
 | Archetype | Count |
 |---|---|
-| A — Foundational-plateau | 23 |
-| B — Rising-with-seniority | 54 |
-| C — Steady-high | 24 |
-| D — Early-emphasis-then-assumed | 7 |
-| E — Mid-weighted | 41 |
+| A — Foundational-plateau | 27 |
+| B — Rising-with-seniority | 62 |
+| C — Steady-high | 27 |
+| D — Early-emphasis-then-assumed | 8 |
+| E — Mid-weighted | 48 |
 | F — Rising, expert-leaning | 28 |
 | G — Rising, manager-leaning | 4 |
 | H — Management-track | 5 |
-| **Total** | **186** |
+| **Total** | **209** |
 
-*186 = 36 shared + 49 SE + 29 BA + 25 PM + 26 QE + 24 XD — each competency counted once. SE now includes
-its four specializations (ARCHITECTURE 4, DATABASE_ARCHITECTURE 5, AI_ENGINEERING 6). Re-derive this table
-mechanically after every increment rather than adjusting it by hand.*
+*209 = 36 shared + 49 SE + 29 BA + 25 PM + 26 QE + 24 XD + 23 DA − 3. SE includes its four specializations
+(ARCHITECTURE 4, DATABASE_ARCHITECTURE 5, AI_ENGINEERING 6). The subtraction is `E2-52`/`E2-53`/`E2-54`, which
+are listed under **both** the SE and BA tables on purpose (see the note above) — 212 assignment rows resolve to
+209 distinct competencies, matching the dictionary exactly. Re-derive this table mechanically after every
+increment rather than adjusting it by hand, and **de-duplicate by code when you do**: counting rows overstates
+F by three.*
 
 *Correction note (QE increment): the previous version of this table read A 14 · B 40 · C 21 · D 5 · E 22 · F 6 · G 5 = 113, which did not match the assignment tables above it on any row and reconciled against a family split that no longer held. The counts here are derived mechanically from the assignment tables and should be re-derived, not hand-adjusted, whenever an increment lands.*
 

@@ -852,6 +852,98 @@
       "E2-83": {
         "en": "Model selection and cost-performance optimisation",
         "bg": "Избор на модел и оптимизация на съотношението цена/производителност"
+      },
+      "E1-67": {
+        "en": "Data modelling for analytics",
+        "bg": "Моделиране на данни за аналитични цели"
+      },
+      "E1-68": {
+        "en": "Data pipeline and integration concepts",
+        "bg": "Концепции за конвейери за данни и интеграция"
+      },
+      "E1-69": {
+        "en": "Data storage and warehouse architecture",
+        "bg": "Архитектура на съхранението и хранилищата за данни"
+      },
+      "E1-70": {
+        "en": "Data quality and governance",
+        "bg": "Качество и управление на данните"
+      },
+      "E1-71": {
+        "en": "Statistical foundations for analysis",
+        "bg": "Статистически основи на анализа"
+      },
+      "E1-72": {
+        "en": "Machine learning concepts and model types",
+        "bg": "Концепции за машинно обучение и видове модели"
+      },
+      "E1-73": {
+        "en": "Data visualisation and communication principles",
+        "bg": "Принципи на визуализацията и представянето на данни"
+      },
+      "E1-74": {
+        "en": "Data privacy, protection and regulatory compliance",
+        "bg": "Поверителност, защита на данните и нормативно съответствие"
+      },
+      "E1-75": {
+        "en": "Business metrics and measurement design",
+        "bg": "Бизнес метрики и проектиране на измерването"
+      },
+      "E2-84": {
+        "en": "Writing and optimising analytical queries",
+        "bg": "Писане и оптимизиране на аналитични заявки"
+      },
+      "E2-85": {
+        "en": "Data acquisition and source system integration",
+        "bg": "Набавяне на данни и интеграция с изходните системи"
+      },
+      "E2-86": {
+        "en": "Data cleaning, transformation and preparation",
+        "bg": "Почистване, трансформиране и подготовка на данни"
+      },
+      "E2-87": {
+        "en": "Exploratory data analysis",
+        "bg": "Проучвателен анализ на данни"
+      },
+      "E2-88": {
+        "en": "Building and maintaining data pipelines",
+        "bg": "Изграждане и поддръжка на конвейери за данни"
+      },
+      "E2-89": {
+        "en": "Data validation and quality assurance",
+        "bg": "Валидиране на данни и осигуряване на качеството"
+      },
+      "E2-90": {
+        "en": "Creating reports, dashboards and visualisations",
+        "bg": "Създаване на отчети, табла и визуализации"
+      },
+      "E2-91": {
+        "en": "Communicating analytical findings",
+        "bg": "Представяне на аналитични резултати"
+      },
+      "E3-34": {
+        "en": "Applying accumulated data and analytics experience",
+        "bg": "Прилагане на натрупания опит в данните и анализа"
+      },
+      "E3-35": {
+        "en": "Knowledge and use of data and analytics tools",
+        "bg": "Познаване и използване на инструментите за данни и анализ"
+      },
+      "E3-36": {
+        "en": "Judging data reliability and fitness for purpose",
+        "bg": "Преценка за надеждността и пригодността на данните за целта"
+      },
+      "I1-14": {
+        "en": "Adhering to the internal data and analytics process",
+        "bg": "Спазване на вътрешния процес за данни и анализ"
+      },
+      "I1-15": {
+        "en": "Participating in data and analysis review",
+        "bg": "Участие в преглед на данни и анализи"
+      },
+      "I1-16": {
+        "en": "Adhering to data documentation and lineage standards",
+        "bg": "Спазване на стандартите за документация и произход на данните"
       }
     },
     "description": {
@@ -1598,6 +1690,98 @@
       "E2-83": {
         "en": "Encompasses the ability to choose models and configurations for a given task — balancing capability against cost, latency, and operational constraint — and to optimise running systems through caching, routing, batching, and right-sizing so that quality is achieved economically.",
         "bg": "Обхваща умението да се избират модели и конфигурации за дадена задача — балансиране на възможностите спрямо цената, латентността и експлоатационните ограничения — и да се оптимизират работещите системи чрез кеширане, маршрутизиране, групиране и правилно оразмеряване, така че качеството да се постига икономично."
+      },
+      "E1-67": {
+        "en": "Encompasses knowledge of how data is modelled for analytical use — dimensional modelling, fact and dimension tables, grain, slowly changing dimensions, and the trade-offs between normalised and denormalised structures when the purpose is analysis rather than transaction processing.",
+        "bg": "Обхваща познанието как данните се моделират за аналитична употреба — димензионално моделиране, таблици с факти и измерения, гранулярност, бавно променящи се измерения и компромисите между нормализирани и денормализирани структури, когато целта е анализ, а не обработка на транзакции."
+      },
+      "E1-68": {
+        "en": "Encompasses understanding of how data moves between systems — extraction, transformation and loading, batch versus streaming, incremental and full loads, idempotency, and the failure modes that make pipelines unreliable.",
+        "bg": "Обхваща разбирането как данните се движат между системите — извличане, трансформиране и зареждане, пакетна спрямо поточна обработка, инкрементални и пълни зареждания, идемпотентност и режимите на отказ, които правят конвейерите ненадеждни."
+      },
+      "E1-69": {
+        "en": "Encompasses knowledge of how analytical data is stored and organised — warehouse, lake, and lakehouse approaches, partitioning and file formats, separation of storage and compute — and the cost and performance consequences of these choices.",
+        "bg": "Обхваща познанието как се съхраняват и организират аналитичните данни — подходите на хранилище (warehouse), езеро от данни (lake) и lakehouse, разделяне на дялове и файлови формати, отделяне на съхранението от изчислението — и последиците на тези избори за цената и производителността."
+      },
+      "E1-70": {
+        "en": "Encompasses knowledge of what makes data fit to use — completeness, accuracy, timeliness, consistency, and uniqueness — together with the governance apparatus that sustains it: ownership, lineage, cataloguing, and definitions that hold across the organization.",
+        "bg": "Обхваща познанието какво прави данните годни за употреба — пълнота, точност, навременност, консистентност и уникалност — заедно с управленския апарат, който ги поддържа: собственост, произход на данните, каталогизиране и дефиниции, които издържат в цялата организация."
+      },
+      "E1-71": {
+        "en": "Encompasses knowledge of the statistical concepts underpinning sound analysis — distributions, central tendency and dispersion, sampling, variability, significance, and the distinction between correlation and causation — sufficient to avoid drawing conclusions the data cannot support.",
+        "bg": "Обхваща познанието на статистическите концепции, върху които стъпва издържаният анализ — разпределения, мерки за централна тенденция и разсейване, извадки, изменчивост, значимост и разликата между корелация и причинност — достатъчно, за да не се правят изводи, които данните не поддържат."
+      },
+      "E1-72": {
+        "en": "Encompasses understanding of machine learning approaches — supervised and unsupervised learning, common algorithm families, training and validation, overfitting, and feature engineering — sufficient to know what modelling can and cannot deliver and when to involve a specialist. *(Hands-on model development belongs to the ML specialization.)*",
+        "bg": "Обхваща разбирането на подходите в машинното обучение — обучение с учител и без учител, често срещани семейства алгоритми, обучение и валидиране, преобучение (overfitting) и извеждане на признаци — достатъчно, за да се знае какво моделирането може и какво не може да даде и кога е нужно участие на специалист. *(Практическата разработка на модели принадлежи към специализацията ML.)*"
+      },
+      "E1-73": {
+        "en": "Encompasses knowledge of how to represent data visually so it informs rather than misleads — chart selection, visual encoding, scale and axis choices, and the common distortions that make a chart persuasive but wrong.",
+        "bg": "Обхваща познанието как данните се представят визуално, така че да информират, а не да заблуждават — избор на графика, визуално кодиране, избор на скали и оси и често срещаните изкривявания, които правят една графика убедителна, но невярна."
+      },
+      "E1-74": {
+        "en": "Encompasses knowledge of the obligations governing personal and sensitive data — lawful basis for processing, minimisation, retention limits, anonymisation and pseudonymisation, and subject rights — as they apply to analytical work in a public-sector context.",
+        "bg": "Обхваща познанието на задълженията, които уреждат личните и чувствителните данни — законово основание за обработване, минимизиране, срокове на съхранение, анонимизиране и псевдонимизиране и правата на субектите на данни — както те се прилагат към аналитичната работа в контекста на публичния сектор."
+      },
+      "E1-75": {
+        "en": "Encompasses knowledge of how to define measures that mean something — operational definitions that survive scrutiny, leading versus lagging indicators, the gap between what is measurable and what matters, and the ways metrics distort behaviour once people are managed by them.",
+        "bg": "Обхваща познанието как се дефинират показатели, които означават нещо — операционни дефиниции, издържащи на проверка, изпреварващи спрямо изоставащи индикатори, разликата между измеримото и същественото, и начините, по които метриките изкривяват поведението, щом хората започнат да бъдат управлявани чрез тях."
+      },
+      "E2-84": {
+        "en": "Encompasses the applied skill of retrieving and aggregating data through queries — joins, aggregation, window functions, subqueries — and writing them so they are correct, readable, and perform acceptably against production volumes.",
+        "bg": "Обхваща приложното умение за извличане и агрегиране на данни чрез заявки — свързвания, агрегиране, прозоречни функции, подзаявки — и за писането им така, че да са коректни, четими и с приемлива производителност спрямо продукционните обеми."
+      },
+      "E2-85": {
+        "en": "Encompasses the applied skill of obtaining data from its sources — operational databases, APIs, files, and external registers — understanding source semantics well enough to extract correctly, and handling access, format, and reliability constraints.",
+        "bg": "Обхваща приложното умение за получаване на данни от техните източници — оперативни бази данни, API, файлове и външни регистри — с разбиране на семантиката на източника, достатъчно за коректно извличане, и със справяне с ограниченията за достъп, формат и надеждност."
+      },
+      "E2-86": {
+        "en": "Encompasses the applied skill of turning raw data into analysable form — handling missing values, duplicates, inconsistent encodings, and outliers — making the decisions explicit and reproducible rather than silently discarding what does not fit.",
+        "bg": "Обхваща приложното умение за превръщане на суровите данни в годна за анализ форма — обработка на липсващи стойности, дубликати, несъвместими кодирания и отклонения — като решенията се правят явни и възпроизводими, вместо мълчаливо да се отхвърля онова, което не се вписва."
+      },
+      "E2-87": {
+        "en": "Encompasses the applied skill of investigating a dataset to understand its shape and content before drawing conclusions — profiling distributions, checking assumptions, finding patterns and anomalies, and forming questions the data can actually answer.",
+        "bg": "Обхваща приложното умение за изследване на набор от данни, за да се разбере неговата форма и съдържание, преди да се правят изводи — профилиране на разпределенията, проверка на допусканията, откриване на закономерности и аномалии и формулиране на въпроси, на които данните действително могат да отговорят."
+      },
+      "E2-88": {
+        "en": "Encompasses the applied skill of implementing and operating pipelines that move and transform data — writing transformation logic, handling incremental loads and failures, and keeping pipelines running correctly once in production. *(Advanced orchestration at scale belongs to the ENGINEERING specialization.)*",
+        "bg": "Обхваща приложното умение за реализиране и експлоатация на конвейери, които движат и трансформират данни — писане на логиката на трансформациите, обработка на инкрементални зареждания и откази и поддържане на конвейерите в коректна работа, след като са в продукция. *(Усъвършенстваната оркестрация в мащаб принадлежи към специализацията ENGINEERING.)*"
+      },
+      "E2-89": {
+        "en": "Encompasses the applied skill of verifying that data is correct before it is relied upon — reconciling against sources, testing transformations, checking for silent failures such as row loss or duplication, and building checks that catch problems before consumers do.",
+        "bg": "Обхваща приложното умение за проверка, че данните са коректни, преди на тях да се разчита — равнение спрямо източниците, тестване на трансформациите, проверка за мълчаливи откази като загуба или дублиране на редове и изграждане на проверки, които улавят проблемите преди потребителите."
+      },
+      "E2-90": {
+        "en": "Encompasses the applied skill of building the artifacts through which people consume data — reports, dashboards, and visualisations that answer the questions the audience actually has, at a level of detail they can act on, and that remain correct as underlying data changes.",
+        "bg": "Обхваща приложното умение за изграждане на артефактите, чрез които хората ползват данните — отчети, табла и визуализации, които отговарят на въпросите, които аудиторията действително има, на ниво на детайлност, позволяващо действие, и които остават коректни, докато данните отдолу се променят."
+      },
+      "E2-91": {
+        "en": "Encompasses the applied skill of conveying what analysis shows to people who will act on it — leading with the finding rather than the method, conveying uncertainty honestly, and resisting the pull to overstate a result because a clear answer is wanted.",
+        "bg": "Обхваща приложното умение да се предаде какво показва анализът на хората, които ще действат по него — като се започва с находката, а не с метода, като неопределеността се предава честно и като се устоява на подтика резултатът да бъде преувеличен, защото се очаква ясен отговор."
+      },
+      "E3-34": {
+        "en": "Encompasses the practical judgment that accumulates from working with real data over time — recognising where datasets typically mislead, anticipating which analyses will prove inconclusive, and knowing which questions the available data can genuinely settle.",
+        "bg": "Обхваща практическата преценка, която се натрупва от работа с реални данни във времето — разпознаване къде наборите от данни обикновено заблуждават, предвиждане кои анализи ще се окажат неубедителни и знанието кои въпроси наличните данни действително могат да решат."
+      },
+      "E3-35": {
+        "en": "Encompasses the practical ability to use the data toolchain the organization relies on — query and transformation tools, analysis environments, BI and visualisation platforms, and version control for analytical work — efficiently and to the standard the team expects.",
+        "bg": "Обхваща практическата способност за използване на инструментариума за данни, на който организацията разчита — инструменти за заявки и трансформации, среди за анализ, BI и платформи за визуализация, и контрол на версиите за аналитичната работа — ефективно и на нивото, което екипът очаква."
+      },
+      "E3-36": {
+        "en": "Encompasses the practical ability to decide whether a dataset can bear the weight of the decision being placed on it — recognising when coverage is too thin, definitions have shifted, or collection is biased, and being willing to say the data will not answer the question rather than producing a confident-looking result anyway.",
+        "bg": "Обхваща практическата способност да се прецени дали един набор от данни може да понесе тежестта на решението, което се стъпва върху него — разпознаване кога покритието е твърде оскъдно, дефинициите са се изместили или събирането е предубедено, и готовността да се каже, че данните няма да отговорят на въпроса, вместо въпреки това да се произведе убедително изглеждащ резултат."
+      },
+      "I1-14": {
+        "en": "Encompasses the commitment and ability to follow the organization's internal process for data and analytical work — request intake, review points, publication and access approval, and the analyst's role within the wider delivery process.",
+        "bg": "Обхваща ангажираността и способността за следване на вътрешния процес на организацията за работа с данни и анализ — приемане на заявки, точки за преглед, публикуване и одобряване на достъпа, и ролята на анализатора в рамките на по-широкия процес на доставяне."
+      },
+      "I1-15": {
+        "en": "Encompasses the discipline of subjecting analytical work to scrutiny before it is published — presenting method and assumptions for review, reviewing others' logic and queries constructively, and treating review as a safeguard against confidently wrong output rather than a formality.",
+        "bg": "Обхваща дисциплината аналитичната работа да бъде подлагана на проверка, преди да бъде публикувана — представяне на метода и допусканията за преглед, конструктивен преглед на чуждата логика и заявки и третиране на прегледа като предпазна мярка срещу убедително грешен резултат, а не като формалност."
+      },
+      "I1-16": {
+        "en": "Encompasses the commitment to follow the organization's standards for documenting data assets and analyses — definitions, transformation logic, lineage from source to output, and assumptions — so that work is reproducible, auditable, and intelligible to someone else later.",
+        "bg": "Обхваща ангажираността за следване на стандартите на организацията за документиране на активите от данни и анализите — дефиниции, логика на трансформациите, произход от източника до резултата и допускания — така че работата да е възпроизводима, одитируема и разбираема за друг човек по-късно."
       }
     },
     "scope": {
@@ -6435,6 +6619,604 @@
         "T": {
           "en": "Ensures the team makes cost-aware model decisions and aligns spend with organizational constraints.",
           "bg": "Осигурява екипът да взема решения за моделите с оглед на разходите и съизмерва разхода с ограниченията на организацията."
+        }
+      },
+      "E1-67": {
+        "N": {
+          "en": "Reads existing analytical models and understands basic table relationships under guidance.",
+          "bg": "Чете съществуващи аналитични модели и разбира базовите връзки между таблиците под ръководство."
+        },
+        "J": {
+          "en": "Understands dimensional concepts and works within an existing model on straightforward tasks with supervision.",
+          "bg": "Разбира димензионалните концепции и работи в рамките на съществуващ модел по несложни задачи с надзор."
+        },
+        "R": {
+          "en": "Independently designs sound analytical models for typical needs, choosing appropriate grain and structure.",
+          "bg": "Самостоятелно проектира издържани аналитични модели за типични нужди, избирайки подходяща гранулярност и структура."
+        },
+        "S": {
+          "en": "Designs complex analytical models across multiple subject areas, resolves difficult grain and conformance questions, and mentors others.",
+          "bg": "Проектира сложни аналитични модели през няколко предметни области, решава трудни въпроси за гранулярност и съгласуваност и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines analytical modelling standards across the organization.",
+          "bg": "Признат авторитет; дефинира стандартите за аналитично моделиране в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team models analytical data soundly and aligns modelling practice with organizational standards.",
+          "bg": "Осигурява издържаното моделиране на аналитични данни от екипа и уеднаквява практиката по моделиране с организационните стандарти."
+        }
+      },
+      "E1-68": {
+        "N": {
+          "en": "Understands that data moves between systems and follows a given process under guidance.",
+          "bg": "Разбира, че данните се движат между системите, и следва зададен процес под ръководство."
+        },
+        "J": {
+          "en": "Understands basic pipeline concepts and works within existing pipelines with supervision.",
+          "bg": "Разбира базовите концепции за конвейери и работи в рамките на съществуващи конвейери с надзор."
+        },
+        "R": {
+          "en": "Independently reasons about pipeline design for typical needs, including load strategy and failure handling.",
+          "bg": "Самостоятелно разсъждава за проектирането на конвейери за типични нужди, включително стратегията на зареждане и обработката на откази."
+        },
+        "S": {
+          "en": "Reasons about complex integration landscapes, anticipates failure and consistency problems, and mentors others.",
+          "bg": "Разсъждава за сложни интеграционни среди, предвижда проблеми с откази и консистентност и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines integration patterns and standards across the organization.",
+          "bg": "Признат авторитет; дефинира интеграционните модели и стандарти в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team designs reliable data movement and aligns integration practice with organizational architecture.",
+          "bg": "Осигурява проектирането на надеждно движение на данни от екипа и уеднаквява интеграционната практика с организационната архитектура."
+        }
+      },
+      "E1-69": {
+        "N": {
+          "en": "Aware that analytical data is stored differently from operational data; works within given structures under guidance.",
+          "bg": "Осведомен е, че аналитичните данни се съхраняват различно от оперативните; работи в рамките на зададени структури под ръководство."
+        },
+        "J": {
+          "en": "Understands the main storage approaches and works within the existing architecture with supervision.",
+          "bg": "Разбира основните подходи за съхранение и работи в рамките на съществуващата архитектура с надзор."
+        },
+        "R": {
+          "en": "Independently makes sound storage and partitioning decisions for typical workloads.",
+          "bg": "Самостоятелно взема издържани решения за съхранение и разделяне на дялове за типични натоварвания."
+        },
+        "S": {
+          "en": "Designs storage architecture for large or complex estates, reasons about cost and performance at scale, and mentors others.",
+          "bg": "Проектира архитектурата на съхранението за големи или сложни среди, разсъждава за цена и производителност в мащаб и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines data storage architecture across the organization.",
+          "bg": "Признат авторитет; дефинира архитектурата на съхранението на данни в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team makes sound storage decisions and aligns architecture with cost and performance goals.",
+          "bg": "Осигурява издържаните решения за съхранение от екипа и уеднаквява архитектурата с целите за цена и производителност."
+        }
+      },
+      "E1-70": {
+        "N": {
+          "en": "Understands that data can be wrong and reports obvious problems under guidance.",
+          "bg": "Разбира, че данните може да са грешни, и докладва очевидни проблеми под ръководство."
+        },
+        "J": {
+          "en": "Understands the main quality dimensions and applies given governance rules with supervision.",
+          "bg": "Разбира основните измерения на качеството и прилага зададени правила за управление с надзор."
+        },
+        "R": {
+          "en": "Independently assesses data quality for typical work, understands lineage, and applies governance requirements.",
+          "bg": "Самостоятелно оценява качеството на данните при типична работа, разбира произхода им и прилага изискванията за управление."
+        },
+        "S": {
+          "en": "Establishes quality and governance practice for complex data estates and mentors others.",
+          "bg": "Установява практика по качество и управление за сложни среди от данни и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines data governance and quality standards across the organization.",
+          "bg": "Признат авторитет; дефинира стандартите за управление и качество на данните в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team treats quality and governance as routine rather than exceptional.",
+          "bg": "Осигурява екипът да третира качеството и управлението като рутина, а не като изключение."
+        }
+      },
+      "E1-71": {
+        "N": {
+          "en": "Knows basic descriptive measures and applies them under guidance.",
+          "bg": "Познава базовите описателни мерки и ги прилага под ръководство."
+        },
+        "J": {
+          "en": "Understands common descriptive statistics and applies them to straightforward analysis with supervision.",
+          "bg": "Разбира често срещаните описателни статистики и ги прилага към несложен анализ с надзор."
+        },
+        "R": {
+          "en": "Independently applies appropriate statistical reasoning to typical analysis and recognizes when conclusions are unsupported.",
+          "bg": "Самостоятелно прилага подходящо статистическо разсъждение към типичен анализ и разпознава кога изводите не са подкрепени."
+        },
+        "S": {
+          "en": "Applies advanced statistical reasoning to complex analysis, identifies subtle inferential errors, and mentors others.",
+          "bg": "Прилага усъвършенствано статистическо разсъждение към сложен анализ, открива фини грешки в изводите и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; sets standards for statistical rigour across the organization.",
+          "bg": "Признат авторитет; задава стандартите за статистическа строгост в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team reasons soundly from data and aligns analytical rigour with decision stakes.",
+          "bg": "Осигурява издържаното разсъждаване от данни в екипа и съизмерва аналитичната строгост със значимостта на решенията."
+        }
+      },
+      "E1-72": {
+        "N": {
+          "en": "Aware that machine learning exists and can describe common applications under guidance.",
+          "bg": "Осведомен е, че машинното обучение съществува, и може да опише често срещани приложения под ръководство."
+        },
+        "J": {
+          "en": "Understands basic model types and the training process with supervision.",
+          "bg": "Разбира базовите видове модели и процеса на обучение с надзор."
+        },
+        "R": {
+          "en": "Independently reasons about whether a problem suits a modelling approach and understands the main limitations.",
+          "bg": "Самостоятелно преценява дали даден проблем е подходящ за моделиране и разбира основните ограничения."
+        },
+        "S": {
+          "en": "Reasons about complex modelling problems, evaluates proposed approaches critically, and mentors others.",
+          "bg": "Разсъждава за сложни проблеми на моделирането, оценява критично предлаганите подходи и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; advises the organization on machine learning applicability and strategy.",
+          "bg": "Признат авторитет; консултира организацията относно приложимостта и стратегията за машинно обучение."
+        },
+        "T": {
+          "en": "Ensures the team applies modelling appropriately and aligns expectations with what modelling can deliver.",
+          "bg": "Осигурява подходящото прилагане на моделирането от екипа и съизмерва очакванията с това, което моделирането може да даде."
+        }
+      },
+      "E1-73": {
+        "N": {
+          "en": "Knows basic chart types and uses given templates under guidance.",
+          "bg": "Познава базовите видове графики и използва зададени шаблони под ръководство."
+        },
+        "J": {
+          "en": "Selects appropriate charts for straightforward data with supervision.",
+          "bg": "Избира подходящи графики за несложни данни с надзор."
+        },
+        "R": {
+          "en": "Independently selects and constructs visualisations that represent typical data accurately and legibly.",
+          "bg": "Самостоятелно избира и изгражда визуализации, които представят типични данни точно и четимо."
+        },
+        "S": {
+          "en": "Designs visualisation for complex or easily-misread data, avoids distortion deliberately, and mentors others.",
+          "bg": "Проектира визуализации за сложни или лесно разчитани погрешно данни, съзнателно избягва изкривяванията и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; sets visualisation standards across the organization.",
+          "bg": "Признат авторитет; задава стандартите за визуализация в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team's visual output informs accurately and aligns with organizational standards.",
+          "bg": "Осигурява визуалните резултати на екипа да информират точно и ги уеднаквява с организационните стандарти."
+        }
+      },
+      "E1-74": {
+        "N": {
+          "en": "Aware that data protection rules exist and follows given handling rules under guidance.",
+          "bg": "Осведомен е, че съществуват правила за защита на данните, и следва зададени правила за работа под ръководство."
+        },
+        "J": {
+          "en": "Knows the main obligations and applies them to straightforward work with supervision.",
+          "bg": "Познава основните задължения и ги прилага към несложна работа с надзор."
+        },
+        "R": {
+          "en": "Independently identifies what protection requirements apply to typical work and handles data accordingly.",
+          "bg": "Самостоятелно определя какви изисквания за защита са относими към типична работа и борави с данните съобразно тях."
+        },
+        "S": {
+          "en": "Reasons about protection obligations in complex or sensitive situations, designs compliant approaches, and mentors others.",
+          "bg": "Разсъждава за задълженията по защита в сложни или чувствителни ситуации, проектира съответстващи подходи и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; advises the organization on data protection in analytical work.",
+          "bg": "Признат авторитет; консултира организацията относно защитата на данните в аналитичната работа."
+        },
+        "T": {
+          "en": "Ensures the team handles data lawfully and aligns practice with regulatory obligations.",
+          "bg": "Осигурява законосъобразното боравене с данни от екипа и уеднаквява практиката с нормативните задължения."
+        }
+      },
+      "E1-75": {
+        "N": {
+          "en": "Understands that metrics have definitions and uses given ones under guidance.",
+          "bg": "Разбира, че метриките имат дефиниции, и използва зададени такива под ръководство."
+        },
+        "J": {
+          "en": "Understands common business metrics and applies existing definitions with supervision.",
+          "bg": "Разбира често срещаните бизнес метрики и прилага съществуващи дефиниции с надзор."
+        },
+        "R": {
+          "en": "Independently defines sound metrics for typical needs with unambiguous operational definitions.",
+          "bg": "Самостоятелно дефинира издържани метрики за типични нужди с недвусмислени операционни дефиниции."
+        },
+        "S": {
+          "en": "Designs measurement for complex or contested areas, anticipates distortion, and mentors others.",
+          "bg": "Проектира измерването за сложни или оспорвани области, предвижда изкривяванията и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; shapes how the organization defines and governs its measures.",
+          "bg": "Признат авторитет; оформя начина, по който организацията дефинира и управлява своите показатели."
+        },
+        "T": {
+          "en": "Ensures the team defines metrics rigorously and aligns measurement with organizational objectives.",
+          "bg": "Осигурява прецизното дефиниране на метрики от екипа и уеднаквява измерването с организационните цели."
+        }
+      },
+      "E2-84": {
+        "N": {
+          "en": "Writes simple queries from examples under guidance.",
+          "bg": "Пише прости заявки по примери под ръководство."
+        },
+        "J": {
+          "en": "Writes straightforward queries with supervision, though correctness and efficiency need checking.",
+          "bg": "Пише несложни заявки с надзор, макар коректността и ефективността да се нуждаят от проверка."
+        },
+        "R": {
+          "en": "Independently writes correct, readable, reasonably efficient queries for typical analytical needs.",
+          "bg": "Самостоятелно пише коректни, четими и разумно ефективни заявки за типични аналитични нужди."
+        },
+        "S": {
+          "en": "Writes and optimises complex queries against large volumes, diagnoses performance problems, and mentors others.",
+          "bg": "Пише и оптимизира сложни заявки срещу големи обеми, диагностицира проблеми с производителността и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority on analytical querying; sets query standards across the organization.",
+          "bg": "Признат авторитет по аналитичните заявки; задава стандартите за заявки в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team writes correct, efficient queries and aligns practice with performance expectations.",
+          "bg": "Осигурява писането на коректни и ефективни заявки от екипа и уеднаквява практиката с очакванията за производителност."
+        }
+      },
+      "E2-85": {
+        "N": {
+          "en": "Extracts data from a prepared source under guidance.",
+          "bg": "Извлича данни от подготвен източник под ръководство."
+        },
+        "J": {
+          "en": "Acquires data from straightforward sources with supervision.",
+          "bg": "Набавя данни от несложни източници с надзор."
+        },
+        "R": {
+          "en": "Independently acquires data from typical sources, understands source semantics, and handles access and format issues.",
+          "bg": "Самостоятелно набавя данни от типични източници, разбира семантиката им и се справя с проблеми по достъпа и формата."
+        },
+        "S": {
+          "en": "Integrates complex, unreliable, or poorly-documented sources, and mentors others in source interpretation.",
+          "bg": "Интегрира сложни, ненадеждни или слабо документирани източници и напътства други в тълкуването на източниците."
+        },
+        "X": {
+          "en": "Recognized authority; defines acquisition and integration standards across the organization.",
+          "bg": "Признат авторитет; дефинира стандартите за набавяне и интеграция в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team acquires data correctly and aligns integration with organizational architecture.",
+          "bg": "Осигурява коректното набавяне на данни от екипа и уеднаквява интеграцията с организационната архитектура."
+        }
+      },
+      "E2-86": {
+        "N": {
+          "en": "Applies prescribed cleaning steps under guidance.",
+          "bg": "Прилага предписани стъпки за почистване под ръководство."
+        },
+        "J": {
+          "en": "Cleans straightforward data with supervision, though decisions may be undocumented.",
+          "bg": "Почиства несложни данни с надзор, макар решенията да остават недокументирани."
+        },
+        "R": {
+          "en": "Independently prepares typical datasets, handles anomalies deliberately, and documents the decisions taken.",
+          "bg": "Самостоятелно подготвя типични набори от данни, обработва аномалиите съзнателно и документира взетите решения."
+        },
+        "S": {
+          "en": "Prepares complex or badly-formed data, resolves difficult anomaly decisions defensibly, and mentors others.",
+          "bg": "Подготвя сложни или лошо оформени данни, решава трудни казуси с аномалии обосновано и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; sets data preparation standards across the organization.",
+          "bg": "Признат авторитет; задава стандартите за подготовка на данни в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team prepares data reproducibly and aligns practice with quality expectations.",
+          "bg": "Осигурява възпроизводимата подготовка на данни от екипа и уеднаквява практиката с очакванията за качество."
+        }
+      },
+      "E2-87": {
+        "N": {
+          "en": "Runs prescribed summaries and reports what they show under guidance.",
+          "bg": "Изпълнява предписани обобщения и докладва какво показват под ръководство."
+        },
+        "J": {
+          "en": "Explores straightforward datasets with supervision, though investigation is shallow.",
+          "bg": "Проучва несложни набори от данни с надзор, макар изследването да е повърхностно."
+        },
+        "R": {
+          "en": "Independently explores typical datasets systematically, checks assumptions, and identifies patterns worth pursuing.",
+          "bg": "Самостоятелно проучва типични набори от данни систематично, проверява допусканията и открива закономерности, които си струва да бъдат проследени."
+        },
+        "S": {
+          "en": "Explores complex or unfamiliar data incisively, forms sharp questions, and mentors others in investigative technique.",
+          "bg": "Проучва сложни или непознати данни проницателно, формулира точни въпроси и напътства други в техниката на изследване."
+        },
+        "X": {
+          "en": "Recognized authority; shapes exploratory practice across the organization.",
+          "bg": "Признат авторитет; оформя практиката по проучвателен анализ в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team investigates before concluding and aligns exploration with analytical needs.",
+          "bg": "Осигурява екипът да изследва, преди да заключава, и уеднаквява проучването с аналитичните нужди."
+        }
+      },
+      "E2-88": {
+        "N": {
+          "en": "Runs and monitors existing pipelines under guidance.",
+          "bg": "Изпълнява и наблюдава съществуващи конвейери под ръководство."
+        },
+        "J": {
+          "en": "Makes straightforward changes to existing pipelines with supervision.",
+          "bg": "Прави несложни промени в съществуващи конвейери с надзор."
+        },
+        "R": {
+          "en": "Independently builds and maintains pipelines for typical needs, handling incremental loads and failure recovery.",
+          "bg": "Самостоятелно изгражда и поддържа конвейери за типични нужди, обработвайки инкрементални зареждания и възстановяване след отказ."
+        },
+        "S": {
+          "en": "Builds complex or high-volume pipelines, designs for reliability and recovery, and mentors others.",
+          "bg": "Изгражда сложни или високообемни конвейери, проектира с оглед на надеждността и възстановяването и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines pipeline engineering standards across the organization.",
+          "bg": "Признат авторитет; дефинира стандартите за инженерство на конвейери в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team's pipelines are reliable and aligns engineering practice with operational requirements.",
+          "bg": "Осигурява надеждността на конвейерите на екипа и уеднаквява инженерната практика с експлоатационните изисквания."
+        }
+      },
+      "E2-89": {
+        "N": {
+          "en": "Performs prescribed checks and reports discrepancies under guidance.",
+          "bg": "Извършва предписани проверки и докладва разминаванията под ръководство."
+        },
+        "J": {
+          "en": "Validates straightforward outputs with supervision, though checks may be superficial.",
+          "bg": "Валидира несложни резултати с надзор, макар проверките да са повърхностни."
+        },
+        "R": {
+          "en": "Independently validates typical work, reconciles against sources, and catches silent failures.",
+          "bg": "Самостоятелно валидира типична работа, равнява спрямо източниците и улавя мълчаливите откази."
+        },
+        "S": {
+          "en": "Designs validation for complex pipelines and analyses, builds automated checks, and mentors others.",
+          "bg": "Проектира валидиране за сложни конвейери и анализи, изгражда автоматизирани проверки и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines data validation standards across the organization.",
+          "bg": "Признат авторитет; дефинира стандартите за валидиране на данни в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team validates before publishing and aligns validation rigour with the stakes of the output.",
+          "bg": "Осигурява валидирането преди публикуване от екипа и съизмерва строгостта на валидирането със значимостта на резултата."
+        }
+      },
+      "E2-90": {
+        "N": {
+          "en": "Builds simple reports from templates under guidance.",
+          "bg": "Изгражда прости отчети по шаблони под ръководство."
+        },
+        "J": {
+          "en": "Builds straightforward reports and dashboards with supervision.",
+          "bg": "Изгражда несложни отчети и табла с надзор."
+        },
+        "R": {
+          "en": "Independently builds clear, accurate reports and dashboards for typical needs, suited to their audience.",
+          "bg": "Самостоятелно изгражда ясни и точни отчети и табла за типични нужди, съобразени с аудиторията им."
+        },
+        "S": {
+          "en": "Designs reporting for complex or multi-audience needs, ensures durability as data evolves, and mentors others.",
+          "bg": "Проектира отчетност за сложни или многоаудиторни нужди, осигурява устойчивостта ѝ при развитие на данните и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; sets reporting and dashboard standards across the organization.",
+          "bg": "Признат авторитет; задава стандартите за отчети и табла в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team's reporting is accurate and useful and aligns it with stakeholder needs.",
+          "bg": "Осигурява точността и полезността на отчетността на екипа и я уеднаквява с нуждите на заинтересованите страни."
+        }
+      },
+      "E2-91": {
+        "N": {
+          "en": "Reports what the analysis produced under guidance, without interpretation.",
+          "bg": "Докладва какво е произвел анализът под ръководство, без тълкуване."
+        },
+        "J": {
+          "en": "Explains straightforward findings to familiar audiences with supervision.",
+          "bg": "Обяснява несложни находки на познати аудитории с надзор."
+        },
+        "R": {
+          "en": "Independently communicates typical findings clearly to non-technical audiences, including limitations and uncertainty.",
+          "bg": "Самостоятелно представя типични находки ясно на нетехнически аудитории, включително ограниченията и неопределеността."
+        },
+        "S": {
+          "en": "Communicates complex or unwelcome findings to senior audiences, holds the line on what the data supports, and mentors others.",
+          "bg": "Представя сложни или нежелани находки пред висши аудитории, отстоява какво данните поддържат и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; represents analysis in the highest-stakes settings and shapes how findings are communicated.",
+          "bg": "Признат авторитет; представя анализа в най-отговорните форуми и оформя начина, по който находките се комуникират."
+        },
+        "T": {
+          "en": "Ensures the team communicates findings honestly and aligns analytical communication with decision needs.",
+          "bg": "Осигурява честното представяне на находките от екипа и уеднаквява аналитичната комуникация с нуждите на решенията."
+        }
+      },
+      "E3-34": {
+        "N": {
+          "en": "Has limited experience and applies lessons from training or a single project under guidance.",
+          "bg": "Има ограничен опит и прилага поуки от обучение или от един проект под ръководство."
+        },
+        "J": {
+          "en": "Draws on experience from a few projects for familiar problems but relies on guidance when unfamiliar.",
+          "bg": "Ползва опит от няколко проекта за познати проблеми, но разчита на напътствия при непознати."
+        },
+        "R": {
+          "en": "Applies experience across a range of work to make sound analytical decisions independently and avoid known pitfalls.",
+          "bg": "Прилага опит от разнообразна работа, за да взема самостоятелно издържани аналитични решения и да избягва познатите капани."
+        },
+        "S": {
+          "en": "Draws on deep, varied experience to navigate ambiguous problems, anticipates dead ends early, and mentors others with concrete examples.",
+          "bg": "Ползва задълбочен и разнообразен опит, за да се ориентира в двусмислени проблеми, разпознава задънените улици рано и напътства други с конкретни примери."
+        },
+        "X": {
+          "en": "Recognized for exceptional analytical judgment; advises across the organization and codifies experience into reusable guidance.",
+          "bg": "Признат за изключителна аналитична преценка; консултира в цялата организация и превръща опита в приложими насоки."
+        },
+        "T": {
+          "en": "Applies and shares accumulated experience to direct the team's analytical effort.",
+          "bg": "Прилага и споделя натрупания опит за насочване на аналитичното усилие в екипа."
+        }
+      },
+      "E3-35": {
+        "N": {
+          "en": "Uses basic tool features for simple tasks under guidance.",
+          "bg": "Използва базови функции на инструментите за прости задачи под ръководство."
+        },
+        "J": {
+          "en": "Uses the main features on straightforward work with supervision, though not always efficiently.",
+          "bg": "Използва основните функции при несложна работа с надзор, макар и не винаги ефективно."
+        },
+        "R": {
+          "en": "Independently uses the toolchain effectively for typical work, including version control for analytical assets.",
+          "bg": "Самостоятелно използва инструментариума ефективно при типична работа, включително контрол на версиите за аналитичните активи."
+        },
+        "S": {
+          "en": "Exploits advanced capabilities, establishes efficient working practices, and mentors others.",
+          "bg": "Използва усъвършенствани възможности, установява ефективни работни практики и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; evaluates and introduces tools and defines toolchain standards across the organization.",
+          "bg": "Признат авторитет; оценява и въвежда инструменти и дефинира стандартите за инструментариума в цялата организация."
+        },
+        "T": {
+          "en": "Ensures consistent, effective tool use across the team.",
+          "bg": "Осигурява последователното и ефективно използване на инструментите в екипа."
+        }
+      },
+      "E3-36": {
+        "N": {
+          "en": "Takes data at face value and relies on others to judge its reliability.",
+          "bg": "Приема данните такива, каквито са, и разчита на други да преценят надеждността им."
+        },
+        "J": {
+          "en": "Notices obvious data problems with supervision but tends to proceed regardless.",
+          "bg": "Забелязва очевидни проблеми с данните с надзор, но обикновено продължава въпреки тях."
+        },
+        "R": {
+          "en": "Independently assesses whether typical datasets are fit for the intended purpose and raises limitations before analysis proceeds.",
+          "bg": "Самостоятелно преценява дали типични набори от данни са пригодни за предвидената цел и повдига ограниченията, преди анализът да продължи."
+        },
+        "S": {
+          "en": "Judges fitness for complex or high-stakes questions, recognizes subtle bias and definitional drift, and mentors others.",
+          "bg": "Преценява пригодността при сложни или високорискови въпроси, разпознава фина предубеденост и изместване на дефинициите и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; called on to adjudicate whether data can support significant decisions.",
+          "bg": "Признат авторитет; търсен да отсъди дали данните могат да подкрепят значими решения."
+        },
+        "T": {
+          "en": "Ensures the team assesses fitness before analysing and supports members in declining unsupportable requests.",
+          "bg": "Осигурява екипът да преценява пригодността преди анализ и подкрепя членовете при отказ на неподкрепими заявки."
+        }
+      },
+      "I1-14": {
+        "N": {
+          "en": "Follows the main process steps with guidance and reminders.",
+          "bg": "Следва основните стъпки на процеса с напътствия и напомняния."
+        },
+        "J": {
+          "en": "Follows the process on routine work with occasional correction.",
+          "bg": "Следва процеса при рутинна работа с епизодична корекция."
+        },
+        "R": {
+          "en": "Independently adheres to the full process for typical work.",
+          "bg": "Самостоятелно спазва пълния процес при типична работа."
+        },
+        "S": {
+          "en": "Applies the process rigorously on complex work, identifies gaps, and mentors others.",
+          "bg": "Прилага процеса прецизно при сложна работа, идентифицира пропуски и напътства други."
+        },
+        "X": {
+          "en": "Shapes and improves the data and analytics process across the organization.",
+          "bg": "Оформя и подобрява процеса за данни и анализ в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team adheres consistently and aligns process use with organizational standards.",
+          "bg": "Осигурява последователното спазване от екипа и уеднаквява използването на процеса с организационните стандарти."
+        }
+      },
+      "I1-15": {
+        "N": {
+          "en": "Attends reviews and observes under guidance.",
+          "bg": "Присъства на прегледи и наблюдава под ръководство."
+        },
+        "J": {
+          "en": "Submits straightforward work for review and gives basic feedback with supervision.",
+          "bg": "Подава несложна работа за преглед и дава базова обратна връзка с надзор."
+        },
+        "R": {
+          "en": "Independently submits work for review and reviews others' analysis constructively, checking method as well as results.",
+          "bg": "Самостоятелно подава работа за преглед и преглежда чуждия анализ конструктивно, като проверява метода, а не само резултатите."
+        },
+        "S": {
+          "en": "Reviews complex analysis incisively, catches subtle methodological errors, and mentors others in effective review.",
+          "bg": "Преглежда сложен анализ проницателно, улавя фини методологични грешки и напътства други в ефективния преглед."
+        },
+        "X": {
+          "en": "Shapes analytical review practice across the organization.",
+          "bg": "Оформя практиката по преглед на анализи в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team reviews before publishing and aligns review rigour with the stakes of the output.",
+          "bg": "Осигурява прегледа преди публикуване в екипа и съизмерва строгостта на прегледа със значимостта на резултата."
+        }
+      },
+      "I1-16": {
+        "N": {
+          "en": "Follows basic documentation standards with guidance and reminders.",
+          "bg": "Следва базови стандарти за документация с напътствия и напомняния."
+        },
+        "J": {
+          "en": "Documents routine work with occasional correction, though lineage may be incomplete.",
+          "bg": "Документира рутинна работа с епизодична корекция, макар произходът да остава непълен."
+        },
+        "R": {
+          "en": "Independently and consistently documents typical work, including definitions, assumptions, and lineage.",
+          "bg": "Самостоятелно и последователно документира типична работа, включително дефиниции, допускания и произход."
+        },
+        "S": {
+          "en": "Establishes documentation practice for complex work, ensures reproducibility, and mentors others.",
+          "bg": "Установява практика по документиране за сложна работа, осигурява възпроизводимост и напътства други."
+        },
+        "X": {
+          "en": "Defines data documentation and lineage standards across the organization.",
+          "bg": "Дефинира стандартите за документация и произход на данните в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team documents to standard and aligns documentation with governance and audit requirements.",
+          "bg": "Осигурява документирането според стандарта от екипа и уеднаквява документацията с изискванията за управление и одит."
         }
       }
     }

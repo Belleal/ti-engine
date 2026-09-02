@@ -2,7 +2,7 @@
 
 Authoritative code → name → applicability reference. Full descriptions and stage-level anchors live in `competency-definitions-final.md`; Bulgarian in `competency-bg-translations.md`; archetypes in `competency-relevancy-model.md`; deltas in `competency-change-log.md`.
 
-**Reflects Increments 1–4** (QE · architecture · management set · T2 · XD · SE specializations). Regenerated from the definitions file, not reconstructed from memory.
+**Reflects Increments 1–5** (QE · architecture · management set · T2 · XD · SE specializations · DA). Regenerated from the definitions file, not reconstructed from memory.
 
 ---
 
@@ -13,7 +13,7 @@ Authoritative code → name → applicability reference. Full descriptions and s
 - **Gaps are intentional.** Dropped or merged competencies leave their numbers vacant. New codes continue above all previously-used numbers, including retired ones.
 - **Applicability is not encoded in the code.** It lives in `config.role-family-competencies.json` (per-family pool), `config.relevancy-archetypes.json` together with each competency's `relevancyArchetype` pointer (weights), and `config.active-competency-sets.json` (per-cycle selection).
 
-**Next free codes:** `E1-67` · `E2-84` · `E3-34` · `I1-14` · `I2-14` · `I3-4` · `C1-9` · `C2-8` · `C3-10`
+**Next free codes:** `E1-76` · `E2-92` · `E3-37` · `I1-17` · `I2-14` · `I3-4` · `C1-9` · `C2-8` · `C3-10`
 
 ## Stage-levels (13 sub-levels)
 
@@ -43,11 +43,12 @@ A competency is **shared** when its meaning is identical across families, even w
 | BA.SOLUTION_ARCHITECTURE spec. | — | 5 | — | — | — | — | — | — | — | **5** |
 | SE.DATABASE_ARCHITECTURE spec. | — | 5 | — | — | — | — | — | — | — | **5** |
 | SE.AI_ENGINEERING spec. | — | 6 | — | — | — | — | — | — | — | **6** |
-| **Distinct total** | | | | | | | | | | **186** |
+| DA family-specific | 9 | 8 | 3 | 3 | — | — | — | — | — | **23** |
+| **Distinct total** | | | | | | | | | | **209** |
 
 *Shared totals include the three cross-cutting architecture competencies (E2-52/53/54) and the five management competencies (C2-7, C3-8, C3-9, I2-12, I2-13).*
 
-**Families defined but not yet populated:** DA · IO · MC · PD.
+**Families defined but not yet populated:** IO · MC · PD.
 
 ---
 
@@ -162,6 +163,26 @@ A competency is **shared** when its meaning is identical across families, even w
 
 ---
 
+## DA — Data & Analytics (23)
+
+**E1** — E1-67 Data modelling for analytics · E1-68 Data pipeline and integration concepts · E1-69 Data storage and warehouse architecture · E1-70 Data quality and governance · E1-71 Statistical foundations for analysis · E1-72 Machine learning concepts and model types · E1-73 Data visualisation and communication principles · E1-74 Data privacy, protection and regulatory compliance · E1-75 Business metrics and measurement design
+
+**E2** — E2-84 Writing and optimising analytical queries · E2-85 Data acquisition and source system integration · E2-86 Data cleaning, transformation and preparation · E2-87 Exploratory data analysis · E2-88 Building and maintaining data pipelines · E2-89 Data validation and quality assurance · E2-90 Creating reports, dashboards and visualisations · E2-91 Communicating analytical findings
+
+**E3** — E3-34 Applying accumulated data and analytics experience · E3-35 Knowledge and use of data and analytics tools · E3-36 Judging data reliability and fitness for purpose
+
+**I1** — I1-14 Adhering to the internal data and analytics process · I1-15 Participating in data and analysis review · I1-16 Adhering to data documentation and lineage standards
+
+*Baseline is the common core across four dissimilar specializations; depth specific to one — advanced orchestration (ENGINEERING), inferential statistics and experimental design (RESEARCH), model development (ML) — is held for the specialization sets.*
+
+**Boundaries:** DA owns model *development*; `SE.AI_ENGINEERING` owns building on *existing* models. E1-67 is dimensional/analytical modelling; `SE.DATABASE_ARCHITECTURE` E2-73 is transactional schema design.
+
+### Specializations
+
+`ENGINEERING` · `ANALYTICS` · `ML` · `RESEARCH` — defined, no content
+
+---
+
 ## Retired codes
 
 Intentionally vacant. Content dropped, merged, or moved.
@@ -180,9 +201,8 @@ Intentionally vacant. Content dropped, merged, or moved.
 
 | Item | Status |
 |---|---|
-| Bulgarian translations | **78 competencies untranslated** — QE (26), architecture (12), management (5), XD (24), SE specializations (11) |
-
-| DA · MC · PD · IO families | Not started |
+| Bulgarian translations | **Complete** — all 209 competencies carry `en` and `bg`, enforced by `competency-content-integrity.test.js` |
+| MC · PD · IO families | Not started |
 | Technical Communication (TC) | Family decision pending |
 | Specialization content | Built: SE.ARCHITECTURE, SE.DATABASE_ARCHITECTURE, SE.AI_ENGINEERING, BA.SOLUTION_ARCHITECTURE. None for other specializations. |
 | e-CF mappings | Placeholders only |
