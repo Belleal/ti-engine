@@ -45,11 +45,12 @@ A competency is **shared** when its meaning is identical across families, even w
 | SE.AI_ENGINEERING spec. | — | 6 | — | — | — | — | — | — | — | **6** |
 | DA family-specific | 9 | 8 | 3 | 3 | — | — | — | — | — | **23** |
 | MC family-specific | 9 | 8 | 3 | 3 | — | — | — | — | — | **23** |
-| **Distinct total** | | | | | | | | | | **232** |
+| PD family-specific | 9 | 8 | 3 | 3 | — | — | — | — | — | **23** |
+| **Distinct total** | | | | | | | | | | **255** |
 
 *Shared totals include the three cross-cutting architecture competencies (E2-52/53/54) and the five management competencies (C2-7, C3-8, C3-9, I2-12, I2-13).*
 
-**Families defined but not yet populated:** IO · PD.
+**Families defined but not yet populated:** IO.
 
 ---
 
@@ -206,6 +207,30 @@ A competency is **shared** when its meaning is identical across families, even w
 
 ---
 
+## PD — Product Management (23)
+
+*Eighth populated family and the second non-ICT one. Like MC it drew the shared canonical core without modification and contributed nothing new to it — the second consecutive family to do so, which is now a pattern rather than a single data point.*
+
+**Boundary with BA — the one that matters.** PD owns *what to build and why*: direction, value, prioritisation, and commercial outcome, looking outward to market and customer. BA owns *what precisely and how specified*: elicitation, analysis, requirements, and solution definition, looking inward to delivery. The two overlap at junior level and diverge sharply at senior level, which is why they are separate families rather than one.
+
+**E1** — E1-85 Product strategy and vision · E1-86 Market and competitive analysis · E1-87 Customer and user needs analysis · E1-88 Product lifecycle management · E1-89 Prioritisation frameworks and value assessment · E1-90 Product economics and commercial models · E1-91 Product roadmapping · E1-92 Public-sector product and service context · E1-93 Product metrics and success measurement
+
+**E2** — E2-100 Defining and communicating product direction · E2-101 Conducting market and customer research · E2-102 Building and maintaining product roadmaps · E2-103 Prioritising product work and managing the backlog · E2-104 Building business cases and justifying investment · E2-105 Managing customer and stakeholder relationships · E2-106 Measuring and analysing product performance · E2-107 Planning and executing product launches
+
+**E3** — E3-40 Applying accumulated product management experience · E3-41 Knowledge and use of product management tools · E3-42 Deciding under uncertainty and incomplete information
+
+**I1** — I1-20 Adhering to the internal product management process · I1-21 Participating in product and roadmap review · I1-22 Adhering to product documentation and decision-record standards
+
+**Three adjacencies held apart on purpose.** E1-87 is *market-level* customer value, as against XD's E1-64 (individual user behaviour) and BA's E1-15 (eliciting requirements from named stakeholders). E2-105 is commercial and account relationship ownership, as against BA's E2-24 (analysis collaboration) and PM's E2-30 (project stakeholder engagement). E3-42 is the judgment to commit before the evidence is conclusive — the defining demand of the discipline rather than general decisiveness.
+
+**E1-92 is contextual knowledge, not a compliance obligation** — which is why it carries archetype B while MC's E1-83 carries C. Public value reasoning, policy as a requirement driver and institutional users deepen with seniority; procurement rules and political neutrality do not.
+
+### Specializations
+
+`STRATEGY` · `OWNERSHIP` · `ACCOUNT` · `GROWTH` — defined, no content. *`OWNERSHIP` here is the commercial product-owning role; BA's `PRODUCT_OWNERSHIP` is the tactical, delivery-embedded one. Same job title in the market, different discipline.*
+
+---
+
 ## Retired codes
 
 Intentionally vacant. Content dropped, merged, or moved.
@@ -224,8 +249,8 @@ Intentionally vacant. Content dropped, merged, or moved.
 
 | Item | Status |
 |---|---|
-| Bulgarian translations | **Complete** — all 232 competencies carry `en` and `bg`, enforced by `competency-content-integrity.test.js` |
-| PD · IO families | Not started |
+| Bulgarian translations | **Complete** — all 255 competencies carry `en` and `bg`, enforced by `competency-content-integrity.test.js` |
+| IO family | Not started |
 | Technical Communication (TC) | Family decision pending |
 | Specialization content | Built: SE.ARCHITECTURE, SE.DATABASE_ARCHITECTURE, SE.AI_ENGINEERING, BA.SOLUTION_ARCHITECTURE. None for other specializations. |
 | e-CF mappings | Placeholders only |

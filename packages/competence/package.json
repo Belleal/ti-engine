@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/competence",
-  "version": "3.29.0",
+  "version": "3.30.0",
   "releaseDate": "2026-08-28",
   "description": "Competency-based performance appraisal application, modelling competencies across role family, specialization and stage-level. Built on the ti-engine.",
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",

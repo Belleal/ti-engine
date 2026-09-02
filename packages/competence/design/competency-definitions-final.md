@@ -2602,3 +2602,280 @@ Applying that principle:
 ---
 
 **MC baseline complete** — E1 (9) · E2 (8) · E3 (3) · I1 (3) = **23 family-specific competencies**, plus the shared canonical set. Specializations DIGITAL / BRAND_PR / CONTENT / INTERNAL_COMMS still to build.
+
+---
+
+# PD — Product Management
+
+*Baseline draws on the shared canonical competencies plus the family-specific set below. Specializations (STRATEGY / OWNERSHIP / ACCOUNT / GROWTH) not yet built.*
+
+**Boundary with BA — the important one.** PD owns *what to build and why*: direction, value, prioritisation, and commercial outcome, looking outward to market and customer. BA owns *what precisely and how specified*: elicitation, analysis, requirements, and solution definition, looking inward to delivery. At junior levels the two overlap; at senior levels they diverge sharply, which is why they are separate families rather than one.
+
+**Three adjacent competencies worth distinguishing.** E1-87 concerns *market-level* customer needs and value — distinct from XD's E1-64 (individual user behaviour and experience) and BA's E1-15 (eliciting requirements from stakeholders). E2-105 concerns commercial and account relationship ownership — distinct from BA's E2-24 (analysis collaboration) and PM's E2-30 (project stakeholder engagement).
+
+**Product Ownership exists in both BA and PD.** BA's `PRODUCT_OWNERSHIP` is the tactical, delivery-embedded role: backlog, stories, refinement. PD's `OWNERSHIP` is the commercial one: owning product direction and customer outcomes. Same job title in the market, different discipline.
+
+## E1 — Theoretical knowledge
+
+### E1-85 · Product strategy and vision
+
+**Description:** Encompasses knowledge of what constitutes a product strategy — a defensible view of who the product serves, what problem it solves better than the alternatives, and what the organization will deliberately not do — and of how vision differs from a list of planned features.
+
+- **N:** Understands that products have a direction and works within a given one under guidance.
+- **J:** Understands the product's stated strategy and relates their work to it with supervision.
+- **R:** Independently reasons about product direction for typical decisions and can explain the strategic rationale for choices.
+- **S:** Shapes strategy for complex or contested products, articulates deliberate trade-offs, and mentors others.
+- **X:** Recognized authority; sets product strategy for significant parts of the portfolio.
+- **T:** Ensures the team works to a coherent strategy and aligns product direction with organizational objectives.
+
+### E1-86 · Market and competitive analysis
+
+**Description:** Encompasses knowledge of assessing the environment a product operates in — market size and segments, competitor and alternative offerings, substitution risk, and trends that change what is possible or expected.
+
+- **N:** Aware that alternatives exist and gathers given information under guidance.
+- **J:** Understands the main competitors and market context with supervision.
+- **R:** Independently analyses market and competitive position for typical products and draws usable conclusions.
+- **S:** Analyses complex or shifting markets, anticipates competitive movement, and mentors others.
+- **X:** Recognized authority on market position; advises the organization on competitive strategy.
+- **T:** Ensures the team understands its market context and aligns product decisions with it.
+
+### E1-87 · Customer and user needs analysis
+
+**Description:** Encompasses knowledge of understanding what customers actually need — the problems they are trying to solve, the value they place on solving them, and the difference between what they ask for and what would serve them. *(Market-level customer value; distinct from XD's user-experience research and BA's requirements elicitation.)*
+
+- **N:** Understands that customer needs drive product decisions and works from given inputs under guidance.
+- **J:** Gathers straightforward customer input with supervision but takes stated requests at face value.
+- **R:** Independently identifies underlying needs for typical products, distinguishing request from problem.
+- **S:** Analyses complex or conflicting customer needs across segments, identifies unarticulated needs, and mentors others.
+- **X:** Recognized authority on customer understanding; shapes how the organization identifies value.
+- **T:** Ensures the team decides from real customer understanding rather than assumption or the loudest request.
+
+### E1-88 · Product lifecycle management
+
+**Description:** Encompasses knowledge of how products move from concept through growth and maturity to eventual retirement, what each stage demands of the people managing it, and how investment and expectation should differ across stages.
+
+- **N:** Understands that products have lifecycles and works within the current stage under guidance.
+- **J:** Recognizes lifecycle stage and its implications for straightforward products with supervision.
+- **R:** Independently reasons about lifecycle stage for typical products and adjusts approach accordingly.
+- **S:** Manages products across stage transitions, handles decline and retirement decisions, and mentors others.
+- **X:** Recognized authority; advises on portfolio and lifecycle strategy across the organization.
+- **T:** Ensures the team manages products appropriately for their stage.
+
+### E1-89 · Prioritisation frameworks and value assessment
+
+**Description:** Encompasses knowledge of deciding what to build next — assessing value against effort and risk, understanding opportunity cost, applying structured prioritisation methods, and recognising that a priority order which offends nobody is usually not a priority order.
+
+- **N:** Understands that work is prioritised and follows a given order under guidance.
+- **J:** Applies simple prioritisation to straightforward decisions with supervision.
+- **R:** Independently prioritises typical product work using structured assessment and defends the resulting order.
+- **S:** Prioritises across complex or competing demands, makes and defends unpopular calls, and mentors others.
+- **X:** Recognized authority; defines prioritisation practice across the organization.
+- **T:** Ensures the team prioritises rigorously and aligns priority with organizational value.
+
+### E1-90 · Product economics and commercial models
+
+**Description:** Encompasses knowledge of the financial dimension of a product — cost structures, pricing and revenue or cost-recovery models, investment cases, and return — including, in a public-sector setting, how public value and budgetary justification substitute for commercial return.
+
+- **N:** Aware that products have costs and works with given figures under guidance.
+- **J:** Understands basic cost and value concepts for straightforward products with supervision.
+- **R:** Independently reasons about the economics of typical products and constructs sound justification.
+- **S:** Reasons about complex commercial or funding models, builds robust investment cases, and mentors others.
+- **X:** Recognized authority; advises the organization on product economics and investment strategy.
+- **T:** Ensures the team reasons about cost and value and aligns product decisions with financial reality.
+
+### E1-91 · Product roadmapping
+
+**Description:** Encompasses knowledge of expressing product direction over time — horizons and confidence levels, outcome-based versus feature-based roadmaps, and communicating intent honestly under uncertainty rather than presenting speculation as commitment.
+
+- **N:** Understands what a roadmap is and works to a given one under guidance.
+- **J:** Contributes to roadmap content for straightforward products with supervision.
+- **R:** Independently constructs roadmaps for typical products that convey direction without overstating certainty.
+- **S:** Constructs roadmaps for complex or multi-product areas, manages competing expectations, and mentors others.
+- **X:** Recognized authority; sets roadmapping standards and owns the most significant roadmaps.
+- **T:** Ensures the team communicates direction honestly and aligns roadmaps with organizational planning.
+
+### E1-92 · Public-sector product and service context
+
+**Description:** Encompasses knowledge of what differs when the product serves a public mandate — public value rather than commercial return, mandated or statutory services, procurement-driven demand, institutional as well as citizen users, and policy as a driver of requirements that cannot be prioritised away.
+
+- **N:** Aware that public-sector products operate differently and works within given constraints under guidance.
+- **J:** Understands the main differences and applies them to straightforward work with supervision.
+- **R:** Independently reasons about public-sector context for typical products, including mandated requirements and procurement-driven demand.
+- **S:** Navigates complex policy and institutional contexts, balances mandate against user need, and mentors others.
+- **X:** Recognized authority on public-sector product context; advises the organization and institutional clients.
+- **T:** Ensures the team accounts for public-sector context and aligns product decisions with mandate and policy.
+
+### E1-93 · Product metrics and success measurement
+
+**Description:** Encompasses knowledge of defining what success means for a product — adoption, usage, retention, and outcome measures — and distinguishing measures of activity from measures of value delivered.
+
+- **N:** Understands that products are measured and reports given metrics under guidance.
+- **J:** Understands common product measures and tracks them with supervision.
+- **R:** Independently defines appropriate success measures for typical products and interprets them honestly.
+- **S:** Designs measurement for complex products, distinguishes value from activity rigorously, and mentors others.
+- **X:** Recognized authority; defines how the organization measures product success.
+- **T:** Ensures the team measures outcomes rather than output and aligns measures with organizational objectives.
+
+## E2 — Applied skills
+
+### E2-100 · Defining and communicating product direction
+
+**Description:** Encompasses the applied skill of setting a product's direction and making it understood — articulating the problem being solved and for whom, securing agreement across stakeholders, and keeping direction consistent as circumstances shift.
+
+- **N:** Communicates a given direction to immediate colleagues under guidance.
+- **J:** Explains product direction to straightforward audiences with supervision.
+- **R:** Independently defines and communicates direction for typical products and secures stakeholder agreement.
+- **S:** Defines direction for complex or contested products, brings resistant stakeholders along, and mentors others.
+- **X:** Recognized authority; sets and communicates direction for the organization's most significant products.
+- **T:** Ensures the team defines clear direction and aligns product narratives with organizational strategy.
+
+### E2-101 · Conducting market and customer research
+
+**Description:** Encompasses the applied skill of gathering evidence about market and customers — customer interviews, competitor assessment, win/loss analysis, and desk research — and turning it into conclusions that inform product decisions rather than merely describing the landscape.
+
+- **N:** Gathers given information and records findings under guidance.
+- **J:** Conducts straightforward research with supervision, though conclusions remain descriptive.
+- **R:** Independently conducts research for typical questions and draws conclusions that change decisions.
+- **S:** Designs research for complex or ambiguous questions, synthesises conflicting evidence, and mentors others.
+- **X:** Recognized authority; shapes how the organization researches its market and customers.
+- **T:** Ensures the team decides from evidence and aligns research effort with product questions.
+
+### E2-102 · Building and maintaining product roadmaps
+
+**Description:** Encompasses the applied skill of producing and sustaining a roadmap — sequencing work against strategy and dependencies, revising it as reality intervenes, and communicating changes so stakeholders trust it rather than treating it as fiction.
+
+- **N:** Updates a given roadmap with provided content under guidance.
+- **J:** Maintains a straightforward roadmap with supervision.
+- **R:** Independently builds and maintains roadmaps for typical products and communicates revisions credibly.
+- **S:** Manages roadmaps across complex or interdependent products, handles significant re-planning, and mentors others.
+- **X:** Recognized authority; owns roadmapping for the organization's most significant products.
+- **T:** Ensures the team maintains credible roadmaps and aligns them with organizational planning cycles.
+
+### E2-103 · Prioritising product work and managing the backlog
+
+**Description:** Encompasses the applied skill of turning direction into an ordered set of work — assessing and sequencing items by value, effort, and dependency, keeping the backlog current and comprehensible, and saying no in a way that holds.
+
+- **N:** Maintains backlog items to a given order under guidance.
+- **J:** Prioritises straightforward work with supervision, though ordering needs correction.
+- **R:** Independently prioritises and maintains a backlog for typical products and defends the sequence.
+- **S:** Prioritises across complex, competing, or politically charged demands and mentors others.
+- **X:** Recognized authority; arbitrates the organization's most contested prioritisation decisions.
+- **T:** Ensures the team prioritises transparently and aligns backlog order with product strategy.
+
+### E2-104 · Building business cases and justifying investment
+
+**Description:** Encompasses the applied skill of making the case for investment — quantifying expected benefit and cost, stating assumptions and risks openly, and presenting a case that survives scrutiny from people who are sceptical or hold the budget.
+
+- **N:** Contributes figures to a case prepared by others under guidance.
+- **J:** Builds simple justifications with supervision, though assumptions are often unstated.
+- **R:** Independently builds sound business cases for typical investments with explicit assumptions.
+- **S:** Builds cases for large or uncertain investments, defends them under challenge, and mentors others.
+- **X:** Recognized authority; makes the case for the organization's most significant product investments.
+- **T:** Ensures the team justifies investment rigorously and aligns cases with organizational financial expectations.
+
+### E2-105 · Managing customer and stakeholder relationships
+
+**Description:** Encompasses the applied skill of owning the relationship with customers and institutional clients — understanding their objectives, managing expectations about what the product will and will not do, handling dissatisfaction, and sustaining the relationship beyond individual transactions.
+
+- **N:** Participates in customer interactions under guidance.
+- **J:** Handles routine customer contact on straightforward matters with supervision.
+- **R:** Independently manages typical customer relationships, sets realistic expectations, and handles routine dissatisfaction.
+- **S:** Manages significant or difficult relationships, recovers damaged ones, and mentors others.
+- **X:** Recognized authority; owns the organization's most important customer relationships.
+- **T:** Ensures the team manages relationships well and aligns relationship management with organizational interests.
+
+### E2-106 · Measuring and analysing product performance
+
+**Description:** Encompasses the applied skill of tracking how a product is actually performing — instrumenting for the right measures, analysing usage and outcome data, and acting on what it shows including when it contradicts the original plan.
+
+- **N:** Reports given product metrics under guidance.
+- **J:** Tracks basic performance for straightforward products with supervision.
+- **R:** Independently measures and analyses typical product performance and acts on the findings.
+- **S:** Analyses complex product performance, identifies non-obvious causes, and mentors others.
+- **X:** Recognized authority; shapes product performance analysis across the organization.
+- **T:** Ensures the team measures honestly and responds to evidence rather than defending the plan.
+
+### E2-107 · Planning and executing product launches
+
+**Description:** Encompasses the applied skill of bringing a product or significant release to its users — readiness across delivery, communications, support, and training, sequencing the launch, and following through on adoption rather than treating release as completion.
+
+- **N:** Executes assigned launch tasks under guidance.
+- **J:** Supports launch activity for straightforward releases with supervision.
+- **R:** Independently plans and executes launches for typical products, coordinating the necessary functions.
+- **S:** Manages complex or high-visibility launches, handles launch problems under pressure, and mentors others.
+- **X:** Recognized authority; leads the organization's most significant launches.
+- **T:** Ensures the team launches competently and aligns launch practice with organizational standards.
+
+## E3 — Practical experience *(discipline-specific)*
+
+### E3-40 · Applying accumulated product management experience
+
+**Description:** Encompasses the practical judgment that accumulates from managing real products — recognising which ideas will not survive contact with users, anticipating where a plan will break, and knowing which battles over scope and direction are worth fighting.
+
+- **N:** Has limited experience and applies lessons from training or a single product under guidance.
+- **J:** Draws on experience from a few products for familiar situations but relies on guidance when unfamiliar.
+- **R:** Applies experience across a range of work to make sound product decisions independently.
+- **S:** Draws on deep, varied experience to navigate ambiguous product situations, anticipates failure early, and mentors others.
+- **X:** Recognized for exceptional product judgment; advises across the organization on difficult product decisions.
+- **T:** Applies and shares accumulated experience to guide the team's product decisions.
+
+### E3-41 · Knowledge and use of product management tools
+
+**Description:** Encompasses the practical ability to use the toolchain the function relies on — roadmap and backlog tools, product analytics, customer feedback systems, and the collaboration platforms through which direction is communicated.
+
+- **N:** Uses basic tool features for simple tasks under guidance.
+- **J:** Uses the main features on routine work with supervision, though not always efficiently.
+- **R:** Independently uses the toolchain effectively for typical work.
+- **S:** Exploits advanced capabilities, establishes efficient working practice, and mentors others.
+- **X:** Recognized authority; evaluates and introduces tools and defines toolchain standards.
+- **T:** Ensures consistent, effective tool use across the team.
+
+### E3-42 · Deciding under uncertainty and incomplete information
+
+**Description:** Encompasses the practical ability to make product decisions before the evidence is conclusive — judging when further analysis is worth its delay, committing clearly rather than deferring, and owning the outcome including when the decision proves wrong.
+
+- **N:** Defers decisions to others and is uncomfortable proceeding without clear direction.
+- **J:** Makes small decisions with supervision but escalates most things that are ambiguous.
+- **R:** Independently makes typical product decisions on incomplete information and stands behind them.
+- **S:** Decides on complex, high-consequence questions under real uncertainty, judges when to wait and when to commit, and mentors others.
+- **X:** Recognized for exceptional judgment under uncertainty; trusted with the organization's most consequential product calls.
+- **T:** Ensures the team decides rather than stalls, and creates the safety for members to make and own decisions.
+
+## I1 — Processes
+
+### I1-20 · Adhering to the internal product management process
+
+**Description:** Encompasses the commitment and ability to follow the organization's internal product process — intake and discovery, approval and funding gates, planning cycles, and the product role's relationship to delivery and commercial functions.
+
+- **N:** Follows the main process steps with guidance and reminders.
+- **J:** Follows the process on routine work with occasional correction.
+- **R:** Independently adheres to the full process for typical work.
+- **S:** Applies the process rigorously on complex work, identifies gaps, and mentors others.
+- **X:** Shapes and improves the product management process across the organization.
+- **T:** Ensures the team adheres consistently and aligns process use with organizational standards.
+
+### I1-21 · Participating in product and roadmap review
+
+**Description:** Encompasses the discipline of submitting product direction to scrutiny — presenting strategy, roadmap, and prioritisation for challenge, reviewing others' product reasoning constructively, and treating review as a check on confirmation bias rather than a hurdle.
+
+- **N:** Attends reviews and observes under guidance.
+- **J:** Presents straightforward material and gives basic feedback with supervision.
+- **R:** Independently presents product reasoning for review and challenges others' reasoning constructively.
+- **S:** Reviews complex product proposals incisively, exposes weak assumptions, and mentors others.
+- **X:** Shapes product review practice across the organization.
+- **T:** Ensures the team submits direction to genuine challenge rather than seeking endorsement.
+
+### I1-22 · Adhering to product documentation and decision-record standards
+
+**Description:** Encompasses the commitment to record product decisions and their reasoning to the organization's standards — what was decided, what was considered, what evidence applied, and what was assumed — so that direction is traceable and decisions can be revisited rather than relitigated.
+
+- **N:** Records simple product information to given standards with guidance.
+- **J:** Documents routine decisions with occasional correction, though reasoning is often omitted.
+- **R:** Independently documents typical decisions with reasoning, alternatives, and assumptions recorded.
+- **S:** Establishes documentation practice for complex products, ensures decisions remain traceable, and mentors others.
+- **X:** Defines product documentation and decision-record standards across the organization.
+- **T:** Ensures the team records decisions and reasoning and aligns documentation with governance requirements.
+
+---
+
+**PD baseline complete** — E1 (9) · E2 (8) · E3 (3) · I1 (3) = **23 family-specific competencies**, plus the shared canonical set. Specializations STRATEGY / OWNERSHIP / ACCOUNT / GROWTH still to build.
