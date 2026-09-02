@@ -526,8 +526,10 @@ demand of the discipline rather than general decisiveness.
 | H — Management-track | 5 |
 | **Total** | **255** |
 
-*255 = 36 shared + 49 SE + 29 BA + 25 PM + 26 QE + 24 XD + 23 DA + 23 MC + 23 PD − 3. SE includes its four
-specializations (ARCHITECTURE 4, DATABASE_ARCHITECTURE 5, AI_ENGINEERING 6). The subtraction is
+*255 = 36 shared + 49 SE + 29 BA + 25 PM + 26 QE + 24 XD + 23 DA + 23 MC + 23 PD − 3. The SE figure includes
+its **three specializations that carry content** (ARCHITECTURE 4, DATABASE_ARCHITECTURE 5, AI_ENGINEERING 6);
+SE defines eight in `config.role-families.json`, and `BA.SOLUTION_ARCHITECTURE` is BA's, counted under BA.
+The subtraction is
 `E2-52`/`E2-53`/`E2-54`, which are listed under **both** the SE and BA tables on purpose (see the note above) —
 258 assignment rows resolve to 255 distinct competencies, matching the dictionary exactly. Re-derive this table
 mechanically after every increment rather than adjusting it by hand, and **de-duplicate by code when you do**:

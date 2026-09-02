@@ -458,14 +458,16 @@ Assigned in `competency-relevancy-model.md` under *Assignments — PD family-spe
 - ✅ `eslint .` reports 0 errors (2 pre-existing warnings, untouched).
 - ✅ Content-integrity test passes: every competency carries non-empty `en` and `bg`.
 - ✅ Purely additive — no code dropped or renumbered, so **no evaluation data migration**.
-- ✅ A **newly seeded** `2026-H2` cycle includes PD automatically, since the seeder derives `excludedFamilies` from which families carry competencies at creation time.
+- ✅ A `2026-H2` cycle seeded from a **fresh or drift-reconciled** configuration includes PD automatically, since the seeder derives `excludedFamilies` from which families carry competencies at creation time. On an upgraded instance the seeder reads `configurationLoader.configActiveCompetencySets`, which is store-backed — so until the drift is reconciled it still sees the pre-PD document and would exclude PD even for a cycle created after this release.
 
 ### 7g. Deployment note — PD will not appear in an existing cycle on its own
 
 Two separate things have to happen on an already-running instance, and neither is automatic:
 
 1. **Config documents are store-backed.** Competency texts are labels, and the affected documents are held in the config store, so the new content reaches users through the **Configuration drift** panel (Administration → Configuration). Startup logs a WARNING per drifted document until it is reconciled.
-2. **`cycle.excludedFamilies` is derived once, at cycle creation, and is deliberately never re-derived** (`cycle-setup-tools.js`, CA-103) — including a family in a cycle is a governance decision, not a computation. An existing `2026-H2` cycle created before this release therefore still lists PD as excluded. Cycle Setup surfaces this via `deriveStaleExclusions`, which flags a family that has gained competencies since the cycle was created, so a Supervisor can act on it deliberately.
+2. **`cycle.excludedFamilies` is derived once, at cycle creation, and is deliberately never re-derived** (`cycle-setup-tools.js`, CA-103) — including a family in a cycle is a governance decision, not a computation. What that means for an existing cycle depends on how it was created:
+   - **Seeded** before PD was configured (`data-manager.js` `#deriveSeededCycles`): its exclusion list was derived from the then-current active sets, so it still lists PD as excluded. Cycle Setup surfaces this via `deriveStaleExclusions`, which flags a family that has gained competencies since the cycle was created, so a Supervisor can act on it deliberately.
+   - **Created through the UI** (`competence-web-application.js`, the create-cycle service): it starts with `excludedFamilies: []`, so PD is *not* excluded and needs no action — but note that an empty exclusion list also means every family is included, so lock validation's `family-not-configured` rule will now fail on **IO**, which still carries no competencies, until IO is either populated or explicitly excluded.
 
 The same applies to MC from Increment 6. Recording it here because §6f stated the automatic-inclusion half without the second condition.
 
