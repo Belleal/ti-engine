@@ -343,6 +343,63 @@ The master index's *Outstanding* row claimed 78 competencies were untranslated. 
 
 ---
 
+## Increment 6 — MC family (Marketing & Communications)
+
+**Date:** 28 August 2026
+**Implemented:** competence **v3.29.0**
+**Status:** ✅ **MC baseline complete and implemented** — 23 family-specific competencies. Specializations (DIGITAL / BRAND_PR / CONTENT / INTERNAL_COMMS) still to build, and not required for MC to go live.
+**Baseline note:** Increments 1–5 were already implemented when this landed (dictionary at 209).
+
+### 6a. Added — MC baseline (23)
+
+| Subcategory | Codes | Count |
+|---|---|---|
+| E1 | E1-76 … E1-84 | 9 |
+| E2 | E2-92 … E2-99 | 8 |
+| E3 | E3-37 … E3-39 | 3 |
+| I1 | I1-17 … I1-19 | 3 |
+
+Dictionary 209 → **232**.
+
+### 6b. Notable — first non-ICT family
+
+The shared canonical core transferred **without modification**. Planning, estimation, responsibility, communication and mentorship describe a marketer's work as accurately as an engineer's; `E1-10` (business and IT domain knowledge) applies directly, and matters as much for someone communicating about the organization's systems as for someone building them. **No shared competency needed adjustment or a marketing-specific variant, and MC contributed nothing new to the shared set** — so no other family's pool changed.
+
+*Worth recording for the dissertation: this is evidence that the canonicalization principle generalizes beyond the discipline it was derived from, supporting the framework's claim of applicability to any organization rather than ICT alone.*
+
+### 6c. Scoping decisions
+
+- **Public-sector constraints are explicit**, not inferred: `E1-83` covers procurement rules on communications spend, political neutrality, transparency duties, accessibility of public communication, and data protection on contact data.
+- **`E2-99` (translating technical subject matter)** is family-specific and distinct from the shared C2 set: it concerns extracting substance from specialists and rendering it accurately for non-specialists, a defining demand on communications staff in a technology organization.
+- **The content writer role folds into MC**, most naturally under the `CONTENT` specialization.
+
+### 6d. Archetypes
+
+Assigned in `competency-relevancy-model.md` under *Assignments — Increment 6 (MC family)*: A ×5 · B ×9 · C ×4 · E ×5. Three on **C** by the established obligation principle — **E1-83** (public-sector rules) and **I1-19** (brand/legal/compliance) are regulatory and legal obligations, and **E2-96** (brand consistency) is a standard every piece of output must meet. Consistent with accessibility (E1-63, E2-72), AI safety (E2-82) and data protection (E1-74).
+
+### 6e. Config impact
+
+| File | Action | Hand-edited? |
+|---|---|---|
+| `config.competencies.json` | **+23** entries (E1-76…E1-84, E2-92…E2-99, E3-37…E3-39, I1-17…I1-19) → 232 total | Yes (entries); `relevancyArchetype` stamped by the generator |
+| `competence-labels.json` | **+23 × 8 strings × 2 languages** (368) | Yes |
+| `config.role-family-competencies.json` | MC pool 36 → **59** (23 family-specific + 36 shared). No other family's pool changes — MC adds nothing shared. | **No — generated** |
+| `config.relevancy-archetypes.json` | Curves unchanged; regenerated in place | **No — generated** |
+| `config.active-competency-sets.json` | **Added `MC` baseline** for `2026-H2` (23 codes), nine-subcategory floor coverage within the cap of 32. The four MC specializations are left **absent** rather than empty. | Yes |
+| `config.role-families.json` | **No change** — MC and its four specializations were already defined | — |
+| `competency-master-index.md` | Added the MC section; totals 209 → 232; next free codes advanced; MC removed from the unpopulated list | Yes |
+| `competency-relevancy-model.md` | Added *Assignments — Increment 6 (MC family)*; re-derived the distribution table (235 rows → 232 distinct) | Yes — the generator's **source** |
+
+### 6f. Verification after implementation
+
+- ✅ Generator reports `232 / 232` assigned; MC pool = 59; every other pool unchanged.
+- ✅ MC baseline satisfies floor coverage across all nine subcategories, 23 of the cap of 32.
+- ✅ Content-integrity test passes: every competency carries non-empty `en` and `bg`.
+- ✅ Purely additive — no code dropped or renumbered, so **no evaluation data migration**.
+- ✅ MC is now automatically included in `2026-H2`, since the seeded cycle derives `excludedFamilies` from which families carry competencies.
+
+---
+
 ## Working rules
 
 1. **One increment per completed family**, not per drafting session. Partial families are not implementable.

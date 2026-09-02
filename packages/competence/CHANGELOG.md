@@ -2,6 +2,24 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.29.0
+
+Increment 6 adds **Marketing & Communications** — 23 competencies, dictionary 209 → **232**, and the seventh
+populated role family. It is also the **first non-ICT family**, and the notable result is what did *not* have to
+change: the shared canonical core transferred without modification. Planning, estimation, responsibility,
+communication and mentorship describe a marketer's work as accurately as an engineer's, and `E1-10` (business and
+IT domain knowledge) applies directly — it matters as much for someone communicating about the organization's
+systems as for someone building them. No shared competency needed a marketing-specific variant, and MC contributed
+nothing new to the shared set, so **no other family's pool changed**. Purely additive: no evaluation data migration
+(CA-114).
+
+* feat(config): add the 23 MC family-specific competencies — E1-76…E1-84 (audience analysis and segmentation, communication and messaging principles, brand identity and positioning, channels, content strategy, digital marketing concepts, communications measurement and analytics, public-sector communication rules, crisis and reputation management), E2-92…E2-99 (writing for a defined audience, editing and quality control, campaigns, channel management and publishing, brand consistency, media and stakeholder relations, performance reporting, translating technical subject matter), E3-37…E3-39 (accumulated experience, tooling, judging reputational risk) and I1-17…I1-19 (process adherence, content review and approval, brand/legal/compliance standards)
+* feat(config): assign relevancy archetypes for all 23 (A ×5 · B ×9 · C ×4 · E ×5). Three sit on **C** rather than B by the obligation principle already applied to accessibility (E1-63, E2-72), AI safety (E2-82) and data protection (E1-74): **E1-83** (public-sector communication rules) and **I1-19** (brand, legal and compliance standards) are regulatory and legal obligations, and **E2-96** (brand consistency) is a standard every piece of output must meet rather than a refinement seniors add. MC's pool resolves to 59 competencies (23 family-specific + 36 shared)
+* feat(config): add the MC baseline active competency set for the `2026-H2` cycle — 23 codes satisfying nine-subcategory floor coverage within the cap of 32. The four MC specializations are left **absent** rather than empty, since the `no-empty-baseline` lock rule only engages once a family carries specialization data. MC is now automatically included in that cycle, because the seeded cycle derives `excludedFamilies` from which families carry competencies
+* feat(localization): add English and Bulgarian name, description and all six scope anchors for the 23 new competencies (368 strings)
+* docs(competence): record Increment 6 in the competency change log, including the non-ICT transfer result and the public-sector scoping of `E1-83`; add the MC section to the master index (totals 209 → 232, next free codes advanced, MC removed from the unpopulated list) and re-derive the relevancy model's distribution table (235 assignment rows resolving to 232 distinct competencies)
+* build(release): bump package version from `3.28.0` to `3.29.0`
+
 ## Version 3.28.0
 
 Increment 5 adds the **Data & Analytics** family. Twenty-three competencies take the dictionary from 186 to **209**,

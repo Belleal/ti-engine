@@ -2327,3 +2327,278 @@ Applying that principle:
 ---
 
 **DA baseline complete** — E1 (9) · E2 (8) · E3 (3) · I1 (3) = **23 family-specific competencies**, plus the shared canonical set. Specializations ENGINEERING / ANALYTICS / ML / RESEARCH still to build.
+
+---
+
+# MC — Marketing & Communications
+
+*Baseline draws on the shared canonical competencies plus the family-specific set below. Specializations (DIGITAL / BRAND_PR / CONTENT / INTERNAL_COMMS) not yet built. The content writer role folds in here, most naturally under `CONTENT`.*
+
+**First non-ICT family.** The shared canonical core transfers without modification: planning, estimation, responsibility, communication, and mentorship describe a marketer's work as accurately as an engineer's, and E1-10 (business and IT domain knowledge) matters as much for someone communicating about the organization's systems as for someone building them. That the shared set required no adjustment is evidence the canonicalization principle holds beyond the discipline it was derived from.
+
+**Public-sector framing.** Communications in a state-owned enterprise operate under constraints commercial marketing does not face — procurement rules governing advertising spend, political neutrality obligations, transparency and disclosure duties, and accessibility requirements on public communications. E1-83 carries these explicitly rather than leaving them to be inferred.
+
+## E1 — Theoretical knowledge
+
+### E1-76 · Audience analysis and segmentation
+
+**Description:** Encompasses knowledge of identifying and understanding the audiences an organization communicates with — segmenting by need, behaviour, and relationship to the organization, and understanding what each group already believes and cares about before deciding what to say to them.
+
+- **N:** Understands that different audiences exist and works to a given audience definition under guidance.
+- **J:** Understands basic segmentation and applies existing audience definitions with supervision.
+- **R:** Independently analyses and segments audiences for typical work and tailors approach accordingly.
+- **S:** Analyses complex or conflicting audiences, resolves competing needs, and mentors others.
+- **X:** Recognized authority; shapes how the organization understands and segments its audiences.
+- **T:** Ensures the team works from real audience understanding rather than assumption.
+
+### E1-77 · Communication and messaging principles
+
+**Description:** Encompasses knowledge of how messages are constructed to be understood and remembered — clarity, structure, framing, tone, and the difference between informing and persuading — together with the ethical line between legitimate persuasion and misleading.
+
+- **N:** Knows basic principles of clear communication and applies given messaging under guidance.
+- **J:** Constructs straightforward messages with supervision, applying clarity and tone guidance.
+- **R:** Independently constructs clear, well-framed messages for typical purposes and audiences.
+- **S:** Constructs messaging for complex or sensitive situations, resolves framing dilemmas, and mentors others.
+- **X:** Recognized authority; sets messaging standards and principles across the organization.
+- **T:** Ensures the team communicates clearly and honestly and aligns messaging with organizational positioning.
+
+### E1-78 · Brand identity and positioning
+
+**Description:** Encompasses knowledge of what a brand consists of — visual and verbal identity, values, positioning relative to alternatives — and of how consistency across touchpoints builds recognition while inconsistency erodes it.
+
+- **N:** Understands that brand guidelines exist and follows them under guidance.
+- **J:** Understands the organization's identity and applies guidelines to straightforward work with supervision.
+- **R:** Independently applies brand identity correctly and recognizes when work is off-brand.
+- **S:** Reasons about positioning and brand expression in complex situations and mentors others.
+- **X:** Recognized authority; shapes brand identity and positioning for the organization.
+- **T:** Ensures the team's output is consistently on-brand and aligns expression with organizational positioning.
+
+### E1-79 · Marketing and communication channels
+
+**Description:** Encompasses knowledge of the channels available to reach an audience — owned, earned, and paid; digital and traditional — their respective reach, cost, credibility, and constraints, and how channels combine into a coherent mix rather than competing.
+
+- **N:** Knows the main channels and uses a given one under guidance.
+- **J:** Understands channel characteristics and works within a given mix with supervision.
+- **R:** Independently selects appropriate channels for typical objectives and audiences.
+- **S:** Designs channel strategy for complex objectives, balances the mix deliberately, and mentors others.
+- **X:** Recognized authority; sets channel strategy across the organization.
+- **T:** Ensures the team selects channels purposefully and aligns the mix with organizational objectives.
+
+### E1-80 · Content strategy and planning
+
+**Description:** Encompasses knowledge of planning content over time — content types and formats, editorial calendars, lifecycle and repurposing, and matching content to where an audience is in its relationship with the organization.
+
+- **N:** Understands that content is planned and works to a given plan under guidance.
+- **J:** Contributes to editorial planning for straightforward needs with supervision.
+- **R:** Independently plans content for typical objectives, with appropriate formats and sequencing.
+- **S:** Designs content strategy for complex or long-running programmes and mentors others.
+- **X:** Recognized authority; defines content strategy across the organization.
+- **T:** Ensures the team plans content deliberately and aligns it with organizational objectives.
+
+### E1-81 · Digital marketing concepts
+
+**Description:** Encompasses knowledge of how digital channels work — search visibility, organic and paid distribution, social platform mechanics, email, and the analytics that show what is actually happening — sufficient to plan and interpret digital activity.
+
+- **N:** Aware of the main digital channels and follows given procedures under guidance.
+- **J:** Understands basic digital concepts and executes straightforward activity with supervision.
+- **R:** Independently plans and interprets digital activity for typical objectives.
+- **S:** Reasons about complex digital strategy and platform behaviour and mentors others.
+- **X:** Recognized authority; shapes digital strategy across the organization.
+- **T:** Ensures the team applies digital practice competently and aligns activity with objectives.
+
+### E1-82 · Communications measurement and analytics
+
+**Description:** Encompasses knowledge of measuring communication effectiveness — reach, engagement, conversion, and sentiment — and of the harder question of attribution: distinguishing what communication actually changed from what merely coincided with it.
+
+- **N:** Understands that communication is measured and records given metrics under guidance.
+- **J:** Tracks basic metrics for straightforward activity with supervision.
+- **R:** Independently selects and interprets appropriate measures for typical activity, distinguishing activity from impact.
+- **S:** Designs measurement for complex programmes, reasons about attribution honestly, and mentors others.
+- **X:** Recognized authority; defines the organization's communications measurement framework.
+- **T:** Ensures the team measures impact rather than activity and aligns reporting with organizational expectations.
+
+### E1-83 · Public-sector communication rules and obligations
+
+**Description:** Encompasses knowledge of the constraints governing communication by a state-owned organization — procurement rules applying to advertising and communications spend, political neutrality requirements, transparency and disclosure duties, accessibility obligations on public-facing communication, and data protection rules governing marketing and contact data.
+
+- **N:** Aware that public-sector communication is constrained and follows given rules under guidance.
+- **J:** Knows the main obligations and applies them to straightforward work with supervision.
+- **R:** Independently identifies which obligations apply to typical work and complies without prompting.
+- **S:** Navigates complex or contested compliance situations, resolves tension between communication goals and constraints, and mentors others.
+- **X:** Recognized authority; advises the organization on communications compliance obligations.
+- **T:** Ensures the team's communications comply and aligns practice with regulatory and procurement requirements.
+
+### E1-84 · Crisis and reputation management principles
+
+**Description:** Encompasses knowledge of how organizational reputation is damaged and defended — recognising what escalates a situation, principles of timely and honest response, holding statements, and the internal coordination a credible response requires.
+
+- **N:** Understands that some situations are reputationally sensitive and escalates under guidance.
+- **J:** Recognizes sensitive situations and follows established escalation with supervision.
+- **R:** Independently recognizes reputational risk in typical situations and responds or escalates appropriately.
+- **S:** Handles significant reputational situations, drafts response under pressure, and mentors others.
+- **X:** Recognized authority; leads crisis communication and defines response practice for the organization.
+- **T:** Ensures the team recognizes and escalates reputational risk and aligns response with organizational interests.
+
+## E2 — Applied skills
+
+### E2-92 · Writing for a defined audience and purpose
+
+**Description:** Encompasses the applied skill of producing written communication that serves a specific audience and objective — choosing register and structure deliberately, making the point early, and cutting what does not serve the reader.
+
+- **N:** Writes simple copy from templates or examples under guidance; requires substantial editing.
+- **J:** Writes straightforward copy with supervision, though structure and register need correction.
+- **R:** Independently writes clear, purposeful copy for typical audiences that needs little editing.
+- **S:** Writes for complex, senior, or sensitive audiences, adapts register precisely, and mentors others.
+- **X:** Recognized authority; sets writing standards and produces the organization's most consequential communication.
+- **T:** Ensures the team writes to a high standard and aligns written output with organizational voice.
+
+### E2-93 · Editing and quality control of content
+
+**Description:** Encompasses the applied skill of improving others' content and safeguarding what goes out — checking accuracy, consistency, and compliance as well as language, and giving revision feedback that improves the writer as well as the draft.
+
+- **N:** Proofreads for obvious errors under guidance.
+- **J:** Edits straightforward content with supervision, focusing mainly on language.
+- **R:** Independently edits typical content for accuracy, consistency, structure, and compliance.
+- **S:** Edits complex or sensitive content, makes difficult cuts, and develops writers through feedback.
+- **X:** Recognized authority; sets editorial standards across the organization.
+- **T:** Ensures nothing substandard is published and develops editorial capability in the team.
+
+### E2-94 · Planning and running communication campaigns
+
+**Description:** Encompasses the applied skill of taking a communication objective through to delivery — defining audience and message, selecting channels, sequencing activity, coordinating contributors, and running to schedule and budget.
+
+- **N:** Executes assigned campaign tasks under guidance.
+- **J:** Supports campaign delivery on straightforward activity with supervision.
+- **R:** Independently plans and runs campaigns for typical objectives, coordinating contributors and keeping to plan.
+- **S:** Runs complex or multi-channel campaigns, handles competing demands, and mentors others.
+- **X:** Recognized authority; leads the organization's most significant communication programmes.
+- **T:** Ensures the team plans and delivers campaigns effectively and aligns activity with organizational objectives.
+
+### E2-95 · Managing communication channels and publishing
+
+**Description:** Encompasses the applied skill of operating the organization's channels day to day — scheduling and publishing, maintaining site and social presence, moderating and responding, and keeping published material current and accurate.
+
+- **N:** Publishes prepared material through a given channel under guidance.
+- **J:** Operates channels for routine activity with supervision.
+- **R:** Independently manages channels for typical activity, including responses and moderation.
+- **S:** Manages channels through demanding or sensitive periods, handles difficult public interaction, and mentors others.
+- **X:** Recognized authority; defines channel operating standards across the organization.
+- **T:** Ensures the team's channels are well-operated and aligns channel management with organizational standards.
+
+### E2-96 · Applying and maintaining brand consistency
+
+**Description:** Encompasses the applied skill of producing work that is recognisably the organization's — applying visual and verbal identity correctly across formats and channels, and identifying and correcting off-brand material before it reaches an audience.
+
+- **N:** Applies given brand assets to simple work under guidance.
+- **J:** Applies brand guidelines to straightforward work with supervision.
+- **R:** Independently produces on-brand work across typical formats and identifies inconsistency.
+- **S:** Maintains brand consistency across complex or multi-party work and mentors others.
+- **X:** Recognized authority; governs brand application across the organization.
+- **T:** Ensures the team's output is consistently on-brand and aligns application with brand governance.
+
+### E2-97 · Media and external stakeholder relations
+
+**Description:** Encompasses the applied skill of dealing with journalists, partner organizations, and institutional stakeholders — preparing and giving statements, handling enquiries within agreed lines, and building the relationships that make coverage fair.
+
+- **N:** Observes external interactions and prepares material under guidance.
+- **J:** Handles routine enquiries within given lines with supervision.
+- **R:** Independently handles typical media and stakeholder interaction, stays within agreed positions, and knows when to escalate.
+- **S:** Handles difficult or hostile enquiries, manages significant relationships, and mentors others.
+- **X:** Recognized as the organization's authority in external relations; handles the most sensitive engagements.
+- **T:** Ensures the team handles external relations credibly and aligns engagement with organizational interests.
+
+### E2-98 · Measuring and reporting communication performance
+
+**Description:** Encompasses the applied skill of tracking and reporting what communication achieved — collecting and interpreting the relevant measures, and reporting honestly including when activity did not work.
+
+- **N:** Collects and records given metrics under guidance.
+- **J:** Produces basic performance reports with supervision, though interpretation is thin.
+- **R:** Independently measures and reports typical activity, interpreting results and drawing usable conclusions.
+- **S:** Designs measurement and reporting for complex programmes, reports unwelcome results honestly, and mentors others.
+- **X:** Recognized authority; shapes performance reporting across the organization.
+- **T:** Ensures the team reports performance honestly and aligns reporting with organizational expectations.
+
+### E2-99 · Translating technical subject matter for non-specialist audiences
+
+**Description:** Encompasses the applied skill of working with engineers, analysts, and other specialists to understand what has been built or achieved, and rendering it accurately for an audience without that background — preserving truth while removing jargon, and knowing when a simplification has become wrong.
+
+- **N:** Relays technical material as provided under guidance, with limited comprehension.
+- **J:** Produces straightforward non-technical explanations with supervision and specialist review.
+- **R:** Independently interviews specialists, understands the substance, and produces accurate accessible material for typical subjects.
+- **S:** Renders complex or contested technical subject matter accurately for demanding audiences and mentors others.
+- **X:** Recognized authority; trusted to represent the organization's most complex work publicly.
+- **T:** Ensures the team's technical communication is accurate as well as accessible.
+
+## E3 — Practical experience *(discipline-specific)*
+
+### E3-37 · Applying accumulated communications experience
+
+**Description:** Encompasses the practical judgment that accumulates from communicating in the real world — knowing which messages land and which fall flat, anticipating how an audience will react, and recognising when a plan that reads well will not survive contact with its audience.
+
+- **N:** Has limited experience and applies lessons from training or a single project under guidance.
+- **J:** Draws on experience from a few campaigns for familiar situations but relies on guidance when unfamiliar.
+- **R:** Applies experience across a range of work to make sound communication decisions independently.
+- **S:** Draws on deep, varied experience to navigate difficult or unfamiliar situations, anticipates reaction accurately, and mentors others.
+- **X:** Recognized for exceptional communications judgment; advises across the organization.
+- **T:** Applies and shares accumulated experience to guide the team's communication decisions.
+
+### E3-38 · Knowledge and use of marketing and communications tools
+
+**Description:** Encompasses the practical ability to use the toolchain the function relies on — content management and publishing systems, scheduling and social management tools, email platforms, analytics, and design and asset management tools.
+
+- **N:** Uses basic tool features for simple tasks under guidance.
+- **J:** Uses the main features on routine work with supervision, though not always efficiently.
+- **R:** Independently uses the toolchain effectively for typical work.
+- **S:** Exploits advanced capabilities, establishes efficient working practice, and mentors others.
+- **X:** Recognized authority; evaluates and introduces tools and defines toolchain standards.
+- **T:** Ensures consistent, effective tool use across the team.
+
+### E3-39 · Judging reputational risk and sensitivity
+
+**Description:** Encompasses the practical ability to sense what will cause a problem before it does — recognising politically or institutionally sensitive material, anticipating how a message could be read against the organization, and escalating rather than proceeding when the risk is real.
+
+- **N:** Does not reliably recognize sensitivity; relies on others to catch problems.
+- **J:** Recognizes obvious sensitivity with supervision but misses subtler risk.
+- **R:** Independently recognizes reputational and political sensitivity in typical work and escalates appropriately.
+- **S:** Judges sensitivity in complex or ambiguous situations, weighs risk against communication value, and mentors others.
+- **X:** Recognized authority; called on to assess the organization's most sensitive communication.
+- **T:** Ensures the team recognizes sensitivity early and supports members in escalating without hesitation.
+
+## I1 — Processes
+
+### I1-17 · Adhering to the internal communications process
+
+**Description:** Encompasses the commitment and ability to follow the organization's internal process for communication work — request intake, planning and scheduling, sign-off points, and the function's role in relation to other departments.
+
+- **N:** Follows the main process steps with guidance and reminders.
+- **J:** Follows the process on routine work with occasional correction.
+- **R:** Independently adheres to the full process for typical work.
+- **S:** Applies the process rigorously on complex work, identifies gaps, and mentors others.
+- **X:** Shapes and improves the communications process across the organization.
+- **T:** Ensures the team adheres consistently and aligns process use with organizational standards.
+
+### I1-18 · Participating in content review and approval
+
+**Description:** Encompasses the discipline of subjecting communication to review before publication — submitting work for factual, legal, and brand checking, reviewing others' material constructively, and treating approval as a safeguard rather than an obstacle to be routed around under deadline pressure.
+
+- **N:** Submits work for review as instructed under guidance.
+- **J:** Participates in review of straightforward material with supervision.
+- **R:** Independently submits work for appropriate review and reviews others' material constructively.
+- **S:** Reviews complex or sensitive material incisively, catches problems others miss, and mentors others.
+- **X:** Shapes review and approval practice across the organization.
+- **T:** Ensures the team reviews before publishing and holds the line on approval under deadline pressure.
+
+### I1-19 · Adhering to brand, legal and compliance standards in communications
+
+**Description:** Encompasses the commitment to work within the organization's brand, legal, and regulatory requirements — clearance and disclosure obligations, accessibility of published material, permissions and rights for assets, and data protection in contact and marketing data.
+
+- **N:** Follows given compliance rules with guidance and reminders.
+- **J:** Applies the main requirements to routine work with occasional correction.
+- **R:** Independently and consistently meets brand, legal, and compliance requirements in typical work.
+- **S:** Navigates complex compliance situations, obtains difficult clearances, and mentors others.
+- **X:** Defines communications compliance standards across the organization.
+- **T:** Ensures the team's output meets all obligations and aligns practice with legal and regulatory requirements.
+
+---
+
+**MC baseline complete** — E1 (9) · E2 (8) · E3 (3) · I1 (3) = **23 family-specific competencies**, plus the shared canonical set. Specializations DIGITAL / BRAND_PR / CONTENT / INTERNAL_COMMS still to build.

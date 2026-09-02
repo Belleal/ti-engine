@@ -2,7 +2,7 @@
 
 Authoritative code → name → applicability reference. Full descriptions and stage-level anchors live in `competency-definitions-final.md`; Bulgarian in `competency-bg-translations.md`; archetypes in `competency-relevancy-model.md`; deltas in `competency-change-log.md`.
 
-**Reflects Increments 1–5** (QE · architecture · management set · T2 · XD · SE specializations · DA). Regenerated from the definitions file, not reconstructed from memory.
+**Reflects Increments 1–6** (QE · architecture · management set · T2 · XD · SE specializations · DA · MC). Regenerated from the definitions file, not reconstructed from memory.
 
 ---
 
@@ -13,7 +13,7 @@ Authoritative code → name → applicability reference. Full descriptions and s
 - **Gaps are intentional.** Dropped or merged competencies leave their numbers vacant. New codes continue above all previously-used numbers, including retired ones.
 - **Applicability is not encoded in the code.** It lives in `config.role-family-competencies.json` (per-family pool), `config.relevancy-archetypes.json` together with each competency's `relevancyArchetype` pointer (weights), and `config.active-competency-sets.json` (per-cycle selection).
 
-**Next free codes:** `E1-76` · `E2-92` · `E3-37` · `I1-17` · `I2-14` · `I3-4` · `C1-9` · `C2-8` · `C3-10`
+**Next free codes:** `E1-85` · `E2-100` · `E3-40` · `I1-20` · `I2-14` · `I3-4` · `C1-9` · `C2-8` · `C3-10`
 
 ## Stage-levels (13 sub-levels)
 
@@ -44,11 +44,12 @@ A competency is **shared** when its meaning is identical across families, even w
 | SE.DATABASE_ARCHITECTURE spec. | — | 5 | — | — | — | — | — | — | — | **5** |
 | SE.AI_ENGINEERING spec. | — | 6 | — | — | — | — | — | — | — | **6** |
 | DA family-specific | 9 | 8 | 3 | 3 | — | — | — | — | — | **23** |
-| **Distinct total** | | | | | | | | | | **209** |
+| MC family-specific | 9 | 8 | 3 | 3 | — | — | — | — | — | **23** |
+| **Distinct total** | | | | | | | | | | **232** |
 
 *Shared totals include the three cross-cutting architecture competencies (E2-52/53/54) and the five management competencies (C2-7, C3-8, C3-9, I2-12, I2-13).*
 
-**Families defined but not yet populated:** IO · MC · PD.
+**Families defined but not yet populated:** IO · PD.
 
 ---
 
@@ -183,6 +184,28 @@ A competency is **shared** when its meaning is identical across families, even w
 
 ---
 
+## MC — Marketing & Communications (23)
+
+*First non-ICT family. The shared canonical core transferred **without modification** — planning, estimation, responsibility, communication and mentorship describe a marketer's work as accurately as an engineer's, and E1-10 applies directly. Evidence that the canonicalization principle generalizes beyond the discipline it was derived from.*
+
+**E1** — E1-76 Audience analysis and segmentation · E1-77 Communication and messaging principles · E1-78 Brand identity and positioning · E1-79 Marketing and communication channels · E1-80 Content strategy and planning · E1-81 Digital marketing concepts · E1-82 Communications measurement and analytics · E1-83 Public-sector communication rules and obligations · E1-84 Crisis and reputation management principles
+
+**E2** — E2-92 Writing for a defined audience and purpose · E2-93 Editing and quality control of content · E2-94 Planning and running communication campaigns · E2-95 Managing communication channels and publishing · E2-96 Applying and maintaining brand consistency · E2-97 Media and external stakeholder relations · E2-98 Measuring and reporting communication performance · E2-99 Translating technical subject matter for non-specialist audiences
+
+**E3** — E3-37 Applying accumulated communications experience · E3-38 Knowledge and use of marketing and communications tools · E3-39 Judging reputational risk and sensitivity
+
+**I1** — I1-17 Adhering to the internal communications process · I1-18 Participating in content review and approval · I1-19 Adhering to brand, legal and compliance standards in communications
+
+**Public-sector constraints are explicit, not inferred:** E1-83 carries procurement rules on communications spend, political neutrality, transparency duties, accessibility of public communication, and data protection on contact data.
+
+**E2-99** is family-specific and deliberately distinct from the shared C2 set: extracting substance from specialists and rendering it accurately for non-specialists is a defining demand on communications staff in a technology organization, not general communication skill.
+
+### Specializations
+
+`DIGITAL` · `BRAND_PR` · `CONTENT` · `INTERNAL_COMMS` — defined, no content. **The content writer role folds in here, under `CONTENT`.**
+
+---
+
 ## Retired codes
 
 Intentionally vacant. Content dropped, merged, or moved.
@@ -201,8 +224,8 @@ Intentionally vacant. Content dropped, merged, or moved.
 
 | Item | Status |
 |---|---|
-| Bulgarian translations | **Complete** — all 209 competencies carry `en` and `bg`, enforced by `competency-content-integrity.test.js` |
-| MC · PD · IO families | Not started |
+| Bulgarian translations | **Complete** — all 232 competencies carry `en` and `bg`, enforced by `competency-content-integrity.test.js` |
+| PD · IO families | Not started |
 | Technical Communication (TC) | Family decision pending |
 | Specialization content | Built: SE.ARCHITECTURE, SE.DATABASE_ARCHITECTURE, SE.AI_ENGINEERING, BA.SOLUTION_ARCHITECTURE. None for other specializations. |
 | e-CF mappings | Placeholders only |
