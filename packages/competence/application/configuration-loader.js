@@ -62,7 +62,8 @@ const roleFamilyCodeEnum = tools.enum( {
     DA: [ "DA", "Data & Analytics", "Disciplines focused on data engineering, analytics, and ML." ],
     IO: [ "IO", "Infrastructure & Ops", "Disciplines focused on infrastructure, platforms, and operations." ],
     MC: [ "MC", "Marketing & Communications", "Disciplines focused on marketing, brand, content, and PR." ],
-    PD: [ "PD", "Product Management", "Disciplines focused on product strategy and ownership." ]
+    PD: [ "PD", "Product Management", "Disciplines focused on product strategy and ownership." ],
+    TC: [ "TC", "Technical Communication", "Disciplines focused on documenting systems and processes for users, clients, and institutions." ]
 } );
 module.exports.roleFamilyCode = roleFamilyCodeEnum;
 

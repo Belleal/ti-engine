@@ -512,28 +512,99 @@ against BA's `E2-24` (analysis collaboration) and PM's `E2-30` (project stakehol
 (deciding under uncertainty) is the judgment to commit before the evidence is conclusive, which is the defining
 demand of the discipline rather than general decisiveness.
 
+## Assignments — TC family-specific
+
+*Technical Communication, 23 competencies (Increment 8). The **tenth family, and the only one this project adds
+to the taxonomy** — every other family was already defined in `config.role-families.json`. Listed as rows rather
+than prose so the generator sees them.*
+
+**E1 — Theoretical knowledge**
+
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E1-94 | Technical writing principles and standards | A | foundational to the discipline |
+| E1-95 | Documentation types and their purposes | A | foundational |
+| E1-96 | Information architecture for documentation | B | structuring at scale is a seniority skill |
+| E1-97 | Terminology management and style standards | A | applied from day one |
+| E1-98 | Document lifecycle and version control | A | |
+| E1-99 | Contract and regulatory documentation requirements | **C** | compliance obligation — see note |
+| E1-100 | Accessibility and readability standards for documents | **C** | regulatory obligation — see note |
+| E1-101 | Subject matter elicitation techniques | B | |
+| E1-102 | Visual communication in documentation | B | |
+
+**E2 — Applied skills**
+
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E2-108 | Writing technical documentation | E | core craft |
+| E2-109 | Structuring and organising document sets | B | |
+| E2-110 | Reviewing documents for accuracy and completeness | E | |
+| E2-111 | Verifying documentation against contract and regulatory requirements | E | |
+| E2-112 | Working with subject matter experts to capture information | E | |
+| E2-113 | Editing for clarity and terminological consistency | E | |
+| E2-114 | Maintaining documentation through change | E | |
+| E2-115 | Producing documentation in required formats and channels | E | |
+
+**E3 & I1**
+
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E3-43 | Applying accumulated technical communication experience | B | experiential, rises by definition |
+| E3-44 | Knowledge and use of documentation tools | A | daily use at every level |
+| E3-45 | Judging documentation completeness and fitness for purpose | B | judgment competency |
+| I1-23 | Adhering to the internal documentation process | C | |
+| I1-24 | Participating in document review and approval | B | |
+| I1-25 | Adhering to documentation standards and templates | **C** | the substance of the work — see note |
+
+**`I1-25` on C, not D — and this is the interesting one.** Every other family places its "adhering to
+documentation standards" competency on **D**: early-emphasis-then-assumed, a mechanic checked while someone is
+learning and taken for granted afterwards. That is right for `I1-3` (coding conventions), `I1-10` (test artifact
+standards), `I1-13` (design handoff standards) and `I1-22` (product decision records), because in those
+disciplines the standard governs a by-product of the real work.
+
+For a technical communicator the document **is** the work. Standards adherence is not hygiene mastered and set
+aside; it is the discipline itself, and a principal writer is held to it exactly as firmly as a junior — more so,
+since they set the templates others follow. Leaving `I1-25` on D would have said the opposite in the scoring: that
+senior writers are measured less on the thing they are actually for.
+
+**`E1-99` and `E1-100` on C** by the established obligation principle — contractual documentation requirements and
+document accessibility are compliance matters, not refinements added with seniority. Consistent with accessibility
+(E1-63, E2-72), AI safety (E2-82), data protection (E1-74) and public-sector communication rules (E1-83).
+
+**Note on the E2 block, which is unusually flat.** Seven of eight applied skills sit on **E**, and only
+`E2-109` (structuring document sets) rises. That is a real property of the discipline rather than lazy
+assignment: writing, reviewing, editing and maintaining documentation are performed at every level, with
+seniority showing up as harder subject matter and larger document estates rather than as different activities.
+Where the work genuinely changes shape — architecting a documentation set — the curve rises. Compare PD, which is
+B-heavy for the opposite reason.
+
 ## Distribution check
 
 | Archetype | Count |
 |---|---|
-| A — Foundational-plateau | 36 |
-| B — Rising-with-seniority | 84 |
-| C — Steady-high | 32 |
+| A — Foundational-plateau | 41 |
+| B — Rising-with-seniority | 91 |
+| C — Steady-high | 36 |
 | D — Early-emphasis-then-assumed | 9 |
-| E — Mid-weighted | 57 |
+| E — Mid-weighted | 64 |
 | F — Rising, expert-leaning | 28 |
 | G — Rising, manager-leaning | 4 |
 | H — Management-track | 5 |
-| **Total** | **255** |
+| **Total** | **278** |
 
-*255 = 36 shared + 49 SE + 29 BA + 25 PM + 26 QE + 24 XD + 23 DA + 23 MC + 23 PD − 3. The SE figure includes
-its **three specializations that carry content** (ARCHITECTURE 4, DATABASE_ARCHITECTURE 5, AI_ENGINEERING 6);
-SE defines eight in `config.role-families.json`, and `BA.SOLUTION_ARCHITECTURE` is BA's, counted under BA.
-The subtraction is
-`E2-52`/`E2-53`/`E2-54`, which are listed under **both** the SE and BA tables on purpose (see the note above) —
-258 assignment rows resolve to 255 distinct competencies, matching the dictionary exactly. Re-derive this table
-mechanically after every increment rather than adjusting it by hand, and **de-duplicate by code when you do**:
-counting rows overstates F by three.*
+*278 = 36 shared + 49 SE + 29 BA + 25 PM + 26 QE + 24 XD + 23 DA + 23 MC + 23 PD + 23 TC − 3. The SE figure
+includes its **three specializations that carry content** (ARCHITECTURE 4, DATABASE_ARCHITECTURE 5,
+AI_ENGINEERING 6); SE defines eight in `config.role-families.json`, and `BA.SOLUTION_ARCHITECTURE` is BA's,
+counted under BA. The subtraction is `E2-52`/`E2-53`/`E2-54`, which are listed under **both** the SE and BA tables
+on purpose (see the note above) — 281 assignment rows resolve to 278 distinct competencies, matching the
+dictionary exactly. Re-derive this table mechanically after every increment rather than adjusting it by hand, and
+**de-duplicate by code when you do**: counting rows overstates F by three.*
+
+*Correction note (TC increment): the incoming design document's running-distribution table recorded TC as
+`B 6 · E 8`. Derived mechanically from the assignment rows above, TC is `A 5 · B 7 · C 4 · E 7` — one competency
+was transposed between B and E in the summary. The per-code rows were correct, and the generator reads those
+rather than this table, so no configuration was affected. Recorded because this table has now been wrong in three
+separate increments, always in the summary and never in the rows.*
 
 *Correction note (QE increment): the previous version of this table read A 14 · B 40 · C 21 · D 5 · E 22 · F 6 · G 5 = 113, which did not match the assignment tables above it on any row and reconciled against a family split that no longer held. The counts here are derived mechanically from the assignment tables and should be re-derived, not hand-adjusted, whenever an increment lands.*
 

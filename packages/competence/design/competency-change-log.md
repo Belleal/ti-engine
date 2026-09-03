@@ -473,6 +473,104 @@ The same applies to MC from Increment 6. Recording it here because §6f stated t
 
 ---
 
+## Increment 8 — TC family (Technical Communication) — a new family
+
+**Date:** 3 September 2026
+**Implemented:** competence **v3.31.0**
+**Status:** ✅ **TC baseline complete and implemented** — 23 family-specific competencies. Specializations (TECHNICAL_WRITING / DOCUMENT_COMPLIANCE / KNOWLEDGE_MANAGEMENT) created but without content, and not required for TC to go live.
+**Baseline note:** Increments 1–7 were implemented and merged to `master` when this landed (dictionary at 255).
+
+> ⚠ **The only increment that changes the taxonomy.** Every previous family already existed in `config.role-families.json`; TC did not. This increment creates it, creates its three specializations, and retires `BA.DOC_PROC`.
+
+### 8a. Added — TC baseline (23)
+
+| Subcategory | Codes | Count |
+|---|---|---|
+| E1 | E1-94 … E1-102 | 9 |
+| E2 | E2-108 … E2-115 | 8 |
+| E3 | E3-43 … E3-45 | 3 |
+| I1 | I1-23 … I1-25 | 3 |
+
+Dictionary 255 → **278**.
+
+### 8b. Taxonomy change — a decision reversed, and why
+
+The earlier decision folded documentation staff into BA as the `DOC_PROC` specialization, on the basis that they were a small group without a progression path. The plan to develop them into technical writers changed that premise.
+
+The structural argument is what settles it: **baseline applies to every member of a family regardless of specialization.** Documentation staff sitting in BA would have been evaluated against strategy analysis, requirements lifecycle management and solution evaluation — scoring badly on work that was never theirs. That is exactly the procedural-justice failure the framework exists to prevent, and no amount of specialization content fixes it, because the baseline is not optional.
+
+`BA.DOC_PROC` is **retired**. No seeded employee was assigned to it, so no reassignment was required in the seed data; a deployment with real staff on `BA`/`DOC_PROC` must reassign them to `TC` before the next cycle.
+
+### 8c. Registration points a new family touches
+
+Worth recording, because it is the first time this has been exercised and content-only increments touch none of it. Adding a family required **seven** changes beyond the competency content:
+
+| File | Change |
+|---|---|
+| `config.role-families.json` | Create `TC` with three specializations; remove `BA.DOC_PROC` |
+| `role-families.schema.json` | Add `TC` to `required` and to `properties` — `additionalProperties: false` rejects an unlisted family |
+| `cycle.schema.json` | Add `TC` to the `excludedFamilies` code pattern |
+| `role-family-competencies.schema.json` | Add `TC` to the family-key pattern |
+| `active-competency-sets.schema.json` | Add `TC` to the family-key pattern |
+| `employee.schema.json` | Add `TC` to the `roleFamily` enum |
+| `evaluation.schema.json` | Add `TC` to the `roleFamily` enum |
+| `configuration-loader.js` | Add `TC` to `roleFamilyCodeEnum` |
+| `data-objects.types.js` | Add `"TC"` to the `RoleFamilyCodeValue` typedef |
+
+Only the first of these was caught by the test suite, because the others validate data that did not yet contain TC. The employee and evaluation enums in particular would have failed silently until the first real TC employee was created. **If an eleventh family is ever added, work this list.**
+
+### 8d. Designed for both the present and the intended state
+
+- **Current work** — reviewing project documentation and verifying it against contract requirements and protocols: `E1-99`, `E2-110`, `E2-111`.
+- **Intended direction** — technical writing: `E1-94`…`E1-98`, `E2-108` onward.
+
+The baseline carries both, so developing the team into technical writers requires no framework rework. The active set was composed to span the two: `E1-99` and `E2-110`/`E2-111` for what they do today, `E1-94`/`E1-95` and `E2-108`/`E2-112`/`E2-113` for where they are going.
+
+### 8e. Boundaries recorded
+
+BA's `E2-21` documents the analyst's *own* analysis; TC documents systems and deliverables *for others*. XD's `E2-70` specifies designs for engineers; TC produces documentation for users, clients and institutions. MC's `E2-99` renders technical material for public and promotional audiences; TC produces it for operational and reference use. `E1-101` elicits technical *fact* from specialists, where BA's `E1-15` elicits *requirements* from stakeholders.
+
+### 8f. Archetypes
+
+Assigned in `competency-relevancy-model.md` under *Assignments — TC family-specific*: **A ×5 · B ×7 · C ×4 · E ×7**.
+
+- **`I1-25` on C, not D — the substantive judgment in this increment.** Every other family places "adhering to documentation standards" on **D** (early-emphasis-then-assumed): `I1-3` coding conventions, `I1-10` test artifact standards, `I1-13` design handoff standards, `I1-22` product decision records. In those disciplines the standard governs a by-product of the real work and is fairly assumed once learned. For a technical communicator the document **is** the work — standards adherence is the substance, not the hygiene, and a principal writer is held to it more firmly than a junior since they set the templates others follow. D would have said the opposite in the scoring.
+- **`E1-99` and `E1-100` on C** by the established obligation principle, alongside accessibility (E1-63, E2-72), AI safety (E2-82), data protection (E1-74) and public-sector communication rules (E1-83).
+- **The E2 block is unusually flat** — seven of eight on E, with only `E2-109` rising. Writing, reviewing, editing and maintaining are performed at every level, with seniority showing up as harder subject matter and larger document estates rather than different activities. Compare PD, which is B-heavy for the opposite reason.
+
+### 8g. Config impact
+
+| File | Action | Hand-edited? |
+|---|---|---|
+| `config.role-families.json` | **Create `TC`** with `TECHNICAL_WRITING` / `DOCUMENT_COMPLIANCE` / `KNOWLEDGE_MANAGEMENT`; **remove `BA.DOC_PROC`** | Yes |
+| `config.competencies.json` | **+23** entries (E1-94…E1-102, E2-108…E2-115, E3-43…E3-45, I1-23…I1-25) → 278 total | Yes (entries); `relevancyArchetype` stamped by the generator |
+| `competence-labels.json` | **+23 × 8 strings × 2 languages** (368), plus TC family and specialization labels; `BA.DOC_PROC` labels removed | Yes |
+| `config.role-family-competencies.json` | TC pool **59** (23 family-specific + 36 shared). Every other pool byte-identical — TC adds nothing shared. | **No — generated** |
+| `config.relevancy-archetypes.json` | Curves unchanged; regenerated in place | **No — generated** |
+| `config.active-competency-sets.json` | **Added `TC` baseline** for `2026-H2` (23 codes), nine-subcategory floor coverage within the cap of 32. The three TC specializations are left **absent** rather than empty. | Yes |
+| Six schemas + two application files | See §8c | Yes |
+| `competency-master-index.md` | Added the TC section; totals 255 → 278; taxonomy note; `DOC_PROC` marked retired under BA | Yes |
+| `competency-relevancy-model.md` | Added *Assignments — TC family-specific*; re-derived the distribution table (281 rows → 278 distinct) | Yes — the generator's **source** |
+
+### 8h. Verification after implementation
+
+- ✅ Generator reports `278 / 278` assigned; TC pool = 59; every other pool byte-identical.
+- ✅ TC baseline satisfies floor coverage across all nine subcategories, 23 of the cap of 32.
+- ✅ **925 competence tests pass**; `eslint .` reports 0 errors (2 pre-existing warnings).
+- ✅ Content-integrity test passes: every competency carries non-empty `en` and `bg`.
+- ✅ No reference to `DOC_PROC` remains anywhere in the package.
+- ✅ Purely additive on the competency side — no code dropped or renumbered, so **no evaluation data migration**. The taxonomy side is not additive: a deployment with employees on `BA`/`DOC_PROC` must reassign them.
+
+### 8i. Correction — the incoming distribution table
+
+The design document's running-distribution table recorded TC as `B 6 · E 8`. Derived mechanically from the assignment rows, TC is `A 5 · B 7 · C 4 · E 7` — one competency transposed between B and E. The per-code rows were correct and the generator reads those, so no configuration was affected. Recorded because this table has now been wrong in three separate increments, always in the summary and never in the rows.
+
+### 8j. Deployment note
+
+As with Increments 6 and 7: competency texts are **labels** and the affected config documents are **store-backed**, so on an already-seeded instance the content reaches users through the **Configuration drift** panel (Administration → Configuration); startup logs a WARNING per drifted document until reconciled. `cycle.excludedFamilies` is derived once at cycle creation and never re-derived, so an existing seeded cycle will still exclude TC; Cycle Setup flags it as a stale exclusion. A UI-created cycle starts with an empty exclusion list and so includes TC already — which also means lock validation's `family-not-configured` rule now has **IO** as its only remaining trigger.
+
+---
+
 ## Working rules
 
 1. **One increment per completed family**, not per drafting session. Partial families are not implementable.

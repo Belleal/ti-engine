@@ -13,7 +13,8 @@
     "DA",
     "IO",
     "MC",
-    "PD"
+    "PD",
+    "TC"
   ],
   "additionalProperties": false,
   "properties": {
@@ -25,7 +26,8 @@
     "DA": { "$ref": "#/$defs/roleFamily" },
     "IO": { "$ref": "#/$defs/roleFamily" },
     "MC": { "$ref": "#/$defs/roleFamily" },
-    "PD": { "$ref": "#/$defs/roleFamily" }
+    "PD": { "$ref": "#/$defs/roleFamily" },
+    "TC": { "$ref": "#/$defs/roleFamily" }
   },
   "$defs": {
     "roleFamily": {

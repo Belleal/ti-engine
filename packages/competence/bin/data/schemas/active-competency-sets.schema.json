@@ -5,7 +5,7 @@
   "description": "Per-cycle competency assignments. Top-level keys are Role Family codes; under each family, the literal key \"baseline\" plus one key per permitted specialization code. Each leaf is keyed by cycle ID and holds an array of competency codes.",
   "type": "object",
   "patternProperties": {
-    "^(SE|QE|BA|PM|XD|DA|IO|MC|PD)$": {
+    "^(SE|QE|BA|PM|XD|DA|IO|MC|PD|TC)$": {
       "$ref": "#/$defs/familyEntry"
     }
   },

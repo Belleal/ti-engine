@@ -73,7 +73,8 @@
         "DA",
         "IO",
         "MC",
-        "PD"
+        "PD",
+        "TC"
       ],
       "description": "Role family of the employee at evaluation creation time"
     },

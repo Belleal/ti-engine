@@ -2,6 +2,26 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.31.0
+
+Increment 8 adds **Technical Communication** — 23 competencies, dictionary 255 → **278**, and the ninth populated
+role family. It is also **the only increment that changes the taxonomy**: every previous family already existed in
+`config.role-families.json`, whereas `TC` is created here along with three specializations, and `BA.DOC_PROC` is
+retired in its favour. The reason is structural rather than cosmetic — baseline applies to every member of a family
+regardless of specialization, so documentation staff sitting in BA were being evaluated against strategy analysis,
+requirements lifecycle management and solution evaluation, scoring badly on work that was never theirs. That is the
+procedural-justice failure the framework exists to prevent. The competency side is purely additive with no
+evaluation data migration; the taxonomy side is not, and a deployment with real staff on `BA`/`DOC_PROC` must
+reassign them to `TC` (CA-116).
+
+* feat(config): create the `TC` role family with the `TECHNICAL_WRITING`, `DOCUMENT_COMPLIANCE` and `KNOWLEDGE_MANAGEMENT` specializations, and retire `BA.DOC_PROC`. Adding a family touches **eight registration points beyond the content** — `role-families.schema.json` (required + properties), the family-code patterns in `cycle.schema.json`, `role-family-competencies.schema.json` and `active-competency-sets.schema.json`, the `roleFamily` enums in `employee.schema.json` and `evaluation.schema.json`, `roleFamilyCodeEnum` in `configuration-loader.js`, and the `RoleFamilyCodeValue` typedef. Only the first was caught by the test suite; the employee and evaluation enums would have failed silently until the first real TC employee was created
+* feat(config): add the 23 TC competencies — E1-94…E1-102 (technical writing principles, documentation types, information architecture, terminology and style, document lifecycle and version control, contract and regulatory requirements, accessibility and readability, subject matter elicitation, visual communication), E2-108…E2-115 (writing, structuring document sets, reviewing for accuracy, verifying against contract requirements, working with subject matter experts, editing, maintaining through change, producing in required formats), E3-43…E3-45 (accumulated experience, tooling, judging fitness for purpose) and I1-23…I1-25 (documentation process, review and approval, standards and templates)
+* feat(config): assign relevancy archetypes for all 23 (A ×5 · B ×7 · C ×4 · E ×7). **`I1-25` sits on C where every other family's equivalent sits on D**: for SE, QE, XD and PD, "adhering to documentation standards" governs a by-product of the real work and is fairly assumed once learned, but for a technical communicator the document *is* the work — the standard is the substance, and a principal writer is held to it more firmly than a junior since they set the templates others follow. `E1-99` and `E1-100` sit on C by the established obligation principle. TC's pool resolves to 59 competencies (23 family-specific + 36 shared)
+* feat(config): add the TC baseline active competency set for the `2026-H2` cycle — 23 codes satisfying nine-subcategory floor coverage within the cap of 32, composed to span both the team's current work (`E1-99`, `E2-110`, `E2-111` — documentation review and contract verification) and the technical-writing direction they are moving toward (`E1-94`, `E1-95`, `E2-108`, `E2-112`, `E2-113`). The three TC specializations are left **absent** rather than empty
+* feat(localization): add English and Bulgarian name, description and all six scope anchors for the 23 new competencies (368 strings), plus TC family and specialization labels; remove the retired `BA.DOC_PROC` labels
+* docs(competence): record Increment 8 in the competency change log, including the registration-point checklist for any future family, the `I1-25` reasoning and the `DOC_PROC` reassignment obligation; add the TC section to the master index (totals 255 → 278) and re-derive the relevancy model's distribution table (281 assignment rows resolving to 278 distinct competencies)
+* build(release): bump package version from `3.30.0` to `3.31.0`
+
 ## Version 3.30.0
 
 Increment 7 adds **Product Management** — 23 competencies, dictionary 232 → **255**, and the eighth populated role

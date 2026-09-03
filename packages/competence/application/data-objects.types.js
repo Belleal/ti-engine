@@ -328,7 +328,7 @@
  */
 
 /**
- * @typedef {"SE"|"QE"|"BA"|"PM"|"XD"|"DA"|"IO"|"MC"|"PD"} RoleFamilyCodeValue
+ * @typedef {"SE"|"QE"|"BA"|"PM"|"XD"|"DA"|"IO"|"MC"|"PD"|"TC"} RoleFamilyCodeValue
  */
 
 /**

@@ -95,11 +95,6 @@
         "description": "role-family.BA.specialization.description.DATA_BA",
         "eCFMapping": []
       },
-      "DOC_PROC": {
-        "name": "role-family.BA.specialization.name.DOC_PROC",
-        "description": "role-family.BA.specialization.description.DOC_PROC",
-        "eCFMapping": []
-      },
       "SOLUTION_ARCHITECTURE": {
         "name": "role-family.BA.specialization.name.SOLUTION_ARCHITECTURE",
         "description": "role-family.BA.specialization.description.SOLUTION_ARCHITECTURE",
@@ -259,6 +254,27 @@
       "GROWTH": {
         "name": "role-family.PD.specialization.name.GROWTH",
         "description": "role-family.PD.specialization.description.GROWTH",
+        "eCFMapping": []
+      }
+    }
+  },
+  "TC": {
+    "name": "role-family.name.TC",
+    "description": "role-family.description.TC",
+    "specializations": {
+      "TECHNICAL_WRITING": {
+        "name": "role-family.TC.specialization.name.TECHNICAL_WRITING",
+        "description": "role-family.TC.specialization.description.TECHNICAL_WRITING",
+        "eCFMapping": []
+      },
+      "DOCUMENT_COMPLIANCE": {
+        "name": "role-family.TC.specialization.name.DOCUMENT_COMPLIANCE",
+        "description": "role-family.TC.specialization.description.DOCUMENT_COMPLIANCE",
+        "eCFMapping": []
+      },
+      "KNOWLEDGE_MANAGEMENT": {
+        "name": "role-family.TC.specialization.name.KNOWLEDGE_MANAGEMENT",
+        "description": "role-family.TC.specialization.description.KNOWLEDGE_MANAGEMENT",
         "eCFMapping": []
       }
     }
