@@ -2,9 +2,11 @@ export = ConfigService;
 import type ConfigChangeNotifier from "#config-change-notifier";
 import type ConfigRegistry from "#config-registry";
 import type ConfigStore from "#config-store";
+import type { ConfigValidationIssue } from "#config-registry";
 /** @import ConfigChangeNotifier from "#config-change-notifier" */
 /** @import ConfigRegistry from "#config-registry" */
 /** @import ConfigStore from "#config-store" */
+/** @import { ConfigValidationIssue } from "#config-registry" */
 /**
  * Orchestrates validated, versioned configuration edits on top of {@link ConfigStore} and {@link ConfigRegistry}.
  *
@@ -223,6 +225,29 @@ declare class ConfigService {
      * @public
      */
     listDrift(): Promise<Array<Object>>;
+    /**
+     * Reports every registered document whose **stored** value no longer satisfies its registered schema.
+     * <br/>
+     * Nothing validates a stored value on the way out: the store hands back whatever it holds, and a consumer
+     * freezes it into its config exports. That is fine until a release tightens a schema — adds a required
+     * top-level key, say — at which point a deployment seeded before the change keeps serving a document that
+     * cannot be saved any more. The failure surfaces much later, as an admin edit rejected for a key the admin
+     * never touched, in a screen that has nothing to do with the change.
+     * <br/>
+     * This answers that question at a moment when it is cheap to act on. It is deliberately schema-only (see
+     * {@link ConfigRegistry#validateSchema}) and deliberately read-only: reconciling a stale document is what the
+     * drift panel is for, and an automatic repair here would write config outside the audited change-set machinery.
+     * A document that has never been stored is not a violation and is omitted.
+     *
+     * @method
+     * @returns {Promise<Array<{configKey: string, errors: ConfigValidationIssue[]}>>} Empty when every stored
+     *          document validates.
+     * @public
+     */
+    listSchemaViolations(): Promise<Array<{
+        configKey: string;
+        errors: ConfigValidationIssue[];
+    }>>;
     /**
      * Applies the registered file defaults for the given documents, as a single validated change-set.
      * <br/>

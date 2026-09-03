@@ -21,6 +21,7 @@ const configDrift = require( "#config-drift" );
 /** @import ConfigChangeNotifier from "#config-change-notifier" */
 /** @import ConfigRegistry from "#config-registry" */
 /** @import ConfigStore from "#config-store" */
+/** @import { ConfigValidationIssue } from "#config-registry" */
 
 /**
  * Orchestrates validated, versioned configuration edits on top of {@link ConfigStore} and {@link ConfigRegistry}.
