@@ -4,17 +4,64 @@ on:
   push:
     branches: [ master ]
     tags: [ 'competence-v*' ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'competence version to release, e.g. 3.31.0 — must match packages/competence/package.json at the ref you run this from'
+        required: true
+        type: string
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      # `write` (rather than `read`) only so the workflow_dispatch path can create the release tag.
+      # The push-triggered path never uses it.
+      contents: write
       packages: write
       id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Creates the release tag when the workflow is dispatched by hand. The version input must match the
+      # package.json of the checked-out ref, which makes it impossible to tag a commit that does not declare
+      # that version — and means a back-dated release is simply dispatched from the commit that declares it.
+      #
+      # The tag is created in this run rather than pushed separately because a tag pushed with GITHUB_TOKEN
+      # does not trigger workflows: the `push: tags:` trigger above would never fire, so this job also does
+      # the publish (see the `type=raw` metadata entries below).
+      - name: Create the release tag
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          case "$VERSION" in
+            [0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::'$VERSION' is not a semantic version (expected e.g. 3.31.0)." ; exit 1 ;;
+          esac
+
+          PKG_VERSION="$( node -p "require('./packages/competence/package.json').version" )"
+          if [ "$VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Requested $VERSION but packages/competence/package.json at ${GITHUB_SHA} declares $PKG_VERSION. Dispatch this workflow from the commit that declares the version you are releasing."
+            exit 1
+          fi
+
+          TAG="competence-v$VERSION"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG already exists. Releases are immutable — bump the version instead."
+            exit 1
+          fi
+
+          # actions/checkout persists GITHUB_TOKEN in the credential helper, so this push is already authenticated.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "competence $VERSION"
+          git push origin "$TAG"
+          echo "Created $TAG at ${GITHUB_SHA}"
+
       - name: Set up Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
       - name: Log in to GHCR
@@ -37,11 +84,14 @@ jobs:
           images: |
             ghcr.io/belleal/ti-engine-competence
             europe-west1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/competence/ti-engine-competence
+          # The `match` entry covers a tag pushed by a human; the two `raw` entries cover the dispatch path,
+          # where `github.ref` is a branch and so `match` yields nothing.
           tags: |
             type=edge,branch=master
             type=sha
             type=match,pattern=competence-v(.*),group=1
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/competence-v') }}
+            type=raw,value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/competence-v') || github.event_name == 'workflow_dispatch' }}
       - name: Build and push
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:

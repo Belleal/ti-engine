@@ -60,6 +60,23 @@ There are no other required services. (The framework can call peer ti-engine ser
   - `:X.Y.Z` — a released version (e.g. `:3.16.0`), published from a `competence-v*` git tag. **Use a pinned version tag in production.**
   - `:latest` — the most recent released version.
   - `:edge` — the tip of `master` (pre-release; for staging only).
+
+### Cutting a release
+
+Two ways, both producing the same `competence-v<version>` tag and the same images.
+
+**From the Actions tab (no local git needed).** Run the **CD** workflow with *Run workflow*, choose the ref you are releasing, and enter the bare version — `3.31.0`, not `v3.31.0`. The workflow creates and pushes the tag, then builds and publishes in the same run.
+
+It refuses to proceed unless the version matches `packages/competence/package.json` **at the ref you selected**, so a tag can never point at a commit that declares a different version. A back-dated release is simply dispatched from the commit that declares it. It also refuses to overwrite an existing tag — releases are immutable, so bump the version instead.
+
+**By pushing the tag yourself**, which is unchanged:
+
+```bash
+git tag -a competence-v3.31.0 -m "competence 3.31.0"
+git push origin competence-v3.31.0
+```
+
+> The dispatch path builds and publishes inside the run that creates the tag rather than relying on the `push: tags:` trigger, because a tag pushed with `GITHUB_TOKEN` does not start another workflow.
 - **Base:** `node:22-alpine`, non-root (`node` user), `NODE_ENV=production`.
 - **Pulling:** if the package is public, `docker pull ghcr.io/belleal/ti-engine-competence:3.19.1`. If private, authenticate to GHCR first:
   ```bash
