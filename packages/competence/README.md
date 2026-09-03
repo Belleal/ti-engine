@@ -116,21 +116,22 @@ Each employee is identified by three orthogonal dimensions that together determi
 
 1. **Role Family** — the broad discipline (one of nine codes below). Mandatory.
 2. **Specialization** — a narrower focus within the family (e.g., `BACKEND` under `SE`). Optional — when unset, the employee is treated as a *generalist* within the family.
-3. **Stage-Level** — the seniority code (`N1`, `J1`–`J3`, `R1`–`R3`, `S1`–`S3`, `X1`, `T1`) that maps to per-competency relevancy weights.
+3. **Stage-Level** — the seniority code (`N1`, `J1`–`J3`, `R1`–`R3`, `S1`–`S3`, `X1`, `T1`, `T2`) that maps to per-competency relevancy weights.
 
-The nine role families and their permitted specializations are configured in `bin/config/config.role-families.json`:
+The ten role families and their permitted specializations are configured in `bin/config/config.role-families.json`:
 
 | Code | Role Family                  | Specializations                                                    |
 |------|------------------------------|--------------------------------------------------------------------|
 | `SE` | Software Engineering         | `BACKEND`, `FRONTEND`, `MOBILE`, `FULLSTACK`, `EMBEDDED`           |
 | `QE` | Quality Engineering          | `MANUAL`, `AUTOMATION`, `PERFORMANCE`, `SECURITY`                  |
-| `BA` | Business Analysis            | `REQUIREMENTS`, `PROCESS`, `PRODUCT_OWNERSHIP`, `DATA_BA`, `DOC_PROC` |
+| `BA` | Business Analysis            | `REQUIREMENTS`, `PROCESS`, `PRODUCT_OWNERSHIP`, `DATA_BA`          |
 | `PM` | Project & Delivery Management| `AGILE`, `TRADITIONAL`, `PROGRAM`                                  |
 | `XD` | Experience Design            | `RESEARCH`, `INTERACTION`, `VISUAL`, `SERVICE`                     |
 | `DA` | Data & Analytics             | `ENGINEERING`, `ANALYTICS`, `ML`, `RESEARCH`                       |
 | `IO` | Infrastructure & Ops         | `DEVOPS`, `SRE`, `CLOUD`, `SYSADMIN`, `SECOPS`                     |
 | `MC` | Marketing & Communications   | `DIGITAL`, `BRAND_PR`, `CONTENT`, `INTERNAL_COMMS`                 |
 | `PD` | Product Management           | `STRATEGY`, `OWNERSHIP`, `ACCOUNT`, `GROWTH`                       |
+| `TC` | Technical Communication      | `TECHNICAL_WRITING`, `DOCUMENT_COMPLIANCE`, `KNOWLEDGE_MANAGEMENT` |
 
 The competency selection for any `(roleFamily, specialization?, cycleID)` tuple is called the **Active Competency Set** and is configured per cycle in `bin/config/config.active-competency-sets.json`. The resolved set is `baseline ∪ specialization`, deduplicated. The baseline applies to every employee in the family regardless of specialization; the specialization additions only apply to employees with that specialization set.
 
@@ -175,7 +176,7 @@ Each competency also carries a **scope** description per level (N/J/R/S/X/T), de
 
 ### Relevancy Archetypes
 
-A competency's **relevancy** — how much it weighs in scoring at each stage-level — is defined by one of seven reusable **archetype curves** in `bin/config/config.relevancy-archetypes.json`. Each competency in the dictionary references a single archetype (`relevancyArchetype`), and the archetype supplies a weight (integer 2–10) for every one of the twelve stage-levels (`N1`, `J1`–`J3`, `R1`–`R3`, `S1`–`S3`, `X1`, `T1`).
+A competency's **relevancy** — how much it weighs in scoring at each stage-level — is defined by one of eight reusable **archetype curves** in `bin/config/config.relevancy-archetypes.json`. Each competency in the dictionary references a single archetype (`relevancyArchetype`), and the archetype supplies a weight (integer 2–10) for every one of the thirteen stage-levels (`N1`, `J1`–`J3`, `R1`–`R3`, `S1`–`S3`, `X1`, `T1`, `T2`).
 
 The curve is **global** — a given competency carries the same relevancy wherever it is used. Whether a competency applies to a family at all is handled by selection into that family's Active Competency Set, not by the relevancy curve, so per-family curve divergence is intentionally not modelled. At evaluation creation, the resolved relevancy values are **frozen into the evaluation snapshot**, so later configuration edits never affect an in-flight evaluation. The archetypes (and the per-competency assignment) are editable through the Administration screens, and the file is regenerated from `design/competency-relevancy-model.md` by `bin/build/build-competency-relevancy.js`.
 
@@ -1030,9 +1031,9 @@ All configuration lives in `bin/config/` as JSON, validated against the schemas 
 | File                                  | Holds                                                                                              | Admin-editable                |
 |---------------------------------------|----------------------------------------------------------------------------------------------------|-------------------------------|
 | `config.application.json`             | App settings — evaluation/grade weights, performance thresholds, active-set cap, interview calendar | No                            |
-| `config.role-families.json`           | The nine role families and their permitted specializations                                         | Yes (text + specializations)  |
-| `config.competencies.json`            | The competency dictionary (108) — category, subcategory, scope anchors, archetype assignment, e-CF  | Yes                           |
-| `config.relevancy-archetypes.json`    | The seven relevancy archetype curves (twelve stage-level weights each)                              | Yes                           |
+| `config.role-families.json`           | The ten role families and their permitted specializations                                          | Yes (text + specializations)  |
+| `config.competencies.json`            | The competency dictionary (278) — category, subcategory, scope anchors, archetype assignment, e-CF  | Yes                           |
+| `config.relevancy-archetypes.json`    | The eight relevancy archetype curves (thirteen stage-level weights each)                              | Yes                           |
 | `config.role-family-competencies.json`| The per-family competency pool (applicability universe)                                            | No (read-only; exportable)    |
 | `config.active-competency-sets.json`  | Per-cycle baseline + specialization competency selections                                          | Yes                           |
 | `config.stage-levels.json`            | The stage-level ladder (N/J/R/S/X/T and their stage counts)                                         | No (read-only)                |
