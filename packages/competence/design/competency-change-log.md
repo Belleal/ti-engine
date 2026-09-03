@@ -400,6 +400,79 @@ Assigned in `competency-relevancy-model.md` under *Assignments — Increment 6 (
 
 ---
 
+## Increment 7 — PD family (Product Management)
+
+**Date:** 2 September 2026
+**Implemented:** competence **v3.30.0**
+**Status:** ✅ **PD baseline complete and implemented** — 23 family-specific competencies. Specializations (STRATEGY / OWNERSHIP / ACCOUNT / GROWTH) still to build, and not required for PD to go live.
+**Baseline note:** Increments 1–6 were already implemented when this landed (dictionary at 232). Increment 6 was still on its feature branch rather than on `master`, so this increment was built on top of that branch — the PD code ranges continue directly from MC's and cannot be numbered without it.
+
+### 7a. Added — PD baseline (23)
+
+| Subcategory | Codes | Count |
+|---|---|---|
+| E1 | E1-85 … E1-93 | 9 |
+| E2 | E2-100 … E2-107 | 8 |
+| E3 | E3-40 … E3-42 | 3 |
+| I1 | I1-20 … I1-22 | 3 |
+
+Dictionary 232 → **255**.
+
+### 7b. Notable — the canonicalization result repeats
+
+PD is the second consecutive family to draw the shared canonical core **without modification and without contributing anything new to it**. MC established that the principle survives leaving ICT; PD shows the same outcome for a discipline that is neither engineering nor communications. Every other family's pool is byte-identical after this increment.
+
+*One data point is an observation; two consecutive ones make it a pattern worth stating in the dissertation.*
+
+### 7c. Scoping decisions
+
+- **The BA boundary is the load-bearing one.** PD owns *what to build and why* — direction, value, prioritisation, commercial outcome — looking outward to market and customer. BA owns *what precisely and how specified* — elicitation, analysis, requirements, solution definition — looking inward to delivery. They overlap at junior level and diverge sharply at senior level, which is the argument for two families rather than one.
+- **Product Ownership exists in both families and means different things.** BA's `PRODUCT_OWNERSHIP` is the tactical, delivery-embedded role (backlog, stories, refinement); PD's `OWNERSHIP` is the commercial one (product direction and customer outcomes). Same job title in the market, different discipline — recorded here because it will otherwise be read as a duplication error.
+- **Three adjacencies held apart deliberately.** `E1-87` is market-level customer value, against XD's `E1-64` (individual user behaviour) and BA's `E1-15` (eliciting requirements from named stakeholders). `E2-105` is commercial and account relationship ownership, against BA's `E2-24` and PM's `E2-30`. `E3-42` (deciding under uncertainty) is the judgment to commit before the evidence is conclusive, not general decisiveness.
+
+### 7d. Archetypes
+
+Assigned in `competency-relevancy-model.md` under *Assignments — PD family-specific*: A ×4 · B ×13 · C ×1 · D ×1 · E ×4.
+
+- **`E1-92` on B, not C** — and this is the increment where the obligation principle was tested against a near-miss. MC's `E1-83` is on C because procurement rules, political neutrality and transparency duties are hard compliance obligations that bind every level equally. PD's public-sector *product context* is contextual knowledge that deepens with seniority: public value reasoning, policy as a requirement driver, institutional alongside citizen users. Consistent with PM's `E1-44`/`E1-45` and BA's `E1-46`/`E1-47`, all B. **The obligation principle applies where there is an actual obligation; it is not a rule about the words "public sector".**
+- **PD is unusually B-heavy — 13 of 23.** In few disciplines does the work change as much between junior and senior: a junior product manager maintains a backlog against a direction someone else set, a senior one sets that direction and defends the investment behind it. This is a genuine feature of the discipline, not imprecise assignment, but it is worth watching after cycle 1 — a family whose curves nearly all rise will spread its scores widely across stage levels by construction.
+
+### 7e. Config impact
+
+| File | Action | Hand-edited? |
+|---|---|---|
+| `config.competencies.json` | **+23** entries (E1-85…E1-93, E2-100…E2-107, E3-40…E3-42, I1-20…I1-22) → 255 total | Yes (entries); `relevancyArchetype` stamped by the generator |
+| `competence-labels.json` | **+23 × 8 strings × 2 languages** (368) | Yes |
+| `config.role-family-competencies.json` | PD pool 36 → **59** (23 family-specific + 36 shared). No other family's pool changes — PD adds nothing shared. | **No — generated** |
+| `config.relevancy-archetypes.json` | Curves unchanged; regenerated in place, byte-identical | **No — generated** |
+| `config.active-competency-sets.json` | **Added `PD` baseline** for `2026-H2` (23 codes), nine-subcategory floor coverage within the cap of 32. The four PD specializations are left **absent** rather than empty. | Yes |
+| `config.role-families.json` | **No change** — PD and its four specializations were already defined | — |
+| `competency-master-index.md` | Added the PD section; totals 232 → 255; PD removed from the unpopulated list | Yes |
+| `competency-relevancy-model.md` | Added *Assignments — PD family-specific*; re-derived the distribution table (258 rows → 255 distinct) | Yes — the generator's **source** |
+
+### 7f. Verification after implementation
+
+- ✅ Generator reports `255 / 255` assigned; PD pool = 59; every other pool unchanged.
+- ✅ PD baseline satisfies floor coverage across all nine subcategories, 23 of the cap of 32.
+- ✅ **925 competence tests pass**, first run — no fixture depended on PD being unpopulated.
+- ✅ `eslint .` reports 0 errors (2 pre-existing warnings, untouched).
+- ✅ Content-integrity test passes: every competency carries non-empty `en` and `bg`.
+- ✅ Purely additive — no code dropped or renumbered, so **no evaluation data migration**.
+- ✅ A `2026-H2` cycle seeded from a **fresh or drift-reconciled** configuration includes PD automatically, since the seeder derives `excludedFamilies` from which families carry competencies at creation time. On an upgraded instance the seeder reads `configurationLoader.configActiveCompetencySets`, which is store-backed — so until the drift is reconciled it still sees the pre-PD document and would exclude PD even for a cycle created after this release.
+
+### 7g. Deployment note — PD will not appear in an existing cycle on its own
+
+Two separate things have to happen on an already-running instance, and neither is automatic:
+
+1. **Config documents are store-backed.** Competency texts are labels, and the affected documents are held in the config store, so the new content reaches users through the **Configuration drift** panel (Administration → Configuration). Startup logs a WARNING per drifted document until it is reconciled.
+2. **`cycle.excludedFamilies` is derived once, at cycle creation, and is deliberately never re-derived** (`cycle-setup-tools.js`, CA-103) — including a family in a cycle is a governance decision, not a computation. What that means for an existing cycle depends on how it was created:
+   - **Seeded** before PD was configured (`data-manager.js` `#deriveSeededCycles`): its exclusion list was derived from the then-current active sets, so it still lists PD as excluded. Cycle Setup surfaces this via `deriveStaleExclusions`, which flags a family that has gained competencies since the cycle was created, so a Supervisor can act on it deliberately.
+   - **Created through the UI** (`competence-web-application.js`, the create-cycle service): it starts with `excludedFamilies: []`, so PD is *not* excluded and needs no action — but note that an empty exclusion list also means every family is included, so lock validation's `family-not-configured` rule will now fail on **IO**, which still carries no competencies, until IO is either populated or explicitly excluded.
+
+The same applies to MC from Increment 6. Recording it here because §6f stated the automatic-inclusion half without the second condition.
+
+---
+
 ## Working rules
 
 1. **One increment per completed family**, not per drafting session. Partial families are not implementable.

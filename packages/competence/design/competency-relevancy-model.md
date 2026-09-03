@@ -447,26 +447,93 @@ distinct from the shared C2 communication competencies: it concerns extracting s
 rendering it accurately for a lay audience, which is a defining demand on communications staff in a technology
 organization rather than general communication skill.
 
+## Assignments — PD family-specific
+
+*Product Management, 23 competencies (Increment 7). The eighth populated family and the second non-ICT one.
+Like MC, it drew the shared canonical core without modification and contributed nothing new to it. Listed as
+rows rather than prose so the generator sees them.*
+
+**E1 — Theoretical knowledge**
+
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E1-85 | Product strategy and vision | B | strategy is a seniority capability |
+| E1-86 | Market and competitive analysis | B | |
+| E1-87 | Customer and user needs analysis | A | foundational to the discipline |
+| E1-88 | Product lifecycle management | A | lifecycle awareness needed early |
+| E1-89 | Prioritisation frameworks and value assessment | A | everyone prioritises from day one |
+| E1-90 | Product economics and commercial models | B | |
+| E1-91 | Product roadmapping | B | |
+| E1-92 | Public-sector product and service context | B | context knowledge that deepens — see note |
+| E1-93 | Product metrics and success measurement | B | |
+
+**E2 — Applied skills**
+
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E2-100 | Defining and communicating product direction | B | |
+| E2-101 | Conducting market and customer research | E | |
+| E2-102 | Building and maintaining product roadmaps | B | |
+| E2-103 | Prioritising product work and managing the backlog | E | |
+| E2-104 | Building business cases and justifying investment | B | |
+| E2-105 | Managing customer and stakeholder relationships | B | |
+| E2-106 | Measuring and analysing product performance | E | |
+| E2-107 | Planning and executing product launches | E | |
+
+**E3 & I1**
+
+| Code | Name | Archetype | Note |
+|---|---|---|---|
+| E3-40 | Applying accumulated product management experience | B | experiential, rises by definition |
+| E3-41 | Knowledge and use of product management tools | A | daily use at every level |
+| E3-42 | Deciding under uncertainty and incomplete information | B | the defining PD judgment competency |
+| I1-20 | Adhering to the internal product management process | C | |
+| I1-21 | Participating in product and roadmap review | B | |
+| I1-22 | Adhering to product documentation and decision-record standards | D | |
+
+**E1-92 on B, not C.** Unlike MC's `E1-83` — procurement rules, political neutrality, transparency duties, all
+hard compliance obligations — the public-sector *product context* is contextual knowledge that deepens with
+seniority: public value reasoning, policy as a requirement driver, institutional alongside citizen users. It is
+something a senior product manager commands more fully, not a standard every level must meet equally. This is
+consistent with PM's `E1-44`/`E1-45` and BA's `E1-46`/`E1-47`, which are all B. The obligation principle applies
+where there is an actual obligation; it is not a rule about the words "public sector".
+
+**PD is unusually B-heavy — 13 of 23 — and that is honest.** In few disciplines does the work change as much
+between junior and senior: a junior product manager maintains a backlog against a direction someone else set,
+while a senior one sets that direction and defends the investment behind it. The distribution reflects a genuine
+feature of the discipline rather than imprecise assignment. It is worth watching after cycle 1, since a family
+whose curves nearly all rise will spread its scores widely across stage levels by construction.
+
+**Note on E1-87, E2-105 and E3-42.** Three PD competencies sit close to existing ones and are deliberately
+distinct. `E1-87` (customer and user needs analysis) is *market-level* customer value — what a segment needs and
+what it is worth — as against XD's `E1-64` (individual user behaviour and experience) and BA's `E1-15`
+(eliciting requirements from named stakeholders). `E2-105` is commercial and account relationship ownership, as
+against BA's `E2-24` (analysis collaboration) and PM's `E2-30` (project stakeholder engagement). `E3-42`
+(deciding under uncertainty) is the judgment to commit before the evidence is conclusive, which is the defining
+demand of the discipline rather than general decisiveness.
+
 ## Distribution check
 
 | Archetype | Count |
 |---|---|
-| A — Foundational-plateau | 32 |
-| B — Rising-with-seniority | 71 |
-| C — Steady-high | 31 |
-| D — Early-emphasis-then-assumed | 8 |
-| E — Mid-weighted | 53 |
+| A — Foundational-plateau | 36 |
+| B — Rising-with-seniority | 84 |
+| C — Steady-high | 32 |
+| D — Early-emphasis-then-assumed | 9 |
+| E — Mid-weighted | 57 |
 | F — Rising, expert-leaning | 28 |
 | G — Rising, manager-leaning | 4 |
 | H — Management-track | 5 |
-| **Total** | **232** |
+| **Total** | **255** |
 
-*232 = 36 shared + 49 SE + 29 BA + 25 PM + 26 QE + 24 XD + 23 DA + 23 MC − 3. SE includes its four specializations
-(ARCHITECTURE 4, DATABASE_ARCHITECTURE 5, AI_ENGINEERING 6). The subtraction is `E2-52`/`E2-53`/`E2-54`, which
-are listed under **both** the SE and BA tables on purpose (see the note above) — 235 assignment rows resolve to
-232 distinct competencies, matching the dictionary exactly. Re-derive this table mechanically after every
-increment rather than adjusting it by hand, and **de-duplicate by code when you do**: counting rows overstates
-F by three.*
+*255 = 36 shared + 49 SE + 29 BA + 25 PM + 26 QE + 24 XD + 23 DA + 23 MC + 23 PD − 3. The SE figure includes
+its **three specializations that carry content** (ARCHITECTURE 4, DATABASE_ARCHITECTURE 5, AI_ENGINEERING 6);
+SE defines eight in `config.role-families.json`, and `BA.SOLUTION_ARCHITECTURE` is BA's, counted under BA.
+The subtraction is
+`E2-52`/`E2-53`/`E2-54`, which are listed under **both** the SE and BA tables on purpose (see the note above) —
+258 assignment rows resolve to 255 distinct competencies, matching the dictionary exactly. Re-derive this table
+mechanically after every increment rather than adjusting it by hand, and **de-duplicate by code when you do**:
+counting rows overstates F by three.*
 
 *Correction note (QE increment): the previous version of this table read A 14 · B 40 · C 21 · D 5 · E 22 · F 6 · G 5 = 113, which did not match the assignment tables above it on any row and reconciled against a family split that no longer held. The counts here are derived mechanically from the assignment tables and should be re-derived, not hand-adjusted, whenever an increment lands.*
 
