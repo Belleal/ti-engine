@@ -114,27 +114,28 @@ A user can hold multiple roles. The active role for a given operation is resolve
 
 Each employee is identified by three orthogonal dimensions that together determine which competencies appear in their evaluation:
 
-1. **Role Family** — the broad discipline (one of nine codes below). Mandatory.
+1. **Role Family** — the broad discipline (one of ten codes below). Mandatory.
 2. **Specialization** — a narrower focus within the family (e.g., `BACKEND` under `SE`). Optional — when unset, the employee is treated as a *generalist* within the family.
-3. **Stage-Level** — the seniority code (`N1`, `J1`–`J3`, `R1`–`R3`, `S1`–`S3`, `X1`, `T1`) that maps to per-competency relevancy weights.
+3. **Stage-Level** — the seniority code (`N1`, `J1`–`J3`, `R1`–`R3`, `S1`–`S3`, `X1`, `T1`, `T2`) that maps to per-competency relevancy weights.
 
-The nine role families and their permitted specializations are configured in `bin/config/config.role-families.json`:
+The ten role families and their permitted specializations are configured in `bin/config/config.role-families.json`:
 
 | Code | Role Family                  | Specializations                                                    |
 |------|------------------------------|--------------------------------------------------------------------|
 | `SE` | Software Engineering         | `BACKEND`, `FRONTEND`, `MOBILE`, `FULLSTACK`, `EMBEDDED`           |
 | `QE` | Quality Engineering          | `MANUAL`, `AUTOMATION`, `PERFORMANCE`, `SECURITY`                  |
-| `BA` | Business Analysis            | `REQUIREMENTS`, `PROCESS`, `PRODUCT_OWNERSHIP`, `DATA_BA`, `DOC_PROC` |
+| `BA` | Business Analysis            | `REQUIREMENTS`, `PROCESS`, `PRODUCT_OWNERSHIP`, `DATA_BA`          |
 | `PM` | Project & Delivery Management| `AGILE`, `TRADITIONAL`, `PROGRAM`                                  |
 | `XD` | Experience Design            | `RESEARCH`, `INTERACTION`, `VISUAL`, `SERVICE`                     |
 | `DA` | Data & Analytics             | `ENGINEERING`, `ANALYTICS`, `ML`, `RESEARCH`                       |
 | `IO` | Infrastructure & Ops         | `DEVOPS`, `SRE`, `CLOUD`, `SYSADMIN`, `SECOPS`                     |
 | `MC` | Marketing & Communications   | `DIGITAL`, `BRAND_PR`, `CONTENT`, `INTERNAL_COMMS`                 |
 | `PD` | Product Management           | `STRATEGY`, `OWNERSHIP`, `ACCOUNT`, `GROWTH`                       |
+| `TC` | Technical Communication      | `TECHNICAL_WRITING`, `DOCUMENT_COMPLIANCE`, `KNOWLEDGE_MANAGEMENT` |
 
 The competency selection for any `(roleFamily, specialization?, cycleID)` tuple is called the **Active Competency Set** and is configured per cycle in `bin/config/config.active-competency-sets.json`. The resolved set is `baseline ∪ specialization`, deduplicated. The baseline applies to every employee in the family regardless of specialization; the specialization additions only apply to employees with that specialization set.
 
-**Set size — a hard maximum, no minimum count.** The only numeric bound is the **cap** (`performanceAppraisals.activeCompetencySetCap`, default **30**), a *maximum* enforced at lock time on the baseline **and** on every resolved `baseline ∪ specialization` set. The cap is a **ceiling, not a target** — a set may be any size up to it (the seeded baselines are 22 / 21 / 21). There is **no minimum-count** setting; the only lower bound is structural — the baseline must satisfy **floor coverage** (at least one competency in each of the nine subcategories), so a valid baseline is effectively ≥ 9. Specializations carry no floor of their own and are bounded only by the cap on the resolved set.
+**Set size — a hard maximum, no minimum count.** The only numeric bound is the **cap** (`performanceAppraisals.activeCompetencySetCap`, default **32**), a *maximum* enforced at lock time on the baseline **and** on every resolved `baseline ∪ specialization` set. The cap is a **ceiling, not a target** — a set may be any size up to it (the seeded baselines run 21–23). There is **no minimum-count** setting; the only lower bound is structural — the baseline must satisfy **floor coverage** (at least one competency in each of the nine subcategories), so a valid baseline is effectively ≥ 9. Specializations carry no floor of their own and are bounded only by the cap on the resolved set.
 
 Each family draws its competencies from a fixed **competency pool** (its applicability universe), defined in `bin/config/config.role-family-competencies.json` — the family's own family-specific competencies plus the 30 shared canonical ones. Cycle Setup only offers, and lock validation only accepts, competencies from within that pool. The not-yet-populated families (`QE`, `XD`, `DA`, `IO`, `MC`, `PD`) currently have a pool of the shared competencies only — too few to satisfy floor coverage, so they are typically **excluded** from a cycle (see [Cycle Setup](#cycle-setup)) until they have their own content.
 
@@ -175,7 +176,7 @@ Each competency also carries a **scope** description per level (N/J/R/S/X/T), de
 
 ### Relevancy Archetypes
 
-A competency's **relevancy** — how much it weighs in scoring at each stage-level — is defined by one of seven reusable **archetype curves** in `bin/config/config.relevancy-archetypes.json`. Each competency in the dictionary references a single archetype (`relevancyArchetype`), and the archetype supplies a weight (integer 2–10) for every one of the twelve stage-levels (`N1`, `J1`–`J3`, `R1`–`R3`, `S1`–`S3`, `X1`, `T1`).
+A competency's **relevancy** — how much it weighs in scoring at each stage-level — is defined by one of eight reusable **archetype curves** in `bin/config/config.relevancy-archetypes.json`. Each competency in the dictionary references a single archetype (`relevancyArchetype`), and the archetype supplies a weight (integer 2–10) for every one of the thirteen stage-levels (`N1`, `J1`–`J3`, `R1`–`R3`, `S1`–`S3`, `X1`, `T1`, `T2`).
 
 The curve is **global** — a given competency carries the same relevancy wherever it is used. Whether a competency applies to a family at all is handled by selection into that family's Active Competency Set, not by the relevancy curve, so per-family curve divergence is intentionally not modelled. At evaluation creation, the resolved relevancy values are **frozen into the evaluation snapshot**, so later configuration edits never affect an in-flight evaluation. The archetypes (and the per-competency assignment) are editable through the Administration screens, and the file is regenerated from `design/competency-relevancy-model.md` by `bin/build/build-competency-relevancy.js`.
 
@@ -589,7 +590,7 @@ Admin-allowlisted screens (visible only to identities in `auth.admins`) for edit
 - **Configuration** — landing screen with the config change feed, validated restore, and export-to-git
 - **Competency Text Editor** — bilingual (EN/BG) editor for competency names, descriptions, and scope anchors, built for the Bulgarian-translation review pass
 - **Archetype Assignment** — assigns a relevancy archetype to each competency, with a curve sparkline
-- **Archetype Curve Editor** — edits the twelve weights, name, and description of each relevancy archetype
+- **Archetype Curve Editor** — edits the thirteen weights, name, and description of each relevancy archetype
 - **Role Families** — edits role-family names/descriptions and manages their specializations
 - **Work Sites** — edits the work-site nomenclature (code, type, and bilingual name) backing the employee `work_site` field; a site still assigned to an employee cannot be removed
 - **Employee Import** — uploads an HR-exported CSV, previews the reconciliation plan, and applies it. **Unlike every other screen in this section it does not edit configuration**: it writes employee records, so it is neither versioned nor restorable and an applied import cannot be undone. It runs the same importer as the `import:org` CLI, and a successful apply rebuilds the org chart in-process, so imported employees can sign in without a restart
@@ -1030,9 +1031,9 @@ All configuration lives in `bin/config/` as JSON, validated against the schemas 
 | File                                  | Holds                                                                                              | Admin-editable                |
 |---------------------------------------|----------------------------------------------------------------------------------------------------|-------------------------------|
 | `config.application.json`             | App settings — evaluation/grade weights, performance thresholds, active-set cap, interview calendar | No                            |
-| `config.role-families.json`           | The nine role families and their permitted specializations                                         | Yes (text + specializations)  |
-| `config.competencies.json`            | The competency dictionary (108) — category, subcategory, scope anchors, archetype assignment, e-CF  | Yes                           |
-| `config.relevancy-archetypes.json`    | The seven relevancy archetype curves (twelve stage-level weights each)                              | Yes                           |
+| `config.role-families.json`           | The ten role families and their permitted specializations                                          | Yes (text + specializations)  |
+| `config.competencies.json`            | The competency dictionary (278) — category, subcategory, scope anchors, archetype assignment, e-CF  | Yes                           |
+| `config.relevancy-archetypes.json`    | The eight relevancy archetype curves (thirteen stage-level weights each)                              | Yes                           |
 | `config.role-family-competencies.json`| The per-family competency pool (applicability universe)                                            | No (read-only; exportable)    |
 | `config.active-competency-sets.json`  | Per-cycle baseline + specialization competency selections                                          | Yes                           |
 | `config.stage-levels.json`            | The stage-level ladder (N/J/R/S/X/T and their stage counts)                                         | No (read-only)                |

@@ -418,7 +418,7 @@ function decomposeRelevancyArchetype( editedView, docs ) {
  * Projects the role families and their specializations: each family's bilingual name/description (text from the labels
  * document; the config holds only templated label-key refs) and its specializations (code + bilingual name/description
  * + eCFMapping + the number of active-competency-set cycles that reference the specialization, for the remove guard).
- * The nine families are fixed by schema — only their text and their specializations are editable. **Writes the
+ * The set of families is fixed by schema — only their text and their specializations are editable. **Writes the
  * role-families config and the labels document.**
  *
  * @method

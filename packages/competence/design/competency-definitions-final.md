@@ -2879,3 +2879,282 @@ Applying that principle:
 ---
 
 **PD baseline complete** — E1 (9) · E2 (8) · E3 (3) · I1 (3) = **23 family-specific competencies**, plus the shared canonical set. Specializations STRATEGY / OWNERSHIP / ACCOUNT / GROWTH still to build.
+
+---
+
+# TC — Technical Communication
+
+*New tenth family. Baseline draws on the shared canonical competencies plus the family-specific set below.*
+
+**Why a family rather than a BA specialization.** The earlier decision folded this group into BA as `DOC_PROC`, on the basis that they were "a handful of people without prior progression." The plan to develop them into technical writers changes that: they become a discipline with its own trajectory. The structural argument is decisive — under our model, baseline applies to every member of a family regardless of specialization, so documentation staff sitting in BA would be evaluated against strategy analysis, requirements lifecycle management, and solution evaluation. They would score badly on work that is not theirs, which is exactly the procedural-justice failure the framework exists to prevent.
+
+**Built for both the present and the intended direction.** Their current work — reviewing project documentation, verifying it against contract requirements and protocols — is carried by E1-99, E2-110, and E2-111. The technical writing capability they are moving toward is carried by E1-94 through E1-98 and E2-108 onward. The same baseline serves both, so the upgrade requires no rework.
+
+**Boundaries.** BA's E2-21 documents the analyst's *own* analysis; TC documents systems and deliverables *for others*. XD's E2-70 specifies designs for engineers; TC produces documentation for users, clients, and institutions. MC's E2-99 renders technical material for public and promotional audiences; TC produces it for operational and reference use. E1-101 elicits technical *fact* from specialists, where BA's E1-15 elicits *requirements* from stakeholders.
+
+**Consequence:** `BA.DOC_PROC` is retired — its population moves to this family.
+
+## E1 — Theoretical knowledge
+
+### E1-94 · Technical writing principles and standards
+
+**Description:** Encompasses knowledge of what makes technical writing effective — precision, unambiguity, consistent structure, plain-language principles, and writing for a reader who is trying to accomplish something rather than reading for interest.
+
+- **N:** Knows basic principles of clear writing and applies given conventions under guidance.
+- **J:** Applies technical writing conventions to straightforward material with supervision.
+- **R:** Independently applies technical writing principles to typical material, producing precise and usable text.
+- **S:** Applies advanced principles to complex or ambiguous subject matter and mentors others in the craft.
+- **X:** Recognized authority; defines technical writing standards across the organization.
+- **T:** Ensures the team writes to a consistent standard and aligns practice with organizational requirements.
+
+### E1-95 · Documentation types and their purposes
+
+**Description:** Encompasses knowledge of the distinct forms technical documentation takes — user guides, reference material, procedures and protocols, specifications, contractual deliverables, and release documentation — what each is for, and what a reader legitimately expects from each.
+
+- **N:** Recognizes the main documentation types and works within a given one under guidance.
+- **J:** Understands the purpose of common types and selects appropriately with supervision.
+- **R:** Independently selects the right documentation type for typical needs and meets its conventions.
+- **S:** Designs documentation sets combining multiple types for complex deliverables and mentors others.
+- **X:** Recognized authority; defines the organization's documentation taxonomy and conventions.
+- **T:** Ensures the team produces the right documentation for each purpose.
+
+### E1-96 · Information architecture for documentation
+
+**Description:** Encompasses knowledge of structuring documentation so readers can find what they need — organisation and navigation, modularity and single-sourcing, granularity of topics, and reuse across deliverables without divergence.
+
+- **N:** Works within an existing documentation structure under guidance.
+- **J:** Organises straightforward documents sensibly with supervision.
+- **R:** Independently structures typical documentation sets for findability and maintainability.
+- **S:** Designs architecture for large or reused documentation estates, resolves modularity questions, and mentors others.
+- **X:** Recognized authority; defines documentation architecture across the organization.
+- **T:** Ensures the team's documentation is well-structured and aligns architecture with reuse strategy.
+
+### E1-97 · Terminology management and style standards
+
+**Description:** Encompasses knowledge of maintaining consistency of language across authors and documents — controlled vocabulary and glossaries, style guides, and the discipline of using one term for one concept, particularly where documentation exists in both Bulgarian and English.
+
+- **N:** Uses the given glossary and style guide under guidance.
+- **J:** Applies terminology and style standards to straightforward work with supervision.
+- **R:** Independently applies standards consistently and identifies terminological drift in typical work.
+- **S:** Maintains terminology across complex or bilingual documentation estates and mentors others.
+- **X:** Recognized authority; owns terminology and style standards across the organization.
+- **T:** Ensures the team writes consistently and aligns terminology with organizational standards.
+
+### E1-98 · Document lifecycle and version control
+
+**Description:** Encompasses knowledge of how documents move from draft through review, approval, publication, revision, and eventual archival or retirement — including version identification, change tracking, and retention obligations.
+
+- **N:** Understands that documents are versioned and follows given procedures under guidance.
+- **J:** Manages straightforward document lifecycles with supervision.
+- **R:** Independently manages the lifecycle of typical documents, including versioning, approval, and retention.
+- **S:** Manages lifecycle across complex or contractually governed document sets and mentors others.
+- **X:** Recognized authority; defines document lifecycle and retention practice across the organization.
+- **T:** Ensures the team manages documents through their lifecycle and aligns practice with retention obligations.
+
+### E1-99 · Contract and regulatory documentation requirements
+
+**Description:** Encompasses knowledge of the formal documentation obligations that public-sector projects carry — mandatory deliverables and their required content, protocol and acceptance documentation, contractual formatting and submission requirements, and the standards a document must meet to be accepted by the receiving institution.
+
+- **N:** Aware that formal documentation requirements exist and follows a given checklist under guidance.
+- **J:** Knows the common requirements and applies them to straightforward deliverables with supervision.
+- **R:** Independently identifies which contractual and regulatory requirements apply to typical deliverables and ensures they are met.
+- **S:** Navigates complex or contested documentation obligations across multiple contracts and institutions, and mentors others.
+- **X:** Recognized authority; advises the organization on documentation compliance and negotiates documentation terms.
+- **T:** Ensures the team's deliverables meet contractual and regulatory obligations.
+
+### E1-100 · Accessibility and readability standards for documents
+
+**Description:** Encompasses knowledge of making documents usable by everyone who needs them — accessibility requirements for published and electronic documents, readability and plain-language expectations, and accessible formats and structures for assistive technology.
+
+- **N:** Aware that accessibility requirements apply to documents and follows given rules under guidance.
+- **J:** Applies common accessibility and readability requirements to straightforward documents with supervision.
+- **R:** Independently produces documents meeting the applicable accessibility and readability standards.
+- **S:** Resolves complex accessibility problems in documentation and mentors others.
+- **X:** Recognized authority; defines document accessibility standards and advises on compliance obligations.
+- **T:** Ensures the team's documentation meets accessibility obligations.
+
+### E1-101 · Subject matter elicitation techniques
+
+**Description:** Encompasses knowledge of obtaining accurate technical information from specialists — interviewing engineers and analysts productively, reading source material and code or configuration, and validating understanding before it is written down. *(Elicits technical fact; BA's E1-15 elicits requirements.)*
+
+- **N:** Asks basic clarifying questions and works from provided material under guidance.
+- **J:** Gathers straightforward technical information from specialists with supervision.
+- **R:** Independently elicits accurate technical information for typical subjects and validates understanding before writing.
+- **S:** Elicits from reluctant or unavailable specialists, works effectively from incomplete source material, and mentors others.
+- **X:** Recognized authority; shapes how the organization captures technical knowledge from specialists.
+- **T:** Ensures the team documents from verified understanding rather than assumption.
+
+### E1-102 · Visual communication in documentation
+
+**Description:** Encompasses knowledge of when and how to use visual elements in technical documents — diagrams, tables, screenshots, and structured layouts — recognising where a visual conveys structure or process better than prose, and where it merely decorates.
+
+- **N:** Inserts provided visuals into documents under guidance.
+- **J:** Uses simple tables and screenshots appropriately with supervision.
+- **R:** Independently selects and produces effective visuals for typical documentation.
+- **S:** Designs visual explanation for complex processes and systems and mentors others.
+- **X:** Recognized authority; sets standards for visual communication in documentation.
+- **T:** Ensures the team uses visuals purposefully and aligns visual practice with documentation standards.
+
+## E2 — Applied skills
+
+### E2-108 · Writing technical documentation
+
+**Description:** Encompasses the applied skill of producing technical documents that let a reader accomplish a task or find a fact — accurate, complete, structured for scanning rather than reading through, and pitched at the reader's actual level of knowledge.
+
+- **N:** Drafts simple sections from templates under guidance; output requires substantial revision.
+- **J:** Writes straightforward documentation with supervision, though structure and completeness need correction.
+- **R:** Independently writes accurate, well-structured documentation for typical subjects that needs little revision.
+- **S:** Writes documentation for complex or poorly-understood subjects and mentors others in the craft.
+- **X:** Recognized authority; produces the organization's most demanding documentation and sets the standard.
+- **T:** Ensures the team's documentation is accurate and usable and aligns output with organizational standards.
+
+### E2-109 · Structuring and organising document sets
+
+**Description:** Encompasses the applied skill of organising documentation as a coherent set rather than a pile of files — establishing structure and naming, deciding what is separate and what belongs together, and building navigation that survives growth.
+
+- **N:** Files documents into a given structure under guidance.
+- **J:** Organises straightforward document sets with supervision.
+- **R:** Independently structures typical documentation sets coherently and maintains navigability.
+- **S:** Restructures large or disordered documentation estates and mentors others.
+- **X:** Recognized authority; owns documentation structure across the organization.
+- **T:** Ensures the team's documentation remains organised and findable.
+
+### E2-110 · Reviewing documents for accuracy and completeness
+
+**Description:** Encompasses the applied skill of examining documents critically — verifying technical accuracy against the subject, identifying gaps, inconsistencies, and unstated assumptions, and distinguishing substantive defects from matters of preference.
+
+- **N:** Checks documents against a provided checklist under guidance.
+- **J:** Reviews straightforward documents with supervision, catching obvious errors and omissions.
+- **R:** Independently reviews typical documents for accuracy and completeness and identifies substantive gaps.
+- **S:** Reviews complex or high-stakes documentation, catches subtle inaccuracy, and mentors others in review.
+- **X:** Recognized authority; final reviewer for the organization's most consequential documentation.
+- **T:** Ensures the team reviews rigorously and aligns review standards with the stakes of the deliverable.
+
+### E2-111 · Verifying documentation against contract and regulatory requirements
+
+**Description:** Encompasses the applied skill of checking that a deliverable meets its formal obligations — cross-referencing content against contractual and protocol requirements, confirming mandatory sections and formats, and identifying non-compliance before submission rather than after rejection.
+
+- **N:** Checks documents against a provided requirements list under guidance.
+- **J:** Verifies straightforward deliverables with supervision, though less obvious requirements are missed.
+- **R:** Independently verifies typical deliverables against their contractual and regulatory requirements and documents the check.
+- **S:** Verifies complex deliverables across multiple overlapping obligations, resolves ambiguous requirements, and mentors others.
+- **X:** Recognized authority; adjudicates compliance on the organization's most significant deliverables.
+- **T:** Ensures nothing is submitted non-compliant and aligns verification with contractual obligations.
+
+### E2-112 · Working with subject matter experts to capture information
+
+**Description:** Encompasses the applied skill of extracting what needs documenting from people who know it — preparing well, asking questions that surface the non-obvious, respecting specialists' time, and getting review and confirmation without becoming a burden they avoid.
+
+- **N:** Asks prepared questions and records answers under guidance.
+- **J:** Gathers information from cooperative specialists on straightforward subjects with supervision.
+- **R:** Independently works with specialists for typical subjects, surfaces gaps in their explanations, and secures review.
+- **S:** Works effectively with reluctant, busy, or inconsistent specialists on complex subjects, and mentors others.
+- **X:** Recognized authority; trusted by senior specialists and shapes how technical knowledge is captured.
+- **T:** Ensures the team obtains accurate information efficiently and maintains good working relationships with specialists.
+
+### E2-113 · Editing for clarity and terminological consistency
+
+**Description:** Encompasses the applied skill of improving text without changing its meaning — tightening and clarifying, enforcing terminology and style consistently across authors, and preserving technical accuracy while making the language plainer.
+
+- **N:** Corrects obvious language errors under guidance.
+- **J:** Edits straightforward text with supervision, focusing mainly on grammar and style.
+- **R:** Independently edits typical documentation for clarity and consistency while preserving technical accuracy.
+- **S:** Edits complex or multi-author documentation into a single coherent voice and mentors others.
+- **X:** Recognized authority; sets editorial standards for technical documentation across the organization.
+- **T:** Ensures the team's output is clear and consistent regardless of author.
+
+### E2-114 · Maintaining documentation through change
+
+**Description:** Encompasses the applied skill of keeping documentation true as the systems it describes change — tracking what changed, identifying every affected document, and revising promptly rather than allowing documentation to drift silently out of date.
+
+- **N:** Applies given updates to documents under guidance.
+- **J:** Updates straightforward documentation in response to notified changes with supervision.
+- **R:** Independently identifies affected documentation when systems change and revises it promptly and completely.
+- **S:** Maintains large or interdependent documentation estates through significant change and mentors others.
+- **X:** Recognized authority; defines documentation maintenance practice across the organization.
+- **T:** Ensures the team's documentation stays current and aligns maintenance with release cycles.
+
+### E2-115 · Producing documentation in required formats and channels
+
+**Description:** Encompasses the applied skill of delivering documentation in the form it is required — publishing to the correct systems, generating required formats, meeting formatting and submission specifications, and handling the mechanics of production reliably.
+
+- **N:** Produces documents in a given format using provided templates under guidance.
+- **J:** Produces and publishes straightforward documentation with supervision.
+- **R:** Independently produces and delivers documentation in the required formats and channels for typical needs.
+- **S:** Handles complex production requirements and multi-format delivery and mentors others.
+- **X:** Recognized authority; defines documentation production and publishing standards.
+- **T:** Ensures the team delivers documentation correctly and aligns production with delivery requirements.
+
+## E3 — Practical experience *(discipline-specific)*
+
+### E3-43 · Applying accumulated technical communication experience
+
+**Description:** Encompasses the practical judgment that accumulates from documenting real systems — knowing which explanations readers actually struggle with, anticipating what will be asked, and recognising where documentation habitually goes stale or gets ignored.
+
+- **N:** Has limited experience and applies lessons from training or a single project under guidance.
+- **J:** Draws on experience from a few projects for familiar subjects but relies on guidance when unfamiliar.
+- **R:** Applies experience across a range of work to make sound documentation decisions independently.
+- **S:** Draws on deep, varied experience to handle difficult subjects and audiences, anticipates reader difficulty, and mentors others.
+- **X:** Recognized for exceptional documentation judgment; advises across the organization.
+- **T:** Applies and shares accumulated experience to guide the team's documentation decisions.
+
+### E3-44 · Knowledge and use of documentation tools
+
+**Description:** Encompasses the practical ability to use the toolchain the function relies on — authoring and publishing systems, version control for documents, diagramming tools, terminology and translation memory tools, and the systems through which deliverables are submitted.
+
+- **N:** Uses basic tool features for simple tasks under guidance.
+- **J:** Uses the main features on routine work with supervision, though not always efficiently.
+- **R:** Independently uses the toolchain effectively for typical work.
+- **S:** Exploits advanced capabilities, establishes efficient authoring practice, and mentors others.
+- **X:** Recognized authority; evaluates and introduces tools and defines toolchain standards.
+- **T:** Ensures consistent, effective tool use across the team.
+
+### E3-45 · Judging documentation completeness and fitness for purpose
+
+**Description:** Encompasses the practical ability to decide whether documentation is actually good enough — whether a reader could accomplish the task from it unaided, whether the gaps that remain matter, and when to say a deliverable is not ready despite deadline pressure.
+
+- **N:** Cannot reliably judge sufficiency; relies on reviewers to determine readiness.
+- **J:** Assesses straightforward documentation with supervision but tends to over- or under-estimate what readers need.
+- **R:** Independently judges whether typical documentation is fit for its purpose and identifies the gaps that matter.
+- **S:** Judges fitness for complex or high-stakes deliverables, resists pressure to ship inadequate documentation, and mentors others.
+- **X:** Recognized authority; adjudicates readiness of the organization's most significant deliverables.
+- **T:** Ensures the team judges fitness honestly and supports members in holding the line under deadline pressure.
+
+## I1 — Processes
+
+### I1-23 · Adhering to the internal documentation process
+
+**Description:** Encompasses the commitment and ability to follow the organization's internal documentation process — intake and planning, drafting and review stages, approval and sign-off, and the function's role in relation to delivery and contractual milestones.
+
+- **N:** Follows the main process steps with guidance and reminders.
+- **J:** Follows the process on routine work with occasional correction.
+- **R:** Independently adheres to the full documentation process for typical work.
+- **S:** Applies the process rigorously on complex work, identifies gaps, and mentors others.
+- **X:** Shapes and improves the documentation process across the organization.
+- **T:** Ensures the team adheres consistently and aligns process use with delivery milestones.
+
+### I1-24 · Participating in document review and approval
+
+**Description:** Encompasses the discipline of the review cycle — submitting work for technical and compliance review, reviewing others' documents constructively and on time, and pursuing approvals so that documentation is not the reason a milestone slips.
+
+- **N:** Submits work for review as instructed under guidance.
+- **J:** Participates in review of straightforward documents with supervision.
+- **R:** Independently manages review and approval for typical documents and reviews others' work constructively.
+- **S:** Manages review across complex deliverables with multiple approvers and mentors others.
+- **X:** Shapes documentation review and approval practice across the organization.
+- **T:** Ensures the team completes review cycles promptly and aligns approval with delivery schedules.
+
+### I1-25 · Adhering to documentation standards and templates
+
+**Description:** Encompasses the commitment to follow the organization's documentation standards — approved templates, structural and formatting conventions, metadata and naming, and the traceability required for contractual and audit purposes. For this discipline these are not incidental hygiene but the substance of the work.
+
+- **N:** Uses given templates and follows basic conventions with guidance and reminders.
+- **J:** Applies standards to routine work with occasional correction.
+- **R:** Independently and consistently applies documentation standards, conventions, and metadata for typical work.
+- **S:** Applies and refines standards on complex deliverables, ensures traceability, and mentors others.
+- **X:** Defines documentation standards and templates across the organization.
+- **T:** Ensures the team adheres to standards and aligns documentation practice with audit and contractual requirements.
+
+---
+
+**TC baseline complete** — E1 (9) · E2 (8) · E3 (3) · I1 (3) = **23 family-specific competencies**, plus the shared canonical set. Proposed specializations: `TECHNICAL_WRITING` / `DOCUMENT_COMPLIANCE` / `KNOWLEDGE_MANAGEMENT`.

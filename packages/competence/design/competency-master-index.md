@@ -2,7 +2,7 @@
 
 Authoritative code → name → applicability reference. Full descriptions and stage-level anchors live in `competency-definitions-final.md`; Bulgarian in `competency-bg-translations.md`; archetypes in `competency-relevancy-model.md`; deltas in `competency-change-log.md`.
 
-**Reflects Increments 1–6** (QE · architecture · management set · T2 · XD · SE specializations · DA · MC). Regenerated from the definitions file, not reconstructed from memory.
+**Reflects Increments 1–8** (QE · architecture · management set · T2 · XD · SE specializations · DA · MC · PD · TC). Regenerated from the definitions file, not reconstructed from memory.
 
 ---
 
@@ -13,7 +13,7 @@ Authoritative code → name → applicability reference. Full descriptions and s
 - **Gaps are intentional.** Dropped or merged competencies leave their numbers vacant. New codes continue above all previously-used numbers, including retired ones.
 - **Applicability is not encoded in the code.** It lives in `config.role-family-competencies.json` (per-family pool), `config.relevancy-archetypes.json` together with each competency's `relevancyArchetype` pointer (weights), and `config.active-competency-sets.json` (per-cycle selection).
 
-**Next free codes:** `E1-85` · `E2-100` · `E3-40` · `I1-20` · `I2-14` · `I3-4` · `C1-9` · `C2-8` · `C3-10`
+**Next free codes:** `E1-103` · `E2-116` · `E3-46` · `I1-26` · `I2-14` · `I3-4` · `C1-9` · `C2-8` · `C3-10`
 
 ## Stage-levels (13 sub-levels)
 
@@ -46,11 +46,14 @@ A competency is **shared** when its meaning is identical across families, even w
 | DA family-specific | 9 | 8 | 3 | 3 | — | — | — | — | — | **23** |
 | MC family-specific | 9 | 8 | 3 | 3 | — | — | — | — | — | **23** |
 | PD family-specific | 9 | 8 | 3 | 3 | — | — | — | — | — | **23** |
-| **Distinct total** | | | | | | | | | | **255** |
+| TC family-specific | 9 | 8 | 3 | 3 | — | — | — | — | — | **23** |
+| **Distinct total** | | | | | | | | | | **278** |
 
 *Shared totals include the three cross-cutting architecture competencies (E2-52/53/54) and the five management competencies (C2-7, C3-8, C3-9, I2-12, I2-13).*
 
-**Families defined but not yet populated:** IO.
+**Families defined but not yet populated:** IO only (deferred — infrastructure department).
+
+**Taxonomy note:** TC is a **tenth family**, created in Increment 8 — the only family this project adds to the taxonomy rather than populating an existing definition. `BA.DOC_PROC` is retired and its population moves to TC.
 
 ---
 
@@ -107,7 +110,7 @@ A competency is **shared** when its meaning is identical across families, even w
 *Note: E1-10 Business and IT domain knowledge was promoted to shared in Increment 1; BA continues to reference it.*
 
 ### Specializations
-- `REQUIREMENTS` · `PROCESS` · `PRODUCT_OWNERSHIP` · `DATA_BA` · `DOC_PROC` — defined, no content
+- `REQUIREMENTS` · `PROCESS` · `PRODUCT_OWNERSHIP` · `DATA_BA` — defined, no content. *(`DOC_PROC` retired in Increment 8 — its population moved to the TC family.)*
 - **`SOLUTION_ARCHITECTURE`** — E2-59 Cross-system and cross-institutional solution design · E2-60 Interoperability and standards compliance · E2-61 Solution feasibility, sizing and costing · E2-62 Vendor and product evaluation · E2-63 Client-facing solution justification *(plus shared E2-52/53/54)*
 
   **Solutions Architect = BA × SOLUTION_ARCHITECTURE × (R | S | X)**
@@ -231,6 +234,32 @@ A competency is **shared** when its meaning is identical across families, even w
 
 ---
 
+## TC — Technical Communication (23)
+
+*Tenth family, created in Increment 8 — the only one added to the taxonomy rather than populated from an existing definition. Serves both the current documentation-review and contract-verification work and the intended development into technical writing.*
+
+**Why a family rather than a BA specialization.** Baseline applies to every member of a family regardless of specialization, so documentation staff sitting in BA would have been evaluated against strategy analysis, requirements lifecycle management and solution evaluation — scoring badly on work that is not theirs. That is precisely the procedural-justice failure the framework exists to prevent, which is why the earlier `DOC_PROC` decision was reversed.
+
+**Boundaries.** BA's `E2-21` documents the analyst's *own* analysis; TC documents systems and deliverables *for others*. XD's `E2-70` specifies designs for engineers; TC produces documentation for users, clients and institutions. MC's `E2-99` renders technical material for public and promotional audiences; TC produces it for operational and reference use. `E1-101` elicits technical *fact* from specialists, where BA's `E1-15` elicits *requirements* from stakeholders.
+
+**E1** — E1-94 Technical writing principles and standards · E1-95 Documentation types and their purposes · E1-96 Information architecture for documentation · E1-97 Terminology management and style standards · E1-98 Document lifecycle and version control · E1-99 Contract and regulatory documentation requirements · E1-100 Accessibility and readability standards for documents · E1-101 Subject matter elicitation techniques · E1-102 Visual communication in documentation
+
+**E2** — E2-108 Writing technical documentation · E2-109 Structuring and organising document sets · E2-110 Reviewing documents for accuracy and completeness · E2-111 Verifying documentation against contract and regulatory requirements · E2-112 Working with subject matter experts to capture information · E2-113 Editing for clarity and terminological consistency · E2-114 Maintaining documentation through change · E2-115 Producing documentation in required formats and channels
+
+**E3** — E3-43 Applying accumulated technical communication experience · E3-44 Knowledge and use of documentation tools · E3-45 Judging documentation completeness and fitness for purpose
+
+**I1** — I1-23 Adhering to the internal documentation process · I1-24 Participating in document review and approval · I1-25 Adhering to documentation standards and templates
+
+**`I1-25` carries archetype C where every other family's equivalent is D.** For SE, QE, XD and PD, "adhering to documentation standards" governs a by-product of the real work and is reasonably assumed once learned. For a technical communicator the document *is* the work, so the standard is the substance rather than the hygiene — and a principal writer is held to it more firmly than a junior, not less, since they set the templates others follow.
+
+**`E1-99` and `E1-100` on C** by the established obligation principle, alongside accessibility (E1-63, E2-72), AI safety (E2-82), data protection (E1-74) and public-sector communication rules (E1-83).
+
+### Specializations
+
+`TECHNICAL_WRITING` · `DOCUMENT_COMPLIANCE` · `KNOWLEDGE_MANAGEMENT` — **created in `config.role-families.json` by this increment**, no content yet.
+
+---
+
 ## Retired codes
 
 Intentionally vacant. Content dropped, merged, or moved.
@@ -249,9 +278,9 @@ Intentionally vacant. Content dropped, merged, or moved.
 
 | Item | Status |
 |---|---|
-| Bulgarian translations | **Complete** — all 255 competencies carry `en` and `bg`, enforced by `competency-content-integrity.test.js` |
+| Bulgarian translations | **Complete** — all 278 competencies carry `en` and `bg`, enforced by `competency-content-integrity.test.js` |
 | IO family | Not started |
-| Technical Communication (TC) | Family decision pending |
+| Technical Communication (TC) | **Resolved** — became the tenth family in Increment 8; `BA.DOC_PROC` retired |
 | Specialization content | Built: SE.ARCHITECTURE, SE.DATABASE_ARCHITECTURE, SE.AI_ENGINEERING, BA.SOLUTION_ARCHITECTURE. None for other specializations. |
 | e-CF mappings | Placeholders only |
 | Relevancy calibration | Archetype defaults; calibrate after cycle 1 |

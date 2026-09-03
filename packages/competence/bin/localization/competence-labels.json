@@ -1128,6 +1128,98 @@
       "I1-22": {
         "en": "Adhering to product documentation and decision-record standards",
         "bg": "Спазване на стандартите за продуктова документация и записи на решенията"
+      },
+      "E1-94": {
+        "en": "Technical writing principles and standards",
+        "bg": "Принципи и стандарти на техническото писане"
+      },
+      "E1-95": {
+        "en": "Documentation types and their purposes",
+        "bg": "Видове документация и тяхното предназначение"
+      },
+      "E1-96": {
+        "en": "Information architecture for documentation",
+        "bg": "Информационна архитектура на документацията"
+      },
+      "E1-97": {
+        "en": "Terminology management and style standards",
+        "bg": "Управление на терминологията и стандарти за стил"
+      },
+      "E1-98": {
+        "en": "Document lifecycle and version control",
+        "bg": "Жизнен цикъл на документа и контрол на версиите"
+      },
+      "E1-99": {
+        "en": "Contract and regulatory documentation requirements",
+        "bg": "Договорни и нормативни изисквания към документацията"
+      },
+      "E1-100": {
+        "en": "Accessibility and readability standards for documents",
+        "bg": "Стандарти за достъпност и четимост на документите"
+      },
+      "E1-101": {
+        "en": "Subject matter elicitation techniques",
+        "bg": "Техники за извличане на информация от специалисти"
+      },
+      "E1-102": {
+        "en": "Visual communication in documentation",
+        "bg": "Визуална комуникация в документацията"
+      },
+      "E2-108": {
+        "en": "Writing technical documentation",
+        "bg": "Писане на техническа документация"
+      },
+      "E2-109": {
+        "en": "Structuring and organising document sets",
+        "bg": "Структуриране и организиране на комплекти документи"
+      },
+      "E2-110": {
+        "en": "Reviewing documents for accuracy and completeness",
+        "bg": "Преглед на документи за точност и пълнота"
+      },
+      "E2-111": {
+        "en": "Verifying documentation against contract and regulatory requirements",
+        "bg": "Проверка на документацията спрямо договорните и нормативните изисквания"
+      },
+      "E2-112": {
+        "en": "Working with subject matter experts to capture information",
+        "bg": "Работа със специалисти за събиране на информация"
+      },
+      "E2-113": {
+        "en": "Editing for clarity and terminological consistency",
+        "bg": "Редактиране за яснота и терминологична последователност"
+      },
+      "E2-114": {
+        "en": "Maintaining documentation through change",
+        "bg": "Поддържане на документацията при промени"
+      },
+      "E2-115": {
+        "en": "Producing documentation in required formats and channels",
+        "bg": "Изготвяне на документация в изискваните формати и канали"
+      },
+      "E3-43": {
+        "en": "Applying accumulated technical communication experience",
+        "bg": "Прилагане на натрупания опит в техническата комуникация"
+      },
+      "E3-44": {
+        "en": "Knowledge and use of documentation tools",
+        "bg": "Познаване и използване на инструментите за документация"
+      },
+      "E3-45": {
+        "en": "Judging documentation completeness and fitness for purpose",
+        "bg": "Преценка на пълнотата и годността на документацията"
+      },
+      "I1-23": {
+        "en": "Adhering to the internal documentation process",
+        "bg": "Спазване на вътрешния процес за документация"
+      },
+      "I1-24": {
+        "en": "Participating in document review and approval",
+        "bg": "Участие в преглед и одобряване на документи"
+      },
+      "I1-25": {
+        "en": "Adhering to documentation standards and templates",
+        "bg": "Спазване на стандартите и шаблоните за документация"
       }
     },
     "description": {
@@ -2150,6 +2242,98 @@
       "I1-22": {
         "en": "Encompasses the commitment to record product decisions and their reasoning to the organization's standards — what was decided, what was considered, what evidence applied, and what was assumed — so that direction is traceable and decisions can be revisited rather than relitigated.",
         "bg": "Обхваща ангажираността продуктовите решения и основанията за тях да бъдат записвани според стандартите на организацията — какво е решено, какво е било разгледано, какви доказателства са приложени и какво е било допуснато — така че посоката да остава проследима и решенията да могат да бъдат преразглеждани, вместо да бъдат преповтаряни като спор."
+      },
+      "E1-94": {
+        "en": "Encompasses knowledge of what makes technical writing effective — precision, unambiguity, consistent structure, plain-language principles, and writing for a reader who is trying to accomplish something rather than reading for interest.",
+        "bg": "Обхваща познанието какво прави техническото писане ефективно — точност, еднозначност, последователна структура, принципите на ясния език и писане за читател, който се опитва да изпълни конкретна задача, а не чете от интерес."
+      },
+      "E1-95": {
+        "en": "Encompasses knowledge of the distinct forms technical documentation takes — user guides, reference material, procedures and protocols, specifications, contractual deliverables, and release documentation — what each is for, and what a reader legitimately expects from each.",
+        "bg": "Обхваща познанието на отделните форми, които приема техническата документация — ръководства за потребителя, справочни материали, процедури и протоколи, спецификации, договорни резултати и документация при издаване — за какво служи всяка от тях и какво читателят основателно очаква от нея."
+      },
+      "E1-96": {
+        "en": "Encompasses knowledge of structuring documentation so readers can find what they need — organisation and navigation, modularity and single-sourcing, granularity of topics, and reuse across deliverables without divergence.",
+        "bg": "Обхваща познанието как документацията се структурира така, че читателите да намират нужното — организация и навигация, модулност и еднократно създаване с многократно използване, степен на подробност на темите и повторно използване между отделните резултати без разминаване между тях."
+      },
+      "E1-97": {
+        "en": "Encompasses knowledge of maintaining consistency of language across authors and documents — controlled vocabulary and glossaries, style guides, and the discipline of using one term for one concept, particularly where documentation exists in both Bulgarian and English.",
+        "bg": "Обхваща познанието как се поддържа последователност на езика между отделните автори и документи — контролиран речник и терминологични речници, ръководства за стил и дисциплината да се използва един термин за едно понятие, особено когато документацията съществува едновременно на български и на английски."
+      },
+      "E1-98": {
+        "en": "Encompasses knowledge of how documents move from draft through review, approval, publication, revision, and eventual archival or retirement — including version identification, change tracking, and retention obligations.",
+        "bg": "Обхваща познанието как документите преминават от чернова през преглед, одобрение, публикуване, преработване и евентуално архивиране или извеждане от употреба — включително обозначаването на версиите, проследяването на промените и задълженията за съхранение."
+      },
+      "E1-99": {
+        "en": "Encompasses knowledge of the formal documentation obligations that public-sector projects carry — mandatory deliverables and their required content, protocol and acceptance documentation, contractual formatting and submission requirements, and the standards a document must meet to be accepted by the receiving institution.",
+        "bg": "Обхваща познанието на формалните задължения за документиране, които произтичат от проектите в публичния сектор — задължителните резултати и изискваното им съдържание, протоколната и приемателната документация, договорните изисквания за оформление и подаване и стандартите, на които документът трябва да отговаря, за да бъде приет от получаващата институция."
+      },
+      "E1-100": {
+        "en": "Encompasses knowledge of making documents usable by everyone who needs them — accessibility requirements for published and electronic documents, readability and plain-language expectations, and accessible formats and structures for assistive technology.",
+        "bg": "Обхваща познанието как документите се правят използваеми за всички, които имат нужда от тях — изискванията за достъпност на публикуваните и електронните документи, очакванията за четимост и ясен език и достъпните формати и структури за помощни технологии."
+      },
+      "E1-101": {
+        "en": "Encompasses knowledge of obtaining accurate technical information from specialists — interviewing engineers and analysts productively, reading source material and code or configuration, and validating understanding before it is written down. *(Elicits technical fact; BA's E1-15 elicits requirements.)*",
+        "bg": "Обхваща познанието как се получава достоверна техническа информация от специалисти — ефективно интервюиране на инженери и анализатори, четене на изходни материали и на код или конфигурация и потвърждаване на разбирането, преди то да бъде записано."
+      },
+      "E1-102": {
+        "en": "Encompasses knowledge of when and how to use visual elements in technical documents — diagrams, tables, screenshots, and structured layouts — recognising where a visual conveys structure or process better than prose, and where it merely decorates.",
+        "bg": "Обхваща познанието кога и как се използват визуални елементи в техническите документи — диаграми, таблици, екранни снимки и структурирано оформление — като се разпознава кога визуалният елемент предава структура или процес по-добре от текста и кога само украсява."
+      },
+      "E2-108": {
+        "en": "Encompasses the applied skill of producing technical documents that let a reader accomplish a task or find a fact — accurate, complete, structured for scanning rather than reading through, and pitched at the reader's actual level of knowledge.",
+        "bg": "Обхваща приложното умение да се създават технически документи, които позволяват на читателя да изпълни задача или да намери факт — точни, пълни, структурирани по-скоро за преглеждане, отколкото за четене от начало до край, и съобразени с действителното ниво на познание на читателя."
+      },
+      "E2-109": {
+        "en": "Encompasses the applied skill of organising documentation as a coherent set rather than a pile of files — establishing structure and naming, deciding what is separate and what belongs together, and building navigation that survives growth.",
+        "bg": "Обхваща приложното умение документацията да се организира като съгласуван комплект, а не като купчина файлове — установяване на структура и именуване, преценка какво стои отделно и какво принадлежи заедно, и изграждане на навигация, която издържа на разрастване."
+      },
+      "E2-110": {
+        "en": "Encompasses the applied skill of examining documents critically — verifying technical accuracy against the subject, identifying gaps, inconsistencies, and unstated assumptions, and distinguishing substantive defects from matters of preference.",
+        "bg": "Обхваща приложното умение документите да се разглеждат критично — проверка на техническата точност спрямо предмета, разпознаване на пропуски, несъответствия и неизказани допускания и разграничаване на съществените дефекти от въпросите на личните предпочитания."
+      },
+      "E2-111": {
+        "en": "Encompasses the applied skill of checking that a deliverable meets its formal obligations — cross-referencing content against contractual and protocol requirements, confirming mandatory sections and formats, and identifying non-compliance before submission rather than after rejection.",
+        "bg": "Обхваща приложното умение да се провери, че даден резултат отговаря на формалните си задължения — съпоставяне на съдържанието с договорните и протоколните изисквания, потвърждаване на задължителните раздели и формати и разпознаване на несъответствията преди подаването, а не след отхвърлянето."
+      },
+      "E2-112": {
+        "en": "Encompasses the applied skill of extracting what needs documenting from people who know it — preparing well, asking questions that surface the non-obvious, respecting specialists' time, and getting review and confirmation without becoming a burden they avoid.",
+        "bg": "Обхваща приложното умение да се извлече от хората, които знаят, това, което подлежи на документиране — добра подготовка, въпроси, които изваждат наяве неочевидното, зачитане на времето на специалистите и осигуряване на преглед и потвърждение, без да се превърне в тежест, която те избягват."
+      },
+      "E2-113": {
+        "en": "Encompasses the applied skill of improving text without changing its meaning — tightening and clarifying, enforcing terminology and style consistently across authors, and preserving technical accuracy while making the language plainer.",
+        "bg": "Обхваща приложното умение текстът да се подобрява, без да се променя смисълът му — стегнато преформулиране и изясняване, последователно налагане на терминологията и стила между отделните автори и запазване на техническата точност при по-прост език."
+      },
+      "E2-114": {
+        "en": "Encompasses the applied skill of keeping documentation true as the systems it describes change — tracking what changed, identifying every affected document, and revising promptly rather than allowing documentation to drift silently out of date.",
+        "bg": "Обхваща приложното умение документацията да остава вярна, докато описваните системи се променят — проследяване какво се е променило, разпознаване на всеки засегнат документ и своевременно преработване, вместо документацията да остарява незабелязано."
+      },
+      "E2-115": {
+        "en": "Encompasses the applied skill of delivering documentation in the form it is required — publishing to the correct systems, generating required formats, meeting formatting and submission specifications, and handling the mechanics of production reliably.",
+        "bg": "Обхваща приложното умение документацията да се предоставя във вида, в който се изисква — публикуване в правилните системи, генериране на изискваните формати, спазване на изискванията за оформление и подаване и надеждно справяне с техническата страна на изготвянето."
+      },
+      "E3-43": {
+        "en": "Encompasses the practical judgment that accumulates from documenting real systems — knowing which explanations readers actually struggle with, anticipating what will be asked, and recognising where documentation habitually goes stale or gets ignored.",
+        "bg": "Обхваща практическата преценка, натрупана от документирането на действителни системи — знанието с кои обяснения читателите наистина се затрудняват, предвиждането какво ще бъде попитано и разпознаването къде документацията обичайно остарява или бива пренебрегвана."
+      },
+      "E3-44": {
+        "en": "Encompasses the practical ability to use the toolchain the function relies on — authoring and publishing systems, version control for documents, diagramming tools, terminology and translation memory tools, and the systems through which deliverables are submitted.",
+        "bg": "Обхваща практическата способност да се използва инструментариумът, на който се опира функцията — системите за създаване и публикуване, контролът на версиите на документи, средствата за диаграми, инструментите за терминология и преводаческа памет и системите, чрез които се подават резултатите."
+      },
+      "E3-45": {
+        "en": "Encompasses the practical ability to decide whether documentation is actually good enough — whether a reader could accomplish the task from it unaided, whether the gaps that remain matter, and when to say a deliverable is not ready despite deadline pressure.",
+        "bg": "Обхваща практическата способност да се реши дали документацията действително е достатъчно добра — дали читателят би могъл да изпълни задачата по нея без чужда помощ, дали останалите пропуски имат значение и кога да се заяви, че даден резултат не е готов въпреки натиска на срока."
+      },
+      "I1-23": {
+        "en": "Encompasses the commitment and ability to follow the organization's internal documentation process — intake and planning, drafting and review stages, approval and sign-off, and the function's role in relation to delivery and contractual milestones.",
+        "bg": "Обхваща ангажираността и способността да се следва вътрешният процес за документация на организацията — приемането на заявки и планирането, етапите на изготвяне и преглед, одобрението и подписването и ролята на функцията спрямо доставката и договорните етапи."
+      },
+      "I1-24": {
+        "en": "Encompasses the discipline of the review cycle — submitting work for technical and compliance review, reviewing others' documents constructively and on time, and pursuing approvals so that documentation is not the reason a milestone slips.",
+        "bg": "Обхваща дисциплината на цикъла на преглед — подаване на работата за техническа проверка и проверка за съответствие, конструктивен и навременен преглед на чуждите документи и придвижване на одобренията, така че документацията да не е причината за изоставане от даден етап."
+      },
+      "I1-25": {
+        "en": "Encompasses the commitment to follow the organization's documentation standards — approved templates, structural and formatting conventions, metadata and naming, and the traceability required for contractual and audit purposes. For this discipline these are not incidental hygiene but the substance of the work.",
+        "bg": "Обхваща ангажираността да се следват стандартите за документация на организацията — одобрените шаблони, конвенциите за структура и оформление, метаданните и именуването и проследимостта, необходима за договорни и одитни цели. За тази дисциплина те не са второстепенна формалност, а самата същност на работата."
       }
     },
     "scope": {
@@ -8782,6 +8966,604 @@
           "en": "Ensures the team records decisions and reasoning and aligns documentation with governance requirements.",
           "bg": "Осигурява екипът да записва решенията и основанията за тях и уеднаквява документацията с изискванията на управлението."
         }
+      },
+      "E1-94": {
+        "N": {
+          "en": "Knows basic principles of clear writing and applies given conventions under guidance.",
+          "bg": "Познава основните принципи на ясното писане и прилага зададените конвенции под ръководство."
+        },
+        "J": {
+          "en": "Applies technical writing conventions to straightforward material with supervision.",
+          "bg": "Прилага конвенциите на техническото писане към несложни материали с надзор."
+        },
+        "R": {
+          "en": "Independently applies technical writing principles to typical material, producing precise and usable text.",
+          "bg": "Самостоятелно прилага принципите на техническото писане към типични материали, като създава точен и използваем текст."
+        },
+        "S": {
+          "en": "Applies advanced principles to complex or ambiguous subject matter and mentors others in the craft.",
+          "bg": "Прилага усъвършенствани принципи към сложна или нееднозначна материя и напътства други в занаята."
+        },
+        "X": {
+          "en": "Recognized authority; defines technical writing standards across the organization.",
+          "bg": "Признат авторитет; определя стандартите за техническо писане в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team writes to a consistent standard and aligns practice with organizational requirements.",
+          "bg": "Осигурява екипът да пише по единен стандарт и уеднаквява практиката с изискванията на организацията."
+        }
+      },
+      "E1-95": {
+        "N": {
+          "en": "Recognizes the main documentation types and works within a given one under guidance.",
+          "bg": "Разпознава основните видове документация и работи в рамките на зададен вид под ръководство."
+        },
+        "J": {
+          "en": "Understands the purpose of common types and selects appropriately with supervision.",
+          "bg": "Разбира предназначението на разпространените видове и избира подходящия с надзор."
+        },
+        "R": {
+          "en": "Independently selects the right documentation type for typical needs and meets its conventions.",
+          "bg": "Самостоятелно избира правилния вид документация за типични нужди и спазва неговите конвенции."
+        },
+        "S": {
+          "en": "Designs documentation sets combining multiple types for complex deliverables and mentors others.",
+          "bg": "Проектира комплекти документация, съчетаващи няколко вида за сложни резултати, и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines the organization's documentation taxonomy and conventions.",
+          "bg": "Признат авторитет; определя таксономията и конвенциите за документация в организацията."
+        },
+        "T": {
+          "en": "Ensures the team produces the right documentation for each purpose.",
+          "bg": "Осигурява екипът да изготвя правилната документация за всяка цел."
+        }
+      },
+      "E1-96": {
+        "N": {
+          "en": "Works within an existing documentation structure under guidance.",
+          "bg": "Работи в рамките на съществуваща структура на документацията под ръководство."
+        },
+        "J": {
+          "en": "Organises straightforward documents sensibly with supervision.",
+          "bg": "Организира несложни документи разумно с надзор."
+        },
+        "R": {
+          "en": "Independently structures typical documentation sets for findability and maintainability.",
+          "bg": "Самостоятелно структурира типични комплекти документация за намираемост и поддържаемост."
+        },
+        "S": {
+          "en": "Designs architecture for large or reused documentation estates, resolves modularity questions, and mentors others.",
+          "bg": "Проектира архитектурата на големи или многократно използвани масиви от документация, решава въпросите на модулността и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines documentation architecture across the organization.",
+          "bg": "Признат авторитет; определя архитектурата на документацията в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team's documentation is well-structured and aligns architecture with reuse strategy.",
+          "bg": "Осигурява документацията на екипа да е добре структурирана и уеднаквява архитектурата със стратегията за повторно използване."
+        }
+      },
+      "E1-97": {
+        "N": {
+          "en": "Uses the given glossary and style guide under guidance.",
+          "bg": "Използва зададения терминологичен речник и ръководство за стил под ръководство."
+        },
+        "J": {
+          "en": "Applies terminology and style standards to straightforward work with supervision.",
+          "bg": "Прилага стандартите за терминология и стил към несложна работа с надзор."
+        },
+        "R": {
+          "en": "Independently applies standards consistently and identifies terminological drift in typical work.",
+          "bg": "Самостоятелно и последователно прилага стандартите и разпознава терминологичните отклонения при типична работа."
+        },
+        "S": {
+          "en": "Maintains terminology across complex or bilingual documentation estates and mentors others.",
+          "bg": "Поддържа терминологията в сложни или двуезични масиви от документация и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; owns terminology and style standards across the organization.",
+          "bg": "Признат авторитет; отговаря за стандартите за терминология и стил в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team writes consistently and aligns terminology with organizational standards.",
+          "bg": "Осигурява екипът да пише последователно и уеднаквява терминологията с организационните стандарти."
+        }
+      },
+      "E1-98": {
+        "N": {
+          "en": "Understands that documents are versioned and follows given procedures under guidance.",
+          "bg": "Разбира, че документите имат версии, и следва зададените процедури под ръководство."
+        },
+        "J": {
+          "en": "Manages straightforward document lifecycles with supervision.",
+          "bg": "Управлява несложни жизнени цикли на документи с надзор."
+        },
+        "R": {
+          "en": "Independently manages the lifecycle of typical documents, including versioning, approval, and retention.",
+          "bg": "Самостоятелно управлява жизнения цикъл на типични документи, включително версиите, одобрението и съхранението."
+        },
+        "S": {
+          "en": "Manages lifecycle across complex or contractually governed document sets and mentors others.",
+          "bg": "Управлява жизнения цикъл на сложни или договорно уредени комплекти документи и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines document lifecycle and retention practice across the organization.",
+          "bg": "Признат авторитет; определя практиката по жизнен цикъл и съхранение на документите в организацията."
+        },
+        "T": {
+          "en": "Ensures the team manages documents through their lifecycle and aligns practice with retention obligations.",
+          "bg": "Осигурява екипът да управлява документите през жизнения им цикъл и уеднаквява практиката със задълженията за съхранение."
+        }
+      },
+      "E1-99": {
+        "N": {
+          "en": "Aware that formal documentation requirements exist and follows a given checklist under guidance.",
+          "bg": "Осъзнава, че съществуват формални изисквания към документацията, и следва зададен контролен списък под ръководство."
+        },
+        "J": {
+          "en": "Knows the common requirements and applies them to straightforward deliverables with supervision.",
+          "bg": "Познава разпространените изисквания и ги прилага към несложни резултати с надзор."
+        },
+        "R": {
+          "en": "Independently identifies which contractual and regulatory requirements apply to typical deliverables and ensures they are met.",
+          "bg": "Самостоятелно разпознава кои договорни и нормативни изисквания се отнасят за типични резултати и осигурява спазването им."
+        },
+        "S": {
+          "en": "Navigates complex or contested documentation obligations across multiple contracts and institutions, and mentors others.",
+          "bg": "Ориентира се в сложни или оспорвани задължения за документиране по няколко договора и институции и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; advises the organization on documentation compliance and negotiates documentation terms.",
+          "bg": "Признат авторитет; консултира организацията относно съответствието на документацията и договаря условията за нея."
+        },
+        "T": {
+          "en": "Ensures the team's deliverables meet contractual and regulatory obligations.",
+          "bg": "Осигурява резултатите на екипа да отговарят на договорните и нормативните задължения."
+        }
+      },
+      "E1-100": {
+        "N": {
+          "en": "Aware that accessibility requirements apply to documents and follows given rules under guidance.",
+          "bg": "Осъзнава, че към документите се прилагат изисквания за достъпност, и следва зададените правила под ръководство."
+        },
+        "J": {
+          "en": "Applies common accessibility and readability requirements to straightforward documents with supervision.",
+          "bg": "Прилага разпространените изисквания за достъпност и четимост към несложни документи с надзор."
+        },
+        "R": {
+          "en": "Independently produces documents meeting the applicable accessibility and readability standards.",
+          "bg": "Самостоятелно изготвя документи, отговарящи на приложимите стандарти за достъпност и четимост."
+        },
+        "S": {
+          "en": "Resolves complex accessibility problems in documentation and mentors others.",
+          "bg": "Решава сложни проблеми с достъпността на документацията и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines document accessibility standards and advises on compliance obligations.",
+          "bg": "Признат авторитет; определя стандартите за достъпност на документите и консултира относно задълженията за съответствие."
+        },
+        "T": {
+          "en": "Ensures the team's documentation meets accessibility obligations.",
+          "bg": "Осигурява документацията на екипа да отговаря на задълженията за достъпност."
+        }
+      },
+      "E1-101": {
+        "N": {
+          "en": "Asks basic clarifying questions and works from provided material under guidance.",
+          "bg": "Задава основни уточняващи въпроси и работи с предоставени материали под ръководство."
+        },
+        "J": {
+          "en": "Gathers straightforward technical information from specialists with supervision.",
+          "bg": "Събира несложна техническа информация от специалисти с надзор."
+        },
+        "R": {
+          "en": "Independently elicits accurate technical information for typical subjects and validates understanding before writing.",
+          "bg": "Самостоятелно извлича достоверна техническа информация по типични теми и потвърждава разбирането си, преди да пише."
+        },
+        "S": {
+          "en": "Elicits from reluctant or unavailable specialists, works effectively from incomplete source material, and mentors others.",
+          "bg": "Извлича информация от неохотни или трудно достъпни специалисти, работи ефективно с непълни изходни материали и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; shapes how the organization captures technical knowledge from specialists.",
+          "bg": "Признат авторитет; оформя начина, по който организацията събира техническо знание от специалистите си."
+        },
+        "T": {
+          "en": "Ensures the team documents from verified understanding rather than assumption.",
+          "bg": "Осигурява екипът да документира въз основа на проверено разбиране, а не на допускания."
+        }
+      },
+      "E1-102": {
+        "N": {
+          "en": "Inserts provided visuals into documents under guidance.",
+          "bg": "Вмъква предоставени визуални елементи в документите под ръководство."
+        },
+        "J": {
+          "en": "Uses simple tables and screenshots appropriately with supervision.",
+          "bg": "Използва прости таблици и екранни снимки уместно с надзор."
+        },
+        "R": {
+          "en": "Independently selects and produces effective visuals for typical documentation.",
+          "bg": "Самостоятелно избира и изготвя ефективни визуални елементи за типична документация."
+        },
+        "S": {
+          "en": "Designs visual explanation for complex processes and systems and mentors others.",
+          "bg": "Проектира визуално обяснение на сложни процеси и системи и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; sets standards for visual communication in documentation.",
+          "bg": "Признат авторитет; определя стандартите за визуална комуникация в документацията."
+        },
+        "T": {
+          "en": "Ensures the team uses visuals purposefully and aligns visual practice with documentation standards.",
+          "bg": "Осигурява екипът да използва визуалните елементи целенасочено и уеднаквява визуалната практика със стандартите за документация."
+        }
+      },
+      "E2-108": {
+        "N": {
+          "en": "Drafts simple sections from templates under guidance; output requires substantial revision.",
+          "bg": "Пише прости раздели по шаблон под ръководство; резултатът изисква съществена преработка."
+        },
+        "J": {
+          "en": "Writes straightforward documentation with supervision, though structure and completeness need correction.",
+          "bg": "Пише несложна документация с надзор, макар структурата и пълнотата да се нуждаят от корекция."
+        },
+        "R": {
+          "en": "Independently writes accurate, well-structured documentation for typical subjects that needs little revision.",
+          "bg": "Самостоятелно пише точна и добре структурирана документация по типични теми, която се нуждае от малко преработка."
+        },
+        "S": {
+          "en": "Writes documentation for complex or poorly-understood subjects and mentors others in the craft.",
+          "bg": "Пише документация по сложни или слабо изяснени теми и напътства други в занаята."
+        },
+        "X": {
+          "en": "Recognized authority; produces the organization's most demanding documentation and sets the standard.",
+          "bg": "Признат авторитет; изготвя най-взискателната документация на организацията и задава стандарта."
+        },
+        "T": {
+          "en": "Ensures the team's documentation is accurate and usable and aligns output with organizational standards.",
+          "bg": "Осигурява документацията на екипа да е точна и използваема и уеднаквява резултата с организационните стандарти."
+        }
+      },
+      "E2-109": {
+        "N": {
+          "en": "Files documents into a given structure under guidance.",
+          "bg": "Подрежда документите в зададена структура под ръководство."
+        },
+        "J": {
+          "en": "Organises straightforward document sets with supervision.",
+          "bg": "Организира несложни комплекти документи с надзор."
+        },
+        "R": {
+          "en": "Independently structures typical documentation sets coherently and maintains navigability.",
+          "bg": "Самостоятелно структурира типични комплекти документация съгласувано и поддържа навигацията в тях."
+        },
+        "S": {
+          "en": "Restructures large or disordered documentation estates and mentors others.",
+          "bg": "Преструктурира големи или неподредени масиви от документация и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; owns documentation structure across the organization.",
+          "bg": "Признат авторитет; отговаря за структурата на документацията в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team's documentation remains organised and findable.",
+          "bg": "Осигурява документацията на екипа да остава организирана и намираема."
+        }
+      },
+      "E2-110": {
+        "N": {
+          "en": "Checks documents against a provided checklist under guidance.",
+          "bg": "Проверява документите по предоставен контролен списък под ръководство."
+        },
+        "J": {
+          "en": "Reviews straightforward documents with supervision, catching obvious errors and omissions.",
+          "bg": "Преглежда несложни документи с надзор, като улавя явните грешки и пропуски."
+        },
+        "R": {
+          "en": "Independently reviews typical documents for accuracy and completeness and identifies substantive gaps.",
+          "bg": "Самостоятелно преглежда типични документи за точност и пълнота и разпознава съществените пропуски."
+        },
+        "S": {
+          "en": "Reviews complex or high-stakes documentation, catches subtle inaccuracy, and mentors others in review.",
+          "bg": "Преглежда сложна документация или такава с висок залог, улавя неявни неточности и напътства други в прегледа."
+        },
+        "X": {
+          "en": "Recognized authority; final reviewer for the organization's most consequential documentation.",
+          "bg": "Признат авторитет; последен рецензент на най-съдбоносната документация на организацията."
+        },
+        "T": {
+          "en": "Ensures the team reviews rigorously and aligns review standards with the stakes of the deliverable.",
+          "bg": "Осигурява екипът да преглежда взискателно и съобразява стандартите за преглед със залога на съответния резултат."
+        }
+      },
+      "E2-111": {
+        "N": {
+          "en": "Checks documents against a provided requirements list under guidance.",
+          "bg": "Проверява документите спрямо предоставен списък с изисквания под ръководство."
+        },
+        "J": {
+          "en": "Verifies straightforward deliverables with supervision, though less obvious requirements are missed.",
+          "bg": "Проверява несложни резултати с надзор, макар по-малко очевидните изисквания да остават пропуснати."
+        },
+        "R": {
+          "en": "Independently verifies typical deliverables against their contractual and regulatory requirements and documents the check.",
+          "bg": "Самостоятелно проверява типични резултати спрямо договорните и нормативните им изисквания и документира проверката."
+        },
+        "S": {
+          "en": "Verifies complex deliverables across multiple overlapping obligations, resolves ambiguous requirements, and mentors others.",
+          "bg": "Проверява сложни резултати при няколко припокриващи се задължения, изяснява нееднозначните изисквания и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; adjudicates compliance on the organization's most significant deliverables.",
+          "bg": "Признат авторитет; отсъжда по съответствието на най-значимите резултати на организацията."
+        },
+        "T": {
+          "en": "Ensures nothing is submitted non-compliant and aligns verification with contractual obligations.",
+          "bg": "Осигурява нищо да не се подава в несъответствие и уеднаквява проверката с договорните задължения."
+        }
+      },
+      "E2-112": {
+        "N": {
+          "en": "Asks prepared questions and records answers under guidance.",
+          "bg": "Задава подготвени въпроси и записва отговорите под ръководство."
+        },
+        "J": {
+          "en": "Gathers information from cooperative specialists on straightforward subjects with supervision.",
+          "bg": "Събира информация от отзивчиви специалисти по несложни теми с надзор."
+        },
+        "R": {
+          "en": "Independently works with specialists for typical subjects, surfaces gaps in their explanations, and secures review.",
+          "bg": "Самостоятелно работи със специалисти по типични теми, изважда наяве пропуските в обясненията им и осигурява преглед."
+        },
+        "S": {
+          "en": "Works effectively with reluctant, busy, or inconsistent specialists on complex subjects, and mentors others.",
+          "bg": "Работи ефективно с неохотни, заети или непоследователни специалисти по сложни теми и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; trusted by senior specialists and shapes how technical knowledge is captured.",
+          "bg": "Признат авторитет; ползва се с доверието на старшите специалисти и оформя начина, по който се събира техническото знание."
+        },
+        "T": {
+          "en": "Ensures the team obtains accurate information efficiently and maintains good working relationships with specialists.",
+          "bg": "Осигурява екипът да получава достоверна информация ефективно и да поддържа добри работни отношения със специалистите."
+        }
+      },
+      "E2-113": {
+        "N": {
+          "en": "Corrects obvious language errors under guidance.",
+          "bg": "Поправя явните езикови грешки под ръководство."
+        },
+        "J": {
+          "en": "Edits straightforward text with supervision, focusing mainly on grammar and style.",
+          "bg": "Редактира несложен текст с надзор, като се съсредоточава главно върху граматиката и стила."
+        },
+        "R": {
+          "en": "Independently edits typical documentation for clarity and consistency while preserving technical accuracy.",
+          "bg": "Самостоятелно редактира типична документация за яснота и последователност, като запазва техническата точност."
+        },
+        "S": {
+          "en": "Edits complex or multi-author documentation into a single coherent voice and mentors others.",
+          "bg": "Редактира сложна документация или такава от няколко автори до един съгласуван глас и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; sets editorial standards for technical documentation across the organization.",
+          "bg": "Признат авторитет; определя редакторските стандарти за техническа документация в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team's output is clear and consistent regardless of author.",
+          "bg": "Осигурява резултатът на екипа да е ясен и последователен независимо от автора."
+        }
+      },
+      "E2-114": {
+        "N": {
+          "en": "Applies given updates to documents under guidance.",
+          "bg": "Нанася зададени актуализации в документите под ръководство."
+        },
+        "J": {
+          "en": "Updates straightforward documentation in response to notified changes with supervision.",
+          "bg": "Актуализира несложна документация при съобщени промени с надзор."
+        },
+        "R": {
+          "en": "Independently identifies affected documentation when systems change and revises it promptly and completely.",
+          "bg": "Самостоятелно разпознава засегнатата документация при промени в системите и я преработва своевременно и изчерпателно."
+        },
+        "S": {
+          "en": "Maintains large or interdependent documentation estates through significant change and mentors others.",
+          "bg": "Поддържа големи или взаимозависими масиви от документация през значителни промени и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines documentation maintenance practice across the organization.",
+          "bg": "Признат авторитет; определя практиката по поддържане на документацията в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team's documentation stays current and aligns maintenance with release cycles.",
+          "bg": "Осигурява документацията на екипа да остава актуална и уеднаквява поддържането ѝ с циклите на издаване."
+        }
+      },
+      "E2-115": {
+        "N": {
+          "en": "Produces documents in a given format using provided templates under guidance.",
+          "bg": "Изготвя документи в зададен формат по предоставени шаблони под ръководство."
+        },
+        "J": {
+          "en": "Produces and publishes straightforward documentation with supervision.",
+          "bg": "Изготвя и публикува несложна документация с надзор."
+        },
+        "R": {
+          "en": "Independently produces and delivers documentation in the required formats and channels for typical needs.",
+          "bg": "Самостоятелно изготвя и предоставя документация в изискваните формати и канали за типични нужди."
+        },
+        "S": {
+          "en": "Handles complex production requirements and multi-format delivery and mentors others.",
+          "bg": "Справя се със сложни изисквания за изготвяне и с предоставяне в няколко формата и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; defines documentation production and publishing standards.",
+          "bg": "Признат авторитет; определя стандартите за изготвяне и публикуване на документация."
+        },
+        "T": {
+          "en": "Ensures the team delivers documentation correctly and aligns production with delivery requirements.",
+          "bg": "Осигурява екипът да предоставя документацията правилно и уеднаквява изготвянето с изискванията за предаване."
+        }
+      },
+      "E3-43": {
+        "N": {
+          "en": "Has limited experience and applies lessons from training or a single project under guidance.",
+          "bg": "Има ограничен опит и прилага поуки от обучение или от един-единствен проект под ръководство."
+        },
+        "J": {
+          "en": "Draws on experience from a few projects for familiar subjects but relies on guidance when unfamiliar.",
+          "bg": "Ползва опита си от няколко проекта при познати теми, но разчита на напътствия при непознати."
+        },
+        "R": {
+          "en": "Applies experience across a range of work to make sound documentation decisions independently.",
+          "bg": "Прилага опита си в разнообразна работа, за да взема обосновани решения за документацията самостоятелно."
+        },
+        "S": {
+          "en": "Draws on deep, varied experience to handle difficult subjects and audiences, anticipates reader difficulty, and mentors others.",
+          "bg": "Ползва задълбочен и разнообразен опит, за да се справя с трудни теми и аудитории, предвижда затрудненията на читателя и напътства други."
+        },
+        "X": {
+          "en": "Recognized for exceptional documentation judgment; advises across the organization.",
+          "bg": "Признат за изключителна преценка по документацията; консултира цялата организация."
+        },
+        "T": {
+          "en": "Applies and shares accumulated experience to guide the team's documentation decisions.",
+          "bg": "Прилага и споделя натрупания опит, за да направлява решенията на екипа относно документацията."
+        }
+      },
+      "E3-44": {
+        "N": {
+          "en": "Uses basic tool features for simple tasks under guidance.",
+          "bg": "Използва основни функции на инструментите за прости задачи под ръководство."
+        },
+        "J": {
+          "en": "Uses the main features on routine work with supervision, though not always efficiently.",
+          "bg": "Използва основните функции при рутинна работа с надзор, макар и не винаги ефективно."
+        },
+        "R": {
+          "en": "Independently uses the toolchain effectively for typical work.",
+          "bg": "Самостоятелно и ефективно използва инструментариума при типична работа."
+        },
+        "S": {
+          "en": "Exploits advanced capabilities, establishes efficient authoring practice, and mentors others.",
+          "bg": "Използва разширените възможности, установява ефективна практика на създаване и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; evaluates and introduces tools and defines toolchain standards.",
+          "bg": "Признат авторитет; оценява и въвежда инструменти и определя стандартите за инструментариума."
+        },
+        "T": {
+          "en": "Ensures consistent, effective tool use across the team.",
+          "bg": "Осигурява последователно и ефективно използване на инструментите в екипа."
+        }
+      },
+      "E3-45": {
+        "N": {
+          "en": "Cannot reliably judge sufficiency; relies on reviewers to determine readiness.",
+          "bg": "Не може надеждно да прецени достатъчността; разчита на рецензентите да определят готовността."
+        },
+        "J": {
+          "en": "Assesses straightforward documentation with supervision but tends to over- or under-estimate what readers need.",
+          "bg": "Оценява несложна документация с надзор, но е склонен да надценява или подценява нуждите на читателя."
+        },
+        "R": {
+          "en": "Independently judges whether typical documentation is fit for its purpose and identifies the gaps that matter.",
+          "bg": "Самостоятелно преценява дали типичната документация е годна за целта си и разпознава пропуските, които имат значение."
+        },
+        "S": {
+          "en": "Judges fitness for complex or high-stakes deliverables, resists pressure to ship inadequate documentation, and mentors others.",
+          "bg": "Преценява годността на сложни резултати или такива с висок залог, устоява на натиска да бъде предадена недостатъчна документация и напътства други."
+        },
+        "X": {
+          "en": "Recognized authority; adjudicates readiness of the organization's most significant deliverables.",
+          "bg": "Признат авторитет; отсъжда по готовността на най-значимите резултати на организацията."
+        },
+        "T": {
+          "en": "Ensures the team judges fitness honestly and supports members in holding the line under deadline pressure.",
+          "bg": "Осигурява екипът да преценява годността честно и подкрепя членовете му да отстояват позицията си под натиска на сроковете."
+        }
+      },
+      "I1-23": {
+        "N": {
+          "en": "Follows the main process steps with guidance and reminders.",
+          "bg": "Следва основните стъпки от процеса с напътствия и напомняния."
+        },
+        "J": {
+          "en": "Follows the process on routine work with occasional correction.",
+          "bg": "Следва процеса при рутинна работа с епизодична корекция."
+        },
+        "R": {
+          "en": "Independently adheres to the full documentation process for typical work.",
+          "bg": "Самостоятелно спазва пълния процес за документация при типична работа."
+        },
+        "S": {
+          "en": "Applies the process rigorously on complex work, identifies gaps, and mentors others.",
+          "bg": "Прилага процеса взискателно при сложна работа, разпознава пропуските в него и напътства други."
+        },
+        "X": {
+          "en": "Shapes and improves the documentation process across the organization.",
+          "bg": "Оформя и подобрява процеса за документация в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team adheres consistently and aligns process use with delivery milestones.",
+          "bg": "Осигурява последователно спазване в екипа и уеднаквява използването на процеса с етапите на доставка."
+        }
+      },
+      "I1-24": {
+        "N": {
+          "en": "Submits work for review as instructed under guidance.",
+          "bg": "Подава работата за преглед според указанията под ръководство."
+        },
+        "J": {
+          "en": "Participates in review of straightforward documents with supervision.",
+          "bg": "Участва в прегледа на несложни документи с надзор."
+        },
+        "R": {
+          "en": "Independently manages review and approval for typical documents and reviews others' work constructively.",
+          "bg": "Самостоятелно управлява прегледа и одобрението на типични документи и преглежда чуждата работа конструктивно."
+        },
+        "S": {
+          "en": "Manages review across complex deliverables with multiple approvers and mentors others.",
+          "bg": "Управлява прегледа на сложни резултати с няколко одобряващи и напътства други."
+        },
+        "X": {
+          "en": "Shapes documentation review and approval practice across the organization.",
+          "bg": "Оформя практиката по преглед и одобряване на документи в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team completes review cycles promptly and aligns approval with delivery schedules.",
+          "bg": "Осигурява екипът да приключва циклите на преглед своевременно и уеднаквява одобрението с графиците за доставка."
+        }
+      },
+      "I1-25": {
+        "N": {
+          "en": "Uses given templates and follows basic conventions with guidance and reminders.",
+          "bg": "Използва зададените шаблони и следва основните конвенции с напътствия и напомняния."
+        },
+        "J": {
+          "en": "Applies standards to routine work with occasional correction.",
+          "bg": "Прилага стандартите към рутинна работа с епизодична корекция."
+        },
+        "R": {
+          "en": "Independently and consistently applies documentation standards, conventions, and metadata for typical work.",
+          "bg": "Самостоятелно и последователно прилага стандартите, конвенциите и метаданните за документация при типична работа."
+        },
+        "S": {
+          "en": "Applies and refines standards on complex deliverables, ensures traceability, and mentors others.",
+          "bg": "Прилага и усъвършенства стандартите при сложни резултати, осигурява проследимост и напътства други."
+        },
+        "X": {
+          "en": "Defines documentation standards and templates across the organization.",
+          "bg": "Дефинира стандартите и шаблоните за документация в цялата организация."
+        },
+        "T": {
+          "en": "Ensures the team adheres to standards and aligns documentation practice with audit and contractual requirements.",
+          "bg": "Осигурява екипът да спазва стандартите и уеднаквява практиката по документиране с одитните и договорните изисквания."
+        }
       }
     }
   },
@@ -9358,6 +10140,10 @@
       "PD": {
         "en": "Product Management",
         "bg": "Продуктово управление"
+      },
+      "TC": {
+        "en": "Technical Communication",
+        "bg": "Техническа комуникация"
       }
     },
     "description": {
@@ -9396,6 +10182,10 @@
       "PD": {
         "en": "Disciplines focused on product strategy and ownership.",
         "bg": "Дисциплини, фокусирани върху продуктова стратегия и собственост."
+      },
+      "TC": {
+        "en": "Disciplines focused on documenting systems and processes for users, clients and institutions — technical writing, document compliance verification, and knowledge management.",
+        "bg": "Дисциплини, фокусирани върху документирането на системи и процеси за потребители, клиенти и институции — техническо писане, проверка на съответствието на документите и управление на знанието."
       }
     },
     "SE": {
@@ -9529,10 +10319,6 @@
             "en": "Data Analysis",
             "bg": "Анализ на данни"
           },
-          "DOC_PROC": {
-            "en": "Documentation & Procedures",
-            "bg": "Документация и процедури"
-          },
           "SOLUTION_ARCHITECTURE": {
             "en": "Solution Architecture",
             "bg": "Архитектура на решения"
@@ -9554,10 +10340,6 @@
           "DATA_BA": {
             "en": "Business-oriented data analysis and reporting.",
             "bg": "Бизнес-ориентиран анализ на данни и отчетност."
-          },
-          "DOC_PROC": {
-            "en": "Documentation, procedures, and knowledge-base authoring.",
-            "bg": "Документация, процедури и създаване на бази знания."
           },
           "SOLUTION_ARCHITECTURE": {
             "en": "Designs solutions spanning several systems and institutions — interoperability, standards compliance, feasibility and cost — and justifies the chosen solution to the client.",
@@ -9802,6 +10584,38 @@
           "GROWTH": {
             "en": "Growth-focused product work and experimentation.",
             "bg": "Продуктова работа, фокусирана върху растеж и експерименти."
+          }
+        }
+      }
+    },
+    "TC": {
+      "specialization": {
+        "name": {
+          "TECHNICAL_WRITING": {
+            "en": "Technical Writing",
+            "bg": "Техническо писане"
+          },
+          "DOCUMENT_COMPLIANCE": {
+            "en": "Document Compliance",
+            "bg": "Съответствие на документите"
+          },
+          "KNOWLEDGE_MANAGEMENT": {
+            "en": "Knowledge Management",
+            "bg": "Управление на знанието"
+          }
+        },
+        "description": {
+          "TECHNICAL_WRITING": {
+            "en": "Producing user, operational and reference documentation for systems and processes.",
+            "bg": "Изготвяне на потребителска, експлоатационна и справочна документация за системи и процеси."
+          },
+          "DOCUMENT_COMPLIANCE": {
+            "en": "Reviewing and verifying documentation against contractual and regulatory requirements.",
+            "bg": "Преглед и проверка на документацията спрямо договорните и нормативните изисквания."
+          },
+          "KNOWLEDGE_MANAGEMENT": {
+            "en": "Organising and maintaining the organization's documented knowledge so it stays findable and current.",
+            "bg": "Организиране и поддържане на документираното знание на организацията, така че то да остава намираемо и актуално."
           }
         }
       }

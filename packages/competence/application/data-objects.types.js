@@ -39,6 +39,7 @@
  * @property {RoleFamily} IO
  * @property {RoleFamily} MC
  * @property {RoleFamily} PD
+ * @property {RoleFamily} TC
  */
 
 /**
@@ -328,7 +329,7 @@
  */
 
 /**
- * @typedef {"SE"|"QE"|"BA"|"PM"|"XD"|"DA"|"IO"|"MC"|"PD"} RoleFamilyCodeValue
+ * @typedef {"SE"|"QE"|"BA"|"PM"|"XD"|"DA"|"IO"|"MC"|"PD"|"TC"} RoleFamilyCodeValue
  */
 
 /**

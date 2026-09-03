@@ -75,7 +75,7 @@ This is the one thing worth understanding clearly before you make any edit here:
 
 Competency texts, and an archetype's name and description, are stored as translation labels rather than as live data. Editing them versions the change and makes it exportable, but it only becomes visible to everyone once that export has been committed and the application redeployed — it will not appear in the running application right away.
 
-Archetype assignments, an archetype's own twelve weights, role-family structure, and active competency sets work differently: they're stored data, not translation labels, so a save takes effect live — immediately, for evaluations that start from that point on.
+Archetype assignments, an archetype's own thirteen weights, role-family structure, and active competency sets work differently: they're stored data, not translation labels, so a save takes effect live — immediately, for evaluations that start from that point on.
 
 > **Note:** Either way, an evaluation already in progress is never touched. Every evaluation carries its own frozen snapshot from the moment it starts, so nothing you change here — live or not — reaches back into one that's already under way.
 
