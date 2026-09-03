@@ -280,7 +280,7 @@ Intentionally vacant. Content dropped, merged, or moved.
 |---|---|
 | Bulgarian translations | **Complete** — all 278 competencies carry `en` and `bg`, enforced by `competency-content-integrity.test.js` |
 | IO family | Not started |
-| Technical Communication (TC) | Family decision pending |
+| Technical Communication (TC) | **Resolved** — became the tenth family in Increment 8; `BA.DOC_PROC` retired |
 | Specialization content | Built: SE.ARCHITECTURE, SE.DATABASE_ARCHITECTURE, SE.AI_ENGINEERING, BA.SOLUTION_ARCHITECTURE. None for other specializations. |
 | e-CF mappings | Placeholders only |
 | Relevancy calibration | Archetype defaults; calibrate after cycle 1 |

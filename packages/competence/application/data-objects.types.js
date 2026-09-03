@@ -39,6 +39,7 @@
  * @property {RoleFamily} IO
  * @property {RoleFamily} MC
  * @property {RoleFamily} PD
+ * @property {RoleFamily} TC
  */
 
 /**

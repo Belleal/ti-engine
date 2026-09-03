@@ -503,7 +503,7 @@ The structural argument is what settles it: **baseline applies to every member o
 
 ### 8c. Registration points a new family touches
 
-Worth recording, because it is the first time this has been exercised and content-only increments touch none of it. Adding a family required **seven** changes beyond the competency content:
+Worth recording, because it is the first time this has been exercised and content-only increments touch none of it. Beyond creating the family itself in `config.role-families.json`, adding a family required **nine** registration changes across eight files:
 
 | File | Change |
 |---|---|
@@ -558,14 +558,29 @@ Assigned in `competency-relevancy-model.md` under *Assignments — TC family-spe
 - ✅ TC baseline satisfies floor coverage across all nine subcategories, 23 of the cap of 32.
 - ✅ **925 competence tests pass**; `eslint .` reports 0 errors (2 pre-existing warnings).
 - ✅ Content-integrity test passes: every competency carries non-empty `en` and `bg`.
-- ✅ No reference to `DOC_PROC` remains anywhere in the package.
+- ✅ No **operational** reference to `DOC_PROC` remains — none in configuration, code, labels or seeded employees. Historical references remain in the release documentation and in this change log, which is correct: they record a decision that was made and then reversed.
 - ✅ Purely additive on the competency side — no code dropped or renumbered, so **no evaluation data migration**. The taxonomy side is not additive: a deployment with employees on `BA`/`DOC_PROC` must reassign them.
 
 ### 8i. Correction — the incoming distribution table
 
 The design document's running-distribution table recorded TC as `B 6 · E 8`. Derived mechanically from the assignment rows, TC is `A 5 · B 7 · C 4 · E 7` — one competency transposed between B and E. The per-code rows were correct and the generator reads those, so no configuration was affected. Recorded because this table has now been wrong in three separate increments, always in the summary and never in the rows.
 
-### 8j. Deployment note
+### 8j. Upgrade consequence — an existing `role-families` document becomes invalid until drift is reconciled
+
+Verified empirically, not reasoned about: the `config.role-families.json` document as it stands on `master` before this release **fails validation against the new schema** with `should have required property 'TC'`.
+
+The mechanism is that `ConfigService.seedDefault` delegates to `ConfigStore.seedIfEmpty`, which writes the file default **only when the store has no document under that key**. An instance seeded before 3.31.0 therefore keeps its pre-TC `role-families` document across the upgrade. `ConfigService.applyEdits` validates every affected document against the *current* schema before writing, so until the stored document is reconciled:
+
+- **The Configuration screen cannot save an edit to Role Families** — the edit is rejected, not silently dropped, but the error names a missing `TC` property the admin never removed.
+- Nothing else breaks. Reads are unaffected, evaluations are unaffected, and the rest of the application does not validate this document on the read path.
+
+**The remedy already exists and is the designed one:** the **Configuration drift** panel (Administration → Configuration) reports the document as drifted and `applyFileDefaults` writes the current file default, TC included, as a single validated change-set. Startup logs a WARNING per drifted document, so the operator is told.
+
+**Reconcile `role-families` drift before editing role families on an upgraded instance.** This is a new obligation that content-only increments never created — they change store-backed documents whose schemas do not gain required keys. A family addition does, and every future family addition will do the same.
+
+*Open question deliberately not decided here: whether the framework should merge newly-required top-level keys into an existing document on load, rather than relying on drift reconciliation. That is a change to `web-framework`'s config layer affecting every package, so it is recorded rather than taken unilaterally.*
+
+### 8k. Deployment note
 
 As with Increments 6 and 7: competency texts are **labels** and the affected config documents are **store-backed**, so on an already-seeded instance the content reaches users through the **Configuration drift** panel (Administration → Configuration); startup logs a WARNING per drifted document until reconciled. `cycle.excludedFamilies` is derived once at cycle creation and never re-derived, so an existing seeded cycle will still exclude TC; Cycle Setup flags it as a stale exclusion. A UI-created cycle starts with an empty exclusion list and so includes TC already — which also means lock validation's `family-not-configured` rule now has **IO** as its only remaining trigger.
 

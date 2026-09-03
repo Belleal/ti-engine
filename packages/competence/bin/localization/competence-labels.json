@@ -2245,7 +2245,7 @@
       },
       "E1-94": {
         "en": "Encompasses knowledge of what makes technical writing effective — precision, unambiguity, consistent structure, plain-language principles, and writing for a reader who is trying to accomplish something rather than reading for interest.",
-        "bg": "Обхваща познанието какво прави техническото писане ефективно — точност, еднозначност, последователна структура, принципите на ясния език и писане за читател, който се опитва да свърши нещо, а не чете от интерес."
+        "bg": "Обхваща познанието какво прави техническото писане ефективно — точност, еднозначност, последователна структура, принципите на ясния език и писане за читател, който се опитва да изпълни конкретна задача, а не чете от интерес."
       },
       "E1-95": {
         "en": "Encompasses knowledge of the distinct forms technical documentation takes — user guides, reference material, procedures and protocols, specifications, contractual deliverables, and release documentation — what each is for, and what a reader legitimately expects from each.",
@@ -2257,7 +2257,7 @@
       },
       "E1-97": {
         "en": "Encompasses knowledge of maintaining consistency of language across authors and documents — controlled vocabulary and glossaries, style guides, and the discipline of using one term for one concept, particularly where documentation exists in both Bulgarian and English.",
-        "bg": "Обхваща познанието как се поддържа последователност на езика между отделните автори и документи — контролиран речник и терминологични речници, ръководства за стил и дисциплината един термин да означава едно понятие, особено когато документацията съществува едновременно на български и на английски."
+        "bg": "Обхваща познанието как се поддържа последователност на езика между отделните автори и документи — контролиран речник и терминологични речници, ръководства за стил и дисциплината да се използва един термин за едно понятие, особено когато документацията съществува едновременно на български и на английски."
       },
       "E1-98": {
         "en": "Encompasses knowledge of how documents move from draft through review, approval, publication, revision, and eventual archival or retirement — including version identification, change tracking, and retention obligations.",
@@ -2265,7 +2265,7 @@
       },
       "E1-99": {
         "en": "Encompasses knowledge of the formal documentation obligations that public-sector projects carry — mandatory deliverables and their required content, protocol and acceptance documentation, contractual formatting and submission requirements, and the standards a document must meet to be accepted by the receiving institution.",
-        "bg": "Обхваща познанието на формалните задължения за документиране, които носят проектите в публичния сектор — задължителните резултати и изискваното им съдържание, протоколната и приемателната документация, договорните изисквания за оформление и подаване и стандартите, на които документът трябва да отговаря, за да бъде приет от получаващата институция."
+        "bg": "Обхваща познанието на формалните задължения за документиране, които произтичат от проектите в публичния сектор — задължителните резултати и изискваното им съдържание, протоколната и приемателната документация, договорните изисквания за оформление и подаване и стандартите, на които документът трябва да отговаря, за да бъде приет от получаващата институция."
       },
       "E1-100": {
         "en": "Encompasses knowledge of making documents usable by everyone who needs them — accessibility requirements for published and electronic documents, readability and plain-language expectations, and accessible formats and structures for assistive technology.",
@@ -2277,7 +2277,7 @@
       },
       "E1-102": {
         "en": "Encompasses knowledge of when and how to use visual elements in technical documents — diagrams, tables, screenshots, and structured layouts — recognising where a visual conveys structure or process better than prose, and where it merely decorates.",
-        "bg": "Обхваща познанието кога и как се използват визуални елементи в техническите документи — диаграми, таблици, екранни снимки и структурирано оформление — с разпознаване къде визуалният елемент предава структура или процес по-добре от текста и къде само украсява."
+        "bg": "Обхваща познанието кога и как се използват визуални елементи в техническите документи — диаграми, таблици, екранни снимки и структурирано оформление — като се разпознава кога визуалният елемент предава структура или процес по-добре от текста и кога само украсява."
       },
       "E2-108": {
         "en": "Encompasses the applied skill of producing technical documents that let a reader accomplish a task or find a fact — accurate, complete, structured for scanning rather than reading through, and pitched at the reader's actual level of knowledge.",
@@ -2301,7 +2301,7 @@
       },
       "E2-113": {
         "en": "Encompasses the applied skill of improving text without changing its meaning — tightening and clarifying, enforcing terminology and style consistently across authors, and preserving technical accuracy while making the language plainer.",
-        "bg": "Обхваща приложното умение текстът да се подобрява, без да се променя смисълът му — стягане и изясняване, последователно налагане на терминологията и стила между отделните автори и запазване на техническата точност при по-прост език."
+        "bg": "Обхваща приложното умение текстът да се подобрява, без да се променя смисълът му — стегнато преформулиране и изясняване, последователно налагане на терминологията и стила между отделните автори и запазване на техническата точност при по-прост език."
       },
       "E2-114": {
         "en": "Encompasses the applied skill of keeping documentation true as the systems it describes change — tracking what changed, identifying every affected document, and revising promptly rather than allowing documentation to drift silently out of date.",
@@ -2333,7 +2333,7 @@
       },
       "I1-25": {
         "en": "Encompasses the commitment to follow the organization's documentation standards — approved templates, structural and formatting conventions, metadata and naming, and the traceability required for contractual and audit purposes. For this discipline these are not incidental hygiene but the substance of the work.",
-        "bg": "Обхваща ангажираността да се следват стандартите за документация на организацията — одобрените шаблони, конвенциите за структура и оформление, метаданните и именуването и проследимостта, необходима за договорни и одитни цели. За тази дисциплина те не са странична хигиена, а самата същност на работата."
+        "bg": "Обхваща ангажираността да се следват стандартите за документация на организацията — одобрените шаблони, конвенциите за структура и оформление, метаданните и именуването и проследимостта, необходима за договорни и одитни цели. За тази дисциплина те не са второстепенна формалност, а самата същност на работата."
       }
     },
     "scope": {
@@ -9420,7 +9420,7 @@
         },
         "R": {
           "en": "Applies experience across a range of work to make sound documentation decisions independently.",
-          "bg": "Прилага опита си в разнообразна работа, за да взема състоятелни решения за документацията самостоятелно."
+          "bg": "Прилага опита си в разнообразна работа, за да взема обосновани решения за документацията самостоятелно."
         },
         "S": {
           "en": "Draws on deep, varied experience to handle difficult subjects and audiences, anticipates reader difficulty, and mentors others.",
