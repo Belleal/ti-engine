@@ -484,3 +484,57 @@ describe( "onStart boot order — the chart must be built from the STORED tree, 
     } );
 
 } );
+
+describe( "configuration-loader — stored documents that no longer satisfy their schema", () => {
+
+    // Distinct from drift. Drift means the deployment serves OLDER content than the build ships, which somebody may
+    // have chosen. This means it serves content the build no longer considers well-formed — the state a store
+    // written before `role-families` required TC is in, where the first symptom is an unrelated admin edit rejected
+    // for a key nobody touched.
+
+    const stubWithViolations = ( listSchemaViolations ) => Object.assign(
+        stubServiceWithDrift( () => Promise.resolve( [] ) ),
+        { listSchemaViolations: listSchemaViolations }
+    );
+
+    it( "logs one ERROR per offending document, naming it and the reason", async () => {
+        const captured = await captureLogs( () => configurationLoader.initialize( stubWithViolations( () => Promise.resolve( [
+            { configKey: "role-families", errors: [ { path: "(root)", message: "must have required property 'TC'" } ] }
+        ] ) ) ) );
+
+        const errors = captured.filter( ( entry ) => entry.severity === logger.logSeverity.ERROR );
+        assert.equal( errors.length, 1 );
+        assert.match( errors[ 0 ].message, /role-families/ );
+        assert.match( errors[ 0 ].message, /required property 'TC'/ );
+        assert.match( errors[ 0 ].message, /Administration/, "the message names where to fix it" );
+    } );
+
+    it( "says nothing when every stored document validates", async () => {
+        const captured = await captureLogs( () => configurationLoader.initialize( stubWithViolations( () => Promise.resolve( [] ) ) ) );
+        assert.equal( captured.filter( ( entry ) => entry.severity === logger.logSeverity.ERROR ).length, 0 );
+    } );
+
+    it( "caps the detail it prints and says how much it left out", async () => {
+        const errors = Array.from( { length: 7 }, ( _, i ) => ( { path: `.k${ i }`, message: "schema violation" } ) );
+        const captured = await captureLogs( () => configurationLoader.initialize( stubWithViolations( () => Promise.resolve( [
+            { configKey: "competencies", errors: errors }
+        ] ) ) ) );
+
+        const line = captured.find( ( entry ) => entry.severity === logger.logSeverity.ERROR ).message;
+        assert.match( line, /\(\+4 more\)/ );
+    } );
+
+    it( "never gates boot when the check itself fails", async () => {
+        const captured = await captureLogs( () => configurationLoader.initialize(
+            stubWithViolations( () => Promise.reject( new Error( "registry unavailable" ) ) ) ) );
+        assert.ok( captured.some( ( entry ) => entry.severity === logger.logSeverity.WARNING ) );
+    } );
+
+    it( "tolerates a framework too old to offer the check", async () => {
+        // The competence package declares a floor, but a local link or a partial upgrade can still put an older
+        // web-framework underneath it; an absent capability must be silence, not a crash.
+        const captured = await captureLogs( () => configurationLoader.initialize( stubServiceWithDrift( () => Promise.resolve( [] ) ) ) );
+        assert.equal( captured.filter( ( entry ) => entry.severity === logger.logSeverity.ERROR ).length, 0 );
+    } );
+
+} );

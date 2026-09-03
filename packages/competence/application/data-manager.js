@@ -58,11 +58,21 @@ class DataManager {
     /* Public interface */
 
     /**
-     * Used to initialize the data manager. Ensures every managed collection exists, creating it as an empty document
-     * only when it is absent (`setJSON` with `NX`), so existing data is left intact and persists across restarts.
-     * When the `COMPETENCE_PRELOAD_DATA` env var is true, additionally merges the bootstrap configuration and seed
-     * files into the collections (re-applied on each start while the flag is set). This is a non-destructive seed —
-     * it does not wipe existing data.
+     * Used to initialize the data manager. Ensures every managed collection exists, creating it only when absent
+     * (`setJSON` with `NX`), so existing data is left intact and persists across restarts.
+     * <br/>
+     * Two different things used to arrive together and no longer do:
+     * <ul>
+     *   <li><b>Bootstrap content</b> — the role families and the active competency sets shipped with the release.
+     *       These are product content, not sample data: the runtime reads both from these collections rather than
+     *       from the frozen config, so a deployment that never received them has no baselines at all and every
+     *       family fails cycle-lock validation. They are written as the collection's initial value, which means
+     *       once, on the very first boot — an operator who later trims a baseline does not get it back.</li>
+     *   <li><b>Demo data</b> — employees, evaluations, and the cycles derived from the seeded cycle IDs, still
+     *       behind `COMPETENCE_PRELOAD_DATA` and still re-applied on every boot while the flag is set.</li>
+     * </ul>
+     * They were one flag until now, which meant a real install could have the curated baselines only by also
+     * taking eleven demo employees — permanently, since an employee is never deleted, only terminated.
      *
      * @method
      * @returns {Promise}
@@ -71,13 +81,19 @@ class DataManager {
     initialize() {
         let promises = [];
 
-        promises.push( cache.instance.setJSON( cacheEntryKeyActiveCompetencySets, {}, "$", 1 ) );
+        // Bootstrap content: shipped with the release and written as the collection's initial value, so it lands
+        // exactly once — on a store that has never held it — and is never re-imposed on a deployment that has since
+        // edited it. Frozen config is cloned because these collections are mutable at runtime.
+        const bootstrapRoleFamilies = _.cloneDeep( configurationLoader.configRoleFamilies || {} );
+        const bootstrapActiveSets = _.cloneDeep( configurationLoader.configActiveCompetencySets || {} );
+
+        promises.push( cache.instance.setJSON( cacheEntryKeyActiveCompetencySets, bootstrapActiveSets, "$", 1 ) );
         promises.push( cache.instance.setJSON( cacheEntryKeyAuditLog, this.#emptyAuditLogShape(), "$", 1 ) );
         promises.push( cache.instance.setJSON( cacheEntryKeyCalendars, {}, "$", 1 ) );
         promises.push( cache.instance.setJSON( cacheEntryKeyCycles, {}, "$", 1 ) );
         promises.push( cache.instance.setJSON( cacheEntryKeyEmployees, {}, "$", 1 ) );
         promises.push( cache.instance.setJSON( cacheEntryKeyEvaluations, {}, "$", 1 ) );
-        promises.push( cache.instance.setJSON( cacheEntryKeyRoleFamilies, {}, "$", 1 ) );
+        promises.push( cache.instance.setJSON( cacheEntryKeyRoleFamilies, bootstrapRoleFamilies, "$", 1 ) );
         promises.push( cache.instance.setJSON( cacheEntryKeyResultsSnapshots, {}, "$", 1 ) );
         promises.push( cache.instance.setJSON( cacheEntryKeyRoleGrants, {}, "$", 1 ) );
         promises.push( cache.instance.setJSON( cacheEntryKeyResearchConsent, { texts: {}, decisions: {} }, "$", 1 ) );
@@ -85,22 +101,10 @@ class DataManager {
         let preloadData = ( process.env.COMPETENCE_PRELOAD_DATA !== undefined ) ? tools.toBool( process.env.COMPETENCE_PRELOAD_DATA ) : false;
 
         if ( preloadData === true ) {
-            // Role families — frozen bootstrap configuration → mutable per-instance cache.
-            const roleFamilies = _.cloneDeep( configurationLoader.configRoleFamilies || {} );
-            for ( const [ familyCode, family ] of Object.entries( roleFamilies ) ) {
-                promises.push( cache.instance.editJSON( cacheEntryKeyRoleFamilies, { [ familyCode ]: family } ) );
-            }
-
-            // Active competency sets — keyed by (roleFamily, baseline|specializationCode, cycleID).
-            const activeSets = _.cloneDeep( configurationLoader.configActiveCompetencySets || {} );
-            for ( const [ familyCode, familyEntry ] of Object.entries( activeSets ) ) {
-                if ( familyEntry && typeof familyEntry === "object" ) {
-                    promises.push( cache.instance.editJSON( cacheEntryKeyActiveCompetencySets, { [ familyCode ]: familyEntry } ) );
-                }
-            }
-
-            // Cycles — synthesized from the cycle IDs referenced by the active-competency-sets configuration.
-            const seededCycles = this.#deriveSeededCycles( activeSets );
+            // Cycles — synthesized from the cycle IDs referenced by the active-competency-sets configuration. Demo
+            // data rather than bootstrap content: a cycle carries dates that are unlikely to match a real appraisal
+            // calendar, its `createdBy` names a seeded employee, and there is no way to delete one afterwards.
+            const seededCycles = this.#deriveSeededCycles( bootstrapActiveSets );
             for ( const cycle of seededCycles ) {
                 promises.push( cache.instance.editJSON( cacheEntryKeyCycles, { [ cycle.cycleID ]: cycle } ) );
             }

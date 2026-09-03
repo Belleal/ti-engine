@@ -54,15 +54,24 @@ pools and the active competency sets are checked against one another. If an
 apply is rejected, select the related documents and apply them together.</p>
 <p>If the panel says everything is up to date, there is nothing to do.</p>
 <h2 id="what-you-can-edit">What you can edit</h2>
-<p>Four editor screens, reached from Configuration, cover the parts of the application that are meant to be tuned rather than hard-coded.</p>
+<p>Six editor screens, reached from the Administration section of the sidebar, cover the parts of the application that are meant to be configured rather than hard-coded. The first four shape the competency model itself; the last two describe your organization and what you ask your people to consent to.</p>
 <h3 id="competency-texts">Competency Texts</h3>
 <p><strong>Competency Texts</strong> is where you edit each competency&#39;s name, description, and per-level scope anchors, in both English and Bulgarian side by side. This screen was built specifically for the Bulgarian-translation review pass, so both languages are always visible together instead of being handled on separate screens.</p>
 <h3 id="archetype-assignment">Archetype Assignment</h3>
 <p><strong>Archetype Assignment</strong> is where you choose which relevancy archetype — which curve of importance across the stage-levels — each competency uses. A preview of the curve appears alongside the picker, so you can see its shape before you commit to it.</p>
 <h3 id="archetype-curve-editor">Archetype Curve Editor</h3>
-<p><strong>Archetype Curve Editor</strong> is where the archetypes themselves live. For each one, you can edit its name, its description, and the twelve individual weights — one per stage-level — that make up its curve.</p>
+<p><strong>Archetype Curve Editor</strong> is where the archetypes themselves live. For each one, you can edit its name, its description, and the thirteen individual weights — one per stage-level — that make up its curve.</p>
 <h3 id="role-families">Role Families</h3>
 <p><strong>Role Families</strong> is where you edit each role family&#39;s name and description, and manage the specializations available within it.</p>
+<h3 id="organization-structure">Organization Structure</h3>
+<p><strong>Organization Structure</strong> is where your organization&#39;s unit tree lives — one row per unit, each with an ID, a name, a type, the ID of its parent unit, and the employee ID of its manager.</p>
+<p>This is the screen to use first on a new installation. The application ships with a small sample tree so it has something to start from, and that sample almost certainly isn&#39;t your organization. Two things depend on getting it right: an employee can only be imported into a unit that already exists here, and being named as a unit&#39;s manager is what makes somebody a Manager in the application. A tree that doesn&#39;t describe your organization therefore leaves your people without managers, and the appraisal process with nobody able to run it.</p>
+<p>Exactly one unit is the root: leave its parent blank. Every other unit names its parent, and the child lists are worked out from those — so moving a unit means changing one field on one row, and nothing on the units it moves between. Naming a manager who hasn&#39;t been imported yet is expected while you&#39;re setting up: it&#39;s reported rather than refused, and clears once the employees are loaded.</p>
+<p>Three things are refused, because each would leave the tree meaningless: more than one root, no root at all, and a loop where a unit ends up inside itself.</p>
+<h3 id="research-use-consent">Research-Use Consent</h3>
+<p><strong>Research-Use Consent</strong> is where you edit the statement employees are shown when they&#39;re asked whether their anonymized evaluation data may be used for analysis and research, along with the version number of that wording and whether the question is asked at all.</p>
+<p>The version number matters more than it looks. Every answer an employee gives is recorded against the version of the statement they were shown, which is what makes it evidence of what they actually agreed to. So changing any wording requires raising the version — a save that changes the text without moving the version is refused, deliberately.</p>
+<p>Turning the question off stops it being asked, stops it being required at submission, and releases nothing for research. It doesn&#39;t erase answers already given.</p>
 <h2 id="when-changes-take-effect">When changes take effect</h2>
 <p>This is the one thing worth understanding clearly before you make any edit here: not everything you save takes effect the same way.</p>
 <p>Competency texts, and an archetype&#39;s name and description, are stored as translation labels rather than as live data. Editing them versions the change and makes it exportable, but it only becomes visible to everyone once that export has been committed and the application redeployed — it will not appear in the running application right away.</p>

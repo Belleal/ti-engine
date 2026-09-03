@@ -51,7 +51,7 @@ If the panel says everything is up to date, there is nothing to do.
 
 ## What you can edit
 
-Four editor screens, reached from Configuration, cover the parts of the application that are meant to be tuned rather than hard-coded.
+Six editor screens, reached from the Administration section of the sidebar, cover the parts of the application that are meant to be configured rather than hard-coded. The first four shape the competency model itself; the last two describe your organization and what you ask your people to consent to.
 
 ### Competency Texts
 
@@ -63,11 +63,29 @@ Four editor screens, reached from Configuration, cover the parts of the applicat
 
 ### Archetype Curve Editor
 
-**Archetype Curve Editor** is where the archetypes themselves live. For each one, you can edit its name, its description, and the twelve individual weights — one per stage-level — that make up its curve.
+**Archetype Curve Editor** is where the archetypes themselves live. For each one, you can edit its name, its description, and the thirteen individual weights — one per stage-level — that make up its curve.
 
 ### Role Families
 
 **Role Families** is where you edit each role family's name and description, and manage the specializations available within it.
+
+### Organization Structure
+
+**Organization Structure** is where your organization's unit tree lives — one row per unit, each with an ID, a name, a type, the ID of its parent unit, and the employee ID of its manager.
+
+This is the screen to use first on a new installation. The application ships with a small sample tree so it has something to start from, and that sample almost certainly isn't your organization. Two things depend on getting it right: an employee can only be imported into a unit that already exists here, and being named as a unit's manager is what makes somebody a Manager in the application. A tree that doesn't describe your organization therefore leaves your people without managers, and the appraisal process with nobody able to run it.
+
+Exactly one unit is the root: leave its parent blank. Every other unit names its parent, and the child lists are worked out from those — so moving a unit means changing one field on one row, and nothing on the units it moves between. Naming a manager who hasn't been imported yet is expected while you're setting up: it's reported rather than refused, and clears once the employees are loaded.
+
+Three things are refused, because each would leave the tree meaningless: more than one root, no root at all, and a loop where a unit ends up inside itself.
+
+### Research-Use Consent
+
+**Research-Use Consent** is where you edit the statement employees are shown when they're asked whether their anonymized evaluation data may be used for analysis and research, along with the version number of that wording and whether the question is asked at all.
+
+The version number matters more than it looks. Every answer an employee gives is recorded against the version of the statement they were shown, which is what makes it evidence of what they actually agreed to. So changing any wording requires raising the version — a save that changes the text without moving the version is refused, deliberately.
+
+Turning the question off stops it being asked, stops it being required at submission, and releases nothing for research. It doesn't erase answers already given.
 
 ## When changes take effect
 

@@ -328,6 +328,41 @@ function reportConfigDrift( configService ) {
 }
 
 /**
+ * Logs every store-backed document whose stored value no longer satisfies its schema.
+ * <br/>
+ * Nothing validates on the way out of the store — {@link applyStoreValue} freezes whatever came back — so a
+ * deployment seeded before a schema tightened keeps serving a document that can no longer be saved. `role-families`
+ * is the worked example: it requires one key per family and forbids the rest, so a store written before the TC
+ * family existed fails its own schema, and the first sign of it is an unrelated admin edit rejected for "must have
+ * required property 'TC'".
+ * <br/>
+ * ERROR rather than WARNING, and distinct from drift: drift means the deployment is serving *older* content, which
+ * is a decision someone may have made deliberately. This means the deployment is serving content the application no
+ * longer considers well-formed. It still never gates boot — the app runs, and the fix is Administration →
+ * Configuration, not a restart.
+ *
+ * @method
+ * @param {Object} configService
+ * @returns {Promise}
+ * @private
+ */
+function reportSchemaViolations( configService ) {
+    if ( typeof configService.listSchemaViolations !== "function" ) {
+        return Promise.resolve();
+    }
+    return configService.listSchemaViolations().then( ( documents ) => {
+        for ( const document of ( documents || [] ) ) {
+            const detail = document.errors.slice( 0, 3 ).map( ( issue ) => `${ issue.path || "(root)" } ${ issue.message }` ).join( "; " );
+            const more = document.errors.length > 3 ? ` (+${ document.errors.length - 3 } more)` : "";
+            logger.log( `Stored configuration document '${ document.configKey }' does not satisfy the schema shipped with this build: ${ detail }${ more }. Until it is reconciled in Administration → Configuration, edits to it will be rejected.`, logger.logSeverity.ERROR );
+        }
+    } ).catch( ( error ) => {
+        // Diagnostics must never gate boot.
+        logger.log( "Unable to validate the stored configuration against its schemas at startup.", logger.logSeverity.WARNING, error );
+    } );
+}
+
+/**
  * Brings configuration under store control: seeds the store from the file defaults (empty-store-only), loads the
  * current store values into the exported config objects, and refreshes them whenever a `config:changed` event fires.
  * Idempotent. Reads stay synchronous — the exported `configX` objects are reassigned in place — and until this runs
@@ -361,5 +396,5 @@ module.exports.initialize = ( service ) => {
                 return require( "#organization-manager" ).instance.buildOrganizationChart();
             } );
         } );
-    } ).then( () => reportConfigDrift( configService ) );
+    } ).then( () => reportConfigDrift( configService ) ).then( () => reportSchemaViolations( configService ) );
 };

@@ -375,6 +375,37 @@ class ConfigService {
     }
 
     /**
+     * Reports every registered document whose **stored** value no longer satisfies its registered schema.
+     * <br/>
+     * Nothing validates a stored value on the way out: the store hands back whatever it holds, and a consumer
+     * freezes it into its config exports. That is fine until a release tightens a schema — adds a required
+     * top-level key, say — at which point a deployment seeded before the change keeps serving a document that
+     * cannot be saved any more. The failure surfaces much later, as an admin edit rejected for a key the admin
+     * never touched, in a screen that has nothing to do with the change.
+     * <br/>
+     * This answers that question at a moment when it is cheap to act on. It is deliberately schema-only (see
+     * {@link ConfigRegistry#validateSchema}) and deliberately read-only: reconciling a stale document is what the
+     * drift panel is for, and an automatic repair here would write config outside the audited change-set machinery.
+     * A document that has never been stored is not a violation and is omitted.
+     *
+     * @method
+     * @returns {Promise<Array<{configKey: string, errors: ConfigValidationIssue[]}>>} Empty when every stored
+     *          document validates.
+     * @public
+     */
+    listSchemaViolations() {
+        return Promise.all( this.#registry.list().map( ( configKey ) => {
+            return this.#store.getCurrent( configKey ).then( ( current ) => {
+                if ( !current ) {
+                    return null;
+                }
+                const result = this.#registry.validateSchema( configKey, current.value );
+                return result.valid ? null : { configKey: configKey, errors: result.errors };
+            } );
+        } ) ).then( ( results ) => results.filter( Boolean ) );
+    }
+
+    /**
      * Applies the registered file defaults for the given documents, as a single validated change-set.
      * <br/>
      * Routing through {@link ConfigService#applyEdits} is deliberate: the application is schema- and
