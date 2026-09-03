@@ -60,6 +60,29 @@ There are no other required services. (The framework can call peer ti-engine ser
   - `:X.Y.Z` — a released version (e.g. `:3.16.0`), published from a `competence-v*` git tag. **Use a pinned version tag in production.**
   - `:latest` — the most recent released version.
   - `:edge` — the tip of `master` (pre-release; for staging only).
+
+### Cutting a release
+
+Two routes, producing the same `competence-v<version>` tag and the same images. Which one you use depends on *which commit* you are releasing, not on preference.
+
+**Releasing the head of `master` — from the Actions tab, no local git needed.** Run the **CD** workflow with *Run workflow*, leave the branch on `master`, and enter the bare version — `3.31.0`, not `v3.31.0`. The workflow creates and pushes the tag, then builds and publishes in the same run.
+
+It refuses to proceed unless the version matches `packages/competence/package.json` at the commit it checked out, so a tag can never point at a commit that declares a different version. Bump the version on `master` first, then release it.
+
+It also refuses to move an existing tag onto a different commit — releases are immutable, so bump the version instead. Re-dispatching the *same* version at the *same* commit is a safe retry: the tag is left as it is and only the publish runs again, which is how you recover if a run created the tag and then failed before the images were pushed.
+
+Dispatching from any branch other than `master` is refused before the tag is created. That is not arbitrary: the Google workload-identity provider (`deploy/gcp/bootstrap.sh`) trusts only `refs/heads/master` and `refs/tags/competence-v*`, so a release cut from anywhere else would create the tag and then fail at Google authentication, leaving a version tag with no images behind it.
+
+**Releasing an older commit — push the tag yourself.** `workflow_dispatch` can only target a branch or a tag, never a bare commit, so a back-dated release is not something the Actions tab can do. Tag the commit directly instead; the tag push triggers the same publish, and `refs/tags/competence-v*` is authorized by the same workload-identity policy:
+
+```bash
+git tag -a competence-v3.31.0 <commit> -m "competence 3.31.0"
+git push origin competence-v3.31.0
+```
+
+Omit `<commit>` to tag `HEAD`. This path is unchanged and needs no dispatch.
+
+> The dispatch path builds and publishes inside the run that creates the tag rather than relying on the `push: tags:` trigger, because a tag pushed with `GITHUB_TOKEN` does not start another workflow.
 - **Base:** `node:22-alpine`, non-root (`node` user), `NODE_ENV=production`.
 - **Pulling:** if the package is public, `docker pull ghcr.io/belleal/ti-engine-competence:3.19.1`. If private, authenticate to GHCR first:
   ```bash
