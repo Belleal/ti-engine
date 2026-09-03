@@ -7,9 +7,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'competence version to release, e.g. 3.31.0 — must match packages/competence/package.json at the ref you run this from'
+        description: 'competence version to release, e.g. 3.31.0 — must match packages/competence/package.json on master'
         required: true
         type: string
+
+# No workflow-wide grant: every job below states the scopes it needs and nothing more.
+permissions: {}
 
 jobs:
   # Dispatch-only, and the only job that holds `contents: write`. Kept separate from `publish` so repository
@@ -18,38 +21,64 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
+      # To create and push the release tag. Nothing else in this job needs a scope.
       contents: write
     outputs:
       version: ${{ steps.create.outputs.version }}
     steps:
       - name: Checkout
+        # Credentials are deliberately persisted here: the tag push below authenticates with them.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # The version must match package.json at the checked-out ref, which makes it impossible to tag a commit
-      # that declares a different version — and means a back-dated release is simply dispatched from the commit
-      # that declares it.
       - name: Validate and create the release tag
         id: create
         env:
           VERSION: ${{ inputs.version }}
+          REF: ${{ github.ref }}
         run: |
           set -euo pipefail
+
+          # workflow_dispatch can only target a branch or a tag — never a bare commit ("No ref found for: <sha>")
+          # — and the Google workload-identity provider created by packages/competence/deploy/gcp/bootstrap.sh
+          # only trusts `refs/heads/master` or `refs/tags/competence-v*`. Dispatching from anywhere else would
+          # create the tag and then fail at Google authentication, leaving a release tag with no images. Refuse
+          # first, so an unauthorized dispatch stops with no side effects.
+          if [ "$REF" != "refs/heads/master" ]; then
+            echo "::error::Releases are dispatched from master; this run is on '$REF'. To release an older commit, push the tag by hand (see packages/competence/INSTALL.md §4)."
+            exit 1
+          fi
 
           case "$VERSION" in
             [0-9]*.[0-9]*.[0-9]*) ;;
             *) echo "::error::'$VERSION' is not a semantic version (expected e.g. 3.31.0)." ; exit 1 ;;
           esac
 
+          # The version must match package.json at the checked-out commit, so a tag can never point at a commit
+          # declaring a different version.
           PKG_VERSION="$( node -p "require('./packages/competence/package.json').version" )"
           if [ "$VERSION" != "$PKG_VERSION" ]; then
-            echo "::error::Requested $VERSION but packages/competence/package.json at ${GITHUB_SHA} declares $PKG_VERSION. Dispatch this workflow from the commit that declares the version you are releasing."
+            echo "::error::Requested $VERSION but packages/competence/package.json at ${GITHUB_SHA} declares $PKG_VERSION. Bump the version on master before releasing it."
             exit 1
           fi
 
           TAG="competence-v$VERSION"
-          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
-            echo "::error::Tag $TAG already exists. Releases are immutable — bump the version instead."
-            exit 1
+
+          # `refs/tags/X^{}` is the peeled commit of an annotated tag and empty for a lightweight one, where
+          # `refs/tags/X` is already the commit — so this resolves the tag's target either way.
+          PEELED="$( git ls-remote origin "refs/tags/$TAG^{}" | cut -f1 )"
+          PLAIN="$( git ls-remote origin "refs/tags/$TAG" | cut -f1 )"
+          TARGET="${PEELED:-$PLAIN}"
+
+          if [ -n "$TARGET" ]; then
+            if [ "$TARGET" != "$GITHUB_SHA" ]; then
+              echo "::error::Tag $TAG already exists at $TARGET, not ${GITHUB_SHA}. Releases are immutable — bump the version instead."
+              exit 1
+            fi
+            # Same commit: the tag was created by an earlier run whose publish did not finish. Re-dispatching is
+            # the retry, so hand the version on and let `publish` run again rather than failing on our own tag.
+            echo "Tag $TAG already points at ${GITHUB_SHA}; re-publishing without recreating it."
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           # actions/checkout persists GITHUB_TOKEN in the credential helper, so this push is already authenticated.
@@ -67,12 +96,17 @@ jobs:
     if: ${{ !cancelled() && ( needs.tag.result == 'success' || needs.tag.result == 'skipped' ) }}
     runs-on: ubuntu-latest
     permissions:
+      # Read the source, push images to GHCR, and mint the OIDC token for Google workload identity. Repository
+      # write access is deliberately absent — only the `tag` job above has it.
       contents: read
       packages: write
       id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing in the build runs git, so the token is not left in the runner's credential helper.
+          persist-credentials: false
       - name: Set up Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
       - name: Log in to GHCR
